@@ -141,6 +141,17 @@ REST_FRAMEWORK = {
     ),
 }
 
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),       # 🕒 1 hour access token
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),       # 🔁 7 day refresh token
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
+
+
 CORS_ALLOW_ALL_ORIGINS = True
 
 
