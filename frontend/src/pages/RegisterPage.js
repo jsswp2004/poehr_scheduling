@@ -11,6 +11,7 @@ function RegisterPage() {
     password: '',
     first_name: '',
     last_name: '',
+    role: 'patient', // Default role
   });
 
   const handleChange = (e) => {
@@ -94,6 +95,22 @@ function RegisterPage() {
             value={formData.password}
             required
           />
+        </div>
+
+        <div className="mb-4">
+          <label className="form-label">Role</label>
+          <select
+            name="role"
+            className="form-select"
+            onChange={handleChange}
+            value={formData.role}
+            required
+          >
+            <option value="patient">Patient</option>
+            <option value="receptionist">Receptionist</option>
+            <option value="doctor">Doctor</option>
+            <option value="admin">Admin</option>
+          </select>
         </div>
 
         <button type="submit" className="btn btn-primary w-100">Register</button>

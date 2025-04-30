@@ -9,18 +9,26 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Only show appointments for the logged-in user
-        return Appointment.objects.filter(patient=self.request.user).order_by('appointment_datetime')
+        user = self.request.user
+
+        if user.role == 'receptionist':
+            return Appointment.objects.all().order_by('appointment_datetime')
+        elif user.role == 'doctor':
+            return Appointment.objects.all().order_by('appointment_datetime')  # Customize if needed
+        elif user.role == 'admin':
+            return Appointment.objects.all().order_by('appointment_datetime')
+        elif user.role == 'patient':
+            return Appointment.objects.filter(patient=user).order_by('appointment_datetime')
+        else:
+            return Appointment.objects.none()
 
     def perform_create(self, serializer):
-        # Save the initial appointment
         appointment = serializer.save(patient=self.request.user)
 
         recurrence = appointment.recurrence
         start_time = appointment.appointment_datetime
         duration = appointment.duration_minutes
 
-        # Define how many times to repeat based on recurrence setting
         repeats = {
             'daily': 7,
             'weekly': 4,
@@ -37,7 +45,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             elif recurrence == 'monthly':
                 next_time = start_time + relativedelta(months=i)
             else:
-                continue  # Skip if 'none' or unrecognized
+                continue
 
             Appointment.objects.create(
                 patient=appointment.patient,
