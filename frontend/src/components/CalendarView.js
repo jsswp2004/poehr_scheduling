@@ -9,6 +9,13 @@ import { toast } from 'react-toastify';
 
 const localizer = momentLocalizer(moment);
 
+const isPastAppointment = (dateString) => {
+    const now = new Date();
+    const appointmentDate = new Date(dateString);
+    return appointmentDate < now;
+  };
+  
+
 // ✅ Helper to convert UTC to local datetime input value
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -86,7 +93,9 @@ function CalendarView() {
       toast.warning('You cannot create appointments in the past.');
       return;
     }
+  
     setIsEditing(false);
+    setIsPast(false); // ✅ reset past flag
     setEditingId(null);
     setSelectedDate(start);
     setModalFormData({
@@ -98,8 +107,14 @@ function CalendarView() {
     });
     setShowModal(true);
   };
+  
+
+  const [isPast, setIsPast] = useState(false);
 
   const handleSelectEvent = (event) => {
+    const past = isPastAppointment(event.start);
+    setIsPast(past);
+  
     setIsEditing(true);
     setEditingId(event.id);
     setSelectedDate(new Date(event.start));
@@ -112,6 +127,7 @@ function CalendarView() {
     });
     setShowModal(true);
   };
+  
 
   const handleModalSave = async () => {
     const payload = {
@@ -206,6 +222,7 @@ function CalendarView() {
                     type="text"
                     value={modalFormData.title}
                     onChange={(e) => setModalFormData({ ...modalFormData, title: e.target.value })}
+                    disabled={isPast}
                   />
                 </Form.Group>
 
@@ -216,6 +233,7 @@ function CalendarView() {
                     rows={3}
                     value={modalFormData.description}
                     onChange={(e) => setModalFormData({ ...modalFormData, description: e.target.value })}
+                    disabled={isPast}
                   />
                 </Form.Group>
 
@@ -226,7 +244,9 @@ function CalendarView() {
                     value={modalFormData.appointment_datetime}
                     onChange={(e) =>
                       setModalFormData({ ...modalFormData, appointment_datetime: e.target.value })
+                      
                     }
+                    disabled={isPast}
                   />
                 </Form.Group>
 
@@ -240,7 +260,9 @@ function CalendarView() {
                         ...modalFormData,
                         duration_minutes: parseInt(e.target.value) || 0,
                       })
+                      
                     }
+                    disabled={isPast}
                   />
                 </Form.Group>
 
@@ -251,6 +273,7 @@ function CalendarView() {
                     onChange={(e) =>
                       setModalFormData({ ...modalFormData, recurrence: e.target.value })
                     }
+                    disabled={isPast}
                   >
                     <option value="none">None</option>
                     <option value="daily">Daily</option>
@@ -264,15 +287,20 @@ function CalendarView() {
                 <Button variant="secondary" onClick={() => setShowModal(false)}>
                     Cancel
                 </Button>
-                {isEditing && (
+                {isEditing && !isPast && (
                     <Button variant="danger" onClick={handleDeleteAppointment}>
                     Delete
                     </Button>
                 )}
-                <Button variant="primary" onClick={handleModalSave}>
+                <Button
+                    variant="primary"
+                    onClick={handleModalSave}
+                    disabled={isEditing && isPast} // ✅ prevent updating past appointments
+                >
                     {isEditing ? 'Update' : 'Save'}
                 </Button>
             </Modal.Footer>
+
 
           </Modal>
         </div>
