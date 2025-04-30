@@ -215,6 +215,12 @@ function CalendarView() {
               <Modal.Title>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
+            {isPast && (
+            <div className="alert alert-warning" role="alert">
+                ⚠️ Past appointments cannot be edited.
+            </div>
+            )}
+
               <Form>
                 <Form.Group className="mb-3">
                   <Form.Label>Title</Form.Label>
