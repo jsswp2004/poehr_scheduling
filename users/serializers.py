@@ -2,16 +2,23 @@ from rest_framework import serializers
 from .models import CustomUser
 
 class UserSerializer(serializers.ModelSerializer):
+    provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
+
     class Meta:
         model = CustomUser
         fields = (
             'id', 'username', 'email', 'password',
-            'first_name', 'last_name', 'role', 'provider'
+            'first_name', 'last_name', 'role', 'provider', 'provider_name'  # ✅ include provider_name
         )
         extra_kwargs = {
             'password': {'write_only': True},
             'provider': {'required': False, 'allow_null': True}
         }
+
+    def get_provider_name(self, obj):
+        if obj.provider:
+            return f"{obj.provider.first_name} {obj.provider.last_name}"
+        return None
 
     def create(self, validated_data):
         provider_id = validated_data.pop('provider', None)
@@ -34,4 +41,3 @@ class UserSerializer(serializers.ModelSerializer):
                 pass  # Optional: handle the case if the doctor ID is invalid
 
         return user
-
