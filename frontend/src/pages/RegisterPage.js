@@ -34,13 +34,24 @@ function RegisterPage() {
     });
   };
 
+  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
+    // Map `assigned_doctor` to `provider` if patient
     const payload = isPatient
-      ? { ...formData, role: 'patient' }
+      ? {
+          ...formData,
+          role: 'patient',
+          provider: formData.assigned_doctor, // 👈 this is the key fix
+        }
       : { ...formData };
-
+  
+      console.log('Assigned doctor:', formData.assigned_doctor); // debug
+      console.log('Submitting payload:', payload);
+      
+  
     try {
       await axios.post('http://127.0.0.1:8000/api/auth/register/', payload);
       toast.success('Registration successful! Please login.');
@@ -50,6 +61,7 @@ function RegisterPage() {
       toast.error('Registration failed. Please try again.');
     }
   };
+  
 
   return (
     <div className="container mt-5">
@@ -140,6 +152,7 @@ function RegisterPage() {
               <option value="receptionist">Receptionist</option>
               <option value="doctor">Doctor</option>
               <option value="admin">Admin</option>
+              <option value="registrar">Registrar</option>
             </select>
           </div>
         )}

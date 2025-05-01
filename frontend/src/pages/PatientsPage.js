@@ -9,7 +9,7 @@ function PatientsPage() {
     const fetchPatients = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const res = await axios.get('http://127.0.0.1:8000/api/patients/', {
+        const res = await axios.get('http://127.0.0.1:8000/api/users/patients/', {
           headers: {
             Authorization: `Bearer ${token}`
           }
