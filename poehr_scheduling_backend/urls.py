@@ -19,8 +19,9 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/auth/', include('users.urls')),
-    path('api/', include('appointments.urls')),
-    
-
+    path('api/auth/', include('users.urls')),       # ✅ Keep this for login/register/token
+    path('api/', include('appointments.urls')),     # ✅ Appointment API
+    path('api/users/', include('users.urls')),  # ✅ This is the correct one
+    # path('api/users/', include('users.user_urls')), # 👈 Fix: Separate file if you want a clean separation
 ]
+
