@@ -29,7 +29,7 @@ class RegisterView(generics.CreateAPIView):
     """
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
-
+    permission_classes = [AllowAny]  # ✅ This line is critical
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     """
