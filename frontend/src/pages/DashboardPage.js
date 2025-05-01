@@ -1,3 +1,4 @@
+import Select from 'react-select';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import CalendarView from '../components/CalendarView';
@@ -11,6 +12,8 @@ function toLocalDatetimeString(dateObj) {
 }
 
 function DashboardPage() {
+  const [doctors, setDoctors] = useState([]);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [appointments, setAppointments] = useState([]);
@@ -27,6 +30,23 @@ function DashboardPage() {
   const token = localStorage.getItem('access_token');
 
   useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const options = res.data.map(doc => ({
+          value: doc.id,
+          label: `Dr. ${doc.first_name} ${doc.last_name}`
+        }));
+        setDoctors(options);
+      } catch (error) {
+        console.error('Failed to fetch doctors:', error);
+      }
+    };
+  
+    fetchDoctors();
+
     const fetchAppointments = async () => {
       try {
         const response = await axios.get('http://127.0.0.1:8000/api/appointments/', {
@@ -93,15 +113,22 @@ function DashboardPage() {
   
   const handleSubmit = async (e) => {
     e.preventDefault();
+  
+    // ✅ Combine doctor selection with form data
+    const payload = {
+      ...formData,
+      doctor: selectedDoctor?.value || null,
+    };
+  
     try {
       if (editMode && editingId) {
-        await axios.put(`http://127.0.0.1:8000/api/appointments/${editingId}/`, formData, {
+        await axios.put(`http://127.0.0.1:8000/api/appointments/${editingId}/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Appointment updated!');
       } else {
-        console.log("Submitting appointment data:", formData); // ✅ ADD THIS
-        await axios.post('http://127.0.0.1:8000/api/appointments/', formData, {
+        console.log("Submitting appointment data:", payload);
+        await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Appointment created!');
@@ -111,15 +138,19 @@ function DashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAppointments(refreshed.data);
+  
+      // ✅ Reset fields
       setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
+      setSelectedDoctor(null);
       setEditMode(false);
       setEditingId(null);
-      setShowForm(false); // ✅ COLLAPSE FORM AFTER SUBMIT
+      setShowForm(false);
     } catch (error) {
       console.error(error);
       toast.error('Failed to save appointment.');
     }
   };
+  
   
 
   return (
@@ -219,6 +250,18 @@ function DashboardPage() {
                     <option value="monthly">Monthly</option>
                   </select>
                 </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Select Doctor</label>
+                  <Select
+                    options={doctors}
+                    value={selectedDoctor}
+                    onChange={setSelectedDoctor}
+                    placeholder="Search or select doctor..."
+                    isClearable
+                  />
+                </div>
+
 
                 <div className="d-flex gap-2">
                   <button type="submit" className="btn btn-primary w-100">
