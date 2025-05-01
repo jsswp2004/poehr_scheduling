@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 
 from .models import CustomUser
 from .serializers import UserSerializer
@@ -42,17 +43,43 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 @permission_classes([IsAuthenticated])
 def get_patients(request):
     """
-    Return a list of patients assigned to the logged-in doctor.
-    Only accessible by users with role 'doctor'.
+    Returns a paginated list of patients:
+    - If doctor: only assigned patients
+    - If registrar: all patients
+    Supports search and provider filtering.
     """
     user = request.user
-    if user.role != 'doctor':
+
+    if user.role not in ['doctor', 'registrar']:
         return Response({'detail': 'Access denied'}, status=403)
 
-    # ✅ Only get patients assigned to this doctor
-    patients = CustomUser.objects.filter(role='patient', provider=user)
-    serializer = UserSerializer(patients, many=True)
-    return Response(serializer.data)
+    # Base queryset
+    if user.role == 'doctor':
+        patients = CustomUser.objects.filter(role='patient', provider=user)
+    else:  # registrar
+        patients = CustomUser.objects.filter(role='patient')
+
+    # Filters
+    search = request.GET.get('search')
+    provider_id = request.GET.get('provider')
+
+    if search:
+        patients = patients.filter(
+            first_name__icontains=search
+        ) | patients.filter(
+            last_name__icontains=search
+        )
+
+    if provider_id:
+        patients = patients.filter(provider_id=provider_id)
+
+    # Pagination
+    paginator = PageNumberPagination()
+    paginator.page_size = 25  # Default per page
+    result_page = paginator.paginate_queryset(patients.order_by('last_name'), request)
+    serializer = UserSerializer(result_page, many=True, context={'request': request})
+
+    return paginator.get_paginated_response(serializer.data)
 
 def validate(self, attrs):
     data = super().validate(attrs)
