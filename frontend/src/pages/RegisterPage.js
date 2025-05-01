@@ -5,13 +5,15 @@ import { useNavigate } from 'react-router-dom';
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const [isPatient, setIsPatient] = useState(true);
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     first_name: '',
     last_name: '',
-    role: 'patient', // Default role
+    role: 'patient',
   });
 
   const handleChange = (e) => {
@@ -23,8 +25,12 @@ function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Always force role to "patient" if isPatient is true
+    const payload = isPatient ? { ...formData, role: 'patient' } : formData;
+
     try {
-      const res = await axios.post('http://127.0.0.1:8000/api/auth/register/', formData);
+      await axios.post('http://127.0.0.1:8000/api/auth/register/', payload);
       toast.success('Registration successful! Please login.');
       navigate('/login');
     } catch (error) {
@@ -97,21 +103,56 @@ function RegisterPage() {
           />
         </div>
 
-        <div className="mb-4">
-          <label className="form-label">Role</label>
-          <select
-            name="role"
-            className="form-select"
-            onChange={handleChange}
-            value={formData.role}
-            required
-          >
-            <option value="patient">Patient</option>
-            <option value="receptionist">Receptionist</option>
-            <option value="doctor">Doctor</option>
-            <option value="admin">Admin</option>
-          </select>
+        <div className="mb-3">
+          <label className="form-label">Are you a patient?</label>
+          <div>
+            <div className="form-check form-check-inline">
+              <input
+                className="form-check-input"
+                type="radio"
+                name="isPatient"
+                id="patientYes"
+                value="yes"
+                checked={isPatient}
+                onChange={() => {
+                  setIsPatient(true);
+                  setFormData({ ...formData, role: 'patient' });
+                }}
+              />
+              <label className="form-check-label" htmlFor="patientYes">Yes</label>
+            </div>
+            <div className="form-check form-check-inline">
+              <input
+                className="form-check-input"
+                type="radio"
+                name="isPatient"
+                id="patientNo"
+                value="no"
+                checked={!isPatient}
+                onChange={() => setIsPatient(false)}
+              />
+              <label className="form-check-label" htmlFor="patientNo">No</label>
+            </div>
+          </div>
         </div>
+
+        {!isPatient && (
+          <div className="mb-4">
+            <label className="form-label">Role</label>
+            <select
+              name="role"
+              className="form-select"
+              onChange={handleChange}
+              value={formData.role}
+              required
+            >
+              <option value="">Select a role</option>
+              <option value="receptionist">Receptionist</option>
+              <option value="doctor">Doctor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        )}
 
         <button type="submit" className="btn btn-primary w-100">Register</button>
       </form>

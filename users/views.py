@@ -1,13 +1,34 @@
 from rest_framework import generics
-from .serializers import UserSerializer
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
 from .models import CustomUser
+from .serializers import UserSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
 
-# ✅ This must be outside the RegisterView class
+
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_patients(request):
+    """
+    Return a list of users with the role 'patient'.
+    Only accessible by users with role 'doctor'.
+    """
+    user = request.user
+    if user.role != 'doctor':
+        return Response({'detail': 'Access denied'}, status=403)
+
+    patients = CustomUser.objects.filter(role='patient')
+    serializer = UserSerializer(patients, many=True)
+    return Response(serializer.data)
