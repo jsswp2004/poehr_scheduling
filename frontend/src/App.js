@@ -6,6 +6,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
+import PatientsPage from './pages/PatientsPage';
 
 function App() {
   return (
@@ -14,8 +15,10 @@ function App() {
       <ToastContainer position="top-center" />
       <Routes>
         <Route path="/" element={ <PrivateRoute> <DashboardPage /> </PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} /> {/* ✅ Added */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/patients" element={<PatientsPage />} />
       </Routes>
     </Router>
   );

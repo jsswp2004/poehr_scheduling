@@ -2,6 +2,8 @@ import { toast } from 'react-toastify';
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from "jwt-decode";
+
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -21,11 +23,28 @@ function LoginPage() {
     e.preventDefault();
     try {
       const response = await axios.post('http://127.0.0.1:8000/api/auth/login/', formData);
-      localStorage.setItem('access_token', response.data.access);
-      localStorage.setItem('refresh_token', response.data.refresh);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
+      const { access, refresh } = response.data;
+
+      // Store tokens
+      localStorage.setItem('access_token', access);
+      localStorage.setItem('refresh_token', refresh);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
+      // Decode token to get role
+      const decoded = jwtDecode(access);
+      const userRole = decoded.role;
+
       toast.success('Login successful!');
-      navigate('/');
+
+      // Redirect based on role
+      if (userRole === 'doctor') {
+        navigate('/patients');
+      } else if (userRole === 'receptionist') {
+        navigate('/appointments');
+      } else {
+        navigate('/dashboard'); // Default (e.g., patient)
+      }
+
     } catch (error) {
       console.error(error.response?.data || error.message);
       toast.error('Login failed. Please check your credentials.');
@@ -36,10 +55,9 @@ function LoginPage() {
     <div className="container mt-5">
       <div className="row justify-content-center">
         <div className="col-md-6">
-          <h2 className="mb-4 text-center">Login</h2>
           <form onSubmit={handleSubmit}>
             <div className="mb-3">
-              <label htmlFor="username" className="form-label">Username</label>
+              <label htmlFor="username" className="form-label">User</label>
               <input
                 type="text"
                 name="username"
