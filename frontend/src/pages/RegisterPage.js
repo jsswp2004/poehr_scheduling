@@ -1,7 +1,8 @@
 import { toast } from 'react-toastify';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import Select from 'react-select';
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -117,6 +118,7 @@ function RegisterPage() {
         </div>
 
         {/* Doctor Dropdown for Patients */}
+        {/*  
         {isPatient && (
           <div className="mb-3">
             <label className="form-label">Select Doctor</label>
@@ -134,6 +136,23 @@ function RegisterPage() {
                 </option>
               ))}
             </select>
+          </div>
+        )}
+        */}
+        {isPatient && (
+          <div className="mb-3">
+            <label className="form-label">Select Doctor</label>
+            <Select
+              options={doctors.map((doc) => ({
+                value: doc.id,
+                label: `Dr. ${doc.first_name} ${doc.last_name}`,
+              }))}
+              placeholder="Search or select doctor..."
+              onChange={(selected) =>
+                setFormData({ ...formData, assigned_doctor: selected?.value || '' })
+              }
+              isClearable
+            />
           </div>
         )}
 
