@@ -22,6 +22,7 @@ function DashboardPage() {
     appointment_datetime: '',
     duration_minutes: 30,
     recurrence: 'none',
+    provider: null, // This will be set to the selected doctor ID
   });
   const [showForm, setShowForm] = useState(false);
 
@@ -47,14 +48,23 @@ function DashboardPage() {
           },
         });
         setAppointments(response.data);
+        if (response.data && response.data.length > 0) {
+          const doctorId = response.data[0].doctor;  // Assuming you have a doctor field in your appointments data
+          const matchedDoctor = doctors.find(doc => doc.id === doctorId);
+          setSelectedDoctor(matchedDoctor ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` } : null);
+        }
       } catch (error) {
         console.error('Error fetching appointments:', error);
       }
     };
 
-    fetchDoctors();
-    fetchAppointments();
-  }, [token]);
+    if (doctors.length === 0) {
+      fetchDoctors();  // Only fetch doctors if they haven't been loaded yet
+    } else {
+      fetchAppointments();  // Fetch appointments once doctors are fetched
+    }
+  }, [token, doctors.length]); // Fetch appointments only once doctors are loaded
+
 
   const handleChange = (e) => {
     setFormData({
@@ -72,15 +82,25 @@ function DashboardPage() {
       return;
     }
 
+    console.log('Editing appointment:', appointment);
+
     setFormData({
       title: appointment.title,
       description: appointment.description,
       appointment_datetime: toLocalDatetimeString(appointment.appointment_datetime),
       duration_minutes: appointment.duration_minutes,
-      recurrence: appointment.recurrence || 'none'
+      recurrence: appointment.recurrence || 'none',
+      //provider: appointment.provider || null,
     });
+    // Log the appointment's provider ID
+    console.log('Appointment Provider ID:', appointment.provider);
 
-    const matched = doctors.find(doc => doc.value === appointment.doctor);
+    // Log the doctors array
+    console.log('Doctors:', doctors);
+    
+    const matched = doctors.find(doc => doc.id === appointment.provider);
+    console.log('Matched Doctor:', matched);
+
     setSelectedDoctor(
       matched
         ? { value: matched.id, label: `Dr. ${matched.first_name} ${matched.last_name}` }
@@ -109,12 +129,12 @@ function DashboardPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     const payload = {
       ...formData,
-      doctor: selectedDoctor?.value || null,
+      provider: selectedDoctor?.value || null,  // Pass the provider ID
     };
-
+  
     try {
       if (editMode && editingId) {
         await axios.put(`http://127.0.0.1:8000/api/appointments/${editingId}/`, payload, {
@@ -127,12 +147,12 @@ function DashboardPage() {
         });
         toast.success('Appointment created!');
       }
-
+  
       const refreshed = await axios.get('http://127.0.0.1:8000/api/appointments/', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAppointments(refreshed.data);
-
+  
       setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
       setSelectedDoctor(null);
       setEditMode(false);
@@ -143,6 +163,7 @@ function DashboardPage() {
       toast.error('Failed to save appointment.');
     }
   };
+  
 
   return (
     <div className="container mt-4">
@@ -243,6 +264,7 @@ function DashboardPage() {
               <div className="mb-3">
                 <label className="form-label">Select Doctor</label>
                 <Select
+                  
                   options={doctors.map(doc => ({
                     value: doc.id,
                     label: `Dr. ${doc.first_name} ${doc.last_name}`
