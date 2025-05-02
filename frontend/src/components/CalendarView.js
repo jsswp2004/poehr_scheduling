@@ -6,17 +6,15 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { toast } from 'react-toastify';
+import Select from 'react-select';
 
 const localizer = momentLocalizer(moment);
 
 const isPastAppointment = (dateString) => {
-    const now = new Date();
-    const appointmentDate = new Date(dateString);
-    return appointmentDate < now;
-  };
-  
+  const now = new Date();
+  return new Date(dateString) < now;
+};
 
-// ✅ Helper to convert UTC to local datetime input value
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
   local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
@@ -28,6 +26,7 @@ function CalendarView() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [isPast, setIsPast] = useState(false);
   const [modalFormData, setModalFormData] = useState({
     title: '',
     description: '',
@@ -35,11 +34,18 @@ function CalendarView() {
     recurrence: 'none',
     appointment_datetime: '',
   });
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [doctors, setDoctors] = useState([]);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [currentView, setCurrentView] = useState('month');
   const token = localStorage.getItem('access_token');
+
+  useEffect(() => {
+    fetchAppointments();
+    fetchDoctors();
+  }, [token]);
 
   const fetchAppointments = async () => {
     try {
@@ -62,9 +68,111 @@ function CalendarView() {
     }
   };
 
-  useEffect(() => {
-    fetchAppointments();
-  }, [token]);
+  const fetchDoctors = async () => {
+    try {
+      const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/');
+      setDoctors(res.data);
+    } catch (err) {
+      console.error('Failed to load doctors:', err);
+    }
+  };
+
+  const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
+  const handleViewChange = useCallback((view) => setCurrentView(view), []);
+
+  const handleSelectSlot = ({ start }) => {
+    if (start < new Date()) {
+      toast.warning('You cannot create appointments in the past.');
+      return;
+    }
+
+    setIsEditing(false);
+    setIsPast(false);
+    setEditingId(null);
+    setSelectedDoctor(null);
+    setSelectedDate(start);
+    setModalFormData({
+      title: '',
+      description: '',
+      duration_minutes: 30,
+      recurrence: 'none',
+      appointment_datetime: toLocalDatetimeString(start),
+    });
+    setShowModal(true);
+  };
+
+  const handleSelectEvent = (event) => {
+    const past = isPastAppointment(event.start);
+    setIsPast(past);
+    setIsEditing(true);
+    setEditingId(event.id);
+    setSelectedDate(new Date(event.start));
+    setModalFormData({
+      title: event.title,
+      description: event.description || '',
+      duration_minutes: event.duration_minutes || 30,
+      recurrence: 'none',
+      appointment_datetime: toLocalDatetimeString(event.start),
+    });
+    setShowModal(true);
+  };
+
+  const handleModalSave = async () => {
+    const payload = {
+      ...modalFormData,
+      doctor: selectedDoctor?.value || null,
+    };
+
+    try {
+      if (isEditing && editingId) {
+        await axios.put(`http://127.0.0.1:8000/api/appointments/${editingId}/`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success('Appointment updated!');
+      } else {
+        await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success('Appointment created!');
+      }
+
+      setShowModal(false);
+      setModalFormData({
+        title: '',
+        description: '',
+        duration_minutes: 30,
+        recurrence: 'none',
+        appointment_datetime: '',
+      });
+      setEditingId(null);
+      setIsEditing(false);
+      setSelectedDoctor(null);
+      fetchAppointments();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to save appointment.');
+    }
+  };
+
+  const handleDeleteAppointment = async () => {
+    if (!editingId) return;
+
+    const confirmDelete = window.confirm("Are you sure you want to delete this appointment?");
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`http://127.0.0.1:8000/api/appointments/${editingId}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success('Appointment deleted!');
+      setShowModal(false);
+      setEditingId(null);
+      fetchAppointments();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to delete appointment.');
+    }
+  };
 
   const eventStyleGetter = (event) => {
     const now = new Date();
@@ -80,114 +188,6 @@ function CalendarView() {
     };
   };
 
-  const handleDateNavigate = useCallback((newDate) => {
-    setCurrentDate(newDate);
-  }, []);
-
-  const handleViewChange = useCallback((view) => {
-    setCurrentView(view);
-  }, []);
-
-  const handleSelectSlot = ({ start }) => {
-    if (start < new Date()) {
-      toast.warning('You cannot create appointments in the past.');
-      return;
-    }
-  
-    setIsEditing(false);
-    setIsPast(false); // ✅ reset past flag
-    setEditingId(null);
-    setSelectedDate(start);
-    setModalFormData({
-      title: '',
-      description: '',
-      duration_minutes: 30,
-      recurrence: 'none',
-      appointment_datetime: toLocalDatetimeString(start),
-    });
-    setShowModal(true);
-  };
-  
-
-  const [isPast, setIsPast] = useState(false);
-
-  const handleSelectEvent = (event) => {
-    const past = isPastAppointment(event.start);
-    setIsPast(past);
-  
-    setIsEditing(true);
-    setEditingId(event.id);
-    setSelectedDate(new Date(event.start));
-    setModalFormData({
-      title: event.title,
-      description: event.description || '',
-      duration_minutes: event.duration_minutes || 30,
-      recurrence: 'none',
-      appointment_datetime: toLocalDatetimeString(event.start),
-    });
-    setShowModal(true);
-  };
-  
-
-  const handleModalSave = async () => {
-    const payload = {
-      ...modalFormData,
-    };
-
-    try {
-      if (isEditing && editingId) {
-        await axios.put(
-          `http://127.0.0.1:8000/api/appointments/${editingId}/`,
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        toast.success('Appointment updated!');
-      } else {
-        await axios.post(
-          'http://127.0.0.1:8000/api/appointments/',
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        toast.success('Appointment created!');
-      }
-
-      setShowModal(false);
-      setModalFormData({
-        title: '',
-        description: '',
-        duration_minutes: 30,
-        recurrence: 'none',
-        appointment_datetime: '',
-      });
-      setEditingId(null);
-      setIsEditing(false);
-      fetchAppointments();
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to save appointment.');
-    }
-  };
-
-  const handleDeleteAppointment = async () => {
-    if (!editingId) return;
-  
-    const confirmDelete = window.confirm("Are you sure you want to delete this appointment?");
-    if (!confirmDelete) return;
-  
-    try {
-      await axios.delete(`http://127.0.0.1:8000/api/appointments/${editingId}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      toast.success('Appointment deleted!');
-      setShowModal(false);
-      setEditingId(null);
-      fetchAppointments();
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to delete appointment.');
-    }
-  };
-  
   return (
     <div className="card mt-4">
       <div className="card-body">
@@ -204,7 +204,6 @@ function CalendarView() {
             defaultView="month"
             views={['month', 'week', 'day']}
             eventPropGetter={eventStyleGetter}
-            style={{ height: '500px' }}
             selectable
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
@@ -215,11 +214,7 @@ function CalendarView() {
               <Modal.Title>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-            {isPast && (
-            <div className="alert alert-warning" role="alert">
-                ⚠️ Past appointments cannot be edited.
-            </div>
-            )}
+              {isPast && <div className="alert alert-warning">⚠️ Past appointments cannot be edited.</div>}
 
               <Form>
                 <Form.Group className="mb-3">
@@ -248,10 +243,7 @@ function CalendarView() {
                   <Form.Control
                     type="datetime-local"
                     value={modalFormData.appointment_datetime}
-                    onChange={(e) =>
-                      setModalFormData({ ...modalFormData, appointment_datetime: e.target.value })
-                      
-                    }
+                    onChange={(e) => setModalFormData({ ...modalFormData, appointment_datetime: e.target.value })}
                     disabled={isPast}
                   />
                 </Form.Group>
@@ -262,11 +254,7 @@ function CalendarView() {
                     type="number"
                     value={modalFormData.duration_minutes}
                     onChange={(e) =>
-                      setModalFormData({
-                        ...modalFormData,
-                        duration_minutes: parseInt(e.target.value) || 0,
-                      })
-                      
+                      setModalFormData({ ...modalFormData, duration_minutes: parseInt(e.target.value) || 0 })
                     }
                     disabled={isPast}
                   />
@@ -276,9 +264,7 @@ function CalendarView() {
                   <Form.Label>Recurrence</Form.Label>
                   <Form.Select
                     value={modalFormData.recurrence}
-                    onChange={(e) =>
-                      setModalFormData({ ...modalFormData, recurrence: e.target.value })
-                    }
+                    onChange={(e) => setModalFormData({ ...modalFormData, recurrence: e.target.value })}
                     disabled={isPast}
                   >
                     <option value="none">None</option>
@@ -287,27 +273,36 @@ function CalendarView() {
                     <option value="monthly">Monthly</option>
                   </Form.Select>
                 </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label>Select Doctor</Form.Label>
+                  <Select
+                    options={doctors.map((doc) => ({
+                      value: doc.id,
+                      label: `Dr. ${doc.first_name} ${doc.last_name}`,
+                    }))}
+                    placeholder="Assign a doctor..."
+                    value={selectedDoctor}
+                    onChange={setSelectedDoctor}
+                    isClearable
+                    isDisabled={isPast}
+                  />
+                </Form.Group>
               </Form>
             </Modal.Body>
             <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowModal(false)}>
-                    Cancel
+              <Button variant="secondary" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              {isEditing && !isPast && (
+                <Button variant="danger" onClick={handleDeleteAppointment}>
+                  Delete
                 </Button>
-                {isEditing && !isPast && (
-                    <Button variant="danger" onClick={handleDeleteAppointment}>
-                    Delete
-                    </Button>
-                )}
-                <Button
-                    variant="primary"
-                    onClick={handleModalSave}
-                    disabled={isEditing && isPast} // ✅ prevent updating past appointments
-                >
-                    {isEditing ? 'Update' : 'Save'}
-                </Button>
+              )}
+              <Button variant="primary" onClick={handleModalSave} disabled={isEditing && isPast}>
+                {isEditing ? 'Update' : 'Save'}
+              </Button>
             </Modal.Footer>
-
-
           </Modal>
         </div>
       </div>
