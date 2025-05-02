@@ -4,7 +4,6 @@ import axios from 'axios';
 import CalendarView from '../components/CalendarView';
 import { toast } from 'react-toastify';
 
-
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
   local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
@@ -26,7 +25,6 @@ function DashboardPage() {
   });
   const [showForm, setShowForm] = useState(false);
 
-
   const token = localStorage.getItem('access_token');
 
   useEffect(() => {
@@ -35,17 +33,11 @@ function DashboardPage() {
         const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        const options = res.data.map(doc => ({
-          value: doc.id,
-          label: `Dr. ${doc.first_name} ${doc.last_name}`
-        }));
-        setDoctors(options);
+        setDoctors(res.data); // Store full doctor objects
       } catch (error) {
         console.error('Failed to fetch doctors:', error);
       }
     };
-  
-    fetchDoctors();
 
     const fetchAppointments = async () => {
       try {
@@ -60,6 +52,7 @@ function DashboardPage() {
       }
     };
 
+    fetchDoctors();
     fetchAppointments();
   }, [token]);
 
@@ -70,35 +63,38 @@ function DashboardPage() {
     });
   };
 
-
-
   const handleEditClick = (appointment) => {
     const now = new Date();
     const appointmentDate = new Date(appointment.appointment_datetime);
-  
+
     if (appointmentDate < now) {
       toast.error('Cannot edit past appointments.');
       return;
     }
-  
+
     setFormData({
       title: appointment.title,
       description: appointment.description,
-      //appointment_datetime: appointment.appointment_datetime.slice(0, 16),
-      // Convert to local datetime string format
-      appointment_datetime: toLocalDatetimeString(appointment.appointment_datetime), 
+      appointment_datetime: toLocalDatetimeString(appointment.appointment_datetime),
       duration_minutes: appointment.duration_minutes,
-      recurrence: 'none'
+      recurrence: appointment.recurrence || 'none'
     });
+
+    const matched = doctors.find(doc => doc.value === appointment.doctor);
+    setSelectedDoctor(
+      matched
+        ? { value: matched.id, label: `Dr. ${matched.first_name} ${matched.last_name}` }
+        : null
+    );
+
     setEditingId(appointment.id);
     setEditMode(true);
-    setShowForm(true); // ✅ This line was missing
+    setShowForm(true);
   };
-  
-  
+
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this appointment?')) return;
-  
+
     try {
       await axios.delete(`http://127.0.0.1:8000/api/appointments/${id}/`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -110,16 +106,15 @@ function DashboardPage() {
       toast.error('Delete failed.');
     }
   };
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    // ✅ Combine doctor selection with form data
+
     const payload = {
       ...formData,
       doctor: selectedDoctor?.value || null,
     };
-  
+
     try {
       if (editMode && editingId) {
         await axios.put(`http://127.0.0.1:8000/api/appointments/${editingId}/`, payload, {
@@ -127,19 +122,17 @@ function DashboardPage() {
         });
         toast.success('Appointment updated!');
       } else {
-        console.log("Submitting appointment data:", payload);
         await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Appointment created!');
       }
-  
+
       const refreshed = await axios.get('http://127.0.0.1:8000/api/appointments/', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAppointments(refreshed.data);
-  
-      // ✅ Reset fields
+
       setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
       setSelectedDoctor(null);
       setEditMode(false);
@@ -150,8 +143,6 @@ function DashboardPage() {
       toast.error('Failed to save appointment.');
     }
   };
-  
-  
 
   return (
     <div className="container mt-4">
@@ -169,121 +160,119 @@ function DashboardPage() {
                 duration_minutes: 30,
                 recurrence: 'none',
               });
+              setSelectedDoctor(null);
               setEditMode(false);
               setEditingId(null);
-              setShowForm(true); // ✅ Show the form when button clicked
+              setShowForm(true);
             }}
           >
             + Create / Show Appointment
           </button>
         </div>
-
-
       </div>
+
       {showForm && (
         <div className="row">
           <div className="col-md-6">
-            
-              <form onSubmit={handleSubmit} className="mb-5">
-                <h4 className="mb-3">{editMode ? 'Edit Appointment' : 'Create Appointment'}</h4>
+            <form onSubmit={handleSubmit} className="mb-5">
+              <h4 className="mb-3">{editMode ? 'Edit Appointment' : 'Create Appointment'}</h4>
 
-                {/* Your form fields here, unchanged */}
-                <div className="mb-3">
-                  <label className="form-label">Title</label>
-                  <input
-                    type="text"
-                    name="title"
-                    className="form-control"
-                    placeholder="Title"
-                    onChange={handleChange}
-                    value={formData.title}
-                    required
-                  />
-                </div>
+              <div className="mb-3">
+                <label className="form-label">Title</label>
+                <input
+                  type="text"
+                  name="title"
+                  className="form-control"
+                  placeholder="Title"
+                  onChange={handleChange}
+                  value={formData.title}
+                  required
+                />
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Description</label>
-                  <textarea
-                    name="description"
-                    className="form-control"
-                    placeholder="Description"
-                    onChange={handleChange}
-                    value={formData.description}
-                  />
-                </div>
+              <div className="mb-3">
+                <label className="form-label">Description</label>
+                <textarea
+                  name="description"
+                  className="form-control"
+                  placeholder="Description"
+                  onChange={handleChange}
+                  value={formData.description}
+                />
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    name="appointment_datetime"
-                    className="form-control"
-                    onChange={handleChange}
-                    value={formData.appointment_datetime}
-                    required
-                  />
-                </div>
+              <div className="mb-3">
+                <label className="form-label">Date & Time</label>
+                <input
+                  type="datetime-local"
+                  name="appointment_datetime"
+                  className="form-control"
+                  onChange={handleChange}
+                  value={formData.appointment_datetime}
+                  required
+                />
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Duration (minutes)</label>
-                  <input
-                    type="number"
-                    name="duration_minutes"
-                    className="form-control"
-                    onChange={handleChange}
-                    value={formData.duration_minutes}
-                    required
-                  />
-                </div>
+              <div className="mb-3">
+                <label className="form-label">Duration (minutes)</label>
+                <input
+                  type="number"
+                  name="duration_minutes"
+                  className="form-control"
+                  onChange={handleChange}
+                  value={formData.duration_minutes}
+                  required
+                />
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Recurrence</label>
-                  <select
-                    name="recurrence"
-                    className="form-select"
-                    onChange={handleChange}
-                    value={formData.recurrence}
-                  >
-                    <option value="none">None</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
+              <div className="mb-3">
+                <label className="form-label">Recurrence</label>
+                <select
+                  name="recurrence"
+                  className="form-select"
+                  onChange={handleChange}
+                  value={formData.recurrence}
+                >
+                  <option value="none">None</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
 
-                <div className="mb-3">
-                  <label className="form-label">Select Doctor</label>
-                  <Select
-                    options={doctors}
-                    value={selectedDoctor}
-                    onChange={setSelectedDoctor}
-                    placeholder="Search or select doctor..."
-                    isClearable
-                  />
-                </div>
+              <div className="mb-3">
+                <label className="form-label">Select Doctor</label>
+                <Select
+                  options={doctors.map(doc => ({
+                    value: doc.id,
+                    label: `Dr. ${doc.first_name} ${doc.last_name}`
+                  }))}
+                  value={selectedDoctor}
+                  onChange={setSelectedDoctor}
+                  placeholder="Search or select doctor..."
+                  isClearable
+                />
+              </div>
 
-
-                <div className="d-flex gap-2">
-                  <button type="submit" className="btn btn-primary w-100">
-                    {editMode ? 'Update Appointment' : 'Create Appointment'}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-secondary w-100"
-                    onClick={() => {
-                      setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
-                      setEditMode(false);
-                      setEditingId(null);
-                      setShowForm(false); // ✅ Collapse the form
-                    }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-
-              </form>
-          
-
+              <div className="d-flex gap-2">
+                <button type="submit" className="btn btn-primary w-100">
+                  {editMode ? 'Update Appointment' : 'Create Appointment'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary w-100"
+                  onClick={() => {
+                    setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
+                    setSelectedDoctor(null);
+                    setEditMode(false);
+                    setEditingId(null);
+                    setShowForm(false);
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
 
           <div className="col-md-6">
@@ -302,10 +291,10 @@ function DashboardPage() {
                 </li>
               ))}
             </ul>
-
           </div>
         </div>
       )}
+
       <div className="mt-5">
         <h4>Calendar</h4>
         <CalendarView />
