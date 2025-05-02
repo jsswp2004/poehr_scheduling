@@ -26,5 +26,14 @@ class Appointment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Add the provider field (ForeignKey to User model)
+    provider = models.ForeignKey(
+        settings.AUTH_USER_MODEL,  # Assuming doctors are stored in the same User model
+        on_delete=models.SET_NULL,  # If a doctor is deleted, set provider to NULL
+        null=True,  # Allow null values in case no provider is assigned initially
+        blank=True,  # Allow blank values in the form
+        related_name='provider_appointments'  # Reverse relation from User (doctor) to appointments
+    )
+
     def __str__(self):
         return f"{self.title} - {self.appointment_datetime}"

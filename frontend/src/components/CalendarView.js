@@ -33,6 +33,7 @@ function CalendarView() {
     duration_minutes: 30,
     recurrence: 'none',
     appointment_datetime: '',
+    provider: null, // This will be set to the selected doctor ID
   });
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
@@ -42,11 +43,19 @@ function CalendarView() {
   const [currentView, setCurrentView] = useState('month');
   const token = localStorage.getItem('access_token');
 
-  useEffect(() => {
-    fetchAppointments();
-    fetchDoctors();
-  }, [token]);
+  // Fetch doctors function (outside useEffect)
+  const fetchDoctors = async () => {
+    try {
+      const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDoctors(res.data); // Store full doctor objects
+    } catch (err) {
+      console.error('Failed to load doctors:', err);
+    }
+  };
 
+  // Fetch appointments function (outside useEffect)
   const fetchAppointments = async () => {
     try {
       const response = await axios.get('http://127.0.0.1:8000/api/appointments/', {
@@ -60,22 +69,24 @@ function CalendarView() {
         duration_minutes: appt.duration_minutes,
         start: parseISO(appt.appointment_datetime),
         end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
+        provider: appt.provider,  // Assuming `provider` holds the doctor ID
       }));
 
-      setEvents(formatted);
+      setEvents(formatted); // Set the events state
+      if (formatted.length > 0) {
+        const doctorId = formatted[0].provider;
+        const matchedDoctor = doctors.find((doc) => doc.id === doctorId);
+        setSelectedDoctor(matchedDoctor ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` } : null);
+      }
     } catch (error) {
       console.error('Calendar load failed:', error);
     }
   };
 
-  const fetchDoctors = async () => {
-    try {
-      const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/');
-      setDoctors(res.data);
-    } catch (err) {
-      console.error('Failed to load doctors:', err);
-    }
-  };
+  // useEffect with fetching logic
+  useEffect(() => {
+    fetchDoctors().then(() => fetchAppointments());  // Fetch doctors first and then fetch appointments
+  }, [token]); // Ensure `token` is in the dependency array
 
   const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
@@ -113,15 +124,33 @@ function CalendarView() {
       duration_minutes: event.duration_minutes || 30,
       recurrence: 'none',
       appointment_datetime: toLocalDatetimeString(event.start),
+      provider: event.provider || null, // Ensure provider is passed to modal form data
     });
+
+    // Debugging: Check the values being compared
+    console.log('Selected Event:', event);
+    console.log('Doctors:', doctors);
+    console.log('Provider ID in Event:', event.provider);
+
+    // Ensure provider is in the expected format (either an object with id or just the id)
+    const matchedDoctor = doctors.find(doc => doc.id === event.provider);
+    console.log('Matched Doctor:', matchedDoctor);
+
+    setSelectedDoctor(
+      matchedDoctor
+        ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` }
+        : null
+    );
+
     setShowModal(true);
   };
 
   const handleModalSave = async () => {
     const payload = {
       ...modalFormData,
-      doctor: selectedDoctor?.value || null,
+      provider: selectedDoctor?.value || null,
     };
+    console.log('Saving payload:', payload); // Log the payload to check its structure
 
     try {
       if (isEditing && editingId) {
@@ -147,7 +176,7 @@ function CalendarView() {
       setEditingId(null);
       setIsEditing(false);
       setSelectedDoctor(null);
-      fetchAppointments();
+      fetchAppointments(); // Refresh the appointments after saving
     } catch (err) {
       console.error(err);
       toast.error('Failed to save appointment.');
@@ -167,7 +196,7 @@ function CalendarView() {
       toast.success('Appointment deleted!');
       setShowModal(false);
       setEditingId(null);
-      fetchAppointments();
+      fetchAppointments(); // Refresh the appointments after deletion
     } catch (err) {
       console.error(err);
       toast.error('Failed to delete appointment.');
