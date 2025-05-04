@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { Card, Form, Button, Row, Col, Spinner } from 'react-bootstrap';
+import { Card, Button, Spinner } from 'react-bootstrap';
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import filterFactory, { textFilter } from 'react-bootstrap-table2-filter';
@@ -13,7 +13,6 @@ function PatientsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [provider, setProvider] = useState('');
-  const [doctors, setDoctors] = useState([]);
   const [page, setPage] = useState(1);
   const [sizePerPage, setSizePerPage] = useState(10);
   const [totalSize, setTotalSize] = useState(0);
@@ -34,13 +33,7 @@ function PatientsPage() {
         },
       });
 
-      const patientsWithFullName = res.data.results.map(p => ({
-        ...p,
-        full_name: `${p.first_name} ${p.last_name}`
-      }));
-
-      // setPatients(res.data.results);
-      setPatients(patientsWithFullName);
+      setPatients(res.data.results);
       setTotalSize(res.data.count);
     } catch (err) {
       console.error('Failed to fetch patients:', err);
@@ -49,23 +42,9 @@ function PatientsPage() {
     }
   };
 
-  const fetchDoctors = async () => {
-    try {
-      const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/');
-      setDoctors(res.data);
-    } catch (err) {
-      console.error('Failed to load doctors:', err);
-    }
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    fetchDoctors();
-  }, []);
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     fetchPatients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sizePerPage]);
 
   const exportCSV = () => {
@@ -88,34 +67,23 @@ function PatientsPage() {
       formatter: (_, __, index) => (page - 1) * sizePerPage + index + 1,
     },
     {
-      dataField: 'full_name',
-      //text: 'Full Name',
+      dataField: 'first_name',
+      text: 'Full Name',
       formatter: (_, row) => `${row.first_name} ${row.last_name}`,
       sort: true,
-      //filter: textFilter({ placeholder: 'Filter by patient name...' }),
-      filter: textFilter({
-        //label: 'test',
-        placeholder: 'Patient Name...',
-        //style: { width: '100%' },
-     
-        //getFilter: () => {},
-      }),
-      
+      filter: textFilter({ placeholder: 'Patient Name...' }),
     },
     {
-        dataField: 'email',
-        //text: 'Email',
-        sort: true,
-        filter: textFilter({ 
-            //label: '', 
-        placeholder: 'Email...' }),
+      dataField: 'email',
+      text: 'Email',
+      sort: true,
+      filter: textFilter({ placeholder: 'Email...' }),
     },
     {
       dataField: 'provider_name',
-      //text: 'Provider',
-      formatter: (_, row) => row.provider_name
-        ? `Dr. ${row.provider_name}`
-        : <span className="text-muted">None</span>,
+      text: 'Provider',
+      formatter: (_, row) =>
+        row.provider_name ? `Dr. ${row.provider_name}` : <span className="text-muted">None</span>,
       sort: true,
       filter: textFilter({ placeholder: 'Provider...' }),
     },
@@ -126,7 +94,7 @@ function PatientsPage() {
         <Button
           variant="outline-primary"
           size="sm"
-          onClick={() => navigate(`/patients/${row.id}`)}
+          onClick={() => navigate(`/patients/${row.user_id}`)}
         >
           View
         </Button>
@@ -142,39 +110,10 @@ function PatientsPage() {
         <Card.Body>
           <Card.Title className="mb-4 d-flex justify-content-between align-items-center">
             Patient List
-            <Button variant="success" onClick={exportCSV}>Export CSV</Button>
+            <Button variant="success" onClick={exportCSV}>
+              Export CSV
+            </Button>
           </Card.Title>
-
-          {/* <Form className="mb-3">
-            <Row className="g-2">
-              <Col md={4}>
-                <Form.Control
-                  type="text"
-                  placeholder="Search by name"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </Col>
-              <Col md={4}>
-                <Form.Select
-                  value={provider}
-                  onChange={(e) => setProvider(e.target.value)}
-                >
-                  <option value="">All Providers</option>
-                  {doctors.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      Dr. {doc.first_name} {doc.last_name}
-                    </option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col md={2}>
-                <Button onClick={() => setPage(1)} variant="primary" className="w-100">
-                  Search
-                </Button>
-              </Col>
-            </Row>
-          </Form>*/}
 
           {loading ? (
             <div className="text-center py-4">
@@ -196,7 +135,6 @@ function PatientsPage() {
                   totalSize,
                   showTotal: true,
                   onPageChange: (nextPage) => setPage(nextPage),
-                  onPageChange: setPage,
                   onSizePerPageChange: (size) => {
                     setSizePerPage(size);
                     setPage(1);
