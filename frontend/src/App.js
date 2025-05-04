@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
+import PatientDetailPage from './pages/PatientDetailPage';
 
 function App() {
   return (
@@ -19,6 +20,8 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PatientsPage />} />
+        <Route path="/patients/:id" element={<PatientDetailPage />} />
+
       </Routes>
     </Router>
   );

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import CustomUser
+from .models import CustomUser, Patient  # ✅ Include Patient
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -14,3 +14,8 @@ class CustomUserAdmin(UserAdmin):
     )
 
 admin.site.register(CustomUser, CustomUserAdmin)
+
+@admin.register(Patient)
+class PatientAdmin(admin.ModelAdmin):
+    list_display = ('user', 'date_of_birth', 'phone_number')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name')

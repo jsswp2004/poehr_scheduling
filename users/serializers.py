@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser
+from .models import CustomUser, Patient
 
 class UserSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
@@ -21,7 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
         return None
 
     def create(self, validated_data):
-        provider_id = validated_data.pop('provider', None)
+        provider = validated_data.pop('provider', None)
 
         user = CustomUser.objects.create_user(
             username=validated_data['username'],
@@ -32,12 +32,61 @@ class UserSerializer(serializers.ModelSerializer):
             role=validated_data.get('role', 'patient'),
         )
 
-        if user.role == 'patient' and provider_id:
-            try:
-                provider = CustomUser.objects.get(id=provider_id)
+        # ✅ Handle provider assignment correctly based on type
+        if user.role == 'patient':
+            if isinstance(provider, CustomUser):
                 user.provider = provider
-                user.save()
-            except CustomUser.DoesNotExist:
-                pass  # Optional: handle the case if the doctor ID is invalid
+            elif isinstance(provider, int):
+                try:
+                    user.provider = CustomUser.objects.get(id=provider)
+                except CustomUser.DoesNotExist:
+                    pass  # Optionally log or raise an error
+            user.save()
 
         return user
+
+
+class PatientSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
+    username = serializers.CharField(source='user.username')
+    email = serializers.EmailField(source='user.email')
+    first_name = serializers.CharField(source='user.first_name')
+    last_name = serializers.CharField(source='user.last_name')
+    provider_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Patient
+        fields = [
+            'id',
+            'user_id',
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'provider_name',
+            'date_of_birth',
+            'phone_number',
+            'address',
+            'medical_history',
+        ]
+
+    def get_provider_name(self, obj):
+        if obj.user.provider:
+            return f"{obj.user.provider.first_name} {obj.user.provider.last_name}"
+        return None
+
+    def update(self, instance, validated_data):
+        # Handle nested updates to the related user fields
+        user_data = validated_data.pop('user', {})
+        user = instance.user
+
+        for attr, value in user_data.items():
+            setattr(user, attr, value)
+        user.save()
+
+        # Handle patient fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance

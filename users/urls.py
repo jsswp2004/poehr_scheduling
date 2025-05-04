@@ -5,6 +5,8 @@ from .views import (
     CustomTokenObtainPairView,
     DoctorListView,
     get_patients,
+    PatientDetailView,
+    PatientUpdateView,
 )
 
 urlpatterns = [
@@ -16,4 +18,7 @@ urlpatterns = [
     # Data views
     path('doctors/', DoctorListView.as_view(), name='doctor-list'),
     path('patients/', get_patients, name='patient-list'),
+    path('patients/by-user/<int:user_id>/', PatientDetailView.as_view(), name='patient-detail'),
+    path('patients/by-user/<int:user_id>/edit/', PatientUpdateView.as_view(), name='patient-update'),
+
 ]
