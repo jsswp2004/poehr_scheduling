@@ -34,7 +34,11 @@ function PatientsPage() {
         },
       });
 
-      setPatients(res.data.results);
+      const patientsWithFullName = res.data.results.map((p) => ({
+        ...p,
+        full_name: `${p.first_name} ${p.last_name}`,
+      }));
+      setPatients(patientsWithFullName);
       setTotalSize(res.data.count);
     } catch (err) {
       console.error('Failed to fetch patients:', err);
@@ -68,9 +72,8 @@ function PatientsPage() {
       formatter: (_, __, index) => (page - 1) * sizePerPage + index + 1,
     },
     {
-      dataField: 'first_name',
+      dataField: 'full_name',
       text: ' ',
-      formatter: (_, row) => `${row.first_name} ${row.last_name}`,
       sort: true,
       filter: textFilter({ placeholder: 'Patient Name...' }),
     },

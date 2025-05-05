@@ -6,7 +6,17 @@ from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
 from django.conf import settings  # Import settings to access AUTH_USER_MODEL
 from django.utils.dateparse import parse_date
-from django.utils.timezone import make_aware, datetime as dt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from datetime import timedelta
+from django.utils import timezone
+from django.utils.timezone import make_aware
+from datetime import datetime as dt
+from datetime import datetime, timedelta, time as dt_time
+
+
+from .models import Appointment
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
@@ -81,3 +91,41 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 recurrence='none',  # Prevent chaining
                 provider=provider  # Ensure recurrence appointments are assigned the same provider
             )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def doctor_available_slots(request, doctor_id):
+    now = timezone.localtime()
+    slots = []
+    max_slots = 5
+    check_limit = 30
+    days_checked = 0
+
+    while len(slots) < max_slots and days_checked < check_limit:
+        current_day = now + timedelta(days=days_checked)
+
+        # Skip weekends
+        if current_day.weekday() >= 5:
+            days_checked += 1
+            continue
+
+        for hour in range(8, 18):  # 8:00 AM to 5:00 PM
+            naive_dt = datetime.combine(current_day.date(), dt_time(hour=hour))
+            slot_time = timezone.make_aware(naive_dt, timezone.get_current_timezone())
+
+            if slot_time <= now:
+                continue
+
+            is_taken = Appointment.objects.filter(
+                provider_id=doctor_id,
+                appointment_datetime=slot_time
+            ).exists()
+
+            if not is_taken:
+                slots.append(slot_time)
+                if len(slots) == max_slots:
+                    break
+
+        days_checked += 1
+
+    return Response([timezone.localtime(s).isoformat() for s in slots])

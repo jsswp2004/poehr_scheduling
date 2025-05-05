@@ -64,7 +64,7 @@ function CalendarView() {
 
       const formatted = response.data.map((appt) => ({
         id: appt.id,
-        title: appt.title,
+        title: `${appt.patient_name|| 'Unknown'} -${appt.title}`,
         description: appt.description,
         duration_minutes: appt.duration_minutes,
         start: parseISO(appt.appointment_datetime),
@@ -92,6 +92,13 @@ function CalendarView() {
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
 
   const handleSelectSlot = ({ start }) => {
+    const day = start.getDay(); // ✅ this defines `day` properly
+    
+    if (day === 0 || day === 6) {
+      toast.warning('Appointments cannot be scheduled on weekends.');
+      return;
+    }
+
     if (start < new Date()) {
       toast.warning('You cannot create appointments in the past.');
       return;
@@ -212,15 +219,30 @@ function CalendarView() {
         color: 'white',
         borderRadius: '5px',
         padding: '4px',
-        border: 'none',
+        border: '2px solid white',
       },
     };
   };
 
+  const dayPropGetter = (date) => {
+    const day = date.getDay();
+    if (day === 0 || day === 6) {
+      return {
+        className: 'disabled-day',
+        style: {
+          backgroundColor: '#f8f9fa',
+          pointerEvents: 'none',
+          color: '#ccc',
+        },
+      };
+    }
+    return {};
+  }; 
+
   return (
     <div className="card mt-4">
       <div className="card-body">
-        <div style={{ height: '500px' }}>
+        <div style={{ height: '600px' }}>
           <Calendar
             localizer={localizer}
             events={events}
@@ -231,11 +253,14 @@ function CalendarView() {
             date={currentDate}
             onNavigate={handleDateNavigate}
             defaultView="month"
-            views={['month', 'week', 'day']}
+            views={['month', 'work_week', 'day']}
             eventPropGetter={eventStyleGetter}
+            dayPropGetter={dayPropGetter}
             selectable
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
+            min={new Date(1970, 1, 1, 8, 0, 0)}  // 8:00 AM
+            max={new Date(1970, 1, 1, 18, 0, 0)} // 6:00 PM
           />
 
           <Modal show={showModal} onHide={() => setShowModal(false)}>

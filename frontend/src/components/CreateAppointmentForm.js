@@ -9,7 +9,7 @@ function toLocalDatetimeString(dateObj) {
   return local.toISOString().slice(0, 16);
 }
 
-function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientName=''}) {
+function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientName = '' }) {
   const [doctors, setDoctors] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -19,7 +19,10 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
     recurrence: 'none',
   });
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [availableSlots, setAvailableSlots] = useState([]);
   const token = localStorage.getItem('access_token');
+  const [selectedSlot, setSelectedSlot] = useState(null);
+
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -31,10 +34,12 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
 
         if (defaultProviderId) {
           const doc = res.data.find((d) => d.id === defaultProviderId);
-          setSelectedDoctor({
+          const selected = {
             value: doc.id,
-            label: `Dr. ${doc.first_name} ${doc.last_name}`,
-          });
+            label: `Dr. ${doc.first_name} ${doc.last_name}`
+          };
+          setSelectedDoctor(selected);
+          handleDoctorChange(selected); // fetch slots if default provider is set
         }
       } catch (error) {
         console.error('Failed to fetch doctors:', error);
@@ -42,7 +47,24 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
     };
 
     fetchDoctors();
+    // eslint-disable-next-line
   }, [defaultProviderId, token]);
+
+  const handleDoctorChange = async (selected) => {
+    setSelectedDoctor(selected);
+    setAvailableSlots([]);
+
+    if (selected) {
+      try {
+        const res = await axios.get(`http://127.0.0.1:8000/api/doctors/${selected.value}/available-dates/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setAvailableSlots(res.data);
+      } catch (error) {
+        console.error("Failed to fetch available slots:", error);
+      }
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -69,68 +91,123 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-        <h4 className="mb-3" style={{ fontSize: '1.25rem', fontWeight: 'normal' }}>
-        Create Appointment{' '}
-        {patientName && <span style={{ color: 'blue' }}>for {patientName}</span>}
-        </h4>
-      <div className="mb-3">
-        <label className="form-label">Title</label>
-        <input name="title" className="form-control" value={formData.title} onChange={handleChange} required />
+    <div className="row">
+      {/* Left: Form */}
+      <div className="col-md-7">
+        <form onSubmit={handleSubmit}>
+          <h4 className="mb-3" style={{ fontSize: '1.25rem', fontWeight: 'normal' }}>
+            Create Appointment{' '}
+            {patientName && <span style={{ color: 'blue' }}>for {patientName}</span>}
+          </h4>
+
+          <div className="mb-3">
+            <label className="form-label">Title</label>
+            <input name="title" className="form-control" value={formData.title} onChange={handleChange} required />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Description</label>
+            <textarea name="description" className="form-control" value={formData.description} onChange={handleChange} />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Date & Time</label>
+            <input
+              type="datetime-local"
+              name="appointment_datetime"
+              className="form-control"
+              value={formData.appointment_datetime}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Duration (minutes)</label>
+            <input
+              type="number"
+              name="duration_minutes"
+              className="form-control"
+              value={formData.duration_minutes}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Recurrence</label>
+            <select
+              name="recurrence"
+              className="form-select"
+              value={formData.recurrence}
+              onChange={handleChange}
+            >
+              <option value="none">None</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Select Doctor</label>
+            <Select
+              options={doctors.map(doc => ({ value: doc.id, label: `Dr. ${doc.first_name} ${doc.last_name}` }))}
+              value={selectedDoctor}
+              onChange={handleDoctorChange}
+              placeholder="Search or select doctor..."
+              isClearable
+            />
+          </div>
+
+          <div className="d-flex gap-2 mt-3">
+            <button type="submit" className="btn btn-primary">
+              Create Appointment
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => onSuccess?.()}
+            >
+              Cancel Appointment Creation
+            </button>
+          </div>
+        </form>
       </div>
 
-      <div className="mb-3">
-        <label className="form-label">Description</label>
-        <textarea name="description" className="form-control" value={formData.description} onChange={handleChange} />
+      {/* Right: Available Slots */}
+      <div className="col-md-5 border-start ps-4">
+        <h5>Next Available Slots</h5>
+        <ul className="list-group">
+            {availableSlots.length > 0 ? (
+                availableSlots.map((slot, idx) => {
+                const formattedSlot = toLocalDatetimeString(slot);
+                return (
+                    <li
+                    key={idx}
+                    role="button"
+                    onClick={() => {
+                        setSelectedSlot(formattedSlot);
+                        setFormData((prev) => ({
+                        ...prev,
+                        appointment_datetime: formattedSlot,
+                        }));
+                    }}
+                    className={`list-group-item list-group-item-action ${
+                        selectedSlot === formattedSlot ? 'active' : ''
+                    }`}
+                    >
+                    {new Date(slot).toLocaleString()}
+                    </li>
+                );
+                })
+            ) : (
+                <li className="list-group-item text-muted">No available slots</li>
+            )}
+        </ul>
+
       </div>
-
-      <div className="mb-3">
-        <label className="form-label">Date & Time</label>
-        <input type="datetime-local" name="appointment_datetime" className="form-control"
-          value={formData.appointment_datetime} onChange={handleChange} required />
-      </div>
-
-      <div className="mb-3">
-        <label className="form-label">Duration (minutes)</label>
-        <input type="number" name="duration_minutes" className="form-control"
-          value={formData.duration_minutes} onChange={handleChange} required />
-      </div>
-
-      <div className="mb-3">
-        <label className="form-label">Recurrence</label>
-        <select name="recurrence" className="form-select" value={formData.recurrence} onChange={handleChange}>
-          <option value="none">None</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
-          <option value="monthly">Monthly</option>
-        </select>
-      </div>
-
-      <div className="mb-3">
-        <label className="form-label">Select Doctor</label>
-        <Select
-          options={doctors.map(doc => ({ value: doc.id, label: `Dr. ${doc.first_name} ${doc.last_name}` }))}
-          value={selectedDoctor}
-          onChange={setSelectedDoctor}
-          placeholder="Search or select doctor..."
-          isClearable
-        />
-      </div>
-
-      <div className="d-flex gap-2 mt-3">
-        <button type="submit" className="btn btn-primary">
-            Create Appointment
-        </button>
-        <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => onSuccess?.()}
-        >
-            Cancel Appointment Creation
-        </button>
-</div>
-
-    </form>
+    </div>
   );
 }
 
