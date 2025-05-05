@@ -62,15 +62,19 @@ function CalendarView() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const formatted = response.data.map((appt) => ({
-        id: appt.id,
-        title: `${appt.patient_name|| 'Unknown'} -${appt.title}`,
-        description: appt.description,
-        duration_minutes: appt.duration_minutes,
-        start: parseISO(appt.appointment_datetime),
-        end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
-        provider: appt.provider,  // Assuming `provider` holds the doctor ID
-      }));
+      const formatted = response.data.map((appt) => {
+        const baseTitle = appt.title.replace(/^.*? - /, ''); // remove existing prefix if any
+        return {
+          id: appt.id,
+          title: `${appt.patient_name || 'Unknown'} - ${baseTitle}`,
+          description: appt.description,
+          duration_minutes: appt.duration_minutes,
+          start: parseISO(appt.appointment_datetime),
+          end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
+          provider: appt.provider,
+        };
+      });
+      
 
       setEvents(formatted); // Set the events state
       if (formatted.length > 0) {
@@ -93,7 +97,7 @@ function CalendarView() {
 
   const handleSelectSlot = ({ start }) => {
     const day = start.getDay(); // ✅ this defines `day` properly
-    
+
     if (day === 0 || day === 6) {
       toast.warning('Appointments cannot be scheduled on weekends.');
       return;
