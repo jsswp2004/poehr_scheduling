@@ -69,20 +69,20 @@ function PatientsPage() {
     },
     {
       dataField: 'first_name',
-      text: 'Full Name',
+      text: ' ',
       formatter: (_, row) => `${row.first_name} ${row.last_name}`,
       sort: true,
       filter: textFilter({ placeholder: 'Patient Name...' }),
     },
     {
       dataField: 'email',
-      text: 'Email',
+      text: ' ',
       sort: true,
       filter: textFilter({ placeholder: 'Email...' }),
     },
     {
       dataField: 'provider_name',
-      text: 'Provider',
+      text: ' ',
       formatter: (_, row) =>
         row.provider_name ? `Dr. ${row.provider_name}` : <span className="text-muted">None</span>,
       sort: true,
@@ -112,7 +112,7 @@ function PatientsPage() {
           <Card.Title className="mb-4 d-flex justify-content-between align-items-center">
             <h4>Patient List</h4>
             <Button variant="success" onClick={exportCSV}>
-              Export CSV
+              Download (.csv)
             </Button>
           </Card.Title>
 

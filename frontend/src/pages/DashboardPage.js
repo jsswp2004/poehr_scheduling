@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import CalendarView from '../components/CalendarView';
 import { toast } from 'react-toastify';
+import Table from 'react-bootstrap/Table';
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -299,20 +300,27 @@ function DashboardPage() {
 
           <div className="col-md-6">
             <h4>Your Appointments</h4>
-            <ul className="list-group">
-              {appointments.map((a) => (
-                <li key={a.id} className="list-group-item d-flex justify-content-between align-items-center">
-                  <div>
-                    <strong>{a.title}</strong><br />
-                    {new Date(a.appointment_datetime).toLocaleString()}
-                  </div>
-                  <div>
-                    <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
-                    <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <Table striped bordered hover responsive>
+              <thead>
+                <tr>
+                  <th>Visit</th>
+                  <th>Date & Time</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {appointments.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.title}</td>
+                    <td>{new Date(a.appointment_datetime).toLocaleString()}</td>
+                    <td>
+                      <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
+                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
           </div>
         </div>
       )}
