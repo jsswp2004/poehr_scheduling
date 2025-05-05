@@ -312,20 +312,20 @@ function DashboardPage() {
                     setEditMode(false);
                     setEditingId(null);
                     setShowForm(false);
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  </div>
+                </form>
+                </div>
 
-          <div className="col-md-6">
-          <div className="mt-4">
-            <h5>Available Slots</h5>
-              <ul className="list-group">
-                {availableSlots.length > 0 ? (
-                  availableSlots.map((slot, idx) => {
+                <div className="col-md-6">
+                <div className="mt-4">
+                <h4>Available Slots for {selectedDoctor?.label || 'Selected Doctor'}</h4>
+                  <ul className="list-group">
+                  {availableSlots.length > 0 ? (
+                    availableSlots.map((slot, idx) => {
                     const formattedSlot = toLocalDatetimeString(slot);
                     return (
                       <li
@@ -351,7 +351,7 @@ function DashboardPage() {
                 )}
               </ul>
           </div>
-
+            <hr className="my-4" />
             <h4>Your Appointments</h4>
             <Table striped bordered hover responsive>
               <thead>
