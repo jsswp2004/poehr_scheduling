@@ -9,7 +9,7 @@ function toLocalDatetimeString(dateObj) {
   return local.toISOString().slice(0, 16);
 }
 
-function CreateAppointmentForm({ onSuccess, defaultDoctorId = null, patientName=''}) {
+function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientName=''}) {
   const [doctors, setDoctors] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -29,8 +29,8 @@ function CreateAppointmentForm({ onSuccess, defaultDoctorId = null, patientName=
         });
         setDoctors(res.data);
 
-        if (defaultDoctorId) {
-          const doc = res.data.find((d) => d.id === defaultDoctorId);
+        if (defaultProviderId) {
+          const doc = res.data.find((d) => d.id === defaultProviderId);
           setSelectedDoctor({
             value: doc.id,
             label: `Dr. ${doc.first_name} ${doc.last_name}`,
@@ -42,7 +42,7 @@ function CreateAppointmentForm({ onSuccess, defaultDoctorId = null, patientName=
     };
 
     fetchDoctors();
-  }, [defaultDoctorId, token]);
+  }, [defaultProviderId, token]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -53,7 +53,7 @@ function CreateAppointmentForm({ onSuccess, defaultDoctorId = null, patientName=
 
     const payload = {
       ...formData,
-      doctor: selectedDoctor?.value || null,
+      provider: selectedDoctor?.value || null,
     };
 
     try {

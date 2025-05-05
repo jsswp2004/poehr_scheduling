@@ -47,79 +47,94 @@ function PatientDetailPage() {
 
   return (
     <div className="container mt-4">
-      <h2>Patient Details</h2>
+      <h4>Patient Details</h4>
 
       {!showAppointmentForm && (
         <form onSubmit={handleSubmit}>
-          <ul className="list-group mb-3">
-            <li className="list-group-item">
-              <strong>Name:</strong> {patient.first_name} {patient.last_name}
-            </li>
-            <li className="list-group-item">
-              <strong>Username:</strong> {patient.username}
-            </li>
-            <li className="list-group-item">
-              <strong>Email:</strong> {patient.email}
-            </li>
-            <li className="list-group-item">
-              <strong>Provider:</strong> {patient.provider_name}
-            </li>
-            <li className="list-group-item">
-              <strong>Phone:</strong>{' '}
-              {editMode ? (
-                <input
-                  type="text"
-                  name="phone_number"
-                  className="form-control"
-                  value={formData.phone_number || ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                patient.phone_number || '—'
-              )}
-            </li>
-            <li className="list-group-item">
-              <strong>Date of Birth:</strong>{' '}
-              {editMode ? (
-                <input
-                  type="date"
-                  name="date_of_birth"
-                  className="form-control"
-                  value={formData.date_of_birth || ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                patient.date_of_birth || '—'
-              )}
-            </li>
-            <li className="list-group-item">
-              <strong>Address:</strong>{' '}
-              {editMode ? (
-                <input
-                  type="text"
-                  name="address"
-                  className="form-control"
-                  value={formData.address || ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                patient.address || '—'
-              )}
-            </li>
-            <li className="list-group-item">
-              <strong>Medical History:</strong>{' '}
-              {editMode ? (
-                <textarea
-                  name="medical_history"
-                  className="form-control"
-                  value={formData.medical_history || ''}
-                  onChange={handleChange}
-                />
-              ) : (
-                patient.medical_history || '—'
-              )}
-            </li>
-          </ul>
+        <table className="table table-bordered mb-3">
+          <tbody>
+            <tr>
+              <th scope="row">Name</th>
+              <td>{patient.first_name} {patient.last_name}</td>
+            </tr>
+            <tr>
+              <th scope="row">Username</th>
+              <td>{patient.username}</td>
+            </tr>
+            <tr>
+              <th scope="row">Email</th>
+              <td>{patient.email}</td>
+            </tr>
+            <tr>
+              <th scope="row">Provider</th>
+              <td>{patient.provider_name}</td>
+            </tr>
+            <tr>
+              <th scope="row">Phone</th>
+              <td>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="phone_number"
+                    className="form-control"
+                    value={formData.phone_number || ''}
+                    onChange={handleChange}
+                  />
+                ) : (
+                  patient.phone_number || '—'
+                )}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Date of Birth</th>
+              <td>
+                {editMode ? (
+                  <input
+                    type="date"
+                    name="date_of_birth"
+                    className="form-control"
+                    value={formData.date_of_birth || ''}
+                    onChange={handleChange}
+                  />
+                ) : (
+                  patient.date_of_birth || '—'
+                )}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Address</th>
+              <td>
+                {editMode ? (
+                  <input
+                    type="text"
+                    name="address"
+                    className="form-control"
+                    value={formData.address || ''}
+                    onChange={handleChange}
+                  />
+                ) : (
+                  patient.address || '—'
+                )}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row">Medical History</th>
+              <td>
+                {editMode ? (
+                  <textarea
+                    name="medical_history"
+                    className="form-control"
+                    value={formData.medical_history || ''}
+                    onChange={handleChange}
+                  />
+                ) : (
+                  patient.medical_history || '—'
+                )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
 
           {editMode ? (
             <>
@@ -162,7 +177,7 @@ function PatientDetailPage() {
       {showAppointmentForm && (
         <div className="mt-4">
           <CreateAppointmentForm
-            defaultDoctorId={patient.provider} // ✅ pass provider ID
+            defaultProviderId={patient.provider} // ✅ pass provider ID
             patientName={`${patient.first_name} ${patient.last_name}`}
             onSuccess={() => {
               setShowAppointmentForm(false);
