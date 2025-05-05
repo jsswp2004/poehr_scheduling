@@ -17,6 +17,9 @@ function DashboardPage() {
   const [editMode, setEditMode] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -74,6 +77,21 @@ function DashboardPage() {
     });
   };
 
+  const fetchAvailableSlots = async (doctorId) => {
+    setAvailableSlots([]);
+    if (!doctorId) return;
+  
+    try {
+      const res = await axios.get(`http://127.0.0.1:8000/api/doctors/${doctorId}/available-dates/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAvailableSlots(res.data);
+    } catch (error) {
+      console.error("Failed to fetch available slots:", error);
+    }
+  };
+
+  
   const handleEditClick = (appointment) => {
     const now = new Date();
     const appointmentDate = new Date(appointment.appointment_datetime);
@@ -271,7 +289,11 @@ function DashboardPage() {
                     label: `Dr. ${doc.first_name} ${doc.last_name}`
                   }))}
                   value={selectedDoctor}
-                  onChange={setSelectedDoctor}
+                  onChange={(selected) => {
+                      setSelectedDoctor(selected);
+                      fetchAvailableSlots(selected?.value);
+                    }}
+
                   placeholder="Search or select doctor..."
                   isClearable
                 />
@@ -299,6 +321,37 @@ function DashboardPage() {
           </div>
 
           <div className="col-md-6">
+          <div className="mt-4">
+            <h5>Available Slots</h5>
+              <ul className="list-group">
+                {availableSlots.length > 0 ? (
+                  availableSlots.map((slot, idx) => {
+                    const formattedSlot = toLocalDatetimeString(slot);
+                    return (
+                      <li
+                        key={idx}
+                        role="button"
+                        onClick={() => {
+                          setSelectedSlot(formattedSlot);
+                          setFormData((prev) => ({
+                            ...prev,
+                            appointment_datetime: formattedSlot,
+                          }));
+                        }}
+                        className={`list-group-item list-group-item-action ${
+                          selectedSlot === formattedSlot ? 'active' : ''
+                        }`}
+                      >
+                        {new Date(slot).toLocaleString()}
+                      </li>
+                    );
+                  })
+                ) : (
+                  <li className="list-group-item text-muted">No available slots</li>
+                )}
+              </ul>
+          </div>
+
             <h4>Your Appointments</h4>
             <Table striped bordered hover responsive>
               <thead>
