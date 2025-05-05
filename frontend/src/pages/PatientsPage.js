@@ -7,6 +7,7 @@ import filterFactory, { textFilter } from 'react-bootstrap-table2-filter';
 import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { useNavigate } from 'react-router-dom';
+import CalendarView from '../components/CalendarView';
 
 function PatientsPage() {
   const [patients, setPatients] = useState([]);
@@ -146,6 +147,10 @@ function PatientsPage() {
           )}
         </Card.Body>
       </Card>
+      <div className="mt-5">
+        <h4>Calendar</h4>
+        <CalendarView />
+      </div>
     </div>
   );
 }

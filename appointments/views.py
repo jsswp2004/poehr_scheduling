@@ -5,6 +5,8 @@ from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
 from django.conf import settings  # Import settings to access AUTH_USER_MODEL
+from django.utils.dateparse import parse_date
+from django.utils.timezone import make_aware, datetime as dt
 
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
@@ -12,17 +14,25 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        queryset = Appointment.objects.all().order_by('appointment_datetime')
 
-        if user.role == 'receptionist':
-            return Appointment.objects.all().order_by('appointment_datetime')
-        elif user.role == 'doctor':
-            return Appointment.objects.all().order_by('appointment_datetime')
-        elif user.role == 'admin':
-            return Appointment.objects.all().order_by('appointment_datetime')
-        elif user.role == 'patient':
-            return Appointment.objects.filter(patient=user).order_by('appointment_datetime')
-        else:
-            return Appointment.objects.none()
+        # Optional date filter from query params
+        date_str = self.request.query_params.get('date')
+        if date_str:
+            try:
+                date_obj = parse_date(date_str)
+                if date_obj:
+                    start_of_day = make_aware(dt.combine(date_obj, dt.min.time()))
+                    end_of_day = make_aware(dt.combine(date_obj, dt.max.time()))
+                    queryset = queryset.filter(appointment_datetime__range=(start_of_day, end_of_day))
+            except Exception as e:
+                print("Date parsing failed:", e)
+
+        # Role-based filtering
+        if user.role == 'patient':
+            queryset = queryset.filter(patient=user)
+
+        return queryset
 
     def perform_create(self, serializer):
         # Get provider from the request data
