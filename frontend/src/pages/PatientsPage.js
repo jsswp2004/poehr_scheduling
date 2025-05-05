@@ -110,7 +110,7 @@ function PatientsPage() {
       <Card className="shadow-sm">
         <Card.Body>
           <Card.Title className="mb-4 d-flex justify-content-between align-items-center">
-            Patient List
+            <h4>Patient List</h4>
             <Button variant="success" onClick={exportCSV}>
               Export CSV
             </Button>
