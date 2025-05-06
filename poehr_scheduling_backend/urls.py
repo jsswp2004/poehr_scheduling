@@ -9,11 +9,15 @@ urlpatterns = [
     # Auth-specific routes (register/login)
     path('api/auth/', include('users.urls')),       # Only for login/register/change-password
 
+    # ✅ Password reset routes from django-rest-passwordreset
+    path('api/password-reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
+
     # Profile & user-specific endpoints
     path('api/users/', include('users.urls')),      # Keep all user routes under /api/users/
 
     # Appointments
     path('api/', include('appointments.urls')),
+    # path('api/auth/', include('django_rest_passwordreset.urls', namespace='password_reset')),
 ] 
 # + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
