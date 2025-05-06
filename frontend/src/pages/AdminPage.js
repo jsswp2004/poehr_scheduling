@@ -14,7 +14,7 @@ function AdminPage() {
             <Button variant="primary" size="lg" onClick={() => navigate('/patients')}>
               Patient List
             </Button>
-            <Button variant="success" size="lg" onClick={() => navigate('/appointments')}>
+            <Button variant="success" size="lg" onClick={() => navigate('/dashboard')}>
               Manage Appointments
             </Button>
             <Button variant="secondary" size="lg" onClick={() => navigate('/profile')}>
