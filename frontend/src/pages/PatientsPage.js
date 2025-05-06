@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { Card, Button, Spinner } from 'react-bootstrap';
+import { Card, Form, Button, Row, Col, Spinner, Tabs, Tab} from 'react-bootstrap';
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import filterFactory, { textFilter } from 'react-bootstrap-table2-filter';
@@ -73,27 +73,27 @@ function PatientsPage() {
     },
     {
       dataField: 'full_name',
-      text: ' ',
+      text: 'Patient Name',
       sort: true,
-      filter: textFilter({ placeholder: 'Patient Name...' }),
+      //filter: textFilter({ placeholder: 'Patient Name...' }),
     },
     {
       dataField: 'email',
-      text: ' ',
+      text: 'Email',
       sort: true,
-      filter: textFilter({ placeholder: 'Email...' }),
+      //filter: textFilter({ placeholder: 'Email...' }),
     },
     {
       dataField: 'provider_name',
-      text: ' ',
+      text: 'Provider',
       formatter: (_, row) =>
         row.provider_name ? `Dr. ${row.provider_name}` : <span className="text-muted">None</span>,
       sort: true,
-      filter: textFilter({ placeholder: 'Provider...' }),
+      //filter: textFilter({ placeholder: 'Provider...' }),
     },
     {
       dataField: 'actions',
-      text: 'Patient Details',
+      text: 'Details',
       formatter: (_, row) => (
         <Button
           variant="outline-primary"
@@ -109,18 +109,59 @@ function PatientsPage() {
   ];
 
   return (
-    <div className="container mt-4">
-      <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
-        ← Back
-      </Button>
+<div className="container mt-4">
+  <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
+    ← Back
+  </Button>
+
+  <Tabs defaultActiveKey="patients" className="mb-3">
+    <Tab eventKey="patients" title="Patient List">
       <Card className="shadow-sm">
         <Card.Body>
-          <Card.Title className="mb-4 d-flex justify-content-between align-items-center">
-            <h4>Patient List</h4>
-            <Button variant="success" onClick={exportCSV}>
-              Download (.csv)
-            </Button>
+          <Card.Title className="mb-4 d-flex justify-content-between align-items-right">
+            <h4> </h4>
+            <Button variant="success" onClick={exportCSV}>Download (.csv)</Button>
           </Card.Title>
+
+          <Form className="mb-3">
+            <Row className="g-2 align-items-center">
+            <Col md={6}>
+            <div className="position-relative">
+              <Form.Control
+                type="text"
+                placeholder="Search patients by name, email, or provider..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="btn btn-sm btn-light position-absolute"
+                  style={{
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    padding: '0 6px',
+                    borderRadius: '50%',
+                    lineHeight: '1',
+                    fontSize: '1rem',
+                  }}
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+          </Col>
+
+              <Col md="auto">
+                <Button variant="primary" onClick={fetchPatients}>Search</Button>
+              </Col>
+            </Row>
+          </Form>
 
           {loading ? (
             <div className="text-center py-4">
@@ -153,11 +194,16 @@ function PatientsPage() {
           )}
         </Card.Body>
       </Card>
-      <div className="mt-5">
-        <h4>Calendar</h4>
+    </Tab>
+
+    <Tab eventKey="calendar" title="Calendar View">
+      <div className="mt-4">
         <CalendarView />
       </div>
-    </div>
+    </Tab>
+  </Tabs>
+</div>
+
   );
 }
 
