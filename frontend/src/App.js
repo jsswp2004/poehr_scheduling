@@ -8,6 +8,8 @@ import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
+import AdminPage from './pages/AdminPage'; 
+import ProfilePage from './pages/ProfilePage'; // ✅ Added
 
 function App() {
   return (
@@ -21,6 +23,9 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PatientsPage />} />
         <Route path="/patients/:id" element={<PatientDetailPage />} />
+        <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} /> {/* ✅ Added */}
+        <Route path="/profile" element={<ProfilePage />} />
+
 
       </Routes>
     </Router>

@@ -20,6 +20,8 @@ class CustomUser(AbstractUser):
         related_name='patients'
     )
 
+    profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
+
     def __str__(self):
         return f"{self.username} ({self.role})"
 

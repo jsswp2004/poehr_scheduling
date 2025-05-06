@@ -7,6 +7,9 @@ from .views import (
     get_patients,
     PatientDetailView,
     PatientUpdateView,
+    UserDetailView,
+    change_password,
+    search_users
 )
 
 urlpatterns = [
@@ -20,5 +23,11 @@ urlpatterns = [
     path('patients/', get_patients, name='patient-list'),
     path('patients/by-user/<int:user_id>/', PatientDetailView.as_view(), name='patient-detail'),
     path('patients/by-user/<int:user_id>/edit/', PatientUpdateView.as_view(), name='patient-update'),
+
+    # ✅ Corrected user detail route using pk (not id)
+    path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('users/change-password/', change_password, name='change-password'),
+    path('users/search/', search_users, name='user-search'),
+
 
 ]

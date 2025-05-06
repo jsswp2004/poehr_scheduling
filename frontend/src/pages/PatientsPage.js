@@ -110,6 +110,9 @@ function PatientsPage() {
 
   return (
     <div className="container mt-4">
+      <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
+        ← Back
+      </Button>
       <Card className="shadow-sm">
         <Card.Body>
           <Card.Title className="mb-4 d-flex justify-content-between align-items-center">
