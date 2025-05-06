@@ -37,12 +37,16 @@ function LoginPage() {
       toast.success('Login successful!');
 
       // Redirect based on role
-      if (userRole === 'doctor' || userRole === 'registrar') {
+      // src/pages/LoginPage.js
+
+      if (userRole === 'admin') {
+        navigate('/admin');
+      } else if (userRole === 'doctor' || userRole === 'registrar') {
         navigate('/patients');
       } else if (userRole === 'receptionist') {
         navigate('/appointments');
       } else {
-        navigate('/dashboard'); // Default (e.g., patient)
+        navigate('/dashboard'); // Default for patients
       }
 
     } catch (error) {

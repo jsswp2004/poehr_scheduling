@@ -120,11 +120,13 @@ function DashboardPage() {
     const matched = doctors.find(doc => doc.id === appointment.provider);
     console.log('Matched Doctor:', matched);
 
-    setSelectedDoctor(
-      matched
-        ? { value: matched.id, label: `Dr. ${matched.first_name} ${matched.last_name}` }
-        : null
-    );
+    const selected = matched
+    ? { value: matched.id, label: `Dr. ${matched.first_name} ${matched.last_name}` }
+    : null;
+  
+    setSelectedDoctor(selected);
+    fetchAvailableSlots(selected?.value);  // ✅ This ensures slots are refreshed
+  
 
     setEditingId(appointment.id);
     setEditMode(true);
@@ -351,29 +353,31 @@ function DashboardPage() {
                 )}
               </ul>
           </div>
-            <hr className="my-4" />
+            <hr className="my-4"/>
             <h4>Your Appointments</h4>
-            <Table striped bordered hover responsive>
-              <thead>
-                <tr>
-                  <th>Visit</th>
-                  <th>Date & Time</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appointments.map((a) => (
-                  <tr key={a.id}>
-                    <td>{a.title}</td>
-                    <td>{new Date(a.appointment_datetime).toLocaleString()}</td>
-                    <td>
-                      <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
-                    </td>
+            <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+              <Table striped bordered hover responsive>
+                <thead>
+                  <tr>
+                    <th>Visit</th>
+                    <th>Date & Time</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </Table>
+                </thead>
+                <tbody>
+                  {appointments.map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.title}</td>
+                      <td>{new Date(a.appointment_datetime).toLocaleString()}</td>
+                      <td>
+                        <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
           </div>
         </div>
       )}

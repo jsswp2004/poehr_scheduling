@@ -3,17 +3,28 @@ from .models import CustomUser, Patient
 
 class UserSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
+    profile_picture = serializers.ImageField(use_url=True)  # ✅ This makes it include full path
 
     class Meta:
         model = CustomUser
         fields = (
             'id', 'username', 'email', 'password',
-            'first_name', 'last_name', 'role', 'provider', 'provider_name'  # ✅ include provider_name
+            'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture'  # ✅ include provider_name
         )
         extra_kwargs = {
             'password': {'write_only': True},
             'provider': {'required': False, 'allow_null': True}
         }
+
+    def update(self, instance, validated_data):
+        profile_picture = validated_data.pop('profile_picture', None)
+        print("🔥 PROFILE PICTURE RECEIVED:", profile_picture)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if profile_picture:
+            instance.profile_picture = profile_picture
+        instance.save()
+        return instance
 
     def get_provider_name(self, obj):
         if obj.provider:
