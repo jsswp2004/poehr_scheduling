@@ -37,7 +37,7 @@ function CalendarView() {
   });
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
-
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [currentView, setCurrentView] = useState('month');
@@ -247,9 +247,22 @@ function CalendarView() {
     <div className="card mt-4">
       <div className="card-body">
         <div style={{ height: '600px' }}>
+        <div className="d-flex justify-content-between align-items-right mb-3">
+          <h5 className="mb-0"> </h5>
+          <Form.Control
+            type="text"
+            placeholder="Search appointments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: '250px' }}
+          />
+        </div>
+
           <Calendar
             localizer={localizer}
-            events={events}
+            events={events.filter(event =>
+                event.title.toLowerCase().includes(searchQuery.toLowerCase())
+              )}
             startAccessor="start"
             endAccessor="end"
             view={currentView}
@@ -265,6 +278,7 @@ function CalendarView() {
             onSelectEvent={handleSelectEvent}
             min={new Date(1970, 1, 1, 8, 0, 0)}  // 8:00 AM
             max={new Date(1970, 1, 1, 18, 0, 0)} // 6:00 PM
+
           />
 
           <Modal show={showModal} onHide={() => setShowModal(false)}>
