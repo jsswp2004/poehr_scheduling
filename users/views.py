@@ -1,25 +1,26 @@
-from rest_framework import generics
+from rest_framework import generics, filters, status, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework import status
-from rest_framework.generics import RetrieveAPIView
-from rest_framework.generics import RetrieveUpdateAPIView
+from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView
 from django.contrib.auth import update_session_auth_hash
+from django.db.models import Q
 
 from .models import CustomUser, Patient
 from .serializers import UserSerializer, PatientSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
 
+
 class UserDetailView(RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'pk'
-    lookup_url_kwarg = 'pk'  # ✅ This matches the URL kwarg name
+    lookup_url_kwarg = 'pk'
+
 
 class PatientUpdateView(RetrieveUpdateAPIView):
     queryset = Patient.objects.select_related('user')
@@ -33,14 +34,11 @@ class PatientDetailView(RetrieveAPIView):
     queryset = Patient.objects.select_related('user')
     serializer_class = PatientSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'user_id'  # Matches patient ID
-    lookup_url_kwarg = 'user_id'        # 👈 Expect this URL kwarg (must match URL pattern)
+    lookup_field = 'user_id'
+    lookup_url_kwarg = 'user_id'
+
 
 class DoctorListView(APIView):
-    """
-    Returns a list of all doctors.
-    Publicly accessible for patient registration.
-    """
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -50,9 +48,6 @@ class DoctorListView(APIView):
 
 
 class RegisterView(generics.CreateAPIView):
-    """
-    Handles user registration.
-    """
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
@@ -69,11 +64,7 @@ class RegisterView(generics.CreateAPIView):
         return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
 
 
-
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """
-    Custom JWT token view that adds role and other fields to token.
-    """
     serializer_class = CustomTokenObtainPairSerializer
 
 
@@ -83,7 +74,7 @@ def get_patients(request):
     """
     Returns a paginated list of patients:
     - If doctor: only assigned patients
-    - If registrar: all patients
+    - If registrar/admin: all patients
     Supports search and provider filtering.
     """
     user = request.user
@@ -93,7 +84,7 @@ def get_patients(request):
 
     if user.role == 'doctor':
         patients = Patient.objects.filter(user__provider=user)
-    else:  # registrar
+    else:
         patients = Patient.objects.all()
 
     search = request.GET.get('search')
@@ -101,9 +92,11 @@ def get_patients(request):
 
     if search:
         patients = patients.filter(
-            user__first_name__icontains=search
-        ) | patients.filter(
-            user__last_name__icontains=search
+            Q(user__first_name__icontains=search) |
+            Q(user__last_name__icontains=search) |
+            Q(user__email__icontains=search) |
+            Q(user__provider__first_name__icontains=search) |
+            Q(user__provider__last_name__icontains=search)
         )
 
     if provider_id:
@@ -115,12 +108,6 @@ def get_patients(request):
     serializer = PatientSerializer(result_page, many=True)
 
     return paginator.get_paginated_response(serializer.data)
-
-
-def validate(self, attrs):
-    data = super().validate(attrs)
-    print("Authenticated user:", self.user, "Active:", self.user.is_active, "Role:", self.user.role)
-    return data
 
 
 @api_view(['POST'])
@@ -139,22 +126,32 @@ def change_password(request):
 
     user.set_password(new_password)
     user.save()
-    update_session_auth_hash(request, user)  # Keeps user logged in after password change
+    update_session_auth_hash(request, user)
 
     return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+
 
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def search_users(request):
     query = request.GET.get('q', '')
     users = CustomUser.objects.filter(
-        username__icontains=query
-    ) | CustomUser.objects.filter(
-        email__icontains=query
-    ) | CustomUser.objects.filter(
-        first_name__icontains=query
-    ) | CustomUser.objects.filter(
-        last_name__icontains=query
-    )
-    serializer = UserSerializer(users.distinct(), many=True)
+        Q(username__icontains=query) |
+        Q(email__icontains=query) |
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query)
+    ).distinct()
+    serializer = UserSerializer(users, many=True)
     return Response(serializer.data)
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    filter_backends = [filters.SearchFilter]
+    search_fields = [
+        'first_name',
+        'last_name',
+        'email',
+        'provider__first_name',
+        'provider__last_name',
+        
+    ]

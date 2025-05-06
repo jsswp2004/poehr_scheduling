@@ -110,9 +110,9 @@ function PatientsPage() {
 
   return (
 <div className="container mt-4">
-  <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
-    ← Back
-  </Button>
+        {/*<Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
+            ← Back
+        </Button>*/}
 
   <Tabs defaultActiveKey="patients" className="mb-3">
     <Tab eventKey="patients" title="Patient List">
