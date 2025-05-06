@@ -8,6 +8,7 @@ import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { useNavigate } from 'react-router-dom';
 import CalendarView from '../components/CalendarView';
+import { jwtDecode } from 'jwt-decode';
 
 function PatientsPage() {
   const [patients, setPatients] = useState([]);
@@ -20,7 +21,16 @@ function PatientsPage() {
   const navigate = useNavigate();
 
   const token = localStorage.getItem('access_token');
+  let userRole = null;
 
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      userRole = decoded.role;
+    } catch (err) {
+      console.error('Failed to decode token:', err);
+    }
+  }
   const fetchPatients = async () => {
     setLoading(true);
     try {
@@ -110,9 +120,11 @@ function PatientsPage() {
 
   return (
 <div className="container mt-4">
-        {/*<Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
-            ← Back
-        </Button>*/}
+    {userRole === 'admin' && (
+      <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mb-3">
+        ← Back
+      </Button>
+    )}
 
   <Tabs defaultActiveKey="patients" className="mb-3">
     <Tab eventKey="patients" title="Patient List">
@@ -123,45 +135,56 @@ function PatientsPage() {
             <Button variant="success" onClick={exportCSV}>Download (.csv)</Button>
           </Card.Title>
 
-          <Form className="mb-3">
+          <Form
+            className="mb-3"
+            onSubmit={(e) => {
+              e.preventDefault();  // Prevent page reload
+              fetchPatients();     // Trigger search
+            }}
+          >
             <Row className="g-2 align-items-center">
-            <Col md={6}>
-            <div className="position-relative">
-              <Form.Control
-                type="text"
-                placeholder="Search patients by name, email, or provider..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch('')}
-                  className="btn btn-sm btn-light position-absolute"
-                  style={{
-                    right: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    padding: '0 6px',
-                    borderRadius: '50%',
-                    lineHeight: '1',
-                    fontSize: '1rem',
-                  }}
-                >
-                  &times;
-                </button>
-              )}
-            </div>
-          </Col>
-
+              <Col md={6}>
+                <div className="position-relative">
+                  <Form.Control
+                    type="text"
+                    placeholder="Search patients by name, email, or provider..."
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSearch('');
+                        setPage(1);
+                        setTimeout(() => {
+                          fetchPatients();
+                        }, 0);  // ✅ Refresh on clear
+                      }}
+                      className="btn btn-sm btn-light position-absolute"
+                      style={{
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        padding: '0 6px',
+                        borderRadius: '50%',
+                        lineHeight: '1',
+                      }}
+                    >
+                      &times;
+                    </button>
+                  )}
+                </div>
+              </Col>
               <Col md="auto">
-                <Button variant="primary" onClick={fetchPatients}>Search</Button>
+                <Button variant="primary" type="submit">Search</Button>
               </Col>
             </Row>
           </Form>
+
 
           {loading ? (
             <div className="text-center py-4">

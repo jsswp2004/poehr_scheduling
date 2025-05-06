@@ -10,6 +10,8 @@ import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import AdminPage from './pages/AdminPage'; 
 import ProfilePage from './pages/ProfilePage'; // ✅ Added
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+
 
 function App() {
   return (
@@ -25,6 +27,7 @@ function App() {
         <Route path="/patients/:id" element={<PatientDetailPage />} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} /> {/* ✅ Added */}
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
 
       </Routes>

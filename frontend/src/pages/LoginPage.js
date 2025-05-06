@@ -3,6 +3,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
+import { Link } from 'react-router-dom';
 
 
 function LoginPage() {
@@ -85,6 +86,12 @@ function LoginPage() {
               />
             </div>
             <button type="submit" className="btn btn-primary w-100">Login</button>
+            <div className="text-center mt-3">
+              <Link to="/forgot-password" className="d-block mb-2">Forgot Password?</Link>
+              <span>
+                Don't have an account? <Link to="/register">Sign up</Link>
+              </span>
+            </div>
           </form>
         </div>
       </div>

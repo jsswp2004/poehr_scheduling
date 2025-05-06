@@ -7,6 +7,8 @@ import moment from 'moment';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import Select from 'react-select';
+import { jwtDecode } from 'jwt-decode';
+
 
 const localizer = momentLocalizer(moment);
 
@@ -42,7 +44,18 @@ function CalendarView() {
   const [events, setEvents] = useState([]);
   const [currentView, setCurrentView] = useState('month');
   const token = localStorage.getItem('access_token');
-
+  
+  let userRole = null;
+  
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      userRole = decoded.role;
+    } catch (err) {
+      console.error('Failed to decode token:', err);
+    }
+  }
+  
   // Fetch doctors function (outside useEffect)
   const fetchDoctors = async () => {
     try {
@@ -54,6 +67,8 @@ function CalendarView() {
       console.error('Failed to load doctors:', err);
     }
   };
+
+  
 
   // Fetch appointments function (outside useEffect)
   const fetchAppointments = async () => {
@@ -96,6 +111,11 @@ function CalendarView() {
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
 
   const handleSelectSlot = ({ start }) => {
+    if (userRole !== 'patient') {
+      //toast.warning('Only patients can create appointments.');
+      return;
+    }
+
     const day = start.getDay(); // ✅ this defines `day` properly
 
     if (day === 0 || day === 6) {

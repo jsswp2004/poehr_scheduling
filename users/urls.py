@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     RegisterView,
@@ -28,6 +28,9 @@ urlpatterns = [
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('users/change-password/', change_password, name='change-password'),
     path('search/', search_users, name='user-search'),
+
+    # Password reset
+    path('', include('django_rest_passwordreset.urls', namespace='password_reset')),
 
 
 ]
