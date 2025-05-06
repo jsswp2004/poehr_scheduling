@@ -27,7 +27,7 @@ urlpatterns = [
     # ✅ Corrected user detail route using pk (not id)
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('users/change-password/', change_password, name='change-password'),
-    path('users/search/', search_users, name='user-search'),
+    path('search/', search_users, name='user-search'),
 
 
 ]

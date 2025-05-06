@@ -65,6 +65,17 @@ function ProfilePage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setSearchResults(res.data);
+      if (res.data.length > 0) {
+        const selectedUser = res.data[0];
+        setUser(selectedUser);
+        setFormData({
+          first_name: selectedUser.first_name,
+          last_name: selectedUser.last_name,
+          email: selectedUser.email,
+        });
+      } else {
+        toast.info('No matching users found.');
+      }
     } catch (err) {
       toast.error('Search failed.');
     }
@@ -148,36 +159,26 @@ function ProfilePage() {
 
       <Card className="shadow-sm p-4">
         <h3>Profile</h3>
-        
-        {user?.role === 'admin' && (
-        <>
+
+        {user && ['admin', 'registrar', 'patient'].includes(user.role)  && (
+          <>
             <hr />
             <h5>🔍 Search Users (Admin Only)</h5>
             <Form className="mb-3 d-flex gap-2">
-            <Form.Control
+              <Form.Control
                 type="text"
                 placeholder="Search by username, email, or name"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <Button variant="primary" onClick={handleSearch}>
+              />
+              <Button variant="primary" onClick={handleSearch}>
                 Search
-            </Button>
+              </Button>
             </Form>
-            {searchResults.length > 0 && (
-            <div className="mt-3">
-                <h6>Results:</h6>
-                <ul>
-                {searchResults.map((u) => (
-                    <li key={u.id}>
-                    {u.first_name} {u.last_name} ({u.username}) - {u.email}
-                    </li>
-                ))}
-                </ul>
-            </div>
-            )}
-        </>
+
+          </>
         )}
+
         <Form>
           {user.profile_picture && (
             <div className="mb-3 text-center">
@@ -297,9 +298,6 @@ function ProfilePage() {
             <Button variant="success" onClick={handlePasswordChange}>Save New Password</Button>
           </div>
         </Collapse>
-
-
-
       </Card>
     </div>
   );
