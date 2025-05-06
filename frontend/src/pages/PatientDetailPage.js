@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
+import { Card, Form, Button, Row, Col, Spinner, Tabs, Tab} from 'react-bootstrap';
 
 function PatientDetailPage() {
   const { id } = useParams();
@@ -47,6 +48,7 @@ function PatientDetailPage() {
 
   return (
     <div className="container mt-4">
+
       <h4>Patient Details</h4>
 
       {!showAppointmentForm && (
