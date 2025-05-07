@@ -18,6 +18,11 @@ urlpatterns = [
     # Appointments
     path('api/', include('appointments.urls')),
     # path('api/auth/', include('django_rest_passwordreset.urls', namespace='password_reset')),
+
+    path('api/sms/', include('users.urls')),  # or sms.urls
+    path('api/messages/', include('users.urls')),
+
+
 ] 
 # + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 

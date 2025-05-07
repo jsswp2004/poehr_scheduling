@@ -165,12 +165,13 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.office365.com'
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-
-EMAIL_HOST_USER = 'jsswp2004@outlook.com'       # or @hotmail.com, @live.com, etc.
-EMAIL_HOST_PASSWORD = 'zjmghgkgmmivfwkk'       # 🔒 see security note below
-
+EMAIL_HOST_USER = 'jsswp199427@gmail.com'
+EMAIL_HOST_PASSWORD = 'qinopowcswwxxlzg'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
+TWILIO_ACCOUNT_SID = 'ACce5a6665879e16fba73e86ce248f7b1f'
+TWILIO_AUTH_TOKEN = '438d7e2d48f34a2bb63130a7026a7fcf'
+TWILIO_PHONE_NUMBER = '+18774549964'  # Your Twilio number

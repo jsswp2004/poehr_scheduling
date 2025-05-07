@@ -129,7 +129,7 @@ function ProfilePage() {
         uploadFormData,
         {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            //'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
         }
@@ -153,17 +153,19 @@ function ProfilePage() {
 
   return (
     <div className="container mt-4">
-      <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
+
+
+      <Card className="shadow-sm p-4"> 
+      <div className="mb-3 d-flex justify-content-between align-items-right">
+        <h3>Profile</h3>
+        <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
         ← Back
       </Button>
-
-      <Card className="shadow-sm p-4">
-        <h3>Profile</h3>
-
+      </div>
         {user && ['admin', 'registrar', 'patient'].includes(user.role)  && (
           <>
             <hr />
-            <h5>🔍 Search Users (Admin Only)</h5>
+            <h5>🔍 Search Users</h5>
             <Form className="mb-3 d-flex gap-2">
               <Form.Control
                 type="text"
@@ -195,7 +197,7 @@ function ProfilePage() {
           <Form.Group className="mb-3">
             <Form.Label>Upload New Profile Picture</Form.Label>
             <div className="d-flex align-items-center gap-3">
-              <Form.Control type="file" ref={fileInputRef} onChange={handleUpload} />
+              <Form.Control type="file" accept="image/png, image/jpeg" ref={fileInputRef} onChange={handleUpload} />
               {uploading && <Spinner animation="border" size="sm" />}
             </div>
           </Form.Group>
@@ -254,7 +256,7 @@ function ProfilePage() {
         </Form>
 
         <hr />
-        <h5>Change Password</h5>
+        {/*<h5>Change Password</h5>*/}
         <Button
           variant="outline-primary"
           className="mb-3"

@@ -9,7 +9,10 @@ from .views import (
     PatientUpdateView,
     UserDetailView,
     change_password,
-    search_users
+    search_users,
+    send_sms,
+    send_sms_email,
+    send_patient_email
 )
 
 urlpatterns = [
@@ -31,6 +34,11 @@ urlpatterns = [
 
     # Password reset
     path('', include('django_rest_passwordreset.urls', namespace='password_reset')),
+
+    # Twilio SMS
+    path('send-sms/', send_sms, name='send-sms'),
+    path('send-sms-email/', send_sms_email, name='send-sms-email'),
+    path('send-email/', send_patient_email, name='send-email'),
 
 
 ]

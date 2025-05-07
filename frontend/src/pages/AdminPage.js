@@ -1,6 +1,8 @@
 // src/pages/AdminPage.js
 import { useNavigate } from 'react-router-dom';
 import { Button, Card } from 'react-bootstrap';
+import { FaUserInjured, FaCalendarCheck, FaUserCog } from 'react-icons/fa';
+
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -9,18 +11,67 @@ function AdminPage() {
     <div className="container mt-5">
       <Card className="text-center shadow">
         <Card.Body>
-          <h2 className="mb-4">Admin Dashboard</h2>
-          <div className="d-grid gap-3">
-            <Button variant="primary" size="lg" onClick={() => navigate('/patients')}>
-              Patient List
+          <h2 className="mb-6">Settings</h2>
+          <div className="d-flex justify-content-center gap-3">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => navigate('/patients')}
+              style={{
+                width: '120px',
+                height: '120px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center'
+              }}
+            >
+              
+              <FaCalendarCheck size={24} className="mb-1" />
+              Patient Visits
             </Button>
-            <Button variant="success" size="lg" onClick={() => navigate('/dashboard')}>
-              Manage Appointments
-            </Button>
-            <Button variant="secondary" size="lg" onClick={() => navigate('/profile')}>
+
+
+              {false && (
+                <Button
+                variant="success"
+                size="lg"
+                onClick={() => navigate('/dashboard')}
+                style={{
+                  width: '120px',
+                  height: '120px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center'              
+                }}              
+                >
+                  <FaCalendarCheck size={24} className="mb-1" />
+                  Manage Visits
+                </Button>
+                )}
+
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => navigate('/profile')}
+              style={{
+                width: '120px',
+                height: '120px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center'
+              }}
+            >
+              <FaUserCog size={24} className="mb-1" />
               Profile Page
             </Button>
           </div>
+
         </Card.Body>
       </Card>
     </div>

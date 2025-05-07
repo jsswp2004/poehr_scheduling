@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { Card, Form, Button, Row, Col, Spinner, Tabs, Tab} from 'react-bootstrap';
+import { Card, Form, Button, Row, Col, Spinner, Tabs, Tab, Modal} from 'react-bootstrap';
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import filterFactory, { textFilter } from 'react-bootstrap-table2-filter';
@@ -9,8 +9,19 @@ import Papa from 'papaparse';
 import { useNavigate } from 'react-router-dom';
 import CalendarView from '../components/CalendarView';
 import { jwtDecode } from 'jwt-decode';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+
 
 function PatientsPage() {
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [emailForm, setEmailForm] = useState({
+    subject: 'Message from your provider',
+    message: ''
+  });
+
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -62,6 +73,65 @@ function PatientsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sizePerPage]);
 
+  const handleSendText = async (patient) => {
+    console.log('🚀 SEND TEXT FUNCTION CALLED:', patient);  // ← ADD THIS
+  
+    const token = localStorage.getItem('access_token');
+    const phone = patient.phone_number;
+    const message = `Hello ${patient.first_name}, this is a reminder from your provider.`;
+  
+    if (!phone) {
+      toast.warning(`No phone number available for ${patient.first_name}`);
+      return;
+    }
+  
+    try {
+      await axios.post('http://127.0.0.1:8000/api/sms/send-sms/', {
+        phone,
+        message,
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+  
+      toast.success(`Text sent to ${patient.first_name}`);
+    } catch (err) {
+      console.error('SMS failed:', err);
+      toast.error('Failed to send SMS');
+    }
+  };
+  
+  
+  const handleOpenEmailModal = (patient) => {
+    setSelectedPatient(patient);
+    setEmailForm({ subject: 'Message from your provider', message: '' });
+    setShowEmailModal(true);
+  };
+  
+  const handleSendEmail = async () => {
+    const token = localStorage.getItem('access_token');
+  
+    try {
+      await axios.post('http://127.0.0.1:8000/api/messages/send-email/', {
+        email: selectedPatient.email,
+        subject: emailForm.subject,
+        message: emailForm.message,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+  
+      toast.success(`Email sent to ${selectedPatient.first_name}`);
+      setShowEmailModal(false);
+    } catch (err) {
+      console.error('Email failed:', err);
+      toast.error('Failed to send email');
+    }
+  };
+  
+  
+
+  
   const exportCSV = () => {
     const csv = Papa.unparse(
       patients.map((p) => ({
@@ -73,6 +143,7 @@ function PatientsPage() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, 'patients.csv');
   };
+
 
   const columns = [
     {
@@ -116,22 +187,57 @@ function PatientsPage() {
       headerStyle: { width: '90px' },
       align: 'center',
     },
+    {
+      dataField: 'send_text',
+      text: 'Text',
+      formatter: (_, row) => (
+        <Button
+          variant="warning"
+          size="sm"
+          onClick={() => handleSendText(row)}
+        >
+          Send Text
+        </Button>
+      ),
+      headerStyle: { width: '110px' },
+      align: 'center',
+    },
+    {
+      dataField: 'send_email',
+      text: 'Email',
+      formatter: (_, row) => (
+        <Button
+          variant="info"
+          size="sm"
+          onClick={() => handleOpenEmailModal(row)}
+        >
+          Send Email
+        </Button>
+      ),
+      headerStyle: { width: '110px' },
+      align: 'center',
+    }
+    
+
+
+    
   ];
+
 
   return (
 <div className="container mt-4">
-    {userRole === 'admin' && (
-      <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mb-3">
-        ← Back
-      </Button>
-    )}
+
 
   <Tabs defaultActiveKey="patients" className="mb-3">
     <Tab eventKey="patients" title="Patient List">
       <Card className="shadow-sm">
         <Card.Body>
           <Card.Title className="mb-4 d-flex justify-content-between align-items-right">
-            <h4> </h4>
+          {userRole === 'admin' && (
+            <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mb-3">
+              ← Back
+            </Button>
+          )}
             <Button variant="success" onClick={exportCSV}>Download (.csv)</Button>
           </Card.Title>
 
@@ -220,11 +326,41 @@ function PatientsPage() {
     </Tab>
 
     <Tab eventKey="calendar" title="Calendar View">
-      <div className="mt-4">
+    <CalendarView />
+      { /*<div className="mt-4" >
         <CalendarView />
-      </div>
+      </div>*/}
     </Tab>
   </Tabs>
+  <Modal show={showEmailModal} onHide={() => setShowEmailModal(false)}>
+  <Modal.Header closeButton>
+    <Modal.Title>Email {selectedPatient?.first_name}</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <Form.Group className="mb-2">
+      <Form.Label>Subject</Form.Label>
+      <Form.Control
+        type="text"
+        value={emailForm.subject}
+        onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+      />
+    </Form.Group>
+    <Form.Group>
+      <Form.Label>Message</Form.Label>
+      <Form.Control
+        as="textarea"
+        rows={5}
+        value={emailForm.message}
+        onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+      />
+    </Form.Group>
+  </Modal.Body>
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowEmailModal(false)}>Cancel</Button>
+    <Button variant="primary" onClick={handleSendEmail}>Send</Button>
+  </Modal.Footer>
+</Modal>
+
 </div>
 
   );

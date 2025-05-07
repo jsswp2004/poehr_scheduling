@@ -7,6 +7,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
+from twilio.rest import Client
+from django.conf import settings
 
 from .models import CustomUser, Patient
 from .serializers import UserSerializer, PatientSerializer
@@ -20,7 +22,10 @@ class UserDetailView(RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     lookup_field = 'pk'
     lookup_url_kwarg = 'pk'
-
+    def patch(self, request, *args, **kwargs):
+        print("PATCH data:", request.data)
+        print("FILES:", request.FILES)
+        return super().patch(request, *args, **kwargs)
 
 class PatientUpdateView(RetrieveUpdateAPIView):
     queryset = Patient.objects.select_related('user')
@@ -155,3 +160,90 @@ class UserViewSet(viewsets.ModelViewSet):
         'provider__last_name',
         
     ]
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_sms(request):
+    phone = request.data.get('phone')
+    message = request.data.get('message')
+
+    print("📨 SMS REQUEST RECEIVED:", phone, message)
+
+    if not phone or not message:
+        return Response({'error': 'Phone and message are required.'}, status=400)
+
+    try:
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        sent = client.messages.create(
+            body=message,
+            from_=settings.TWILIO_PHONE_NUMBER,
+            to=phone
+        )
+        print("✅ SMS SENT:", sent.sid)
+        return Response({'message': 'SMS sent successfully', 'sid': sent.sid})
+    except Exception as e:
+        print("❌ TWILIO ERROR:", e)
+        return Response({'error': str(e)}, status=500)
+    
+from django.core.mail import send_mail
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_sms_email(request):
+    phone = request.data.get('phone')
+    carrier = request.data.get('carrier')
+    message = request.data.get('message')
+
+    carrier_domains = {
+        'verizon': 'vtext.com',
+        'att': 'txt.att.net',
+        'tmobile': 'tmomail.net',
+        'sprint': 'messaging.sprintpcs.com',
+    }
+
+    if not phone or not carrier or not message:
+        return Response({'error': 'Phone, carrier, and message are required.'}, status=400)
+
+    domain = carrier_domains.get(carrier.lower())
+    if not domain:
+        return Response({'error': 'Unsupported carrier'}, status=400)
+
+    to_email = f"{phone}@{domain}"
+
+    try:
+        send_mail(
+            subject='',
+            message=message,
+            from_email=None,
+            recipient_list=[to_email],
+            fail_silently=False,
+        )
+        return Response({'message': f'SMS sent to {phone} via {carrier}'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_patient_email(request):
+    email = request.data.get('email')
+    subject = request.data.get('subject', 'Message from your provider')
+    message = request.data.get('message')
+
+    if not email or not message:
+        return Response({'error': 'Email and message are required.'}, status=400)
+
+    try:
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=None,  # defaults to DEFAULT_FROM_EMAIL
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        return Response({'message': 'Email sent successfully'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
