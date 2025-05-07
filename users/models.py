@@ -21,6 +21,8 @@ class CustomUser(AbstractUser):
     )
 
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+
 
     def __str__(self):
         return f"{self.username} ({self.role})"

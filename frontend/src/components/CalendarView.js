@@ -265,18 +265,19 @@ function CalendarView() {
 
   return (
     <div className="card mt-4">
+      <div className="d-flex justify-content-between align-items-right mb-3" style={{ padding: '10px' }}>       
+            <Form.Control
+              type="text"
+              placeholder="Search appointments..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ width: '250px' }}
+            />
+      </div>
       <div className="card-body">
-        <div style={{ height: '600px' }}>
-        <div className="d-flex justify-content-between align-items-right mb-3">
-          <h5 className="mb-0"> </h5>
-          <Form.Control
-            type="text"
-            placeholder="Search appointments..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ width: '250px' }}
-          />
-        </div>
+        
+        <div style={{ height: '600px', maxWidth: '100%' }}>
+
 
           <Calendar
             localizer={localizer}
