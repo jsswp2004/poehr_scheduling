@@ -4,6 +4,8 @@ import axios from 'axios';
 import CalendarView from '../components/CalendarView';
 import { toast } from 'react-toastify';
 import Table from 'react-bootstrap/Table';
+import { Tabs, Tab } from 'react-bootstrap';
+
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -28,7 +30,7 @@ function DashboardPage() {
     recurrence: 'none',
     provider: null, // This will be set to the selected doctor ID
   });
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(true);
 
   const token = localStorage.getItem('access_token');
 
@@ -189,205 +191,205 @@ function DashboardPage() {
   return (
     <div className="container mt-4">
       <div className="text-center my-4">
-        <h2 className="fw-bold">Manage Your Appointments</h2>
-        <p className="text-muted">Easily view, create, and manage your appointments in one place.</p>
-        <div className="text-center mb-4">
-          <button
-            className="btn btn-success"
-            onClick={() => {
-              setFormData({
-                title: '',
-                description: '',
-                appointment_datetime: '',
-                duration_minutes: 30,
-                recurrence: 'none',
-              });
-              setSelectedDoctor(null);
-              setEditMode(false);
-              setEditingId(null);
-              setShowForm(true);
-            }}
-          >
-            + Create / Show Appointment
-          </button>
-        </div>
+        <h4 className="fw-bold">Dashboard</h4>
+        <p className="text-muted">Manage your appointments or view the calendar.</p>
       </div>
 
-      {showForm && (
-        <div className="row">
-          <div className="col-md-6">
-            <form onSubmit={handleSubmit} className="mb-5">
-              <h4 className="mb-3">{editMode ? 'Edit Appointment' : 'Create Appointment'}</h4>
+      <Tabs defaultActiveKey="manage" id="dashboard-tabs" className="mb-3">
+        <Tab eventKey="manage" title="Manage Appointments">
+          {/* ✅ This wraps everything inside appointment management */}
+           {/*  */}
 
-              <div className="mb-3">
-                <label className="form-label">Title</label>
-                <input
-                  type="text"
-                  name="title"
-                  className="form-control"
-                  placeholder="Title"
-                  onChange={handleChange}
-                  value={formData.title}
-                  required
-                />
-              </div>
+          
+          {showForm && (
+            <div className="row">
+              <div className="col-md-6">
+                <form onSubmit={handleSubmit} className="mb-5">
+                  <h5 className="mb-3">{editMode ? 'Edit Appointment' : 'Request an Appointment'}</h5>
 
-              <div className="mb-3">
-                <label className="form-label">Description</label>
-                <textarea
-                  name="description"
-                  className="form-control"
-                  placeholder="Description"
-                  onChange={handleChange}
-                  value={formData.description}
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Date & Time</label>
-                <input
-                  type="datetime-local"
-                  name="appointment_datetime"
-                  className="form-control"
-                  onChange={handleChange}
-                  value={formData.appointment_datetime}
-                  required
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Duration (minutes)</label>
-                <input
-                  type="number"
-                  name="duration_minutes"
-                  className="form-control"
-                  onChange={handleChange}
-                  value={formData.duration_minutes}
-                  required
-                />
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Recurrence</label>
-                <select
-                  name="recurrence"
-                  className="form-select"
-                  onChange={handleChange}
-                  value={formData.recurrence}
-                >
-                  <option value="none">None</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="monthly">Monthly</option>
-                </select>
-              </div>
-
-              <div className="mb-3">
-                <label className="form-label">Select Doctor</label>
-                <Select
-                  
-                  options={doctors.map(doc => ({
-                    value: doc.id,
-                    label: `Dr. ${doc.first_name} ${doc.last_name}`
-                  }))}
-                  value={selectedDoctor}
-                  onChange={(selected) => {
-                      setSelectedDoctor(selected);
-                      fetchAvailableSlots(selected?.value);
-                    }}
-
-                  placeholder="Search or select doctor..."
-                  isClearable
-                />
-              </div>
-
-              <div className="d-flex gap-2">
-                <button type="submit" className="btn btn-primary w-100">
-                  {editMode ? 'Update Appointment' : 'Create Appointment'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary w-100"
-                  onClick={() => {
-                    setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
-                    setSelectedDoctor(null);
-                    setEditMode(false);
-                    setEditingId(null);
-                    setShowForm(false);
-                    }}
-                  >
-                    Cancel
-                  </button>
+                  <div className="mb-3">
+                    <label className="form-label">Title</label>
+                    <input
+                      type="text"
+                      name="title"
+                      className="form-control"
+                      placeholder="Title"
+                      onChange={handleChange}
+                      value={formData.title}
+                      required
+                    />
                   </div>
-                </form>
-                </div>
 
-                <div className="col-md-6">
-                <div className="mt-4">
-                <h4>Available Slots for {selectedDoctor?.label || 'Selected Doctor'}</h4>
-                  <ul className="list-group">
-                  {availableSlots.length > 0 ? (
-                    availableSlots.map((slot, idx) => {
-                    const formattedSlot = toLocalDatetimeString(slot);
-                    return (
-                      <li
-                        key={idx}
-                        role="button"
-                        onClick={() => {
-                          setSelectedSlot(formattedSlot);
-                          setFormData((prev) => ({
-                            ...prev,
-                            appointment_datetime: formattedSlot,
-                          }));
+                  <div className="mb-3">
+                    <label className="form-label">Description</label>
+                    <textarea
+                      name="description"
+                      className="form-control"
+                      placeholder="Description"
+                      onChange={handleChange}
+                      value={formData.description}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Date & Time</label>
+                    <input
+                      type="datetime-local"
+                      name="appointment_datetime"
+                      className="form-control"
+                      onChange={handleChange}
+                      value={formData.appointment_datetime}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Duration (minutes)</label>
+                    <input
+                      type="number"
+                      name="duration_minutes"
+                      className="form-control"
+                      onChange={handleChange}
+                      value={formData.duration_minutes}
+                      required
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Recurrence</label>
+                    <select
+                      name="recurrence"
+                      className="form-select"
+                      onChange={handleChange}
+                      value={formData.recurrence}
+                    >
+                      <option value="none">None</option>
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Select Doctor</label>
+                    <Select
+                      
+                      options={doctors.map(doc => ({
+                        value: doc.id,
+                        label: `Dr. ${doc.first_name} ${doc.last_name}`
+                      }))}
+                      value={selectedDoctor}
+                      onChange={(selected) => {
+                          setSelectedDoctor(selected);
+                          fetchAvailableSlots(selected?.value);
                         }}
-                        className={`list-group-item list-group-item-action ${
-                          selectedSlot === formattedSlot ? 'active' : ''
-                        }`}
-                      >
-                        {new Date(slot).toLocaleString()}
-                      </li>
-                    );
-                  })
-                ) : (
-                  <li className="list-group-item text-muted">No available slots</li>
-                )}
-              </ul>
-          </div>
-            <hr className="my-4"/>
-            <h4>Your Appointments</h4>
-            <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
-              <Table striped bordered hover responsive>
-                <thead>
-                  <tr>
-                    <th>Visit</th>
-                    <th>Date & Time</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appointments.map((a) => (
-                    <tr key={a.id}>
-                      <td>{a.title}</td>
-                      <td>{new Date(a.appointment_datetime).toLocaleString()}</td>
-                      <td>
-                        <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </Table>
-            </div>
-          </div>
-        </div>
-      )}
 
-      <div className="mt-5">
-        <h4>Calendar</h4>
-        <CalendarView />
-      </div>
+                      placeholder="Search or select doctor..."
+                      isClearable
+                    />
+                  </div>
+
+                  <div className="d-flex gap-2">
+                    <button type="submit" className="btn btn-primary w-100">
+                      {editMode ? 'Update Appointment' : 'Create Appointment'}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-secondary w-100"
+                      onClick={() => {
+                        setFormData({
+                          title: '',
+                          description: '',
+                          appointment_datetime: '',
+                          duration_minutes: 30,
+                          recurrence: 'none',
+                          provider: null,
+                        });
+                        setSelectedDoctor(null);
+                        setEditingId(null);
+                        setEditMode(false);
+                        setSelectedSlot(null);
+                      }}
+                    >
+                      Clear Form
+                    </button>
+
+
+                      </div>
+                    </form>
+                    </div>
+
+                    <div className="col-md-6">
+                    <div className="mt-4">
+                    <h5>Available Dates for {selectedDoctor?.label || 'Selected Doctor'}</h5>
+                      <ul className="list-group">
+                      {availableSlots.length > 0 ? (
+                        availableSlots.map((slot, idx) => {
+                        const formattedSlot = toLocalDatetimeString(slot);
+                        return (
+                          <li
+                            key={idx}
+                            role="button"
+                            onClick={() => {
+                              setSelectedSlot(formattedSlot);
+                              setFormData((prev) => ({
+                                ...prev,
+                                appointment_datetime: formattedSlot,
+                              }));
+                            }}
+                            className={`list-group-item list-group-item-action ${
+                              selectedSlot === formattedSlot ? 'active' : ''
+                            }`}
+                          >
+                            {new Date(slot).toLocaleString()}
+                          </li>
+                        );
+                      })
+                    ) : (
+                      <li className="list-group-item text-muted">No available slots</li>
+                    )}
+                  </ul>
+              </div>
+                <hr className="my-4"/>
+                <h5>Your Appointments</h5>
+                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                  <Table striped bordered hover responsive>
+                    <thead>
+                      <tr>
+                        <th>Visit</th>
+                        <th>Date & Time</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {appointments.map((a) => (
+                        <tr key={a.id}>
+                          <td>{a.title}</td>
+                          <td>{new Date(a.appointment_datetime).toLocaleString()}</td>
+                          <td>
+                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
+                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
+              </div>
+            </div>
+          )}
+        </Tab>
+
+        <Tab eventKey="calendar" title="Calendar">
+          <div className="mt-4">
+            <CalendarView />
+          </div>
+        </Tab>
+      </Tabs>
     </div>
   );
 }
 
 export default DashboardPage;
+
+
