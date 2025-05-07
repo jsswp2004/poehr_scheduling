@@ -9,11 +9,19 @@ from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
 from twilio.rest import Client
 from django.conf import settings
+from twilio.rest import Client
+import os
 
 from .models import CustomUser, Patient
 from .serializers import UserSerializer, PatientSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
+
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')  # optional
+
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
 
 class UserDetailView(RetrieveUpdateAPIView):
@@ -176,7 +184,7 @@ def send_sms(request):
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         sent = client.messages.create(
             body=message,
-            from_=settings.TWILIO_PHONE_NUMBER,
+            from_=TWILIO_PHONE_NUMBER,
             to=phone
         )
         print("✅ SMS SENT:", sent.sid)
