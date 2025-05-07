@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions
 from .models import Appointment
-from .serializers import AppointmentSerializer
+from .serializers import AppointmentSerializer,AvailabilitySerializer
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -14,6 +14,8 @@ from django.utils import timezone
 from django.utils.timezone import make_aware
 from datetime import datetime as dt
 from datetime import datetime, timedelta, time as dt_time
+from .models import Availability
+
 
 
 from .models import Appointment
@@ -129,3 +131,45 @@ def doctor_available_slots(request, doctor_id):
         days_checked += 1
 
     return Response([timezone.localtime(s).isoformat() for s in slots])
+
+
+
+class AvailabilityViewSet(viewsets.ModelViewSet):
+    queryset = Availability.objects.all().order_by('-start_time')
+    serializer_class = AvailabilitySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        availability = serializer.save()
+
+        recurrence = availability.recurrence
+        start = availability.start_time
+        end = availability.end_time
+        doctor = availability.doctor
+        is_blocked = availability.is_blocked
+
+        recurrence_count = {
+            'daily': 7,     # Next 7 days
+            'weekly': 4,    # Next 4 weeks
+            'monthly': 3,   # Next 3 months
+        }
+
+        count = recurrence_count.get(recurrence, 0)
+
+        for i in range(1, count + 1):
+            if recurrence == 'daily':
+                delta = timedelta(days=i)
+            elif recurrence == 'weekly':
+                delta = timedelta(weeks=i)
+            elif recurrence == 'monthly':
+                delta = relativedelta(months=i)
+            else:
+                continue
+
+            Availability.objects.create(
+                doctor=doctor,
+                start_time=start + delta,
+                end_time=end + delta,
+                is_blocked=is_blocked,
+                recurrence='none'  # avoid chaining
+            )

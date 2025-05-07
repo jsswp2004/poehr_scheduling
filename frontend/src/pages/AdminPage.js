@@ -1,7 +1,7 @@
 // src/pages/AdminPage.js
 import { useNavigate } from 'react-router-dom';
 import { Button, Card } from 'react-bootstrap';
-import { FaUserInjured, FaCalendarCheck, FaUserCog } from 'react-icons/fa';
+import { FaTools, FaCalendarCheck, FaUserCog } from 'react-icons/fa';
 
 
 function AdminPage() {
@@ -11,7 +11,7 @@ function AdminPage() {
     <div className="container mt-5">
       <Card className="text-center shadow">
         <Card.Body>
-          <h2 className="mb-6">Settings</h2>
+          <h2 className="mb-6">Configuration</h2>
           <div className="d-flex justify-content-center gap-3">
             <Button
               variant="primary"
@@ -33,11 +33,11 @@ function AdminPage() {
             </Button>
 
 
-              {false && (
+              {true && (
                 <Button
                 variant="success"
                 size="lg"
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/maintenance')}
                 style={{
                   width: '120px',
                   height: '120px',
@@ -48,10 +48,10 @@ function AdminPage() {
                   textAlign: 'center'              
                 }}              
                 >
-                  <FaCalendarCheck size={24} className="mb-1" />
-                  Manage Visits
+                  <FaTools size={24} className="mb-1" />
+                  Settings
                 </Button>
-                )}
+              )}
 
             <Button
               variant="secondary"
