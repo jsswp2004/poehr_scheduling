@@ -9,8 +9,9 @@ import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import AdminPage from './pages/AdminPage'; 
-import ProfilePage from './pages/ProfilePage'; // ✅ Added
+import ProfilePage from './pages/ProfilePage'; 
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import MaintenancePage from './pages/MaintenancePage'; 
 
 
 function App() {
@@ -28,6 +29,8 @@ function App() {
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} /> {/* ✅ Added */}
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/maintenance" element={<PrivateRoute><MaintenancePage /></PrivateRoute>} />
+
 
 
       </Routes>

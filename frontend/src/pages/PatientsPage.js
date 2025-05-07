@@ -11,6 +11,8 @@ import CalendarView from '../components/CalendarView';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDownload, faEye, faCommentDots, faEnvelope } from '@fortawesome/free-solid-svg-icons';
 
 
 
@@ -181,7 +183,7 @@ function PatientsPage() {
           size="sm"
           onClick={() => navigate(`/patients/${row.user_id}`)}
         >
-          View
+         <FontAwesomeIcon icon={faEye} />
         </Button>
       ),
       headerStyle: { width: '90px' },
@@ -196,7 +198,7 @@ function PatientsPage() {
           size="sm"
           onClick={() => handleSendText(row)}
         >
-          Send Text
+         <FontAwesomeIcon icon={faCommentDots} />
         </Button>
       ),
       headerStyle: { width: '110px' },
@@ -211,7 +213,7 @@ function PatientsPage() {
           size="sm"
           onClick={() => handleOpenEmailModal(row)}
         >
-          Send Email
+         <FontAwesomeIcon icon={faEnvelope} />
         </Button>
       ),
       headerStyle: { width: '110px' },
@@ -234,11 +236,11 @@ function PatientsPage() {
         <Card.Body>
           <Card.Title className="mb-4 d-flex justify-content-between align-items-right">
           {userRole === 'admin' && (
-            <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mb-3">
+            <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mb-3" style={{ height: '38px' }}>
               ← Back
             </Button>
           )}
-            <Button variant="success" onClick={exportCSV}>Download (.csv)</Button>
+            <Button variant="success" style={{ height: '38px' }} onClick={exportCSV}><FontAwesomeIcon icon={faDownload} /> (.csv)</Button>
           </Card.Title>
 
           <Form

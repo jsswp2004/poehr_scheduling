@@ -37,3 +37,26 @@ class Appointment(models.Model):
 
     def __str__(self):
         return f"{self.title} - {self.appointment_datetime}"
+
+class Availability(models.Model):
+    doctor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='availabilities'
+    )
+    start_time = models.DateTimeField()
+    end_time = models.DateTimeField()
+    is_blocked = models.BooleanField(default=False)
+    recurrence = models.CharField(
+        max_length=10,
+        choices=[
+            ('none', 'None'),
+            ('weekly', 'Weekly'),
+        ],
+        default='none'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        status = "Blocked" if self.is_blocked else "Available"
+        return f"{status} for Dr. {self.doctor.get_full_name()} on {self.start_time}"

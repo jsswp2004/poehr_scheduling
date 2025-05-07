@@ -1,13 +1,15 @@
-import { Calendar, momentLocalizer } from 'react-big-calendar';
+import { Calendar, momentLocalizer} from 'react-big-calendar';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { parseISO } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
-import { Modal, Button, Form } from 'react-bootstrap';
+import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import Select from 'react-select';
 import { jwtDecode } from 'jwt-decode';
+import { useNavigate } from 'react-router-dom';
+
 
 
 const localizer = momentLocalizer(moment);
@@ -24,6 +26,7 @@ function toLocalDatetimeString(dateObj) {
 }
 
 function CalendarView() {
+  const navigate = useNavigate(); 
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -73,34 +76,54 @@ function CalendarView() {
   // Fetch appointments function (outside useEffect)
   const fetchAppointments = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/appointments/', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const formatted = response.data.map((appt) => {
-        const baseTitle = appt.title.replace(/^.*? - /, ''); // remove existing prefix if any
-        return {
-          id: appt.id,
-          title: `${appt.patient_name || 'Unknown'} - ${baseTitle}`,
-          description: appt.description,
-          duration_minutes: appt.duration_minutes,
-          start: parseISO(appt.appointment_datetime),
-          end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
-          provider: appt.provider,
-        };
-      });
-      
-
-      setEvents(formatted); // Set the events state
-      if (formatted.length > 0) {
-        const doctorId = formatted[0].provider;
+      const [appointmentsRes, availabilityRes] = await Promise.all([
+        axios.get('http://127.0.0.1:8000/api/appointments/', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get('http://127.0.0.1:8000/api/availability/', {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+  
+      // Format appointments
+      const apptEvents = appointmentsRes.data.map((appt) => ({
+        id: `appt-${appt.id}`,
+        title: appt.title,
+        start: parseISO(appt.appointment_datetime),
+        end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
+        type: 'appointment',
+        provider: appt.provider, // Needed for doctor match
+      }));
+  
+      // 👇 Your original logic to set default doctor based on first appointment
+      if (apptEvents.length > 0 && doctors.length > 0) {
+        const doctorId = apptEvents[0].provider;
         const matchedDoctor = doctors.find((doc) => doc.id === doctorId);
-        setSelectedDoctor(matchedDoctor ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` } : null);
+        setSelectedDoctor(
+          matchedDoctor
+            ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` }
+            : null
+        );
       }
+  
+      // Format availability
+      const availEvents = availabilityRes.data.map((a) => ({
+        id: `avail-${a.id}`,
+        title: `${a.is_blocked ? '❌ Blocked' : '🟢 Available'} - Dr. ${a.doctor_name || 'Unknown'}`,
+        start: new Date(a.start_time),
+        end: new Date(a.end_time),
+        is_blocked: a.is_blocked,
+        doctor_id: a.doctor,
+        type: 'availability',
+      }));
+  
+      // Combine and set in state
+      setEvents([...apptEvents, ...availEvents]);
     } catch (error) {
-      console.error('Calendar load failed:', error);
+      console.error('Failed to load calendar data:', error);
     }
   };
+  
 
   // useEffect with fetching logic
   useEffect(() => {
@@ -237,16 +260,27 @@ function CalendarView() {
   const eventStyleGetter = (event) => {
     const now = new Date();
     const isPast = new Date(event.start) < now;
+  
+    let backgroundColor = isPast ? '#6c757d' : '#0d6efd'; // default for appointments
+  
+    if (event.type === 'availability') {
+      backgroundColor = event.is_blocked
+        ? '#f8d7da' // light red
+        : '#d1e7dd'; // light green
+    }
+  
     return {
       style: {
-        backgroundColor: isPast ? '#6c757d' : '#0d6efd',
-        color: 'white',
+        backgroundColor,
+        color: 'black',
         borderRadius: '5px',
         padding: '4px',
         border: '2px solid white',
+        fontWeight: event.type === 'availability' ? '500' : 'normal',
       },
     };
   };
+  
 
   const dayPropGetter = (date) => {
     const day = date.getDay();
@@ -265,25 +299,74 @@ function CalendarView() {
 
   return (
     <div className="card mt-4">
-      <div className="d-flex justify-content-between align-items-right mb-3" style={{ padding: '10px' }}>       
-            <Form.Control
-              type="text"
-              placeholder="Search appointments..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: '250px' }}
+      <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
+  
+        {/* Search bar */}
+        <Form.Control
+          type="text"
+          placeholder="Search appointments..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ width: '300px', height: '38px' }}
+        />
+
+        {/* Doctor dropdown (admin/registrar only) */}
+        {(userRole === 'admin' || userRole === 'registrar') && (
+          <div style={{ width: '300px' }}>
+            <Select
+              options={doctors.map((doc) => ({
+                value: doc.id,
+                label: `Dr. ${doc.first_name} ${doc.last_name}`,
+              }))}
+              placeholder="Select Doctor availability"
+              value={selectedDoctor}
+              onChange={setSelectedDoctor}
+              isClearable
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  height: 38,
+                  minHeight: 38,
+                }),
+              }}
             />
+          </div>
+        )}
+
+        {/* Back button */}
+        <Button
+          variant="outline-secondary"
+          onClick={() => navigate("/admin")}
+          style={{ height: '38px', padding: '0 12px' }}
+        >
+          ← Back
+        </Button>
       </div>
+
       <div className="card-body">
         
         <div style={{ height: '600px', maxWidth: '100%' }}>
 
 
+
           <Calendar
             localizer={localizer}
-            events={events.filter(event =>
-                event.title.toLowerCase().includes(searchQuery.toLowerCase())
-              )}
+            events={events
+              .filter(event => {
+                // Only apply search to appointment titles
+                if (event.type === 'appointment') {
+                  return event.title.toLowerCase().includes(searchQuery.toLowerCase());
+                }
+                return true; // show availability and blocked events regardless of search
+              })
+              .filter(event => {
+                // Only filter availability by selected doctor for admin/registrar
+                if ((userRole === 'admin' || userRole === 'registrar') && event.type === 'availability' && selectedDoctor) {
+                  return event.doctor_id === selectedDoctor.value;
+                }
+                return true;
+              })}
+            
             startAccessor="start"
             endAccessor="end"
             view={currentView}

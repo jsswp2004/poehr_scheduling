@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Appointment
+from .models import Appointment, Availability
+
 
 class AppointmentSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
@@ -22,3 +23,15 @@ class AppointmentSerializer(serializers.ModelSerializer):
         # Ensure ISO string includes timezone
         data['appointment_datetime'] = instance.appointment_datetime.isoformat()
         return data
+
+
+
+class AvailabilitySerializer(serializers.ModelSerializer):
+    doctor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Availability
+        fields = ['id', 'doctor', 'start_time', 'end_time', 'is_blocked', 'recurrence', 'doctor_name']
+
+    def get_doctor_name(self, obj):
+        return f"{obj.doctor.first_name} {obj.doctor.last_name}"
