@@ -45,9 +45,10 @@ function CalendarView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
-  const [currentView, setCurrentView] = useState('month');
+
+
   const token = localStorage.getItem('access_token');
-  
+
   let userRole = null;
   
   if (token) {
@@ -59,7 +60,15 @@ function CalendarView() {
     }
   }
   
-  // Fetch doctors function (outside useEffect)
+  // ✅ Set initial view based on role
+  let defaultView = 'month'; // fallback
+  if (userRole === 'doctor') {
+    defaultView = 'day';
+  } else if (userRole === 'registrar') {
+    defaultView = 'work_week';
+  }
+  const [currentView, setCurrentView] = useState(defaultView);
+    // Fetch doctors function (outside useEffect)
   const fetchDoctors = async () => {
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
@@ -90,7 +99,7 @@ function CalendarView() {
       // Format appointments
       const apptEvents = appointmentsRes.data.map((appt) => ({
         id: `appt-${appt.id}`,
-        title: appt.title,
+        title: appt.title || 'Untitled Appointment', // ✅ fallback to avoid undefined,
         start: parseISO(appt.appointment_datetime),
         end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
         type: 'appointment',
@@ -119,8 +128,11 @@ function CalendarView() {
         type: 'availability',
       }));
   
-      // Combine and set in state
-      setEvents([...apptEvents, ...availEvents]);
+      const combinedEvents = [...apptEvents, ...availEvents]
+      .filter(e => e && typeof e.title === 'string'); // ✅ remove undefined/bad events
+    
+      setEvents(combinedEvents);
+    
     } catch (error) {
       console.error('Failed to load calendar data:', error);
     }
