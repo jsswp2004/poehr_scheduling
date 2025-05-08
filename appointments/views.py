@@ -15,6 +15,7 @@ from django.utils.timezone import make_aware
 from datetime import datetime as dt
 from datetime import datetime, timedelta, time as dt_time
 from .models import Availability
+from django.core.mail import send_mail
 
 
 
@@ -43,6 +44,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         # Role-based filtering
         if user.role == 'patient':
             queryset = queryset.filter(patient=user)
+        elif user.role == 'doctor':
+            queryset = queryset.filter(provider=user)  # optional: show only their own patients
+        elif user.role in ['registrar', 'admin']:
+            pass  # ✅ Allow access to all appointments
 
         return queryset
 
@@ -60,6 +65,26 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         # Save the appointment with the associated provider
         appointment = serializer.save(patient=self.request.user, provider=provider)
+
+        # ✅ Send email to admin if created by a patient
+        if self.request.user.role == 'patient':
+            admin_email = getattr(settings, 'ADMIN_EMAIL', None)
+            if admin_email:
+                subject = f"📅 New Appointment from {self.request.user.get_full_name()}"
+                message = (
+                    f"A new appointment has been scheduled by {self.request.user.get_full_name()}:\n\n"
+                    f"Title: {appointment.title}\n"
+                    f"Date & Time: {appointment.appointment_datetime}\n"
+                    f"Doctor: Dr. {provider.first_name} {provider.last_name}\n"
+                    f"Description: {appointment.description or 'N/A'}"
+                )
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [admin_email],
+                    fail_silently=False
+                )
 
         # Handle recurrence logic
         recurrence = appointment.recurrence

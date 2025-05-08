@@ -23,7 +23,7 @@ function DashboardPage() {
   const [selectedSlot, setSelectedSlot] = useState(null);
 
   const [formData, setFormData] = useState({
-    title: '',
+    title: 'New Clinic Visit',
     description: '',
     appointment_datetime: '',
     duration_minutes: 30,
@@ -175,12 +175,13 @@ function DashboardPage() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAppointments(refreshed.data);
-  
+      console.log("Updated appointments:", refreshed.data);
+
       setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
       setSelectedDoctor(null);
       setEditMode(false);
       setEditingId(null);
-      setShowForm(false);
+      //setShowForm(false);
     } catch (error) {
       console.error(error);
       toast.error('Failed to save appointment.');
@@ -362,16 +363,17 @@ function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {appointments.map((a) => (
-                        <tr key={a.id}>
-                          <td>{a.title}</td>
-                          <td>{new Date(a.appointment_datetime).toLocaleString()}</td>
-                          <td>
-                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
-                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
-                          </td>
-                        </tr>
-                      ))}
+                    {(appointments || []).map((a) => (
+                      <tr key={a.id}>
+                        <td>{a.title || 'Untitled'}</td>
+                        <td>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</td>
+                        <td>
+                          <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
+                          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
+                        </td>
+                      </tr>
+                    ))}
+
                     </tbody>
                   </Table>
                 </div>

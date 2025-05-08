@@ -33,7 +33,7 @@ function CalendarView() {
   const [editingId, setEditingId] = useState(null);
   const [isPast, setIsPast] = useState(false);
   const [modalFormData, setModalFormData] = useState({
-    title: '',
+    title: 'New Clinic Visit',
     description: '',
     duration_minutes: 30,
     recurrence: 'none',
@@ -159,7 +159,7 @@ function CalendarView() {
     setSelectedDoctor(null);
     setSelectedDate(start);
     setModalFormData({
-      title: '',
+      title: 'New Clinic Visit',
       description: '',
       duration_minutes: 30,
       recurrence: 'none',
@@ -169,6 +169,12 @@ function CalendarView() {
   };
 
   const handleSelectEvent = (event) => {
+  // ✅ Prevent non-admin from editing availability
+  if (event.id.toString().startsWith('avail')) {
+    toast.warn('Edits for availability are not allowed in Calendar view.');
+    return;
+  }
+
     const past = isPastAppointment(event.start);
     setIsPast(past);
     setIsEditing(true);
@@ -210,7 +216,8 @@ function CalendarView() {
 
     try {
       if (isEditing && editingId) {
-        await axios.put(`http://127.0.0.1:8000/api/appointments/${editingId}/`, payload, {
+        const cleanId = editingId.toString().replace('appt-', '');  // ✅ strip prefix
+        await axios.put(`http://127.0.0.1:8000/api/appointments/${cleanId}/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Appointment updated!');
@@ -246,7 +253,8 @@ function CalendarView() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/appointments/${editingId}/`, {
+      const cleanId = editingId.toString().replace('appt-', '');
+      await axios.delete(`http://127.0.0.1:8000/api/appointments/${cleanId}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success('Appointment deleted!');
@@ -306,16 +314,34 @@ function CalendarView() {
   return (
     <div className="card mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
-  
-        {/* Search bar */}
-        <Form.Control
-          type="text"
-          placeholder="Search appointments..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          style={{ width: '300px', height: '38px' }}
-        />
-
+        <div className="d-flex align-items-center gap-2">
+          <div className="position-relative" style={{ width: '300px' }}>
+            <Form.Control
+              type="text"
+              placeholder="Search appointments..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ height: '38px' }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="btn btn-sm btn-light position-absolute"
+                style={{
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  padding: '0 6px',
+                  borderRadius: '50%',
+                  lineHeight: '1',
+                }}
+              >
+                &times;
+              </button>
+            )}
+          </div>
+        </div>
         {/* Doctor dropdown (admin/registrar only) */}
         {(userRole === 'admin' || userRole === 'registrar') && (
           <div style={{ width: '300px' }}>
@@ -345,6 +371,7 @@ function CalendarView() {
         )}
 
         {/* Back button */}
+        {userRole === 'admin' && (
         <Button
           variant="outline-secondary"
           onClick={() => navigate("/admin")}
@@ -352,6 +379,7 @@ function CalendarView() {
         >
           ← Back
         </Button>
+        )}
       </div>
 
       <div className="card-body">
@@ -364,19 +392,29 @@ function CalendarView() {
             localizer={localizer}
             events={events
               .filter(event => {
-                // Only apply search to appointment titles
+                // ✅ 1. Hide availability for patients
+                if (userRole === 'patient' && event.id.toString().startsWith('avail')) {
+                  return false;
+                }
+            
+                // ✅ 2. Apply search **only to appointment events**
                 if (event.type === 'appointment') {
+                  // Filter by search query
                   return event.title.toLowerCase().includes(searchQuery.toLowerCase());
                 }
-                return true; // show availability and blocked events regardless of search
+            
+                // ✅ 3. For availability and other events, ignore search filter and keep them
+                return true;
               })
               .filter(event => {
-                // Only filter availability by selected doctor for admin/registrar
+                // ✅ 4. Filter availability by doctor for admin/registrar
                 if ((userRole === 'admin' || userRole === 'registrar') && event.type === 'availability' && selectedDoctor) {
-                  return  String(event.doctor_id) === String(selectedDoctor.value); // ✅ type-safe comparison
+                  return String(event.doctor_id) === String(selectedDoctor.value);
                 }
                 return true;
               })}
+            
+            
             
             startAccessor="start"
             endAccessor="end"

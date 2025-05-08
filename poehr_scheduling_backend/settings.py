@@ -137,6 +137,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+ADMIN_EMAIL = 'jsswp2004@outlook.com'  # 👈 where the notification goes
 
 # ✅ Twilio settings
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
