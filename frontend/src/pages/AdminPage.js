@@ -12,6 +12,7 @@ function AdminPage() {
       <Card className="text-center shadow">
         <Card.Body>
           <h2 className="mb-6">Configuration</h2>
+          <hr />
           <div className="d-flex justify-content-center gap-3">
             <Button
               variant="primary"

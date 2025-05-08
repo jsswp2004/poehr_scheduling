@@ -13,3 +13,6 @@ code {
     monospace;
 }
 
+.rbc-event-content {
+  font-size: 12px !important; /* Or 10px, as needed */
+}

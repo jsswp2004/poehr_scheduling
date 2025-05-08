@@ -12,6 +12,7 @@ import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage'; 
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MaintenancePage from './pages/MaintenancePage'; 
+import CreateProfilePage from './pages/CreateProfilePage';
 
 
 function App() {
@@ -30,6 +31,11 @@ function App() {
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/maintenance" element={<PrivateRoute><MaintenancePage /></PrivateRoute>} />
+        <Route path="/create-profile" element={<PrivateRoute><CreateProfilePage /></PrivateRoute>} />
+
+
+
+
 
 
 
