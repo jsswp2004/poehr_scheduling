@@ -1,0 +1,9 @@
+poehr_scheduling@ C:\Users\jsswp\source\poehr_scheduling\poehr_scheduling
+├── @fortawesome/fontawesome-svg-core@6.7.2
+├── @fortawesome/free-solid-svg-icons@6.7.2
+├── @fortawesome/react-fontawesome@0.2.2
+├── dotenv@16.5.0
+├── jwt-decode@4.0.0
+├── react-icons@5.5.0
+└── react-select@5.10.1
+

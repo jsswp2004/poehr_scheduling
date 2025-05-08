@@ -232,17 +232,9 @@ function PatientsPage() {
 
   <Tabs defaultActiveKey="patients" className="mb-3">
     <Tab eventKey="patients" title="Patient List">
-      <Card className="shadow-sm">
+      <Card className="shadow-sm justify-content-between">
         <Card.Body>
-          <Card.Title className="mb-4 d-flex justify-content-between align-items-right">
-          {userRole === 'admin' && (
-            <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mb-3" style={{ height: '38px' }}>
-              ← Back
-            </Button>
-          )}
-            <Button variant="success" style={{ height: '38px' }} onClick={exportCSV}><FontAwesomeIcon icon={faDownload} /> (.csv)</Button>
-          </Card.Title>
-
+          <Card.Title className="mb-4 d-flex justify-content-between align-items-center">        
           <Form
             className="mb-3"
             onSubmit={(e) => {
@@ -250,49 +242,77 @@ function PatientsPage() {
               fetchPatients();     // Trigger search
             }}
           >
-            <Row className="g-2 align-items-center">
-              <Col md={6}>
-                <div className="position-relative">
-                  <Form.Control
-                    type="text"
-                    placeholder="Search patients by name, email, or provider..."
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                  />
-                  {search && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSearch('');
-                        setPage(1);
-                        setTimeout(() => {
-                          fetchPatients();
-                        }, 0);  // ✅ Refresh on clear
-                      }}
-                      className="btn btn-sm btn-light position-absolute"
-                      style={{
-                        right: '8px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        padding: '0 6px',
-                        borderRadius: '50%',
-                        lineHeight: '1',
-                      }}
-                    >
-                      &times;
-                    </button>
-                  )}
-                </div>
-              </Col>
+          <Row className="g-2 align-items-center">
+            {/* Back button (admin only) */}
+            {userRole === 'admin' && (
               <Col md="auto">
-                <Button variant="primary" type="submit">Search</Button>
+                <Button
+                  variant="outline-secondary"
+                  onClick={() => navigate("/admin")}
+                  style={{ height: '38px' }}
+                >
+                  ← Back
+                </Button>
               </Col>
-            </Row>
-          </Form>
+            )}            
+            {/* Search input with clear button */}
+            <Col md="auto" className="flex-grow-1">
+              <div className="position-relative">
+                <Form.Control
+                  type="text"
+                  placeholder="Search patients by name, email, or provider..."
+                  value={search}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setPage(1);
+                  }}
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch('');
+                      setPage(1);
+                      setTimeout(() => {
+                        fetchPatients();
+                      }, 0);
+                    }}
+                    className="btn btn-sm btn-light position-absolute"
+                    style={{
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      padding: '0 6px',
+                      borderRadius: '50%',
+                      lineHeight: '1',
+                    }}
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
+            </Col>
 
+            {/* Search button */}
+            <Col md="auto">
+              <Button variant="primary" type="submit" style={{ height: '38px' }}>
+                Search
+              </Button>
+            </Col>
+
+
+
+            {/* Export button */}
+            <Col md="auto">
+              <Button variant="success" style={{ height: '38px' }} onClick={exportCSV}>
+                <FontAwesomeIcon icon={faDownload} /> (.csv)
+              </Button>
+            </Col>
+          </Row>
+
+
+          </Form>
+          </Card.Title>
 
           {loading ? (
             <div className="text-center py-4">
