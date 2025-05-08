@@ -66,6 +66,8 @@ function CalendarView() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDoctors(res.data); // Store full doctor objects
+      console.log("Fetched doctors:", res.data);
+
     } catch (err) {
       console.error('Failed to load doctors:', err);
     }
@@ -109,7 +111,7 @@ function CalendarView() {
       // Format availability
       const availEvents = availabilityRes.data.map((a) => ({
         id: `avail-${a.id}`,
-        title: `${a.is_blocked ? '❌ Blocked' : '🟢 Available'} - Dr. ${a.doctor_name || 'Unknown'}`,
+        title: `${a.is_blocked ? '❌ Blocked' : '🟢'} Dr. ${a.doctor_name || 'Unknown'}`,
         start: new Date(a.start_time),
         end: new Date(a.end_time),
         is_blocked: a.is_blocked,
@@ -297,6 +299,10 @@ function CalendarView() {
     return {};
   }; 
 
+  console.log("All events:", events);
+  console.log("Selected doctor:", selectedDoctor); // Debugging: Check selected doctor
+  console.log("User role:", userRole); // Debugging: Check user role
+
   return (
     <div className="card mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
@@ -328,7 +334,12 @@ function CalendarView() {
                   height: 38,
                   minHeight: 38,
                 }),
+                menu: (base) => ({
+                  ...base,
+                  zIndex: 9999, // 👈 ensures dropdown stays on top
+                }),
               }}
+
             />
           </div>
         )}
@@ -362,7 +373,7 @@ function CalendarView() {
               .filter(event => {
                 // Only filter availability by selected doctor for admin/registrar
                 if ((userRole === 'admin' || userRole === 'registrar') && event.type === 'availability' && selectedDoctor) {
-                  return event.doctor_id === selectedDoctor.value;
+                  return  String(event.doctor_id) === String(selectedDoctor.value); // ✅ type-safe comparison
                 }
                 return true;
               })}
@@ -382,6 +393,8 @@ function CalendarView() {
             onSelectEvent={handleSelectEvent}
             min={new Date(1970, 1, 1, 8, 0, 0)}  // 8:00 AM
             max={new Date(1970, 1, 1, 18, 0, 0)} // 6:00 PM
+            step={15}          // minutes per step
+            timeslots={2}      // number of slots per step
 
           />
 
@@ -462,6 +475,12 @@ function CalendarView() {
                     onChange={setSelectedDoctor}
                     isClearable
                     isDisabled={isPast}
+                    styles={{
+                      menu: (base) => ({
+                        ...base,
+                        zIndex: 9999, // 👈 ensures dropdown stays on top
+                      }),
+                    }}
                   />
                 </Form.Group>
               </Form>

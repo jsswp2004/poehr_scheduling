@@ -159,20 +159,33 @@ function ProfilePage() {
 
         {user && ['admin', 'registrar', 'patient'].includes(user.role)  && (
           <>
-            
-            <h5>Search Profile 🔍 </h5>
-            <Form className="mb-3 d-flex gap-2">
-              <Form.Control
-                type="text"
-                placeholder="Search by username, email, or name"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-              <Button variant="primary" onClick={handleSearch}>
-                Search
+            <div className="mb-3 d-flex justify-content-between align-items-right"> 
+              <div className="mb-3 d-flex  align-items-right">
+                <h5>Search Profile 🔍 </h5>
+                <Form className="mb-3 d-flex gap-2">
+                  <Form.Control
+                    type="text"
+                    placeholder="Search by username, email, or name"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <Button variant="primary" style={{ width: '100px', height: '38px' }} onClick={handleSearch}>
+                    Search
+                  </Button>
+                </Form>
+              </div>
+              <div className="mb-3 d-flex  align-items-right">
+                
+              <Button
+                variant="success"
+                style={{ width: '200px', height: '38px' }}
+                onClick={() => navigate('/create-profile')}
+              >
+                Create Profile
               </Button>
-            </Form>
 
+              </div>
+            </div>
           </>
         )}
         <div className="mb-3 d-flex justify-content-between align-items-right">
