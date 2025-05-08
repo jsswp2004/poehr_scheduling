@@ -155,49 +155,35 @@ function ProfilePage() {
     <div className="container mt-4">
 
       <Card className="shadow-sm p-4"> 
-
-
-        {user && ['admin', 'registrar', 'patient'].includes(user.role)  && (
-          <>
-            <div className="mb-3 d-flex justify-content-between align-items-right"> 
-              <div className="mb-3 d-flex  align-items-right">
-                <h5>Search Profile 🔍 </h5>
-                <Form className="mb-3 d-flex gap-2">
-                  <Form.Control
+        {user && ['admin', 'registrar', 'patient'].includes(user.role)  && (         
+              <div className="mb-3 d-flex justify-content-between  align-items-right">
+                  <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
+                  ←  Back
+                  </Button>               
+                  <Form className="mb-3 d-flex gap-2">
+                    <Form.Control
                     type="text"
-                    placeholder="Search by username, email, or name"
+                    placeholder="Search Profile 🔍"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                  <Button variant="primary" style={{ width: '100px', height: '38px' }} onClick={handleSearch}>
+                    />
+                    <Button variant="primary" style={{ width: '100px', height: '38px' }} onClick={handleSearch}>
                     Search
-                  </Button>
+                    </Button>
                 </Form>
-              </div>
-              <div className="mb-3 d-flex  align-items-right">
-                
-              <Button
-                variant="success"
-                style={{ width: '200px', height: '38px' }}
-                onClick={() => navigate('/create-profile')}
-              >
-                Create Profile
-              </Button>
+                <Button
+                  variant="success"
+                  style={{ width: '200px', height: '38px' }}
+                  onClick={() => navigate('/create-profile')}
+                >
+                  Create Profile
+                </Button>
 
-              </div>
-            </div>
-          </>
+              </div>                     
         )}
-        <div className="mb-3 d-flex justify-content-between align-items-right">
-            <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
-          ← Back
-          </Button>
-        </div>
         <hr />
-        <div className="mb-3 d-flex justify-content-between align-items-right">
-        
+        <div className="mb-3 d-flex justify-content-between align-items-right">     
           <h5>User Information</h5>
-
         </div>
         <Form>
           {user.profile_picture && (
