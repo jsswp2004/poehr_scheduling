@@ -204,76 +204,82 @@ function PatientsPage() {
     <div className="container mt-4">
       <Tabs defaultActiveKey="patients" className="mb-3">
         <Tab eventKey="patients" title="Patient List">
-          <Card className="shadow-sm justify-content-between">
+          <Card className="shadow-sm ">
             <Card.Body>
-              <Card.Title className="mb-4 d-flex justify-content-between align-items-center">
-                <Form
-                  className="mb-3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    fetchPatients();
-                  }}
-                >
-                  <Row className="g-2 align-items-center">
-                    {userRole === 'admin' && (
-                      <Col md="auto">
-                        <Button
-                          variant="outline-secondary"
-                          onClick={() => navigate("/admin")}
-                          style={{ height: '38px' }}
-                        >
-                          ← Back
-                        </Button>
-                      </Col>
-                    )}
-                    <Col md="auto" className="flex-grow-1">
-                      <div className="position-relative">
-                        <Form.Control
-                          type="text"
-                          placeholder="Search patients by name, email, or provider..."
-                          value={search}
-                          onChange={(e) => {
-                            setSearch(e.target.value);
+              <Card.Title className="mb-4 justify-content-between align-items-center">
+              <Form
+                className="mb-3"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  fetchPatients();
+                              }}
+              >
+                <Row className="g-2 align-items-center w-100 mx-0">
+                  {userRole === 'admin' && (
+                    <Col xs={12} md={2} className="px-1">
+                      <Button
+                        variant="outline-secondary"
+                        onClick={() => navigate("/admin")}
+                        
+                        style={{ height: '38px' }}
+                      >
+                        ← Back
+                      </Button>
+                    </Col>
+                  )}
+
+                  <Col xs={12} md={userRole === 'admin' ? 6 : 8} className="px-1">
+                    <div className="position-relative w-100">
+                      <Form.Control
+                        type="text"
+                        placeholder="Search patients by name, email, or provider..."
+                        value={search}
+                        onChange={(e) => {
+                          setSearch(e.target.value);
+                          setPage(1);
+                        }}
+                        
+                      />
+                      {search && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearch('');
                             setPage(1);
+                            setTimeout(() => {
+                              fetchPatients();
+                            }, 0);
                           }}
-                        />
-                        {search && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSearch('');
-                              setPage(1);
-                              setTimeout(() => {
-                                fetchPatients();
-                              }, 0);
-                            }}
-                            className="btn btn-sm btn-light position-absolute"
-                            style={{
-                              right: '8px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              padding: '0 6px',
-                              borderRadius: '50%',
-                              lineHeight: '1',
-                            }}
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-                    </Col>
-                    <Col md="auto">
-                      <Button variant="primary" type="submit" style={{ height: '38px' }}>
-                        Search
-                      </Button>
-                    </Col>
-                    <Col md="auto">
-                      <Button variant="success" style={{ height: '38px' }} onClick={exportCSV}>
-                        <FontAwesomeIcon icon={faDownload} /> (.csv)
-                      </Button>
-                    </Col>
-                  </Row>
-                </Form>
+                          className="btn btn-sm btn-light position-absolute"
+                          style={{
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            padding: '0 6px',
+                            borderRadius: '50%',
+                            lineHeight: '1',
+                          }}
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                  </Col>
+
+                  <Col xs={6} md={2} className="px-1">
+                    <Button variant="primary" type="submit"  style={{ height: '38px' }}>
+                      Search
+                    </Button>
+                  </Col>
+
+                  <Col xs={6} md={2} className="px-1 align-items-right justify-content-between">
+                    <Button variant="success"  style={{ height: '38px' }} onClick={exportCSV}>
+                      <FontAwesomeIcon icon={faDownload} />
+                    </Button>
+                  </Col>
+                </Row>
+              </Form>
+
               </Card.Title>
               {loading ? (
                 <div className="text-center py-4">
