@@ -11,6 +11,7 @@ from twilio.rest import Client
 from django.conf import settings
 from twilio.rest import Client
 import os
+from rest_framework.generics import DestroyAPIView
 
 from .models import CustomUser, Patient
 from .serializers import UserSerializer, PatientSerializer
@@ -72,8 +73,8 @@ class RegisterView(generics.CreateAPIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.save()
-        if user.role == 'patient':
-            Patient.objects.create(user=user)
+        #if user.role == 'patient':
+        #    Patient.objects.create(user=user)
         return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
 
 
@@ -237,6 +238,7 @@ def send_sms_email(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def send_patient_email(request):
+    
     email = request.data.get('email')
     subject = request.data.get('subject', 'Message from your provider')
     message = request.data.get('message')
@@ -255,3 +257,9 @@ def send_patient_email(request):
         return Response({'message': 'Email sent successfully'})
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+    
+class PatientDeleteView(DestroyAPIView):
+    queryset = Patient.objects.all()
+    serializer_class = PatientSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'user_id'  # because you're deleting via user_id

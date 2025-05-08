@@ -5,8 +5,10 @@ import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 
 function RegisterPage() {
+  const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
+  const [phone, setPhone] = useState('');
+
   const navigate = useNavigate();
-  const [isPatient, setIsPatient] = useState(true);
   const [doctors, setDoctors] = useState([]);
 
   const [formData, setFormData] = useState({
@@ -16,17 +18,15 @@ function RegisterPage() {
     first_name: '',
     last_name: '',
     role: 'patient',
-    assigned_doctor: '', // For patients only
+    assigned_doctor: '',
+    phone_number: '',
   });
 
-  // Fetch doctor list when isPatient is true
   useEffect(() => {
-    if (isPatient) {
-      axios.get('http://127.0.0.1:8000/api/users/doctors/')
-        .then((res) => setDoctors(res.data))
-        .catch((err) => console.error('Failed to load doctors:', err));
-    }
-  }, [isPatient]);
+    axios.get('http://127.0.0.1:8000/api/users/doctors/')
+      .then((res) => setDoctors(res.data))
+      .catch((err) => console.error('Failed to load doctors:', err));
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -35,24 +35,20 @@ function RegisterPage() {
     });
   };
 
-  
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    // Map `assigned_doctor` to `provider` if patient
-    const payload = isPatient
-      ? {
-          ...formData,
-          role: 'patient',
-          provider: formData.assigned_doctor, // 👈 this is the key fix
-        }
-      : { ...formData };
-  
-      console.log('Assigned doctor:', formData.assigned_doctor); // debug
-      console.log('Submitting payload:', payload);
-      
-  
+
+    if (hasProvider === 'no' && (!formData.email || !formData.phone_number)) {
+      toast.error("Please fill out both email and phone number.");
+      return;
+    }
+
+    const payload = {
+      ...formData,
+      role: 'patient',
+      provider: formData.assigned_doctor,
+    };
+
     try {
       await axios.post('http://127.0.0.1:8000/api/auth/register/', payload);
       toast.success('Registration successful! Please login.');
@@ -62,84 +58,115 @@ function RegisterPage() {
       toast.error('Registration failed. Please try again.');
     }
   };
-  
 
   return (
     <div className="container mt-5">
       <h2 className="mb-4">Register</h2>
       <form onSubmit={handleSubmit}>
-        {/* Basic Fields */}
-        {['first_name', 'last_name', 'username', 'email', 'password'].map((field) => (
-          <div className="mb-3" key={field}>
-            <label className="form-label">{field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</label>
-            <input
-              type={field === 'password' ? 'password' : 'text'}
-              name={field}
-              className="form-control"
-              onChange={handleChange}
-              value={formData[field]}
-              required
-            />
-          </div>
-        ))}
-
-        {/* Patient? Radio */}
         <div className="mb-3">
-          <label className="form-label">Are you a patient?</label>
+          <label className="form-label">First Name</label>
+          <input
+            type="text"
+            name="first_name"
+            className="form-control"
+            onChange={handleChange}
+            value={formData.first_name}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Last Name</label>
+          <input
+            type="text"
+            name="last_name"
+            className="form-control"
+            onChange={handleChange}
+            value={formData.last_name}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Username</label>
+          <input
+            type="text"
+            name="username"
+            className="form-control"
+            onChange={handleChange}
+            value={formData.username}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Email</label>
+          <input
+            type="email"
+            name="email"
+            className="form-control"
+            onChange={handleChange}
+            value={formData.email}
+            required={hasProvider === 'no'}
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Phone Number</label>
+          <input
+            type="text"
+            name="phone_number"
+            className="form-control"
+            placeholder="e.g. (555) 123-4567"
+            onChange={handleChange}
+            value={formData.phone_number}
+            required={hasProvider === 'no'}
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Password</label>
+          <input
+            type="password"
+            name="password"
+            className="form-control"
+            onChange={handleChange}
+            value={formData.password}
+            required
+          />
+        </div>
+
+        <div className="mb-3">
+          <label className="form-label">Do you know/have a Primary Care Provider?</label>
           <div>
             <div className="form-check form-check-inline">
               <input
                 className="form-check-input"
                 type="radio"
-                name="isPatient"
-                id="patientYes"
+                name="hasProvider"
+                id="providerYes"
                 value="yes"
-                checked={isPatient}
-                onChange={() => {
-                  setIsPatient(true);
-                  setFormData((prev) => ({ ...prev, role: 'patient' }));
-                }}
+                checked={hasProvider === 'yes'}
+                onChange={() => setHasProvider('yes')}
               />
-              <label className="form-check-label" htmlFor="patientYes">Yes</label>
+              <label className="form-check-label" htmlFor="providerYes">Yes</label>
             </div>
             <div className="form-check form-check-inline">
               <input
                 className="form-check-input"
                 type="radio"
-                name="isPatient"
-                id="patientNo"
+                name="hasProvider"
+                id="providerNo"
                 value="no"
-                checked={!isPatient}
-                onChange={() => setIsPatient(false)}
+                checked={hasProvider === 'no'}
+                onChange={() => setHasProvider('no')}
               />
-              <label className="form-check-label" htmlFor="patientNo">No</label>
+              <label className="form-check-label" htmlFor="providerNo">No</label>
             </div>
           </div>
         </div>
 
-        {/* Doctor Dropdown for Patients */}
-        {/*  
-        {isPatient && (
-          <div className="mb-3">
-            <label className="form-label">Select Doctor</label>
-            <select
-              name="assigned_doctor"
-              className="form-select"
-              value={formData.assigned_doctor}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select doctor...</option>
-              {doctors.map((doc) => (
-                <option key={doc.id} value={doc.id}>
-                  Dr. {doc.first_name} {doc.last_name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        */}
-        {isPatient && (
+        {hasProvider === 'yes' && (
           <div className="mb-3">
             <label className="form-label">Select Doctor</label>
             <Select
@@ -156,23 +183,17 @@ function RegisterPage() {
           </div>
         )}
 
-        {/* Role Dropdown for non-patients */}
-        {!isPatient && (
+        {hasProvider === 'no' && (
           <div className="mb-3">
-            <label className="form-label">Role</label>
-            <select
-              name="role"
-              className="form-select"
-              onChange={handleChange}
-              value={formData.role}
-              required
-            >
-              <option value="">Select a role</option>
-              <option value="receptionist">Receptionist</option>
-              <option value="doctor">Doctor</option>
-              <option value="admin">Admin</option>
-              <option value="registrar">Registrar</option>
-            </select>
+            {(formData.email === '' || formData.phone_number === '') ? (
+              <p style={{ color: 'red' }}>
+                Please provide us with your contact details.
+              </p>
+            ) : (
+              <p style={{ color: 'blue', fontWeight: 'bold' }}>
+                A representative will reach out to you shortly after registration. Thank you!
+              </p>
+            )}
           </div>
         )}
 
