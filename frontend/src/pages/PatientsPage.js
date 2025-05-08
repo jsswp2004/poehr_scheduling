@@ -272,7 +272,7 @@ function PatientsPage() {
                     </Button>
                   </Col>
 
-                  <Col xs={6} md={2} className="px-1 align-items-right justify-content-between">
+                  <Col xs={6} md={2} className="px-1 text-end">
                     <Button variant="success"  style={{ height: '38px' }} onClick={exportCSV}>
                       <FontAwesomeIcon icon={faDownload} />
                     </Button>
