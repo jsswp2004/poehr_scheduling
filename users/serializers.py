@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from .models import CustomUser, Patient
+from django.core.mail import send_mail
+from django.conf import settings
 
 class UserSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
-    profile_picture = serializers.ImageField(use_url=True)  # ✅ This makes it include full path
+    profile_picture = serializers.ImageField(required=False, allow_null=True, use_url=True)  # ✅ This makes it include full path
 
     class Meta:
         model = CustomUser
@@ -53,6 +55,26 @@ class UserSerializer(serializers.ModelSerializer):
                 except CustomUser.DoesNotExist:
                     pass  # Optionally log or raise an error
             user.save()
+            
+            # ✅ Create corresponding Patient object
+                # ✅ Prevent duplicate Patient record
+            if not Patient.objects.filter(user=user).exists():
+                Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
+        # ✅ Email admin
+        admin_email = getattr(settings, 'ADMIN_EMAIL', None)
+        if admin_email:
+            send_mail(
+                subject='🆕 New Patient Registration',
+                message=(
+                    f"A new patient has registered:\n\n"
+                    f"Name: {user.first_name} {user.last_name}\n"
+                    f"Email: {user.email}\n"
+                    f"Phone: {validated_data.get('phone_number', 'N/A')}"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[admin_email],
+                fail_silently=False,
+            )            
 
         return user
 

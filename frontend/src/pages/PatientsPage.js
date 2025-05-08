@@ -12,9 +12,7 @@ import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faEye, faCommentDots, faEnvelope } from '@fortawesome/free-solid-svg-icons';
-
-
+import { faDownload, faEye, faCommentDots, faEnvelope, faTrash } from '@fortawesome/free-solid-svg-icons';
 
 function PatientsPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -44,6 +42,7 @@ function PatientsPage() {
       console.error('Failed to decode token:', err);
     }
   }
+
   const fetchPatients = async () => {
     setLoading(true);
     try {
@@ -72,48 +71,39 @@ function PatientsPage() {
 
   useEffect(() => {
     fetchPatients();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, sizePerPage]);
 
   const handleSendText = async (patient) => {
-    console.log('🚀 SEND TEXT FUNCTION CALLED:', patient);  // ← ADD THIS
-  
-    const token = localStorage.getItem('access_token');
     const phone = patient.phone_number;
     const message = `Hello ${patient.first_name}, this is a reminder from your provider.`;
-  
+
     if (!phone) {
       toast.warning(`No phone number available for ${patient.first_name}`);
       return;
     }
-  
+
     try {
       await axios.post('http://127.0.0.1:8000/api/sms/send-sms/', {
         phone,
         message,
       }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-  
+
       toast.success(`Text sent to ${patient.first_name}`);
     } catch (err) {
       console.error('SMS failed:', err);
       toast.error('Failed to send SMS');
     }
   };
-  
-  
+
   const handleOpenEmailModal = (patient) => {
     setSelectedPatient(patient);
     setEmailForm({ subject: 'Message from your provider', message: '' });
     setShowEmailModal(true);
   };
-  
+
   const handleSendEmail = async () => {
-    const token = localStorage.getItem('access_token');
-  
     try {
       await axios.post('http://127.0.0.1:8000/api/messages/send-email/', {
         email: selectedPatient.email,
@@ -122,7 +112,7 @@ function PatientsPage() {
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
+
       toast.success(`Email sent to ${selectedPatient.first_name}`);
       setShowEmailModal(false);
     } catch (err) {
@@ -130,10 +120,26 @@ function PatientsPage() {
       toast.error('Failed to send email');
     }
   };
-  
-  
 
-  
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this patient?");
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`http://127.0.0.1:8000/api/users/patients/${id}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("Patient deleted!");
+      setPage(1); // ✅ reset to first page
+      setTimeout(() => {
+        fetchPatients();
+      }, 300); // ⏱ slight delay to ensure backend completes deletion
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast.error("Failed to delete patient.");
+    }
+  };
+
   const exportCSV = () => {
     const csv = Papa.unparse(
       patients.map((p) => ({
@@ -146,7 +152,6 @@ function PatientsPage() {
     saveAs(blob, 'patients.csv');
   };
 
-
   const columns = [
     {
       dataField: 'id',
@@ -158,13 +163,11 @@ function PatientsPage() {
       dataField: 'full_name',
       text: 'Patient Name',
       sort: true,
-      //filter: textFilter({ placeholder: 'Patient Name...' }),
     },
     {
       dataField: 'email',
       text: 'Email',
       sort: true,
-      //filter: textFilter({ placeholder: 'Email...' }),
     },
     {
       dataField: 'provider_name',
@@ -172,219 +175,171 @@ function PatientsPage() {
       formatter: (_, row) =>
         row.provider_name ? `Dr. ${row.provider_name}` : <span className="text-muted">None</span>,
       sort: true,
-      //filter: textFilter({ placeholder: 'Provider...' }),
     },
     {
       dataField: 'actions',
-      text: 'Details',
+      text: 'Actions',
       formatter: (_, row) => (
-        <Button
-          variant="outline-primary"
-          size="sm"
-          onClick={() => navigate(`/patients/${row.user_id}`)}
-        >
-         <FontAwesomeIcon icon={faEye} />
-        </Button>
+        <div className="d-flex justify-content-center gap-1">
+          <Button variant="outline-primary" size="sm" onClick={() => navigate(`/patients/${row.user_id}`)}>
+            <FontAwesomeIcon icon={faEye} />
+          </Button>
+          <Button variant="warning" size="sm" onClick={() => handleSendText(row)}>
+            <FontAwesomeIcon icon={faCommentDots} />
+          </Button>
+          <Button variant="info" size="sm" onClick={() => handleOpenEmailModal(row)}>
+            <FontAwesomeIcon icon={faEnvelope} />
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => handleDelete(row.user_id)}>
+            <FontAwesomeIcon icon={faTrash} />
+          </Button>
+        </div>
       ),
-      headerStyle: { width: '90px' },
-      align: 'center',
-    },
-    {
-      dataField: 'send_text',
-      text: 'Text',
-      formatter: (_, row) => (
-        <Button
-          variant="warning"
-          size="sm"
-          onClick={() => handleSendText(row)}
-        >
-         <FontAwesomeIcon icon={faCommentDots} />
-        </Button>
-      ),
-      headerStyle: { width: '110px' },
-      align: 'center',
-    },
-    {
-      dataField: 'send_email',
-      text: 'Email',
-      formatter: (_, row) => (
-        <Button
-          variant="info"
-          size="sm"
-          onClick={() => handleOpenEmailModal(row)}
-        >
-         <FontAwesomeIcon icon={faEnvelope} />
-        </Button>
-      ),
-      headerStyle: { width: '110px' },
+      headerStyle: { width: '160px' },
       align: 'center',
     }
-    
-
-
-    
   ];
 
-
   return (
-<div className="container mt-4">
-
-
-  <Tabs defaultActiveKey="patients" className="mb-3">
-    <Tab eventKey="patients" title="Patient List">
-      <Card className="shadow-sm justify-content-between">
-        <Card.Body>
-          <Card.Title className="mb-4 d-flex justify-content-between align-items-center">        
-          <Form
-            className="mb-3"
-            onSubmit={(e) => {
-              e.preventDefault();  // Prevent page reload
-              fetchPatients();     // Trigger search
-            }}
-          >
-          <Row className="g-2 align-items-center">
-            {/* Back button (admin only) */}
-            {userRole === 'admin' && (
-              <Col md="auto">
-                <Button
-                  variant="outline-secondary"
-                  onClick={() => navigate("/admin")}
-                  style={{ height: '38px' }}
-                >
-                  ← Back
-                </Button>
-              </Col>
-            )}            
-            {/* Search input with clear button */}
-            <Col md="auto" className="flex-grow-1">
-              <div className="position-relative">
-                <Form.Control
-                  type="text"
-                  placeholder="Search patients by name, email, or provider..."
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value);
-                    setPage(1);
+    <div className="container mt-4">
+      <Tabs defaultActiveKey="patients" className="mb-3">
+        <Tab eventKey="patients" title="Patient List">
+          <Card className="shadow-sm justify-content-between">
+            <Card.Body>
+              <Card.Title className="mb-4 d-flex justify-content-between align-items-center">
+                <Form
+                  className="mb-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    fetchPatients();
                   }}
-                />
-                {search && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearch('');
-                      setPage(1);
-                      setTimeout(() => {
-                        fetchPatients();
-                      }, 0);
-                    }}
-                    className="btn btn-sm btn-light position-absolute"
-                    style={{
-                      right: '8px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      padding: '0 6px',
-                      borderRadius: '50%',
-                      lineHeight: '1',
-                    }}
-                  >
-                    &times;
-                  </button>
-                )}
-              </div>
-            </Col>
-
-            {/* Search button */}
-            <Col md="auto">
-              <Button variant="primary" type="submit" style={{ height: '38px' }}>
-                Search
-              </Button>
-            </Col>
-
-
-
-            {/* Export button */}
-            <Col md="auto">
-              <Button variant="success" style={{ height: '38px' }} onClick={exportCSV}>
-                <FontAwesomeIcon icon={faDownload} /> (.csv)
-              </Button>
-            </Col>
-          </Row>
-
-
-          </Form>
-          </Card.Title>
-
-          {loading ? (
-            <div className="text-center py-4">
-              <Spinner animation="border" />
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <BootstrapTable
-                keyField="id"
-                data={patients}
-                columns={columns}
-                bootstrap4
-                bordered
-                hover
-                noDataIndication="No patients found."
-                pagination={paginationFactory({
-                  page,
-                  sizePerPage,
-                  totalSize,
-                  showTotal: true,
-                  onPageChange: (nextPage) => setPage(nextPage),
-                  onSizePerPageChange: (size) => {
-                    setSizePerPage(size);
-                    setPage(1);
-                  },
-                })}
-                filter={filterFactory()}
-              />
-            </div>
-          )}
-        </Card.Body>
-      </Card>
-    </Tab>
-
-    <Tab eventKey="calendar" title="Calendar View">
-    <CalendarView />
-      { /*<div className="mt-4" >
-        <CalendarView />
-      </div>*/}
-    </Tab>
-  </Tabs>
-  <Modal show={showEmailModal} onHide={() => setShowEmailModal(false)}>
-  <Modal.Header closeButton>
-    <Modal.Title>Email {selectedPatient?.first_name}</Modal.Title>
-  </Modal.Header>
-  <Modal.Body>
-    <Form.Group className="mb-2">
-      <Form.Label>Subject</Form.Label>
-      <Form.Control
-        type="text"
-        value={emailForm.subject}
-        onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-      />
-    </Form.Group>
-    <Form.Group>
-      <Form.Label>Message</Form.Label>
-      <Form.Control
-        as="textarea"
-        rows={5}
-        value={emailForm.message}
-        onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
-      />
-    </Form.Group>
-  </Modal.Body>
-  <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowEmailModal(false)}>Cancel</Button>
-    <Button variant="primary" onClick={handleSendEmail}>Send</Button>
-  </Modal.Footer>
-</Modal>
-
-</div>
-
+                >
+                  <Row className="g-2 align-items-center">
+                    {userRole === 'admin' && (
+                      <Col md="auto">
+                        <Button
+                          variant="outline-secondary"
+                          onClick={() => navigate("/admin")}
+                          style={{ height: '38px' }}
+                        >
+                          ← Back
+                        </Button>
+                      </Col>
+                    )}
+                    <Col md="auto" className="flex-grow-1">
+                      <div className="position-relative">
+                        <Form.Control
+                          type="text"
+                          placeholder="Search patients by name, email, or provider..."
+                          value={search}
+                          onChange={(e) => {
+                            setSearch(e.target.value);
+                            setPage(1);
+                          }}
+                        />
+                        {search && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSearch('');
+                              setPage(1);
+                              setTimeout(() => {
+                                fetchPatients();
+                              }, 0);
+                            }}
+                            className="btn btn-sm btn-light position-absolute"
+                            style={{
+                              right: '8px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              padding: '0 6px',
+                              borderRadius: '50%',
+                              lineHeight: '1',
+                            }}
+                          >
+                            &times;
+                          </button>
+                        )}
+                      </div>
+                    </Col>
+                    <Col md="auto">
+                      <Button variant="primary" type="submit" style={{ height: '38px' }}>
+                        Search
+                      </Button>
+                    </Col>
+                    <Col md="auto">
+                      <Button variant="success" style={{ height: '38px' }} onClick={exportCSV}>
+                        <FontAwesomeIcon icon={faDownload} /> (.csv)
+                      </Button>
+                    </Col>
+                  </Row>
+                </Form>
+              </Card.Title>
+              {loading ? (
+                <div className="text-center py-4">
+                  <Spinner animation="border" />
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <BootstrapTable
+                    keyField="id"
+                    data={patients}
+                    columns={columns}
+                    bootstrap4
+                    bordered
+                    hover
+                    noDataIndication="No patients found."
+                    pagination={paginationFactory({
+                      page,
+                      sizePerPage,
+                      totalSize,
+                      showTotal: true,
+                      onPageChange: (nextPage) => setPage(nextPage),
+                      onSizePerPageChange: (size) => {
+                        setSizePerPage(size);
+                        setPage(1);
+                      },
+                    })}
+                    filter={filterFactory()}
+                  />
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </Tab>
+        <Tab eventKey="calendar" title="Calendar View">
+          <CalendarView />
+        </Tab>
+      </Tabs>
+      <Modal show={showEmailModal} onHide={() => setShowEmailModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>Email {selectedPatient?.first_name}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-2">
+            <Form.Label>Subject</Form.Label>
+            <Form.Control
+              type="text"
+              value={emailForm.subject}
+              onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+            />
+          </Form.Group>
+          <Form.Group>
+            <Form.Label>Message</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={5}
+              value={emailForm.message}
+              onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+            />
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEmailModal(false)}>Cancel</Button>
+          <Button variant="primary" onClick={handleSendEmail}>Send</Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
   );
 }
 

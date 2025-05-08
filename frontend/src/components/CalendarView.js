@@ -99,11 +99,12 @@ function CalendarView() {
       // Format appointments
       const apptEvents = appointmentsRes.data.map((appt) => ({
         id: `appt-${appt.id}`,
-        title: appt.title || 'Untitled Appointment', // ✅ fallback to avoid undefined,
+        title: `${appt.patient_name || 'Unknown Patient'} - ${appt.title || 'Untitled Appointment'}`, // ✅ include patient name
         start: parseISO(appt.appointment_datetime),
         end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
         type: 'appointment',
         provider: appt.provider, // Needed for doctor match
+        patient_name: appt.patient_name // optional: in case you use it elsewhere
       }));
   
       // 👇 Your original logic to set default doctor based on first appointment
