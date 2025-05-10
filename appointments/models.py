@@ -51,7 +51,9 @@ class Availability(models.Model):
         max_length=10,
         choices=[
             ('none', 'None'),
+            ('daily', 'Daily'),   # ✅ Add this
             ('weekly', 'Weekly'),
+            ('monthly', 'Monthly')  # ✅ Add this too
         ],
         default='none'
     )
