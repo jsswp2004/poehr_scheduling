@@ -59,27 +59,21 @@ function ProfilePage() {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const handleSearch = async () => {
-    try {
-      const res = await axios.get(`http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setSearchResults(res.data);
-      if (res.data.length > 0) {
-        const selectedUser = res.data[0];
-        setUser(selectedUser);
-        setFormData({
-          first_name: selectedUser.first_name,
-          last_name: selectedUser.last_name,
-          email: selectedUser.email,
-        });
-      } else {
-        toast.info('No matching users found.');
-      }
-    } catch (err) {
-      toast.error('Search failed.');
+const handleSearch = async () => {
+  try {
+    const res = await axios.get(`http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    setSearchResults(res.data);
+
+    if (res.data.length === 0) {
+      toast.info('No matching users found.');
     }
-  };
+  } catch (err) {
+    toast.error('Search failed.');
+  }
+};
+
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -181,6 +175,48 @@ function ProfilePage() {
 
               </div>                     
         )}
+        {searchResults.length > 0 && (
+          <div className="mb-3 border rounded p-3" style={{ maxHeight: '250px', overflowY: 'auto' }}>
+            <strong>Search Results</strong>
+            <table className="table table-sm mt-2 mb-0">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Select</th>
+                </tr>
+              </thead>
+              <tbody>
+                {searchResults.map((result) => (
+                  <tr key={result.id}>
+                    <td>{result.first_name} {result.last_name}</td>
+                    <td>{result.email}</td>
+                    <td>{result.role}</td>
+                    <td>
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        onClick={() => {
+                          setUser(result);
+                          setFormData({
+                            first_name: result.first_name,
+                            last_name: result.last_name,
+                            email: result.email,
+                          });
+                          setSearchResults([]); // optional: hide results after selection
+                        }}
+                      >
+                        Select
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         <hr />
         <div className="mb-3 d-flex justify-content-between align-items-right">     
           <h5>User Information</h5>
