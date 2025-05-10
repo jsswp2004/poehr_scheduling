@@ -130,7 +130,7 @@ function MaintenancePage() {
       start_time: toLocalDatetimeInputValue(schedule.start_time),
       end_time: toLocalDatetimeInputValue(schedule.end_time),
       is_blocked: schedule.is_blocked,
-      recurrence: 'none',
+      recurrence: schedule.recurrence || 'none',
     });
   
     const matched = doctors.find(doc => doc.id === schedule.doctor);
@@ -141,7 +141,8 @@ function MaintenancePage() {
     );
   };
   
-  
+  console.log("recurrence value:", formData.recurrence, typeof formData.recurrence);
+
   
   const handleDelete = async (scheduleId) => {
     if (!window.confirm('Are you sure you want to delete this schedule?')) return;
