@@ -50,30 +50,41 @@ function MaintenancePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+  
     if (!selectedDoctor) {
       toast.warning('Please select a clinician.');
       return;
     }
-
+  
+    if (!formData.start_time || !formData.end_time) {
+      toast.warning('Please enter both start and end time.');
+      return;
+    }
+  
+    // Convert to ISO string (adds seconds + timezone)
     const payload = {
-      ...formData,
       doctor: selectedDoctor.value,
+      start_time: new Date(formData.start_time).toISOString(),
+      end_time: new Date(formData.end_time).toISOString(),
+      is_blocked: formData.is_blocked,
+      recurrence: formData.recurrence,
     };
-
+  
+    console.log("📤 Submitting payload:", payload);
+  
     try {
-        if (editingId) {
-            await axios.put(`http://127.0.0.1:8000/api/availability/${editingId}/`, payload, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            toast.success('Schedule updated!');
-          } else {
-            await axios.post('http://127.0.0.1:8000/api/availability/', payload, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            toast.success('Schedule saved!');
-          }
-          
+      if (editingId) {
+        await axios.put(`http://127.0.0.1:8000/api/availability/${editingId}/`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success('Schedule updated!');
+      } else {
+        await axios.post('http://127.0.0.1:8000/api/availability/', payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success('Schedule saved!');
+      }
+  
       setFormData({
         start_time: '',
         end_time: '',
@@ -82,13 +93,13 @@ function MaintenancePage() {
       });
       setEditingId(null);
       await fetchSchedules();
-
-
+  
     } catch (err) {
       console.error(err);
       toast.error('Failed to save schedule.');
     }
   };
+  
 
   const fetchSchedules = async () => {
     if (!selectedDoctor) return;
