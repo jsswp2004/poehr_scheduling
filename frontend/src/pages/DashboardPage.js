@@ -14,6 +14,7 @@ function toLocalDatetimeString(dateObj) {
 }
 
 function DashboardPage() {
+  const [refreshFlag, setRefreshFlag] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -69,7 +70,8 @@ function DashboardPage() {
     } else {
       fetchAppointments();  // Fetch appointments once doctors are fetched
     }
-  }, [token, doctors.length]); // Fetch appointments only once doctors are loaded
+  }, [token, doctors.length, refreshFlag]);
+ // Fetch appointments only once doctors are loaded
 
 
   const handleChange = (e) => {
@@ -384,7 +386,8 @@ function DashboardPage() {
 
         <Tab eventKey="calendar" title="Calendar">
           <div className="mt-4">
-            <CalendarView />
+            <CalendarView onUpdate={() => setRefreshFlag(prev => !prev)} />
+
           </div>
         </Tab>
       </Tabs>
