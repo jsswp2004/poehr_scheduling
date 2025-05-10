@@ -119,6 +119,23 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 provider=provider  # Ensure recurrence appointments are assigned the same provider
             )
 
+    def perform_update(self, serializer):
+        print("💬 Incoming update validated_data:", serializer.validated_data)
+    # Optional: get provider if it's included in update
+        provider_id = self.request.data.get('provider')
+        provider = None
+
+        if provider_id:
+            try:
+                User = apps.get_model(settings.AUTH_USER_MODEL)
+                provider = User.objects.get(id=provider_id)
+            except User.DoesNotExist:
+                raise ValueError("Provider not found.")
+
+        updated = serializer.save(provider=provider if provider else None)
+        print(f"✅ Saved duration_minutes: {updated.duration_minutes}")
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def doctor_available_slots(request, doctor_id):

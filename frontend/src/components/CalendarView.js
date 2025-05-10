@@ -25,7 +25,7 @@ function toLocalDatetimeString(dateObj) {
   return local.toISOString().slice(0, 16);
 }
 
-function CalendarView() {
+function CalendarView({ onUpdate }) {
   const navigate = useNavigate(); 
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -95,7 +95,8 @@ function CalendarView() {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
-  
+      console.log("📥 Appointments response:", appointmentsRes.data);
+
       // Format appointments
       const apptEvents = appointmentsRes.data.map((appt) => ({
         id: `appt-${appt.id}`,
@@ -104,7 +105,8 @@ function CalendarView() {
         end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
         type: 'appointment',
         provider: appt.provider, // Needed for doctor match
-        patient_name: appt.patient_name // optional: in case you use it elsewhere
+        patient_name: appt.patient_name,
+        duration_minutes: appt.duration_minutes, // optional: in case you use it elsewhere
       }));
   
       // 👇 Your original logic to set default doctor based on first appointment
@@ -131,8 +133,13 @@ function CalendarView() {
   
       const combinedEvents = [...apptEvents, ...availEvents]
       .filter(e => e && typeof e.title === 'string'); // ✅ remove undefined/bad events
+
+      console.log("🧠 Mapped events with duration:", apptEvents);
     
-      setEvents(combinedEvents);
+      setEvents([]); // force clear
+      setTimeout(() => setEvents(combinedEvents), 50); // force re-render
+      console.log("🗓️ Combined events:", combinedEvents);
+
     
     } catch (error) {
       console.error('Failed to load calendar data:', error);
@@ -221,19 +228,28 @@ function CalendarView() {
   };
 
   const handleModalSave = async () => {
+
+    const cleanTitle = modalFormData.title.split(' - ').slice(-1).join(' - '); // removes prepended name
+
     const payload = {
       ...modalFormData,
+      title: cleanTitle,
       provider: selectedDoctor?.value || null,
     };
+
     console.log('Saving payload:', payload); // Log the payload to check its structure
 
     try {
       if (isEditing && editingId) {
         const cleanId = editingId.toString().replace('appt-', '');  // ✅ strip prefix
+        
+        console.log("📦 Duration before save:", modalFormData.duration_minutes);
         await axios.put(`http://127.0.0.1:8000/api/appointments/${cleanId}/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Appointment updated!');
+        if (onUpdate) onUpdate(); // ✅ trigger Dashboard refresh
+
       } else {
         await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
           headers: { Authorization: `Bearer ${token}` },
@@ -493,9 +509,12 @@ function CalendarView() {
                   <Form.Control
                     type="number"
                     value={modalFormData.duration_minutes}
-                    onChange={(e) =>
+                    
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value) || 0;
+                      console.log("🧪 Duration input changed to:", value);
                       setModalFormData({ ...modalFormData, duration_minutes: parseInt(e.target.value) || 0 })
-                    }
+                    }}
                     disabled={isPast}
                   />
                 </Form.Group>
