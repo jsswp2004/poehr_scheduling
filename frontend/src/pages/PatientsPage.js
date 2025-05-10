@@ -207,15 +207,9 @@ function PatientsPage() {
           <Card className="shadow-sm ">
             <Card.Body>
               <Card.Title className="mb-4 justify-content-between align-items-center">
-              <Form
-                className="mb-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  fetchPatients();
-                              }}
-              >
-                <Row className="g-2 align-items-center w-100 mx-0">
-                  {userRole === 'admin' && (
+
+                <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
+                   {userRole === 'admin' && (
                     <Col xs={12} md={2} className="px-1">
                       <Button
                         variant="outline-secondary"
@@ -226,19 +220,20 @@ function PatientsPage() {
                         ← Back
                       </Button>
                     </Col>
-                  )}
-
-                  <Col xs={12} md={userRole === 'admin' ? 6 : 8} className="px-1">
-                    <div className="position-relative w-100">
+                  )}                 
+                  
+                  <div className="d-flex align-items-center gap-2" style={{ flexGrow: 1 }}>
+                    <div className="position-relative w-100" style={{ maxWidth: '400px' }}>
                       <Form.Control
                         type="text"
-                        placeholder="Search patients by name, email, or provider..."
+                        placeholder="Search patients..."
                         value={search}
                         onChange={(e) => {
                           setSearch(e.target.value);
                           setPage(1);
+                          fetchPatients(); // fetch immediately as user types
                         }}
-                        
+                        style={{ height: '38px' }}
                       />
                       {search && (
                         <button
@@ -246,9 +241,7 @@ function PatientsPage() {
                           onClick={() => {
                             setSearch('');
                             setPage(1);
-                            setTimeout(() => {
-                              fetchPatients();
-                            }, 0);
+                            fetchPatients(); // re-fetch with empty query
                           }}
                           className="btn btn-sm btn-light position-absolute"
                           style={{
@@ -264,21 +257,15 @@ function PatientsPage() {
                         </button>
                       )}
                     </div>
-                  </Col>
+                  </div>
 
-                  <Col xs={6} md={2} className="px-1">
-                    <Button variant="primary" type="submit"  style={{ height: '38px' }}>
-                      Search
+                  <div>
+                    <Button variant="success" onClick={exportCSV} style={{ height: '38px' }}>
+                      Export CSV
                     </Button>
-                  </Col>
+                  </div>
+                </div>
 
-                  <Col xs={6} md={2} className="px-1 text-end">
-                    <Button variant="success"  style={{ height: '38px' }} onClick={exportCSV}>
-                      <FontAwesomeIcon icon={faDownload} />
-                    </Button>
-                  </Col>
-                </Row>
-              </Form>
 
               </Card.Title>
               {loading ? (
