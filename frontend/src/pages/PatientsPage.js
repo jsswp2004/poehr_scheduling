@@ -1,6 +1,18 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-import { Card, Form, Button, Row, Col, Spinner, Tabs, Tab, Modal} from 'react-bootstrap';
+import {
+  Card,
+  Form,
+  Button,
+  Row,
+  Col,
+  Spinner,
+  Tabs,
+  Tab,
+  Modal,
+  OverlayTrigger,
+  Tooltip,
+} from 'react-bootstrap';
 import BootstrapTable from 'react-bootstrap-table-next';
 import paginationFactory from 'react-bootstrap-table2-paginator';
 import filterFactory, { textFilter } from 'react-bootstrap-table2-filter';
@@ -12,14 +24,20 @@ import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faDownload, faEye, faCommentDots, faEnvelope, faTrash } from '@fortawesome/free-solid-svg-icons';
+import {
+  faDownload,
+  faEye,
+  faCommentDots,
+  faEnvelope,
+  faTrash,
+} from '@fortawesome/free-solid-svg-icons';
 
 function PatientsPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [emailForm, setEmailForm] = useState({
     subject: 'Message from your provider',
-    message: ''
+    message: '',
   });
 
   const [patients, setPatients] = useState([]);
@@ -83,12 +101,16 @@ function PatientsPage() {
     }
 
     try {
-      await axios.post('http://127.0.0.1:8000/api/sms/send-sms/', {
-        phone,
-        message,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.post(
+        'http://127.0.0.1:8000/api/sms/send-sms/',
+        {
+          phone,
+          message,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       toast.success(`Text sent to ${patient.first_name}`);
     } catch (err) {
@@ -105,13 +127,17 @@ function PatientsPage() {
 
   const handleSendEmail = async () => {
     try {
-      await axios.post('http://127.0.0.1:8000/api/messages/send-email/', {
-        email: selectedPatient.email,
-        subject: emailForm.subject,
-        message: emailForm.message,
-      }, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.post(
+        'http://127.0.0.1:8000/api/messages/send-email/',
+        {
+          email: selectedPatient.email,
+          subject: emailForm.subject,
+          message: emailForm.message,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       toast.success(`Email sent to ${selectedPatient.first_name}`);
       setShowEmailModal(false);
@@ -122,21 +148,21 @@ function PatientsPage() {
   };
 
   const handleDelete = async (id) => {
-    const confirmDelete = window.confirm("Are you sure you want to delete this patient?");
+    const confirmDelete = window.confirm('Are you sure you want to delete this patient?');
     if (!confirmDelete) return;
 
     try {
       await axios.delete(`http://127.0.0.1:8000/api/users/patients/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success("Patient deleted!");
-      setPage(1); // ✅ reset to first page
+      toast.success('Patient deleted!');
+      setPage(1);
       setTimeout(() => {
         fetchPatients();
-      }, 300); // ⏱ slight delay to ensure backend completes deletion
+      }, 300);
     } catch (error) {
-      console.error("Delete failed:", error);
-      toast.error("Failed to delete patient.");
+      console.error('Delete failed:', error);
+      toast.error('Failed to delete patient.');
     }
   };
 
@@ -181,23 +207,34 @@ function PatientsPage() {
       text: 'Actions',
       formatter: (_, row) => (
         <div className="d-flex justify-content-center gap-1">
-          <Button variant="outline-primary" size="sm" onClick={() => navigate(`/patients/${row.user_id}`)}>
-            <FontAwesomeIcon icon={faEye} />
-          </Button>
-          <Button variant="warning" size="sm" onClick={() => handleSendText(row)}>
-            <FontAwesomeIcon icon={faCommentDots} />
-          </Button>
-          <Button variant="info" size="sm" onClick={() => handleOpenEmailModal(row)}>
-            <FontAwesomeIcon icon={faEnvelope} />
-          </Button>
-          <Button variant="danger" size="sm" onClick={() => handleDelete(row.user_id)}>
-            <FontAwesomeIcon icon={faTrash} />
-          </Button>
+          <OverlayTrigger placement="top" overlay={<Tooltip>View patient profile</Tooltip>}>
+            <Button variant="outline-primary" size="sm" onClick={() => navigate(`/patients/${row.user_id}`)}>
+              <FontAwesomeIcon icon={faEye} />
+            </Button>
+          </OverlayTrigger>
+
+          <OverlayTrigger placement="top" overlay={<Tooltip>Send SMS</Tooltip>}>
+            <Button variant="warning" size="sm" onClick={() => handleSendText(row)}>
+              <FontAwesomeIcon icon={faCommentDots} />
+            </Button>
+          </OverlayTrigger>
+
+          <OverlayTrigger placement="top" overlay={<Tooltip>Send email</Tooltip>}>
+            <Button variant="info" size="sm" onClick={() => handleOpenEmailModal(row)}>
+              <FontAwesomeIcon icon={faEnvelope} />
+            </Button>
+          </OverlayTrigger>
+
+          <OverlayTrigger placement="top" overlay={<Tooltip>Delete patient</Tooltip>}>
+            <Button variant="danger" size="sm" onClick={() => handleDelete(row.user_id)}>
+              <FontAwesomeIcon icon={faTrash} />
+            </Button>
+          </OverlayTrigger>
         </div>
       ),
       headerStyle: { width: '160px' },
       align: 'center',
-    }
+    },
   ];
 
   return (
@@ -207,21 +244,15 @@ function PatientsPage() {
           <Card className="shadow-sm ">
             <Card.Body>
               <Card.Title className="mb-4 justify-content-between align-items-center">
-
                 <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
-                   {userRole === 'admin' && (
+                  {userRole === 'admin' && (
                     <Col xs={12} md={2} className="px-1">
-                      <Button
-                        variant="outline-secondary"
-                        onClick={() => navigate("/admin")}
-                        
-                        style={{ height: '38px' }}
-                      >
+                      <Button variant="outline-secondary" onClick={() => navigate('/admin')} style={{ height: '38px' }}>
                         ← Back
                       </Button>
                     </Col>
-                  )}                 
-                  
+                  )}
+
                   <div className="d-flex align-items-center gap-2" style={{ flexGrow: 1 }}>
                     <div className="position-relative w-100" style={{ maxWidth: '400px' }}>
                       <Form.Control
@@ -231,7 +262,7 @@ function PatientsPage() {
                         onChange={(e) => {
                           setSearch(e.target.value);
                           setPage(1);
-                          fetchPatients(); // fetch immediately as user types
+                          fetchPatients();
                         }}
                         style={{ height: '38px' }}
                       />
@@ -241,7 +272,7 @@ function PatientsPage() {
                           onClick={() => {
                             setSearch('');
                             setPage(1);
-                            fetchPatients(); // re-fetch with empty query
+                            fetchPatients();
                           }}
                           className="btn btn-sm btn-light position-absolute"
                           style={{
@@ -265,8 +296,6 @@ function PatientsPage() {
                     </Button>
                   </div>
                 </div>
-
-
               </Card.Title>
               {loading ? (
                 <div className="text-center py-4">
@@ -328,8 +357,12 @@ function PatientsPage() {
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowEmailModal(false)}>Cancel</Button>
-          <Button variant="primary" onClick={handleSendEmail}>Send</Button>
+          <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={handleSendEmail}>
+            Send
+          </Button>
         </Modal.Footer>
       </Modal>
     </div>

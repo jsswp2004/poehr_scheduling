@@ -266,8 +266,11 @@ function MaintenancePage() {
         <Col md={6}>
           <Card className="shadow-sm">
             <Card.Body>
+            
               <h5 className="fw-bold">📋 Schedule Overview</h5>
               <h6 className="text-success">✅ Availability</h6>
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              
                 <ul className="list-group mb-4">
                 {schedules.filter(s => !s.is_blocked).map(s => (
                     <li key={s.id} className="list-group-item d-flex justify-content-between align-items-center">
@@ -303,8 +306,9 @@ function MaintenancePage() {
 
                 ))}
                 </ul>
-
-                <h6 className="text-danger">🚫 Blocked</h6>
+                 </div>
+              <h6 className="text-danger">🚫 Blocked</h6>
+              <div style={{ maxHeight: '300px', overflowY: 'auto' }}>                
                 <ul className="list-group">
                 {schedules.filter(s => s.is_blocked).map(s => (
                     <li key={s.id} className="list-group-item d-flex justify-content-between align-items-center">
@@ -339,7 +343,7 @@ function MaintenancePage() {
                 </li>
                 ))}
                 </ul>
-
+             </div>
             </Card.Body>
           </Card>
         </Col>

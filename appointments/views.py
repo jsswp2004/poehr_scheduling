@@ -92,9 +92,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         duration = appointment.duration_minutes
 
         repeats = {
-            'daily': 7,
-            'weekly': 4,
-            'monthly': 3,
+            'daily': 179,
+            'weekly': 23,
+            'monthly': 11,
         }
 
         count = repeats.get(recurrence, 0)
@@ -191,9 +191,9 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
         is_blocked = availability.is_blocked
 
         recurrence_count = {
-            'daily': 7,     # Next 7 days
-            'weekly': 4,    # Next 4 weeks
-            'monthly': 3,   # Next 3 months
+            'daily': 179,     # Next 7 days
+            'weekly': 59,    # Next 4 weeks
+            'monthly': 11,   # Next 3 months
         }
 
         count = recurrence_count.get(recurrence, 0)

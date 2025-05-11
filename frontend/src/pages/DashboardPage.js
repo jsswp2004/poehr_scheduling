@@ -4,7 +4,7 @@ import axios from 'axios';
 import CalendarView from '../components/CalendarView';
 import { toast } from 'react-toastify';
 import Table from 'react-bootstrap/Table';
-import { Tabs, Tab } from 'react-bootstrap';
+import { Tabs, Tab,OverlayTrigger, Tooltip } from 'react-bootstrap';
 
 
 function toLocalDatetimeString(dateObj) {
@@ -365,13 +365,17 @@ function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                    {(appointments || []).map((a) => (
-                      <tr key={a.id}>
+                    {(appointments || []).slice().reverse().map((a) => (
+                      <tr key={a.id} className={new Date(a.appointment_datetime) < new Date() ? 'table-secondary' : ''}>
                         <td>{a.title || 'Untitled'}</td>
                         <td>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</td>
                         <td>
-                          <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
-                          <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
+                          <OverlayTrigger placement="top" overlay={<Tooltip>Edit appointment</Tooltip>}>
+                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
+                          </OverlayTrigger>
+                          <OverlayTrigger placement="top" overlay={<Tooltip>Delete appointment</Tooltip>}>
+                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
+                          </OverlayTrigger>
                         </td>
                       </tr>
                     ))}
