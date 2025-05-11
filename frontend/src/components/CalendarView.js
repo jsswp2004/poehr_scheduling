@@ -4,7 +4,7 @@ import axios from 'axios';
 import { parseISO } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
-import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
+import { Modal, Button, Form, Row, Col, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import Select from 'react-select';
 import { jwtDecode } from 'jwt-decode';
@@ -555,19 +555,28 @@ function CalendarView({ onUpdate }) {
                 </Form.Group>
               </Form>
             </Modal.Body>
-            <Modal.Footer>
-              <Button variant="secondary" onClick={() => setShowModal(false)}>
-                Cancel
-              </Button>
-              {isEditing && !isPast && (
-                <Button variant="danger" onClick={handleDeleteAppointment}>
-                  Delete
-                </Button>
-              )}
-              <Button variant="primary" onClick={handleModalSave} disabled={isEditing && isPast}>
-                {isEditing ? 'Update' : 'Save'}
-              </Button>
-            </Modal.Footer>
+              <Modal.Footer>
+                <OverlayTrigger placement="top" overlay={<Tooltip>Close without saving</Tooltip>}>
+                  <Button variant="secondary" onClick={() => setShowModal(false)}>
+                    Cancel
+                  </Button>
+                </OverlayTrigger>
+                {isEditing && !isPast && (
+                  <OverlayTrigger placement="top" overlay={<Tooltip>Delete this appointment</Tooltip>}>
+                    <Button variant="danger" onClick={handleDeleteAppointment}>
+                      Delete
+                    </Button>
+                  </OverlayTrigger>
+                )}
+                <OverlayTrigger
+                  placement="top"
+                  overlay={<Tooltip>{isEditing ? 'Update appointment' : 'Save new appointment'}</Tooltip>}
+                >
+                  <Button variant="primary" onClick={handleModalSave} disabled={isEditing && isPast}>
+                    {isEditing ? 'Update' : 'Save'}
+                  </Button>
+                </OverlayTrigger>
+              </Modal.Footer>
           </Modal>
         </div>
       </div>
