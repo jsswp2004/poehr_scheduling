@@ -189,11 +189,12 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
         end = availability.end_time
         doctor = availability.doctor
         is_blocked = availability.is_blocked
+        end_date_limit = availability.recurrence_end_date
 
         recurrence_count = {
-            'daily': 179,     # Next 7 days
-            'weekly': 59,    # Next 4 weeks
-            'monthly': 11,   # Next 3 months
+            'daily': 179,     # up to ~6 months
+            'weekly': 59,     # a bit over a year
+            'monthly': 11,    # roughly 1 year
         }
 
         count = recurrence_count.get(recurrence, 0)
@@ -208,10 +209,17 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
             else:
                 continue
 
+            next_start = start + delta
+            next_end = end + delta
+
+            # ⛔ Stop if recurrence_end_date is set and we're past it
+            if end_date_limit and next_start.date() > end_date_limit:
+                break
+
             Availability.objects.create(
                 doctor=doctor,
-                start_time=start + delta,
-                end_time=end + delta,
+                start_time=next_start,
+                end_time=next_end,
                 is_blocked=is_blocked,
                 recurrence='none'  # avoid chaining
             )

@@ -11,14 +11,20 @@ function MaintenancePage() {
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [formData, setFormData] = useState({
-    start_time: '',
-    end_time: '',
+    start_time: getTodayAt(8),     // ⏰ 8:00 AM
+    end_time: getTodayAt(17),      // ⏰ 5:00 PM
     is_blocked: false,
     recurrence: 'none',
+    recurrence_end_date: '',
   });
   const navigate = useNavigate();
   const token = localStorage.getItem('access_token');
-
+  function getTodayAt(hour, minute = 0) {
+    const date = new Date();
+    date.setHours(hour, minute, 0, 0);
+    date.setMinutes(date.getMinutes() - date.getTimezoneOffset()); // adjust for local
+    return date.toISOString().slice(0, 16); // format: YYYY-MM-DDTHH:MM
+  }
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -68,6 +74,7 @@ function MaintenancePage() {
       end_time: new Date(formData.end_time).toISOString(),
       is_blocked: formData.is_blocked,
       recurrence: formData.recurrence,
+      recurrence_end_date: formData.recurrence_end_date || null,
     };
   
     console.log("📤 Submitting payload:", payload);
@@ -218,30 +225,41 @@ function MaintenancePage() {
                   </Col>
                 </Row>
 
-                <Row className="mb-3">
-                  <Col md={6}>
-                    <Form.Label>Recurrence</Form.Label>
-                    <Form.Select
-                      name="recurrence"
-                      value={formData.recurrence}
-                      onChange={handleChange}
-                    >
-                      <option value="none">None</option>
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </Form.Select>
-                  </Col>
-                  <Col md={6} className="d-flex align-items-end">
-                    <Form.Check
-                      type="checkbox"
-                      label="Block this schedule"
-                      name="is_blocked"
-                      checked={formData.is_blocked}
-                      onChange={handleChange}
-                    />
-                  </Col>
-                </Row>
+                <Form.Group className="mb-3">
+                  <Row>
+                    <Col md={6}>
+                      <Form.Label>Recurrence</Form.Label>
+                      <Form.Select
+                        value={formData.recurrence}
+                        onChange={(e) => setFormData({ ...formData, recurrence: e.target.value })}
+                      >
+                        <option value="none">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </Form.Select>
+                    </Col>
+
+                    <Col md={6}>
+                      <Form.Label>Recurrence End Date</Form.Label>
+                      <Form.Control
+                        type="date"
+                        value={formData.recurrence_end_date || ''}
+                        onChange={(e) => setFormData({ ...formData, recurrence_end_date: e.target.value })}
+                      />
+                    </Col>
+                  </Row>
+
+                  <Form.Check
+                    type="checkbox"
+                    id="blockSchedule"
+                    label="Block this schedule"
+                    className="mt-3"
+                    checked={formData.is_blocked || false}
+                    onChange={(e) => setFormData({ ...formData, is_blocked: e.target.checked })}
+                  />
+                </Form.Group>
+
 
                 <Button type="submit" variant="primary" className="me-2">
                 {editingId ? 'Update Schedule' : 'Save Schedule'}
