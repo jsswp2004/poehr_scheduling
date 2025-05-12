@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import CustomUser, Patient
 from django.core.mail import send_mail
 from django.conf import settings
+from appointments.models import Appointment
+
 
 class UserSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
@@ -86,7 +88,7 @@ class PatientSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
     provider_name = serializers.SerializerMethodField()
-
+    last_appointment_date = serializers.SerializerMethodField()
     class Meta:
         model = Patient
         fields = [
@@ -101,7 +103,12 @@ class PatientSerializer(serializers.ModelSerializer):
             'phone_number',
             'address',
             'medical_history',
+            'last_appointment_date',
         ]
+
+    def get_last_appointment_date(self, obj):
+        latest = Appointment.objects.filter(patient=obj.user).order_by('-appointment_datetime').first()
+        return latest.appointment_datetime if latest else None
 
     def get_provider_name(self, obj):
         if obj.user.provider:
