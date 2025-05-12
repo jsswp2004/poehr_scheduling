@@ -203,6 +203,14 @@ function PatientsPage() {
       sort: true,
     },
     {
+      dataField: 'last_appointment_date',
+      text: 'Last Appointment',
+      sort: true,
+      formatter: (cell) =>
+        cell ? new Date(cell).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—',
+    },
+
+    {
       dataField: 'actions',
       text: 'Actions',
       formatter: (_, row) => (
