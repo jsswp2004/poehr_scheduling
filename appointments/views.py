@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions
-from .models import Appointment
-from .serializers import AppointmentSerializer,AvailabilitySerializer
+from .models import Appointment, EnvironmentSetting
+from .serializers import AppointmentSerializer,AvailabilitySerializer, EnvironmentSettingSerializer
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -16,7 +16,9 @@ from datetime import datetime as dt
 from datetime import datetime, timedelta, time as dt_time
 from .models import Availability
 from django.core.mail import send_mail
-
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status, permissions
 
 
 from .models import Appointment
@@ -223,3 +225,19 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
                 is_blocked=is_blocked,
                 recurrence='none'  # avoid chaining
             )
+
+class EnvironmentSettingView(APIView):
+    permission_classes = [permissions.IsAdminUser]  # or IsAuthenticated
+
+    def get(self, request):
+        obj, created = EnvironmentSetting.objects.get_or_create(pk=1)
+        serializer = EnvironmentSettingSerializer(obj)
+        return Response(serializer.data)
+
+    def post(self, request):
+        obj, created = EnvironmentSetting.objects.get_or_create(pk=1)
+        serializer = EnvironmentSettingSerializer(obj, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

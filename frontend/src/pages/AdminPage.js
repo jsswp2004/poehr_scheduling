@@ -38,7 +38,7 @@ function AdminPage() {
                 <Button
                 variant="success"
                 size="lg"
-                onClick={() => navigate('/maintenance')}
+                onClick={() => navigate('/settings')}
                 style={{
                   width: '120px',
                   height: '120px',

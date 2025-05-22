@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Appointment, Availability
+from .models import Appointment, Availability, EnvironmentSetting
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -35,3 +35,9 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 
     def get_doctor_name(self, obj):
         return f"{obj.doctor.first_name} {obj.doctor.last_name}"
+
+
+class EnvironmentSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EnvironmentSetting
+        fields = ['id', 'blocked_days', 'updated_at']
