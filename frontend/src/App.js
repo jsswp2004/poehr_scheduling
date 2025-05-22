@@ -13,6 +13,7 @@ import ProfilePage from './pages/ProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MaintenancePage from './pages/MaintenancePage'; 
 import CreateProfilePage from './pages/CreateProfilePage';
+import SettingsPage from './pages/SettingsPage'; // adjust path if needed
 
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/maintenance" element={<PrivateRoute><MaintenancePage /></PrivateRoute>} />
         <Route path="/create-profile" element={<PrivateRoute><CreateProfilePage /></PrivateRoute>} />
+        <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
 
 
 

@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 
 class Appointment(models.Model):
     RECURRENCE_CHOICES = [
@@ -65,3 +66,16 @@ class Availability(models.Model):
     def __str__(self):
         status = "Blocked" if self.is_blocked else "Available"
         return f"{status} for Dr. {self.doctor.get_full_name()} on {self.start_time}"
+
+class EnvironmentSetting(models.Model):
+    # Store the blocked days as an array of integers [0,6]
+    blocked_days = ArrayField(
+        models.IntegerField(),
+        default=list,
+        blank=True,
+        help_text="Days blocked by default, 0=Sun, ..., 6=Sat"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Environment Setting ({self.pk})"
