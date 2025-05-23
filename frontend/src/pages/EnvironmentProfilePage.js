@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Form, Button, Alert, Spinner, Tabs, Tab } from 'react-bootstrap';
+import { Card, Table, Form, Button, Alert, Spinner, Tabs, Tab, Col } from 'react-bootstrap';
 import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
+import { useNavigate } from 'react-router-dom';
 
 const DAYS = [
   { label: 'Mon', value: 1 },
@@ -33,6 +34,7 @@ function EnvironmentProfilePage() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedHolidays, setSelectedHolidays] = useState([]); // Array of holiday dates
+  const navigate = useNavigate();
 
 
   // For inner tabs (future-proof for more tabs!)
@@ -110,9 +112,10 @@ function EnvironmentProfilePage() {
 };
 
   return (
+    <Col className="d-flex justify-content-center align-items-left flex-column mt-5">
     <Card className="shadow-sm">
       <Card.Body>
-        <h4 className="fw-bold mb-4">Environment Profile</h4>
+        
         <Tabs activeKey={tabKey} onSelect={setTabKey} className="mb-3">
           <Tab eventKey="blocked-days" title="Default Blocked Days">
             <Table bordered className="align-middle text-center" style={{ maxWidth: 800 }}>
@@ -164,7 +167,20 @@ function EnvironmentProfilePage() {
           </Tab>
         </Tabs>
       </Card.Body>
+
+
     </Card>
+        <div>
+          <Button
+            variant="outline-secondary"
+            onClick={() => navigate("/admin")}
+            className="mt-2 mb-3 d-inline-block"
+            style={{ padding: '2px 12px', fontSize: '1rem', minWidth: 0 }}
+          >
+            ← Back
+          </Button>
+        </div>
+    </Col>
   );
 }
 
