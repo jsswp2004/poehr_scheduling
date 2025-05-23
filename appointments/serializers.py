@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Appointment, Availability, EnvironmentSetting
+from .models import Appointment, Availability, EnvironmentSetting, Holiday
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -40,4 +40,9 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 class EnvironmentSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = EnvironmentSetting
-        fields = ['id', 'blocked_days', 'updated_at']
+        fields = ['id', 'blocked_days','updated_at']
+
+class HolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Holiday
+        fields = ['id', 'name', 'date', 'is_recognized']

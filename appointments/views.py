@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions
-from .models import Appointment, EnvironmentSetting
-from .serializers import AppointmentSerializer,AvailabilitySerializer, EnvironmentSettingSerializer
+from .models import Appointment, EnvironmentSetting, Holiday
+from .serializers import AppointmentSerializer,AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -19,6 +19,7 @@ from django.core.mail import send_mail
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
+import holidays as pyholidays
 
 
 from .models import Appointment
@@ -66,7 +67,21 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 raise ValueError("Provider not found.")  # Handle case where provider does not exist
 
         # Save the appointment with the associated provider
-        appointment = serializer.save(patient=self.request.user, provider=provider)
+        user = self.request.user
+        patient = user  # Default: patient is the current user
+
+        # Allow registrar/admin to specify a patient in request data
+        if user.role in ['registrar', 'admin']:
+            patient_id = self.request.data.get('patient')
+            if patient_id:
+                try:
+                    User = apps.get_model(settings.AUTH_USER_MODEL)
+                    patient = User.objects.get(id=patient_id)
+                except User.DoesNotExist:
+                    raise ValueError("Patient not found.")
+
+        appointment = serializer.save(patient=patient, provider=provider)
+
 
         # ✅ Send email to admin if created by a patient
         if self.request.user.role == 'patient':
@@ -227,7 +242,10 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
             )
 
 class EnvironmentSettingView(APIView):
-    permission_classes = [permissions.IsAdminUser]  # or IsAuthenticated
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [permissions.IsAuthenticated()]  # All logged-in users can read
+        return [permissions.IsAdminUser()]          # Only admin can edit
 
     def get(self, request):
         obj, created = EnvironmentSetting.objects.get_or_create(pk=1)
@@ -241,3 +259,33 @@ class EnvironmentSettingView(APIView):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class HolidayViewSet(viewsets.ModelViewSet):
+    queryset = Holiday.objects.all()  # <-- Add this line
+    serializer_class = HolidaySerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        year = self.request.query_params.get('year')
+        if year is not None:
+            try:
+                year = int(year)
+            except ValueError:
+                year = datetime.now().year
+            # Ensure holidays for this year exist in the database
+            self.ensure_holidays_for_year(year)
+            return Holiday.objects.filter(date__year=year).order_by('date')
+        else:
+            # Optionally, auto-add for current year if not already in DB
+            self.ensure_holidays_for_year(datetime.now().year)
+            return Holiday.objects.all().order_by('date')
+
+    @staticmethod
+    def ensure_holidays_for_year(year):
+        us_holidays = pyholidays.US(years=year)
+        for date, name in us_holidays.items():
+            Holiday.objects.get_or_create(
+                name=name,
+                date=date,
+                defaults={'is_recognized': True}  # set to False if you want unchecked by default
+            )
