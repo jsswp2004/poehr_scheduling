@@ -222,6 +222,8 @@ function PatientDetailPage() {
           <CreateAppointmentForm
             defaultProviderId={patient.provider}
             patientName={`${patient.first_name} ${patient.last_name}`}
+            patientId={patient.user_id}
+            appointmentToEdit={null}
             onSuccess={() => {
               setShowAppointmentForm(false);
               navigate('/patients');

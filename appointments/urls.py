@@ -1,10 +1,11 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
-from .views import EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet  # ⬅️ import the new view
+from .views import EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet, HolidayViewSet  # ⬅️ import the new view
 
 router = DefaultRouter()
 router.register(r'appointments', AppointmentViewSet, basename='appointment')
 router.register(r'availability', AvailabilityViewSet, basename='availability')
+router.register(r'holidays', HolidayViewSet)
 
 urlpatterns = router.urls + [
     # ⬇️ custom endpoint for doctor availability

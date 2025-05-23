@@ -10,8 +10,6 @@ import Select from 'react-select';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 
-
-
 const localizer = momentLocalizer(moment);
 
 const isPastAppointment = (dateString) => {
@@ -38,19 +36,19 @@ function CalendarView({ onUpdate }) {
     duration_minutes: 30,
     recurrence: 'none',
     appointment_datetime: '',
-    provider: null, // This will be set to the selected doctor ID
+    provider: null,
   });
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
-
+  const [blockedDays, setBlockedDays] = useState([]);
+  const [holidays, setHolidays] = useState([]);
 
   const token = localStorage.getItem('access_token');
 
   let userRole = null;
-  
   if (token) {
     try {
       const decoded = jwtDecode(token);
@@ -59,32 +57,27 @@ function CalendarView({ onUpdate }) {
       console.error('Failed to decode token:', err);
     }
   }
-  
-  // ✅ Set initial view based on role
-  let defaultView = 'month'; // fallback
+
+  let defaultView = 'month';
   if (userRole === 'doctor') {
     defaultView = 'day';
   } else if (userRole === 'registrar') {
     defaultView = 'work_week';
   }
   const [currentView, setCurrentView] = useState(defaultView);
-    // Fetch doctors function (outside useEffect)
+
   const fetchDoctors = async () => {
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setDoctors(res.data); // Store full doctor objects
+      setDoctors(res.data);
       console.log("Fetched doctors:", res.data);
-
     } catch (err) {
       console.error('Failed to load doctors:', err);
     }
   };
 
-  
-
-  // Fetch appointments function (outside useEffect)
   const fetchAppointments = async () => {
     try {
       const [appointmentsRes, availabilityRes] = await Promise.all([
@@ -97,19 +90,18 @@ function CalendarView({ onUpdate }) {
       ]);
       console.log("📥 Appointments response:", appointmentsRes.data);
 
-      // Format appointments
       const apptEvents = appointmentsRes.data.map((appt) => ({
         id: `appt-${appt.id}`,
-        title: `${appt.patient_name || 'Unknown Patient'} - ${appt.title || 'Untitled Appointment'}`, // ✅ include patient name
+        title: `${appt.patient_name || 'Unknown Patient'} - ${appt.title || 'Untitled Appointment'}`,
         start: parseISO(appt.appointment_datetime),
         end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
         type: 'appointment',
-        provider: appt.provider, // Needed for doctor match
+        provider: appt.provider,
         patient_name: appt.patient_name,
-        duration_minutes: appt.duration_minutes, // optional: in case you use it elsewhere
+        duration_minutes: appt.duration_minutes,
+        description: appt.description,
       }));
-  
-      // 👇 Your original logic to set default doctor based on first appointment
+
       if (apptEvents.length > 0 && doctors.length > 0) {
         const doctorId = apptEvents[0].provider;
         const matchedDoctor = doctors.find((doc) => doc.id === doctorId);
@@ -119,8 +111,7 @@ function CalendarView({ onUpdate }) {
             : null
         );
       }
-  
-      // Format availability
+
       const availEvents = availabilityRes.data.map((a) => ({
         id: `avail-${a.id}`,
         title: `${a.is_blocked ? '❌ Blocked' : '🟢'} Dr. ${a.doctor_name || 'Unknown'}`,
@@ -130,44 +121,87 @@ function CalendarView({ onUpdate }) {
         doctor_id: a.doctor,
         type: 'availability',
       }));
-  
+
       const combinedEvents = [...apptEvents, ...availEvents]
-      .filter(e => e && typeof e.title === 'string'); // ✅ remove undefined/bad events
+      .filter(e => e && typeof e.title === 'string');
 
       console.log("🧠 Mapped events with duration:", apptEvents);
-    
-      setEvents([]); // force clear
-      setTimeout(() => setEvents(combinedEvents), 50); // force re-render
+
+      setEvents([]);
+      setTimeout(() => setEvents(combinedEvents), 50);
       console.log("🗓️ Combined events:", combinedEvents);
 
-    
     } catch (error) {
       console.error('Failed to load calendar data:', error);
     }
   };
-  
 
-  // useEffect with fetching logic
+  // --- Blocked Days Fetch ---
+  const fetchBlockedDays = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await axios.get('http://127.0.0.1:8000/api/settings/environment/', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setBlockedDays(res.data.blocked_days || []);
+    } catch (err) {
+      console.error('Failed to load blocked days:', err);
+    }
+  };
+
+
+// Fetch recognized holidays
   useEffect(() => {
-    fetchDoctors().then(() => fetchAppointments());  // Fetch doctors first and then fetch appointments
-  }, [token]); // Ensure `token` is in the dependency array
+    async function fetchHolidays() {
+      try {
+        const token = localStorage.getItem('access_token');
+        const res = await axios.get('http://127.0.0.1:8000/api/holidays/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // Only keep holidays that are recognized
+        setHolidays(res.data.filter(h => h.is_recognized));
+        console.log('Loaded recognized holidays:', res.data.filter(h => h.is_recognized));
+      } catch (err) {
+        console.error('Failed to load holidays:', err);
+      }
+    }
+    fetchHolidays();
+  }, []);
+
+
+  useEffect(() => {
+    fetchDoctors().then(() => fetchAppointments());
+    fetchBlockedDays();
+  }, [token]);
 
   const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
 
+  // --- BLOCKED DAYS ENFORCEMENT ---
   const handleSelectSlot = ({ start }) => {
     if (userRole !== 'patient') {
-      //toast.warning('Only patients can create appointments.');
+      return;
+    }
+    const day = start.getDay();
+
+    const isHoliday = holidays.some(h => {
+      const holidayDate = new Date(h.date);
+      return (
+        holidayDate.getFullYear() === start.getFullYear() &&
+        holidayDate.getMonth() === start.getMonth() &&
+        holidayDate.getDate() === start.getDate()
+      );
+    });
+
+    if (blockedDays.includes(day) || isHoliday) {
+      toast.warning('This day is blocked for scheduling.');
       return;
     }
 
-    const day = start.getDay(); // ✅ this defines `day` properly
-
-    if (day === 0 || day === 6) {
-      toast.warning('Appointments cannot be scheduled on weekends.');
+    if (blockedDays.includes(day)) {
+      toast.warning('This day is blocked for scheduling.');
       return;
     }
-
     if (start < new Date()) {
       toast.warning('You cannot create appointments in the past.');
       return;
@@ -189,11 +223,10 @@ function CalendarView({ onUpdate }) {
   };
 
   const handleSelectEvent = (event) => {
-  // ✅ Prevent non-admin from editing availability
-  if (event.id.toString().startsWith('avail')) {
-    toast.warn('Edits for availability are not allowed in Calendar view.');
-    return;
-  }
+    if (event.id.toString().startsWith('avail')) {
+      toast.warn('Edits for availability are not allowed in Calendar view.');
+      return;
+    }
 
     const past = isPastAppointment(event.start);
     setIsPast(past);
@@ -206,18 +239,10 @@ function CalendarView({ onUpdate }) {
       duration_minutes: event.duration_minutes || 30,
       recurrence: 'none',
       appointment_datetime: toLocalDatetimeString(event.start),
-      provider: event.provider || null, // Ensure provider is passed to modal form data
+      provider: event.provider || null,
     });
 
-    // Debugging: Check the values being compared
-    console.log('Selected Event:', event);
-    console.log('Doctors:', doctors);
-    console.log('Provider ID in Event:', event.provider);
-
-    // Ensure provider is in the expected format (either an object with id or just the id)
     const matchedDoctor = doctors.find(doc => doc.id === event.provider);
-    console.log('Matched Doctor:', matchedDoctor);
-
     setSelectedDoctor(
       matchedDoctor
         ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` }
@@ -228,35 +253,26 @@ function CalendarView({ onUpdate }) {
   };
 
   const handleModalSave = async () => {
-
-    const cleanTitle = modalFormData.title.split(' - ').slice(-1).join(' - '); // removes prepended name
-
+    const cleanTitle = modalFormData.title.split(' - ').slice(-1).join(' - ');
     const payload = {
       ...modalFormData,
       title: cleanTitle,
       provider: selectedDoctor?.value || null,
     };
-
-    console.log('Saving payload:', payload); // Log the payload to check its structure
-
     try {
       if (isEditing && editingId) {
-        const cleanId = editingId.toString().replace('appt-', '');  // ✅ strip prefix
-        
-        console.log("📦 Duration before save:", modalFormData.duration_minutes);
+        const cleanId = editingId.toString().replace('appt-', '');
         await axios.put(`http://127.0.0.1:8000/api/appointments/${cleanId}/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Appointment updated!');
-        if (onUpdate) onUpdate(); // ✅ trigger Dashboard refresh
-
+        if (onUpdate) onUpdate();
       } else {
         await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Appointment created!');
       }
-
       setShowModal(false);
       setModalFormData({
         title: '',
@@ -268,7 +284,7 @@ function CalendarView({ onUpdate }) {
       setEditingId(null);
       setIsEditing(false);
       setSelectedDoctor(null);
-      fetchAppointments(); // Refresh the appointments after saving
+      fetchAppointments();
     } catch (err) {
       console.error(err);
       toast.error('Failed to save appointment.');
@@ -277,10 +293,8 @@ function CalendarView({ onUpdate }) {
 
   const handleDeleteAppointment = async () => {
     if (!editingId) return;
-
     const confirmDelete = window.confirm("Are you sure you want to delete this appointment?");
     if (!confirmDelete) return;
-
     try {
       const cleanId = editingId.toString().replace('appt-', '');
       await axios.delete(`http://127.0.0.1:8000/api/appointments/${cleanId}/`, {
@@ -289,7 +303,7 @@ function CalendarView({ onUpdate }) {
       toast.success('Appointment deleted!');
       setShowModal(false);
       setEditingId(null);
-      fetchAppointments(); // Refresh the appointments after deletion
+      fetchAppointments();
     } catch (err) {
       console.error(err);
       toast.error('Failed to delete appointment.');
@@ -299,15 +313,15 @@ function CalendarView({ onUpdate }) {
   const eventStyleGetter = (event) => {
     const now = new Date();
     const isPast = new Date(event.start) < now;
-  
-    let backgroundColor = isPast ? '#6c757d' : '#0d6efd'; // default for appointments
-  
+
+    let backgroundColor = isPast ? '#6c757d' : '#0d6efd';
+
     if (event.type === 'availability') {
       backgroundColor = event.is_blocked
-        ? '#f8d7da' // light red
-        : '#d1e7dd'; // light green
+        ? '#f8d7da'
+        : '#d1e7dd';
     }
-  
+
     return {
       style: {
         backgroundColor,
@@ -319,27 +333,39 @@ function CalendarView({ onUpdate }) {
       },
     };
   };
-  
 
+  // --- BLOCKED DAYS: gray out in calendar ---
   const dayPropGetter = (date) => {
     const day = date.getDay();
-    if (day === 0 || day === 6) {
+    // Check if this date matches any recognized holiday
+    const isHoliday = holidays.some(h => {
+      const holidayDate = new Date(h.date);
+      // Compare YYYY-MM-DD (ignore time)
+      return (
+        holidayDate.getFullYear() === date.getFullYear() &&
+        holidayDate.getMonth() === date.getMonth() &&
+        holidayDate.getDate() === date.getDate()
+      );
+    });
+    if (blockedDays.includes(day) || isHoliday) {
       return {
         className: 'disabled-day',
         style: {
-          backgroundColor: '#f8f9fa',
+          backgroundColor: isHoliday ? '#ffe7ba' : '#f8d7da',
           pointerEvents: 'none',
           color: '#ccc',
         },
       };
     }
     return {};
-  }; 
+  };
+ 
 
-  console.log("All events:", events);
-  console.log("Selected doctor:", selectedDoctor); // Debugging: Check selected doctor
-  console.log("User role:", userRole); // Debugging: Check user role
-
+  // --- For debugging only ---
+  // console.log("All events:", events);
+  // console.log("Selected doctor:", selectedDoctor); 
+  // console.log("User role:", userRole); 
+  console.log("Blocked days:", blockedDays);
   return (
     <div className="card mt-4">
       <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
@@ -371,7 +397,6 @@ function CalendarView({ onUpdate }) {
             )}
           </div>
         </div>
-        {/* Doctor dropdown (admin/registrar only) */}
         {(userRole === 'admin' || userRole === 'registrar') && (
           <div style={{ width: '300px' }}>
             <Select
@@ -391,15 +416,12 @@ function CalendarView({ onUpdate }) {
                 }),
                 menu: (base) => ({
                   ...base,
-                  zIndex: 9999, // 👈 ensures dropdown stays on top
+                  zIndex: 9999,
                 }),
               }}
-
             />
           </div>
         )}
-
-        {/* Back button */}
         {userRole === 'admin' && (
         <Button
           variant="outline-secondary"
@@ -412,39 +434,25 @@ function CalendarView({ onUpdate }) {
       </div>
 
       <div className="card-body">
-        
         <div style={{ height: '600px', maxWidth: '100%' }}>
-
-
-
           <Calendar
             localizer={localizer}
             events={events
               .filter(event => {
-                // ✅ 1. Hide availability for patients
                 if (userRole === 'patient' && event.id.toString().startsWith('avail')) {
                   return false;
                 }
-            
-                // ✅ 2. Apply search **only to appointment events**
                 if (event.type === 'appointment') {
-                  // Filter by search query
                   return event.title.toLowerCase().includes(searchQuery.toLowerCase());
                 }
-            
-                // ✅ 3. For availability and other events, ignore search filter and keep them
                 return true;
               })
               .filter(event => {
-                // ✅ 4. Filter availability by doctor for admin/registrar
                 if ((userRole === 'admin' || userRole === 'registrar') && event.type === 'availability' && selectedDoctor) {
                   return String(event.doctor_id) === String(selectedDoctor.value);
                 }
                 return true;
               })}
-            
-            
-            
             startAccessor="start"
             endAccessor="end"
             view={currentView}
@@ -458,11 +466,10 @@ function CalendarView({ onUpdate }) {
             selectable
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
-            min={new Date(1970, 1, 1, 8, 0, 0)}  // 8:00 AM
-            max={new Date(1970, 1, 1, 18, 0, 0)} // 6:00 PM
-            step={15}          // minutes per step
-            timeslots={2}      // number of slots per step
-
+            min={new Date(1970, 1, 1, 8, 0, 0)}
+            max={new Date(1970, 1, 1, 18, 0, 0)}
+            step={15}
+            timeslots={2}
           />
 
           <Modal show={showModal} onHide={() => setShowModal(false)}>
@@ -509,11 +516,9 @@ function CalendarView({ onUpdate }) {
                   <Form.Control
                     type="number"
                     value={modalFormData.duration_minutes}
-                    
                     onChange={(e) => {
                       const value = parseInt(e.target.value) || 0;
-                      console.log("🧪 Duration input changed to:", value);
-                      setModalFormData({ ...modalFormData, duration_minutes: parseInt(e.target.value) || 0 })
+                      setModalFormData({ ...modalFormData, duration_minutes: value })
                     }}
                     disabled={isPast}
                   />
@@ -548,35 +553,35 @@ function CalendarView({ onUpdate }) {
                     styles={{
                       menu: (base) => ({
                         ...base,
-                        zIndex: 9999, // 👈 ensures dropdown stays on top
+                        zIndex: 9999,
                       }),
                     }}
                   />
                 </Form.Group>
               </Form>
             </Modal.Body>
-              <Modal.Footer>
-                <OverlayTrigger placement="top" overlay={<Tooltip>Close without saving</Tooltip>}>
-                  <Button variant="secondary" onClick={() => setShowModal(false)}>
-                    Cancel
+            <Modal.Footer>
+              <OverlayTrigger placement="top" overlay={<Tooltip>Close without saving</Tooltip>}>
+                <Button variant="secondary" onClick={() => setShowModal(false)}>
+                  Cancel
+                </Button>
+              </OverlayTrigger>
+              {isEditing && !isPast && (
+                <OverlayTrigger placement="top" overlay={<Tooltip>Delete this appointment</Tooltip>}>
+                  <Button variant="danger" onClick={handleDeleteAppointment}>
+                    Delete
                   </Button>
                 </OverlayTrigger>
-                {isEditing && !isPast && (
-                  <OverlayTrigger placement="top" overlay={<Tooltip>Delete this appointment</Tooltip>}>
-                    <Button variant="danger" onClick={handleDeleteAppointment}>
-                      Delete
-                    </Button>
-                  </OverlayTrigger>
-                )}
-                <OverlayTrigger
-                  placement="top"
-                  overlay={<Tooltip>{isEditing ? 'Update appointment' : 'Save new appointment'}</Tooltip>}
-                >
-                  <Button variant="primary" onClick={handleModalSave} disabled={isEditing && isPast}>
-                    {isEditing ? 'Update' : 'Save'}
-                  </Button>
-                </OverlayTrigger>
-              </Modal.Footer>
+              )}
+              <OverlayTrigger
+                placement="top"
+                overlay={<Tooltip>{isEditing ? 'Update appointment' : 'Save new appointment'}</Tooltip>}
+              >
+                <Button variant="primary" onClick={handleModalSave} disabled={isEditing && isPast}>
+                  {isEditing ? 'Update' : 'Save'}
+                </Button>
+              </OverlayTrigger>
+            </Modal.Footer>
           </Modal>
         </div>
       </div>

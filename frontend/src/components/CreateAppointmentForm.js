@@ -9,7 +9,7 @@ function toLocalDatetimeString(dateObj) {
   return local.toISOString().slice(0, 16);
 }
 
-function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientName = '' }) {
+function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientName = '', patientId = null, appointmentToEdit = null }) {
   const [doctors, setDoctors] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -23,7 +23,6 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
   const token = localStorage.getItem('access_token');
   const [selectedSlot, setSelectedSlot] = useState(null);
 
-
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -34,12 +33,14 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
 
         if (defaultProviderId) {
           const doc = res.data.find((d) => d.id === defaultProviderId);
-          const selected = {
-            value: doc.id,
-            label: `Dr. ${doc.first_name} ${doc.last_name}`
-          };
-          setSelectedDoctor(selected);
-          handleDoctorChange(selected); // fetch slots if default provider is set
+          if (doc) {
+            const selected = {
+              value: doc.id,
+              label: `Dr. ${doc.first_name} ${doc.last_name}`
+            };
+            setSelectedDoctor(selected);
+            handleDoctorChange(selected); // fetch slots if default provider is set
+          }
         }
       } catch (error) {
         console.error('Failed to fetch doctors:', error);
@@ -49,6 +50,32 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
     fetchDoctors();
     // eslint-disable-next-line
   }, [defaultProviderId, token]);
+
+  useEffect(() => {
+    if (appointmentToEdit) {
+      setFormData({
+        title: appointmentToEdit.title || '',
+        description: appointmentToEdit.description || '',
+        appointment_datetime: appointmentToEdit.appointment_datetime
+          ? appointmentToEdit.appointment_datetime.slice(0, 16)
+          : '',
+        duration_minutes: appointmentToEdit.duration_minutes || 30,
+        recurrence: appointmentToEdit.recurrence || 'none',
+      });
+
+      // Set the selected doctor (assume provider is an id; adjust if object)
+      if (appointmentToEdit.provider) {
+        setSelectedDoctor({
+          value: appointmentToEdit.provider.id || appointmentToEdit.provider,
+          label:
+            appointmentToEdit.provider_name ||
+            (appointmentToEdit.provider.first_name && appointmentToEdit.provider.last_name
+              ? `Dr. ${appointmentToEdit.provider.first_name} ${appointmentToEdit.provider.last_name}`
+              : 'Provider'),
+        });
+      }
+    }
+  }, [appointmentToEdit]);
 
   const handleDoctorChange = async (selected) => {
     setSelectedDoctor(selected);
@@ -77,6 +104,11 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
       ...formData,
       provider: selectedDoctor?.value || null,
     };
+
+    // Only add patient if patientId is passed in (registrar/admin context)
+    if (patientId) {
+      payload.patient = patientId;
+    }
 
     try {
       await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
@@ -205,7 +237,6 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
                 <li className="list-group-item text-muted">No available slots</li>
             )}
         </ul>
-
       </div>
     </div>
   );
