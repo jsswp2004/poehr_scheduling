@@ -395,6 +395,31 @@ function CalendarView({ onUpdate }) {
     return {};
   };
  
+  // A custom date header that displays the holiday name if that day is a holiday.
+  function CustomDateHeader({ date, holidays }) {
+    // Find if this date is a holiday
+    const holiday = holidays.find(h => {
+      const holidayDate = new Date(h.date + 'T00:00:00');
+      return (
+        holidayDate.getFullYear() === date.getFullYear() &&
+        holidayDate.getMonth() === date.getMonth() &&
+        holidayDate.getDate() === date.getDate()
+      );
+    });
+
+    // Default: show date number; if holiday, also show name
+    return (
+      <div style={{ minHeight: 32 }}>
+        <span>{date.getDate().toString().padStart(2, '0')}</span>
+        {holiday && (
+          <div style={{ color: '#c79100', fontWeight: 600, fontSize: 12 }}>
+            {holiday.name}
+          </div>
+        )}
+      </div>
+    );
+  }
+
 
   // --- For debugging only ---
   // console.log("All events:", events);
@@ -505,6 +530,13 @@ function CalendarView({ onUpdate }) {
             max={new Date(1970, 1, 1, 18, 0, 0)}
             step={15}
             timeslots={2}
+            components={{
+                month: {
+                  dateHeader: (props) => (
+                    <CustomDateHeader {...props} holidays={holidays} />
+                  ),
+                },
+              }}
           />
 
           <Modal show={showModal} onHide={() => setShowModal(false)}>
