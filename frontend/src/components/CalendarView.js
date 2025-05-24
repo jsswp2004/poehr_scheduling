@@ -122,10 +122,11 @@ function CalendarView({ onUpdate }) {
         type: 'availability',
       }));
 
-      const combinedEvents = [...apptEvents, ...availEvents]
+      const combinedEvents = [...apptEvents, ...availEvents, ...holidayEvents]
       .filter(e => e && typeof e.title === 'string');
 
       console.log("🧠 Mapped events with duration:", apptEvents);
+
 
       setEvents([]);
       setTimeout(() => setEvents(combinedEvents), 50);
@@ -168,6 +169,23 @@ function CalendarView({ onUpdate }) {
     fetchHolidays();
   }, []);
 
+  // Map recognized holidays as events
+  const holidayEvents = holidays.map(h => {
+    const start = new Date(h.date + 'T00:00:00');
+    // End is next day at midnight (to show full all-day block)
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return {
+      id: `holiday-${h.id}`,
+      title: `🎉 ${h.name || 'Holiday'}`,
+      start,
+      end,
+      type: 'holiday',
+      allDay: true,
+    };
+  });
+
+  console.log("🧠 Mapped holidays:", holidayEvents);
 
   useEffect(() => {
     fetchDoctors().then(() => fetchAppointments());
@@ -184,14 +202,17 @@ function CalendarView({ onUpdate }) {
     }
     const day = start.getDay();
 
+    const isSameDay = (dateA, dateB) => 
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate();
+
     const isHoliday = holidays.some(h => {
-      const holidayDate = new Date(h.date);
-      return (
-        holidayDate.getFullYear() === start.getFullYear() &&
-        holidayDate.getMonth() === start.getMonth() &&
-        holidayDate.getDate() === start.getDate()
-      );
+      const holidayDate = new Date(h.date + 'T00:00:00');
+      return isSameDay(holidayDate, start);
     });
+
+
 
     if (blockedDays.includes(day) || isHoliday) {
       toast.warning('This day is blocked for scheduling.');
@@ -314,6 +335,18 @@ function CalendarView({ onUpdate }) {
     const now = new Date();
     const isPast = new Date(event.start) < now;
 
+    // 🎉 Holiday styling comes first
+    if (event.type === 'holiday') {
+      return {
+        style: {
+          backgroundColor: '#fff3cd',
+          color: '#856404',
+          border: '1px dashed #856404',
+          fontWeight: 'bold',
+        }
+      };
+    }
+
     let backgroundColor = isPast ? '#6c757d' : '#0d6efd';
 
     if (event.type === 'availability') {
@@ -334,19 +367,21 @@ function CalendarView({ onUpdate }) {
     };
   };
 
+
   // --- BLOCKED DAYS: gray out in calendar ---
   const dayPropGetter = (date) => {
     const day = date.getDay();
     // Check if this date matches any recognized holiday
+    const isSameDay = (dateA, dateB) => 
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate();
+
     const isHoliday = holidays.some(h => {
-      const holidayDate = new Date(h.date);
-      // Compare YYYY-MM-DD (ignore time)
-      return (
-        holidayDate.getFullYear() === date.getFullYear() &&
-        holidayDate.getMonth() === date.getMonth() &&
-        holidayDate.getDate() === date.getDate()
-      );
+      const holidayDate = new Date(h.date + 'T00:00:00');
+      return isSameDay(holidayDate, date);
     });
+
     if (blockedDays.includes(day) || isHoliday) {
       return {
         className: 'disabled-day',
