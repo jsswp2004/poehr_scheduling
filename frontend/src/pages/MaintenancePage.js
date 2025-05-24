@@ -6,10 +6,12 @@ import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 
 function MaintenancePage() {
+  // State for currently editing schedule, list of schedules, doctors, selected doctor, and form data
   const [editingId, setEditingId] = useState(null);
   const [schedules, setSchedules] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [holidays, setHolidays] = useState([]); // <-- Add state to hold recognized holidays
   const [formData, setFormData] = useState({
     start_time: getTodayAt(8),     // ⏰ 8:00 AM
     end_time: getTodayAt(17),      // ⏰ 5:00 PM
@@ -19,12 +21,16 @@ function MaintenancePage() {
   });
   const navigate = useNavigate();
   const token = localStorage.getItem('access_token');
+  
+  // Helper to get a local datetime string for today at a given hour and minute
   function getTodayAt(hour, minute = 0) {
     const date = new Date();
     date.setHours(hour, minute, 0, 0);
     date.setMinutes(date.getMinutes() - date.getTimezoneOffset()); // adjust for local
     return date.toISOString().slice(0, 16); // format: YYYY-MM-DDTHH:MM
   }
+
+  // Fetch doctors on mount (and when token changes)
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -40,12 +46,29 @@ function MaintenancePage() {
     fetchDoctors();
   }, [token]);
 
+  // Fetch recognized holidays from the backend on mount (and when token changes)
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      try {
+        const res = await axios.get('http://127.0.0.1:8000/api/holidays/', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setHolidays(res.data.filter(h => h.is_recognized));
+      } catch (err) {
+        console.error('Failed to fetch holidays:', err);
+      }
+    };
+    fetchHolidays();
+  }, [token]);
+
+  // Fetch schedules whenever the selected doctor changes
   useEffect(() => {
     if (selectedDoctor) {
       fetchSchedules();
     }
   }, [selectedDoctor]);
   
+  // Handle changes in the schedule form (input/select/checkbox)
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData({
@@ -54,6 +77,20 @@ function MaintenancePage() {
     });
   };
 
+  // Helper function to check if a date string is a recognized holiday
+  function isHoliday(dateStr) {
+    const date = new Date(dateStr);
+    return holidays.some(h => {
+      const hDate = new Date(h.date + 'T00:00:00');
+      return (
+        hDate.getFullYear() === date.getFullYear() &&
+        hDate.getMonth() === date.getMonth() &&
+        hDate.getDate() === date.getDate()
+      );
+    });
+  }
+
+  // Handle form submission for creating/updating a schedule
   const handleSubmit = async (e) => {
     e.preventDefault();
   
@@ -66,8 +103,21 @@ function MaintenancePage() {
       toast.warning('Please enter both start and end time.');
       return;
     }
+
+    // Prevent creation on weekends (Saturday=6, Sunday=0)
+    const startDate = new Date(formData.start_time);
+    if (startDate.getDay() === 0 || startDate.getDay() === 6) {
+      toast.error('Cannot create availability on a Saturday or Sunday!');
+      return;
+    }
+
+    // Prevent creation on recognized holidays
+    if (isHoliday(formData.start_time)) {
+      toast.error('Cannot create availability on a holiday!');
+      return;
+    }
   
-    // Convert to ISO string (adds seconds + timezone)
+    // Prepare the payload for API (dates as ISO)
     const payload = {
       doctor: selectedDoctor.value,
       start_time: new Date(formData.start_time).toISOString(),
@@ -81,11 +131,13 @@ function MaintenancePage() {
   
     try {
       if (editingId) {
+        // Update existing schedule
         await axios.put(`http://127.0.0.1:8000/api/availability/${editingId}/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success('Schedule updated!');
       } else {
+        // Create new schedule
         await axios.post('http://127.0.0.1:8000/api/availability/', payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -107,7 +159,7 @@ function MaintenancePage() {
     }
   };
   
-
+  // Fetch all schedules for the currently selected doctor
   const fetchSchedules = async () => {
     if (!selectedDoctor) return;
     try {
@@ -115,7 +167,7 @@ function MaintenancePage() {
         headers: { Authorization: `Bearer ${token}` },
       });
   
-      // Filter by selected doctor
+      // Filter only schedules for the selected doctor
       const doctorSchedules = res.data.filter(s => s.doctor === selectedDoctor.value);
       setSchedules(doctorSchedules);
     } catch (err) {
@@ -124,12 +176,14 @@ function MaintenancePage() {
     }
   };
 
+  // Convert an ISO datetime string to a local value suitable for datetime-local input fields
   const toLocalDatetimeInputValue = (isoString) => {
     const local = new Date(isoString);
     local.setMinutes(local.getMinutes() - local.getTimezoneOffset()); // convert to local
     return local.toISOString().slice(0, 16); // format as 'YYYY-MM-DDTHH:MM'
   };
   
+  // Populate form fields for editing a schedule
   const handleEdit = (schedule) => {
     setEditingId(schedule.id); // track what you're editing
   
@@ -148,9 +202,10 @@ function MaintenancePage() {
     );
   };
   
+  // Console log for debugging recurrence values
   console.log("recurrence value:", formData.recurrence, typeof formData.recurrence);
 
-  
+  // Delete a schedule (after confirmation)
   const handleDelete = async (scheduleId) => {
     if (!window.confirm('Are you sure you want to delete this schedule?')) return;
   
@@ -166,6 +221,7 @@ function MaintenancePage() {
     }
   };
 
+  // Cancel editing and reset the form
   const handleCancel = () => {
     setFormData({
       start_time: '',
@@ -177,7 +233,7 @@ function MaintenancePage() {
     toast.info('Edit canceled.');
   };
 
-  
+  // Page rendering: schedule form (left), schedules list (right)
   return (
     <div className="container mt-4">
       <Row>
@@ -260,7 +316,6 @@ function MaintenancePage() {
                   />
                 </Form.Group>
 
-
                 <Button type="submit" variant="primary" className="me-2">
                 {editingId ? 'Update Schedule' : 'Save Schedule'}
                 </Button>
@@ -270,7 +325,6 @@ function MaintenancePage() {
                     Cancel
                 </Button>
                 )}
-
 
               </Form>
             </Card.Body>
@@ -288,7 +342,6 @@ function MaintenancePage() {
               <h5 className="fw-bold">📋 Schedule Overview</h5>
               <h6 className="text-success">✅ Availability</h6>
               <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-              
                 <ul className="list-group mb-4">
                 {schedules.filter(s => !s.is_blocked).map(s => (
                     <li key={s.id} className="list-group-item d-flex justify-content-between align-items-center">
@@ -321,7 +374,6 @@ function MaintenancePage() {
                             </Button>
                         </span>
                     </li>
-
                 ))}
                 </ul>
                  </div>
