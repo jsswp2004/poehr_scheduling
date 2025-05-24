@@ -31,6 +31,7 @@ import {
   faEnvelope,
   faTrash,
 } from '@fortawesome/free-solid-svg-icons';
+import RegisterPage from './RegisterPage';
 
 function PatientsPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -248,6 +249,9 @@ function PatientsPage() {
   return (
     <div className="container mt-4">
       <Tabs defaultActiveKey="patients" className="mb-3">
+        <Tab eventKey="register" title="Register">
+          <RegisterPage />
+        </Tab>
         <Tab eventKey="patients" title="Patient List">
           <Card className="shadow-sm ">
             <Card.Body>
