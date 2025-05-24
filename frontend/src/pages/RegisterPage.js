@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 
 function RegisterPage() {
+  // NEW: Patient state
+  const [isPatient, setIsPatient] = useState(true); // default to patient
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
   const [phone, setPhone] = useState('');
 
@@ -38,14 +40,14 @@ function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (hasProvider === 'no' && (!formData.email || !formData.phone_number)) {
+    if (isPatient && hasProvider === 'no' && (!formData.email || !formData.phone_number)) {
       toast.error("Please fill out both email and phone number.");
       return;
     }
 
     const payload = {
       ...formData,
-      role: 'patient',
+      role: isPatient ? 'patient' : formData.role,
       provider: formData.assigned_doctor,
     };
 
@@ -62,6 +64,43 @@ function RegisterPage() {
   return (
     <div className="container mt-5">
       <h2 className="mb-4">Register</h2>
+      {/* Patient or Other selector */}
+      <div className="mb-3">
+        <label className="form-label">Are you registering as a patient?</label>
+        <div>
+          <div className="form-check form-check-inline">
+            <input
+              className="form-check-input"
+              type="radio"
+              name="isPatient"
+              id="isPatientYes"
+              value="yes"
+              checked={isPatient}
+              onChange={() => {
+                setIsPatient(true);
+                setFormData({ ...formData, role: 'patient' });
+              }}
+            />
+            <label className="form-check-label" htmlFor="isPatientYes">Yes</label>
+          </div>
+          <div className="form-check form-check-inline">
+            <input
+              className="form-check-input"
+              type="radio"
+              name="isPatient"
+              id="isPatientNo"
+              value="no"
+              checked={!isPatient}
+              onChange={() => {
+                setIsPatient(false);
+                setFormData({ ...formData, role: '' }); // Set role for non-patients as needed
+              }}
+            />
+            <label className="form-check-label" htmlFor="isPatientNo">No</label>
+          </div>
+        </div>
+      </div>
+
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label className="form-label">First Name</label>
@@ -107,7 +146,7 @@ function RegisterPage() {
             className="form-control"
             onChange={handleChange}
             value={formData.email}
-            required={hasProvider === 'no'}
+            required={isPatient && hasProvider === 'no'}
           />
         </div>
 
@@ -120,7 +159,7 @@ function RegisterPage() {
             placeholder="e.g. (555) 123-4567"
             onChange={handleChange}
             value={formData.phone_number}
-            required={hasProvider === 'no'}
+            required={isPatient && hasProvider === 'no'}
           />
         </div>
 
@@ -136,37 +175,40 @@ function RegisterPage() {
           />
         </div>
 
-        <div className="mb-3">
-          <label className="form-label">Do you know/have a Primary Care Provider?</label>
-          <div>
-            <div className="form-check form-check-inline">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="hasProvider"
-                id="providerYes"
-                value="yes"
-                checked={hasProvider === 'yes'}
-                onChange={() => setHasProvider('yes')}
-              />
-              <label className="form-check-label" htmlFor="providerYes">Yes</label>
-            </div>
-            <div className="form-check form-check-inline">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="hasProvider"
-                id="providerNo"
-                value="no"
-                checked={hasProvider === 'no'}
-                onChange={() => setHasProvider('no')}
-              />
-              <label className="form-check-label" htmlFor="providerNo">No</label>
+        {/* Only show provider options for patients */}
+        {isPatient && (
+          <div className="mb-3">
+            <label className="form-label">Do you know/have a Primary Care Provider?</label>
+            <div>
+              <div className="form-check form-check-inline">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="hasProvider"
+                  id="providerYes"
+                  value="yes"
+                  checked={hasProvider === 'yes'}
+                  onChange={() => setHasProvider('yes')}
+                />
+                <label className="form-check-label" htmlFor="providerYes">Yes</label>
+              </div>
+              <div className="form-check form-check-inline">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="hasProvider"
+                  id="providerNo"
+                  value="no"
+                  checked={hasProvider === 'no'}
+                  onChange={() => setHasProvider('no')}
+                />
+                <label className="form-check-label" htmlFor="providerNo">No</label>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {hasProvider === 'yes' && (
+        {isPatient && hasProvider === 'yes' && (
           <div className="mb-3">
             <label className="form-label">Select Doctor</label>
             <Select
@@ -183,7 +225,8 @@ function RegisterPage() {
           </div>
         )}
 
-        {hasProvider === 'no' && (
+        {/* Show the message ONLY for patients who answered 'no' to provider */}
+        {!localStorage.getItem('access_token') && isPatient && hasProvider === 'no' && (
           <div className="mb-3">
             {(formData.email === '' || formData.phone_number === '') ? (
               <p style={{ color: 'red' }}>

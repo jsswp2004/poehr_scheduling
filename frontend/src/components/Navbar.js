@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import logo from '../assets/POEHR_Logo.png';
+import logo from '../assets/POWER_Logo.png';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 
@@ -42,7 +42,7 @@ function Navbar() {
             alt="POEHR Logo"
             style={{ height: '40px', marginRight: '10px', backgroundColor: 'white', padding: '2px', borderRadius: '4px' }}
           />
-          POEHR Scheduler
+          POWER Scheduler
         </Link>
 
         <button
