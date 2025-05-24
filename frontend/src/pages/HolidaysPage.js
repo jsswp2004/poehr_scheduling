@@ -10,22 +10,29 @@ function HolidaysTab() {
   const [status, setStatus] = useState('');
   const [yearInput, setYearInput] = useState(new Date().getFullYear());
   const [loadingYear, setLoadingYear] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
-  // Fetch all holidays (all years)
-  const fetchHolidays = async () => {
+  const loadHolidays = async () => {
     setLoading(true);
-    const token = localStorage.getItem('access_token');
-    const res = await axios.get('http://127.0.0.1:8000/api/holidays/', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const sorted = [...res.data].sort((a, b) => new Date(a.date) - new Date(b.date));
-    setHolidayList(sorted);
-    setBuffered(sorted.reduce((buf, h) => ({ ...buf, [h.id]: h.is_recognized }), {}));
-    setLoading(false);
+    setStatus('');
+    try {
+      const token = localStorage.getItem('access_token');
+      const res = await axios.get(`http://127.0.0.1:8000/api/holidays/?t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const sorted = [...res.data].sort((a, b) => new Date(a.date) - new Date(b.date));
+      setHolidayList(sorted);
+      setBuffered(sorted.reduce((buf, h) => ({ ...buf, [h.id]: h.is_recognized }), {}));
+    } catch (err) {
+      console.error('Failed to fetch holidays:', err);
+      setStatus('Failed to fetch holidays.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchHolidays();
+    loadHolidays();
   }, []);
 
   const handleHolidayCheckbox = (id, checked) => {
@@ -49,7 +56,7 @@ function HolidaysTab() {
         )
       );
       setStatus('Saved!');
-      await fetchHolidays();
+      await loadHolidays();
     } catch (e) {
       setStatus('Failed to save.');
       console.error(e);
@@ -57,23 +64,30 @@ function HolidaysTab() {
     setSaving(false);
   };
 
-  // Delete holiday row
-  const handleDelete = async (id) => {
+  const handleDelete = (id) => {
     if (!window.confirm('Are you sure you want to delete this holiday?')) return;
-    try {
-      const token = localStorage.getItem('access_token');
-      await axios.delete(`http://127.0.0.1:8000/api/holidays/${id}/`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setStatus('Deleted!');
-      await fetchHolidays();
-    } catch (e) {
-      setStatus('Failed to delete.');
-      console.error(e);
-    }
+    setDeletingId(id);
+    setHolidayList(prev => prev.filter(h => h.id !== id));
+
+    const performDelete = async () => {
+      try {
+        const token = localStorage.getItem('access_token');
+        await axios.delete(`http://127.0.0.1:8000/api/holidays/${id}/`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setStatus('Deleted!');
+        requestIdleCallback(() => loadHolidays());
+      } catch (e) {
+        setStatus('Failed to delete.');
+        console.error(e.response?.data || e.message);
+      } finally {
+        setTimeout(() => setDeletingId(null), 100);
+      }
+    };
+
+    requestIdleCallback(performDelete);
   };
 
-  // Load holidays for a year
   const handleLoadYear = async () => {
     setLoadingYear(true);
     setStatus('');
@@ -83,13 +97,23 @@ function HolidaysTab() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStatus(`Holidays for ${yearInput} loaded!`);
-      await fetchHolidays();
+      await loadHolidays();
     } catch (e) {
       setStatus('Failed to load holidays for year.');
       console.error(e);
     }
     setLoadingYear(false);
   };
+
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr + 'T00:00:00');
+    return date.toLocaleDateString(undefined, {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };;
 
   return (
     <>
@@ -121,7 +145,6 @@ function HolidaysTab() {
       <Table bordered className="align-middle text-center" style={{ maxWidth: 900, margin: '0 auto' }}>
         <thead>
           <tr>
-            {/* <th style={{ width: 80 }}>Year</th> <-- Removed */}
             <th style={{ width: 130 }}>Date</th>
             <th className="text-start" style={{ minWidth: 250 }}>Holiday</th>
             <th style={{ width: 80 }}>Recognized</th>
@@ -136,8 +159,7 @@ function HolidaysTab() {
           ) : (
             holidayList.map(h => (
               <tr key={h.id}>
-                {/* <td>{new Date(h.date).getFullYear()}</td> <-- Removed */}
-                <td>{new Date(h.date).toLocaleDateString('en-CA')}</td>
+                <td>{formatDate(h.date)}</td>
                 <td className="text-start">{h.name}</td>
                 <td>
                   <Form.Check
@@ -151,8 +173,9 @@ function HolidaysTab() {
                     variant="outline-danger"
                     size="sm"
                     onClick={() => handleDelete(h.id)}
+                    disabled={deletingId === h.id}
                   >
-                    Delete
+                    {deletingId === h.id ? <Spinner size="sm" /> : 'Delete'}
                   </Button>
                 </td>
               </tr>

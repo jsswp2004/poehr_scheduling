@@ -30,7 +30,7 @@ function AdminPage() {
             >
               
               <FaCalendarCheck size={24} className="mb-1" />
-              Patient Visits
+              Visits
             </Button>
 
 
@@ -69,7 +69,7 @@ function AdminPage() {
               }}
             >
               <FaUserCog size={24} className="mb-1" />
-              Profile Page
+              Profile
             </Button>
           </div>
 
