@@ -9,7 +9,13 @@ function toLocalDatetimeString(dateObj) {
   return local.toISOString().slice(0, 16);
 }
 
-function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientName = '', patientId = null, appointmentToEdit = null }) {
+function CreateAppointmentForm({
+  onSuccess,
+  defaultProviderId = null,
+  patientName = '',
+  patientId = null,
+  appointmentToEdit = null
+}) {
   const [doctors, setDoctors] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -23,6 +29,11 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
   const token = localStorage.getItem('access_token');
   const [selectedSlot, setSelectedSlot] = useState(null);
 
+  // --- NEW: Holidays and Blocked Days ---
+  const [blockedDays, setBlockedDays] = useState([]);
+  const [holidays, setHolidays] = useState([]);
+
+  // Fetch doctors, holidays, and blocked days
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -47,7 +58,31 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
       }
     };
 
+    const fetchBlockedDays = async () => {
+      try {
+        const res = await axios.get('http://127.0.0.1:8000/api/settings/environment/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setBlockedDays(res.data.blocked_days || []);
+      } catch (err) {
+        console.error('Failed to fetch blocked days:', err);
+      }
+    };
+
+    const fetchHolidays = async () => {
+      try {
+        const res = await axios.get('http://127.0.0.1:8000/api/holidays/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setHolidays(res.data.filter(h => h.is_recognized));
+      } catch (err) {
+        console.error('Failed to fetch holidays:', err);
+      }
+    };
+
     fetchDoctors();
+    fetchBlockedDays();
+    fetchHolidays();
     // eslint-disable-next-line
   }, [defaultProviderId, token]);
 
@@ -108,6 +143,22 @@ function CreateAppointmentForm({ onSuccess, defaultProviderId = null, patientNam
     // Only add patient if patientId is passed in (registrar/admin context)
     if (patientId) {
       payload.patient = patientId;
+    }
+
+    // --- BLOCK LOGIC: No appts on blocked days or holidays ---
+    const selectedDate = new Date(formData.appointment_datetime);
+    const isBlockedDay = blockedDays.includes(selectedDate.getDay());
+    const isHoliday = holidays.some(h => {
+      const holidayDate = new Date(h.date + 'T00:00:00');
+      return (
+        holidayDate.getFullYear() === selectedDate.getFullYear() &&
+        holidayDate.getMonth() === selectedDate.getMonth() &&
+        holidayDate.getDate() === selectedDate.getDate()
+      );
+    });
+    if (isBlockedDay || isHoliday) {
+      toast.error('Appointments cannot be created on a blocked day or recognized holiday.');
+      return;
     }
 
     try {
