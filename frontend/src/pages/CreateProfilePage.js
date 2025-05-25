@@ -100,7 +100,7 @@ function CreateProfile() {
         </div>
 
 
-        <button type="submit" className="btn btn-primary w-100">Save</button>
+        <button type="submit" className="btn btn-primary w-12.5">Save</button>
       </form>
     </div>
   );

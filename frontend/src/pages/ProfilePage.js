@@ -151,7 +151,7 @@ const handleSearch = async () => {
       <Card className="shadow-sm p-4"> 
         {user && ['admin', 'registrar', 'patient'].includes(user.role)  && (         
               <div className="mb-3 d-flex justify-content-between  align-items-right">
-                  <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3">
+                  <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3 w-12.5">
                   ←  Back
                   </Button>               
                   <Form className="mb-3 d-flex gap-2">
@@ -274,7 +274,7 @@ const handleSearch = async () => {
           </Form.Group>
 
           {!isEditing ? (
-            <Button variant="primary" onClick={() => setIsEditing(true)}>Edit</Button>
+            <Button className="btn w-12.5" variant="primary" onClick={() => setIsEditing(true)}>Edit</Button>
           ) : (
             <div className="d-flex gap-2">
               <Button variant="success" onClick={handleSave} disabled={uploading}>Save</Button>
@@ -297,14 +297,15 @@ const handleSearch = async () => {
 
         <hr />
         {/*<h5>Change Password</h5>*/}
+        <div className="mb-3 w-12.5">
         <Button
           variant="outline-primary"
-          className="mb-3"
+          className="mb-3 w-12.5"
           onClick={() => setShowPasswordForm(!showPasswordForm)}
         >
           {showPasswordForm ? 'Cancel' : 'Change Password'}
         </Button>
-
+        </div>
         <Collapse in={showPasswordForm}>
           <div>
             <Form.Group className="mb-2">

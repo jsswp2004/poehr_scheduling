@@ -1,8 +1,9 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
-from .views import EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet, HolidayViewSet  # ⬅️ import the new view
+from .views import EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet, HolidayViewSet, ClinicEventViewSet  # ⬅️ import the new view
 
 router = DefaultRouter()
+router.register(r'clinic-events', ClinicEventViewSet, basename='clinicevent')
 router.register(r'appointments', AppointmentViewSet, basename='appointment')
 router.register(r'availability', AvailabilityViewSet, basename='availability')
 router.register(r'holidays', HolidayViewSet)

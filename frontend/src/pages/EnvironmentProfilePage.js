@@ -174,7 +174,7 @@ function EnvironmentProfilePage() {
           <Button
             variant="outline-secondary"
             onClick={() => navigate("/admin")}
-            className="mt-2 mb-3 d-inline-block"
+            className="mt-2 mb-3 d-inline-block w-12.5"
             style={{ padding: '2px 12px', fontSize: '1rem', minWidth: 0 }}
           >
             ← Back
