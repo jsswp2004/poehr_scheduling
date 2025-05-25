@@ -1,6 +1,6 @@
 from rest_framework import viewsets, permissions
-from .models import Appointment, EnvironmentSetting, Holiday
-from .serializers import AppointmentSerializer,AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer
+from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent
+from .serializers import AppointmentSerializer,AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -191,7 +191,10 @@ def doctor_available_slots(request, doctor_id):
 
     return Response([timezone.localtime(s).isoformat() for s in slots])
 
-
+class ClinicEventViewSet(viewsets.ModelViewSet):
+    queryset = ClinicEvent.objects.filter(is_active=True)
+    serializer_class = ClinicEventSerializer
+    permission_classes = [permissions.IsAuthenticated]  # Or adjust as needed
 
 class AvailabilityViewSet(viewsets.ModelViewSet):
     queryset = Availability.objects.all().order_by('-start_time')

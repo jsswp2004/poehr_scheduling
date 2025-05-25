@@ -28,13 +28,26 @@ function CreateAppointmentForm({
   const [availableSlots, setAvailableSlots] = useState([]);
   const token = localStorage.getItem('access_token');
   const [selectedSlot, setSelectedSlot] = useState(null);
+  const [clinicEvents, setClinicEvents] = useState([]);
+  const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
 
-  // --- NEW: Holidays and Blocked Days ---
+  // Holidays and Blocked Days
   const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
 
-  // Fetch doctors, holidays, and blocked days
+  // Fetch doctors, holidays, blocked days, and clinic events
   useEffect(() => {
+    const fetchClinicEvents = async () => {
+      try {
+        const res = await axios.get('http://127.0.0.1:8000/api/clinic-events/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setClinicEvents(res.data);
+      } catch (error) {
+        console.error('Failed to fetch clinic events:', error);
+      }
+    };
+
     const fetchDoctors = async () => {
       try {
         const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
@@ -83,9 +96,11 @@ function CreateAppointmentForm({
     fetchDoctors();
     fetchBlockedDays();
     fetchHolidays();
+    fetchClinicEvents();
     // eslint-disable-next-line
   }, [defaultProviderId, token]);
 
+  // Edit support for appointmentToEdit, including preselecting event
   useEffect(() => {
     if (appointmentToEdit) {
       setFormData({
@@ -98,7 +113,7 @@ function CreateAppointmentForm({
         recurrence: appointmentToEdit.recurrence || 'none',
       });
 
-      // Set the selected doctor (assume provider is an id; adjust if object)
+      // Preselect doctor
       if (appointmentToEdit.provider) {
         setSelectedDoctor({
           value: appointmentToEdit.provider.id || appointmentToEdit.provider,
@@ -109,8 +124,20 @@ function CreateAppointmentForm({
               : 'Provider'),
         });
       }
+
+      // Preselect clinic event (after events have loaded)
+      if (clinicEvents.length > 0 && appointmentToEdit.title) {
+        const matchedEvent = clinicEvents.find(
+          evt => evt.name === appointmentToEdit.title // or evt.title if that's your field
+        );
+        setSelectedClinicEvent(
+          matchedEvent
+            ? { value: matchedEvent.id, label: matchedEvent.name }
+            : null
+        );
+      }
     }
-  }, [appointmentToEdit]);
+  }, [appointmentToEdit, clinicEvents]);
 
   const handleDoctorChange = async (selected) => {
     setSelectedDoctor(selected);
@@ -135,8 +162,15 @@ function CreateAppointmentForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // --- Clinic Event required check ---
+    if (!selectedClinicEvent) {
+      toast.error("Please select a Clinic Event.");
+      return;
+    }
+
     const payload = {
       ...formData,
+      title: selectedClinicEvent.label, // Always use selected event as title
       provider: selectedDoctor?.value || null,
     };
 
@@ -184,8 +218,23 @@ function CreateAppointmentForm({
           </h4>
 
           <div className="mb-3">
-            <label className="form-label">Title</label>
-            <input name="title" className="form-control" value={formData.title} onChange={handleChange} required />
+            <label className="form-label">Clinic Event</label>
+            <Select
+              options={clinicEvents.map(event => ({
+                value: event.id,
+                label: event.name // or event.title if that's your field
+              }))}
+              value={selectedClinicEvent}
+              onChange={selected => {
+                setSelectedClinicEvent(selected);
+                setFormData(prev => ({
+                  ...prev,
+                  title: selected ? selected.label : ''
+                }));
+              }}
+              placeholder="Select clinic event..."
+              isClearable
+            />
           </div>
 
           <div className="mb-3">

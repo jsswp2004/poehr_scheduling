@@ -487,6 +487,7 @@ function CalendarView({ onUpdate }) {
           variant="outline-secondary"
           onClick={() => navigate("/admin")}
           style={{ height: '38px', padding: '0 12px' }}
+          className="btn w-12.5"
         >
           ← Back
         </Button>

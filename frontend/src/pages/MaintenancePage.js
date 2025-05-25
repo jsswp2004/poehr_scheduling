@@ -329,7 +329,7 @@ function MaintenancePage() {
               </Form>
             </Card.Body>
           </Card>
-          <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mt-2 mb-3" style={{ padding: '5px' }}>
+          <Button variant="outline-secondary" onClick={() => navigate("/admin")} className="mt-2 mb-3 btn w-12.5" style={{ padding: '5px' }}>
             ← Back
           </Button>
         </Col>

@@ -2,6 +2,14 @@ from django.db import models
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 
+class ClinicEvent(models.Model):
+    name = models.CharField(max_length=255, unique=True)  # e.g., "Follow-up Visit", "Annual Checkup"
+    description = models.TextField(blank=True, null=True) # Optional
+    is_active = models.BooleanField(default=True)         # Optional for hiding events
+
+    def __str__(self):
+        return self.name
+
 class Appointment(models.Model):
     RECURRENCE_CHOICES = [
         ('none', 'None'),

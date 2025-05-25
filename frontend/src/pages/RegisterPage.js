@@ -239,8 +239,9 @@ function RegisterPage() {
             )}
           </div>
         )}
-
-        <button type="submit" className="btn btn-primary w-100">Register</button>
+        <div className="mb-3">          
+        <button type="submit" className="btn btn-primary w-12.5">Register</button>
+        </div>
       </form>
     </div>
   );

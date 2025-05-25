@@ -201,7 +201,7 @@ function PatientDetailPage() {
 
           <button
             type="button"
-            className="btn btn-danger ms-2"
+            className="btn btn-danger ms-2 btn"
             onClick={() => navigate('/patients')}
           >
             Back to Patients

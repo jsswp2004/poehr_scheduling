@@ -259,7 +259,7 @@ function PatientsPage() {
                 <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
                   {userRole === 'admin' && (
                     <Col xs={12} md={2} className="px-1">
-                      <Button variant="outline-secondary" onClick={() => navigate('/admin')} style={{ height: '38px' }}>
+                      <Button className="btn w-12.5" variant="outline-secondary" onClick={() => navigate('/admin')} style={{ height: '38px' }}>
                         ← Back
                       </Button>
                     </Col>
