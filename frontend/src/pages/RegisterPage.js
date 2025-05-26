@@ -45,18 +45,21 @@ function RegisterPage() {
       return;
     }
 
-    const payload = {
-      ...formData,
-      role: isPatient ? 'patient' : formData.role,
-      provider: formData.assigned_doctor,
-    };
+  const payload = {
+    ...formData,
+    role: isPatient ? 'patient' : (formData.role || 'none'),
+    provider: formData.assigned_doctor,
+  };
+
 
     try {
+      console.log("📤 Sending payload:", formData);
+
       await axios.post('http://127.0.0.1:8000/api/auth/register/', payload);
       toast.success('Registration successful! Please login.');
       navigate('/login');
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error("❌ Registration error:", error.response?.data || error.message);
       toast.error('Registration failed. Please try again.');
     }
   };
@@ -102,6 +105,20 @@ function RegisterPage() {
       </div>
 
       <form onSubmit={handleSubmit}>
+        <div className="mb-3">
+          <label className="form-label">Organization Name</label>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Enter your organization name"
+            value={formData.organization_name || ''}
+            onChange={(e) =>
+              setFormData({ ...formData, organization_name: e.target.value })
+            }
+            required
+          />
+        </div>
+
         <div className="mb-3">
           <label className="form-label">First Name</label>
           <input

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Patient
+from .models import CustomUser, Patient, Organization
 from django.core.mail import send_mail
 from django.conf import settings
 from appointments.models import Appointment
@@ -8,16 +8,17 @@ from appointments.models import Appointment
 class UserSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
     profile_picture = serializers.ImageField(required=False, allow_null=True, use_url=True)  # ✅ This makes it include full path
-
+    organization_logo = serializers.SerializerMethodField()
     class Meta:
         model = CustomUser
         fields = (
             'id', 'username', 'email', 'password',
-            'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture','phone_number'  # ✅ include provider_name
+            'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture','organization', 'organization_logo','phone_number'  # ✅ include provider_name
         )
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
-            'provider': {'required': False, 'allow_null': True}
+            'provider': {'required': False, 'allow_null': True},
+            'role': {'required': False},
         }
 
     def update(self, instance, validated_data):
@@ -37,17 +38,23 @@ class UserSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         provider = validated_data.pop('provider', None)
+        organization = validated_data.pop('organization')
 
+        # Frontend will send 'patient' when isPatient is True.
+        # If not present (non-patient), leave role blank or None
+        role = validated_data.get('role')  # may be 'patient', '', or None
+        role = role if role else 'None'  # empty string should become None
         user = CustomUser.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
-            role=validated_data.get('role', 'patient'),
+            role=role,  # blank string if non-patient
+            organization=organization
         )
 
-        # ✅ Handle provider assignment correctly based on type
+        # 🩺 Apply patient-specific logic only when role is 'patient'
         if user.role == 'patient':
             if isinstance(provider, CustomUser):
                 user.provider = provider
@@ -55,31 +62,35 @@ class UserSerializer(serializers.ModelSerializer):
                 try:
                     user.provider = CustomUser.objects.get(id=provider)
                 except CustomUser.DoesNotExist:
-                    pass  # Optionally log or raise an error
+                    pass
             user.save()
-            
-            # ✅ Create corresponding Patient object
-                # ✅ Prevent duplicate Patient record
+
+            # Create patient profile if not already existing
             if not Patient.objects.filter(user=user).exists():
                 Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
-        # ✅ Email admin
-        admin_email = getattr(settings, 'ADMIN_EMAIL', None)
-        if admin_email:
-            send_mail(
-                subject='🆕 New Patient Registration',
-                message=(
-                    f"A new patient has registered:\n\n"
-                    f"Name: {user.first_name} {user.last_name}\n"
-                    f"Email: {user.email}\n"
-                    f"Phone: {validated_data.get('phone_number', 'N/A')}"
-                ),
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[admin_email],
-                fail_silently=False,
-            )            
+
+            # ✉️ Notify admin
+            admin_email = getattr(settings, 'ADMIN_EMAIL', None)
+            if admin_email:
+                send_mail(
+                    subject='🆕 New Patient Registration',
+                    message=(
+                        f"A new patient has registered:\n\n"
+                        f"Name: {user.first_name} {user.last_name}\n"
+                        f"Email: {user.email}\n"
+                        f"Phone: {validated_data.get('phone_number', 'N/A')}"
+                    ),
+                    from_email=settings.DEFAULT_FROM_EMAIL,
+                    recipient_list=[admin_email],
+                    fail_silently=False,
+                )
 
         return user
 
+    def get_organization_logo(self, obj):
+        if obj.organization and obj.organization.logo:
+            return obj.organization.logo.url
+        return None
 
 class PatientSerializer(serializers.ModelSerializer):
     user_id = serializers.IntegerField(source='user.id', read_only=True)
@@ -130,3 +141,8 @@ class PatientSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+class OrganizationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Organization
+        fields = ['id', 'name', 'logo', 'created_at']

@@ -45,6 +45,9 @@ function CalendarView({ onUpdate }) {
   const [events, setEvents] = useState([]);
   const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [clinicEvents, setClinicEvents] = useState([]);
+  const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
+
 
   const token = localStorage.getItem('access_token');
 
@@ -75,6 +78,17 @@ function CalendarView({ onUpdate }) {
       console.log("Fetched doctors:", res.data);
     } catch (err) {
       console.error('Failed to load doctors:', err);
+    }
+  };
+
+  const fetchClinicEvents = async () => {
+    try {
+      const res = await axios.get('http://127.0.0.1:8000/api/clinic-events/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setClinicEvents(res.data);
+    } catch (err) {
+      console.error('Failed to load clinic events:', err);
     }
   };
 
@@ -190,6 +204,7 @@ function CalendarView({ onUpdate }) {
   useEffect(() => {
     fetchDoctors().then(() => fetchAppointments());
     fetchBlockedDays();
+    fetchClinicEvents();
   }, [token]);
 
   const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
@@ -240,6 +255,7 @@ function CalendarView({ onUpdate }) {
       recurrence: 'none',
       appointment_datetime: toLocalDatetimeString(start),
     });
+    setSelectedClinicEvent(null);
     setShowModal(true);
   };
 
@@ -262,6 +278,12 @@ function CalendarView({ onUpdate }) {
       appointment_datetime: toLocalDatetimeString(event.start),
       provider: event.provider || null,
     });
+    const matchedEvent = clinicEvents.find(evt =>
+      event.title?.endsWith(evt.name)
+    );
+    setSelectedClinicEvent(
+      matchedEvent ? { value: matchedEvent.id, label: matchedEvent.name } : null
+    );
 
     const matchedDoctor = doctors.find(doc => doc.id === event.provider);
     setSelectedDoctor(
@@ -277,7 +299,7 @@ function CalendarView({ onUpdate }) {
     const cleanTitle = modalFormData.title.split(' - ').slice(-1).join(' - ');
     const payload = {
       ...modalFormData,
-      title: cleanTitle,
+      title: selectedClinicEvent?.label || cleanTitle,
       provider: selectedDoctor?.value || null,
     };
     try {
@@ -549,14 +571,30 @@ function CalendarView({ onUpdate }) {
 
               <Form>
                 <Form.Group className="mb-3">
-                  <Form.Label>Title</Form.Label>
-                  <Form.Control
-                    type="text"
-                    value={modalFormData.title}
-                    onChange={(e) => setModalFormData({ ...modalFormData, title: e.target.value })}
-                    disabled={isPast}
+                  <Form.Label>Clinic Visit Type</Form.Label>
+                  <Select
+                    options={clinicEvents.map(evt => ({
+                      value: evt.id,
+                      label: evt.name
+                    }))}
+                    placeholder="Select clinic visit..."
+                    value={selectedClinicEvent}
+                    onChange={(selected) => {
+                      setSelectedClinicEvent(selected);
+                      setModalFormData(prev => ({
+                        ...prev,
+                        title: selected ? selected.label : ''
+                      }));
+                    }}
+                    isClearable
+                    isDisabled={isPast}
+                    styles={{
+                      menu: (base) => ({ ...base, zIndex: 9999 }),
+                    }}
                   />
                 </Form.Group>
+
+
 
                 <Form.Group className="mb-3">
                   <Form.Label>Description</Form.Label>

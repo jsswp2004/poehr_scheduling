@@ -3,28 +3,43 @@ import { toast } from 'react-toastify';
 import logo from '../assets/POWER_Logo.png';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
+import axios from 'axios';
+
 
 function Navbar() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const isAuthenticated = !!localStorage.getItem('access_token');
+  const [logoUrl, setLogoUrl] = useState(null);
+
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
-    if (token) {
-      try {
-        const decoded = jwtDecode(token);
-        console.log('Decoded JWT:', decoded);
-  
-        // ✅ Use `first_name` directly if it's present
-        const firstName = decoded.first_name || decoded.username || '';
-        setUsername(firstName);
-      } catch (err) {
-        console.error('Failed to decode JWT:', err);
-      }
+    if (!token) return;
+
+    try {
+      const decoded = jwtDecode(token);
+      const userId = decoded.user_id;
+      const firstName = decoded.first_name || decoded.username || '';
+      setUsername(firstName);
+
+      axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => {
+        const orgLogo = res.data.organization_logo;
+        if (orgLogo) {
+          setLogoUrl(`http://127.0.0.1:8000${orgLogo}`);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to load organization logo:', err);
+      });
+    } catch (err) {
+      console.error('Failed to decode JWT:', err);
     }
-}, [isAuthenticated]); // ✅ Add this dependency
-  
+  }, [isAuthenticated]);
+
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
@@ -37,11 +52,14 @@ function Navbar() {
     <nav className="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
       <div className="container-fluid">
         <Link to="/" className="navbar-brand d-flex align-items-center">
+
+
           <img
-            src={logo}
-            alt="POEHR Logo"
+            src={logoUrl || logo}
+            alt="Logo"
             style={{ height: '40px', marginRight: '10px', backgroundColor: 'white', padding: '2px', borderRadius: '4px' }}
           />
+
           POWER Scheduler
         </Link>
 
