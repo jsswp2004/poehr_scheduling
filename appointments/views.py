@@ -20,7 +20,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 import holidays as pyholidays
-
+import csv
+from django.http import HttpResponse
+from rest_framework.parsers import MultiPartParser
 
 from .models import Appointment
 
@@ -292,3 +294,41 @@ class HolidayViewSet(viewsets.ModelViewSet):
                 date=date,
                 defaults={'is_recognized': True}  # set to False if you want unchecked by default
             )
+
+
+
+class DownloadClinicEventsTemplate(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="clinic_events_template.csv"'
+
+        writer = csv.writer(response)
+        writer.writerow(['name', 'description', 'is_active'])  # Header row
+
+        return response
+
+
+class UploadClinicEventsCSV(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({"error": "No file provided."}, status=400)
+
+        decoded_file = file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+
+        created_count = 0
+        for row in reader:
+            ClinicEvent.objects.create(
+                name=row.get('name', '').strip(),
+                description=row.get('description', '').strip(),
+                is_active=row.get('is_active', 'true').strip().lower() in ['true', '1', 'yes']
+            )
+            created_count += 1
+
+        return Response({"message": f"{created_count} clinic events uploaded successfully."})
