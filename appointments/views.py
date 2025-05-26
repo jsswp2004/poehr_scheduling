@@ -32,7 +32,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = Appointment.objects.all().order_by('appointment_datetime')
+        # Start by limiting to the user's organization
+        queryset = Appointment.objects.filter(
+            organization=user.organization
+        ).order_by('appointment_datetime')
 
         # Optional date filter from query params
         date_str = self.request.query_params.get('date')
@@ -57,6 +60,12 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        appointment = serializer.save(
+            patient=self.request.user,  # Default: patient is the current user
+            organization=self.request.user.organization  # Ensure appointment is linked to the user's organization
+            # organization=self.request.user.organization  # Ensure appointment is linked to the user's organization
+        )
+
         # Get provider from the request data
         provider_id = self.request.data.get('provider')
         provider = None
@@ -199,12 +208,17 @@ class ClinicEventViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]  # Or adjust as needed
 
 class AvailabilityViewSet(viewsets.ModelViewSet):
-    queryset = Availability.objects.all().order_by('-start_time')
     serializer_class = AvailabilitySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_queryset(self):
+        user = self.request.user
+        return Availability.objects.filter(organization=user.organization).order_by('-start_time')
+
     def perform_create(self, serializer):
-        availability = serializer.save()
+        organization = self.request.user.organization
+
+        availability = serializer.save(organization=organization)
 
         recurrence = availability.recurrence
         start = availability.start_time
@@ -214,9 +228,9 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
         end_date_limit = availability.recurrence_end_date
 
         recurrence_count = {
-            'daily': 179,     # up to ~6 months
-            'weekly': 59,     # a bit over a year
-            'monthly': 11,    # roughly 1 year
+            'daily': 179,
+            'weekly': 59,
+            'monthly': 11,
         }
 
         count = recurrence_count.get(recurrence, 0)
@@ -234,7 +248,6 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
             next_start = start + delta
             next_end = end + delta
 
-            # ⛔ Stop if recurrence_end_date is set and we're past it
             if end_date_limit and next_start.date() > end_date_limit:
                 break
 
@@ -243,8 +256,97 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
                 start_time=next_start,
                 end_time=next_end,
                 is_blocked=is_blocked,
-                recurrence='none'  # avoid chaining
+                recurrence='none',
+                organization=organization  # ✅ still linked for recurrence
             )
+
+        # Assign the organization from the user
+        organization = self.request.user.organization
+
+        # Save the initial availability
+        availability = serializer.save(organization=organization)
+
+        recurrence = availability.recurrence
+        start = availability.start_time
+        end = availability.end_time
+        doctor = availability.doctor
+        is_blocked = availability.is_blocked
+        end_date_limit = availability.recurrence_end_date
+
+        recurrence_count = {
+            'daily': 179,     # ~6 months
+            'weekly': 59,     # ~1 year
+            'monthly': 11,    # ~1 year
+        }
+
+        count = recurrence_count.get(recurrence, 0)
+
+        for i in range(1, count + 1):
+            if recurrence == 'daily':
+                delta = timedelta(days=i)
+            elif recurrence == 'weekly':
+                delta = timedelta(weeks=i)
+            elif recurrence == 'monthly':
+                delta = relativedelta(months=i)
+            else:
+                continue
+
+            next_start = start + delta
+            next_end = end + delta
+
+            if end_date_limit and next_start.date() > end_date_limit:
+                break
+
+            Availability.objects.create(
+                doctor=doctor,
+                start_time=next_start,
+                end_time=next_end,
+                is_blocked=is_blocked,
+                recurrence='none',
+                organization=organization  # ✅ apply to each recurrence
+            )
+
+            availability = serializer.save()
+
+            recurrence = availability.recurrence
+            start = availability.start_time
+            end = availability.end_time
+            doctor = availability.doctor
+            is_blocked = availability.is_blocked
+            end_date_limit = availability.recurrence_end_date
+
+            recurrence_count = {
+                'daily': 179,     # up to ~6 months
+                'weekly': 59,     # a bit over a year
+                'monthly': 11,    # roughly 1 year
+            }
+
+            count = recurrence_count.get(recurrence, 0)
+
+            for i in range(1, count + 1):
+                if recurrence == 'daily':
+                    delta = timedelta(days=i)
+                elif recurrence == 'weekly':
+                    delta = timedelta(weeks=i)
+                elif recurrence == 'monthly':
+                    delta = relativedelta(months=i)
+                else:
+                    continue
+
+                next_start = start + delta
+                next_end = end + delta
+
+                # ⛔ Stop if recurrence_end_date is set and we're past it
+                if end_date_limit and next_start.date() > end_date_limit:
+                    break
+
+                Availability.objects.create(
+                    doctor=doctor,
+                    start_time=next_start,
+                    end_time=next_end,
+                    is_blocked=is_blocked,
+                    recurrence='none'  # avoid chaining
+                )
 
 class EnvironmentSettingView(APIView):
     def get_permissions(self):

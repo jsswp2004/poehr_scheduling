@@ -1,6 +1,7 @@
 from django.db import models
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
+from users.models import Organization  # Assuming Organization is defined in users/models.py
 
 class ClinicEvent(models.Model):
     name = models.CharField(max_length=255, unique=True)  # e.g., "Follow-up Visit", "Annual Checkup"
@@ -17,6 +18,14 @@ class Appointment(models.Model):
         ('weekly', 'Weekly'),
         ('monthly', 'Monthly'),
     ]
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='appointments',
+        null=True,  # You can make it non-nullable later
+        blank=True
+    )
 
     patient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -48,6 +57,15 @@ class Appointment(models.Model):
         return f"{self.title} - {self.appointment_datetime}"
 
 class Availability(models.Model):
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='availabilities',
+        null=True,
+        blank=True
+    )
+
     doctor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -88,7 +106,6 @@ class EnvironmentSetting(models.Model):
     def __str__(self):
         return f"Environment Setting ({self.pk})"
     
-
 class Holiday(models.Model):
     name = models.CharField(max_length=64)
     date = models.DateField()

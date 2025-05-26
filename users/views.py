@@ -14,9 +14,12 @@ import os
 from rest_framework.generics import DestroyAPIView
 
 from .models import CustomUser, Patient
-from .serializers import UserSerializer, PatientSerializer
+from .serializers import UserSerializer, PatientSerializer, OrganizationSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
+from .models import Organization
+from rest_framework import permissions
+
 
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
@@ -24,6 +27,10 @@ TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')  # optional
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
+class OrganizationViewSet(viewsets.ModelViewSet):
+    queryset = Organization.objects.all()
+    serializer_class = OrganizationSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
 class UserDetailView(RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()
@@ -62,19 +69,29 @@ class DoctorListView(APIView):
 
 
 class RegisterView(generics.CreateAPIView):
+
+
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
+    
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        print("📥 Incoming registration payload:", request.data)
+        data = request.data.copy()
+        org_name = data.get('organization_name')
+
+        if not org_name:
+            return Response({'error': 'Organization name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Look for existing org, or create a new one
+        organization, _ = Organization.objects.get_or_create(name=org_name)
+
+        serializer = self.get_serializer(data=data)
         if not serializer.is_valid():
-            print("❌ Serializer validation errors:", serializer.errors)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        user = serializer.save()
-        #if user.role == 'patient':
-        #    Patient.objects.create(user=user)
+        user = serializer.save(organization=organization)  # ✅ assign org
         return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
 
 

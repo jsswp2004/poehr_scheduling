@@ -8,10 +8,19 @@ class CustomUser(AbstractUser):
         ('receptionist', 'Receptionist'),
         ('admin', 'Admin'),
         ('registrar', 'Registrar'),
+        ('none', 'None'),  # For non-patients, use 'None' or leave blank
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='patient')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='none')
 
-    # ✅ Optional: only patients have a provider
+    # 🔗 Link user to organization
+    organization = models.ForeignKey(
+        'Organization',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='users'
+    )
+
     provider = models.ForeignKey(
         'self',
         on_delete=models.SET_NULL,
@@ -23,9 +32,9 @@ class CustomUser(AbstractUser):
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
 
-
     def __str__(self):
         return f"{self.username} ({self.role})"
+
 
 class Patient(models.Model):
     user = models.OneToOneField('CustomUser', on_delete=models.CASCADE, related_name='patient_profile')  # Use CustomUser instead of User
@@ -36,3 +45,11 @@ class Patient(models.Model):
 
     def __str__(self):
         return f'{self.user.first_name} {self.user.last_name}'
+
+class Organization(models.Model):
+    name = models.CharField(max_length=255)
+    logo = models.ImageField(upload_to='org_logos/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name

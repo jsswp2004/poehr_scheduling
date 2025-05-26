@@ -139,6 +139,35 @@ const handleSearch = async () => {
     }
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file || !user.organization) return;
+
+    const logoFormData = new FormData();
+    logoFormData.append('logo', file);
+
+    setUploading(true);
+    try {
+      const res = await axios.patch(
+        `http://127.0.0.1:8000/api/users/organizations/${user.organization}/`,
+        logoFormData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      toast.success('Organization logo updated!');
+      // Optional: refresh user/org data
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to upload organization logo');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
   if (loading) {
     return <div className="text-center my-5"><Spinner animation="border" /></div>;
   }
@@ -233,6 +262,16 @@ const handleSearch = async () => {
               />
             </div>
           )}
+
+          <Form.Group className="mb-3">
+            <Form.Label>Upload Organization Logo</Form.Label>
+            <Form.Control
+              type="file"
+              accept="image/png, image/jpeg"
+              onChange={handleLogoUpload}
+              disabled={uploading}
+          />
+          </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Upload New Profile Picture</Form.Label>
