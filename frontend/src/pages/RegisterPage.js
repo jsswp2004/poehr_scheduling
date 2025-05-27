@@ -68,41 +68,44 @@ function RegisterPage() {
     <div className="container mt-5">
       <h2 className="mb-4">Register</h2>
       {/* Patient or Other selector */}
-      <div className="mb-3">
-        <label className="form-label">Are you registering as a patient?</label>
-        <div>
-          <div className="form-check form-check-inline">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="isPatient"
-              id="isPatientYes"
-              value="yes"
-              checked={isPatient}
-              onChange={() => {
-                setIsPatient(true);
-                setFormData({ ...formData, role: 'patient' });
-              }}
-            />
-            <label className="form-check-label" htmlFor="isPatientYes">Yes</label>
-          </div>
-          <div className="form-check form-check-inline">
-            <input
-              className="form-check-input"
-              type="radio"
-              name="isPatient"
-              id="isPatientNo"
-              value="no"
-              checked={!isPatient}
-              onChange={() => {
-                setIsPatient(false);
-                setFormData({ ...formData, role: '' }); // Set role for non-patients as needed
-              }}
-            />
-            <label className="form-check-label" htmlFor="isPatientNo">No</label>
+      {(formData.role !== '' || formData.role !== 'patient') && (
+        <div className="mb-3">
+          <label className="form-label">Are you registering as a patient?</label>
+          <div>
+            <div className="form-check form-check-inline">
+              <input
+                className="form-check-input"
+                type="radio"
+                name="isPatient"
+                id="isPatientYes"
+                value="yes"
+                checked={isPatient}
+                onChange={() => {
+                  setIsPatient(true);
+                  setFormData({ ...formData, role: 'patient' });
+                }}
+              />
+              <label className="form-check-label" htmlFor="isPatientYes">Yes</label>
+            </div>
+            <div className="form-check form-check-inline">
+              <input
+                className="form-check-input"
+                type="radio"
+                name="isPatient"
+                id="isPatientNo"
+                value="no"
+                checked={!isPatient}
+                onChange={() => {
+                  setIsPatient(false);
+                  setFormData({ ...formData, role: '' }); // or assign the chosen non-patient role elsewhere
+                }}
+              />
+              <label className="form-check-label" htmlFor="isPatientNo">No</label>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
 
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
