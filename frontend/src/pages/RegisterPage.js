@@ -68,7 +68,7 @@ function RegisterPage() {
     <div className="container mt-5">
       <h2 className="mb-4">Register</h2>
       {/* Patient or Other selector */}
-      {(formData.role !== '' || formData.role !== 'patient') && (
+      {(formData.role === 'none' || formData.role === 'patient') && (
         <div className="mb-3">
           <label className="form-label">Are you registering as a patient?</label>
           <div>
