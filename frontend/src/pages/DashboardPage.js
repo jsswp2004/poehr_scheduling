@@ -365,20 +365,28 @@ function DashboardPage() {
                       </tr>
                     </thead>
                     <tbody>
-                    {(appointments || []).slice().reverse().map((a) => (
-                      <tr key={a.id} className={new Date(a.appointment_datetime) < new Date() ? 'table-secondary' : ''}>
-                        <td>{a.title || 'Untitled'}</td>
-                        <td>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</td>
-                        <td>
-                          <OverlayTrigger placement="top" overlay={<Tooltip>Edit appointment</Tooltip>}>
-                            <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
-                          </OverlayTrigger>
-                          <OverlayTrigger placement="top" overlay={<Tooltip>Delete appointment</Tooltip>}>
-                            <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
-                          </OverlayTrigger>
-                        </td>
-                      </tr>
-                    ))}
+                    {(appointments || [])
+                      .filter(a => {
+                        const apptDate = new Date(a.appointment_datetime);
+                        const now = new Date();
+                        // Show if appointment is today or in the future
+                        return apptDate.setHours(0,0,0,0) >= now.setHours(0,0,0,0);
+                      })
+                      .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime))
+                      .map((a) => (
+                        <tr key={a.id} className={new Date(a.appointment_datetime) < new Date() ? 'table-secondary' : ''}>
+                          <td>{a.title || 'Untitled'}</td>
+                          <td>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</td>
+                          <td>
+                            <OverlayTrigger placement="top" overlay={<Tooltip>Edit appointment</Tooltip>}>
+                              <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
+                            </OverlayTrigger>
+                            <OverlayTrigger placement="top" overlay={<Tooltip>Delete appointment</Tooltip>}>
+                              <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
+                            </OverlayTrigger>
+                          </td>
+                        </tr>
+                      ))}
 
                     </tbody>
                   </Table>
