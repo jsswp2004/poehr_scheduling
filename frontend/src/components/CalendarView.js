@@ -9,6 +9,71 @@ import { toast } from 'react-toastify';
 import Select from 'react-select';
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
+import 'react-datepicker/dist/react-datepicker.css';
+// Place at the top of your CalendarView.js
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+
+function CustomToolbar({ date, label, onNavigate, views, view, onView }) {
+  const [showPicker, setShowPicker] = useState(false);
+
+  return (
+    <div className="rbc-toolbar d-flex align-items-center justify-content-between mb-2">
+      <span className="rbc-btn-group">
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('TODAY')}>Today</button>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('PREV')}>&lt;</button>
+        <span style={{ position: 'relative', display: 'inline-block' }}>
+          <button
+            type="button"
+            className="btn btn-light btn-sm"
+            style={{ fontWeight: 600, border: '1px solid #ccc' }}
+            onClick={() => setShowPicker(!showPicker)}
+          >
+            {label}
+          </button>
+          {showPicker && (
+            <div style={{
+              position: 'absolute',
+              zIndex: 1000,
+              top: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+            }}>
+              <DatePicker
+                selected={date}
+                onChange={d => {
+                  setShowPicker(false);
+                  onNavigate('DATE', d);
+                }}
+                inline
+              />
+            </div>
+          )}
+        </span>
+        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('NEXT')}>&gt;</button>
+      </span>
+      {/* 🟢 View Switch Buttons */}
+      <span className="rbc-btn-group ms-2">
+        {views.map(v => (
+          <button
+            type="button"
+            key={v}
+            className={`btn btn-${view === v ? 'primary' : 'outline-primary'} btn-sm`}
+            onClick={() => onView(v)}
+            style={{ marginLeft: 4 }}
+          >
+            {v === 'month' ? 'Month'
+              : v === 'week' ? 'Week'
+              : v === 'work_week' ? 'Work Week'
+              : v === 'day' ? 'Day'
+              : v.charAt(0).toUpperCase() + v.slice(1)}
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
 
 const localizer = momentLocalizer(moment);
 
@@ -571,18 +636,22 @@ function CalendarView({ onUpdate }) {
             max={new Date(1970, 1, 1, 18, 0, 0)}
             step={15}
             timeslots={2}
+            // 🟢 THIS IS ALL YOU NEED FOR BOTH TOOLBAR AND DATE HEADER:
             components={{
-                month: {
-                  dateHeader: (props) => (
-                    <CustomDateHeader
-                      {...props}
-                      holidays={holidays}
-                      setCurrentView={setCurrentView}
-                      setCurrentDate={setCurrentDate}
-                    />
-                  ),
-                },
-              }}
+              toolbar: (toolbarProps) => (
+                <CustomToolbar {...toolbarProps} />
+              ),
+              month: {
+                dateHeader: (props) => (
+                  <CustomDateHeader
+                    {...props}
+                    holidays={holidays}
+                    setCurrentView={setCurrentView}
+                    setCurrentDate={setCurrentDate}
+                  />
+                ),
+              },
+            }}
           />
 
           <Modal show={showModal} onHide={() => setShowModal(false)}>

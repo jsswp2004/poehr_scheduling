@@ -179,6 +179,8 @@ const handleSearch = async () => {
     }
   };
 
+  // Get logged-in user's role
+  const loggedInUserRole = token ? jwtDecode(token).role : null;
 
   if (loading) {
     return <div className="text-center my-5"><Spinner animation="border" /></div>;
@@ -363,6 +365,32 @@ const handleSearch = async () => {
               <div className="form-control-plaintext">
                 {user.organization && (typeof user.organization === 'object' ? user.organization.name : (user.organization_name || ''))}
               </div>
+            )}
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Role</Form.Label>
+            {isEditing && (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') ? (
+              <Form.Select
+                name="role"
+                value={formData.role || user.role}
+                onChange={handleChange}
+              >
+                <option value="admin">Admin</option>
+                <option value="system_admin">System Admin</option>
+                <option value="doctor">Doctor</option>
+                <option value="registrar">Registrar</option>
+                <option value="receptionist">Receptionist</option>
+                <option value="patient">Patient</option>
+              </Form.Select>
+            ) : (
+              <Form.Control
+                name="role"
+                value={user.role}
+                disabled
+                plaintext
+                readOnly
+              />
             )}
           </Form.Group>
 
