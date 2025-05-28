@@ -606,9 +606,8 @@ function CalendarView({ onUpdate }) {
                 if (userRole === 'patient' && event.id.toString().startsWith('avail')) {
                   return false;
                 }
-                // For admin and system_admin, do not filter appointments by searchQuery
                 if (event.type === 'appointment') {
-                  if (userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') return true;
+                  // Always filter by searchQuery for all users
                   return event.title.toLowerCase().includes(searchQuery.toLowerCase());
                 }
                 return true;
