@@ -3,6 +3,7 @@ import { Card, Table, Form, Button, Alert, Spinner, Tabs, Tab, Col } from 'react
 import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
 import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 
 const DAYS = [
   { label: 'Mon', value: 1 },
@@ -127,6 +128,24 @@ function EnvironmentProfilePage() {
   const [selectedHolidays, setSelectedHolidays] = useState([]);
   const [tabKey, setTabKey] = useState('blocked-days');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Role-based access control for admin and system_admin only
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      const role = decoded.role || '';
+      if (role !== 'admin' && role !== 'system_admin') {
+        navigate('/');
+      }
+    } catch (err) {
+      navigate('/login');
+    }
+  }, [navigate]);
 
   useEffect(() => {
     async function fetchSettings() {

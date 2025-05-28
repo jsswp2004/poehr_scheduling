@@ -62,6 +62,29 @@ function PatientsPage() {
     }
   }
 
+  // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
+  useEffect(() => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      const role = decoded.role || '';
+      if (
+        role !== 'admin' &&
+        role !== 'system_admin' &&
+        role !== 'doctor' &&
+        role !== 'registrar' &&
+        role !== 'receptionist'
+      ) {
+        navigate('/');
+      }
+    } catch (err) {
+      navigate('/login');
+    }
+  }, [navigate, token]);
+
   const fetchPatients = async () => {
     setLoading(true);
     try {
@@ -257,7 +280,7 @@ function PatientsPage() {
             <Card.Body>
               <Card.Title className="mb-4 justify-content-between align-items-center">
                 <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
-                  {userRole === 'admin' && (
+                  {(userRole === 'admin' || userRole === 'system_admin') && (
                     <Col xs={12} md={2} className="px-1">
                       <Button className="btn w-12.5" variant="outline-secondary" onClick={() => navigate('/admin')} style={{ height: '38px' }}>
                         ← Back

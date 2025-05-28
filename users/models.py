@@ -9,6 +9,7 @@ class CustomUser(AbstractUser):
         ('admin', 'Admin'),
         ('registrar', 'Registrar'),
         ('none', 'None'),  # For non-patients, use 'None' or leave blank
+        ('system_admin', 'System Admin'),  # For superusers or system admins
     )
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='none')
 

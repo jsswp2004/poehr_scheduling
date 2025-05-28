@@ -38,9 +38,7 @@ function LoginPage() {
       toast.success('Login successful!');
 
       // Redirect based on role
-      // src/pages/LoginPage.js
-
-      if (userRole === 'admin') {
+      if (userRole === 'admin' || userRole === 'system_admin') {
         navigate('/admin');
       } else if (userRole === 'doctor' || userRole === 'registrar') {
         navigate('/patients');

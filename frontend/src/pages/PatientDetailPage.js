@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
 import { Card, Form, Button, Row, Col, Spinner, Tabs, Tab } from 'react-bootstrap';
+import { jwtDecode } from 'jwt-decode';
 
 function PatientDetailPage() {
   const { id } = useParams();
@@ -13,6 +14,29 @@ function PatientDetailPage() {
   const [formData, setFormData] = useState({});
   const [doctors, setDoctors] = useState([]);
   const token = localStorage.getItem('access_token');
+
+  // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
+  useEffect(() => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      const role = decoded.role || '';
+      if (
+        role !== 'admin' &&
+        role !== 'system_admin' &&
+        role !== 'doctor' &&
+        role !== 'registrar' &&
+        role !== 'receptionist'
+      ) {
+        navigate('/');
+      }
+    } catch (err) {
+      navigate('/login');
+    }
+  }, [navigate, token]);
 
   // Fetch patient data
   useEffect(() => {
@@ -62,6 +86,52 @@ function PatientDetailPage() {
   return (
     <div className="container mt-4">
       <h4>Patient Details</h4>
+
+      {/* Show profile picture if available */}
+      {patient.profile_picture && (
+        <div className="mb-3 text-center">
+          <img
+            src={patient.profile_picture.startsWith('http') ? patient.profile_picture : `http://127.0.0.1:8000${patient.profile_picture}`}
+            alt="Profile"
+            style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #ccc' }}
+          />
+        </div>
+      )}
+
+      {/* Upload profile picture in edit mode */}
+      {editMode && (
+        <div className="mb-3">
+          <label className="form-label">Upload Profile Picture</label>
+          <input
+            type="file"
+            accept="image/png, image/jpeg"
+            className="form-control"
+            onChange={async (e) => {
+              const file = e.target.files[0];
+              if (!file) return;
+              const formDataPic = new FormData();
+              formDataPic.append('profile_picture', file);
+              try {
+                const res = await axios.patch(
+                  `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id}/`,
+                  formDataPic,
+                  {
+                    headers: {
+                      'Content-Type': 'multipart/form-data',
+                      Authorization: `Bearer ${token}`,
+                    },
+                  }
+                );
+                setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
+                setFormData((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
+                alert('Profile picture updated!');
+              } catch (err) {
+                alert('Failed to upload profile picture.');
+              }
+            }}
+          />
+        </div>
+      )}
 
       {!showAppointmentForm && (
         <form onSubmit={handleSubmit}>

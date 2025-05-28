@@ -4,6 +4,7 @@ import { Form, Button, Card, Row, Col } from 'react-bootstrap';
 import Select from 'react-select';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 
 function MaintenancePage() {
   // State for currently editing schedule, list of schedules, doctors, selected doctor, and form data
@@ -21,6 +22,23 @@ function MaintenancePage() {
   });
   const navigate = useNavigate();
   const token = localStorage.getItem('access_token');
+
+  // Role-based access control for admin and system_admin only
+  useEffect(() => {
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      const role = decoded.role || '';
+      if (role !== 'admin' && role !== 'system_admin') {
+        navigate('/');
+      }
+    } catch (err) {
+      navigate('/login');
+    }
+  }, [navigate, token]);
   
   // Helper to get a local datetime string for today at a given hour and minute
   function getTodayAt(hour, minute = 0) {
@@ -161,14 +179,21 @@ function MaintenancePage() {
   
   // Fetch all schedules for the currently selected doctor
   const fetchSchedules = async () => {
-    if (!selectedDoctor) return;
+    if (!selectedDoctor) {
+      console.log('[DEBUG] No selectedDoctor:', selectedDoctor);
+      return;
+    }
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/availability/', {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
-      // Filter only schedules for the selected doctor
-      const doctorSchedules = res.data.filter(s => s.doctor === selectedDoctor.value);
+      console.log('[DEBUG] Schedules fetched:', res.data);
+      // For admin and system_admin, show all schedules for the selected doctor
+      // For other roles, you may want to filter differently (not needed here)
+      // Make the filter robust to type mismatches
+      const doctorId = String(selectedDoctor.value);
+      const doctorSchedules = res.data.filter(s => String(s.doctor) === doctorId);
+      console.log('[DEBUG] Filtered schedules for doctor', doctorId, doctorSchedules);
       setSchedules(doctorSchedules);
     } catch (err) {
       console.error('Failed to fetch schedules:', err);
@@ -338,8 +363,14 @@ function MaintenancePage() {
         <Col md={6}>
           <Card className="shadow-sm">
             <Card.Body>
-            
               <h5 className="fw-bold">📋 Schedule Overview</h5>
+              <div className="mb-2">
+                {selectedDoctor ? (
+                  <span className="text-primary">Showing schedules for <strong>{selectedDoctor.label}</strong></span>
+                ) : (
+                  <span className="text-muted">No clinician selected</span>
+                )}
+              </div>
               <h6 className="text-success">✅ Availability</h6>
               <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
                 <ul className="list-group mb-4">

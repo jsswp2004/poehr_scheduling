@@ -302,6 +302,10 @@ function CalendarView({ onUpdate }) {
       title: selectedClinicEvent?.label || cleanTitle,
       provider: selectedDoctor?.value || null,
     };
+    // For admin and system_admin, allow setting patient (if modalFormData.patient is present)
+    if ((userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') && modalFormData.patient) {
+      payload.patient = modalFormData.patient;
+    }
     try {
       if (isEditing && editingId) {
         const cleanId = editingId.toString().replace('appt-', '');
@@ -417,8 +421,8 @@ function CalendarView({ onUpdate }) {
     return {};
   };
  
-  // A custom date header that displays the holiday name if that day is a holiday.
-  function CustomDateHeader({ date, holidays }) {
+  // A custom date header that displays the holiday name if that day is a holiday and allows clicking the date to go to day view.
+  function CustomDateHeader({ date, holidays, setCurrentView, setCurrentDate }) {
     // Find if this date is a holiday
     const holiday = holidays.find(h => {
       const holidayDate = new Date(h.date + 'T00:00:00');
@@ -429,10 +433,22 @@ function CalendarView({ onUpdate }) {
       );
     });
 
-    // Default: show date number; if holiday, also show name
+    // Handler for clicking the date number
+    const handleClick = (e) => {
+      e.stopPropagation();
+      setCurrentView('day');
+      setCurrentDate(date);
+    };
+
     return (
       <div style={{ minHeight: 32 }}>
-        <span>{date.getDate().toString().padStart(2, '0')}</span>
+        <span
+          style={{ cursor: 'pointer', fontWeight: 600, color: '#0d6efd' }}
+          onClick={handleClick}
+          title="Go to day view"
+        >
+          {date.getDate().toString().padStart(2, '0')}
+        </span>
         {holiday && (
           <div style={{ color: '#c79100', fontWeight: 600, fontSize: 12 }}>
             {holiday.name}
@@ -479,7 +495,7 @@ function CalendarView({ onUpdate }) {
             )}
           </div>
         </div>
-        {(userRole === 'admin' || userRole === 'registrar') && (
+        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
           <div style={{ width: '300px' }}>
             <Select
               options={doctors.map((doc) => ({
@@ -504,7 +520,7 @@ function CalendarView({ onUpdate }) {
             />
           </div>
         )}
-        {userRole === 'admin' && (
+        {(userRole === 'admin' || userRole === 'system_admin') && (
         <Button
           variant="outline-secondary"
           onClick={() => navigate("/admin")}
@@ -525,13 +541,15 @@ function CalendarView({ onUpdate }) {
                 if (userRole === 'patient' && event.id.toString().startsWith('avail')) {
                   return false;
                 }
+                // For admin and system_admin, do not filter appointments by searchQuery
                 if (event.type === 'appointment') {
+                  if (userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') return true;
                   return event.title.toLowerCase().includes(searchQuery.toLowerCase());
                 }
                 return true;
               })
               .filter(event => {
-                if ((userRole === 'admin' || userRole === 'registrar') && event.type === 'availability' && selectedDoctor) {
+                if ((userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && event.type === 'availability' && selectedDoctor) {
                   return String(event.doctor_id) === String(selectedDoctor.value);
                 }
                 return true;
@@ -556,7 +574,12 @@ function CalendarView({ onUpdate }) {
             components={{
                 month: {
                   dateHeader: (props) => (
-                    <CustomDateHeader {...props} holidays={holidays} />
+                    <CustomDateHeader
+                      {...props}
+                      holidays={holidays}
+                      setCurrentView={setCurrentView}
+                      setCurrentDate={setCurrentDate}
+                    />
                   ),
                 },
               }}

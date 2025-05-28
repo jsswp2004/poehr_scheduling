@@ -9,11 +9,12 @@ class UserSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
     profile_picture = serializers.ImageField(required=False, allow_null=True, use_url=True)  # ✅ This makes it include full path
     organization_logo = serializers.SerializerMethodField()
+    organization_name = serializers.SerializerMethodField()  # New field for organization name
     class Meta:
         model = CustomUser
         fields = (
             'id', 'username', 'email', 'password',
-            'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture','organization', 'organization_logo','phone_number'  # ✅ include provider_name
+            'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture','organization', 'organization_logo', 'organization_name', 'phone_number'  # ✅ include provider_name
         )
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
@@ -90,6 +91,11 @@ class UserSerializer(serializers.ModelSerializer):
     def get_organization_logo(self, obj):
         if obj.organization and obj.organization.logo:
             return obj.organization.logo.url
+        return None
+
+    def get_organization_name(self, obj):
+        if obj.organization:
+            return obj.organization.name
         return None
 
 class PatientSerializer(serializers.ModelSerializer):

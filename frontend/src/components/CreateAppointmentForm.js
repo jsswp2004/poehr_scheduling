@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { jwtDecode } from 'jwt-decode';
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -26,7 +27,7 @@ function CreateAppointmentForm({
   });
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
-  const token = localStorage.getItem('access_token');
+  const [token, setToken] = useState(localStorage.getItem('access_token'));
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
@@ -34,6 +35,17 @@ function CreateAppointmentForm({
   // Holidays and Blocked Days
   const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
+
+  // Role detection for admin/system_admin
+  let userRole = null;
+  if (token) {
+    try {
+      const decoded = jwtDecode(token);
+      userRole = decoded.role;
+    } catch (err) {
+      // ignore
+    }
+  }
 
   // Fetch doctors, holidays, blocked days, and clinic events
   useEffect(() => {
@@ -174,9 +186,13 @@ function CreateAppointmentForm({
       provider: selectedDoctor?.value || null,
     };
 
-    // Only add patient if patientId is passed in (registrar/admin context)
+    // Always set the patient field if patientId is provided
     if (patientId) {
       payload.patient = patientId;
+    }
+    // For admin and system_admin, allow setting patient from formData if present (e.g., for editing)
+    if ((userRole === 'admin' || userRole === 'system_admin') && formData.patient) {
+      payload.patient = formData.patient;
     }
 
     // --- BLOCK LOGIC: No appts on blocked days or holidays ---
@@ -289,6 +305,7 @@ function CreateAppointmentForm({
               onChange={handleDoctorChange}
               placeholder="Search or select doctor..."
               isClearable
+              isDisabled={!(userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar')}
             />
           </div>
 
