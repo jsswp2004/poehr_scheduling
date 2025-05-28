@@ -107,6 +107,7 @@ function RegisterPage({ adminMode = false }) {
       )}
 
       <form onSubmit={handleSubmit}>
+      {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
         <div className="mb-3">
           <label className="form-label">Organization Name</label>
           <input
@@ -120,7 +121,7 @@ function RegisterPage({ adminMode = false }) {
             required
           />
         </div>
-
+      )}
         <div className="mb-3">
           <label className="form-label">First Name</label>
           <input
