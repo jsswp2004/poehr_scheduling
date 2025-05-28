@@ -4,6 +4,8 @@ import { Card, Spinner, Button, Form, Collapse, Image } from 'react-bootstrap';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
+import Select from 'react-select';
+import CreatableSelect from 'react-select/creatable';
 
 function ProfilePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,6 +33,8 @@ function ProfilePage() {
     confirm_password: '',
   });
 
+  const [organizations, setOrganizations] = useState([]);
+
   useEffect(() => {
     if (!token) return;
 
@@ -50,6 +54,7 @@ function ProfilePage() {
           first_name: res.data.first_name,
           last_name: res.data.last_name,
           email: res.data.email,
+          organization: res.data.organization, // Add organization to formData
         });
       })
       .catch(err => {
@@ -57,6 +62,13 @@ function ProfilePage() {
         toast.error('Could not load profile');
       })
       .finally(() => setLoading(false));
+
+    // Fetch organizations for dropdown
+    axios.get('http://127.0.0.1:8000/api/users/organizations/', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => setOrganizations(res.data))
+      .catch(() => setOrganizations([]));
   }, [token]);
 
 const handleSearch = async () => {
@@ -178,7 +190,7 @@ const handleSearch = async () => {
     <div className="container mt-4">
 
       <Card className="shadow-sm p-4"> 
-        {user && ['admin', 'registrar', 'patient'].includes(user.role)  && (         
+        {user && ['admin', 'system_admin', 'registrar', 'patient'].includes(user.role)  && (         
               <div className="mb-3 d-flex justify-content-between  align-items-right">
                   <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3 w-12.5">
                   ←  Back
@@ -250,6 +262,12 @@ const handleSearch = async () => {
         <div className="mb-3 d-flex justify-content-between align-items-right">     
           <h5>User Information</h5>
         </div>
+        {/* Display organization name if available */}
+        {user.organization && (
+          <div className="mb-3">
+            <strong>Organization:</strong> {typeof user.organization === 'object' ? user.organization.name : (user.organization_name || '')}
+          </div>
+        )}
         <Form>
           {user.profile_picture && (
             <div className="mb-3 text-center">
@@ -310,6 +328,42 @@ const handleSearch = async () => {
               onChange={handleChange}
               disabled={!isEditing}
             />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Organization</Form.Label>
+            {isEditing ? (
+              <CreatableSelect
+                name="organization"
+                value={
+                  organizations
+                    .map(org => ({ value: org.id, label: org.name, id: org.id }))
+                    .find(opt => String(opt.value) === String(formData.organization)) || null
+                }
+                onChange={option => {
+                  if (option && option.__isNew__) {
+                    axios.post('http://127.0.0.1:8000/api/users/organizations/', { name: option.label }, {
+                      headers: { Authorization: `Bearer ${token}` },
+                    }).then(res => {
+                      setOrganizations(prev => [...prev, res.data]);
+                      setFormData({ ...formData, organization: res.data.id });
+                      toast.success('Organization created!');
+                    }).catch(() => toast.error('Failed to create organization'));
+                  } else {
+                    setFormData({ ...formData, organization: option ? option.value : '' });
+                  }
+                }}
+                options={organizations.map(org => ({ value: org.id, label: org.name, id: org.id }))}
+                isClearable
+                isSearchable
+                placeholder="Select or type to add organization..."
+                formatCreateLabel={inputValue => `Add "${inputValue}"`}
+              />
+            ) : (
+              <div className="form-control-plaintext">
+                {user.organization && (typeof user.organization === 'object' ? user.organization.name : (user.organization_name || ''))}
+              </div>
+            )}
           </Form.Group>
 
           {!isEditing ? (

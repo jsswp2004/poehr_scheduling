@@ -32,30 +32,36 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        # Start by limiting to the user's organization
-        queryset = Appointment.objects.filter(
-            organization=user.organization
-        ).order_by('appointment_datetime')
+        print("User:", user, "Role field:", getattr(user, 'role', None))
 
-        # Optional date filter from query params
-        date_str = self.request.query_params.get('date')
-        if date_str:
-            try:
-                date_obj = parse_date(date_str)
-                if date_obj:
-                    start_of_day = make_aware(dt.combine(date_obj, dt.min.time()))
-                    end_of_day = make_aware(dt.combine(date_obj, dt.max.time()))
-                    queryset = queryset.filter(appointment_datetime__range=(start_of_day, end_of_day))
-            except Exception as e:
-                print("Date parsing failed:", e)
+        # === ADDED: System Admin sees all organizations ===
+        if user.role == 'system_admin':
+            queryset = Appointment.objects.all().order_by('appointment_datetime')
+        else:
+            # Start by limiting to the user's organization
+            queryset = Appointment.objects.filter(
+                organization=user.organization
+            ).order_by('appointment_datetime')
 
-        # Role-based filtering
-        if user.role == 'patient':
-            queryset = queryset.filter(patient=user)
-        elif user.role == 'doctor':
-            queryset = queryset.filter(provider=user)  # optional: show only their own patients
-        elif user.role in ['registrar', 'admin']:
-            pass  # ✅ Allow access to all appointments
+            # Optional date filter from query params
+            date_str = self.request.query_params.get('date')
+            if date_str:
+                try:
+                    date_obj = parse_date(date_str)
+                    if date_obj:
+                        start_of_day = make_aware(dt.combine(date_obj, dt.min.time()))
+                        end_of_day = make_aware(dt.combine(date_obj, dt.max.time()))
+                        queryset = queryset.filter(appointment_datetime__range=(start_of_day, end_of_day))
+                except Exception as e:
+                    print("Date parsing failed:", e)
+
+            # Role-based filtering
+            if user.role == 'patient':
+                queryset = queryset.filter(patient=user)
+            elif user.role == 'doctor':
+                queryset = queryset.filter(provider=user)  # optional: show only their own patients
+            elif user.role in ['registrar', 'admin']:
+                pass  # ✅ Allow access to all appointments for their org
 
         return queryset
 
@@ -63,7 +69,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         appointment = serializer.save(
             patient=self.request.user,  # Default: patient is the current user
             organization=self.request.user.organization  # Ensure appointment is linked to the user's organization
-            # organization=self.request.user.organization  # Ensure appointment is linked to the user's organization
         )
 
         # Get provider from the request data
@@ -82,7 +87,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         patient = user  # Default: patient is the current user
 
         # Allow registrar/admin to specify a patient in request data
-        if user.role in ['registrar', 'admin']:
+        if user.role in ['registrar', 'admin', 'system_admin']:
             patient_id = self.request.data.get('patient')
             if patient_id:
                 try:
@@ -92,7 +97,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     raise ValueError("Patient not found.")
 
         appointment = serializer.save(patient=patient, provider=provider)
-
 
         # ✅ Send email to admin if created by a patient
         if self.request.user.role == 'patient':
@@ -149,7 +153,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         print("💬 Incoming update validated_data:", serializer.validated_data)
-    # Optional: get provider if it's included in update
+        # Optional: get provider if it's included in update
         provider_id = self.request.data.get('provider')
         provider = None
 
@@ -213,6 +217,8 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        if user.role == 'system_admin':
+            return Availability.objects.all().order_by('-start_time')
         return Availability.objects.filter(organization=user.organization).order_by('-start_time')
 
     def perform_create(self, serializer):
@@ -397,8 +403,6 @@ class HolidayViewSet(viewsets.ModelViewSet):
                 defaults={'is_recognized': True}  # set to False if you want unchecked by default
             )
 
-
-
 class DownloadClinicEventsTemplate(APIView):
     permission_classes = [permissions.IsAdminUser]
 
@@ -410,7 +414,6 @@ class DownloadClinicEventsTemplate(APIView):
         writer.writerow(['name', 'description', 'is_active'])  # Header row
 
         return response
-
 
 class UploadClinicEventsCSV(APIView):
     permission_classes = [permissions.IsAdminUser]

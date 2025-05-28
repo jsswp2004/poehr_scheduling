@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Table, Form, Button, Spinner, Alert, InputGroup } from 'react-bootstrap';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 
 function HolidaysTab() {
+  const navigate = useNavigate();
   const [holidayList, setHolidayList] = useState([]);
   const [buffered, setBuffered] = useState({});
   const [loading, setLoading] = useState(true);
@@ -11,6 +14,24 @@ function HolidaysTab() {
   const [yearInput, setYearInput] = useState(new Date().getFullYear());
   const [loadingYear, setLoadingYear] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+
+  // Role-based access control for admin, system_admin, and registrar only
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      const role = decoded.role || '';
+      if (role !== 'admin' && role !== 'system_admin' && role !== 'registrar') {
+        navigate('/');
+      }
+    } catch (err) {
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const loadHolidays = async () => {
     setLoading(true);

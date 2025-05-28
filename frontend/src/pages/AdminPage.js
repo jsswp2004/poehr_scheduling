@@ -2,10 +2,30 @@
 import { useNavigate } from 'react-router-dom';
 import { Button, Card } from 'react-bootstrap';
 import { FaTools, FaCalendarCheck, FaUserCog } from 'react-icons/fa';
+import { jwtDecode } from 'jwt-decode';
+import { useEffect } from 'react';
 
 
 function AdminPage() {
   const navigate = useNavigate();
+
+  // Role check for admin/system_admin
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    try {
+      const decoded = jwtDecode(token);
+      const role = decoded.role || '';
+      if (role !== 'admin' && role !== 'system_admin') {
+        navigate('/');
+      }
+    } catch (err) {
+      navigate('/login');
+    }
+  }, [navigate]);
 
   return (
     <div className="container mt-5">

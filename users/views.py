@@ -20,7 +20,6 @@ from .token_serializers import CustomTokenObtainPairSerializer
 from .models import Organization
 from rest_framework import permissions
 
-
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')  # optional
@@ -50,14 +49,12 @@ class PatientUpdateView(RetrieveUpdateAPIView):
     lookup_field = 'user__id'
     lookup_url_kwarg = 'user_id'
 
-
 class PatientDetailView(RetrieveAPIView):
     queryset = Patient.objects.select_related('user')
     serializer_class = PatientSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'user_id'
     lookup_url_kwarg = 'user_id'
-
 
 class DoctorListView(APIView):
     permission_classes = [AllowAny]
@@ -67,15 +64,11 @@ class DoctorListView(APIView):
         serializer = UserSerializer(doctors, many=True)
         return Response(serializer.data)
 
-
 class RegisterView(generics.CreateAPIView):
-
-
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
-    
     def create(self, request, *args, **kwargs):
         print("📥 Incoming registration payload:", request.data)
         data = request.data.copy()
@@ -94,10 +87,8 @@ class RegisterView(generics.CreateAPIView):
         user = serializer.save(organization=organization)  # ✅ assign org
         return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
 
-
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
-
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -105,18 +96,22 @@ def get_patients(request):
     """
     Returns a paginated list of patients:
     - If doctor: only assigned patients
-    - If registrar/admin: all patients
+    - If registrar/admin: all patients in their org
+    - If system_admin: all patients (all orgs)
     Supports search and provider filtering.
     """
     user = request.user
 
-    if user.role not in ['doctor', 'registrar', 'admin']:
+    if user.role not in ['doctor', 'registrar', 'admin', 'system_admin']:
         return Response({'detail': 'Access denied'}, status=403)
 
     if user.role == 'doctor':
         patients = Patient.objects.filter(user__provider=user)
-    else:
+    elif user.role == 'system_admin':
         patients = Patient.objects.all()
+    else:
+        # registrar or admin
+        patients = Patient.objects.filter(user__organization=user.organization)
 
     search = request.GET.get('search')
     provider_id = request.GET.get('provider')
@@ -140,7 +135,6 @@ def get_patients(request):
 
     return paginator.get_paginated_response(serializer.data)
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_password(request):
@@ -161,10 +155,11 @@ def change_password(request):
 
     return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
 
-
 @api_view(['GET'])
-@permission_classes([IsAdminUser])
+@permission_classes([IsAuthenticated])
 def search_users(request):
+    if not request.user.role in ['admin', 'system_admin']:
+        return Response({'detail': 'Access denied'}, status=403)
     query = request.GET.get('q', '')
     users = CustomUser.objects.filter(
         Q(username__icontains=query) |
@@ -175,7 +170,6 @@ def search_users(request):
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data)
 
-
 class UserViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = [
@@ -184,7 +178,6 @@ class UserViewSet(viewsets.ModelViewSet):
         'email',
         'provider__first_name',
         'provider__last_name',
-        
     ]
 
 @api_view(['POST'])
@@ -210,7 +203,7 @@ def send_sms(request):
     except Exception as e:
         print("❌ TWILIO ERROR:", e)
         return Response({'error': str(e)}, status=500)
-    
+
 from django.core.mail import send_mail
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -255,7 +248,7 @@ def send_sms_email(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def send_patient_email(request):
-    
+
     email = request.data.get('email')
     subject = request.data.get('subject', 'Message from your provider')
     message = request.data.get('message')
@@ -274,7 +267,7 @@ def send_patient_email(request):
         return Response({'message': 'Email sent successfully'})
     except Exception as e:
         return Response({'error': str(e)}, status=500)
-    
+
 class PatientDeleteView(DestroyAPIView):
     queryset = Patient.objects.all()
     serializer_class = PatientSerializer
