@@ -272,7 +272,7 @@ function PatientsPage() {
   return (
     <div className="container mt-4">
       <Tabs defaultActiveKey="patients" className="mb-3">
-        <Tab eventKey="register" title="Register">
+        <Tab eventKey="register" title="Quick Register">
           <RegisterPage adminMode={true} />
         </Tab>
         <Tab eventKey="patients" title="Patient List">
