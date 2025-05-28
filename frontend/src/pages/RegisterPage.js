@@ -4,9 +4,9 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Select from 'react-select';
 
-function RegisterPage() {
+function RegisterPage({ adminMode = false }) {
   // NEW: Patient state
-  const [isPatient, setIsPatient] = useState(true); // default to patient
+  const [isPatient, setIsPatient] = useState(adminMode ? true : true); // Always true for adminMode
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
   const [phone, setPhone] = useState('');
 
@@ -19,7 +19,7 @@ function RegisterPage() {
     password: '',
     first_name: '',
     last_name: '',
-    role: 'patient',
+    role: adminMode ? 'patient' : 'patient',
     assigned_doctor: '',
     phone_number: '',
   });
@@ -45,12 +45,11 @@ function RegisterPage() {
       return;
     }
 
-  const payload = {
-    ...formData,
-    role: isPatient ? 'patient' : (formData.role || 'none'),
-    provider: formData.assigned_doctor,
-  };
-
+    const payload = {
+      ...formData,
+      role: isPatient ? 'patient' : (formData.role || 'none'),
+      provider: formData.assigned_doctor,
+    };
 
     try {
       console.log("📤 Sending payload:", formData);
@@ -67,8 +66,9 @@ function RegisterPage() {
   return (
     <div className="container mt-5">
       <h2 className="mb-4">Register</h2>
-      {/* Patient or Other selector */}
-      {(formData.role === 'none' || formData.role === 'patient') && (
+
+      {/* Patient or Other selector - HIDDEN in adminMode */}
+      {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
         <div className="mb-3">
           <label className="form-label">Are you registering as a patient?</label>
           <div>
@@ -97,7 +97,7 @@ function RegisterPage() {
                 checked={!isPatient}
                 onChange={() => {
                   setIsPatient(false);
-                  setFormData({ ...formData, role: '' }); // or assign the chosen non-patient role elsewhere
+                  setFormData({ ...formData, role: '' });
                 }}
               />
               <label className="form-check-label" htmlFor="isPatientNo">No</label>
@@ -105,7 +105,6 @@ function RegisterPage() {
           </div>
         </div>
       )}
-
 
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
@@ -195,8 +194,8 @@ function RegisterPage() {
           />
         </div>
 
-        {/* Only show provider options for patients */}
-        {isPatient && (
+        {/* Provider question - HIDDEN in adminMode */}
+        {!adminMode && isPatient && (
           <div className="mb-3">
             <label className="form-label">Do you know/have a Primary Care Provider?</label>
             <div>
@@ -259,8 +258,8 @@ function RegisterPage() {
             )}
           </div>
         )}
-        <div className="mb-3">          
-        <button type="submit" className="btn btn-primary w-12.5">Register</button>
+        <div className="mb-3">
+          <button type="submit" className="btn btn-primary w-12.5">Register</button>
         </div>
       </form>
     </div>

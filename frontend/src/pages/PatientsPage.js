@@ -273,7 +273,7 @@ function PatientsPage() {
     <div className="container mt-4">
       <Tabs defaultActiveKey="patients" className="mb-3">
         <Tab eventKey="register" title="Register">
-          <RegisterPage />
+          <RegisterPage adminMode={true} />
         </Tab>
         <Tab eventKey="patients" title="Patient List">
           <Card className="shadow-sm ">
