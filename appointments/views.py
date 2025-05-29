@@ -66,27 +66,19 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        appointment = serializer.save(
-            patient=self.request.user,  # Default: patient is the current user
-            organization=self.request.user.organization  # Ensure appointment is linked to the user's organization
-        )
-
-        # Get provider from the request data
         provider_id = self.request.data.get('provider')
+        organization = None
         provider = None
         if provider_id:
             try:
-                # Dynamically get the User model
-                User = apps.get_model(settings.AUTH_USER_MODEL)  
-                provider = User.objects.get(id=provider_id)  # Use the actual User model
+                User = apps.get_model(settings.AUTH_USER_MODEL)
+                provider = User.objects.get(id=provider_id)
+                organization = provider.organization
             except User.DoesNotExist:
-                raise ValueError("Provider not found.")  # Handle case where provider does not exist
-
-        # Save the appointment with the associated provider
+                pass
+        # Default patient logic
         user = self.request.user
-        patient = user  # Default: patient is the current user
-
-        # Allow registrar/admin to specify a patient in request data
+        patient = user
         if user.role in ['registrar', 'admin', 'system_admin']:
             patient_id = self.request.data.get('patient')
             if patient_id:
@@ -95,8 +87,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     patient = User.objects.get(id=patient_id)
                 except User.DoesNotExist:
                     raise ValueError("Patient not found.")
-
-        appointment = serializer.save(patient=patient, provider=provider)
+        appointment = serializer.save(patient=patient, provider=provider, organization=organization)
 
         # ✅ Send email to admin if created by a patient
         if self.request.user.role == 'patient':
@@ -152,19 +143,17 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             )
 
     def perform_update(self, serializer):
-        print("💬 Incoming update validated_data:", serializer.validated_data)
-        # Optional: get provider if it's included in update
         provider_id = self.request.data.get('provider')
+        organization = None
         provider = None
-
         if provider_id:
             try:
                 User = apps.get_model(settings.AUTH_USER_MODEL)
                 provider = User.objects.get(id=provider_id)
+                organization = provider.organization
             except User.DoesNotExist:
-                raise ValueError("Provider not found.")
-
-        updated = serializer.save(provider=provider if provider else None)
+                pass
+        updated = serializer.save(provider=provider if provider else None, organization=organization)
         print(f"✅ Saved duration_minutes: {updated.duration_minutes}")
 
 

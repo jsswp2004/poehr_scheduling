@@ -43,6 +43,14 @@ class Patient(models.Model):
     phone_number = models.CharField(max_length=15, blank=True)
     address = models.CharField(max_length=255, blank=True)
     medical_history = models.TextField(blank=True)  # Example additional fields for patients
+    # Add direct organization link for easier queries
+    organization = models.ForeignKey(
+        'Organization',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='patients'
+    )
 
     def __str__(self):
         return f'{self.user.first_name} {self.user.last_name}'

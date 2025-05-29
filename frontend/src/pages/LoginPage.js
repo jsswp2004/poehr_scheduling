@@ -61,7 +61,7 @@ function LoginPage() {
       } else if (userRole === 'doctor') {
         navigate('/patients');
       } else if (userRole === 'registrar') {
-        navigate('/appointments');
+        navigate('/patients');
       } else {
         navigate('/dashboard'); // Default for patients
       }
