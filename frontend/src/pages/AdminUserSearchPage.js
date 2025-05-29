@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BackButton from '../components/BackButton';
 import Pagination from '@mui/material/Pagination';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -88,14 +88,7 @@ function AdminUserSearchPage() {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 5 }}>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/admin')}
-        sx={{ mb: 2, px: 2, py: 1, alignSelf: 'flex-start', borderRadius: 2, backgroundColor: '#f5f5f5', color: 'primary.main', fontWeight: 600, textTransform: 'none', boxShadow: 'none', '&:hover': { backgroundColor: '#e0e0e0', boxShadow: 'none' } }}
-        disableElevation
-      >
-        Back
-      </Button>
+      <BackButton to="/admin" />
       <Typography variant="h4" fontWeight={600} gutterBottom>
         Search Appointments
       </Typography>

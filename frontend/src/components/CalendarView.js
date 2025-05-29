@@ -14,6 +14,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert
 } from '@mui/material';
+import BackButton from './BackButton';
 import CloseIcon from '@mui/icons-material/Close';
 
 function CustomToolbar({ date, label, onNavigate, views, view, onView }) {
@@ -112,6 +113,8 @@ function CalendarView({ onUpdate }) {
   const [holidays, setHolidays] = useState([]);
   const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
+  const [availabilityConflict, setAvailabilityConflict] = useState(false);
+  const [providerBlocks, setProviderBlocks] = useState([]);
 
   const token = localStorage.getItem('access_token');
 
@@ -151,7 +154,6 @@ function CalendarView({ onUpdate }) {
       console.error('Failed to load clinic events:', err);
     }
   };
-
   const fetchAppointments = async () => {
     try {
       const [appointmentsRes, availabilityRes] = await Promise.all([
@@ -190,6 +192,17 @@ function CalendarView({ onUpdate }) {
         doctor_id: a.doctor,
         type: 'availability',
       }));
+
+      // Store blocked availability times separately for conflict checking
+      const blockedTimes = availabilityRes.data
+        .filter(a => a.is_blocked)
+        .map(a => ({
+          doctor_id: a.doctor,
+          start: new Date(a.start_time),
+          end: new Date(a.end_time),
+          doctor_name: a.doctor_name
+        }));
+      setProviderBlocks(blockedTimes);
 
       const combinedEvents = [...apptEvents, ...availEvents, ...holidayEvents]
         .filter(e => e && typeof e.title === 'string');
@@ -249,6 +262,54 @@ function CalendarView({ onUpdate }) {
     fetchClinicEvents();
     // eslint-disable-next-line
   }, [token]);
+  // Check if appointment time conflicts with provider's blocked availability
+  const checkAvailabilityConflict = useCallback((startDate, durationMinutes, doctorId) => {
+    // If called without params, use the current modal form data
+    const start = startDate || new Date(modalFormData.appointment_datetime);
+    const duration = durationMinutes || modalFormData.duration_minutes;
+    const provider = doctorId || (selectedDoctor?.value);
+    
+    // If we don't have all required data, no conflict
+    if (!provider || !start || !duration) {
+      return false;
+    }
+
+    const end = new Date(start.getTime() + (duration * 60 * 1000));
+    
+    // Find blocks for the selected provider
+    const doctorBlocks = providerBlocks.filter(block => {
+      // Support both data structures seen in the code
+      const blockDoctorId = block.doctor_id || block.doctor;
+      return String(blockDoctorId) === String(provider);
+    });
+    
+    // Check if appointment time overlaps with any blocked time
+    const hasConflict = doctorBlocks.some(block => {
+      const blockStart = block.start || new Date(block.start_time);
+      const blockEnd = block.end || new Date(block.end_time);
+      
+      // Check for overlap: appointment starts before block ends AND appointment ends after block starts
+      return (
+        (start >= blockStart && start < blockEnd) ||
+        (end > blockStart && end <= blockEnd) ||
+        (start <= blockStart && end >= blockEnd)
+      );
+    });
+    
+    // Only update state when called without parameters (from the form)
+    if (!startDate && !durationMinutes && !doctorId) {
+      setAvailabilityConflict(hasConflict);
+    }
+    
+    return hasConflict;
+  }, [modalFormData.appointment_datetime, modalFormData.duration_minutes, selectedDoctor, providerBlocks]);
+
+  // Check for conflicts when provider or appointment time changes
+  useEffect(() => {
+    if (selectedDoctor && modalFormData.appointment_datetime) {
+      checkAvailabilityConflict();
+    }
+  }, [selectedDoctor, modalFormData.appointment_datetime, modalFormData.duration_minutes, checkAvailabilityConflict]);
 
   const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
@@ -323,9 +384,31 @@ function CalendarView({ onUpdate }) {
         : null
     );
     setShowModal(true);
-  };
+  };  const handleModalSave = async () => {
+    // Validate required fields
+    if (!modalFormData.appointment_datetime) {
+      toast.error('Please select an appointment date and time.');
+      return;
+    }
 
-  const handleModalSave = async () => {
+    if (!selectedDoctor?.value) {
+      toast.error('Please select a provider for this appointment.');
+      return;
+    }
+    
+    // Check for availability conflicts before saving
+    const appointmentStart = new Date(modalFormData.appointment_datetime);
+    const hasConflict = checkAvailabilityConflict(
+      appointmentStart,
+      modalFormData.duration_minutes,
+      selectedDoctor.value
+    );
+    
+    if (hasConflict) {
+      toast.error('Cannot schedule appointment during provider\'s blocked time.');
+      return;
+    }
+
     const cleanTitle = modalFormData.title.split(' - ').slice(-1).join(' - ');
     const payload = {
       ...modalFormData,
@@ -471,19 +554,33 @@ function CalendarView({ onUpdate }) {
       </div>
     );
   }
+  // Removed duplicate checkAvailabilityConflict implementation
+  useEffect(() => {
+    const loadProviderBlocks = async () => {
+      if (!selectedDoctor) return;
+      try {
+        const res = await axios.get(`http://127.0.0.1:8000/api/availability/?doctor=${selectedDoctor.value}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setProviderBlocks(res.data);
+        
+        // Check for conflicts immediately after loading blocks
+        if (modalFormData.appointment_datetime) {
+          setTimeout(() => {
+            checkAvailabilityConflict();
+          }, 0);
+        }
+      } catch (err) {
+        console.error('Failed to load provider availability:', err);
+      }
+    };
+    loadProviderBlocks();
+  }, [selectedDoctor, token, modalFormData.appointment_datetime, checkAvailabilityConflict]);
 
   return (
     <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3, p: 2 }}>
-        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={() => navigate(-1)}
-            sx={{ height: 38, minWidth: 80 }}
-          >
-            ← Back
-          </Button>
+        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (          <BackButton />
         )}        
         <Box sx={{ position: 'relative', width: 300 }}>
           <TextField
@@ -580,10 +677,14 @@ function CalendarView({ onUpdate }) {
             }}
           />
 
-          <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>
-            <DialogTitle>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</DialogTitle>
+          <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>            <DialogTitle>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</DialogTitle>
             <DialogContent dividers>
               {isPast && <Alert severity="warning">⚠️ Past appointments cannot be edited.</Alert>}
+              {availabilityConflict && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  ⚠️ This time conflicts with provider's blocked availability. Please select another time.
+                </Alert>
+              )}
               <Stack spacing={2} mt={2}>
                 {/* Clinic Visit Type */}
                 <FormControl fullWidth size="small">
@@ -689,11 +790,22 @@ function CalendarView({ onUpdate }) {
                     Delete
                   </Button>
                 </Tooltip>
-              )}
-              <Tooltip title={isEditing ? 'Update appointment' : 'Save new appointment'}>
-                <Button onClick={handleModalSave} variant="contained" disabled={isEditing && isPast}>
-                  {isEditing ? 'Update' : 'Save'}
-                </Button>
+              )}              <Tooltip title={
+                availabilityConflict 
+                  ? 'Cannot save: Time conflicts with provider availability'
+                  : isEditing 
+                    ? 'Update appointment' 
+                    : 'Save new appointment'
+              }>
+                <span>
+                  <Button 
+                    onClick={handleModalSave} 
+                    variant="contained" 
+                    disabled={(isEditing && isPast) || availabilityConflict}
+                  >
+                    {isEditing ? 'Update' : 'Save'}
+                  </Button>
+                </span>
               </Tooltip>
             </DialogActions>
           </Dialog>

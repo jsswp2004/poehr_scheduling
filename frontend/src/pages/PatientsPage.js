@@ -10,6 +10,7 @@ import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { useNavigate } from 'react-router-dom';
 import CalendarView from '../components/CalendarView';
+import BackButton from '../components/BackButton';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -18,6 +19,7 @@ import {
   faDownload, faEye, faCommentDots, faEnvelope, faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import RegisterPage from './RegisterPage';
+import AppointmentsPage from './AppointmentsPage';
 
 function PatientsPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -318,8 +320,9 @@ const renderPatientTable = () => (
       >
 
         <Tab label="Quick Register" value="register" />
-        <Tab label="Patient List" value="patients" />
-        <Tab label="Calendar View" value="calendar" />
+        <Tab label="Patients" value="patients" />
+        <Tab label="Calendar" value="calendar" />
+        <Tab label="Appointments" value="appointments" />
       </Tabs>
 
       {tab === 'register' && (
@@ -330,14 +333,7 @@ const renderPatientTable = () => (
           <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
 
             {(userRole === 'admin' || userRole === 'registrar'|| userRole === 'system_admin') && (
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={() => navigate(-1)}
-                sx={{ height: 38, minWidth: 80 }}
-              >
-                ← Back
-              </Button>
+              <BackButton />
             )}
             <TextField
               fullWidth
@@ -370,7 +366,9 @@ const renderPatientTable = () => (
       {tab === 'calendar' && (
         <CalendarView />
       )}
-
+      {tab === 'appointments' && (
+        <AppointmentsPage />
+      )}
       {/* Email Modal */}
       <Dialog open={showEmailModal} onClose={() => setShowEmailModal(false)} fullWidth maxWidth="sm">
         <DialogTitle>Email Patient</DialogTitle>

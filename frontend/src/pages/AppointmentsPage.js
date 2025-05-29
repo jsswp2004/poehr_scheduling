@@ -6,7 +6,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BackButton from '../components/BackButton';
 import Pagination from '@mui/material/Pagination';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -28,7 +28,6 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
   const token = localStorage.getItem('access_token');
   const navigate = useNavigate();
   const rowsPerPage = 10;
-
   // Role check and redirect logic
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -38,7 +37,7 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
     }    try {
       const decoded = jwtDecode(token);
       const role = decoded.role || '';
-      if (role !== 'doctor' && role !== 'registrar') {
+      if (role !== 'doctor' && role !== 'registrar' && role !== 'admin' && role !== 'system_admin') {
         navigate('/');
       }      // Set admin status - allow registrars, admin and system_admin to see the admin button
       setIsAdmin(role === 'admin' || role === 'system_admin' || role === 'registrar');
@@ -174,19 +173,22 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
     const dateA = new Date(a.appointment_datetime);
     const dateB = new Date(b.appointment_datetime);
     return dateB - dateA;
-  });
-  const paginatedResults = sortedResults.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  });  const paginatedResults = sortedResults.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  
+  // Define a specific handler for back button navigation
+const handleBackNavigation = (e) => {
+  if (e) e.preventDefault(); // Protect if e is undefined
+  navigate(-1);
+};
+
+  
   return (
-    <Container maxWidth="lg" sx={{ mt: 5, mx: "auto" }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate('/patients')}
-          sx={{ px: 2, py: 1, alignSelf: 'flex-start', borderRadius: 2, backgroundColor: '#f5f5f5', color: 'primary.main', fontWeight: 600, textTransform: 'none', boxShadow: 'none', '&:hover': { backgroundColor: '#e0e0e0', boxShadow: 'none' } }}
-          disableElevation
-        >
-          Back
-        </Button>        {isAdmin && (
+    <Container maxWidth="lg" sx={{ mt: 5, mx: "auto" }}>      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+        <BackButton 
+          
+          onClick={handleBackNavigation}
+        />
+        {isAdmin && (
           <Button
             variant="contained"
             color="primary"
@@ -197,17 +199,16 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
             Management Portal
           </Button>
         )}
-      </Box>
-      <Grid container spacing={3} alignItems="flex-start" justifyContent="center">
-        {/* Left Panel: Today's Appointments */}
-        <Grid item xs={12} md={4} lg={3}>
-          <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2 }}>
+      </Box>{/* Top row with two equal panels */}
+      <Grid container spacing={3} alignItems="stretch" justifyContent="center" sx={{ mb: 4 }}>        {/* Left Panel: Today's Appointments */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <TodayIcon color="primary" sx={{ mr: 1 }} />
               <Typography variant="h6" fontWeight={600}>Today's Appointments</Typography>
             </Box>
-            <TableContainer>
-              <Table size="small">
+            <TableContainer sx={{ maxHeight: '300px', overflow: 'auto' }}>
+              <Table size="small" stickyHeader>
                 <TableHead sx={{ bgcolor: '#e3f2fd' }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold' }}>Time</TableCell>
@@ -252,9 +253,26 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
               </Table>
             </TableContainer>
           </Paper>
+        </Grid>        {/* Right Panel: Placeholder */}
+        <Grid item xs={12} md={6}>
+          <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <TodayIcon color="secondary" sx={{ mr: 1 }} />
+              <Typography variant="h6" fontWeight={600}>Placeholder Panel</Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', overflow: 'auto' }}>
+              <Typography variant="body1" color="text.secondary" align="center">
+                This panel will be used for additional functionality in the future.
+              </Typography>
+            </Box>
+          </Paper>
         </Grid>
-        {/* Right Panel: All Appointments */}
-        <Grid item xs={12} md={8} lg={9}>
+      </Grid>
+
+      {/* Bottom row with main content */}
+      <Grid container>
+        {/* Main Content: All Appointments */}
+        <Grid item xs={12}>
           <Typography variant="h4" fontWeight={600} gutterBottom>
             Appointments
           </Typography>
