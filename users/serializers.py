@@ -106,6 +106,7 @@ class PatientSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(source='user.last_name')
     provider_name = serializers.SerializerMethodField()
     last_appointment_date = serializers.SerializerMethodField()
+    organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all(), required=False, allow_null=True)
     class Meta:
         model = Patient
         fields = [
@@ -121,6 +122,7 @@ class PatientSerializer(serializers.ModelSerializer):
             'address',
             'medical_history',
             'last_appointment_date',
+            'organization',
         ]
 
     def get_last_appointment_date(self, obj):
@@ -137,8 +139,12 @@ class PatientSerializer(serializers.ModelSerializer):
         user_data = validated_data.pop('user', {})
         user = instance.user
 
+        # Update user fields
         for attr, value in user_data.items():
             setattr(user, attr, value)
+        # Also update organization on user if present
+        if 'organization' in validated_data:
+            user.organization = validated_data['organization']
         user.save()
 
         # Handle patient fields

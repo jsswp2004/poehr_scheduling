@@ -15,6 +15,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import useForceUpdate from '../utils/useForceUpdate';
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -135,6 +136,19 @@ function Navbar() {
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isAuthenticated && (
             <>
+              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin */}
+              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') && (
+                <Tooltip title="Management Portal">
+                  <IconButton
+                    color="inherit"
+                    sx={{ mr: 1 }}
+                    onClick={() => navigate('/admin/')}
+                    aria-label="Admin Panel"
+                  >
+                    <AdminPanelSettingsIcon sx={{ color: 'white' }} />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Button
                 color="inherit"
                 sx={{

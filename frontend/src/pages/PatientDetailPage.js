@@ -24,6 +24,9 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
+import Autocomplete from '@mui/material/Autocomplete';
+import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
+import InputAdornment from '@mui/material/InputAdornment';
 
 function PatientDetailPage() {
   const { id } = useParams();
@@ -33,6 +36,9 @@ function PatientDetailPage() {
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [formData, setFormData] = useState({});
   const [doctors, setDoctors] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [addressOptions, setAddressOptions] = useState([]);
+  const [addressInput, setAddressInput] = useState('');
   const token = localStorage.getItem('access_token');
 
   // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
@@ -81,9 +87,28 @@ function PatientDetailPage() {
       .catch((err) => console.error('Failed to load doctors:', err));
   }, [token]);
 
+  // Fetch organizations for dropdown
+  useEffect(() => {
+    axios
+      .get('http://127.0.0.1:8000/api/users/organizations/', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setOrganizations(res.data))
+      .catch((err) => setOrganizations([]));
+  }, [token]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      // If provider is changed, update organization to match provider's org
+      if (name === "provider") {
+        const selectedProvider = doctors.find((doc) => String(doc.id) === String(value));
+        if (selectedProvider && selectedProvider.organization) {
+          return { ...prev, provider: value, organization: selectedProvider.organization };
+        }
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -100,6 +125,54 @@ function PatientDetailPage() {
       alert('Failed to update patient.');
     }
   };
+
+  // Address Autocomplete hook
+  function GooglePlacesAutocomplete({ value, onChange, disabled }) {
+    const {
+      ready,
+      value: inputValue,
+      suggestions: { status, data },
+      setValue,
+      clearSuggestions,
+    } = usePlacesAutocomplete({ debounce: 400 });
+
+    return (
+      <Autocomplete
+        freeSolo
+        disabled={disabled}
+        options={status === "OK" ? data.map(option => option.description) : []}
+        inputValue={inputValue}
+        value={value}
+        onInputChange={(_, newInputValue, reason) => {
+          setValue(newInputValue);
+          if (reason === 'input') {
+            onChange(newInputValue);
+          }
+        }}
+        onChange={(_, newValue) => {
+          onChange(newValue || '');
+          setValue(newValue || '');
+          clearSuggestions();
+        }}
+        renderInput={(params) => (
+          <TextField {...params} label="Address" name="address" fullWidth />
+        )}
+      />
+    );
+  }
+
+  function formatPhoneNumber(value) {
+    // Remove all non-digit characters
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+  }
+
+  function formatEmail(value) {
+    // Lowercase and trim whitespace
+    return value.replace(/\s+/g, '').toLowerCase();
+  }
 
   if (!patient) return <div>Loading patient details...</div>;
 
@@ -191,8 +264,11 @@ function PatientDetailPage() {
                 label="Email"
                 name="email"
                 type="email"
-                value={formData.email || ''}
-                onChange={handleChange}
+                value={editMode ? formatEmail(formData.email || '') : (formData.email || '')}
+                onChange={e => {
+                  const val = e.target.value;
+                  setFormData(prev => ({ ...prev, email: val.replace(/\s+/g, '') }));
+                }}
                 fullWidth
                 disabled={!editMode}
                 InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
@@ -214,14 +290,38 @@ function PatientDetailPage() {
                   ))}
                 </MUISelect>
               </FormControl>
+
+              {/* Organization Selection */}
+              <FormControl fullWidth disabled={!editMode} sx={{ mt: 1 }}>
+                <InputLabel>Organization</InputLabel>
+                <MUISelect
+                  name="organization"
+                  value={formData.organization || ''}
+                  onChange={handleChange}
+                  label="Organization"
+                  sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                >
+                  <MenuItem value="">Select an organization</MenuItem>
+                  {organizations.map((org) => (
+                    <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
+                  ))}
+                </MUISelect>
+              </FormControl>
+
               <TextField
                 label="Phone Number"
                 name="phone_number"
-                value={formData.phone_number || ''}
-                onChange={handleChange}
+                value={editMode ? formatPhoneNumber(formData.phone_number || '') : (formData.phone_number || '')}
+                onChange={e => {
+                  const raw = e.target.value.replace(/\D/g, '');
+                  setFormData(prev => ({ ...prev, phone_number: raw }));
+                }}
                 fullWidth
                 disabled={!editMode}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                InputProps={{
+                  ...(editMode ? {} : { style: { color: '#333', background: '#f5f5f5' } }),
+                  startAdornment: <InputAdornment position="start">📞</InputAdornment>,
+                }}
               />
               <TextField
                 label="Date of Birth"
@@ -234,17 +334,24 @@ function PatientDetailPage() {
                 InputLabelProps={{ shrink: true }}
                 InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
               />
+              {editMode ? (
+                <GooglePlacesAutocomplete
+                  value={formData.address || ''}
+                  onChange={val => setFormData(prev => ({ ...prev, address: val }))}
+                  disabled={!editMode}
+                />
+              ) : (
+                <TextField
+                  label="Address"
+                  name="address"
+                  value={formData.address || ''}
+                  fullWidth
+                  disabled
+                  InputProps={{ style: { color: '#333', background: '#f5f5f5' } }}
+                />
+              )}
               <TextField
-                label="Address"
-                name="address"
-                value={formData.address || ''}
-                onChange={handleChange}
-                fullWidth
-                disabled={!editMode}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-              <TextField
-                label="Medical History"
+                label="Notes"
                 name="medical_history"
                 value={formData.medical_history || ''}
                 onChange={handleChange}
