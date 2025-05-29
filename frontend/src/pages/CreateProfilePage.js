@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Box, Stack, Typography, Button, TextField, InputLabel, FormControl, MenuItem, Select as MUISelect } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { notifyProfileUpdated } from '../utils/events';
 
 function CreateProfile() {
   const navigate = useNavigate();

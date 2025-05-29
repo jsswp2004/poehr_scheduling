@@ -13,6 +13,7 @@ import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import CreatableSelect from 'react-select/creatable';
+import { notifyProfileUpdated } from '../utils/events';
 
 function ProfilePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,7 +103,6 @@ function ProfilePage() {
       [e.target.name]: e.target.value,
     }));
   };
-
   const handleSave = async () => {
     try {
       const response = await axios.patch(`http://127.0.0.1:8000/api/users/${user.id}/`, formData, {
@@ -110,6 +110,10 @@ function ProfilePage() {
       });
       setUser(response.data);
       setIsEditing(false);
+      
+      // Notify navbar to refresh with updated data
+      notifyProfileUpdated();
+      
       toast.success('Profile updated!');
     } catch (error) {
       console.error('Failed to update profile', error);
@@ -146,9 +150,12 @@ function ProfilePage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
-      );
+        }      );
       setUser(res.data);
+      
+      // Notify navbar to refresh with updated profile picture
+      notifyProfileUpdated();
+      
       toast.success('Profile picture updated!');
       fileInputRef.current.value = '';
     } catch (err) {
@@ -173,10 +180,13 @@ function ProfilePage() {
         logoFormData,
         {
           headers: {
-            Authorization: `Bearer ${token}`,
-          },
+            Authorization: `Bearer ${token}`,          },
         }
       );
+      
+      // Notify navbar to refresh with updated organization logo
+      notifyProfileUpdated();
+      
       toast.success('Organization logo updated!');
     } catch (err) {
       console.error(err);

@@ -294,7 +294,7 @@ function CalendarView({ onUpdate }) {
 
   const handleSelectEvent = (event) => {
     if (event.id.toString().startsWith('avail')) {
-      toast.warn('Edits for availability are not allowed in Calendar view.');
+      //toast.warn('Edits for availability are not allowed in Calendar view.');
       return;
     }
     const past = isPastAppointment(event.start);
@@ -475,11 +475,11 @@ function CalendarView({ onUpdate }) {
   return (
     <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3, p: 2 }}>
-        {(userRole === 'admin' || userRole === 'system_admin') && (
+        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
           <Button
             variant="outlined"
             color="secondary"
-            onClick={() => navigate("/admin")}
+            onClick={() => navigate(-1)}
             sx={{ height: 38, minWidth: 80 }}
           >
             ← Back

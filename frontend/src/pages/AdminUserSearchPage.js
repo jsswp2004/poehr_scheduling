@@ -35,7 +35,7 @@ function AdminUserSearchPage() {
     try {
       const decoded = jwtDecode(token);
       const role = decoded.role || '';
-      if (role !== 'admin' && role !== 'system_admin') {
+      if (role !== 'admin' && role !== 'system_admin' && role !== 'registrar') {
         navigate('/');
       }
     } catch (err) {
