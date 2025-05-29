@@ -318,8 +318,9 @@ const renderPatientTable = () => (
           },
         }}
       >
-
-        <Tab label="Quick Register" value="register" />
+        {(userRole !== 'doctor') && (
+          <Tab label="Quick Register" value="register" />
+        )}
         <Tab label="Patients" value="patients" />
         <Tab label="Calendar" value="calendar" />
         <Tab label="Appointments" value="appointments" />
