@@ -14,6 +14,7 @@ import Avatar from '@mui/material/Avatar';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
+import useForceUpdate from '../utils/useForceUpdate';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -22,10 +23,16 @@ function Navbar() {
   const isAuthenticated = !!localStorage.getItem('access_token');
   const [logoUrl, setLogoUrl] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
-
-  useEffect(() => {
+  const forceUpdate = useForceUpdate();
+  // Function to fetch user data and update state
+  const fetchUserData = () => {
     const token = localStorage.getItem('access_token');
-    if (!token) return;
+    if (!token) {
+      setUsername('');
+      setRole('');
+      setLogoUrl(null);
+      return;
+    }
 
     try {
       const decoded = jwtDecode(token);
@@ -41,19 +48,63 @@ function Navbar() {
         const orgLogo = res.data.organization_logo;
         if (orgLogo) {
           setLogoUrl(`http://127.0.0.1:8000${orgLogo}`);
+        } else {
+          setLogoUrl(null); // Reset logo if none exists
         }
       })
       .catch(err => {
         console.error('Failed to load organization logo:', err);
+        setLogoUrl(null); // Reset logo on error
       });
     } catch (err) {
       console.error('Failed to decode JWT:', err);
+      setLogoUrl(null); // Reset logo on error
     }
-  }, [isAuthenticated]);
+  };  // Run fetchUserData on component mount and when authentication changes
+  useEffect(() => {
+    fetchUserData();
 
+    // Set up an event listener for storage changes (like tokens being updated)
+    const handleStorageChange = (e) => {
+      if (e.key === 'access_token') {
+        fetchUserData();
+      }
+    };
+
+    // Listen for custom profile update events
+    const handleProfileUpdate = () => {
+      fetchUserData();
+      forceUpdate(); // Force the navbar to re-render
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('profile-updated', handleProfileUpdate);
+    
+    // Force a refresh when the component mounts and periodically
+    const interval = setInterval(() => {
+      fetchUserData();
+    }, 30000); // Refresh every 30 seconds to catch any changes
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('profile-updated', handleProfileUpdate);
+      clearInterval(interval);
+    };
+  }, [isAuthenticated]);
+  
   const handleLogout = () => {
+    // Store a flag indicating we just logged out
+    sessionStorage.setItem('just_logged_out', 'true');
+    
+    // Remove tokens
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    
+    // Clear user data on logout
+    setUsername('');
+    setRole('');
+    setLogoUrl(null);
+    
     toast.info('Logged out!');
     navigate('/login');
   };

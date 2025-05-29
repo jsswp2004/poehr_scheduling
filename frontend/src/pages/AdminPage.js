@@ -3,24 +3,26 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, Button, Box, Typography, Divider } from '@mui/material';
 import { FaTools, FaCalendarCheck, FaUserCog, FaSearch } from 'react-icons/fa';
 import { jwtDecode } from 'jwt-decode';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 function AdminPage() {
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState('');
 
-  // Role check for admin/system_admin
+  // Role check for admin/system_admin/registrar
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (!token) {
       navigate('/login');
       return;
-    }
-    try {
+    }    try {
       const decoded = jwtDecode(token);
       const role = decoded.role || '';
-      if (role !== 'admin' && role !== 'system_admin') {
+      if (role !== 'admin' && role !== 'system_admin' && role !== 'registrar') {
         navigate('/');
       }
+      // Store the user role
+      setUserRole(role);
     } catch (err) {
       navigate('/login');
     }
@@ -28,10 +30,9 @@ function AdminPage() {
 
   return (
     <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', mt: 8 }}>
-      <Card elevation={6} sx={{ textAlign: 'center', borderRadius: 3 }}>
-        <CardContent>
+      <Card elevation={6} sx={{ textAlign: 'center', borderRadius: 3 }}>        <CardContent>
           <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
-            Configuration
+            Management Portal
           </Typography>
           <Divider sx={{ mb: 4 }} />
           <Box sx={{
@@ -56,43 +57,45 @@ function AdminPage() {
             >
               <FaCalendarCheck size={24} style={{ marginBottom: 8 }} />
               Calendar Dashboard
-            </Button>
-            <Button
-              variant="contained"
-              color="success"
-              size="large"
-              onClick={() => navigate('/settings')}
-              sx={{
-                width: 120,
-                height: 120,
-                flexDirection: 'column',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center'
-              }}
-            >
-              <FaTools size={24} style={{ marginBottom: 8 }} />
-              Settings
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              size="large"
-              onClick={() => navigate('/profile')}
-              sx={{
-                width: 120,
-                height: 120,
-                flexDirection: 'column',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                textAlign: 'center'
-              }}
-            >
-              <FaUserCog size={24} style={{ marginBottom: 8 }} />
-              Profile
-            </Button>
+            </Button>            {(userRole === 'admin' || userRole === 'system_admin') && (
+              <Button
+                variant="contained"
+                color="success"
+                size="large"
+                onClick={() => navigate('/settings')}
+                sx={{
+                  width: 120,
+                  height: 120,
+                  flexDirection: 'column',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center'
+                }}
+              >
+                <FaTools size={24} style={{ marginBottom: 8 }} />
+                Settings
+              </Button>
+            )}            {(userRole === 'admin' || userRole === 'system_admin') && (
+              <Button
+                variant="contained"
+                color="secondary"
+                size="large"
+                onClick={() => navigate('/profile')}
+                sx={{
+                  width: 120,
+                  height: 120,
+                  flexDirection: 'column',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center'
+                }}
+              >
+                <FaUserCog size={24} style={{ marginBottom: 8 }} />
+                Profile
+              </Button>
+            )}
             <Button
               variant="contained"
               color="info"

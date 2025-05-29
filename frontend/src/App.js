@@ -18,6 +18,7 @@ import HolidaysTab from './pages/HolidaysPage';
 import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
 import AdminUserSearchPage from './pages/AdminUserSearchPage';
 import EditAppointmentPage from './pages/EditAppointmentPage';
+import AppointmentsPage from './pages/AppointmentsPage';
 
 
 
@@ -43,6 +44,7 @@ function App() {
         <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />
         <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />
+        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />
         {/* Add more routes as needed */}
 
 

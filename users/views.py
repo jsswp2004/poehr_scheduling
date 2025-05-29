@@ -68,15 +68,16 @@ class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
-
+    
     def create(self, request, *args, **kwargs):
         print("📥 Incoming registration payload:", request.data)
         data = request.data.copy()
         org_name = data.get('organization_name')
 
+        # If organization name not provided, use a default one
         if not org_name:
-            return Response({'error': 'Organization name is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
+            org_name = "Default Organization"
+        
         # Look for existing org, or create a new one
         organization, _ = Organization.objects.get_or_create(name=org_name)
 

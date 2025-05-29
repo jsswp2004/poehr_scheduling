@@ -1,5 +1,5 @@
 import { toast } from 'react-toastify'; 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from "jwt-decode";
@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
+import { notifyProfileUpdated, refreshAuthState } from '../utils/events';
 
 
 function LoginPage() {
@@ -18,6 +19,15 @@ function LoginPage() {
     username: '',
     password: ''
   });
+  
+  // Check if we just logged out
+  useEffect(() => {
+    const justLoggedOut = sessionStorage.getItem('just_logged_out');
+    if (justLoggedOut) {
+      // Clear the flag
+      sessionStorage.removeItem('just_logged_out');
+    }
+  }, []);
 
   const handleChange = (e) => {
     setFormData({
@@ -35,20 +45,22 @@ function LoginPage() {
       // Store tokens
       localStorage.setItem('access_token', access);
       localStorage.setItem('refresh_token', refresh);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-
-      // Decode token to get role
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;      // Decode token to get role
       const decoded = jwtDecode(access);
       const userRole = decoded.role;
+      
+      // Notify navbar to refresh with new user data
+      notifyProfileUpdated();
+      refreshAuthState();
 
       toast.success('Login successful!');
 
       // Redirect based on role
       if (userRole === 'admin' || userRole === 'system_admin') {
         navigate('/admin');
-      } else if (userRole === 'doctor' || userRole === 'registrar') {
+      } else if (userRole === 'doctor') {
         navigate('/patients');
-      } else if (userRole === 'receptionist') {
+      } else if (userRole === 'registrar') {
         navigate('/appointments');
       } else {
         navigate('/dashboard'); // Default for patients

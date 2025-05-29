@@ -36,6 +36,9 @@ function PatientsPage() {
   const [sizePerPage, setSizePerPage] = useState(10);
   const [totalSize, setTotalSize] = useState(0);
   const navigate = useNavigate();
+  const rowsPerPage = 15;
+  const totalPages = Math.ceil(patients.length / rowsPerPage);
+  const paginatedPatients = patients.slice((page - 1) * rowsPerPage, page * rowsPerPage);
 
   const token = localStorage.getItem('access_token');
   let userRole = null;
@@ -186,13 +189,15 @@ function PatientsPage() {
   };
 
   // --- Render Table for Patient List ---
-  const renderPatientTable = () => (
-    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
-      {loading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
+  
+const renderPatientTable = () => (
+  <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+    {loading ? (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <CircularProgress />
+      </Box>
+    ) : (
+      <>
         <TableContainer>
           <Table size="small" stickyHeader>
             <TableHead>
@@ -205,14 +210,14 @@ function PatientsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {patients.length === 0 ? (
+              {paginatedPatients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>
                     No patients found.
                   </TableCell>
                 </TableRow>
               ) : (
-                patients.map((patient) => (
+                paginatedPatients.map((patient) => (
                   <TableRow key={patient.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
                     <TableCell>{patient.full_name}</TableCell>
                     <TableCell>{patient.email}</TableCell>
@@ -246,12 +251,36 @@ function PatientsPage() {
             </TableBody>
           </Table>
         </TableContainer>
-      )}
-    </Paper>
-  );
+        <Box display="flex" justifyContent="center" alignItems="center" py={2}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setPage(page - 1)}
+            disabled={page === 1}
+            sx={{ mx: 1 }}
+          >
+            Prev
+          </Button>
+          <span>Page {page} of {totalPages}</span>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setPage(page + 1)}
+            disabled={page === totalPages}
+            sx={{ mx: 1 }}
+          >
+            Next
+          </Button>
+        </Box>
+      </>
+    )}
+  </Paper>
+);
+
 
   return (
     <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+
       <Tabs
         value={tab}
         onChange={(_, val) => setTab(val)}
@@ -287,10 +316,12 @@ function PatientsPage() {
           },
         }}
       >
+
         <Tab label="Quick Register" value="register" />
         <Tab label="Patient List" value="patients" />
         <Tab label="Calendar View" value="calendar" />
       </Tabs>
+
       {tab === 'register' && (
         <RegisterPage adminMode={true} />
       )}
@@ -298,11 +329,11 @@ function PatientsPage() {
         <>
           <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
 
-            {(userRole === 'admin' || userRole === 'system_admin') && (
+            {(userRole === 'admin' || userRole === 'registrar'|| userRole === 'system_admin') && (
               <Button
                 variant="outlined"
                 color="secondary"
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate(-1)}
                 sx={{ height: 38, minWidth: 80 }}
               >
                 ← Back
