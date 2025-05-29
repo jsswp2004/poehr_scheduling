@@ -1,10 +1,14 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { Container, Paper, Typography, TextField, Button, Alert } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 
 function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,34 +26,38 @@ function ForgotPasswordPage() {
   };
 
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6">
-          <h3 className="mb-4">Forgot Password</h3>
-          {submitted ? (
-            <div className="alert alert-success">
-              Check your email for the password reset link.
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label htmlFor="email" className="form-label">Email address</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  id="email"
-                  placeholder="Enter your registered email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <button type="submit" className="btn btn-primary w-100">Send Reset Link</button>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
+    <Container maxWidth="sm" sx={{ mt: 8 }}>
+      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
+        <Button variant="outlined" startIcon={<ArrowBackIcon />} sx={{ mb: 2 }} onClick={() => navigate(-1)}>
+          Back
+        </Button>
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
+          Forgot Password
+        </Typography>
+        {submitted ? (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            Check your email for the password reset link.
+          </Alert>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <TextField
+              label="Email address"
+              type="email"
+              placeholder="Enter your registered email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              fullWidth
+              size="small"
+              sx={{ mb: 3 }}
+            />
+            <Button type="submit" variant="contained" color="primary" size="large" fullWidth>
+              Send Reset Link
+            </Button>
+          </form>
+        )}
+      </Paper>
+    </Container>
   );
 }
 

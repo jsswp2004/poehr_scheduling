@@ -1,13 +1,12 @@
-import { toast } from 'react-toastify';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Box, Stack, Typography, Button, TextField, InputLabel, FormControl, MenuItem, Select as MUISelect } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import Select from 'react-select';
+import { toast } from 'react-toastify';
 
 function CreateProfile() {
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
-
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -17,6 +16,7 @@ function CreateProfile() {
     role: 'patient', // still defaulting to patient
     profile_picture: null,
   });
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     axios.get('http://127.0.0.1:8000/api/users/doctors/')
@@ -25,24 +25,24 @@ function CreateProfile() {
   }, []);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const { name, value, files } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: files ? files[0] : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+    setSubmitting(true);
+
     const formPayload = new FormData();
-  
-    // Append only existing fields
     for (const key in formData) {
       if (formData[key]) {
         formPayload.append(key, formData[key]);
       }
     }
-  
+
     try {
       await axios.post('http://127.0.0.1:8000/api/auth/register/', formPayload, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -52,57 +52,85 @@ function CreateProfile() {
     } catch (error) {
       console.error('Registration error:', error);
       toast.error('Registration failed. Please try again.');
+    } finally {
+      setSubmitting(false);
     }
   };
-  
 
   return (
-    <div className="container mt-5">
-      <h2 className="mb-4">Create Profile</h2>
-      <form onSubmit={handleSubmit}>
-        {['first_name', 'last_name', 'username', 'email', 'password'].map((field) => (
-          <div className="mb-3" key={field}>
-            <label className="form-label">{field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</label>
-            <input
+    <Box sx={{ mt: 6, mx: 'auto', maxWidth: 440, p: 4, boxShadow: 3, borderRadius: 2, bgcolor: 'background.paper' }}>
+      <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>
+        Back
+      </Button>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
+        Create Profile
+      </Typography>
+      <form onSubmit={handleSubmit} encType="multipart/form-data">
+        <Stack spacing={2}>
+          {['first_name', 'last_name', 'username', 'email', 'password'].map((field) => (
+            <TextField
+              key={field}
+              label={field.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
               type={field === 'password' ? 'password' : 'text'}
               name={field}
-              className="form-control"
               onChange={handleChange}
               value={formData[field]}
+              fullWidth
               required
+              size="small"
             />
-          </div>
-        ))}
-        <div className="mb-3">
-        <label className="form-label">Profile Picture</label>
-        <input
-            type="file"
-            className="form-control"
-            onChange={(e) => setFormData({ ...formData, profile_picture: e.target.files[0] })}
-            accept="image/*"
-        />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Role</label>
-          <select
-            name="role"
-            className="form-select"
-            onChange={handleChange}
-            value={formData.role}
-            required
+          ))}
+
+          <Button
+            variant="outlined"
+            component="label"
+            sx={{ textAlign: 'left', justifyContent: 'flex-start' }}
           >
-            <option value="">Select a role</option>
-            <option value="receptionist">Receptionist</option>
-            <option value="doctor">Doctor</option>
-            <option value="admin">Admin</option>
-            <option value="registrar">Registrar</option>
-          </select>
-        </div>
+            Upload Profile Picture
+            <input
+              type="file"
+              name="profile_picture"
+              accept="image/*"
+              hidden
+              onChange={handleChange}
+            />
+          </Button>
+          {formData.profile_picture && (
+            <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1 }}>
+              {formData.profile_picture.name}
+            </Typography>
+          )}
 
+          <FormControl fullWidth size="small">
+            <InputLabel id="role-label">Role</InputLabel>
+            <MUISelect
+              labelId="role-label"
+              name="role"
+              value={formData.role}
+              label="Role"
+              onChange={handleChange}
+              required
+            >
+              <MenuItem value=""><em>Select a role</em></MenuItem>
+              <MenuItem value="receptionist">Receptionist</MenuItem>
+              <MenuItem value="doctor">Doctor</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+              <MenuItem value="registrar">Registrar</MenuItem>
+            </MUISelect>
+          </FormControl>
 
-        <button type="submit" className="btn btn-primary w-12.5">Save</button>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={submitting}
+            fullWidth
+          >
+            {submitting ? 'Saving...' : 'Save'}
+          </Button>
+        </Stack>
       </form>
-    </div>
+    </Box>
   );
 }
 

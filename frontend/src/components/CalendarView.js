@@ -1,22 +1,23 @@
-import { Calendar, momentLocalizer} from 'react-big-calendar';
+import { Calendar, momentLocalizer } from 'react-big-calendar';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { parseISO } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
-import { Modal, Button, Form, Row, Col, OverlayTrigger, Tooltip } from 'react-bootstrap';
 import { toast } from 'react-toastify';
-import Select from 'react-select';
+import Select from 'react-select'; // Only for outside modal; can use MUI Autocomplete if you want.
 import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
-import 'react-datepicker/dist/react-datepicker.css';
-// Place at the top of your CalendarView.js
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 function CustomToolbar({ date, label, onNavigate, views, view, onView }) {
   const [showPicker, setShowPicker] = useState(false);
-
   return (
     <div className="rbc-toolbar d-flex align-items-center justify-content-between mb-2">
       <span className="rbc-btn-group">
@@ -53,7 +54,6 @@ function CustomToolbar({ date, label, onNavigate, views, view, onView }) {
         </span>
         <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('NEXT')}>&gt;</button>
       </span>
-      {/* 🟢 View Switch Buttons */}
       <span className="rbc-btn-group ms-2">
         {views.map(v => (
           <button
@@ -89,7 +89,7 @@ function toLocalDatetimeString(dateObj) {
 }
 
 function CalendarView({ onUpdate }) {
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -113,7 +113,6 @@ function CalendarView({ onUpdate }) {
   const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
 
-
   const token = localStorage.getItem('access_token');
 
   let userRole = null;
@@ -127,11 +126,8 @@ function CalendarView({ onUpdate }) {
   }
 
   let defaultView = 'month';
-  if (userRole === 'doctor') {
-    defaultView = 'day';
-  } else if (userRole === 'registrar') {
-    defaultView = 'work_week';
-  }
+  if (userRole === 'doctor') defaultView = 'day';
+  else if (userRole === 'registrar') defaultView = 'work_week';
   const [currentView, setCurrentView] = useState(defaultView);
 
   const fetchDoctors = async () => {
@@ -140,7 +136,6 @@ function CalendarView({ onUpdate }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDoctors(res.data);
-      console.log("Fetched doctors:", res.data);
     } catch (err) {
       console.error('Failed to load doctors:', err);
     }
@@ -160,14 +155,9 @@ function CalendarView({ onUpdate }) {
   const fetchAppointments = async () => {
     try {
       const [appointmentsRes, availabilityRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/appointments/', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
-        axios.get('http://127.0.0.1:8000/api/availability/', {
-          headers: { Authorization: `Bearer ${token}` },
-        }),
+        axios.get('http://127.0.0.1:8000/api/appointments/', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('http://127.0.0.1:8000/api/availability/', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
-      console.log("📥 Appointments response:", appointmentsRes.data);
 
       const apptEvents = appointmentsRes.data.map((appt) => ({
         id: `appt-${appt.id}`,
@@ -202,21 +192,15 @@ function CalendarView({ onUpdate }) {
       }));
 
       const combinedEvents = [...apptEvents, ...availEvents, ...holidayEvents]
-      .filter(e => e && typeof e.title === 'string');
-
-      console.log("🧠 Mapped events with duration:", apptEvents);
-
+        .filter(e => e && typeof e.title === 'string');
 
       setEvents([]);
       setTimeout(() => setEvents(combinedEvents), 50);
-      console.log("🗓️ Combined events:", combinedEvents);
-
     } catch (error) {
       console.error('Failed to load calendar data:', error);
     }
   };
 
-  // --- Blocked Days Fetch ---
   const fetchBlockedDays = async () => {
     try {
       const token = localStorage.getItem('access_token');
@@ -229,8 +213,6 @@ function CalendarView({ onUpdate }) {
     }
   };
 
-
-// Fetch recognized holidays
   useEffect(() => {
     async function fetchHolidays() {
       try {
@@ -238,9 +220,7 @@ function CalendarView({ onUpdate }) {
         const res = await axios.get('http://127.0.0.1:8000/api/holidays/', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        // Only keep holidays that are recognized
         setHolidays(res.data.filter(h => h.is_recognized));
-        console.log('Loaded recognized holidays:', res.data.filter(h => h.is_recognized));
       } catch (err) {
         console.error('Failed to load holidays:', err);
       }
@@ -248,10 +228,9 @@ function CalendarView({ onUpdate }) {
     fetchHolidays();
   }, []);
 
-  // Map recognized holidays as events
+  // Map holidays as events
   const holidayEvents = holidays.map(h => {
     const start = new Date(h.date + 'T00:00:00');
-    // End is next day at midnight (to show full all-day block)
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     return {
@@ -264,25 +243,21 @@ function CalendarView({ onUpdate }) {
     };
   });
 
-  console.log("🧠 Mapped holidays:", holidayEvents);
-
   useEffect(() => {
     fetchDoctors().then(() => fetchAppointments());
     fetchBlockedDays();
     fetchClinicEvents();
+    // eslint-disable-next-line
   }, [token]);
 
   const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
 
-  // --- BLOCKED DAYS ENFORCEMENT ---
   const handleSelectSlot = ({ start }) => {
-    if (userRole !== 'patient') {
-      return;
-    }
+    if (userRole !== 'patient') return;
     const day = start.getDay();
 
-    const isSameDay = (dateA, dateB) => 
+    const isSameDay = (dateA, dateB) =>
       dateA.getFullYear() === dateB.getFullYear() &&
       dateA.getMonth() === dateB.getMonth() &&
       dateA.getDate() === dateB.getDate();
@@ -292,14 +267,7 @@ function CalendarView({ onUpdate }) {
       return isSameDay(holidayDate, start);
     });
 
-
-
     if (blockedDays.includes(day) || isHoliday) {
-      toast.warning('This day is blocked for scheduling.');
-      return;
-    }
-
-    if (blockedDays.includes(day)) {
       toast.warning('This day is blocked for scheduling.');
       return;
     }
@@ -329,7 +297,6 @@ function CalendarView({ onUpdate }) {
       toast.warn('Edits for availability are not allowed in Calendar view.');
       return;
     }
-
     const past = isPastAppointment(event.start);
     setIsPast(past);
     setIsEditing(true);
@@ -349,14 +316,12 @@ function CalendarView({ onUpdate }) {
     setSelectedClinicEvent(
       matchedEvent ? { value: matchedEvent.id, label: matchedEvent.name } : null
     );
-
     const matchedDoctor = doctors.find(doc => doc.id === event.provider);
     setSelectedDoctor(
       matchedDoctor
         ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` }
         : null
     );
-
     setShowModal(true);
   };
 
@@ -367,7 +332,6 @@ function CalendarView({ onUpdate }) {
       title: selectedClinicEvent?.label || cleanTitle,
       provider: selectedDoctor?.value || null,
     };
-    // For admin and system_admin, allow setting patient (if modalFormData.patient is present)
     if ((userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') && modalFormData.patient) {
       payload.patient = modalFormData.patient;
     }
@@ -425,8 +389,6 @@ function CalendarView({ onUpdate }) {
   const eventStyleGetter = (event) => {
     const now = new Date();
     const isPast = new Date(event.start) < now;
-
-    // 🎉 Holiday styling comes first
     if (event.type === 'holiday') {
       return {
         style: {
@@ -437,15 +399,12 @@ function CalendarView({ onUpdate }) {
         }
       };
     }
-
     let backgroundColor = isPast ? '#6c757d' : '#0d6efd';
-
     if (event.type === 'availability') {
       backgroundColor = event.is_blocked
         ? '#f8d7da'
         : '#d1e7dd';
     }
-
     return {
       style: {
         backgroundColor,
@@ -458,21 +417,16 @@ function CalendarView({ onUpdate }) {
     };
   };
 
-
-  // --- BLOCKED DAYS: gray out in calendar ---
   const dayPropGetter = (date) => {
     const day = date.getDay();
-    // Check if this date matches any recognized holiday
-    const isSameDay = (dateA, dateB) => 
+    const isSameDay = (dateA, dateB) =>
       dateA.getFullYear() === dateB.getFullYear() &&
       dateA.getMonth() === dateB.getMonth() &&
       dateA.getDate() === dateB.getDate();
-
     const isHoliday = holidays.some(h => {
       const holidayDate = new Date(h.date + 'T00:00:00');
       return isSameDay(holidayDate, date);
     });
-
     if (blockedDays.includes(day) || isHoliday) {
       return {
         className: 'disabled-day',
@@ -485,10 +439,8 @@ function CalendarView({ onUpdate }) {
     }
     return {};
   };
- 
-  // A custom date header that displays the holiday name if that day is a holiday and allows clicking the date to go to day view.
+
   function CustomDateHeader({ date, holidays, setCurrentView, setCurrentDate }) {
-    // Find if this date is a holiday
     const holiday = holidays.find(h => {
       const holidayDate = new Date(h.date + 'T00:00:00');
       return (
@@ -497,14 +449,11 @@ function CalendarView({ onUpdate }) {
         holidayDate.getDate() === date.getDate()
       );
     });
-
-    // Handler for clicking the date number
     const handleClick = (e) => {
       e.stopPropagation();
       setCurrentView('day');
       setCurrentDate(date);
     };
-
     return (
       <div style={{ minHeight: 32 }}>
         <span
@@ -523,45 +472,42 @@ function CalendarView({ onUpdate }) {
     );
   }
 
-
-  // --- For debugging only ---
-  // console.log("All events:", events);
-  // console.log("Selected doctor:", selectedDoctor); 
-  // console.log("User role:", userRole); 
-  console.log("Blocked days:", blockedDays);
   return (
-    <div className="card mt-4">
-      <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
-        <div className="d-flex align-items-center gap-2">
-          <div className="position-relative" style={{ width: '300px' }}>
-            <Form.Control
-              type="text"
-              placeholder="Search appointments..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ height: '38px' }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
-                className="btn btn-sm btn-light position-absolute"
-                style={{
-                  right: '8px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  padding: '0 6px',
-                  borderRadius: '50%',
-                  lineHeight: '1',
-                }}
-              >
-                &times;
-              </button>
-            )}
-          </div>
-        </div>
+    <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
+      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3, p: 2 }}>
+        {(userRole === 'admin' || userRole === 'system_admin') && (
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={() => navigate("/admin")}
+            sx={{ height: 38, minWidth: 80 }}
+          >
+            ← Back
+          </Button>
+        )}        
+        <Box sx={{ position: 'relative', width: 300 }}>
+          <TextField
+            fullWidth
+            size="small"
+            variant="outlined"
+            placeholder="Search appointments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            InputProps={{
+              endAdornment: searchQuery && (
+                <IconButton
+                  size="small"
+                  onClick={() => setSearchQuery('')}
+                  sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              )
+            }}
+          />
+        </Box>
         {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
-          <div style={{ width: '300px' }}>
+          <Box sx={{ width: 300 }}>
             <Select
               options={doctors.map((doc) => ({
                 value: doc.id,
@@ -572,33 +518,16 @@ function CalendarView({ onUpdate }) {
               onChange={setSelectedDoctor}
               isClearable
               styles={{
-                control: (base) => ({
-                  ...base,
-                  height: 38,
-                  minHeight: 38,
-                }),
-                menu: (base) => ({
-                  ...base,
-                  zIndex: 9999,
-                }),
+                control: (base) => ({ ...base, height: 38, minHeight: 38 }),
+                menu: (base) => ({ ...base, zIndex: 9999 }),
               }}
             />
-          </div>
+          </Box>
         )}
-        {(userRole === 'admin' || userRole === 'system_admin') && (
-        <Button
-          variant="outline-secondary"
-          onClick={() => navigate("/admin")}
-          style={{ height: '38px', padding: '0 12px' }}
-          className="btn w-12.5"
-        >
-          ← Back
-        </Button>
-        )}
-      </div>
 
-      <div className="card-body">
-        <div style={{ height: '600px', maxWidth: '100%' }}>
+      </Stack>
+      <Box className="card-body">
+        <Box sx={{ height: 600, maxWidth: '100%' }}>
           <Calendar
             localizer={localizer}
             events={events
@@ -607,7 +536,6 @@ function CalendarView({ onUpdate }) {
                   return false;
                 }
                 if (event.type === 'appointment') {
-                  // Always filter by searchQuery for all users
                   return event.title.toLowerCase().includes(searchQuery.toLowerCase());
                 }
                 return true;
@@ -635,7 +563,6 @@ function CalendarView({ onUpdate }) {
             max={new Date(1970, 1, 1, 18, 0, 0)}
             step={15}
             timeslots={2}
-            // 🟢 THIS IS ALL YOU NEED FOR BOTH TOOLBAR AND DATE HEADER:
             components={{
               toolbar: (toolbarProps) => (
                 <CustomToolbar {...toolbarProps} />
@@ -653,136 +580,126 @@ function CalendarView({ onUpdate }) {
             }}
           />
 
-          <Modal show={showModal} onHide={() => setShowModal(false)}>
-            <Modal.Header closeButton>
-              <Modal.Title>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-              {isPast && <div className="alert alert-warning">⚠️ Past appointments cannot be edited.</div>}
-
-              <Form>
-                <Form.Group className="mb-3">
-                  <Form.Label>Clinic Visit Type</Form.Label>
-                  <Select
-                    options={clinicEvents.map(evt => ({
-                      value: evt.id,
-                      label: evt.name
-                    }))}
-                    placeholder="Select clinic visit..."
-                    value={selectedClinicEvent}
-                    onChange={(selected) => {
-                      setSelectedClinicEvent(selected);
-                      setModalFormData(prev => ({
-                        ...prev,
-                        title: selected ? selected.label : ''
-                      }));
-                    }}
-                    isClearable
-                    isDisabled={isPast}
-                    styles={{
-                      menu: (base) => ({ ...base, zIndex: 9999 }),
-                    }}
-                  />
-                </Form.Group>
-
-
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Description</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={modalFormData.description}
-                    onChange={(e) => setModalFormData({ ...modalFormData, description: e.target.value })}
-                    disabled={isPast}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Date & Time</Form.Label>
-                  <Form.Control
-                    type="datetime-local"
-                    value={modalFormData.appointment_datetime}
-                    onChange={(e) => setModalFormData({ ...modalFormData, appointment_datetime: e.target.value })}
-                    disabled={isPast}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Duration (minutes)</Form.Label>
-                  <Form.Control
-                    type="number"
-                    value={modalFormData.duration_minutes}
+          <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>
+            <DialogTitle>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</DialogTitle>
+            <DialogContent dividers>
+              {isPast && <Alert severity="warning">⚠️ Past appointments cannot be edited.</Alert>}
+              <Stack spacing={2} mt={2}>
+                {/* Clinic Visit Type */}
+                <FormControl fullWidth size="small">
+                  <InputLabel id="clinic-event-label">Clinic Visit Type</InputLabel>
+                  <MUISelect
+                    labelId="clinic-event-label"
+                    value={selectedClinicEvent ? selectedClinicEvent.value : ''}
+                    label="Clinic Visit Type"
                     onChange={(e) => {
-                      const value = parseInt(e.target.value) || 0;
-                      setModalFormData({ ...modalFormData, duration_minutes: value })
+                      const selected = clinicEvents.find(evt => evt.id === e.target.value);
+                      setSelectedClinicEvent(selected ? { value: selected.id, label: selected.name } : null);
+                      setModalFormData(prev => ({ ...prev, title: selected ? selected.name : '' }));
                     }}
                     disabled={isPast}
-                  />
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Recurrence</Form.Label>
-                  <Form.Select
+                  >
+                    <MenuItem value=""><em>None</em></MenuItem>
+                    {clinicEvents.map(evt => (
+                      <MenuItem key={evt.id} value={evt.id}>{evt.name}</MenuItem>
+                    ))}
+                  </MUISelect>
+                </FormControl>
+                {/* Description */}
+                <TextField
+                  label="Description"
+                  multiline
+                  minRows={3}
+                  value={modalFormData.description}
+                  onChange={(e) => setModalFormData({ ...modalFormData, description: e.target.value })}
+                  disabled={isPast}
+                  fullWidth
+                  size="small"
+                />
+                {/* Date & Time */}
+                <TextField
+                  label="Date & Time"
+                  type="datetime-local"
+                  value={modalFormData.appointment_datetime}
+                  onChange={(e) => setModalFormData({ ...modalFormData, appointment_datetime: e.target.value })}
+                  disabled={isPast}
+                  fullWidth
+                  size="small"
+                  InputLabelProps={{ shrink: true }}
+                />
+                {/* Duration */}
+                <TextField
+                  label="Duration (minutes)"
+                  type="number"
+                  value={modalFormData.duration_minutes}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value) || 0;
+                    setModalFormData({ ...modalFormData, duration_minutes: value })
+                  }}
+                  disabled={isPast}
+                  fullWidth
+                  size="small"
+                />
+                {/* Recurrence */}
+                <FormControl fullWidth size="small">
+                  <InputLabel id="recurrence-label">Recurrence</InputLabel>
+                  <MUISelect
+                    labelId="recurrence-label"
                     value={modalFormData.recurrence}
+                    label="Recurrence"
                     onChange={(e) => setModalFormData({ ...modalFormData, recurrence: e.target.value })}
                     disabled={isPast}
                   >
-                    <option value="none">None</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </Form.Select>
-                </Form.Group>
-
-                <Form.Group className="mb-3">
-                  <Form.Label>Select Doctor</Form.Label>
-                  <Select
-                    options={doctors.map((doc) => ({
-                      value: doc.id,
-                      label: `Dr. ${doc.first_name} ${doc.last_name}`,
-                    }))}
-                    placeholder="Assign a doctor..."
-                    value={selectedDoctor}
-                    onChange={setSelectedDoctor}
-                    isClearable
-                    isDisabled={isPast}
-                    styles={{
-                      menu: (base) => ({
-                        ...base,
-                        zIndex: 9999,
-                      }),
+                    <MenuItem value="none">None</MenuItem>
+                    <MenuItem value="daily">Daily</MenuItem>
+                    <MenuItem value="weekly">Weekly</MenuItem>
+                    <MenuItem value="monthly">Monthly</MenuItem>
+                  </MUISelect>
+                </FormControl>
+                {/* Select Doctor */}
+                <FormControl fullWidth size="small">
+                  <InputLabel id="doctor-label">Select Doctor</InputLabel>
+                  <MUISelect
+                    labelId="doctor-label"
+                    value={selectedDoctor ? selectedDoctor.value : ''}
+                    label="Select Doctor"
+                    onChange={(e) => {
+                      const selected = doctors.find(doc => doc.id === e.target.value);
+                      setSelectedDoctor(selected ? { value: selected.id, label: `Dr. ${selected.first_name} ${selected.last_name}` } : null);
                     }}
-                  />
-                </Form.Group>
-              </Form>
-            </Modal.Body>
-            <Modal.Footer>
-              <OverlayTrigger placement="top" overlay={<Tooltip>Close without saving</Tooltip>}>
-                <Button variant="secondary" onClick={() => setShowModal(false)}>
+                    disabled={isPast}
+                  >
+                    <MenuItem value=""><em>None</em></MenuItem>
+                    {doctors.map(doc => (
+                      <MenuItem key={doc.id} value={doc.id}>{`Dr. ${doc.first_name} ${doc.last_name}`}</MenuItem>
+                    ))}
+                  </MUISelect>
+                </FormControl>
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Tooltip title="Close without saving">
+                <Button onClick={() => setShowModal(false)} color="secondary">
                   Cancel
                 </Button>
-              </OverlayTrigger>
+              </Tooltip>
               {isEditing && !isPast && (
-                <OverlayTrigger placement="top" overlay={<Tooltip>Delete this appointment</Tooltip>}>
-                  <Button variant="danger" onClick={handleDeleteAppointment}>
+                <Tooltip title="Delete this appointment">
+                  <Button color="error" onClick={handleDeleteAppointment}>
                     Delete
                   </Button>
-                </OverlayTrigger>
+                </Tooltip>
               )}
-              <OverlayTrigger
-                placement="top"
-                overlay={<Tooltip>{isEditing ? 'Update appointment' : 'Save new appointment'}</Tooltip>}
-              >
-                <Button variant="primary" onClick={handleModalSave} disabled={isEditing && isPast}>
+              <Tooltip title={isEditing ? 'Update appointment' : 'Save new appointment'}>
+                <Button onClick={handleModalSave} variant="contained" disabled={isEditing && isPast}>
                   {isEditing ? 'Update' : 'Save'}
                 </Button>
-              </OverlayTrigger>
-            </Modal.Footer>
-          </Modal>
-        </div>
-      </div>
-    </div>
+              </Tooltip>
+            </DialogActions>
+          </Dialog>
+        </Box>
+      </Box>
+    </Box>
   );
 }
 

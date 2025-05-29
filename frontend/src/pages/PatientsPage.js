@@ -1,21 +1,11 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 import {
-  Card,
-  Form,
-  Button,
-  Row,
-  Col,
-  Spinner,
-  Tabs,
-  Tab,
-  Modal,
-  OverlayTrigger,
-  Tooltip,
-} from 'react-bootstrap';
-import BootstrapTable from 'react-bootstrap-table-next';
-import paginationFactory from 'react-bootstrap-table2-paginator';
-import filterFactory, { textFilter } from 'react-bootstrap-table2-filter';
+  Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
+  TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
+  Alert, CircularProgress, Tabs, Tab
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { useNavigate } from 'react-router-dom';
@@ -25,11 +15,7 @@ import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faDownload,
-  faEye,
-  faCommentDots,
-  faEnvelope,
-  faTrash,
+  faDownload, faEye, faCommentDots, faEnvelope, faTrash,
 } from '@fortawesome/free-solid-svg-icons';
 import RegisterPage from './RegisterPage';
 
@@ -45,6 +31,7 @@ function PatientsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [provider, setProvider] = useState('');
+  const [tab, setTab] = useState('patients');
   const [page, setPage] = useState(1);
   const [sizePerPage, setSizePerPage] = useState(10);
   const [totalSize, setTotalSize] = useState(0);
@@ -112,8 +99,11 @@ function PatientsPage() {
   };
 
   useEffect(() => {
-    fetchPatients();
-  }, [page, sizePerPage]);
+    if (tab === 'patients') {
+      fetchPatients();
+    }
+    // eslint-disable-next-line
+  }, [page, sizePerPage, tab]);
 
   const handleSendText = async (patient) => {
     const phone = patient.phone_number;
@@ -127,15 +117,9 @@ function PatientsPage() {
     try {
       await axios.post(
         'http://127.0.0.1:8000/api/sms/send-sms/',
-        {
-          phone,
-          message,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { phone, message },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       toast.success(`Text sent to ${patient.first_name}`);
     } catch (err) {
       console.error('SMS failed:', err);
@@ -162,7 +146,6 @@ function PatientsPage() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-
       toast.success(`Email sent to ${selectedPatient.first_name}`);
       setShowEmailModal(false);
     } catch (err) {
@@ -202,205 +185,197 @@ function PatientsPage() {
     saveAs(blob, 'patients.csv');
   };
 
-  const columns = [
-    {
-      dataField: 'id',
-      text: '#',
-      headerStyle: { width: '60px' },
-      formatter: (_, __, index) => (page - 1) * sizePerPage + index + 1,
-    },
-    {
-      dataField: 'full_name',
-      text: 'Patient Name',
-      sort: true,
-    },
-    {
-      dataField: 'email',
-      text: 'Email',
-      sort: true,
-    },
-    {
-      dataField: 'provider_name',
-      text: 'Provider',
-      formatter: (_, row) =>
-        row.provider_name ? `Dr. ${row.provider_name}` : <span className="text-muted">None</span>,
-      sort: true,
-    },
-    {
-      dataField: 'last_appointment_date',
-      text: 'Last Appointment',
-      sort: true,
-      formatter: (cell) =>
-        cell ? new Date(cell).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—',
-    },
-
-    {
-      dataField: 'actions',
-      text: 'Actions',
-      formatter: (_, row) => (
-        <div className="d-flex justify-content-center gap-1">
-          <OverlayTrigger placement="top" overlay={<Tooltip>View patient profile</Tooltip>}>
-            <Button variant="outline-primary" size="sm" onClick={() => navigate(`/patients/${row.user_id}`)}>
-              <FontAwesomeIcon icon={faEye} />
-            </Button>
-          </OverlayTrigger>
-
-          <OverlayTrigger placement="top" overlay={<Tooltip>Send SMS</Tooltip>}>
-            <Button variant="warning" size="sm" onClick={() => handleSendText(row)}>
-              <FontAwesomeIcon icon={faCommentDots} />
-            </Button>
-          </OverlayTrigger>
-
-          <OverlayTrigger placement="top" overlay={<Tooltip>Send email</Tooltip>}>
-            <Button variant="info" size="sm" onClick={() => handleOpenEmailModal(row)}>
-              <FontAwesomeIcon icon={faEnvelope} />
-            </Button>
-          </OverlayTrigger>
-
-          <OverlayTrigger placement="top" overlay={<Tooltip>Delete patient</Tooltip>}>
-            <Button variant="danger" size="sm" onClick={() => handleDelete(row.user_id)}>
-              <FontAwesomeIcon icon={faTrash} />
-            </Button>
-          </OverlayTrigger>
-        </div>
-      ),
-      headerStyle: { width: '160px' },
-      align: 'center',
-    },
-  ];
+  // --- Render Table for Patient List ---
+  const renderPatientTable = () => (
+    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Patient Name</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 220 }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Provider</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Last Appointment</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', width: 180 }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {patients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>
+                    No patients found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                patients.map((patient) => (
+                  <TableRow key={patient.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+                    <TableCell>{patient.full_name}</TableCell>
+                    <TableCell>{patient.email}</TableCell>
+                    <TableCell>{patient.provider_name ? `Dr. ${patient.provider_name}` : <span style={{ color: '#888' }}>None</span>}</TableCell>
+                    <TableCell>{patient.last_appointment_date ? new Date(patient.last_appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="View patient profile" placement="top">
+                        <Button variant="outlined" size="small" color="primary" sx={{ minWidth: 36, mr: 1 }} onClick={() => navigate(`/patients/${patient.user_id}`)}>
+                          <FontAwesomeIcon icon={faEye} />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Send SMS" placement="top">
+                        <Button variant="outlined" size="small" color="warning" sx={{ minWidth: 36, mr: 1 }} onClick={() => handleSendText(patient)}>
+                          <FontAwesomeIcon icon={faCommentDots} />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Send email" placement="top">
+                        <Button variant="outlined" size="small" color="info" sx={{ minWidth: 36, mr: 1 }} onClick={() => handleOpenEmailModal(patient)}>
+                          <FontAwesomeIcon icon={faEnvelope} />
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Delete patient" placement="top">
+                        <Button variant="outlined" size="small" color="error" sx={{ minWidth: 36 }} onClick={() => handleDelete(patient.user_id)}>
+                          <FontAwesomeIcon icon={faTrash} />
+                        </Button>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Paper>
+  );
 
   return (
-    <div className="container mt-4">
-      <Tabs defaultActiveKey="patients" className="mb-3">
-        <Tab eventKey="register" title="Quick Register">
-          <RegisterPage adminMode={true} />
-        </Tab>
-        <Tab eventKey="patients" title="Patient List">
-          <Card className="shadow-sm ">
-            <Card.Body>
-              <Card.Title className="mb-4 justify-content-between align-items-center">
-                <div className="d-flex justify-content-between align-items-center mb-3" style={{ padding: '10px', gap: '10px' }}>
-                  {(userRole === 'admin' || userRole === 'system_admin') && (
-                    <Col xs={12} md={2} className="px-1">
-                      <Button className="btn w-12.5" variant="outline-secondary" onClick={() => navigate('/admin')} style={{ height: '38px' }}>
-                        ← Back
-                      </Button>
-                    </Col>
-                  )}
-
-                  <div className="d-flex align-items-center gap-2" style={{ flexGrow: 1 }}>
-                    <div className="position-relative w-100" style={{ maxWidth: '400px' }}>
-                      <Form.Control
-                        type="text"
-                        placeholder="Search patients..."
-                        value={search}
-                        onChange={(e) => {
-                          setSearch(e.target.value);
-                          setPage(1);
-                          fetchPatients();
-                        }}
-                        style={{ height: '38px' }}
-                      />
-                      {search && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSearch('');
-                            setPage(1);
-                            fetchPatients();
-                          }}
-                          className="btn btn-sm btn-light position-absolute"
-                          style={{
-                            right: '8px',
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            padding: '0 6px',
-                            borderRadius: '50%',
-                            lineHeight: '1',
-                          }}
-                        >
-                          &times;
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Button variant="success" onClick={exportCSV} style={{ height: '38px' }}>
-                      Export CSV
-                    </Button>
-                  </div>
-                </div>
-              </Card.Title>
-              {loading ? (
-                <div className="text-center py-4">
-                  <Spinner animation="border" />
-                </div>
-              ) : (
-                <div className="table-responsive">
-                  <BootstrapTable
-                    keyField="id"
-                    data={patients}
-                    columns={columns}
-                    bootstrap4
-                    bordered
-                    hover
-                    noDataIndication="No patients found."
-                    pagination={paginationFactory({
-                      page,
-                      sizePerPage,
-                      totalSize,
-                      showTotal: true,
-                      onPageChange: (nextPage) => setPage(nextPage),
-                      onSizePerPageChange: (size) => {
-                        setSizePerPage(size);
-                        setPage(1);
-                      },
-                    })}
-                    filter={filterFactory()}
-                  />
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </Tab>
-        <Tab eventKey="calendar" title="Calendar View">
-          <CalendarView />
-        </Tab>
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+      <Tabs
+        value={tab}
+        onChange={(_, val) => setTab(val)}
+        sx={{
+          mb: 3,
+          borderRadius: 2,
+          bgcolor: '#f5faff',
+          boxShadow: 1,
+          minHeight: 48,
+          '& .MuiTabs-indicator': {
+            height: 4,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+          },
+          '& .MuiTab-root': {
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: 'primary.main',
+            minHeight: 48,
+            textTransform: 'none',
+            borderRadius: 2,
+            mx: 0.5,
+            transition: 'background 0.2s',
+            '&.Mui-selected': {
+              bgcolor: 'primary.light',
+              color: 'primary.dark',
+              boxShadow: 2,
+            },
+            '&:hover': {
+              bgcolor: 'primary.lighter',
+              color: 'primary.dark',
+            },
+          },
+        }}
+      >
+        <Tab label="Quick Register" value="register" />
+        <Tab label="Patient List" value="patients" />
+        <Tab label="Calendar View" value="calendar" />
       </Tabs>
-      <Modal show={showEmailModal} onHide={() => setShowEmailModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Email {selectedPatient?.first_name}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-2">
-            <Form.Label>Subject</Form.Label>
-            <Form.Control
-              type="text"
-              value={emailForm.subject}
-              onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-            />
-          </Form.Group>
-          <Form.Group>
-            <Form.Label>Message</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={5}
-              value={emailForm.message}
-              onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowEmailModal(false)}>
+      {tab === 'register' && (
+        <RegisterPage adminMode={true} />
+      )}
+      {tab === 'patients' && (
+        <>
+          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+
+            {(userRole === 'admin' || userRole === 'system_admin') && (
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => navigate('/admin')}
+                sx={{ height: 38, minWidth: 80 }}
+              >
+                ← Back
+              </Button>
+            )}
+            <TextField
+              fullWidth
+              size="small"
+              variant="outlined"
+              placeholder="Search patients..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+                fetchPatients();
+              }}
+              sx={{ maxWidth: 350 }}
+              InputProps={{
+                endAdornment:
+                  search && (
+                    <IconButton size="small" onClick={() => { setSearch(''); setPage(1); fetchPatients(); }}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  ),
+              }}
+            />            
+            <Button variant="contained" color="primary" onClick={exportCSV}>
+              Export CSV
+            </Button>
+          </Stack>
+          {renderPatientTable()}
+        </>
+      )}
+      {tab === 'calendar' && (
+        <CalendarView />
+      )}
+
+      {/* Email Modal */}
+      <Dialog open={showEmailModal} onClose={() => setShowEmailModal(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Email Patient</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Subject"
+            type="text"
+            fullWidth
+            variant="outlined"
+            value={emailForm.subject}
+            onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+          />
+          <TextField
+            margin="dense"
+            label="Message"
+            type="text"
+            fullWidth
+            variant="outlined"
+            multiline
+            rows={4}
+            value={emailForm.message}
+            onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowEmailModal(false)} color="secondary">
             Cancel
           </Button>
-          <Button variant="primary" onClick={handleSendEmail}>
+          <Button onClick={handleSendEmail} color="primary">
             Send
           </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }
 

@@ -14,6 +14,11 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MaintenancePage from './pages/MaintenancePage'; 
 import CreateProfilePage from './pages/CreateProfilePage';
 import SettingsPage from './pages/SettingsPage'; // adjust path if needed
+import HolidaysTab from './pages/HolidaysPage';
+import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
+import AdminUserSearchPage from './pages/AdminUserSearchPage';
+import EditAppointmentPage from './pages/EditAppointmentPage';
+
 
 
 function App() {
@@ -34,6 +39,11 @@ function App() {
         <Route path="/maintenance" element={<PrivateRoute><MaintenancePage /></PrivateRoute>} />
         <Route path="/create-profile" element={<PrivateRoute><CreateProfilePage /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+        <Route path="/holidays" element={<PrivateRoute><HolidaysTab /></PrivateRoute>} />
+        <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />
+        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
+        <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />
+        {/* Add more routes as needed */}
 
 
 

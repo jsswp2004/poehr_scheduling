@@ -4,10 +4,11 @@ from .models import Appointment, Availability, EnvironmentSetting, Holiday, Clin
 
 class AppointmentSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
+    provider_name = serializers.SerializerMethodField()  # Add this line!
 
     class Meta:
         model = Appointment
-        fields = '__all__'  # This will include all fields, plus patient_name
+        fields = '__all__'  # This will include all model fields plus both name fields
         extra_kwargs = {
             'patient': {'read_only': True},
             'provider': {'required': True},
@@ -18,11 +19,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
             return f"{obj.patient.first_name} {obj.patient.last_name}"
         return None
 
+    def get_provider_name(self, obj):
+        if obj.provider:
+            return f"Dr. {obj.provider.first_name} {obj.provider.last_name}"
+        return None
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # Ensure ISO string includes timezone
         data['appointment_datetime'] = instance.appointment_datetime.isoformat()
         return data
+
 
 
 

@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Form, Button, Alert, Spinner, Tabs, Tab, Col } from 'react-bootstrap';
+import {
+  Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert,
+  Table, TableHead, TableRow, TableCell, TableBody, Checkbox, Tabs, Tab, CircularProgress
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
 import { useNavigate } from 'react-router-dom';
@@ -81,38 +85,39 @@ function UploadTab() {
 
   return (
     <>
-
-      <Table bordered className="text-center mt-3">
-        <thead>
-          <tr>
-            <th>Items</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Clinic Events</td>
-            <td>
-              <div className="d-flex gap-2 justify-content-center flex-wrap">
-                <Button variant="outline-primary" onClick={handleDownload}>
+      <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
+        <TableHead>
+          <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+            <TableCell sx={{ fontWeight: 'bold', width: 200, fontSize: '1rem' }}>Items</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: 300, fontSize: '1rem', textAlign: 'left' }}>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+            <TableCell>Clinic Events</TableCell>
+            <TableCell>
+              <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-start" flexWrap="wrap">
+                <Button variant="outlined" onClick={handleDownload}>
                   Download Template
                 </Button>
-                <Form.Control
+                <TextField
                   type="file"
-                  accept=".csv"
+                  inputProps={{ accept: '.csv' }}
                   onChange={(e) => setFile(e.target.files[0])}
-                  style={{ width: '200px' }}
+                  variant="outlined"
+                  size="small"
+                  sx={{ minWidth: 180 }}
                 />
-                <Button variant="success" onClick={handleUpload}>
+                <Button variant="contained" onClick={handleUpload}>
                   Upload CSV
                 </Button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
+              </Stack>
+            </TableCell>
+          </TableRow>
+        </TableBody>
       </Table>
       {uploadStatus && (
-        <Alert variant={uploadStatus.startsWith('✅') ? 'success' : 'danger'} className="mt-3">
+        <Alert severity={uploadStatus.startsWith('✅') ? 'success' : 'error'} sx={{ mt: 3 }}>
           {uploadStatus}
         </Alert>
       )}
@@ -192,75 +197,107 @@ function EnvironmentProfilePage() {
   };
 
   return (
-    <Col className="d-flex justify-content-center align-items-left flex-column mt-5">
-      <Card className="shadow-sm">
-        <Card.Body>
-          <Tabs activeKey={tabKey} onSelect={setTabKey} className="mb-3">
-            <Tab eventKey="blocked-days" title="Default Blocked Days">
-              <Table bordered className="align-middle text-center" style={{ maxWidth: 800 }}>
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: 220 }}>Setting</th>
-                    {DAYS.map((d) => (
-                      <th key={d.value}>{d.label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td className="text-start"><b>Default Blocked Days</b></td>
-                    {DAYS.map((d) => (
-                      <td key={d.value}>
-                        <Form.Check
-                          type="checkbox"
-                          checked={blockedDays.includes(d.value)}
-                          onChange={() => handleCheckbox(d.value)}
-                          disabled={loading || saving}
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </Table>
-              <div className="mt-3">
-                <Button variant="primary" onClick={handleSave} disabled={saving || loading}>
-                  {saving ? <Spinner size="sm" /> : 'Save Settings'}
-                </Button>
-                {status && (
-                  <Alert className="d-inline-block ms-3 py-1 px-3" variant={status === 'Saved!' ? 'success' : 'danger'}>
-                    {status}
-                  </Alert>
-                )}
-              </div>
-              <div className="text-muted mt-3">
-                <small>
-                  Select which days are <b>blocked by default</b> for clinic scheduling. Unchecked days are available for appointments.
-                </small>
-              </div>
-            </Tab>
+    <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>Environment Profile</Typography>
+      <Tabs
+        value={tabKey}
+        onChange={(e, newValue) => setTabKey(newValue)}
+        sx={{
+          mb: 3,
+          borderRadius: 2,
+          bgcolor: '#f5faff',
+          boxShadow: 1,
+          minHeight: 48,
+          '& .MuiTabs-indicator': {
+            height: 4,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+          },
+          '& .MuiTab-root': {
+            fontWeight: 700,
+            fontSize: '1rem',
+            color: 'primary.main',
+            minHeight: 48,
+            textTransform: 'none',
+            borderRadius: 2,
+            mx: 0.5,
+            transition: 'background 0.2s',
+            '&.Mui-selected': {
+              bgcolor: 'primary.light',
+              color: 'primary.dark',
+              boxShadow: 2,
+            },
+            '&:hover': {
+              bgcolor: 'primary.lighter',
+              color: 'primary.dark',
+            },
+          },
+        }}
+      >
+        <Tab label="Default Blocked Days" value="blocked-days" />
+        <Tab label="Holidays" value="holidays" />
+        <Tab label="Uploads" value="uploads" />
+      </Tabs>
 
-            <Tab eventKey="holidays" title="Holidays">
-              <HolidaysTab />
-            </Tab>
+      {tabKey === 'blocked-days' && (
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 2 }}><b>Default Blocked Days</b></Typography>
+          <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1 }}>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                <TableCell sx={{ fontWeight: 'bold', width: 180, fontSize: '1rem' }}>Setting</TableCell>
+                {DAYS.map((d) => (
+                  <TableCell key={d.value} sx={{ fontWeight: 'bold', width: 80, textAlign: 'center', fontSize: '1rem' }}>{d.label}</TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+                <TableCell className="text-start"><b>Default Blocked Days</b></TableCell>
+                {DAYS.map((d) => (
+                  <TableCell key={d.value} sx={{ textAlign: 'center' }}>
+                    <Checkbox
+                      checked={blockedDays.includes(d.value)}
+                      onChange={() => handleCheckbox(d.value)}
+                      disabled={loading || saving}
+                    />
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableBody>
+          </Table>
+          <Stack direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center">
+            <Button variant="contained" onClick={handleSave} disabled={saving || loading}>
+              {saving ? <CircularProgress size={24} /> : 'Save Settings'}
+            </Button>
+            {status && (
+              <Alert severity={status === 'Saved!' ? 'success' : 'error'} sx={{ flex: 1 }}>
+                {status}
+              </Alert>
+            )}
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Select which days are <b>blocked by default</b> for clinic scheduling. Unchecked days are available for appointments.
+          </Typography>
+        </Paper>
+      )}
 
-            <Tab eventKey="uploads" title="Uploads">
-              <UploadTab />
-            </Tab>
-          </Tabs>
-        </Card.Body>
-      </Card>
+      {tabKey === 'holidays' && (
+        <HolidaysTab />
+      )}
 
-      <div>
-        <Button
-          variant="outline-secondary"
-          onClick={() => navigate("/admin")}
-          className="mt-2 mb-3 d-inline-block w-12.5"
-          style={{ padding: '2px 12px', fontSize: '1rem', minWidth: 0 }}
-        >
-          ← Back
-        </Button>
-      </div>
-    </Col>
+      {tabKey === 'uploads' && (
+        <UploadTab />
+      )}
+
+      <Button
+        variant="outlined"
+        onClick={() => navigate("/admin")}
+        sx={{ mt: 2, mb: 3 }}
+      >
+        ← Back
+      </Button>
+    </Box>
   );
 }
 

@@ -1,11 +1,37 @@
+// src/pages/DashboardPage.js (Material UI migration, fully feature-retained)
+import { jwtDecode } from 'jwt-decode';
 import Select from 'react-select';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import CalendarView from '../components/CalendarView';
 import { toast } from 'react-toastify';
-import Table from 'react-bootstrap/Table';
-import { Tabs, Tab,OverlayTrigger, Tooltip } from 'react-bootstrap';
-
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  TextField,
+  IconButton,
+  Tooltip,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  Tab,
+  Divider,
+  FormControl,
+  InputLabel,
+  Select as MUISelect,
+  MenuItem
+} from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
+import RestoreIcon from '@mui/icons-material/Restore';
+import { useNavigate } from 'react-router-dom';
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -29,11 +55,14 @@ function DashboardPage() {
     appointment_datetime: '',
     duration_minutes: 30,
     recurrence: 'none',
-    provider: null, // This will be set to the selected doctor ID
+    provider: null,
   });
   const [showForm, setShowForm] = useState(true);
 
   const token = localStorage.getItem('access_token');
+  const userRole = token ? jwtDecode(token).role : null;
+  const navigate = useNavigate();
+  const [tab, setTab] = useState('manage');
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -41,7 +70,7 @@ function DashboardPage() {
         const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        setDoctors(res.data); // Store full doctor objects
+        setDoctors(res.data);
       } catch (error) {
         console.error('Failed to fetch doctors:', error);
       }
@@ -56,7 +85,7 @@ function DashboardPage() {
         });
         setAppointments(response.data);
         if (response.data && response.data.length > 0) {
-          const doctorId = response.data[0].doctor;  // Assuming you have a doctor field in your appointments data
+          const doctorId = response.data[0].doctor;
           const matchedDoctor = doctors.find(doc => doc.id === doctorId);
           setSelectedDoctor(matchedDoctor ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` } : null);
         }
@@ -66,13 +95,11 @@ function DashboardPage() {
     };
 
     if (doctors.length === 0) {
-      fetchDoctors();  // Only fetch doctors if they haven't been loaded yet
+      fetchDoctors();
     } else {
-      fetchAppointments();  // Fetch appointments once doctors are fetched
+      fetchAppointments();
     }
   }, [token, doctors.length, refreshFlag]);
- // Fetch appointments only once doctors are loaded
-
 
   const handleChange = (e) => {
     setFormData({
@@ -84,7 +111,7 @@ function DashboardPage() {
   const fetchAvailableSlots = async (doctorId) => {
     setAvailableSlots([]);
     if (!doctorId) return;
-  
+
     try {
       const res = await axios.get(`http://127.0.0.1:8000/api/doctors/${doctorId}/available-dates/`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -95,7 +122,6 @@ function DashboardPage() {
     }
   };
 
-  
   const handleEditClick = (appointment) => {
     const now = new Date();
     const appointmentDate = new Date(appointment.appointment_datetime);
@@ -105,32 +131,21 @@ function DashboardPage() {
       return;
     }
 
-    console.log('Editing appointment:', appointment);
-
     setFormData({
       title: appointment.title,
       description: appointment.description,
       appointment_datetime: toLocalDatetimeString(appointment.appointment_datetime),
       duration_minutes: appointment.duration_minutes,
       recurrence: appointment.recurrence || 'none',
-      //provider: appointment.provider || null,
     });
-    // Log the appointment's provider ID
-    console.log('Appointment Provider ID:', appointment.provider);
 
-    // Log the doctors array
-    console.log('Doctors:', doctors);
-    
     const matched = doctors.find(doc => doc.id === appointment.provider);
-    console.log('Matched Doctor:', matched);
-
     const selected = matched
-    ? { value: matched.id, label: `Dr. ${matched.first_name} ${matched.last_name}` }
-    : null;
-  
+      ? { value: matched.id, label: `Dr. ${matched.first_name} ${matched.last_name}` }
+      : null;
+
     setSelectedDoctor(selected);
-    fetchAvailableSlots(selected?.value);  // ✅ This ensures slots are refreshed
-  
+    fetchAvailableSlots(selected?.value);
 
     setEditingId(appointment.id);
     setEditMode(true);
@@ -154,12 +169,12 @@ function DashboardPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
+
     const payload = {
       ...formData,
-      provider: selectedDoctor?.value || null,  // Pass the provider ID
+      provider: selectedDoctor?.value || null,
     };
-  
+
     try {
       if (editMode && editingId) {
         await axios.put(`http://127.0.0.1:8000/api/appointments/${editingId}/`, payload, {
@@ -172,133 +187,123 @@ function DashboardPage() {
         });
         toast.success('Appointment created!');
       }
-  
+
       const refreshed = await axios.get('http://127.0.0.1:8000/api/appointments/', {
         headers: { Authorization: `Bearer ${token}` },
       });
       setAppointments(refreshed.data);
-      console.log("Updated appointments:", refreshed.data);
 
       setFormData({ title: '', description: '', appointment_datetime: '', duration_minutes: 30, recurrence: 'none' });
       setSelectedDoctor(null);
       setEditMode(false);
       setEditingId(null);
-      //setShowForm(false);
     } catch (error) {
       console.error(error);
       toast.error('Failed to save appointment.');
     }
   };
-  
+
+  // Only show future appointments
+  const filteredAppointments = (appointments || [])
+    .filter(a => {
+      const apptDate = new Date(a.appointment_datetime);
+      const now = new Date();
+      return apptDate.setHours(0, 0, 0, 0) >= now.setHours(0, 0, 0, 0);
+    })
+    .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime));
 
   return (
-    <div className="container mt-4">
-      <div className="text-center my-4">
-        <h4 className="fw-bold">Dashboard</h4>
-        <p className="text-muted">Manage your appointments or view the calendar.</p>
-      </div>
-
-      <Tabs defaultActiveKey="manage" id="dashboard-tabs" className="mb-3">
-        <Tab eventKey="manage" title="Manage Appointments">
-          {/* ✅ This wraps everything inside appointment management */}
-           {/*  */}
-
-          
-          {showForm && (
-            <div className="row">
-              <div className="col-md-6">
-                <form onSubmit={handleSubmit} className="mb-5">
-                  <h5 className="mb-3">{editMode ? 'Edit Appointment' : 'Request an Appointment'}</h5>
-
-                  <div className="mb-3">
-                    <label className="form-label">Title</label>
-                    <input
-                      type="text"
-                      name="title"
-                      className="form-control"
-                      placeholder="Title"
-                      onChange={handleChange}
-                      value={formData.title}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Description</label>
-                    <textarea
-                      name="description"
-                      className="form-control"
-                      placeholder="Description"
-                      onChange={handleChange}
-                      value={formData.description}
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      name="appointment_datetime"
-                      className="form-control"
-                      onChange={handleChange}
-                      value={formData.appointment_datetime}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Duration (minutes)</label>
-                    <input
-                      type="number"
-                      name="duration_minutes"
-                      className="form-control"
-                      onChange={handleChange}
-                      value={formData.duration_minutes}
-                      required
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Recurrence</label>
-                    <select
+    <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, maxWidth: 1200, mx: 'auto' }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>Dashboard</Typography>
+      <Tabs value={tab} onChange={(_, val) => setTab(val)} aria-label="dashboard-tabs" sx={{ mb: 3 }}>
+        <Tab value="manage" label="Manage Appointments" />
+        <Tab value="calendar" label="Calendar" />
+      </Tabs>
+      <Divider sx={{ mb: 2 }} />
+      {tab === 'manage' && (
+        <Box>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
+            <Box sx={{ flex: 1, minWidth: 350 }}>
+              <form onSubmit={handleSubmit}>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                  {editMode ? 'Edit Appointment' : 'Request an Appointment'}
+                </Typography>
+                <Stack spacing={2}>
+                  <TextField
+                    label="Title"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  />
+                  <TextField
+                    label="Description"
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    multiline
+                    rows={2}
+                    fullWidth
+                  />
+                  <TextField
+                    label="Date & Time"
+                    name="appointment_datetime"
+                    type="datetime-local"
+                    value={formData.appointment_datetime}
+                    onChange={handleChange}
+                    InputLabelProps={{ shrink: true }}
+                    fullWidth
+                    required
+                  />
+                  <TextField
+                    label="Duration (minutes)"
+                    name="duration_minutes"
+                    type="number"
+                    value={formData.duration_minutes}
+                    onChange={handleChange}
+                    fullWidth
+                    required
+                  />
+                  <FormControl fullWidth>
+                    <InputLabel id="recurrence-label">Recurrence</InputLabel>
+                    <MUISelect
+                      labelId="recurrence-label"
                       name="recurrence"
-                      className="form-select"
-                      onChange={handleChange}
                       value={formData.recurrence}
+                      onChange={handleChange}
+                      label="Recurrence"
                     >
-                      <option value="none">None</option>
-                      <option value="daily">Daily</option>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                    </select>
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="form-label">Select Doctor</label>
+                      <MenuItem value="none">None</MenuItem>
+                      <MenuItem value="daily">Daily</MenuItem>
+                      <MenuItem value="weekly">Weekly</MenuItem>
+                      <MenuItem value="monthly">Monthly</MenuItem>
+                    </MUISelect>
+                  </FormControl>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>Select Doctor</Typography>
                     <Select
-                      
                       options={doctors.map(doc => ({
                         value: doc.id,
                         label: `Dr. ${doc.first_name} ${doc.last_name}`
                       }))}
                       value={selectedDoctor}
-                      onChange={(selected) => {
-                          setSelectedDoctor(selected);
-                          fetchAvailableSlots(selected?.value);
-                        }}
-
+                      onChange={selected => {
+                        setSelectedDoctor(selected);
+                        fetchAvailableSlots(selected?.value);
+                      }}
                       placeholder="Search or select doctor..."
                       isClearable
                     />
-                  </div>
-
-                  <div className="d-flex gap-2">
-                    <button type="submit" className="btn btn-primary w-100">
+                  </Box>
+                  <Stack direction="row" spacing={2}>
+                    <Button type="submit" variant="contained" color="primary" fullWidth>
                       {editMode ? 'Update Appointment' : 'Create Appointment'}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-secondary w-100"
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      fullWidth
                       onClick={() => {
                         setFormData({
                           title: '',
@@ -315,98 +320,86 @@ function DashboardPage() {
                       }}
                     >
                       Clear Form
-                    </button>
-
-
-                      </div>
-                    </form>
-                    </div>
-
-                    <div className="col-md-6">
-                    <div className="mt-4">
-                    <h5>Available Dates for {selectedDoctor?.label || 'Selected Doctor'}</h5>
-                      <ul className="list-group">
-                      {availableSlots.length > 0 ? (
-                        availableSlots.map((slot, idx) => {
-                        const formattedSlot = toLocalDatetimeString(slot);
-                        return (
-                          <li
-                            key={idx}
-                            role="button"
-                            onClick={() => {
-                              setSelectedSlot(formattedSlot);
-                              setFormData((prev) => ({
-                                ...prev,
-                                appointment_datetime: formattedSlot,
-                              }));
-                            }}
-                            className={`list-group-item list-group-item-action ${
-                              selectedSlot === formattedSlot ? 'active' : ''
-                            }`}
-                          >
-                            {new Date(slot).toLocaleString()}
-                          </li>
-                        );
-                      })
-                    ) : (
-                      <li className="list-group-item text-muted">No available slots</li>
-                    )}
-                  </ul>
-              </div>
-                <hr className="my-4"/>
-                <h5>Your Appointments</h5>
-                <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
-                  <Table striped bordered hover responsive>
-                    <thead>
-                      <tr>
-                        <th>Visit</th>
-                        <th>Date & Time</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                    {(appointments || [])
-                      .filter(a => {
-                        const apptDate = new Date(a.appointment_datetime);
-                        const now = new Date();
-                        // Show if appointment is today or in the future
-                        return apptDate.setHours(0,0,0,0) >= now.setHours(0,0,0,0);
-                      })
-                      .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime))
-                      .map((a) => (
-                        <tr key={a.id} className={new Date(a.appointment_datetime) < new Date() ? 'table-secondary' : ''}>
-                          <td>{a.title || 'Untitled'}</td>
-                          <td>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</td>
-                          <td>
-                            <OverlayTrigger placement="top" overlay={<Tooltip>Edit appointment</Tooltip>}>
-                              <button className="btn btn-sm btn-warning me-2" onClick={() => handleEditClick(a)}>✏️</button>
-                            </OverlayTrigger>
-                            <OverlayTrigger placement="top" overlay={<Tooltip>Delete appointment</Tooltip>}>
-                              <button className="btn btn-sm btn-danger" onClick={() => handleDelete(a.id)}>🗑️</button>
-                            </OverlayTrigger>
-                          </td>
-                        </tr>
-                      ))}
-
-                    </tbody>
-                  </Table>
-                </div>
-              </div>
-            </div>
-          )}
-        </Tab>
-
-        <Tab eventKey="calendar" title="Calendar">
-          <div className="mt-4">
-            <CalendarView onUpdate={() => setRefreshFlag(prev => !prev)} />
-
-          </div>
-        </Tab>
-      </Tabs>
-    </div>
+                    </Button>
+                  </Stack>
+                </Stack>
+              </form>
+              <Box sx={{ mt: 4 }}>
+                <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                  Available Dates for {selectedDoctor?.label || 'Selected Doctor'}
+                </Typography>
+                <Paper variant="outlined" sx={{ maxHeight: 200, overflow: 'auto', p: 1 }}>
+                  {availableSlots.length > 0 ? (
+                    availableSlots.map((slot, idx) => {
+                      const formattedSlot = toLocalDatetimeString(slot);
+                      return (
+                        <Button
+                          key={idx}
+                          variant={selectedSlot === formattedSlot ? "contained" : "outlined"}
+                          sx={{ m: 0.5 }}
+                          size="small"
+                          onClick={() => {
+                            setSelectedSlot(formattedSlot);
+                            setFormData((prev) => ({
+                              ...prev,
+                              appointment_datetime: formattedSlot,
+                            }));
+                          }}
+                        >
+                          {new Date(slot).toLocaleString()}
+                        </Button>
+                      );
+                    })
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">No available slots</Typography>
+                  )}
+                </Paper>
+              </Box>
+            </Box>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>Your Appointments</Typography>
+              <TableContainer component={Paper} sx={{ maxHeight: 350 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Visit</TableCell>
+                      <TableCell>Date & Time</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredAppointments.map((a) => (
+                      <TableRow key={a.id}>
+                        <TableCell>{a.title || 'Untitled'}</TableCell>
+                        <TableCell>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="Edit appointment">
+                            <IconButton size="small" color="warning" onClick={() => handleEditClick(a)} sx={{ mr: 1 }}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete appointment">
+                            <IconButton size="small" color="error" onClick={() => handleDelete(a.id)}>
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          </Stack>
+        </Box>
+      )}
+      {tab === 'calendar' && (
+        <Box sx={{ mt: 2 }}>
+          <CalendarView onUpdate={() => setRefreshFlag(prev => !prev)} />
+        </Box>
+      )}
+    </Box>
   );
 }
 
 export default DashboardPage;
-
-

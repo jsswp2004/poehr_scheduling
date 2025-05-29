@@ -2,16 +2,18 @@ import { toast } from 'react-toastify';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { 
+  Container, Paper, Typography, TextField, Button, Stack, Box, FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, Alert 
+} from '@mui/material';
 import Select from 'react-select';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 function RegisterPage({ adminMode = false }) {
-  // NEW: Patient state
-  const [isPatient, setIsPatient] = useState(adminMode ? true : true); // Always true for adminMode
+  const [isPatient, setIsPatient] = useState(adminMode ? true : true);
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
-  const [phone, setPhone] = useState('');
+  const [doctors, setDoctors] = useState([]);
 
   const navigate = useNavigate();
-  const [doctors, setDoctors] = useState([]);
 
   const [formData, setFormData] = useState({
     username: '',
@@ -22,6 +24,7 @@ function RegisterPage({ adminMode = false }) {
     role: adminMode ? 'patient' : 'patient',
     assigned_doctor: '',
     phone_number: '',
+    organization_name: '',
   });
 
   useEffect(() => {
@@ -52,218 +55,151 @@ function RegisterPage({ adminMode = false }) {
     };
 
     try {
-      console.log("📤 Sending payload:", formData);
-
       await axios.post('http://127.0.0.1:8000/api/auth/register/', payload);
       toast.success('Registration successful! Please login.');
       navigate('/login');
     } catch (error) {
-      console.error("❌ Registration error:", error.response?.data || error.message);
       toast.error('Registration failed. Please try again.');
     }
   };
 
   return (
-    <div className="container mt-5">
-      <h2 className="mb-4">Register</h2>
-
-      {/* Patient or Other selector - HIDDEN in adminMode */}
-      {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
-        <div className="mb-3">
-          <label className="form-label">Are you registering as a patient?</label>
-          <div>
-            <div className="form-check form-check-inline">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="isPatient"
-                id="isPatientYes"
-                value="yes"
-                checked={isPatient}
-                onChange={() => {
-                  setIsPatient(true);
-                  setFormData({ ...formData, role: 'patient' });
-                }}
-              />
-              <label className="form-check-label" htmlFor="isPatientYes">Yes</label>
-            </div>
-            <div className="form-check form-check-inline">
-              <input
-                className="form-check-input"
-                type="radio"
-                name="isPatient"
-                id="isPatientNo"
-                value="no"
-                checked={!isPatient}
-                onChange={() => {
-                  setIsPatient(false);
-                  setFormData({ ...formData, role: '' });
-                }}
-              />
-              <label className="form-check-label" htmlFor="isPatientNo">No</label>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit}>
-      {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
-        <div className="mb-3">
-          <label className="form-label">Organization Name</label>
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Enter your organization name"
-            value={formData.organization_name || ''}
-            onChange={(e) =>
-              setFormData({ ...formData, organization_name: e.target.value })
-            }
-            required
-          />
-        </div>
-      )}
-        <div className="mb-3">
-          <label className="form-label">First Name</label>
-          <input
-            type="text"
-            name="first_name"
-            className="form-control"
-            onChange={handleChange}
-            value={formData.first_name}
-            required
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Last Name</label>
-          <input
-            type="text"
-            name="last_name"
-            className="form-control"
-            onChange={handleChange}
-            value={formData.last_name}
-            required
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Username</label>
-          <input
-            type="text"
-            name="username"
-            className="form-control"
-            onChange={handleChange}
-            value={formData.username}
-            required
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Email</label>
-          <input
-            type="email"
-            name="email"
-            className="form-control"
-            onChange={handleChange}
-            value={formData.email}
-            required={isPatient && hasProvider === 'no'}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Phone Number</label>
-          <input
-            type="text"
-            name="phone_number"
-            className="form-control"
-            placeholder="e.g. (555) 123-4567"
-            onChange={handleChange}
-            value={formData.phone_number}
-            required={isPatient && hasProvider === 'no'}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Password</label>
-          <input
-            type="password"
-            name="password"
-            className="form-control"
-            onChange={handleChange}
-            value={formData.password}
-            required
-          />
-        </div>
-
-        {/* Provider question - HIDDEN in adminMode */}
-        {!adminMode && isPatient && (
-          <div className="mb-3">
-            <label className="form-label">Do you know/have a Primary Care Provider?</label>
-            <div>
-              <div className="form-check form-check-inline">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="hasProvider"
-                  id="providerYes"
+    <Container maxWidth="sm" sx={{ mt: 6 }}>
+      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate(-1)}
+          sx={{
+            mb: 2,
+            px: 2,
+            py: 1,
+            alignSelf: 'flex-start',
+            borderRadius: 2,
+            backgroundColor: '#f5f5f5',
+            color: 'primary.main',
+            fontWeight: 600,
+            textTransform: 'none',
+            boxShadow: 'none',
+            '&:hover': {
+              backgroundColor: '#e0e0e0',
+              boxShadow: 'none',
+            },
+          }}
+          disableElevation
+        >
+          Back
+        </Button>
+        <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>Register</Typography>
+        {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
+          <Box sx={{ mb: 2 }}>
+            <FormControl component="fieldset">
+              <FormLabel>Are you registering as a patient?</FormLabel>
+              <RadioGroup row value={isPatient ? 'yes' : 'no'}>
+                <FormControlLabel
                   value="yes"
-                  checked={hasProvider === 'yes'}
-                  onChange={() => setHasProvider('yes')}
+                  control={<Radio />}
+                  label="Yes"
+                  onChange={() => {
+                    setIsPatient(true);
+                    setFormData({ ...formData, role: 'patient' });
+                  }}
+                  checked={isPatient}
                 />
-                <label className="form-check-label" htmlFor="providerYes">Yes</label>
-              </div>
-              <div className="form-check form-check-inline">
-                <input
-                  className="form-check-input"
-                  type="radio"
-                  name="hasProvider"
-                  id="providerNo"
+                <FormControlLabel
                   value="no"
-                  checked={hasProvider === 'no'}
-                  onChange={() => setHasProvider('no')}
+                  control={<Radio />}
+                  label="No"
+                  onChange={() => {
+                    setIsPatient(false);
+                    setFormData({ ...formData, role: '' });
+                  }}
+                  checked={!isPatient}
                 />
-                <label className="form-check-label" htmlFor="providerNo">No</label>
-              </div>
-            </div>
-          </div>
+              </RadioGroup>
+            </FormControl>
+          </Box>
         )}
 
-        {isPatient && hasProvider === 'yes' && (
-          <div className="mb-3">
-            <label className="form-label">Select Doctor</label>
-            <Select
-              options={doctors.map((doc) => ({
-                value: doc.id,
-                label: `Dr. ${doc.first_name} ${doc.last_name}`,
-              }))}
-              placeholder="Search or select doctor..."
-              onChange={(selected) =>
-                setFormData({ ...formData, assigned_doctor: selected?.value || '' })
-              }
-              isClearable
-            />
-          </div>
-        )}
-
-        {/* Show the message ONLY for patients who answered 'no' to provider */}
-        {!localStorage.getItem('access_token') && isPatient && hasProvider === 'no' && (
-          <div className="mb-3">
-            {(formData.email === '' || formData.phone_number === '') ? (
-              <p style={{ color: 'red' }}>
-                Please provide us with your contact details.
-              </p>
-            ) : (
-              <p style={{ color: 'blue', fontWeight: 'bold' }}>
-                A representative will reach out to you shortly after registration. Thank you!
-              </p>
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={2}>
+            {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
+              <TextField
+                label="Organization Name"
+                name="organization_name"
+                value={formData.organization_name || ''}
+                onChange={handleChange}
+                required
+                fullWidth
+                size="small"
+              />
             )}
-          </div>
-        )}
-        <div className="mb-3">
-          <button type="submit" className="btn btn-primary w-12.5">Register</button>
-        </div>
-      </form>
-    </div>
+            <TextField label="First Name" name="first_name" value={formData.first_name} onChange={handleChange} required fullWidth size="small" />
+            <TextField label="Last Name" name="last_name" value={formData.last_name} onChange={handleChange} required fullWidth size="small" />
+            <TextField label="Username" name="username" value={formData.username} onChange={handleChange} required fullWidth size="small" />
+            <TextField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required={isPatient && hasProvider === 'no'} fullWidth size="small" />
+            <TextField label="Phone Number" name="phone_number" value={formData.phone_number} onChange={handleChange} required={isPatient && hasProvider === 'no'} fullWidth size="small" placeholder="e.g. (555) 123-4567" />
+            <TextField label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required fullWidth size="small" />
+
+            {/* Provider question - HIDDEN in adminMode */}
+            {!adminMode && isPatient && (
+              <Box>
+                <FormControl component="fieldset">
+                  <FormLabel>Do you know/have a Primary Care Provider?</FormLabel>
+                  <RadioGroup row value={hasProvider}>
+                    <FormControlLabel
+                      value="yes"
+                      control={<Radio />}
+                      label="Yes"
+                      onChange={() => setHasProvider('yes')}
+                      checked={hasProvider === 'yes'}
+                    />
+                    <FormControlLabel
+                      value="no"
+                      control={<Radio />}
+                      label="No"
+                      onChange={() => setHasProvider('no')}
+                      checked={hasProvider === 'no'}
+                    />
+                  </RadioGroup>
+                </FormControl>
+              </Box>
+            )}
+
+            {isPatient && hasProvider === 'yes' && (
+              <Box>
+                <FormLabel>Select Doctor</FormLabel>
+                <Select
+                  options={doctors.map((doc) => ({
+                    value: doc.id,
+                    label: `Dr. ${doc.first_name} ${doc.last_name}`,
+                  }))}
+                  placeholder="Search or select doctor..."
+                  onChange={(selected) => setFormData({ ...formData, assigned_doctor: selected?.value || '' })}
+                  isClearable
+                  styles={{
+                    control: (base) => ({ ...base, minHeight: 40 }),
+                    menu: (base) => ({ ...base, zIndex: 9999 })
+                  }}
+                />
+              </Box>
+            )}
+
+            {!localStorage.getItem('access_token') && isPatient && hasProvider === 'no' && (
+              <Box>
+                {(formData.email === '' || formData.phone_number === '') ? (
+                  <Alert severity="error">Please provide us with your contact details.</Alert>
+                ) : (
+                  <Alert severity="info" sx={{ fontWeight: 700 }}>A representative will reach out to you shortly after registration. Thank you!</Alert>
+                )}
+              </Box>
+            )}
+            <Button type="submit" variant="contained" color="primary" size="large" sx={{ mt: 2 }} fullWidth>
+              Register
+            </Button>
+          </Stack>
+        </form>
+      </Paper>
+    </Container>
   );
 }
 

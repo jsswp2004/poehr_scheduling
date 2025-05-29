@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import Select from 'react-select';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { jwtDecode } from 'jwt-decode';
+import { Box, Paper, Typography, Stack, Button, TextField, MenuItem, Alert } from '@mui/material';
+import Select from 'react-select';
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -15,7 +16,8 @@ function CreateAppointmentForm({
   defaultProviderId = null,
   patientName = '',
   patientId = null,
-  appointmentToEdit = null
+  appointmentToEdit = null,
+  editMode = false // <-- add default value
 }) {
   const [doctors, setDoctors] = useState([]);
   const [formData, setFormData] = useState({
@@ -27,16 +29,13 @@ function CreateAppointmentForm({
   });
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
-  const [token, setToken] = useState(localStorage.getItem('access_token'));
+  const [token] = useState(localStorage.getItem('access_token'));
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
-
-  // Holidays and Blocked Days
   const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
 
-  // Role detection for admin/system_admin
   let userRole = null;
   if (token) {
     try {
@@ -75,7 +74,7 @@ function CreateAppointmentForm({
               label: `Dr. ${doc.first_name} ${doc.last_name}`
             };
             setSelectedDoctor(selected);
-            handleDoctorChange(selected); // fetch slots if default provider is set
+            handleDoctorChange(selected);
           }
         }
       } catch (error) {
@@ -112,7 +111,7 @@ function CreateAppointmentForm({
     // eslint-disable-next-line
   }, [defaultProviderId, token]);
 
-  // Edit support for appointmentToEdit, including preselecting event
+  // Edit support for appointmentToEdit
   useEffect(() => {
     if (appointmentToEdit) {
       setFormData({
@@ -123,24 +122,37 @@ function CreateAppointmentForm({
           : '',
         duration_minutes: appointmentToEdit.duration_minutes || 30,
         recurrence: appointmentToEdit.recurrence || 'none',
+        status: appointmentToEdit.status || 'scheduled', // <-- prepopulate status
       });
 
       // Preselect doctor
       if (appointmentToEdit.provider) {
-        setSelectedDoctor({
+        const selected = {
           value: appointmentToEdit.provider.id || appointmentToEdit.provider,
           label:
             appointmentToEdit.provider_name ||
             (appointmentToEdit.provider.first_name && appointmentToEdit.provider.last_name
               ? `Dr. ${appointmentToEdit.provider.first_name} ${appointmentToEdit.provider.last_name}`
               : 'Provider'),
-        });
+        };
+        setSelectedDoctor(selected);
+        // Automatically fetch available slots for the preselected doctor
+        (async () => {
+          try {
+            const res = await axios.get(`http://127.0.0.1:8000/api/doctors/${selected.value}/available-dates/`, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            setAvailableSlots(res.data);
+          } catch (error) {
+            console.error('Failed to fetch available slots:', error);
+          }
+        })();
       }
 
-      // Preselect clinic event (after events have loaded)
+      // Preselect clinic event
       if (clinicEvents.length > 0 && appointmentToEdit.title) {
         const matchedEvent = clinicEvents.find(
-          evt => evt.name === appointmentToEdit.title // or evt.title if that's your field
+          evt => evt.name === appointmentToEdit.title
         );
         setSelectedClinicEvent(
           matchedEvent
@@ -151,10 +163,10 @@ function CreateAppointmentForm({
     }
   }, [appointmentToEdit, clinicEvents]);
 
+  // Handles doctor select and fetches slots
   const handleDoctorChange = async (selected) => {
     setSelectedDoctor(selected);
     setAvailableSlots([]);
-
     if (selected) {
       try {
         const res = await axios.get(`http://127.0.0.1:8000/api/doctors/${selected.value}/available-dates/`, {
@@ -174,7 +186,6 @@ function CreateAppointmentForm({
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // --- Clinic Event required check ---
     if (!selectedClinicEvent) {
       toast.error("Please select a Clinic Event.");
       return;
@@ -182,20 +193,22 @@ function CreateAppointmentForm({
 
     const payload = {
       ...formData,
-      title: selectedClinicEvent.label, // Always use selected event as title
+      title: selectedClinicEvent.label,
       provider: selectedDoctor?.value || null,
     };
 
-    // Always set the patient field if patientId is provided
     if (patientId) {
       payload.patient = patientId;
     }
-    // For admin and system_admin, allow setting patient from formData if present (e.g., for editing)
+    // Fix: Ensure patient is set when editing
+    if (!patientId && appointmentToEdit && appointmentToEdit.patient) {
+      payload.patient = appointmentToEdit.patient.id || appointmentToEdit.patient;
+    }
     if ((userRole === 'admin' || userRole === 'system_admin') && formData.patient) {
       payload.patient = formData.patient;
     }
 
-    // --- BLOCK LOGIC: No appts on blocked days or holidays ---
+    // Blocked day/holiday check
     const selectedDate = new Date(formData.appointment_datetime);
     const isBlockedDay = blockedDays.includes(selectedDate.getDay());
     const isHoliday = holidays.some(h => {
@@ -212,150 +225,175 @@ function CreateAppointmentForm({
     }
 
     try {
-      await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      toast.success('Appointment created!');
-      onSuccess?.(); // optional callback to refresh or redirect
+      if (typeof editMode !== 'undefined' && editMode && appointmentToEdit && appointmentToEdit.id) {
+        // Update existing appointment
+        await axios.put(`http://127.0.0.1:8000/api/appointments/${appointmentToEdit.id}/`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success('Appointment updated!');
+      } else {
+        // Create new appointment
+        await axios.post('http://127.0.0.1:8000/api/appointments/', payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success('Appointment created!');
+      }
+      onSuccess?.();
     } catch (error) {
       console.error(error);
-      toast.error('Failed to create appointment.');
+      toast.error(editMode ? 'Failed to update appointment.' : 'Failed to create appointment.');
     }
   };
 
   return (
-    <div className="row">
+    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mt: 2 }}>
       {/* Left: Form */}
-      <div className="col-md-7">
+      <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>
+        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+          {editMode ? 'Edit Appointment' : 'Create Appointment'} {patientName && <span style={{ color: '#1976d2' }}>for {patientName}</span>}
+        </Typography>
         <form onSubmit={handleSubmit}>
-          <h4 className="mb-3" style={{ fontSize: '1.25rem', fontWeight: 'normal' }}>
-            Create Appointment{' '}
-            {patientName && <span style={{ color: 'blue' }}>for {patientName}</span>}
-          </h4>
-
-          <div className="mb-3">
-            <label className="form-label">Clinic Event</label>
-            <Select
-              options={clinicEvents.map(event => ({
-                value: event.id,
-                label: event.name // or event.title if that's your field
-              }))}
-              value={selectedClinicEvent}
-              onChange={selected => {
-                setSelectedClinicEvent(selected);
-                setFormData(prev => ({
-                  ...prev,
-                  title: selected ? selected.label : ''
-                }));
-              }}
-              placeholder="Select clinic event..."
-              isClearable
+          <Stack spacing={2}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Clinic Event</Typography>
+              <Select
+                options={clinicEvents.map(event => ({ value: event.id, label: event.name }))}
+                value={selectedClinicEvent}
+                onChange={selected => {
+                  setSelectedClinicEvent(selected);
+                  setFormData(prev => ({ ...prev, title: selected ? selected.label : '' }));
+                }}
+                placeholder="Select clinic event..."
+                isClearable
+                styles={{
+                  control: (base) => ({ ...base, minHeight: 40 }),
+                  menu: (base) => ({ ...base, zIndex: 9999 })
+                }}
+              />
+            </Box>
+            <TextField
+              label="Description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              multiline
+              minRows={2}
+              fullWidth
             />
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Description</label>
-            <textarea name="description" className="form-control" value={formData.description} onChange={handleChange} />
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Date & Time</label>
-            <input
-              type="datetime-local"
+            <TextField
+              label="Date & Time"
               name="appointment_datetime"
-              className="form-control"
+              type="datetime-local"
               value={formData.appointment_datetime}
               onChange={handleChange}
               required
+              fullWidth
+              InputLabelProps={{ shrink: true }}
             />
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Duration (minutes)</label>
-            <input
-              type="number"
+            <TextField
+              label="Duration (minutes)"
               name="duration_minutes"
-              className="form-control"
+              type="number"
               value={formData.duration_minutes}
               onChange={handleChange}
               required
+              fullWidth
+              inputProps={{ min: 1 }}
             />
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Recurrence</label>
-            <select
+            <TextField
+              label="Recurrence"
               name="recurrence"
-              className="form-select"
+              select
               value={formData.recurrence}
               onChange={handleChange}
+              fullWidth
             >
-              <option value="none">None</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-
-          <div className="mb-3">
-            <label className="form-label">Select Doctor</label>
-            <Select
-              options={doctors.map(doc => ({ value: doc.id, label: `Dr. ${doc.first_name} ${doc.last_name}` }))}
-              value={selectedDoctor}
-              onChange={handleDoctorChange}
-              placeholder="Search or select doctor..."
-              isClearable
-              isDisabled={!(userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar')}
-            />
-          </div>
-
-          <div className="d-flex gap-2 mt-3">
-            <button type="submit" className="btn btn-primary">
-              Create Appointment
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => onSuccess?.()}
-            >
-              Cancel Appointment Creation
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Right: Available Slots */}
-      <div className="col-md-5 border-start ps-4">
-        <h5>Next Available Slots</h5>
-        <ul className="list-group">
-            {availableSlots.length > 0 ? (
-                availableSlots.map((slot, idx) => {
-                const formattedSlot = toLocalDatetimeString(slot);
-                return (
-                    <li
-                    key={idx}
-                    role="button"
-                    onClick={() => {
-                        setSelectedSlot(formattedSlot);
-                        setFormData((prev) => ({
-                        ...prev,
-                        appointment_datetime: formattedSlot,
-                        }));
-                    }}
-                    className={`list-group-item list-group-item-action ${
-                        selectedSlot === formattedSlot ? 'active' : ''
-                    }`}
-                    >
-                    {new Date(slot).toLocaleString()}
-                    </li>
-                );
-                })
-            ) : (
-                <li className="list-group-item text-muted">No available slots</li>
+              <MenuItem value="none">None</MenuItem>
+              <MenuItem value="daily">Daily</MenuItem>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+            </TextField>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Select Doctor</Typography>
+              <Select
+                options={doctors.map(doc => ({ value: doc.id, label: `Dr. ${doc.first_name} ${doc.last_name}` }))}
+                value={selectedDoctor}
+                onChange={handleDoctorChange}
+                placeholder="Search or select doctor..."
+                isClearable
+                isDisabled={false}
+                styles={{
+                  control: (base) => ({ ...base, minHeight: 40 }),
+                  menu: (base) => ({ ...base, zIndex: 9999 })
+                }}
+              />
+            </Box>
+            {editMode && (
+              <TextField
+                label="Status"
+                name="status"
+                select
+                value={formData.status || ''}
+                onChange={handleChange}
+                required
+                fullWidth
+              >
+                <MenuItem value="scheduled">Scheduled</MenuItem>
+                <MenuItem value="completed">Completed</MenuItem>
+                <MenuItem value="cancelled">Cancelled</MenuItem>
+                <MenuItem value="no_show">No Show</MenuItem>
+                <MenuItem value="rescheduled">Rescheduled</MenuItem>
+                <MenuItem value="pending">Pending</MenuItem>
+                <MenuItem value="in_progress">In Progress</MenuItem>
+              </TextField>
             )}
-        </ul>
-      </div>
-    </div>
+            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+              <Button type="submit" variant="contained" color="primary">
+                {editMode ? 'Update Appointment' : 'Create Appointment'}
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => onSuccess?.()}
+              >
+                Cancel
+              </Button>
+            </Stack>
+          </Stack>
+        </form>
+      </Paper>
+      {/* Right: Available Slots */}
+      <Paper elevation={1} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 260, bgcolor: '#f9f9fa' }}>
+        <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+          Next Available Slots
+        </Typography>
+        {availableSlots.length > 0 ? (
+          <Stack spacing={1}>
+            {availableSlots.map((slot, idx) => {
+              const formattedSlot = toLocalDatetimeString(slot);
+              return (
+                <Button
+                  key={idx}
+                  variant={selectedSlot === formattedSlot ? 'contained' : 'outlined'}
+                  color={selectedSlot === formattedSlot ? 'primary' : 'inherit'}
+                  size="small"
+                  sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
+                  onClick={() => {
+                    setSelectedSlot(formattedSlot);
+                    setFormData((prev) => ({ ...prev, appointment_datetime: formattedSlot }));
+                  }}
+                  fullWidth
+                >
+                  {new Date(slot).toLocaleString()}
+                </Button>
+              );
+            })}
+          </Stack>
+        ) : (
+          <Alert severity="info">No available slots</Alert>
+        )}
+      </Paper>
+    </Box>
   );
 }
 
