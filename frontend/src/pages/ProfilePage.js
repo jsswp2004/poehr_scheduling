@@ -508,15 +508,17 @@ function ProfilePage() {
 
             {/* Change Password */}
             <Divider sx={{ my: 2 }} />
-            <Button
-              variant="outlined"
-              color="primary"
-              startIcon={<LockResetIcon />}
-              onClick={() => setShowPasswordForm(v => !v)}
-              sx={{ width: 220 }}
-            >
-              {showPasswordForm ? 'Cancel' : 'Change Password'}
-            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<LockResetIcon />}
+                onClick={() => setShowPasswordForm(v => !v)}
+                sx={{ width: 220 }}
+              >
+                {showPasswordForm ? 'Cancel' : 'Change Password'}
+              </Button>
+            </Box>
             <Collapse in={showPasswordForm}>
               <Box sx={{ my: 2 }}>
                 <TextField

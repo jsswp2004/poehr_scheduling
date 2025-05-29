@@ -289,7 +289,7 @@ function EnvironmentProfilePage() {
 
       {tabKey === 'uploads' && (
         <UploadTab />
-      )}      <BackButton to="/admin" sx={{ mt: 2, mb: 3 }} />
+      )}      
     </Box>
   );
 }

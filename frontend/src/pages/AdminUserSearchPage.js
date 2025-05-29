@@ -88,8 +88,8 @@ function AdminUserSearchPage() {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 5 }}>
-      <BackButton to="/admin" />
-      <Typography variant="h4" fontWeight={600} gutterBottom>
+
+      <Typography variant="h5" fontWeight={600} gutterBottom>
         Search Appointments
       </Typography>
       <Box
@@ -223,6 +223,7 @@ function AdminUserSearchPage() {
           </TableBody>
         </Table>
       </TableContainer>
+      {/* Pagination */}
       {results.length > rowsPerPage && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
           <Pagination
@@ -234,7 +235,7 @@ function AdminUserSearchPage() {
           />
         </Box>
       )}
-
+      <BackButton to="/admin" />
       {/* Appointment Details Dialog */}
       <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Appointment Details</DialogTitle>

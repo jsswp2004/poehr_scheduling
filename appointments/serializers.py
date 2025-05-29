@@ -52,7 +52,7 @@ class EnvironmentSettingSerializer(serializers.ModelSerializer):
 class HolidaySerializer(serializers.ModelSerializer):
     class Meta:
         model = Holiday
-        fields = ['id', 'name', 'date', 'is_recognized']
+        fields = ['id', 'name', 'date', 'is_recognized', 'suppressed']
 
 class ClinicEventSerializer(serializers.ModelSerializer):
     class Meta:

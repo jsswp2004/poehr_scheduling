@@ -125,6 +125,12 @@ class Holiday(models.Model):
     name = models.CharField(max_length=64)
     date = models.DateField()
     is_recognized = models.BooleanField(default=False)
+    suppressed = models.BooleanField(default=False)  # Mark as suppressed instead of deleting
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['name', 'date'], name='unique_holiday')
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.date})"
