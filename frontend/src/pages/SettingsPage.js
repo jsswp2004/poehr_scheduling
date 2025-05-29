@@ -15,15 +15,8 @@ function SettingsPage() {
   const navigate = useNavigate();
 
   return (
-    <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <BackButton 
-        onClick={() => {
-          if (view) {
-            setView('');
-          } else {
-            navigate(-1);
-          }
-        }}
-      />
+    <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      
+
       <Typography variant="h5" sx={{ mb: 2 }}>Settings</Typography>
       <div>
         {view === 'maintenance' && <MaintenancePage />}
@@ -41,6 +34,17 @@ function SettingsPage() {
             </Stack>
           </>
         )}
+      </div>
+      <div style={{ marginTop: 20 }}> 
+        <BackButton 
+          onClick={() => {
+            if (view) {
+              setView('');
+            } else {
+              navigate(-1);
+            }
+          }}
+        />
       </div>
     </Box>
   );

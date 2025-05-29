@@ -108,10 +108,13 @@ function HolidaysTab() {
     const performDelete = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        const res = await axios.delete(`http://127.0.0.1:8000/api/holidays/${id}/`, {
+        // Instead of DELETE, PATCH suppressed=true
+        const res = await axios.patch(`http://127.0.0.1:8000/api/holidays/${id}/`, {
+          suppressed: true
+        }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        console.log('Delete response:', res);
+        console.log('Suppress response:', res);
         setStatus('Deleted!');
         await loadHolidays(); // Only reload after successful delete
       } catch (e) {

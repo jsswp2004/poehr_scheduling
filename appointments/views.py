@@ -387,11 +387,11 @@ class HolidayViewSet(viewsets.ModelViewSet):
                 year = datetime.now().year
             # Ensure holidays for this year exist in the database
             self.ensure_holidays_for_year(year)
-            return Holiday.objects.filter(date__year=year).order_by('date')
+            return Holiday.objects.filter(date__year=year, suppressed=False).order_by('date')
         else:
             # Optionally, auto-add for current year if not already in DB
             self.ensure_holidays_for_year(datetime.now().year)
-            return Holiday.objects.all().order_by('date')
+            return Holiday.objects.filter(suppressed=False).order_by('date')
 
     @staticmethod
     def ensure_holidays_for_year(year):
@@ -400,7 +400,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
             Holiday.objects.get_or_create(
                 name=name,
                 date=date,
-                defaults={'is_recognized': True}  # set to False if you want unchecked by default
+                defaults={'is_recognized': True, 'suppressed': False}  # set to False if you want unchecked by default
             )
 
 class DownloadClinicEventsTemplate(APIView):

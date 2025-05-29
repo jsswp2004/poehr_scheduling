@@ -181,23 +181,44 @@ const handleBackNavigation = (e) => {
   navigate(-1);
 };
 
+// Helper: get user first name from token
+const getUserFirstName = () => {
+  try {
+    if (!token) return '';
+    const decoded = jwtDecode(token);
+    return decoded.first_name || decoded.username || '';
+  } catch {
+    return '';
+  }
+};
+
+// Helper: get greeting based on time of day
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+};
+
+// Compute summary for today's appointments
+const totalToday = todaysAppointments.length;
+const doctorPatientMap = {};
+todaysAppointments.forEach(appt => {
+  let doctor = appt.provider_name || (appt.provider ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim() : 'Unknown');
+  if (!doctorPatientMap[doctor]) doctorPatientMap[doctor] = 0;
+  doctorPatientMap[doctor] += 1;
+});
+const userName = getUserFirstName();
+const greeting = getGreeting();
+
   
   return (
     <Container maxWidth="lg" sx={{ mt: 5, mx: "auto" }}>      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <BackButton 
-          
+
+        {isAdmin && (
+        <BackButton           
           onClick={handleBackNavigation}
         />
-        {isAdmin && (
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AdminPanelSettingsIcon />}
-            onClick={() => navigate('/admin')}
-            sx={{ px: 2, py: 1, borderRadius: 2, fontWeight: 600, textTransform: 'none' }}
-          >
-            Management Portal
-          </Button>
         )}
       </Box>{/* Top row with two equal panels */}
       <Grid container spacing={3} alignItems="stretch" justifyContent="center" sx={{ mb: 4 }}>        {/* Left Panel: Today's Appointments */}
@@ -205,7 +226,7 @@ const handleBackNavigation = (e) => {
           <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <TodayIcon color="primary" sx={{ mr: 1 }} />
-              <Typography variant="h6" fontWeight={600}>Today's Appointments</Typography>
+              <Typography variant="h5" fontWeight={600}>Today's Appointments</Typography>
             </Box>
             <TableContainer sx={{ maxHeight: '300px', overflow: 'auto' }}>
               <Table size="small" stickyHeader>
@@ -253,17 +274,41 @@ const handleBackNavigation = (e) => {
               </Table>
             </TableContainer>
           </Paper>
-        </Grid>        {/* Right Panel: Placeholder */}
+        </Grid>        {/* Right Panel: Summary */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <TodayIcon color="secondary" sx={{ mr: 1 }} />
-              <Typography variant="h6" fontWeight={600}>Placeholder Panel</Typography>
+              <Typography variant="h5" fontWeight={600}>Summary</Typography>
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '300px', overflow: 'auto' }}>
-              <Typography variant="body1" color="text.secondary" align="center">
-                This panel will be used for additional functionality in the future.
+              <Typography variant="h5" fontWeight={700} color="primary.main" gutterBottom>
+                {greeting}{userName ? `, ${userName}` : ''}! 🌞
               </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                Wishing you a wonderful day at POWER Scheduling!
+              </Typography>
+              <Typography variant="h6" fontWeight={600} sx={{ mt: 1 }}>
+                Total Appointments Today: {totalToday}
+              </Typography>
+              <Box sx={{ mt: 2, width: '100%' }}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                  Patients per Doctor:
+                </Typography>
+                {Object.keys(doctorPatientMap).length === 0 ? (
+                  <Typography color="text.secondary">No appointments scheduled for today.</Typography>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: 20 }}>
+                    {Object.entries(doctorPatientMap).map(([doctor, count]) => (
+                      <li key={doctor}>
+                        <Typography variant="body2" color="text.primary">
+                          {doctor}: {count} patient{count > 1 ? 's' : ''}
+                        </Typography>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Box>
             </Box>
           </Paper>
         </Grid>
@@ -273,7 +318,7 @@ const handleBackNavigation = (e) => {
       <Grid container>
         {/* Main Content: All Appointments */}
         <Grid item xs={12}>
-          <Typography variant="h4" fontWeight={600} gutterBottom>
+          <Typography variant="h5" fontWeight={600} gutterBottom>
             Appointments
           </Typography>
           <Box
