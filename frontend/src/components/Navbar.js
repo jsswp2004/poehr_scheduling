@@ -4,13 +4,24 @@ import logo from '../assets/POWER_Logo.png';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
+import Box from '@mui/material/Box';
+import Avatar from '@mui/material/Avatar';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Tooltip from '@mui/material/Tooltip';
 
 function Navbar() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
-  const [role, setRole] = useState(''); // <-- ADDED for role detection
+  const [role, setRole] = useState('');
   const isAuthenticated = !!localStorage.getItem('access_token');
   const [logoUrl, setLogoUrl] = useState(null);
+  const [anchorEl, setAnchorEl] = useState(null);
 
   useEffect(() => {
     const token = localStorage.getItem('access_token');
@@ -18,11 +29,10 @@ function Navbar() {
 
     try {
       const decoded = jwtDecode(token);
-      console.log('Decoded JWT:', decoded); 
       const userId = decoded.user_id;
       const firstName = decoded.first_name || decoded.username || '';
       setUsername(firstName);
-      setRole(decoded.role || ''); // <-- Store role in state
+      setRole(decoded.role || '');
 
       axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -48,78 +58,94 @@ function Navbar() {
     navigate('/login');
   };
 
-  // --- System Admin flag for conditional rendering ---
   const isSystemAdmin = role === 'system_admin';
 
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
-      <div className="container-fluid">
-        <Link to="/" className="navbar-brand d-flex align-items-center">
-          <img
+    <AppBar position="fixed" color="primary" sx={{ zIndex: 1201 }}>
+      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} component={Link} to="/">
+          <Avatar
             src={logoUrl || logo}
             alt="Logo"
-            style={{ height: '40px', marginRight: '10px', backgroundColor: 'white', padding: '2px', borderRadius: '4px' }}
+            sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
+            variant="rounded"
           />
-          POWER Scheduler
-        </Link>
-
-        <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarContent"
-        >
-          <span className="navbar-toggler-icon" />
-        </button>
-
-        <div className="collapse navbar-collapse" id="navbarContent">
-          <ul className="navbar-nav ms-auto align-items-center">
-            {isAuthenticated && (
-              <li className="nav-item text-white me-3">
-                👋 Hello, <strong>{username}</strong>
+          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 700, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+            POWER Scheduler
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {isAuthenticated && (
+            <>
+              <Button
+                color="inherit"
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  mr: 2,
+                  pl: 1,
+                  pr: 1,
+                  color: 'white',
+                  '& .MuiAvatar-root': { bgcolor: 'primary.light', color: 'primary.contrastText' },
+                  '& .navbar-username': { color: 'white' },
+                }}
+                startIcon={<Avatar sx={{ width: 28, height: 28, bgcolor: 'primary.light', color: 'primary.contrastText' }}>{username?.[0]?.toUpperCase() || '?'}</Avatar>}
+                disableRipple
+                disabled
+              >
+                <span className="navbar-username">{username}</span>
                 {isSystemAdmin && (
-                  <span style={{
-                    background: '#fff',
-                    color: '#0d6efd',
+                  <Box component="span" sx={{
+                    background: 'white',
+                    color: '#1976d2',
                     fontWeight: 700,
                     fontSize: '0.95em',
                     borderRadius: '7px',
-                    padding: '2px 8px',
-                    marginLeft: '9px',
-                    border: '2px solid #0d6efd'
+                    px: 1.5,
+                    ml: 1.5,
+                    border: '2px solid',
+                    borderColor: '#1976d2',
+                    display: 'inline-block',
                   }}>
                     System Admin
-                  </span>
+                  </Box>
                 )}
-              </li>
-            )}
-            {!isAuthenticated ? (
-              <>
-                {/*<li className="nav-item">
-                  <Link to="/login" className="nav-link">Login</Link>
-                </li>
-                <li className="nav-item">
-                  <Link to="/register" className="nav-link">Register</Link>
-                </li>*/}
-              </>
-            ) : (
-              <li className="nav-item">
-                <button className="btn btn-outline-light ms-2" onClick={handleLogout}>
-                  Logout
-                </button>
-              </li>
-            )}
-            {/* --- EXAMPLE: If you want to show a menu item for System Admin only:
-            {isSystemAdmin && (
-              <li className="nav-item">
-                <Link to="/system-admin" className="nav-link">SysAdmin Dashboard</Link>
-              </li>
-            )}
-            */}
-          </ul>
-        </div>
-      </div>
-    </nav>
+              </Button>
+              <IconButton
+                onClick={handleLogout}
+                color="inherit"
+                sx={{
+                  ml: 1,
+                  color: 'white',
+                  border: '2px solid #1976d2',
+                  borderRadius: 1,
+                  p: 1,
+                  transition: 'background 0.2s, color 0.2s, border-color 0.2s',
+                  '&:hover': {
+                    background: 'rgba(211, 47, 47, 0.10)', // red tint
+                    color: '#d32f2f', // MUI error.main
+                    borderColor: '#d32f2f',
+                    boxShadow: '0 0 0 2px #d32f2f33',
+                    cursor: 'pointer',
+                  },
+                }}
+                title="Logout"
+              >
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              </IconButton>
+            </>
+          )}
+        </Box>
+      </Toolbar>
+    </AppBar>
   );
 }
 

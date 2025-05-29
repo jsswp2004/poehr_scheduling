@@ -2,8 +2,28 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
-import { Card, Form, Button, Row, Col, Spinner, Tabs, Tab } from 'react-bootstrap';
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  TextField,
+  IconButton,
+  Tooltip,
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select as MUISelect,
+  Alert,
+} from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import { jwtDecode } from 'jwt-decode';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 function PatientDetailPage() {
   const { id } = useParams();
@@ -84,8 +104,18 @@ function PatientDetailPage() {
   if (!patient) return <div>Loading patient details...</div>;
 
   return (
-    <div className="container mt-4">
-      <h4>Patient Details</h4>
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+      <Button
+        startIcon={<ArrowBackIcon />}
+        onClick={() => navigate('/patients')}
+        sx={{ mb: 2, px: 2, py: 1, alignSelf: 'flex-start', borderRadius: 2, backgroundColor: '#f5f5f5', color: 'primary.main', fontWeight: 600, textTransform: 'none', boxShadow: 'none', '&:hover': { backgroundColor: '#e0e0e0', boxShadow: 'none' } }}
+        disableElevation
+      >
+        Back
+      </Button>
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        Patient Details
+      </Typography>
 
       {/* Show profile picture if available */}
       {patient.profile_picture && (
@@ -135,155 +165,141 @@ function PatientDetailPage() {
 
       {!showAppointmentForm && (
         <form onSubmit={handleSubmit}>
-          <table className="table table-bordered mb-3">
-            <tbody>
-              <tr>
-                <th scope="row">Name</th>
-                <td>{patient.first_name} {patient.last_name}</td>
-              </tr>
-              <tr>
-                <th scope="row">Username</th>
-                <td>{patient.username}</td>
-              </tr>
-              <tr>
-                <td><strong>Email</strong></td>
-                <td>
-                  {editMode ? (
-                    <Form.Control
-                      type="email"
-                      name="email"
-                      value={formData.email || ''}
-                      onChange={handleChange}
-                    />
-                  ) : (
-                    patient.email || '—'
-                  )}
-                </td>
-              </tr>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+            <Stack spacing={3}>
+              <Typography variant="h6">Patient Information</Typography>
+              <TextField
+                label="First Name"
+                name="first_name"
+                value={formData.first_name || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+              <TextField
+                label="Last Name"
+                name="last_name"
+                value={formData.last_name || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+              <TextField
+                label="Username"
+                name="username"
+                value={formData.username || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+              <TextField
+                label="Email"
+                name="email"
+                type="email"
+                value={formData.email || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+              <FormControl fullWidth disabled={!editMode}>
+                <InputLabel>Provider</InputLabel>
+                <MUISelect
+                  name="provider"
+                  value={formData.provider || ''}
+                  onChange={handleChange}
+                  label="Provider"
+                  sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                >
+                  <MenuItem value="">Select a provider</MenuItem>
+                  {Array.isArray(doctors) && doctors.map((doc) => (
+                    <MenuItem key={doc.id} value={doc.id}>
+                      Dr. {doc.first_name} {doc.last_name}
+                    </MenuItem>
+                  ))}
+                </MUISelect>
+              </FormControl>
+              <TextField
+                label="Phone Number"
+                name="phone_number"
+                value={formData.phone_number || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+              <TextField
+                label="Date of Birth"
+                name="date_of_birth"
+                type="date"
+                value={formData.date_of_birth || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                InputLabelProps={{ shrink: true }}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+              <TextField
+                label="Address"
+                name="address"
+                value={formData.address || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+              <TextField
+                label="Medical History"
+                name="medical_history"
+                value={formData.medical_history || ''}
+                onChange={handleChange}
+                fullWidth
+                disabled={!editMode}
+                multiline
+                rows={4}
+                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              />
+            </Stack>
 
-              <tr>
-                <th scope="row">Provider</th>
-                <td>
-                  {editMode ? (
-                    <Form.Select
-                      name="provider"
-                      value={formData.provider || ''}
-                      onChange={handleChange}
-                    >
-                      <option value="">Select a provider</option>
-                      {Array.isArray(doctors) && doctors.map((doc) => (
-                        <option key={doc.id} value={doc.id}>
-                          Dr. {doc.first_name} {doc.last_name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  ) : (
-                    patient.provider_name || '—'
-                  )}
-                </td>
-              </tr>
+            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+              {editMode ? (
+                <>
+                  <Button variant="contained" color="primary" type="submit">
+                    Save
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={() => {
+                      setEditMode(false);
+                      setFormData(patient);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={() => setEditMode(true)}
+                >
+                  Edit
+                </Button>
+              )}
 
-              <tr>
-                <th scope="row">Phone</th>
-                <td>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="phone_number"
-                      className="form-control"
-                      value={formData.phone_number || ''}
-                      onChange={handleChange}
-                    />
-                  ) : (
-                    patient.phone_number || '—'
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">Date of Birth</th>
-                <td>
-                  {editMode ? (
-                    <input
-                      type="date"
-                      name="date_of_birth"
-                      className="form-control"
-                      value={formData.date_of_birth || ''}
-                      onChange={handleChange}
-                    />
-                  ) : (
-                    patient.date_of_birth || '—'
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">Address</th>
-                <td>
-                  {editMode ? (
-                    <input
-                      type="text"
-                      name="address"
-                      className="form-control"
-                      value={formData.address || ''}
-                      onChange={handleChange}
-                    />
-                  ) : (
-                    patient.address || '—'
-                  )}
-                </td>
-              </tr>
-              <tr>
-                <th scope="row">Medical History</th>
-                <td>
-                  {editMode ? (
-                    <textarea
-                      name="medical_history"
-                      className="form-control"
-                      value={formData.medical_history || ''}
-                      onChange={handleChange}
-                    />
-                  ) : (
-                    patient.medical_history || '—'
-                  )}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          {editMode ? (
-            <>
-              <button type="submit" className="btn btn-primary me-2">Save</button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setEditMode(false);
-                  setFormData(patient);
-                }}
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => setShowAppointmentForm(true)}
               >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn btn-warning" onClick={() => setEditMode(true)}>
-              Edit
-            </button>
-          )}
-
-          <button
-            type="button"
-            className="btn btn-danger ms-2 btn"
-            onClick={() => navigate('/patients')}
-          >
-            Back to Patients
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-success ms-2"
-            onClick={() => setShowAppointmentForm(true)}
-          >
-            Create Appointment
-          </button>
+                Create Appointment
+              </Button>
+            </Stack>
+          </Paper>
         </form>
       )}
 
@@ -301,7 +317,7 @@ function PatientDetailPage() {
           />
         </div>
       )}
-    </div>
+    </Box>
   );
 }
 

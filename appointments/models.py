@@ -18,6 +18,15 @@ class Appointment(models.Model):
         ('weekly', 'Weekly'),
         ('monthly', 'Monthly'),
     ]
+    STATUS_CHOICES = [
+        ('scheduled', 'Scheduled'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+        ('no_show', 'No Show'),
+        ('rescheduled', 'Rescheduled'),
+        ('pending', 'Pending'),  # ✅ Add this
+        ('in_progress', 'In Progress')  # ✅ Add this too
+    ]
 
     organization = models.ForeignKey(
         Organization,
@@ -40,6 +49,12 @@ class Appointment(models.Model):
         max_length=10,
         choices=RECURRENCE_CHOICES,
         default='none'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='scheduled',
+        help_text='Status of the appointment'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

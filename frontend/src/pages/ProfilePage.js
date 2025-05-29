@@ -1,10 +1,17 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
-import { Card, Spinner, Button, Form, Collapse, Image } from 'react-bootstrap';
+import {
+  Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Avatar, Collapse, FormControl, InputLabel, Select as MUISelect, MenuItem, CircularProgress, Divider, Paper
+} from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import EditIcon from '@mui/icons-material/Edit';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Cancel';
+import SearchIcon from '@mui/icons-material/Search';
+import LockResetIcon from '@mui/icons-material/LockReset';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 
 function ProfilePage() {
@@ -25,6 +32,8 @@ function ProfilePage() {
     first_name: '',
     last_name: '',
     email: '',
+    organization: '',
+    role: '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -54,7 +63,8 @@ function ProfilePage() {
           first_name: res.data.first_name,
           last_name: res.data.last_name,
           email: res.data.email,
-          organization: res.data.organization, // Add organization to formData
+          organization: res.data.organization,
+          role: res.data.role,
         });
       })
       .catch(err => {
@@ -71,21 +81,20 @@ function ProfilePage() {
       .catch(() => setOrganizations([]));
   }, [token]);
 
-const handleSearch = async () => {
-  try {
-    const res = await axios.get(`http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setSearchResults(res.data);
+  const handleSearch = async () => {
+    try {
+      const res = await axios.get(`http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSearchResults(res.data);
 
-    if (res.data.length === 0) {
-      toast.info('No matching users found.');
+      if (res.data.length === 0) {
+        toast.info('No matching users found.');
+      }
+    } catch (err) {
+      toast.error('Search failed.');
     }
-  } catch (err) {
-    toast.error('Search failed.');
-  }
-};
-
+  };
 
   const handleChange = (e) => {
     setFormData(prev => ({
@@ -135,7 +144,6 @@ const handleSearch = async () => {
         uploadFormData,
         {
           headers: {
-            //'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
         }
@@ -160,7 +168,7 @@ const handleSearch = async () => {
 
     setUploading(true);
     try {
-      const res = await axios.patch(
+      await axios.patch(
         `http://127.0.0.1:8000/api/users/organizations/${user.organization}/`,
         logoFormData,
         {
@@ -170,7 +178,6 @@ const handleSearch = async () => {
         }
       );
       toast.success('Organization logo updated!');
-      // Optional: refresh user/org data
     } catch (err) {
       console.error(err);
       toast.error('Failed to upload organization logo');
@@ -183,51 +190,63 @@ const handleSearch = async () => {
   const loggedInUserRole = token ? jwtDecode(token).role : null;
 
   if (loading) {
-    return <div className="text-center my-5"><Spinner animation="border" /></div>;
+    return <Box sx={{ textAlign: 'center', my: 5 }}><CircularProgress /></Box>;
   }
 
-  if (!user) return <p className="text-danger text-center">User not found.</p>;
+  if (!user) return <Typography color="error" align="center">User not found.</Typography>;
 
   return (
-    <div className="container mt-4">
+    <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto' }}>
+      <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
+        {/* Top Action Bar */}
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={3}>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate(-1)}
+          >
+            Back
+          </Button>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <TextField
+              size="small"
+              variant="outlined"
+              placeholder="Search Profile 🔍"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              sx={{ minWidth: 200 }}
+            />
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<SearchIcon />}
+              onClick={handleSearch}
+              sx={{ height: 40 }}
+            >
+              Search
+            </Button>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={() => navigate('/create-profile')}
+              sx={{ height: 40 }}
+            >
+              Create Profile
+            </Button>
+          </Stack>
+        </Stack>
 
-      <Card className="shadow-sm p-4"> 
-        {user && ['admin', 'system_admin', 'registrar', 'patient'].includes(user.role)  && (         
-              <div className="mb-3 d-flex justify-content-between  align-items-right">
-                  <Button variant="outline-secondary" onClick={() => navigate(-1)} className="mb-3 w-12.5">
-                  ←  Back
-                  </Button>               
-                  <Form className="mb-3 d-flex gap-2">
-                    <Form.Control
-                    type="text"
-                    placeholder="Search Profile 🔍"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <Button variant="primary" style={{ width: '100px', height: '38px' }} onClick={handleSearch}>
-                    Search
-                    </Button>
-                </Form>
-                <Button
-                  variant="success"
-                  style={{ width: '200px', height: '38px' }}
-                  onClick={() => navigate('/create-profile')}
-                >
-                  Create Profile
-                </Button>
-
-              </div>                     
-        )}
+        {/* Search Results */}
         {searchResults.length > 0 && (
-          <div className="mb-3 border rounded p-3" style={{ maxHeight: '250px', overflowY: 'auto' }}>
-            <strong>Search Results</strong>
-            <table className="table table-sm mt-2 mb-0">
+          <Box sx={{ mb: 3, border: '1px solid #eee', borderRadius: 1, p: 2, maxHeight: 250, overflowY: 'auto' }}>
+            <Typography variant="subtitle1" sx={{ mb: 1 }}><b>Search Results</b></Typography>
+            <table style={{ width: '100%' }}>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Select</th>
+                  <th align="left">Name</th>
+                  <th align="left">Email</th>
+                  <th align="left">Role</th>
+                  <th align="left">Select</th>
                 </tr>
               </thead>
               <tbody>
@@ -238,16 +257,18 @@ const handleSearch = async () => {
                     <td>{result.role}</td>
                     <td>
                       <Button
-                        size="sm"
-                        variant="outline-primary"
+                        size="small"
+                        variant="outlined"
                         onClick={() => {
                           setUser(result);
                           setFormData({
                             first_name: result.first_name,
                             last_name: result.last_name,
                             email: result.email,
+                            organization: result.organization,
+                            role: result.role,
                           });
-                          setSearchResults([]); // optional: hide results after selection
+                          setSearchResults([]);
                         }}
                       >
                         Select
@@ -257,213 +278,283 @@ const handleSearch = async () => {
                 ))}
               </tbody>
             </table>
-          </div>
+          </Box>
         )}
 
-        <hr />
-        <div className="mb-3 d-flex justify-content-between align-items-right">     
-          <h5>User Information</h5>
-        </div>
-        {/* Display organization name if available */}
+        <Divider sx={{ mb: 3 }} />
+        <Typography variant="h6" sx={{ mb: 2 }}>User Information</Typography>
         {user.organization && (
-          <div className="mb-3">
-            <strong>Organization:</strong> {typeof user.organization === 'object' ? user.organization.name : (user.organization_name || '')}
-          </div>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" component="span">Organization:</Typography>{' '}
+            <Typography component="span">
+              {typeof user.organization === 'object'
+                ? user.organization.name
+                : (user.organization_name || '')}
+            </Typography>
+          </Box>
         )}
-        <Form>
+
+        <Stack direction="row" spacing={2} alignItems="flex-start">
+          {/* Profile Picture */}
           {user.profile_picture && (
-            <div className="mb-3 text-center">
-              <Image
+            <Box sx={{ minWidth: 120, mr: 3 }}>
+              <Avatar
                 src={user.profile_picture.startsWith('http') ? user.profile_picture : `http://127.0.0.1:8000${user.profile_picture}`}
-                roundedCircle
-                width="150"
-                height="150"
                 alt="Profile"
+                sx={{ width: 120, height: 120, borderRadius: 2 }}
+                variant="square"
               />
-            </div>
+            </Box>
           )}
-
-          <Form.Group className="mb-3">
-            <Form.Label>Upload Organization Logo</Form.Label>
-            <Form.Control
-              type="file"
-              accept="image/png, image/jpeg"
-              onChange={handleLogoUpload}
-              disabled={uploading}
-          />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Upload New Profile Picture</Form.Label>
-            <div className="d-flex align-items-center gap-3">
-              <Form.Control type="file" accept="image/png, image/jpeg" ref={fileInputRef} onChange={handleUpload} />
-              {uploading && <Spinner animation="border" size="sm" />}
-            </div>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>First Name</Form.Label>
-            <Form.Control
+          {/* All fields in a single vertical stack */}
+          <Stack spacing={2} sx={{ flex: 1 }}>
+            {/* Upload Org Logo */}
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <Typography>Upload Organization Logo</Typography>
+              <Button
+                variant="outlined"
+                component="label"
+                size="small"
+                disabled={uploading}
+              >
+                Upload
+                <input type="file" hidden accept="image/png, image/jpeg" onChange={handleLogoUpload} />
+              </Button>
+            </Stack>
+            {/* Upload Profile Picture */}
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <Typography>Upload New Profile Picture</Typography>
+              <Button
+                variant="outlined"
+                component="label"
+                size="small"
+                disabled={uploading}
+              >
+                Upload
+                <input type="file" hidden accept="image/png, image/jpeg" ref={fileInputRef} onChange={handleUpload} />
+              </Button>
+              {uploading && <CircularProgress size={20} />}
+            </Stack>
+            {/* Editable Fields */}
+            <TextField
+              label="First Name"
               name="first_name"
               value={formData.first_name}
               onChange={handleChange}
+              fullWidth
+              size="small"
               disabled={!isEditing}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
+              }}
             />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Last Name</Form.Label>
-            <Form.Control
+            <TextField
+              label="Last Name"
               name="last_name"
               value={formData.last_name}
               onChange={handleChange}
+              fullWidth
+              size="small"
               disabled={!isEditing}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
+              }}
             />
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Email</Form.Label>
-            <Form.Control
+            <TextField
+              label="Email"
               name="email"
               type="email"
               value={formData.email}
               onChange={handleChange}
+              fullWidth
+              size="small"
               disabled={!isEditing}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
+              }}
             />
-          </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Organization</Form.Label>
-            {isEditing ? (
-              <CreatableSelect
-                name="organization"
-                value={
-                  organizations
-                    .map(org => ({ value: org.id, label: org.name, id: org.id }))
-                    .find(opt => String(opt.value) === String(formData.organization)) || null
-                }
-                onChange={option => {
-                  if (option && option.__isNew__) {
-                    axios.post('http://127.0.0.1:8000/api/users/organizations/', { name: option.label }, {
-                      headers: { Authorization: `Bearer ${token}` },
-                    }).then(res => {
-                      setOrganizations(prev => [...prev, res.data]);
-                      setFormData({ ...formData, organization: res.data.id });
-                      toast.success('Organization created!');
-                    }).catch(() => toast.error('Failed to create organization'));
-                  } else {
-                    setFormData({ ...formData, organization: option ? option.value : '' });
+            {/* Organization - Editable with CreatableSelect */}
+            <Box>
+              <Typography sx={{ mb: 0.5 }}>Organization</Typography>
+              {isEditing ? (
+                <CreatableSelect
+                  name="organization"
+                  value={
+                    organizations
+                      .map(org => ({ value: org.id, label: org.name, id: org.id }))
+                      .find(opt => String(opt.value) === String(formData.organization)) || null
                   }
-                }}
-                options={organizations.map(org => ({ value: org.id, label: org.name, id: org.id }))}
-                isClearable
-                isSearchable
-                placeholder="Select or type to add organization..."
-                formatCreateLabel={inputValue => `Add "${inputValue}"`}
-              />
-            ) : (
-              <div className="form-control-plaintext">
-                {user.organization && (typeof user.organization === 'object' ? user.organization.name : (user.organization_name || ''))}
-              </div>
-            )}
-          </Form.Group>
+                  onChange={option => {
+                    if (option && option.__isNew__) {
+                      axios.post('http://127.0.0.1:8000/api/users/organizations/', { name: option.label }, {
+                        headers: { Authorization: `Bearer ${token}` },
+                      }).then(res => {
+                        setOrganizations(prev => [...prev, res.data]);
+                        setFormData({ ...formData, organization: res.data.id });
+                        toast.success('Organization created!');
+                      }).catch(() => toast.error('Failed to create organization'));
+                    } else {
+                      setFormData({ ...formData, organization: option ? option.value : '' });
+                    }
+                  }}
+                  options={organizations.map(org => ({ value: org.id, label: org.name, id: org.id }))}
+                  isClearable
+                  isSearchable
+                  placeholder="Select or type to add organization..."
+                  formatCreateLabel={inputValue => `Add "${inputValue}"`}
+                  styles={{
+                    control: (base) => ({ ...base, minHeight: 40 }),
+                    menu: (base) => ({ ...base, zIndex: 9999 })
+                  }}
+                />
+              ) : (
+                <TextField
+                  variant="outlined"
+                  value={
+                    user.organization && (typeof user.organization === 'object'
+                      ? user.organization.name
+                      : (user.organization_name || ''))
+                  }
+                  InputProps={{ readOnly: true, sx: { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } }}
+                  fullWidth
+                />
+              )}
+            </Box>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Role</Form.Label>
-            {isEditing && (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') ? (
-              <Form.Select
-                name="role"
-                value={formData.role || user.role}
-                onChange={handleChange}
-              >
-                <option value="admin">Admin</option>
-                <option value="system_admin">System Admin</option>
-                <option value="doctor">Doctor</option>
-                <option value="registrar">Registrar</option>
-                <option value="receptionist">Receptionist</option>
-                <option value="patient">Patient</option>
-              </Form.Select>
-            ) : (
-              <Form.Control
-                name="role"
-                value={user.role}
-                disabled
-                plaintext
-                readOnly
-              />
-            )}
-          </Form.Group>
+            {/* Role Selection */}
+            <Box>
+              <Typography sx={{ mb: 0.5 }}>Role</Typography>
+              {isEditing && (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') ? (
+                <FormControl fullWidth size="small">
+                  <InputLabel id="role-label">Role</InputLabel>
+                  <MUISelect
+                    labelId="role-label"
+                    name="role"
+                    value={formData.role}
+                    label="Role"
+                    onChange={handleChange}
+                  >
+                    <MenuItem value="admin">Admin</MenuItem>
+                    <MenuItem value="system_admin">System Admin</MenuItem>
+                    <MenuItem value="doctor">Doctor</MenuItem>
+                    <MenuItem value="registrar">Registrar</MenuItem>
+                    <MenuItem value="receptionist">Receptionist</MenuItem>
+                    <MenuItem value="patient">Patient</MenuItem>
+                  </MUISelect>
+                </FormControl>
+              ) : (
+                <TextField
+                  variant="outlined"
+                  value={user.role}
+                  InputProps={{ readOnly: true, sx: { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } }}
+                  fullWidth
+                />
+              )}
+            </Box>
 
-          {!isEditing ? (
-            <Button className="btn w-12.5" variant="primary" onClick={() => setIsEditing(true)}>Edit</Button>
-          ) : (
-            <div className="d-flex gap-2">
-              <Button variant="success" onClick={handleSave} disabled={uploading}>Save</Button>
+            {/* Edit/Save/Cancel Buttons */}
+            {!isEditing ? (
               <Button
-                variant="secondary"
-                onClick={() => {
-                  setIsEditing(false);
-                  setFormData({
-                    first_name: user.first_name,
-                    last_name: user.last_name,
-                    email: user.email,
-                  });
-                }}
+                variant="contained"
+                color="primary"
+                startIcon={<EditIcon />}
+                onClick={() => setIsEditing(true)}
+                sx={{ width: 130 }}
               >
-                Cancel
+                Edit
               </Button>
-            </div>
-          )}
-        </Form>
+            ) : (
+              <Stack direction="row" spacing={2}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSave}
+                  disabled={uploading}
+                  sx={{ width: 120 }}
+                >
+                  Save
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="secondary"
+                  startIcon={<CancelIcon />}
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormData({
+                      first_name: user.first_name,
+                      last_name: user.last_name,
+                      email: user.email,
+                      organization: user.organization,
+                      role: user.role,
+                    });
+                  }}
+                  sx={{ width: 120 }}
+                >
+                  Cancel
+                </Button>
+              </Stack>
+            )}
 
-        <hr />
-        {/*<h5>Change Password</h5>*/}
-        <div className="mb-3 w-12.5">
-        <Button
-          variant="outline-primary"
-          className="mb-3 w-12.5"
-          onClick={() => setShowPasswordForm(!showPasswordForm)}
-        >
-          {showPasswordForm ? 'Cancel' : 'Change Password'}
-        </Button>
-        </div>
-        <Collapse in={showPasswordForm}>
-          <div>
-            <Form.Group className="mb-2">
-              <Form.Label>Current Password</Form.Label>
-              <Form.Control
-                type="password"
-                name="current_password"
-                value={passwordData.current_password}
-                onChange={(e) => setPasswordData({ ...passwordData, current_password: e.target.value })}
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-2">
-              <Form.Label>New Password</Form.Label>
-              <Form.Control
-                type="password"
-                name="new_password"
-                value={passwordData.new_password}
-                onChange={(e) => setPasswordData({ ...passwordData, new_password: e.target.value })}
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Confirm New Password</Form.Label>
-              <Form.Control
-                type="password"
-                name="confirm_password"
-                value={passwordData.confirm_password}
-                onChange={(e) => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-              />
-            </Form.Group>
-
-            <Button variant="success" onClick={handlePasswordChange}>Save New Password</Button>
-          </div>
-        </Collapse>
-      </Card>
-    </div>
+            {/* Change Password */}
+            <Divider sx={{ my: 2 }} />
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<LockResetIcon />}
+              onClick={() => setShowPasswordForm(v => !v)}
+              sx={{ width: 220 }}
+            >
+              {showPasswordForm ? 'Cancel' : 'Change Password'}
+            </Button>
+            <Collapse in={showPasswordForm}>
+              <Box sx={{ my: 2 }}>
+                <TextField
+                  label="Current Password"
+                  type="password"
+                  name="current_password"
+                  value={passwordData.current_password}
+                  onChange={e => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  label="New Password"
+                  type="password"
+                  name="new_password"
+                  value={passwordData.new_password}
+                  onChange={e => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  label="Confirm New Password"
+                  type="password"
+                  name="confirm_password"
+                  value={passwordData.confirm_password}
+                  onChange={e => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                  fullWidth
+                  size="small"
+                  sx={{ mb: 2 }}
+                />
+                <Button variant="contained" color="success" onClick={handlePasswordChange}>
+                  Save New Password
+                </Button>
+              </Box>
+            </Collapse>
+          </Stack>
+        </Stack>
+      </Paper>
+    </Box>
   );
 }
 
