@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Box, Stack, Typography, Button, TextField, InputLabel, FormControl, MenuItem, Select as MUISelect } from '@mui/material';
+import { Box, Stack, Typography, TextField, Button, InputLabel, FormControl, MenuItem, Select as MUISelect } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import BackButton from '../components/BackButton';
 import { notifyProfileUpdated } from '../utils/events';
 
 function CreateProfile() {
@@ -59,10 +60,7 @@ function CreateProfile() {
   };
 
   return (
-    <Box sx={{ mt: 6, mx: 'auto', maxWidth: 440, p: 4, boxShadow: 3, borderRadius: 2, bgcolor: 'background.paper' }}>
-      <Button variant="outlined" sx={{ mb: 2 }} onClick={() => navigate(-1)}>
-        Back
-      </Button>
+    <Box sx={{ mt: 6, mx: 'auto', maxWidth: 440, p: 4, boxShadow: 3, borderRadius: 2, bgcolor: 'background.paper' }}>      <BackButton />
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>
         Create Profile
       </Typography>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { Container, Paper, Typography, TextField, Button, Alert } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
 
 function ForgotPasswordPage() {
@@ -27,10 +27,7 @@ function ForgotPasswordPage() {
 
   return (
     <Container maxWidth="sm" sx={{ mt: 8 }}>
-      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
-        <Button variant="outlined" startIcon={<ArrowBackIcon />} sx={{ mb: 2 }} onClick={() => navigate(-1)}>
-          Back
-        </Button>
+      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>        <BackButton />
         <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
           Forgot Password
         </Typography>

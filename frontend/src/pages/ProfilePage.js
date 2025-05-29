@@ -3,7 +3,7 @@ import axios from 'axios';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Avatar, Collapse, FormControl, InputLabel, Select as MUISelect, MenuItem, CircularProgress, Divider, Paper
 } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BackButton from '../components/BackButton';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -208,15 +208,8 @@ function ProfilePage() {
   return (
     <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto' }}>
       <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-        {/* Top Action Bar */}
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={3}>
-          <Button
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate(-1)}
-          >
-            Back
-          </Button>
+        {/* Top Action Bar */}        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={3}>
+          <BackButton />
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField
               size="small"

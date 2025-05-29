@@ -8,6 +8,7 @@ import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
+import BackButton from '../components/BackButton';
 
 const DAYS = [
   { label: 'Mon', value: 1 },
@@ -288,15 +289,7 @@ function EnvironmentProfilePage() {
 
       {tabKey === 'uploads' && (
         <UploadTab />
-      )}
-
-      <Button
-        variant="outlined"
-        onClick={() => navigate("/admin")}
-        sx={{ mt: 2, mb: 3 }}
-      >
-        ← Back
-      </Button>
+      )}      <BackButton to="/admin" sx={{ mt: 2, mb: 3 }} />
     </Box>
   );
 }

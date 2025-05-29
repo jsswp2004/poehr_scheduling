@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Container, Paper, Typography, CircularProgress, Box, Button } from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { Container, Paper, Typography, CircularProgress, Box } from '@mui/material';
+import BackButton from '../components/BackButton';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
 
 function EditAppointmentPage() {
@@ -52,16 +52,7 @@ function EditAppointmentPage() {
   return (
     <Container maxWidth={false} sx={{ mt: 6, mb: 6, maxWidth: 1100 }}>
       <Paper sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3, boxShadow: 3, maxWidth: 1000, mx: 'auto' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <Button
-            variant="outlined"
-            color="secondary"
-            onClick={() => navigate(-1)}
-            sx={{ mr: 2, minWidth: 90, fontWeight: 600, borderRadius: 2 }}
-            startIcon={<ArrowBackIcon />}
-          >
-            Back
-          </Button>
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>          <BackButton sx={{ mr: 2 }} />
 
         </Box>
         <CreateAppointmentForm

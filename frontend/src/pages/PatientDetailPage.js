@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import { jwtDecode } from 'jwt-decode';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BackButton from '../components/BackButton';
 
 function PatientDetailPage() {
   const { id } = useParams();
@@ -104,15 +104,7 @@ function PatientDetailPage() {
   if (!patient) return <div>Loading patient details...</div>;
 
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/patients')}
-        sx={{ mb: 2, px: 2, py: 1, alignSelf: 'flex-start', borderRadius: 2, backgroundColor: '#f5f5f5', color: 'primary.main', fontWeight: 600, textTransform: 'none', boxShadow: 'none', '&:hover': { backgroundColor: '#e0e0e0', boxShadow: 'none' } }}
-        disableElevation
-      >
-        Back
-      </Button>
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <BackButton to="/patients" />
       <Typography variant="h5" sx={{ mb: 2 }}>
         Patient Details
       </Typography>

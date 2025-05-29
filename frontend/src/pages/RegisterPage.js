@@ -6,7 +6,7 @@ import {
   Container, Paper, Typography, TextField, Button, Stack, Box, FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, Alert 
 } from '@mui/material';
 import Select from 'react-select';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BackButton from '../components/BackButton';
 
 function RegisterPage({ adminMode = false }) {
   const [isPatient, setIsPatient] = useState(adminMode ? true : true);
@@ -65,30 +65,7 @@ function RegisterPage({ adminMode = false }) {
 
   return (
     <Container maxWidth="sm" sx={{ mt: 6 }}>
-      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
-          sx={{
-            mb: 2,
-            px: 2,
-            py: 1,
-            alignSelf: 'flex-start',
-            borderRadius: 2,
-            backgroundColor: '#f5f5f5',
-            color: 'primary.main',
-            fontWeight: 600,
-            textTransform: 'none',
-            boxShadow: 'none',
-            '&:hover': {
-              backgroundColor: '#e0e0e0',
-              boxShadow: 'none',
-            },
-          }}
-          disableElevation
-        >
-          Back
-        </Button>
+      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>        <BackButton />
         <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>Register</Typography>
         {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
           <Box sx={{ mb: 2 }}>
