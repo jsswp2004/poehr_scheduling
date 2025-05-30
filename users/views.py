@@ -12,6 +12,9 @@ from django.conf import settings
 from twilio.rest import Client
 import os
 from rest_framework.generics import DestroyAPIView
+import csv
+from rest_framework.parsers import MultiPartParser
+from django.http import HttpResponse
 
 from .models import CustomUser, Patient
 from .serializers import UserSerializer, PatientSerializer, OrganizationSerializer
@@ -274,3 +277,88 @@ class PatientDeleteView(DestroyAPIView):
     serializer_class = PatientSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = 'user_id'  # because you're deleting via user_id
+
+class DownloadProvidersCSVTemplate(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="providers_template.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'username', 'email', 'first_name', 'last_name', 'organization', 'phone_number', 'provider', 'role', 'password'
+        ])
+        return response
+
+class UploadProvidersCSV(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({"error": "No file provided."}, status=400)
+        decoded_file = file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+        created_count = 0
+        updated_count = 0
+        errors = []
+        for row in reader:
+            username = row.get('username', '').strip()
+            email = row.get('email', '').strip()
+            first_name = row.get('first_name', '').strip()
+            last_name = row.get('last_name', '').strip()
+            org_name = row.get('organization', '').strip()
+            phone_number = row.get('phone_number', '').strip()
+            provider_username = row.get('provider', '').strip()
+            role = row.get('role', 'doctor').strip() or 'doctor'
+            password = row.get('password', '').strip()
+            if not username or not email:
+                errors.append(f"Missing username or email for row: {row}")
+                continue
+            # Get or create organization
+            org = None
+            if org_name:
+                org, _ = Organization.objects.get_or_create(name=org_name)
+            # Get provider (if specified)
+            provider = None
+            if provider_username:
+                try:
+                    provider = CustomUser.objects.get(username=provider_username)
+                except CustomUser.DoesNotExist:
+                    errors.append(f"Provider '{provider_username}' not found for user '{username}'")
+            # Create or update user
+            user, created = CustomUser.objects.get_or_create(username=username, defaults={
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'role': role,
+                'organization': org,
+                'phone_number': phone_number,
+            })
+            if created:
+                if password:
+                    user.set_password(password)
+                else:
+                    user.set_password('changeme123')
+                user.save()
+                created_count += 1
+            else:
+                # Update fields
+                user.email = email
+                user.first_name = first_name
+                user.last_name = last_name
+                user.role = role
+                user.organization = org
+                user.phone_number = phone_number
+                if password:
+                    user.set_password(password)
+                user.save()
+                updated_count += 1
+            if provider:
+                user.provider = provider
+                user.save()
+        return Response({
+            "message": f"{created_count} providers created, {updated_count} updated.",
+            "errors": errors
+        })

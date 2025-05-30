@@ -16,6 +16,8 @@ from .views import (
     send_patient_email,
     PatientDeleteView,
     OrganizationViewSet,  # ✅
+    DownloadProvidersCSVTemplate,
+    UploadProvidersCSV,
 )
 
 router = DefaultRouter()
@@ -37,6 +39,8 @@ urlpatterns = [
     path('send-sms-email/', send_sms_email, name='send-sms-email'),
     path('send-email/', send_patient_email, name='send-email'),
     path('patients/<int:user_id>/', PatientDeleteView.as_view(), name='patient-delete'),
+    path('providers/download-template/', DownloadProvidersCSVTemplate.as_view(), name='providers-download-template'),
+    path('providers/upload-csv/', UploadProvidersCSV.as_view(), name='providers-upload-csv'),
 ]
 
 # ✅ Append viewset routes

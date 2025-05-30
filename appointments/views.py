@@ -426,3 +426,74 @@ class UploadClinicEventsCSV(APIView):
             created_count += 1
 
         return Response({"message": f"{created_count} clinic events uploaded successfully."})
+
+class DownloadAvailabilityTemplate(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="availability_template.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'doctor_username', 'start_time', 'end_time', 'is_blocked', 'recurrence', 'recurrence_end_date', 'organization'
+        ])
+        return response
+
+class UploadAvailabilityCSV(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({"error": "No file provided."}, status=400)
+        decoded_file = file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+        from .models import Availability
+        from users.models import CustomUser, Organization
+        created_count = 0
+        updated_count = 0
+        errors = []
+        for row in reader:
+            doctor_username = row.get('doctor_username', '').strip()
+            start_time = row.get('start_time', '').strip()
+            end_time = row.get('end_time', '').strip()
+            is_blocked = row.get('is_blocked', 'false').strip().lower() in ['true', '1', 'yes']
+            recurrence = row.get('recurrence', '').strip()
+            recurrence_end_date = row.get('recurrence_end_date', '').strip()
+            org_name = row.get('organization', '').strip()
+            # Validate doctor
+            try:
+                doctor = CustomUser.objects.get(username=doctor_username, role='doctor')
+            except CustomUser.DoesNotExist:
+                errors.append(f"Doctor '{doctor_username}' not found.")
+                continue
+            # Validate org
+            org = None
+            if org_name:
+                org, _ = Organization.objects.get_or_create(name=org_name)
+            # Try to find existing availability
+            avail, created = Availability.objects.get_or_create(
+                doctor=doctor,
+                start_time=start_time,
+                end_time=end_time,
+                defaults={
+                    'is_blocked': is_blocked,
+                    'recurrence': recurrence,
+                    'recurrence_end_date': recurrence_end_date or None,
+                    'organization': org or doctor.organization
+                }
+            )
+            if not created:
+                avail.is_blocked = is_blocked
+                avail.recurrence = recurrence
+                avail.recurrence_end_date = recurrence_end_date or None
+                avail.organization = org or doctor.organization
+                avail.save()
+                updated_count += 1
+            else:
+                created_count += 1
+        return Response({
+            "message": f"{created_count} availabilities created, {updated_count} updated.",
+            "errors": errors
+        })
