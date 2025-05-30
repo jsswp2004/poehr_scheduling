@@ -6,6 +6,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
+import UploadTab from '../components/UploadTab';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
@@ -33,98 +34,6 @@ const HOLIDAYS = [
   { name: 'Thanksgiving Day', date: '2024-11-28' },
   { name: 'Christmas Day', date: '2024-12-25' }
 ];
-
-function UploadTab() {
-  const [file, setFile] = useState(null);
-  const [uploadStatus, setUploadStatus] = useState('');
-  const token = localStorage.getItem('access_token');
-
-  const handleDownload = async () => {
-    const token = localStorage.getItem('access_token');
-    try {
-      const response = await axios.get('http://127.0.0.1:8000/api/upload/clinic-events/template/', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        responseType: 'blob'
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'clinic_events_template.csv');
-      document.body.appendChild(link);
-      link.click();
-    } catch (err) {
-      console.error(err);
-      setUploadStatus('❌ Download failed.');
-    }
-  };
-
-
-  const handleUpload = async () => {
-    if (!file) {
-      setUploadStatus('❌ Please select a file to upload.');
-      return;
-    }
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      await axios.post('http://127.0.0.1:8000/api/upload/clinic-events/', formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      setUploadStatus('✅ Upload successful.');
-    } catch (err) {
-      console.error(err);
-      setUploadStatus('❌ Upload failed.');
-    }
-  };
-
-  return (
-    <>
-      <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
-        <TableHead>
-          <TableRow sx={{ bgcolor: '#e3f2fd' }}>
-            <TableCell sx={{ fontWeight: 'bold', width: 200, fontSize: '1rem' }}>Items</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', width: 300, fontSize: '1rem', textAlign: 'left' }}>Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-            <TableCell>Clinic Events</TableCell>
-            <TableCell>
-              <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-start" flexWrap="wrap">
-                <Button variant="outlined" onClick={handleDownload}>
-                  Download Template
-                </Button>
-                <TextField
-                  type="file"
-                  inputProps={{ accept: '.csv' }}
-                  onChange={(e) => setFile(e.target.files[0])}
-                  variant="outlined"
-                  size="small"
-                  sx={{ minWidth: 180 }}
-                />
-                <Button variant="contained" onClick={handleUpload}>
-                  Upload CSV
-                </Button>
-              </Stack>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
-      {uploadStatus && (
-        <Alert severity={uploadStatus.startsWith('✅') ? 'success' : 'error'} sx={{ mt: 3 }}>
-          {uploadStatus}
-        </Alert>
-      )}
-    </>
-  );
-}
 
 function EnvironmentProfilePage() {
   const [blockedDays, setBlockedDays] = useState([0, 6]);
@@ -237,7 +146,7 @@ function EnvironmentProfilePage() {
       >
         <Tab label="Default Blocked Days" value="blocked-days" />
         <Tab label="Holidays" value="holidays" />
-        <Tab label="Uploads" value="uploads" />
+        <Tab label="Downloads/ Uploads" value="uploads" />
       </Tabs>
 
       {tabKey === 'blocked-days' && (
