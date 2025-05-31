@@ -268,7 +268,7 @@ function CalendarView({ onUpdate }) {
     const provider = doctorId || (selectedDoctor?.value);
     
     // If we don't have all required data, no conflict
-    if (!provider || !start || !duration) {
+    if (!provider || !start || !duration || isNaN(start.getTime())) {
       return false;
     }
 
@@ -298,33 +298,76 @@ function CalendarView({ onUpdate }) {
 
     const end = new Date(start.getTime() + (duration * 60 * 1000));
     
-    // Find blocks for the selected provider
-    const doctorBlocks = providerBlocks.filter(block => {
+    // Get all availability for the selected provider during this time
+    const providerAvailability = providerBlocks.filter(block => {
       // Support both data structures seen in the code
       const blockDoctorId = block.doctor_id || block.doctor;
-      const isBlocked = block.is_blocked === true;
-      return String(blockDoctorId) === String(provider) && isBlocked;
+      return String(blockDoctorId) === String(provider);
     });
     
-    // Check if appointment time overlaps with any blocked time
-    const hasConflict = doctorBlocks.some(block => {
+    // Check if doctor has ANY availability scheduled for this time
+    const hasAnyAvailability = providerAvailability.some(block => {
       const blockStart = block.start || new Date(block.start_time);
       const blockEnd = block.end || new Date(block.end_time);
       
-      // Check for overlap: appointment starts before block ends AND appointment ends after block starts
-      return (
-        (start >= blockStart && start < blockEnd) ||
-        (end > blockStart && end <= blockEnd) ||
-        (start <= blockStart && end >= blockEnd)
-      );
+      // Check for time overlap
+      return (start < blockEnd && end > blockStart);
     });
+    
+    console.log('🔍 CalendarView - Checking availability conflict:', {
+      appointmentStart: start,
+      appointmentEnd: end,
+      provider: provider,
+      hasAnyAvailability: hasAnyAvailability,
+      totalAvailabilitySlots: providerAvailability.length,
+      isEditing: isEditing,
+      editingId: editingId
+    });
+    
+    // If doctor has no availability scheduled for this time, it's a conflict
+    if (!hasAnyAvailability) {
+      console.log('❌ CalendarView - No availability found - doctor not scheduled for this time');
+      const conflictResult = { type: 'no_availability', message: 'Doctor is not scheduled for this day/time' };
+      
+      // Only update state when called without parameters (from the form)
+      if (!startDate && !durationMinutes && !doctorId) {
+        setAvailabilityConflict(conflictResult);
+      }
+      
+      return conflictResult;
+    }
+    
+    // Find ONLY blocked availability for the selected provider during this time
+    const blockedAvailability = providerAvailability.filter(block => {
+      const blockStart = block.start || new Date(block.start_time);
+      const blockEnd = block.end || new Date(block.end_time);
+      const isBlocked = block.is_blocked === true;
+      const overlaps = (start < blockEnd && end > blockStart);
+      
+      return isBlocked && overlaps;
+    });
+    
+    // Check if appointment time overlaps with any blocked time
+    if (blockedAvailability.length > 0) {
+      console.log('⚠️ CalendarView - Blocked time conflict found:', blockedAvailability);
+      const conflictResult = { type: 'blocked_time', message: 'Cannot schedule during blocked time' };
+      
+      // Only update state when called without parameters (from the form)
+      if (!startDate && !durationMinutes && !doctorId) {
+        setAvailabilityConflict(conflictResult);
+      }
+      
+      return conflictResult;
+    }
+    
+    console.log('✅ CalendarView - No conflicts - appointment can be scheduled');
     
     // Only update state when called without parameters (from the form)
     if (!startDate && !durationMinutes && !doctorId) {
-      setAvailabilityConflict(hasConflict);
+      setAvailabilityConflict(false);
     }
     
-    return hasConflict;
+    return false;
   }, [modalFormData.appointment_datetime, modalFormData.duration_minutes, selectedDoctor, providerBlocks, isEditing, editingId, events]);
   // Check for conflicts when provider or appointment time changes
   useEffect(() => {
@@ -418,17 +461,23 @@ function CalendarView({ onUpdate }) {
       toast.error('Please select a provider for this appointment.');
       return;
     }
-    
-    // Check for availability conflicts before saving
+      // Check for availability conflicts before saving
     const appointmentStart = new Date(modalFormData.appointment_datetime);
-    const hasConflict = checkAvailabilityConflict(
+    const conflictResult = checkAvailabilityConflict(
       appointmentStart,
       modalFormData.duration_minutes,
       selectedDoctor.value
     );
     
-    if (hasConflict) {
-      toast.error('Cannot schedule appointment during provider\'s blocked time.');
+    if (conflictResult) {
+      if (conflictResult.type === 'no_availability') {
+        toast.error(`Dr. ${selectedDoctor.label} is not scheduled for this day. Please select a different date or time when the doctor is available.`);
+      } else if (conflictResult.type === 'blocked_time') {
+        toast.error('Cannot schedule appointment during provider\'s blocked time. Please select another time.');
+      } else {
+        // Fallback for any other conflict type
+        toast.error(conflictResult.message || 'Cannot schedule appointment at this time. Please select another time.');
+      }
       return;
     }
 
@@ -704,10 +753,15 @@ function CalendarView({ onUpdate }) {
 
           <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>            <DialogTitle>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</DialogTitle>
             <DialogContent dividers>
-              {isPast && <Alert severity="warning">⚠️ Past appointments cannot be edited.</Alert>}
-              {availabilityConflict && (
+              {isPast && <Alert severity="warning">⚠️ Past appointments cannot be edited.</Alert>}              {availabilityConflict && (
                 <Alert severity="error" sx={{ mt: 2 }}>
-                  ⚠️ This time conflicts with provider's blocked availability. Please select another time.
+                  {availabilityConflict.type === 'no_availability' ? (
+                    <>⚠️ The selected doctor is not scheduled for this day. Please select a different date or time when the doctor is available.</>
+                  ) : availabilityConflict.type === 'blocked_time' ? (
+                    <>⚠️ This time conflicts with provider's blocked availability. Please select another time.</>
+                  ) : (
+                    <>⚠️ {availabilityConflict.message || 'This time conflicts with provider availability. Please select another time.'}</>
+                  )}
                 </Alert>
               )}
               <Stack spacing={2} mt={2}>
