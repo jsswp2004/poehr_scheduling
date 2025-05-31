@@ -92,19 +92,21 @@ class RegisterView(generics.CreateAPIView):
             # User is logged in, use their organization
             organization = request.user.organization
             print(f"📂 Using authenticated user's organization: {organization}")
-        else:
-            # User is not logged in, use the organization_name from the form or default
+        else:            # User is not logged in, use the organization_name from the form or default
             org_name = data.get('organization_name') or "Default Organization"
             organization, _ = Organization.objects.get_or_create(name=org_name)
             print(f"📂 Using organization from form: {organization}")
-
+            
         serializer = self.get_serializer(data=data)
 
-
+        # Debug validation errors in detail
         if not serializer.is_valid():
+            print("❌ Serializer validation errors:", serializer.errors)
+            print("❌ Registration data causing errors:", data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         user = serializer.save(organization=organization)
+        print("✅ User created successfully:", user.username, user.email)
         return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
 
 
