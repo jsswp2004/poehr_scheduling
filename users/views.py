@@ -74,22 +74,21 @@ class RegisterView(generics.CreateAPIView):
     
     def create(self, request, *args, **kwargs):
         print("📥 Incoming registration payload:", request.data)
-        data = request.data.copy()
-        org_name = data.get('organization_name')
 
-        # If organization name not provided, use a default one
-        if not org_name:
-            org_name = "Default Organization"
+        data = request.data
+        org_name = data.get('organization_name') or "Default Organization"
         
-        # Look for existing org, or create a new one
         organization, _ = Organization.objects.get_or_create(name=org_name)
 
         serializer = self.get_serializer(data=data)
+
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        user = serializer.save(organization=organization)  # ✅ assign org
+        user = serializer.save(organization=organization)
         return Response({"message": "User created successfully"}, status=status.HTTP_201_CREATED)
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer

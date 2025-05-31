@@ -21,9 +21,11 @@ function Navbar() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
   const isAuthenticated = !!localStorage.getItem('access_token');
   const [logoUrl, setLogoUrl] = useState(null);
   const [anchorEl, setAnchorEl] = useState(null);
+  const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
   // Function to fetch user data and update state
   const fetchUserData = () => {
@@ -32,6 +34,7 @@ function Navbar() {
       setUsername('');
       setRole('');
       setLogoUrl(null);
+      setOrganizationName('');
       return;
     }
 
@@ -50,7 +53,14 @@ function Navbar() {
         if (orgLogo) {
           setLogoUrl(`http://127.0.0.1:8000${orgLogo}`);
         } else {
-          setLogoUrl(null); // Reset logo if none exists
+          setLogoUrl(null);
+        }
+        setOrganizationName(res.data.organization_name || '');
+        // Fix: Only set profilePic if the value is not empty/null and is a valid string
+        if (res.data.profile_picture && typeof res.data.profile_picture === 'string' && res.data.profile_picture.trim() !== '') {
+          setProfilePic(res.data.profile_picture.startsWith('http') ? res.data.profile_picture : `http://127.0.0.1:8000${res.data.profile_picture}`);
+        } else {
+          setProfilePic(null);
         }
       })
       .catch(err => {
@@ -105,6 +115,7 @@ function Navbar() {
     setUsername('');
     setRole('');
     setLogoUrl(null);
+    setOrganizationName('');
     
     toast.info('Logged out!');
     navigate('/login');
@@ -122,7 +133,7 @@ function Navbar() {
   return (
     <AppBar position="fixed" color="primary" sx={{ zIndex: 1201 }}>
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }} component={Link} to="/">
+        <Box sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: 1 }} component={Link} to="/">
           <Avatar
             src={logoUrl || logo}
             alt="Logo"
@@ -132,6 +143,11 @@ function Navbar() {
           <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 700, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
             POWER Scheduler
           </Typography>
+          {organizationName && (
+            <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 700, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+              {organizationName}
+            </Typography>
+          )}
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isAuthenticated && (
@@ -162,7 +178,14 @@ function Navbar() {
                   '& .MuiAvatar-root': { bgcolor: 'primary.light', color: 'primary.contrastText' },
                   '& .navbar-username': { color: 'white' },
                 }}
-                startIcon={<Avatar sx={{ width: 28, height: 28, bgcolor: 'primary.light', color: 'primary.contrastText' }}>{username?.[0]?.toUpperCase() || '?'}</Avatar>}
+                startIcon={
+                  <Avatar
+                    sx={{ width: 28, height: 28, bgcolor: 'primary.light', color: 'primary.contrastText' }}
+                    src={profilePic || undefined}
+                  >
+                    {!profilePic && (username?.[0]?.toUpperCase() || '?')}
+                  </Avatar>
+                }
                 disableRipple
                 disabled
               >
