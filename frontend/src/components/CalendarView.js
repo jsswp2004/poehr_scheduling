@@ -260,8 +260,7 @@ function CalendarView({ onUpdate }) {
     fetchBlockedDays();
     fetchClinicEvents();
     // eslint-disable-next-line
-  }, [token]);
-  // Check if appointment time conflicts with provider's blocked availability
+  }, [token]);  // Check if appointment time conflicts with provider's blocked availability
   const checkAvailabilityConflict = useCallback((startDate, durationMinutes, doctorId) => {
     // If called without params, use the current modal form data
     const start = startDate || new Date(modalFormData.appointment_datetime);
@@ -273,13 +272,38 @@ function CalendarView({ onUpdate }) {
       return false;
     }
 
+    // 🔧 FIX: When editing an existing appointment, check if we're keeping the same time
+    // If we are, don't flag it as a conflict since the appointment already exists there
+    if (isEditing && editingId) {
+      // Find the original appointment being edited
+      const originalEvent = events.find(event => event.id === editingId);
+      if (originalEvent) {
+        const originalStart = new Date(originalEvent.start);
+        const originalEnd = new Date(originalEvent.end);
+        const currentEnd = new Date(start.getTime() + (duration * 60 * 1000));
+        
+        // If the time hasn't changed (or changed minimally), don't check for conflicts
+        const timeUnchanged = Math.abs(originalStart.getTime() - start.getTime()) < 60000 && // within 1 minute
+                             Math.abs(originalEnd.getTime() - currentEnd.getTime()) < 60000;
+        
+        if (timeUnchanged) {
+          console.log('⏰ Editing existing appointment with unchanged time - allowing');
+          if (!startDate && !durationMinutes && !doctorId) {
+            setAvailabilityConflict(false);
+          }
+          return false;
+        }
+      }
+    }
+
     const end = new Date(start.getTime() + (duration * 60 * 1000));
     
     // Find blocks for the selected provider
     const doctorBlocks = providerBlocks.filter(block => {
       // Support both data structures seen in the code
       const blockDoctorId = block.doctor_id || block.doctor;
-      return String(blockDoctorId) === String(provider);
+      const isBlocked = block.is_blocked === true;
+      return String(blockDoctorId) === String(provider) && isBlocked;
     });
     
     // Check if appointment time overlaps with any blocked time
@@ -301,14 +325,14 @@ function CalendarView({ onUpdate }) {
     }
     
     return hasConflict;
-  }, [modalFormData.appointment_datetime, modalFormData.duration_minutes, selectedDoctor, providerBlocks]);
-
+  }, [modalFormData.appointment_datetime, modalFormData.duration_minutes, selectedDoctor, providerBlocks, isEditing, editingId, events]);
   // Check for conflicts when provider or appointment time changes
   useEffect(() => {
     if (selectedDoctor && modalFormData.appointment_datetime) {
+      console.log('🔍 Modal conflict check triggered - isEditing:', isEditing, 'editingId:', editingId);
       checkAvailabilityConflict();
     }
-  }, [selectedDoctor, modalFormData.appointment_datetime, modalFormData.duration_minutes, checkAvailabilityConflict]);
+  }, [selectedDoctor, modalFormData.appointment_datetime, modalFormData.duration_minutes, isEditing, editingId, checkAvailabilityConflict]);
 
   const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
   const handleViewChange = useCallback((view) => setCurrentView(view), []);

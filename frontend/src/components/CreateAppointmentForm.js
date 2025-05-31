@@ -30,11 +30,12 @@ function CreateAppointmentForm({
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [token] = useState(localStorage.getItem('access_token'));
-  const [selectedSlot, setSelectedSlot] = useState(null);
-  const [clinicEvents, setClinicEvents] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);  const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
   const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [providerBlocks, setProviderBlocks] = useState([]);
+  const [availabilityConflict, setAvailabilityConflict] = useState(false);
 
   let userRole = null;
   if (token) {
@@ -110,7 +111,6 @@ function CreateAppointmentForm({
     fetchClinicEvents();
     // eslint-disable-next-line
   }, [defaultProviderId, token]);
-
   // Edit support for appointmentToEdit
   useEffect(() => {
     if (appointmentToEdit) {
@@ -161,7 +161,120 @@ function CreateAppointmentForm({
         );
       }
     }
-  }, [appointmentToEdit, clinicEvents]);
+  }, [appointmentToEdit, clinicEvents]);  // Check if appointment time conflicts with provider's blocked availability
+  const checkAvailabilityConflict = (startDate, durationMinutes, doctorId) => {
+    // Use current form data if no parameters provided
+    const start = startDate || new Date(formData.appointment_datetime);
+    const duration = durationMinutes || formData.duration_minutes;
+    const provider = doctorId || selectedDoctor?.value;
+    
+    // If we don't have all required data, no conflict
+    if (!provider || !start || !duration || isNaN(start.getTime())) {
+      return false;
+    }
+
+    // 🔧 FIX: When editing an existing appointment, check if we're keeping the same time
+    // If we are, don't flag it as a conflict since the appointment already exists there
+    if (editMode && appointmentToEdit) {
+      const originalStart = new Date(appointmentToEdit.appointment_datetime);
+      const originalDuration = appointmentToEdit.duration_minutes || 30;
+      const originalEnd = new Date(originalStart.getTime() + (originalDuration * 60 * 1000));
+      const currentEnd = new Date(start.getTime() + (duration * 60 * 1000));
+      
+      // If the time hasn't changed (or changed minimally), don't check for conflicts
+      const timeUnchanged = Math.abs(originalStart.getTime() - start.getTime()) < 60000 && // within 1 minute
+                           Math.abs(originalEnd.getTime() - currentEnd.getTime()) < 60000;
+      
+      if (timeUnchanged) {
+        console.log('⏰ Editing existing appointment with unchanged time - allowing');
+        return false;
+      }
+    }
+
+    const end = new Date(start.getTime() + (duration * 60 * 1000));
+    
+    // Find ONLY blocked availability for the selected provider
+    const blockedAvailability = providerBlocks.filter(block => {
+      const blockDoctorId = block.doctor_id || block.doctor;
+      const isBlocked = block.is_blocked === true;
+      return String(blockDoctorId) === String(provider) && isBlocked;
+    });
+    
+    console.log('🔍 Checking availability conflict:', {
+      appointmentStart: start,
+      appointmentEnd: end,
+      provider: provider,
+      blockedSlots: blockedAvailability.length,
+      blockedAvailability: blockedAvailability,
+      editMode: editMode,
+      appointmentToEdit: appointmentToEdit?.id
+    });
+    
+    // Check if appointment time overlaps with any blocked time
+    const hasConflict = blockedAvailability.some(block => {
+      const blockStart = new Date(block.start_time);
+      const blockEnd = new Date(block.end_time);
+      
+      // Check for time overlap
+      const overlaps = (start < blockEnd && end > blockStart);
+      
+      if (overlaps) {
+        console.log('⚠️ Conflict found:', {
+          appointmentTime: `${start.toLocaleString()} - ${end.toLocaleString()}`,
+          blockedTime: `${blockStart.toLocaleString()} - ${blockEnd.toLocaleString()}`
+        });
+      }
+      
+      return overlaps;
+    });
+    
+    console.log('✅ Conflict check result:', hasConflict);
+    return hasConflict;
+  };
+  // Load provider availability when doctor changes
+  useEffect(() => {
+    const loadProviderBlocks = async () => {
+      if (!selectedDoctor) {
+        setProviderBlocks([]);
+        setAvailabilityConflict(false);
+        return;
+      }
+      
+      try {
+        console.log('🔍 Loading availability for doctor:', selectedDoctor.value);
+        const res = await axios.get(`http://127.0.0.1:8000/api/availability/?doctor=${selectedDoctor.value}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        console.log('📅 Provider availability data:', res.data);
+        const blockedOnly = res.data.filter(block => block.is_blocked === true);
+        console.log('🚫 Blocked availability only:', blockedOnly);
+        
+        setProviderBlocks(res.data);
+        
+        // Check for conflicts immediately after loading blocks
+        if (formData.appointment_datetime) {
+          setTimeout(() => {
+            const hasConflict = checkAvailabilityConflict();
+            setAvailabilityConflict(hasConflict);
+          }, 0);
+        }
+      } catch (err) {
+        console.error('Failed to load provider availability:', err);
+      }
+    };
+    loadProviderBlocks();
+  }, [selectedDoctor, token]);
+  // Check for conflicts when appointment time or duration changes
+  useEffect(() => {
+    if (selectedDoctor && formData.appointment_datetime) {
+      console.log('🕐 Checking conflicts due to time/duration change');
+      const hasConflict = checkAvailabilityConflict();
+      setAvailabilityConflict(hasConflict);
+    } else {
+      setAvailabilityConflict(false);
+    }
+  }, [formData.appointment_datetime, formData.duration_minutes, selectedDoctor, providerBlocks]);
 
   // Handles doctor select and fetches slots
   const handleDoctorChange = async (selected) => {
@@ -182,12 +295,16 @@ function CreateAppointmentForm({
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!selectedClinicEvent) {
       toast.error("Please select a Clinic Event.");
+      return;
+    }
+
+    if (!selectedDoctor?.value) {
+      toast.error("Please select a provider for this appointment.");
       return;
     }
 
@@ -222,6 +339,17 @@ function CreateAppointmentForm({
     if (isBlockedDay || isHoliday) {
       toast.error('Appointments cannot be created on a blocked day or recognized holiday.');
       return;
+    }    // Check for availability conflicts with provider's blocked time
+    const appointmentStart = new Date(formData.appointment_datetime);
+    const hasConflict = checkAvailabilityConflict(
+      appointmentStart,
+      formData.duration_minutes,
+      selectedDoctor.value
+    );
+    
+    if (hasConflict) {
+      toast.error('Cannot schedule appointment during provider\'s blocked time. Please select another time.');
+      return;
     }
 
     try {
@@ -248,10 +376,14 @@ function CreateAppointmentForm({
   return (
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mt: 2 }}>
       {/* Left: Form */}
-      <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>
-        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+      <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
           {editMode ? 'Edit Appointment' : 'Create Appointment'} {patientName && <span style={{ color: '#1976d2' }}>for {patientName}</span>}
         </Typography>
+        {availabilityConflict && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            ⚠️ This time conflicts with provider's blocked availability. Please select another time.
+          </Alert>
+        )}
         <form onSubmit={handleSubmit}>
           <Stack spacing={2}>
             <Box>
@@ -346,9 +478,13 @@ function CreateAppointmentForm({
                 <MenuItem value="pending">Pending</MenuItem>
                 <MenuItem value="in_progress">In Progress</MenuItem>
               </TextField>
-            )}
-            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
-              <Button type="submit" variant="contained" color="primary">
+            )}            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+              <Button 
+                type="submit" 
+                variant="contained" 
+                color="primary"
+                disabled={availabilityConflict}
+              >
                 {editMode ? 'Update Appointment' : 'Create Appointment'}
               </Button>
               <Button

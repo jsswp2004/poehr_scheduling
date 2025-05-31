@@ -6,6 +6,40 @@ from appointments.models import Appointment
 from django.db.utils import IntegrityError
 
 
+def get_admin_emails(organization=None):
+    """
+    Get email addresses for notification recipients:
+    - Organization admins (same org)
+    - System admins (all orgs)
+    - Fallback admin email from settings
+    """
+    emails = []
+    
+    # Get system admins (they see everything across all organizations)
+    system_admins = CustomUser.objects.filter(
+        role='system_admin',
+        email__isnull=False
+    ).exclude(email='').values_list('email', flat=True)
+    emails.extend(system_admins)
+    
+    # Get organization-specific admins if organization is provided
+    if organization:
+        org_admins = CustomUser.objects.filter(
+            role='admin',
+            organization=organization,
+            email__isnull=False
+        ).exclude(email='').values_list('email', flat=True)
+        emails.extend(org_admins)
+    
+    # Add fallback admin email from settings
+    fallback_email = getattr(settings, 'ADMIN_EMAIL', None)
+    if fallback_email and fallback_email not in emails:
+        emails.append(fallback_email)
+    
+    # Remove duplicates and return
+    return list(set(emails))
+
+
 class UserSerializer(serializers.ModelSerializer):
     provider_name = serializers.SerializerMethodField()  # ✅ Add readable provider name
     profile_picture = serializers.ImageField(required=False, allow_null=True, use_url=True)  # ✅ This makes it include full path
@@ -88,21 +122,21 @@ class UserSerializer(serializers.ModelSerializer):
                         Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
                     else:
                         # Re-raise if it's not a duplicate key issue
-                        raise
-
-            # ✉️ Notify admin
-            admin_email = getattr(settings, 'ADMIN_EMAIL', None)
-            if admin_email:
+                        raise            # ✉️ Notify organization and system admins
+            admin_emails = get_admin_emails(organization=user.organization)
+            if admin_emails:
+                org_name = user.organization.name if user.organization else 'Unknown Organization'
                 send_mail(
                     subject='🆕 New Patient Registration',
                     message=(
                         f"A new patient has registered:\n\n"
                         f"Name: {user.first_name} {user.last_name}\n"
                         f"Email: {user.email}\n"
-                        f"Phone: {validated_data.get('phone_number', 'N/A')}"
+                        f"Phone: {validated_data.get('phone_number', 'N/A')}\n"
+                        f"Organization: {org_name}"
                     ),
                     from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[admin_email],
+                    recipient_list=admin_emails,
                     fail_silently=False,
                 )
 
