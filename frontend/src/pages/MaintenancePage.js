@@ -193,10 +193,26 @@ function MaintenancePage() {
                       <MenuItem key={doc.id} value={doc.id}>{`Dr. ${doc.first_name} ${doc.last_name}`}</MenuItem>
                     ))}
                   </MUISelect>
-                </FormControl>
-
-                <TextField fullWidth label="Start Time" type="datetime-local" name="start_time" value={formData.start_time} onChange={handleChange} />
-                <TextField fullWidth label="End Time" type="datetime-local" name="end_time" value={formData.end_time} onChange={handleChange} />
+                </FormControl>                <TextField 
+                  fullWidth 
+                  label="Start Time" 
+                  type="datetime-local" 
+                  name="start_time" 
+                  value={formData.start_time} 
+                  onChange={handleChange}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
+                />
+                <TextField 
+                  fullWidth 
+                  label="End Time" 
+                  type="datetime-local" 
+                  name="end_time" 
+                  value={formData.end_time} 
+                  onChange={handleChange}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
+                />
 
                 <FormControl fullWidth>
                   <InputLabel>Recurrence</InputLabel>
@@ -208,7 +224,15 @@ function MaintenancePage() {
                   </MUISelect>
                 </FormControl>
 
-                <TextField fullWidth type="date" label="Recurrence End Date" value={formData.recurrence_end_date || ''} onChange={(e) => setFormData({ ...formData, recurrence_end_date: e.target.value })} />
+                <TextField 
+                  fullWidth 
+                  type="date" 
+                  label="Recurrence End Date" 
+                  value={formData.recurrence_end_date || ''} 
+                  onChange={(e) => setFormData({ ...formData, recurrence_end_date: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
+                />
 
                 <FormControlLabel control={<Checkbox checked={formData.is_blocked} onChange={(e) => setFormData({ ...formData, is_blocked: e.target.checked })} />} label="Block this schedule" />
 

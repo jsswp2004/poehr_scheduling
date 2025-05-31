@@ -111,6 +111,7 @@ class PatientSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
+    provider = serializers.IntegerField(source='user.provider.id', read_only=True, allow_null=True)
     provider_name = serializers.SerializerMethodField()
     last_appointment_date = serializers.SerializerMethodField()
     organization = serializers.PrimaryKeyRelatedField(queryset=Organization.objects.all(), required=False, allow_null=True)
@@ -123,14 +124,14 @@ class PatientSerializer(serializers.ModelSerializer):
             'email',
             'first_name',
             'last_name',
+            'provider',
             'provider_name',
             'date_of_birth',
             'phone_number',
             'address',
             'medical_history',
             'last_appointment_date',
-            'organization',
-        ]
+            'organization',        ]
 
     def get_last_appointment_date(self, obj):
         latest = Appointment.objects.filter(patient=obj.user).order_by('-appointment_datetime').first()
@@ -149,6 +150,20 @@ class PatientSerializer(serializers.ModelSerializer):
         # Update user fields
         for attr, value in user_data.items():
             setattr(user, attr, value)
+        
+        # Handle provider field update
+        if 'provider' in validated_data:
+            provider_id = validated_data.pop('provider')
+            if provider_id:
+                try:
+                    from .models import CustomUser
+                    provider = CustomUser.objects.get(id=provider_id)
+                    user.provider = provider
+                except CustomUser.DoesNotExist:
+                    user.provider = None
+            else:
+                user.provider = None
+        
         # Also update organization on user if present
         if 'organization' in validated_data:
             user.organization = validated_data['organization']

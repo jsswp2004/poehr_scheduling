@@ -63,7 +63,6 @@ function PatientDetailPage() {
       navigate('/login');
     }
   }, [navigate, token]);
-
   // Fetch patient data
   useEffect(() => {
     axios
@@ -191,41 +190,63 @@ function PatientDetailPage() {
             style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #ccc' }}
           />
         </div>
-      )}
-
-      {/* Upload profile picture in edit mode */}
+      )}      {/* Upload profile picture in edit mode */}
       {editMode && (
-        <div className="mb-3">
-          <label className="form-label">Upload Profile Picture</label>
-          <input
-            type="file"
-            accept="image/png, image/jpeg"
-            className="form-control"
-            onChange={async (e) => {
-              const file = e.target.files[0];
-              if (!file) return;
-              const formDataPic = new FormData();
-              formDataPic.append('profile_picture', file);
-              try {
-                const res = await axios.patch(
-                  `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id}/`,
-                  formDataPic,
-                  {
-                    headers: {
-                      'Content-Type': 'multipart/form-data',
-                      Authorization: `Bearer ${token}`,
-                    },
+        <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
+          <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+            Profile Picture
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Button
+              variant="outlined"
+              component="label"
+              sx={{
+                textTransform: 'none',
+                borderRadius: 2,
+                px: 3,
+                py: 1.5,
+                borderColor: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'primary.light',
+                  borderColor: 'primary.dark',
+                },
+              }}
+            >
+              Choose New Picture
+              <input
+                type="file"
+                accept="image/png, image/jpeg"
+                hidden
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  const formDataPic = new FormData();
+                  formDataPic.append('profile_picture', file);
+                  try {
+                    const res = await axios.patch(
+                      `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id}/`,
+                      formDataPic,
+                      {
+                        headers: {
+                          'Content-Type': 'multipart/form-data',
+                          Authorization: `Bearer ${token}`,
+                        },
+                      }
+                    );
+                    setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
+                    setFormData((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
+                    alert('Profile picture updated!');
+                  } catch (err) {
+                    alert('Failed to upload profile picture.');
                   }
-                );
-                setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
-                setFormData((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
-                alert('Profile picture updated!');
-              } catch (err) {
-                alert('Failed to upload profile picture.');
-              }
-            }}
-          />
-        </div>
+                }}
+              />
+            </Button>
+            <Typography variant="body2" color="text.secondary">
+              Accepted formats: PNG, JPEG (max 5MB)
+            </Typography>
+          </Box>
+        </Paper>
       )}
 
       {!showAppointmentForm && (

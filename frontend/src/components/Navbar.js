@@ -140,11 +140,11 @@ function Navbar() {
             sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
             variant="rounded"
           />
-          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 700, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
             POWER Scheduler
           </Typography>
           {organizationName && (
-            <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 700, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+            <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
               {organizationName}
             </Typography>
           )}
@@ -169,7 +169,7 @@ function Navbar() {
                 color="inherit"
                 sx={{
                   textTransform: 'none',
-                  fontWeight: 600,
+                  fontWeight: 450,
                   fontSize: '1rem',
                   mr: 2,
                   pl: 1,
