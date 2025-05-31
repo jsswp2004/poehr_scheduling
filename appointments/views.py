@@ -1,6 +1,7 @@
+# filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
 from rest_framework import viewsets, permissions
 from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent
-from .serializers import AppointmentSerializer,AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer
+from .serializers import AppointmentSerializer, AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -61,8 +62,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             elif user.role == 'doctor':
                 queryset = queryset.filter(provider=user)  # optional: show only their own patients
             elif user.role in ['registrar', 'admin']:
-                pass  # ✅ Allow access to all appointments for their org        return queryset
-
+                pass  # ✅ Allow access to all appointments for their org
+        
+        return queryset
+    
     def perform_create(self, serializer):
         # Server-side validation for availability
         appointment_datetime = serializer.validated_data.get('appointment_datetime')
@@ -70,37 +73,16 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         provider_id = self.request.data.get('provider')
         
         if appointment_datetime and provider_id and duration_minutes:
-            # Check if appointment time conflicts with provider's availability
+            # Check if appointment time conflicts with provider's blocked availability
             appointment_start = appointment_datetime
             appointment_end = appointment_start + timedelta(minutes=duration_minutes)
             
-            # First, check if doctor has ANY availability scheduled for this time
-            any_availability = Availability.objects.filter(
+            blocked_availabilities = Availability.objects.filter(
                 doctor_id=provider_id,
+                is_blocked=True,
                 start_time__lt=appointment_end,
                 end_time__gt=appointment_start
             )
-            
-            if not any_availability.exists():
-                from rest_framework import serializers as rest_serializers
-                # Get doctor name for better error message
-                try:
-                    from django.contrib.auth import get_user_model
-                    User = get_user_model()
-                    doctor = User.objects.get(id=provider_id)
-                    doctor_name = f"Dr. {doctor.first_name} {doctor.last_name}".strip()
-                    if not doctor.first_name and not doctor.last_name:
-                        doctor_name = f"Dr. {doctor.username}"
-                except:
-                    doctor_name = "The selected doctor"
-                
-                raise rest_serializers.ValidationError(
-                    f"{doctor_name} is not scheduled for {appointment_start.strftime('%A, %B %d, %Y')}. "
-                    f"Please select a different date or time when the doctor is available."
-                )
-            
-            # Then, check if any of the overlapping availability is blocked
-            blocked_availabilities = any_availability.filter(is_blocked=True)
             
             if blocked_availabilities.exists():
                 from rest_framework import serializers as rest_serializers
@@ -117,7 +99,9 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 provider = User.objects.get(id=provider_id)
                 organization = provider.organization
             except User.DoesNotExist:
-                pass        # Default patient logic
+                pass
+        
+        # Default patient logic
         user = self.request.user
         patient = user
         if user.role in ['registrar', 'admin', 'system_admin']:
