@@ -81,7 +81,6 @@ function ProfilePage() {
       .then(res => setOrganizations(res.data))
       .catch(() => setOrganizations([]));
   }, [token]);
-
   const handleSearch = async () => {
     try {
       // Fetch the current user's organization
@@ -89,18 +88,32 @@ function ProfilePage() {
       const res = await axios.get(`http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Filter results to only include users from the same organization (if orgId is set) and exclude patients
-      const filtered = orgId
-        ? res.data.filter(u => {
-            if (!u.organization) return false;
-            if (u.role === 'patient') return false;
-            if (typeof u.organization === 'object') return String(u.organization.id) === String(orgId);
-            return String(u.organization) === String(orgId);
-          })
-        : [];
+      
+      // System admins can see all users across organizations
+      const isSystemAdmin = loggedInUserRole === 'system_admin';
+      
+      // Filter results based on role and organization
+      const filtered = res.data.filter(u => {
+        // Always exclude patients from search results
+        if (u.role === 'patient') return false;
+        
+        // For system admins, include all non-patient users regardless of organization
+        if (isSystemAdmin) return true;
+        
+        // For other roles, only include users from the same organization
+        if (!u.organization || !orgId) return false;
+        
+        // Handle organization as object or ID
+        if (typeof u.organization === 'object') return String(u.organization.id) === String(orgId);
+        return String(u.organization) === String(orgId);
+      });
+      
       setSearchResults(filtered);
       if (filtered.length === 0) {
-        toast.info('No matching users found in your organization.');
+        toast.info(isSystemAdmin 
+          ? 'No matching users found.' 
+          : 'No matching users found in your organization.'
+        );
       }
     } catch (err) {
       toast.error('Search failed.');
@@ -247,9 +260,7 @@ function ProfilePage() {
               Create Profile
             </Button>
           </Stack>
-        </Stack>
-
-        {/* Search Results */}
+        </Stack>        {/* Search Results */}
         {searchResults.length > 0 && (
           <Box sx={{ mb: 3, border: '1px solid #eee', borderRadius: 1, p: 2, maxHeight: 250, overflowY: 'auto' }}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}><b>Search Results</b></Typography>
@@ -259,6 +270,7 @@ function ProfilePage() {
                   <th align="left">Name</th>
                   <th align="left">Email</th>
                   <th align="left">Role</th>
+                  {loggedInUserRole === 'system_admin' && <th align="left">Organization</th>}
                   <th align="left">Select</th>
                 </tr>
               </thead>
@@ -268,6 +280,14 @@ function ProfilePage() {
                     <td>{result.first_name} {result.last_name}</td>
                     <td>{result.email}</td>
                     <td>{result.role}</td>
+                    {loggedInUserRole === 'system_admin' && (
+                      <td>
+                        {result.organization_name || 
+                         (result.organization && typeof result.organization === 'object' 
+                          ? result.organization.name 
+                          : 'Unknown')}
+                      </td>
+                    )}
                     <td>
                       <Button
                         size="small"
