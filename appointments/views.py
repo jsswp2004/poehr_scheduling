@@ -61,28 +61,46 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             elif user.role == 'doctor':
                 queryset = queryset.filter(provider=user)  # optional: show only their own patients
             elif user.role in ['registrar', 'admin']:
-                pass  # ✅ Allow access to all appointments for their org
-
-        return queryset
+                pass  # ✅ Allow access to all appointments for their org        return queryset
 
     def perform_create(self, serializer):
-        # Server-side validation for blocked availability
+        # Server-side validation for availability
         appointment_datetime = serializer.validated_data.get('appointment_datetime')
         duration_minutes = serializer.validated_data.get('duration_minutes', 30)
         provider_id = self.request.data.get('provider')
         
         if appointment_datetime and provider_id and duration_minutes:
-            # Check if appointment time conflicts with provider's blocked availability
+            # Check if appointment time conflicts with provider's availability
             appointment_start = appointment_datetime
             appointment_end = appointment_start + timedelta(minutes=duration_minutes)
             
-            # Query for blocked availability for the provider
-            blocked_availabilities = Availability.objects.filter(
+            # First, check if doctor has ANY availability scheduled for this time
+            any_availability = Availability.objects.filter(
                 doctor_id=provider_id,
-                is_blocked=True,
                 start_time__lt=appointment_end,
                 end_time__gt=appointment_start
             )
+            
+            if not any_availability.exists():
+                from rest_framework import serializers as rest_serializers
+                # Get doctor name for better error message
+                try:
+                    from django.contrib.auth import get_user_model
+                    User = get_user_model()
+                    doctor = User.objects.get(id=provider_id)
+                    doctor_name = f"Dr. {doctor.first_name} {doctor.last_name}".strip()
+                    if not doctor.first_name and not doctor.last_name:
+                        doctor_name = f"Dr. {doctor.username}"
+                except:
+                    doctor_name = "The selected doctor"
+                
+                raise rest_serializers.ValidationError(
+                    f"{doctor_name} is not scheduled for {appointment_start.strftime('%A, %B %d, %Y')}. "
+                    f"Please select a different date or time when the doctor is available."
+                )
+            
+            # Then, check if any of the overlapping availability is blocked
+            blocked_availabilities = any_availability.filter(is_blocked=True)
             
             if blocked_availabilities.exists():
                 from rest_framework import serializers as rest_serializers
