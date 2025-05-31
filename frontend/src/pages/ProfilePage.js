@@ -84,13 +84,23 @@ function ProfilePage() {
 
   const handleSearch = async () => {
     try {
+      // Fetch the current user's organization
+      const orgId = user && user.organization && typeof user.organization === 'object' ? user.organization.id : user.organization;
       const res = await axios.get(`http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      setSearchResults(res.data);
-
-      if (res.data.length === 0) {
-        toast.info('No matching users found.');
+      // Filter results to only include users from the same organization (if orgId is set) and exclude patients
+      const filtered = orgId
+        ? res.data.filter(u => {
+            if (!u.organization) return false;
+            if (u.role === 'patient') return false;
+            if (typeof u.organization === 'object') return String(u.organization.id) === String(orgId);
+            return String(u.organization) === String(orgId);
+          })
+        : [];
+      setSearchResults(filtered);
+      if (filtered.length === 0) {
+        toast.info('No matching users found in your organization.');
       }
     } catch (err) {
       toast.error('Search failed.');

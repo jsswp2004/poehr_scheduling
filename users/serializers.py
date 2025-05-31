@@ -41,6 +41,8 @@ class UserSerializer(serializers.ModelSerializer):
         provider = validated_data.pop('provider', None)
         organization = validated_data.pop('organization')
 
+        profile_picture = validated_data.pop('profile_picture', None)  # ✅ Extract it safely
+
         # Frontend will send 'patient' when isPatient is True.
         # If not present (non-patient), leave role blank or None
         role = validated_data.get('role')  # may be 'patient', '', or None
@@ -54,6 +56,11 @@ class UserSerializer(serializers.ModelSerializer):
             role=role,  # blank string if non-patient
             organization=organization
         )
+
+        if profile_picture:  # ✅ Save the uploaded file
+            user.profile_picture = profile_picture
+            user.save()
+
 
         # 🩺 Apply patient-specific logic only when role is 'patient'
         if user.role == 'patient':

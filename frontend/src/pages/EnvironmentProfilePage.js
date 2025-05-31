@@ -6,7 +6,6 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
-import UploadTab from '../components/UploadTab';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
@@ -146,7 +145,6 @@ function EnvironmentProfilePage() {
       >
         <Tab label="Default Blocked Days" value="blocked-days" />
         <Tab label="Holidays" value="holidays" />
-        <Tab label="Downloads/ Uploads" value="uploads" />
       </Tabs>
 
       {tabKey === 'blocked-days' && (
@@ -194,10 +192,6 @@ function EnvironmentProfilePage() {
 
       {tabKey === 'holidays' && (
         <HolidaysTab />
-      )}
-
-      {tabKey === 'uploads' && (
-        <UploadTab />
       )}      
     </Box>
   );
