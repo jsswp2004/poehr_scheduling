@@ -60,10 +60,14 @@ class PatientDetailView(RetrieveAPIView):
     lookup_url_kwarg = 'user_id'
 
 class DoctorListView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        doctors = CustomUser.objects.filter(role='doctor')
+        user = request.user
+        if user.role == 'system_admin':
+            doctors = CustomUser.objects.filter(role='doctor')
+        else:
+            doctors = CustomUser.objects.filter(role='doctor', organization=user.organization)
         serializer = UserSerializer(doctors, many=True)
         return Response(serializer.data)
 
