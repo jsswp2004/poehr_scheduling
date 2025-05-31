@@ -7,6 +7,7 @@ import {
 } from '@mui/material';
 import Select from 'react-select';
 import BackButton from '../components/BackButton';
+import { jwtDecode } from 'jwt-decode';
 
 function RegisterPage({ adminMode = false }) {
   const [isPatient, setIsPatient] = useState(adminMode ? true : true);
@@ -26,11 +27,44 @@ function RegisterPage({ adminMode = false }) {
     phone_number: '',
     organization_name: '',
   });
-
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/users/doctors/')
-      .then((res) => setDoctors(res.data))
-      .catch((err) => console.error('Failed to load doctors:', err));
+    // Get token and check if user is logged in
+    const token = localStorage.getItem('access_token');
+    
+    // Function to fetch doctors
+    const fetchDoctors = () => {
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      axios.get('http://127.0.0.1:8000/api/users/doctors/', { headers })
+        .then((res) => setDoctors(res.data))
+        .catch((err) => console.error('Failed to load doctors:', err));
+    };
+
+    // Function to fetch current user info if logged in
+    const fetchCurrentUserOrg = async () => {
+      if (token) {
+        try {
+          // Get current user's info
+          const response = await axios.get('http://127.0.0.1:8000/api/users/me/', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          const userData = response.data;
+          
+          // Set the organization name to the current user's organization
+          if (userData.organization_name) {
+            setFormData(prevState => ({
+              ...prevState,
+              organization_name: userData.organization_name
+            }));
+          }
+        } catch (error) {
+          console.error('Failed to fetch current user information:', error);
+        }
+      }
+    };
+    
+    fetchDoctors();
+    fetchCurrentUserOrg();
   }, []);
 
   const handleChange = (e) => {
@@ -39,7 +73,6 @@ function RegisterPage({ adminMode = false }) {
       [e.target.name]: e.target.value,
     });
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -54,11 +87,16 @@ function RegisterPage({ adminMode = false }) {
       provider: formData.assigned_doctor,
     };
 
+    // Get token if user is logged in
+    const token = localStorage.getItem('access_token');
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
     try {
-      await axios.post('http://127.0.0.1:8000/api/auth/register/', payload);
+      await axios.post('http://127.0.0.1:8000/api/auth/register/', payload, config);
       toast.success('Registration successful! Please login.');
       navigate('/login');
     } catch (error) {
+      console.error("Registration error:", error);
       toast.error('Registration failed. Please try again.');
     }
   };
@@ -97,9 +135,9 @@ function RegisterPage({ adminMode = false }) {
           </Box>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <Stack spacing={2}>
-            {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
+        <form onSubmit={handleSubmit}>          <Stack spacing={2}>
+            {/* Only show organization field if not in adminMode, not logged in, and role is none/patient */}
+            {!adminMode && !localStorage.getItem('access_token') && (formData.role === 'none' || formData.role === 'patient') && (
               <TextField
                 label="Organization Name"
                 name="organization_name"

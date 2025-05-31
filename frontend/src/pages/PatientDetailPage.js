@@ -109,11 +109,17 @@ function PatientDetailPage() {
       return { ...prev, [name]: value };
     });
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Clone the formData and add provider_id if provider is present
+    const dataToSend = {...formData};
+    if (dataToSend.provider !== undefined) {
+      dataToSend.provider_id = dataToSend.provider;
+    }
+    
     try {
-      await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, formData, {
+      await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, dataToSend, {
         headers: { Authorization: `Bearer ${token}` },
       });
       alert('Patient updated successfully!');
