@@ -4,17 +4,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView
+from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView, DestroyAPIView
+from rest_framework.parsers import MultiPartParser
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
-from twilio.rest import Client
+from django.http import HttpResponse
 from django.conf import settings
 from twilio.rest import Client
 import os
-from rest_framework.generics import DestroyAPIView
 import csv
-from rest_framework.parsers import MultiPartParser
-from django.http import HttpResponse
 
 from .models import CustomUser, Patient
 from .serializers import UserSerializer, PatientSerializer, OrganizationSerializer
@@ -33,6 +31,38 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser]  # Enable file upload support
+    
+    def get_queryset(self):
+        """
+        Filter organizations based on user role:
+        - system_admin: can see all organizations
+        - admin/registrar: can see their own organization
+        - others: can see their own organization
+        """
+        user = self.request.user
+        if user.role == 'system_admin':
+            return Organization.objects.all()
+        elif user.organization:
+            return Organization.objects.filter(id=user.organization.id)
+        else:
+            return Organization.objects.none()
+    
+    def perform_update(self, serializer):
+        """Only allow admin and system_admin to update organizations"""
+        user = self.request.user
+        if user.role not in ['admin', 'system_admin']:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to edit organizations.")
+        serializer.save()
+    
+    def perform_destroy(self, instance):
+        """Only allow system_admin to delete organizations"""
+        user = self.request.user
+        if user.role != 'system_admin':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to delete organizations.")
+        instance.delete()
 
 class UserDetailView(RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()

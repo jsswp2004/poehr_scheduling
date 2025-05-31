@@ -6,6 +6,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
+import OrganizationPage from './OrganizationPage';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
@@ -141,10 +142,10 @@ function EnvironmentProfilePage() {
               color: 'primary.dark',
             },
           },
-        }}
-      >
+        }}      >
         <Tab label="Default Blocked Days" value="blocked-days" />
         <Tab label="Holidays" value="holidays" />
+        <Tab label="Organization" value="organization" />
       </Tabs>
 
       {tabKey === 'blocked-days' && (
@@ -188,10 +189,12 @@ function EnvironmentProfilePage() {
             Select which days are <b>blocked by default</b> for clinic scheduling. Unchecked days are available for appointments.
           </Typography>
         </Paper>
+      )}      {tabKey === 'holidays' && (
+        <HolidaysTab />
       )}
 
-      {tabKey === 'holidays' && (
-        <HolidaysTab />
+      {tabKey === 'organization' && (
+        <OrganizationPage />
       )}      
     </Box>
   );

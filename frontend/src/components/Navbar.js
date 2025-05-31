@@ -43,15 +43,15 @@ function Navbar() {
       const userId = decoded.user_id;
       const firstName = decoded.first_name || decoded.username || '';
       setUsername(firstName);
-      setRole(decoded.role || '');
-
-      axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
+      setRole(decoded.role || '');      axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       .then(res => {
+        // Get organization logo directly from the organization data
         const orgLogo = res.data.organization_logo;
         if (orgLogo) {
-          setLogoUrl(`http://127.0.0.1:8000${orgLogo}`);
+          // The organization_logo field from UserSerializer already includes the full URL
+          setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `http://127.0.0.1:8000${orgLogo}`);
         } else {
           setLogoUrl(null);
         }
