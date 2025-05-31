@@ -187,39 +187,7 @@ function ProfilePage() {
     } finally {
       setUploading(false);
     }
-  };
-
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file || !user.organization) return;
-
-    const logoFormData = new FormData();
-    logoFormData.append('logo', file);
-
-    setUploading(true);
-    try {
-      await axios.patch(
-        `http://127.0.0.1:8000/api/users/organizations/${user.organization}/`,
-        logoFormData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,          },
-        }
-      );
-      
-      // Notify navbar to refresh with updated organization logo
-      notifyProfileUpdated();
-      
-      toast.success('Organization logo updated!');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to upload organization logo');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Get logged-in user's role
+  };  // Get logged-in user's role
   const loggedInUserRole = token ? jwtDecode(token).role : null;
 
   if (loading) {
@@ -338,22 +306,8 @@ function ProfilePage() {
                 variant="square"
               />
             </Box>
-          )}
-          {/* All fields in a single vertical stack */}
+          )}          {/* All fields in a single vertical stack */}
           <Stack spacing={2} sx={{ flex: 1 }}>
-            {/* Upload Org Logo */}
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Typography>Upload Organization Logo</Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                size="small"
-                disabled={uploading}
-              >
-                Upload
-                <input type="file" hidden accept="image/png, image/jpeg" onChange={handleLogoUpload} />
-              </Button>
-            </Stack>
             {/* Upload Profile Picture */}
             <Stack direction="row" alignItems="center" spacing={2}>
               <Typography>Upload New Profile Picture</Typography>

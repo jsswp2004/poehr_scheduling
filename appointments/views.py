@@ -66,6 +66,30 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        # Server-side validation for blocked availability
+        appointment_datetime = serializer.validated_data.get('appointment_datetime')
+        duration_minutes = serializer.validated_data.get('duration_minutes', 30)
+        provider_id = self.request.data.get('provider')
+        
+        if appointment_datetime and provider_id and duration_minutes:
+            # Check if appointment time conflicts with provider's blocked availability
+            appointment_start = appointment_datetime
+            appointment_end = appointment_start + timedelta(minutes=duration_minutes)
+            
+            # Query for blocked availability for the provider
+            blocked_availabilities = Availability.objects.filter(
+                doctor_id=provider_id,
+                is_blocked=True,
+                start_time__lt=appointment_end,
+                end_time__gt=appointment_start
+            )
+            
+            if blocked_availabilities.exists():
+                from rest_framework import serializers as rest_serializers
+                raise rest_serializers.ValidationError(
+                    "Cannot schedule appointment during provider's blocked time. Please select another time."
+                )
+
         provider_id = self.request.data.get('provider')
         organization = None
         provider = None
@@ -75,8 +99,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 provider = User.objects.get(id=provider_id)
                 organization = provider.organization
             except User.DoesNotExist:
-                pass
-        # Default patient logic
+                pass        # Default patient logic
         user = self.request.user
         patient = user
         if user.role in ['registrar', 'admin', 'system_admin']:
@@ -87,27 +110,46 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     patient = User.objects.get(id=patient_id)
                 except User.DoesNotExist:
                     raise ValueError("Patient not found.")
+        
         appointment = serializer.save(patient=patient, provider=provider, organization=organization)
-
-        # ✅ Send email to admin if created by a patient
-        if self.request.user.role == 'patient':
-            admin_email = getattr(settings, 'ADMIN_EMAIL', None)
-            if admin_email:
+        
+        # ✅ Send email notification to organization and system admins
+        # Import here to avoid circular imports
+        from users.serializers import get_admin_emails
+        
+        # Use the appointment organization, or fall back to user's organization
+        notification_org = organization or self.request.user.organization
+        admin_emails = get_admin_emails(organization=notification_org)
+        
+        if admin_emails:
+            org_name = notification_org.name if notification_org else 'Unknown Organization'
+            provider_name = f"Dr. {provider.first_name} {provider.last_name}" if provider else "TBD"
+            patient_name = f"{patient.first_name} {patient.last_name}" if patient else "Unknown Patient"
+            
+            # Determine who created the appointment for better messaging
+            if self.request.user.role == 'patient':
+                created_by_text = f"by {self.request.user.get_full_name()}"
                 subject = f"📅 New Appointment from {self.request.user.get_full_name()}"
-                message = (
-                    f"A new appointment has been scheduled by {self.request.user.get_full_name()}:\n\n"
-                    f"Title: {appointment.title}\n"
-                    f"Date & Time: {appointment.appointment_datetime}\n"
-                    f"Doctor: Dr. {provider.first_name} {provider.last_name}\n"
-                    f"Description: {appointment.description or 'N/A'}"
-                )
-                send_mail(
-                    subject,
-                    message,
-                    settings.DEFAULT_FROM_EMAIL,
-                    [admin_email],
-                    fail_silently=False
-                )
+            else:
+                created_by_text = f"by {self.request.user.get_full_name()} ({self.request.user.role}) for {patient_name}"
+                subject = f"📅 New Appointment Created by {self.request.user.role.title()}"
+            
+            message = (
+                f"A new appointment has been scheduled {created_by_text}:\n\n"
+                f"Patient: {patient_name}\n"
+                f"Title: {appointment.title}\n"
+                f"Date & Time: {appointment.appointment_datetime}\n"
+                f"Doctor: {provider_name}\n"
+                f"Organization: {org_name}\n"
+                f"Description: {appointment.description or 'N/A'}"
+            )
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                admin_emails,
+                fail_silently=False
+            )
 
         # Handle recurrence logic
         recurrence = appointment.recurrence
@@ -181,12 +223,28 @@ def doctor_available_slots(request, doctor_id):
             if slot_time <= now:
                 continue
 
+            # Check if slot is taken by existing appointment
             is_taken = Appointment.objects.filter(
                 provider_id=doctor_id,
                 appointment_datetime=slot_time
             ).exists()
 
-            if not is_taken:
+            if is_taken:
+                continue
+
+            # Check if slot conflicts with blocked availability
+            # Default appointment duration is 30 minutes
+            appointment_duration = 30
+            slot_end_time = slot_time + timedelta(minutes=appointment_duration)
+            
+            is_blocked = Availability.objects.filter(
+                doctor_id=doctor_id,
+                is_blocked=True,
+                start_time__lt=slot_end_time,
+                end_time__gt=slot_time
+            ).exists()
+
+            if not is_blocked:
                 slots.append(slot_time)
                 if len(slots) == max_slots:
                     break
