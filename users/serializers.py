@@ -3,6 +3,7 @@ from .models import CustomUser, Patient, Organization
 from django.core.mail import send_mail
 from django.conf import settings
 from appointments.models import Appointment
+from django.db.utils import IntegrityError
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -71,11 +72,23 @@ class UserSerializer(serializers.ModelSerializer):
                     user.provider = CustomUser.objects.get(id=provider)
                 except CustomUser.DoesNotExist:
                     pass
-            user.save()
-
-            # Create patient profile if not already existing
+            user.save()            # Create patient profile if not already existing
             if not Patient.objects.filter(user=user).exists():
-                Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
+                try:
+                    Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
+                except IntegrityError as e:
+                    from django.db import connection
+                    # If we hit a duplicate ID error, try to fix the sequence and retry once
+                    if 'duplicate key value violates unique constraint' in str(e):
+                        with connection.cursor() as cursor:
+                            cursor.execute("SELECT MAX(id) FROM users_patient")
+                            max_id = cursor.fetchone()[0] or 0
+                            cursor.execute(f"SELECT setval('users_patient_id_seq', {max_id + 1}, true)")
+                        # Try again with the fixed sequence
+                        Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
+                    else:
+                        # Re-raise if it's not a duplicate key issue
+                        raise
 
             # ✉️ Notify admin
             admin_email = getattr(settings, 'ADMIN_EMAIL', None)
