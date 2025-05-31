@@ -10,8 +10,7 @@ import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import {
-  Dialog, DialogTitle, DialogContent, DialogActions,
+import { Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert
 } from '@mui/material';
 import BackButton from './BackButton';
@@ -603,7 +602,8 @@ function CalendarView({ onUpdate }) {
             }}
           />
         </Box>
-        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
+        {/* Commented out doctor selection dropdown
+        (userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
           <Box sx={{ width: 300 }}>
             <Select
               options={doctors.map((doc) => ({
@@ -620,7 +620,8 @@ function CalendarView({ onUpdate }) {
               }}
             />
           </Box>
-        )}
+        )
+        */}
 
       </Stack>
       <Box className="card-body">

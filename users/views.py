@@ -51,6 +51,12 @@ class PatientUpdateView(RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     lookup_field = 'user__id'
     lookup_url_kwarg = 'user_id'
+    
+    def update(self, request, *args, **kwargs):
+        # Print the incoming data to debug
+        print("Patient Update Data:", request.data)
+        print("Provider ID in request:", request.data.get('provider_id'))
+        return super().update(request, *args, **kwargs)
 
 class PatientDetailView(RetrieveAPIView):
     queryset = Patient.objects.select_related('user')
@@ -80,9 +86,17 @@ class RegisterView(generics.CreateAPIView):
         print("📥 Incoming registration payload:", request.data)
 
         data = request.data
-        org_name = data.get('organization_name') or "Default Organization"
         
-        organization, _ = Organization.objects.get_or_create(name=org_name)
+        # If the user is authenticated, use their organization
+        if request.user.is_authenticated:
+            # User is logged in, use their organization
+            organization = request.user.organization
+            print(f"📂 Using authenticated user's organization: {organization}")
+        else:
+            # User is not logged in, use the organization_name from the form or default
+            org_name = data.get('organization_name') or "Default Organization"
+            organization, _ = Organization.objects.get_or_create(name=org_name)
+            print(f"📂 Using organization from form: {organization}")
 
         serializer = self.get_serializer(data=data)
 
@@ -365,3 +379,11 @@ class UploadProvidersCSV(APIView):
             "message": f"{created_count} providers created, {updated_count} updated.",
             "errors": errors
         })
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_current_user(request):
+    """Return the current user's information"""
+    user = request.user
+    serializer = UserSerializer(user)
+    return Response(serializer.data)

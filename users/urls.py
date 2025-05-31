@@ -18,6 +18,7 @@ from .views import (
     OrganizationViewSet,  # ✅
     DownloadProvidersCSVTemplate,
     UploadProvidersCSV,
+    get_current_user,
 )
 
 router = DefaultRouter()
@@ -29,6 +30,7 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('doctors/', DoctorListView.as_view(), name='doctor-list'),
     path('patients/', get_patients, name='patient-list'),
+    path('me/', get_current_user, name='current-user'),
     path('patients/by-user/<int:user_id>/', PatientDetailView.as_view(), name='patient-detail'),
     path('patients/by-user/<int:user_id>/edit/', PatientUpdateView.as_view(), name='patient-update'),
     path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
