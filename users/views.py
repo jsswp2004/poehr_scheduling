@@ -179,16 +179,33 @@ def change_password(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_users(request):
-    if not request.user.role in ['admin', 'system_admin']:
+    user = request.user
+    
+    # Only admin and system_admin can search users
+    if user.role not in ['admin', 'system_admin']:
         return Response({'detail': 'Access denied'}, status=403)
+    
     query = request.GET.get('q', '')
-    users = CustomUser.objects.filter(
+    
+    # Base query filter for all searches
+    search_filter = (
         Q(username__icontains=query) |
         Q(email__icontains=query) |
         Q(first_name__icontains=query) |
         Q(last_name__icontains=query)
-    ).distinct()
-    serializer = UserSerializer(users, many=True)
+    )
+    
+    # For system_admin, allow searching all users across organizations
+    if user.role == 'system_admin':
+        users = CustomUser.objects.filter(search_filter)
+    # For regular admins, restrict to their organization
+    else:
+        users = CustomUser.objects.filter(
+            search_filter,
+            organization=user.organization
+        )
+    
+    serializer = UserSerializer(users.distinct(), many=True)
     return Response(serializer.data)
 
 class UserViewSet(viewsets.ModelViewSet):
