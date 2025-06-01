@@ -219,9 +219,9 @@ function AppointmentsPage() {
   return (
     <Container maxWidth="lg" sx={{ mt: 5, ml: 0, mr: 'auto', pl: 0, pr: 0 }}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
-        {isAdmin && (
+        {/*{isAdmin && (
           <BackButton onClick={handleBackNavigation} />
-        )}
+        )}*/}
       </Box>
       <Grid container spacing={3} alignItems="stretch" justifyContent="flex-start" sx={{ mb: 4 }}>
         {/* Left Panel: Today's Appointments */}

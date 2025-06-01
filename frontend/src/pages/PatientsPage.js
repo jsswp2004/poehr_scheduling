@@ -279,63 +279,68 @@ const renderPatientTable = () => (
   </Paper>
 );
 
-
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
-
-      <Tabs
-        value={tab}
-        onChange={(_, val) => setTab(val)}
-        sx={{
-          mb: 3,
-          borderRadius: 2,
-          bgcolor: '#f5faff',
-          boxShadow: 1,
-          minHeight: 48,
-          '& .MuiTabs-indicator': {
-            height: 4,
-            borderRadius: 2,
-            bgcolor: 'primary.main',
-          },
-          '& .MuiTab-root': {
-            fontWeight: 700,
-            fontSize: '1rem',
-            color: 'primary.main',
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        mb: 3,
+        borderRadius: 2,
+        bgcolor: '#f5faff',
+        boxShadow: 1,
+        minHeight: 48,
+        p: 1
+      }}>
+        <Tabs
+          value={tab}
+          onChange={(_, val) => setTab(val)}
+          sx={{
+            flex: 1,
             minHeight: 48,
-            textTransform: 'none',
-            borderRadius: 2,
-            mx: 0.5,
-            transition: 'background 0.2s',
-            '&.Mui-selected': {
-              bgcolor: 'primary.light',
-              color: 'primary.dark',
-              boxShadow: 2,
+            '& .MuiTabs-indicator': {
+              height: 4,
+              borderRadius: 2,
+              bgcolor: 'primary.main',
+            },            '& .MuiTab-root': {
+              fontWeight: 700,
+              fontSize: '1rem',
+              color: 'primary.main',
+              minHeight: 48,
+              textTransform: 'none',
+              borderRadius: 2,
+              mx: 0.5,
+              transition: 'background 0.2s',
+              '&.Mui-selected': {
+                bgcolor: 'primary.light',
+                color: 'primary.dark',
+                boxShadow: 2,
+              },
+              '&:hover': {
+                bgcolor: 'primary.lighter',
+                color: 'primary.dark',
+              },
             },
-            '&:hover': {
-              bgcolor: 'primary.lighter',
-              color: 'primary.dark',
-            },
-          },
-        }}
-      >
-        {(userRole !== 'doctor') && (
-          <Tab label="Quick Register" value="register" />
+          }}
+        >
+          {(userRole !== 'doctor') && (
+            <Tab label="Quick Register" value="register" />
+          )}
+          <Tab label="Patients" value="patients" />
+          <Tab label="Calendar" value="calendar" />
+          <Tab label="Appointments" value="appointments" />
+        </Tabs>
+        
+        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
+          <Box sx={{ ml: 2 }}>
+            <BackButton />
+          </Box>
         )}
-        <Tab label="Patients" value="patients" />
-        <Tab label="Calendar" value="calendar" />
-        <Tab label="Appointments" value="appointments" />
-      </Tabs>
+      </Box>
 
       {tab === 'register' && (
         <RegisterPage adminMode={true} />
       )}
-      {tab === 'patients' && (
-        <>
+      {tab === 'patients' && (        <>
           <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-
-            {(userRole === 'admin' || userRole === 'registrar'|| userRole === 'system_admin') && (
-              <BackButton />
-            )}
             <TextField
               fullWidth
               size="small"
