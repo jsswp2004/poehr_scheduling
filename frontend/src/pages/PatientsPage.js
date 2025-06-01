@@ -283,7 +283,7 @@ const renderPatientTable = () => (
     <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <Box sx={{ 
         display: 'flex', 
         alignItems: 'center', 
-        mb: 3,
+        mb: 1,
         borderRadius: 2,
         bgcolor: '#f5faff',
         boxShadow: 1,
@@ -295,16 +295,16 @@ const renderPatientTable = () => (
           onChange={(_, val) => setTab(val)}
           sx={{
             flex: 1,
-            minHeight: 48,
+            minHeight: 40,
             '& .MuiTabs-indicator': {
               height: 4,
               borderRadius: 2,
               bgcolor: 'primary.main',
             },            '& .MuiTab-root': {
-              fontWeight: 700,
+              fontWeight: 500,
               fontSize: '1rem',
               color: 'primary.main',
-              minHeight: 48,
+              minHeight: 40,
               textTransform: 'none',
               borderRadius: 2,
               mx: 0.5,
@@ -330,7 +330,7 @@ const renderPatientTable = () => (
         </Tabs>
         
         {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
-          <Box sx={{ ml: 2 }}>
+          <Box sx={{ ml: 1 }}>
             <BackButton />
           </Box>
         )}

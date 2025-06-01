@@ -10,51 +10,81 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions,
-  Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert
+  Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert,
+  List, ListItem, ListItemText, Typography, Chip
 } from '@mui/material';
 import BackButton from './BackButton';
 import CloseIcon from '@mui/icons-material/Close';
 
-function CustomToolbar({ date, label, onNavigate, views, view, onView }) {
+function CustomToolbar({ date, label, onNavigate, views, view, onView, searchQuery, onSearchChange }) {
   const [showPicker, setShowPicker] = useState(false);
   return (
     <div className="rbc-toolbar d-flex align-items-center justify-content-between mb-2">
-      <span className="rbc-btn-group">
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('TODAY')}>Today</button>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('PREV')}>&lt;</button>
-        <span style={{ position: 'relative', display: 'inline-block' }}>
-          <button
-            type="button"
-            className="btn btn-light btn-sm"
-            style={{ fontWeight: 600, border: '1px solid #ccc' }}
-            onClick={() => setShowPicker(!showPicker)}
-          >
-            {label}
-          </button>
-          {showPicker && (
-            <div style={{
-              position: 'absolute',
-              zIndex: 1000,
-              top: '100%',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
-            }}>
-              <DatePicker
-                selected={date}
-                onChange={d => {
-                  setShowPicker(false);
-                  onNavigate('DATE', d);
-                }}
-                inline
-              />
-            </div>
-          )}
-        </span>
-        <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('NEXT')}>&gt;</button>
-      </span>
-      <span className="rbc-btn-group ms-2">
-        {views.map(v => (
+      {/* Search Field - positioned on the left after navigation controls */}
+      <div style={{ position: 'relative', width: '250px', marginLeft: '16px', marginRight: '6px' }}>
+          <TextField
+            fullWidth
+            size="small"
+            variant="outlined"
+            placeholder="Search appointments..."
+            value={searchQuery}
+            onChange={onSearchChange}
+            sx={{ 
+              '& .MuiOutlinedInput-root': { 
+                height: '29px',
+                fontSize: '14px'
+              }
+            }}
+            InputProps={{
+              endAdornment: searchQuery && (
+                <IconButton
+                  size="small"
+                  onClick={() => onSearchChange({ target: { value: '' } })}
+                  sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              )
+            }}
+          />
+      </div>
+      <div className="d-flex align-items-center">        
+        <span className="rbc-btn-group">
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('TODAY')}>Today</button>
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('PREV')}>&lt;</button>
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              type="button"
+              className="btn btn-light btn-sm"
+              style={{ fontWeight: 600, border: '1px solid #ccc' }}
+              onClick={() => setShowPicker(!showPicker)}
+            >
+              {label}
+            </button>
+            {showPicker && (
+              <div style={{
+                position: 'absolute',
+                zIndex: 1000,
+                top: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+              }}>
+                <DatePicker
+                  selected={date}
+                  onChange={d => {
+                    setShowPicker(false);
+                    onNavigate('DATE', d);
+                  }}
+                  inline
+                />
+              </div>
+            )}
+          </span>
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('NEXT')}>&gt;</button>
+        </span>        
+      </div>
+      <span className="rbc-btn-group ms-2">        {views.map(v => (
           <button
             type="button"
             key={v}
@@ -103,12 +133,15 @@ function CalendarView({ onUpdate }) {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState([]); const [blockedDays, setBlockedDays] = useState([]);
+  const [currentDate, setCurrentDate] = useState(new Date());  const [events, setEvents] = useState([]);
+  const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
   const [providerBlocks, setProviderBlocks] = useState([]);
+  const [availabilityEvents, setAvailabilityEvents] = useState([]); // Store availability for modal use only
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
+  const [selectedDateAvailability, setSelectedDateAvailability] = useState(null);
 
   const token = localStorage.getItem('access_token');
 
@@ -193,7 +226,7 @@ function CalendarView({ onUpdate }) {
             ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` }
             : null
         );
-      } const availEvents = availabilityRes.data.map((a) => ({
+      }      const availEvents = availabilityRes.data.map((a) => ({
         id: `avail-${a.id}`,
         title: a.is_blocked
           ? `❌ ${a.block_type || 'Blocked'} | Dr. ${a.doctor_name || 'Unknown'}`
@@ -204,7 +237,10 @@ function CalendarView({ onUpdate }) {
         doctor_id: a.doctor,
         type: 'availability',
         block_type: a.block_type,
-      }));      // Store blocked availability times separately for conflict checking
+      }));      // Store availability events separately for modal use only
+      setAvailabilityEvents(availEvents);
+
+      // Store blocked availability times separately for conflict checking
       const blockedTimes = availabilityRes.data
         .filter(a => a.is_blocked)
         .map(a => ({
@@ -216,8 +252,12 @@ function CalendarView({ onUpdate }) {
         }));
       setProviderBlocks(blockedTimes);
 
-      const combinedEvents = [...apptEvents, ...availEvents, ...holidayEvents]
-        .filter(e => e && typeof e.title === 'string');      setEvents([]);
+      // Filter availability events to only show BLOCKED (red) events, not available (green) events
+      const blockedAvailEvents = availEvents.filter(event => event.is_blocked);
+
+      // Combine events WITH blocked availability events but WITHOUT available (green) events
+      const combinedEvents = [...apptEvents, ...blockedAvailEvents, ...holidayEvents]
+        .filter(e => e && typeof e.title === 'string');setEvents([]);
       setTimeout(() => setEvents(combinedEvents), 50);
     } catch (error) {
       console.error('Failed to load calendar data:', error);
@@ -252,7 +292,6 @@ function CalendarView({ onUpdate }) {
     }
     fetchHolidays();
   }, []);
-
   // Map holidays as events
   const holidayEvents = holidays.map(h => {
     const start = new Date(h.date + 'T00:00:00');
@@ -266,7 +305,70 @@ function CalendarView({ onUpdate }) {
       type: 'holiday',
       allDay: true,
     };
-  });
+  });  // Function to get available providers for a specific date
+  const getAvailableProvidersForDate = (date) => {
+    const dateStr = moment(date).format('YYYY-MM-DD');
+    return doctors.filter(doctor => {
+      // Check if doctor has any available (non-blocked) time blocks on this date
+      const hasAvailability = availabilityEvents.some(event => {
+        if (event.type !== 'availability') return false;
+        
+        const eventDate = moment(event.start).format('YYYY-MM-DD');
+        const eventDoctor = event.doctor_id;
+        
+        return String(eventDoctor) === String(doctor.id) && 
+               eventDate === dateStr &&
+               !event.is_blocked; // Only count non-blocked availability
+      });
+      return hasAvailability;
+    });
+  };// Handle date click to show availability
+  const handleDateClick = (date) => {
+    const dateStr = moment(date).format('YYYY-MM-DD');
+    const availableProviders = doctors.filter(doctor => {
+      // Get all available (non-blocked) time blocks for this doctor on this date
+      const availableSlots = availabilityEvents.filter(event => {
+        if (event.type !== 'availability') return false;
+        
+        const eventDate = moment(event.start).format('YYYY-MM-DD');
+        const eventDoctor = event.doctor_id;
+        
+        return String(eventDoctor) === String(doctor.id) && 
+               eventDate === dateStr &&
+               !event.is_blocked; // Only count non-blocked availability
+      });
+      
+      return availableSlots.length > 0;
+    }).map(doctor => {
+      // Get the specific time slots for this doctor
+      const timeSlots = availabilityEvents.filter(event => {
+        if (event.type !== 'availability') return false;
+        
+        const eventDate = moment(event.start).format('YYYY-MM-DD');
+        const eventDoctor = event.doctor_id;
+        
+        return String(eventDoctor) === String(doctor.id) && 
+               eventDate === dateStr &&
+               !event.is_blocked;
+      }).map(slot => ({
+        start: moment(slot.start).format('h:mm A'),
+        end: moment(slot.end).format('h:mm A'),
+        duration: moment(slot.end).diff(moment(slot.start), 'minutes')
+      }));
+      
+      return {
+        ...doctor,
+        timeSlots
+      };
+    });
+    
+    setSelectedDateAvailability({
+      date: dateStr,
+      dateFormatted: moment(date).format('MMMM D, YYYY'),
+      providers: availableProviders
+    });
+    setShowAvailabilityModal(true);
+  };
 
   useEffect(() => {
     fetchDoctors().then(() => fetchAppointments());
@@ -532,7 +634,6 @@ function CalendarView({ onUpdate }) {
     }
     return {};
   };
-
   function CustomDateHeader({ date, holidays, setCurrentView, setCurrentDate }) {
     const holiday = holidays.find(h => {
       const holidayDate = new Date(h.date + 'T00:00:00');
@@ -542,19 +643,30 @@ function CalendarView({ onUpdate }) {
         holidayDate.getDate() === date.getDate()
       );
     });
-    const handleClick = (e) => {
+    const handleDayViewClick = (e) => {
       e.stopPropagation();
       setCurrentView('day');
       setCurrentDate(date);
+    };
+    const handleAvailabilityClick = (e) => {
+      e.stopPropagation();
+      handleDateClick(date);
     };
     return (
       <div style={{ minHeight: 32 }}>
         <span
           style={{ cursor: 'pointer', fontWeight: 600, color: '#0d6efd' }}
-          onClick={handleClick}
+          onClick={handleDayViewClick}
           title="Go to day view"
         >
           {date.getDate().toString().padStart(2, '0')}
+        </span>
+        <span 
+          style={{ cursor: 'pointer', fontSize: '12px', color: '#28a745', marginLeft: '4px' }}
+          onClick={handleAvailabilityClick}
+          title="View available providers"
+        >
+          📅
         </span>
         {holiday && (
           <div style={{ color: '#c79100', fontWeight: 600, fontSize: 12 }}>
@@ -579,55 +691,8 @@ function CalendarView({ onUpdate }) {
     };
     loadProviderBlocks();
   }, [selectedDoctor, token]);
-
   return (
     <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3, p: 2 }}>
-        {/*{(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (<BackButton />
-        )}*/}
-        <Box sx={{ position: 'relative', width: 300 }}>
-          <TextField
-            fullWidth
-            size="small"
-            variant="outlined"
-            placeholder="Search appointments..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            InputProps={{
-              endAdornment: searchQuery && (
-                <IconButton
-                  size="small"
-                  onClick={() => setSearchQuery('')}
-                  sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
-                >
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              )
-            }}
-          />
-        </Box>
-        {/* Commented out doctor selection dropdown
-        (userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
-          <Box sx={{ width: 300 }}>
-            <Select
-              options={doctors.map((doc) => ({
-                value: doc.id,
-                label: `Dr. ${doc.first_name} ${doc.last_name}`,
-              }))}
-              placeholder="Select Doctor availability"
-              value={selectedDoctor}
-              onChange={setSelectedDoctor}
-              isClearable
-              styles={{
-                control: (base) => ({ ...base, height: 38, minHeight: 38 }),
-                menu: (base) => ({ ...base, zIndex: 9999 }),
-              }}
-            />
-          </Box>
-        )
-        */}
-
-      </Stack>
       <Box className="card-body">
         <Box sx={{ height: 600, maxWidth: '100%' }}>
           <Calendar
@@ -664,10 +729,13 @@ function CalendarView({ onUpdate }) {
             min={new Date(1970, 1, 1, 8, 0, 0)}
             max={new Date(1970, 1, 1, 18, 0, 0)}
             step={15}
-            timeslots={2}
-            components={{
+            timeslots={2}            components={{
               toolbar: (toolbarProps) => (
-                <CustomToolbar {...toolbarProps} />
+                <CustomToolbar 
+                  {...toolbarProps} 
+                  searchQuery={searchQuery}
+                  onSearchChange={(e) => setSearchQuery(e.target.value)}
+                />
               ),
               month: {
                 dateHeader: (props) => (
@@ -802,7 +870,78 @@ function CalendarView({ onUpdate }) {
                   {isEditing ? 'Update' : 'Save'}
                 </Button>
                 </span>
-              </Tooltip>
+              </Tooltip>            </DialogActions>
+          </Dialog>
+
+          {/* Availability Modal */}
+          <Dialog 
+            open={showAvailabilityModal} 
+            onClose={() => setShowAvailabilityModal(false)} 
+            maxWidth="sm" 
+            fullWidth
+          >
+            <DialogTitle>
+              Available Providers
+              {selectedDateAvailability && (
+                <Typography variant="subtitle2" color="text.secondary">
+                  {selectedDateAvailability.dateFormatted}
+                </Typography>
+              )}
+            </DialogTitle>
+            <DialogContent dividers>              {selectedDateAvailability && (
+                <Box>
+                  {selectedDateAvailability.providers.length > 0 ? (
+                    <List>
+                      {selectedDateAvailability.providers.map((provider) => (
+                        <ListItem key={provider.id} divider>
+                          <ListItemText
+                            primary={`Dr. ${provider.first_name} ${provider.last_name}`}
+                            secondary={
+                              <Box>
+                                <Typography variant="body2" color="text.secondary">
+                                  Specialization: {provider.specialization || 'General'}
+                                </Typography>
+                                {provider.timeSlots && provider.timeSlots.length > 0 && (
+                                  <Box sx={{ mt: 1 }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      Available Times:
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                      {provider.timeSlots.map((slot, index) => (
+                                        <Chip
+                                          key={index}
+                                          label={`${slot.start} - ${slot.end}`}
+                                          variant="outlined"
+                                          size="small"
+                                          color="primary"
+                                        />
+                                      ))}
+                                    </Box>
+                                  </Box>
+                                )}
+                              </Box>
+                            }
+                          />
+                          <Chip
+                            label="Available"
+                            color="success"
+                            size="small"
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  ) : (
+                    <Typography color="text.secondary" align="center" sx={{ py: 3 }}>
+                      No providers available on this date.
+                    </Typography>
+                  )}
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setShowAvailabilityModal(false)} color="primary">
+                Close
+              </Button>
             </DialogActions>
           </Dialog>
         </Box>
