@@ -171,14 +171,18 @@ function MaintenancePage() {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h5" align="center" gutterBottom>Clinician Schedule Maintenance 🛠️</Typography>
-      <Grid container spacing={4} justifyContent="center">
+    <Container maxWidth={false} disableGutters sx={{ py: 4, px: 0, textAlign: 'left' }}>
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="h5" gutterBottom sx={{ textAlign: 'left', m: 0 }}>
+          Clinician Schedule Maintenance 🛠️
+        </Typography>
+      </Box>
+      <Grid container spacing={4} justifyContent="flex-start" alignItems="flex-start" sx={{ ml: 0 }}>
         {/* LEFT: Schedule Maintenance Form */}
-        <Grid item xs={12} md={6} lg={6} xl={6}>
-          <Box sx={{ p: 3, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', minHeight: 500, maxHeight: 700, minWidth: 400, width: '100%' }}>
+        <Grid item xs={12} md={6} lg={6} xl={6} sx={{ pl: 0 }}>
+          <Box sx={{ p: 3, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', minHeight: 500, maxHeight: 700, minWidth: 400, width: '100%', textAlign: 'left' }}>
             <form onSubmit={handleSubmit}>
-              <Stack spacing={2}>
+              <Stack spacing={2} sx={{ textAlign: 'left' }}>
                 <FormControl fullWidth>
                   <InputLabel>Select Clinician</InputLabel>
                   <MUISelect
