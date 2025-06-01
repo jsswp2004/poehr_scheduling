@@ -83,10 +83,10 @@ function MaintenancePage() {
       isFetchingRef.current = true;
       const res = await axios.get('http://127.0.0.1:8000/api/availability/', {
         headers: { Authorization: `Bearer ${token}` },
-      });
-      const doctorSchedules = res.data.filter(
+      }); const doctorSchedules = res.data.filter(
         s => String(s.doctor) === String(selectedDoctor.value)
       );
+      console.log('Doctor schedules:', doctorSchedules); // Debug log
       setSchedules(uniqueByTime(doctorSchedules));
     } catch {
       toast.error('Failed to load schedules.');
@@ -129,7 +129,14 @@ function MaintenancePage() {
         await axios.post('http://127.0.0.1:8000/api/availability/', payload, { headers: { Authorization: `Bearer ${token}` } });
         toast.success('Schedule saved!');
       }
-      setFormData({ start_time: '', end_time: '', is_blocked: false, recurrence: 'none', recurrence_end_date: '' });
+      setFormData({
+        start_time: getTodayAt(8),
+        end_time: getTodayAt(17),
+        is_blocked: false,
+        recurrence: 'none',
+        recurrence_end_date: '',
+        block_type: 'Lunch'
+      });
       setEditingId(null);
       await fetchSchedules();
     } catch {
@@ -289,16 +296,15 @@ function MaintenancePage() {
             <TableContainer component={Paper} sx={{ mb: 2, maxHeight: 200, overflowY: 'auto' }}>
               <Table size="small">
                 <TableHead><TableRow><TableCell>Date/Time</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
-                <TableBody>
-                  {schedules.filter(s => s.is_blocked).map(s => (
-                    <TableRow key={s.id}>
-                      <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()} | ${s.block_type || ''} | Dr. ${doctors.find(d => d.id === s.doctor)?.first_name || ''} ${doctors.find(d => d.id === s.doctor)?.last_name || ''}`}</TableCell>
-                      <TableCell align="right">
-                        <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
-                        <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                <TableBody>                  {schedules.filter(s => s.is_blocked).map(s => (
+                  <TableRow key={s.id}>
+                    <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()} | ${s.block_type || 'No Type'} | Dr. ${doctors.find(d => d.id === s.doctor)?.first_name || ''} ${doctors.find(d => d.id === s.doctor)?.last_name || ''}`}</TableCell>
+                    <TableCell align="right">
+                      <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
+                      <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
                 </TableBody>
               </Table>
             </TableContainer>

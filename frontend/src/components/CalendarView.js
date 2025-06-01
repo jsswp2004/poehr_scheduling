@@ -9,7 +9,8 @@ import { jwtDecode } from 'jwt-decode';
 import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Dialog, DialogTitle, DialogContent, DialogActions,
+import {
+  Dialog, DialogTitle, DialogContent, DialogActions,
   Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert
 } from '@mui/material';
 import BackButton from './BackButton';
@@ -64,9 +65,9 @@ function CustomToolbar({ date, label, onNavigate, views, view, onView }) {
           >
             {v === 'month' ? 'Month'
               : v === 'week' ? 'Week'
-              : v === 'work_week' ? 'Work Week'
-              : v === 'day' ? 'Day'
-              : v.charAt(0).toUpperCase() + v.slice(1)}
+                : v === 'work_week' ? 'Work Week'
+                  : v === 'day' ? 'Day'
+                    : v.charAt(0).toUpperCase() + v.slice(1)}
           </button>
         ))}
       </span>
@@ -106,7 +107,7 @@ function CalendarView({ onUpdate }) {
   const [doctors, setDoctors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [events, setEvents] = useState([]);  const [blockedDays, setBlockedDays] = useState([]);
+  const [events, setEvents] = useState([]); const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
@@ -177,26 +178,26 @@ function CalendarView({ onUpdate }) {
             ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` }
             : null
         );
-      }
-
-      const availEvents = availabilityRes.data.map((a) => ({
+      } const availEvents = availabilityRes.data.map((a) => ({
         id: `avail-${a.id}`,
-        title: `${a.is_blocked ? '❌ Blocked' : '🟢'} Dr. ${a.doctor_name || 'Unknown'}`,
+        title: a.is_blocked
+          ? `❌ ${a.block_type || 'Blocked'} | Dr. ${a.doctor_name || 'Unknown'}`
+          : `🟢 Dr. ${a.doctor_name || 'Unknown'}`,
         start: new Date(a.start_time),
         end: new Date(a.end_time),
         is_blocked: a.is_blocked,
         doctor_id: a.doctor,
         type: 'availability',
-      }));
-
-      // Store blocked availability times separately for conflict checking
+        block_type: a.block_type,
+      }));      // Store blocked availability times separately for conflict checking
       const blockedTimes = availabilityRes.data
         .filter(a => a.is_blocked)
         .map(a => ({
           doctor_id: a.doctor,
           start: new Date(a.start_time),
           end: new Date(a.end_time),
-          doctor_name: a.doctor_name
+          doctor_name: a.doctor_name,
+          block_type: a.block_type,
         }));
       setProviderBlocks(blockedTimes);
 
@@ -263,7 +264,7 @@ function CalendarView({ onUpdate }) {
     const start = startDate || new Date(modalFormData.appointment_datetime);
     const duration = durationMinutes || modalFormData.duration_minutes;
     const provider = doctorId || (selectedDoctor?.value);
-    
+
     // If we don't have all required data, no conflict
     if (!provider || !start || !duration || isNaN(start.getTime())) {
       return false;
@@ -276,11 +277,11 @@ function CalendarView({ onUpdate }) {
         const originalStart = new Date(originalEvent.start);
         const originalEnd = new Date(originalEvent.end);
         const currentEnd = new Date(start.getTime() + (duration * 60 * 1000));
-        
+
         // If the time hasn't changed (or changed minimally), don't check for conflicts
         const timeUnchanged = Math.abs(originalStart.getTime() - start.getTime()) < 60000 && // within 1 minute
-                             Math.abs(originalEnd.getTime() - currentEnd.getTime()) < 60000;
-        
+          Math.abs(originalEnd.getTime() - currentEnd.getTime()) < 60000;
+
         if (timeUnchanged) {
           return false;
         }
@@ -288,30 +289,30 @@ function CalendarView({ onUpdate }) {
     }
 
     const end = new Date(start.getTime() + (duration * 60 * 1000));
-    
+
     // Get blocked availability for the selected provider during this time
     const providerAvailability = providerBlocks.filter(block => {
       const blockDoctorId = block.doctor_id || block.doctor;
       return String(blockDoctorId) === String(provider);
     });
-    
+
     // Find ONLY blocked availability for the selected provider during this time
     const blockedAvailability = providerAvailability.filter(block => {
       const blockStart = block.start || new Date(block.start_time);
       const blockEnd = block.end || new Date(block.end_time);
       const isBlocked = block.is_blocked === true;
       const overlaps = (start < blockEnd && end > blockStart);
-      
+
       return isBlocked && overlaps;
     });
-    
+
     // Check if appointment time overlaps with any blocked time
     if (blockedAvailability.length > 0) {
       return 'Cannot schedule appointment during provider\'s blocked time. Please select another time.';
     }
-    
+
     return false;
-  }, [modalFormData.appointment_datetime, modalFormData.duration_minutes, selectedDoctor, providerBlocks, isEditing, editingId, events]);  const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
+  }, [modalFormData.appointment_datetime, modalFormData.duration_minutes, selectedDoctor, providerBlocks, isEditing, editingId, events]); const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
 
   const handleSelectSlot = ({ start }) => {
@@ -384,7 +385,7 @@ function CalendarView({ onUpdate }) {
         : null
     );
     setShowModal(true);
-  };  const handleModalSave = async () => {
+  }; const handleModalSave = async () => {
     // Validate required fields
     if (!modalFormData.appointment_datetime) {
       toast.error('Please select an appointment date and time.');
@@ -401,7 +402,7 @@ function CalendarView({ onUpdate }) {
       modalFormData.duration_minutes,
       selectedDoctor.value
     );
-    
+
     if (conflictResult) {
       toast.error(conflictResult);
       return;
@@ -556,7 +557,8 @@ function CalendarView({ onUpdate }) {
   useEffect(() => {
     const loadProviderBlocks = async () => {
       if (!selectedDoctor) return;
-      try {        const res = await axios.get(`http://127.0.0.1:8000/api/availability/?doctor=${selectedDoctor.value}`, {
+      try {
+        const res = await axios.get(`http://127.0.0.1:8000/api/availability/?doctor=${selectedDoctor.value}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setProviderBlocks(res.data);
@@ -570,8 +572,8 @@ function CalendarView({ onUpdate }) {
   return (
     <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3, p: 2 }}>
-        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (          <BackButton />
-        )}        
+        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (<BackButton />
+        )}
         <Box sx={{ position: 'relative', width: 300 }}>
           <TextField
             fullWidth
@@ -670,100 +672,100 @@ function CalendarView({ onUpdate }) {
           />
 
           <Dialog open={showModal} onClose={() => setShowModal(false)} maxWidth="sm" fullWidth>            <DialogTitle>{isEditing ? 'Edit Appointment' : 'Create Appointment'}</DialogTitle>            <DialogContent dividers>
-              {isPast && <Alert severity="warning">⚠️ Past appointments cannot be edited.</Alert>}
-              <Stack spacing={2} mt={2}>
-                {/* Clinic Visit Type */}
-                <FormControl fullWidth size="small">
-                  <InputLabel id="clinic-event-label">Clinic Visit Type</InputLabel>
-                  <MUISelect
-                    labelId="clinic-event-label"
-                    value={selectedClinicEvent ? selectedClinicEvent.value : ''}
-                    label="Clinic Visit Type"
-                    onChange={(e) => {
-                      const selected = clinicEvents.find(evt => evt.id === e.target.value);
-                      setSelectedClinicEvent(selected ? { value: selected.id, label: selected.name } : null);
-                      setModalFormData(prev => ({ ...prev, title: selected ? selected.name : '' }));
-                    }}
-                    disabled={isPast}
-                  >
-                    <MenuItem value=""><em>None</em></MenuItem>
-                    {clinicEvents.map(evt => (
-                      <MenuItem key={evt.id} value={evt.id}>{evt.name}</MenuItem>
-                    ))}
-                  </MUISelect>
-                </FormControl>
-                {/* Description */}
-                <TextField
-                  label="Description"
-                  multiline
-                  minRows={3}
-                  value={modalFormData.description}
-                  onChange={(e) => setModalFormData({ ...modalFormData, description: e.target.value })}
-                  disabled={isPast}
-                  fullWidth
-                  size="small"
-                />
-                {/* Date & Time */}
-                <TextField
-                  label="Date & Time"
-                  type="datetime-local"
-                  value={modalFormData.appointment_datetime}
-                  onChange={(e) => setModalFormData({ ...modalFormData, appointment_datetime: e.target.value })}
-                  disabled={isPast}
-                  fullWidth
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                />
-                {/* Duration */}
-                <TextField
-                  label="Duration (minutes)"
-                  type="number"
-                  value={modalFormData.duration_minutes}
+            {isPast && <Alert severity="warning">⚠️ Past appointments cannot be edited.</Alert>}
+            <Stack spacing={2} mt={2}>
+              {/* Clinic Visit Type */}
+              <FormControl fullWidth size="small">
+                <InputLabel id="clinic-event-label">Clinic Visit Type</InputLabel>
+                <MUISelect
+                  labelId="clinic-event-label"
+                  value={selectedClinicEvent ? selectedClinicEvent.value : ''}
+                  label="Clinic Visit Type"
                   onChange={(e) => {
-                    const value = parseInt(e.target.value) || 0;
-                    setModalFormData({ ...modalFormData, duration_minutes: value })
+                    const selected = clinicEvents.find(evt => evt.id === e.target.value);
+                    setSelectedClinicEvent(selected ? { value: selected.id, label: selected.name } : null);
+                    setModalFormData(prev => ({ ...prev, title: selected ? selected.name : '' }));
                   }}
                   disabled={isPast}
-                  fullWidth
-                  size="small"
-                />
-                {/* Recurrence */}
-                <FormControl fullWidth size="small">
-                  <InputLabel id="recurrence-label">Recurrence</InputLabel>
-                  <MUISelect
-                    labelId="recurrence-label"
-                    value={modalFormData.recurrence}
-                    label="Recurrence"
-                    onChange={(e) => setModalFormData({ ...modalFormData, recurrence: e.target.value })}
-                    disabled={isPast}
-                  >
-                    <MenuItem value="none">None</MenuItem>
-                    <MenuItem value="daily">Daily</MenuItem>
-                    <MenuItem value="weekly">Weekly</MenuItem>
-                    <MenuItem value="monthly">Monthly</MenuItem>
-                  </MUISelect>
-                </FormControl>
-                {/* Select Doctor */}
-                <FormControl fullWidth size="small">
-                  <InputLabel id="doctor-label">Select Doctor</InputLabel>
-                  <MUISelect
-                    labelId="doctor-label"
-                    value={selectedDoctor ? selectedDoctor.value : ''}
-                    label="Select Doctor"
-                    onChange={(e) => {
-                      const selected = doctors.find(doc => doc.id === e.target.value);
-                      setSelectedDoctor(selected ? { value: selected.id, label: `Dr. ${selected.first_name} ${selected.last_name}` } : null);
-                    }}
-                    disabled={isPast}
-                  >
-                    <MenuItem value=""><em>None</em></MenuItem>
-                    {doctors.map(doc => (
-                      <MenuItem key={doc.id} value={doc.id}>{`Dr. ${doc.first_name} ${doc.last_name}`}</MenuItem>
-                    ))}
-                  </MUISelect>
-                </FormControl>
-              </Stack>
-            </DialogContent>
+                >
+                  <MenuItem value=""><em>None</em></MenuItem>
+                  {clinicEvents.map(evt => (
+                    <MenuItem key={evt.id} value={evt.id}>{evt.name}</MenuItem>
+                  ))}
+                </MUISelect>
+              </FormControl>
+              {/* Description */}
+              <TextField
+                label="Description"
+                multiline
+                minRows={3}
+                value={modalFormData.description}
+                onChange={(e) => setModalFormData({ ...modalFormData, description: e.target.value })}
+                disabled={isPast}
+                fullWidth
+                size="small"
+              />
+              {/* Date & Time */}
+              <TextField
+                label="Date & Time"
+                type="datetime-local"
+                value={modalFormData.appointment_datetime}
+                onChange={(e) => setModalFormData({ ...modalFormData, appointment_datetime: e.target.value })}
+                disabled={isPast}
+                fullWidth
+                size="small"
+                InputLabelProps={{ shrink: true }}
+              />
+              {/* Duration */}
+              <TextField
+                label="Duration (minutes)"
+                type="number"
+                value={modalFormData.duration_minutes}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 0;
+                  setModalFormData({ ...modalFormData, duration_minutes: value })
+                }}
+                disabled={isPast}
+                fullWidth
+                size="small"
+              />
+              {/* Recurrence */}
+              <FormControl fullWidth size="small">
+                <InputLabel id="recurrence-label">Recurrence</InputLabel>
+                <MUISelect
+                  labelId="recurrence-label"
+                  value={modalFormData.recurrence}
+                  label="Recurrence"
+                  onChange={(e) => setModalFormData({ ...modalFormData, recurrence: e.target.value })}
+                  disabled={isPast}
+                >
+                  <MenuItem value="none">None</MenuItem>
+                  <MenuItem value="daily">Daily</MenuItem>
+                  <MenuItem value="weekly">Weekly</MenuItem>
+                  <MenuItem value="monthly">Monthly</MenuItem>
+                </MUISelect>
+              </FormControl>
+              {/* Select Doctor */}
+              <FormControl fullWidth size="small">
+                <InputLabel id="doctor-label">Select Doctor</InputLabel>
+                <MUISelect
+                  labelId="doctor-label"
+                  value={selectedDoctor ? selectedDoctor.value : ''}
+                  label="Select Doctor"
+                  onChange={(e) => {
+                    const selected = doctors.find(doc => doc.id === e.target.value);
+                    setSelectedDoctor(selected ? { value: selected.id, label: `Dr. ${selected.first_name} ${selected.last_name}` } : null);
+                  }}
+                  disabled={isPast}
+                >
+                  <MenuItem value=""><em>None</em></MenuItem>
+                  {doctors.map(doc => (
+                    <MenuItem key={doc.id} value={doc.id}>{`Dr. ${doc.first_name} ${doc.last_name}`}</MenuItem>
+                  ))}
+                </MUISelect>
+              </FormControl>
+            </Stack>
+          </DialogContent>
             <DialogActions>
               <Tooltip title="Close without saving">
                 <Button onClick={() => setShowModal(false)} color="secondary">
@@ -777,17 +779,17 @@ function CalendarView({ onUpdate }) {
                   </Button>
                 </Tooltip>
               )}              <Tooltip title={
-                isEditing 
-                  ? 'Update appointment' 
+                isEditing
+                  ? 'Update appointment'
                   : 'Save new appointment'
               }>
-                <span>                  <Button 
-                    onClick={handleModalSave} 
-                    variant="contained" 
-                    disabled={isEditing && isPast}
-                  >
-                    {isEditing ? 'Update' : 'Save'}
-                  </Button>
+                <span>                  <Button
+                  onClick={handleModalSave}
+                  variant="contained"
+                  disabled={isEditing && isPast}
+                >
+                  {isEditing ? 'Update' : 'Save'}
+                </Button>
                 </span>
               </Tooltip>
             </DialogActions>
