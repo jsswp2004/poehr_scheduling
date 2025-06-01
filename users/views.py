@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView, DestroyAPIView
-from rest_framework.parsers import MultiPartParser
+from rest_framework.parsers import MultiPartParser, JSONParser
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
 from django.http import HttpResponse
@@ -31,7 +31,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = [MultiPartParser]  # Enable file upload support
+    parser_classes = [MultiPartParser, JSONParser]  # Accept both file uploads and JSON
     
     def get_queryset(self):
         """
@@ -47,6 +47,20 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             return Organization.objects.filter(id=user.organization.id)
         else:
             return Organization.objects.none()
+    
+    def perform_create(self, serializer):
+        """Allow admin, system_admin, and registrar to create organizations"""
+        user = self.request.user
+        print(f"🔍 Organization creation attempt by user: {user.username} (role: {user.role})")
+        print(f"🔍 Request data: {self.request.data}")
+        
+        if user.role not in ['admin', 'system_admin', 'registrar']:
+            print(f"❌ Permission denied for role: {user.role}")
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("You do not have permission to create organizations.")
+        
+        print(f"✅ Permission granted, creating organization")
+        serializer.save()
     
     def perform_update(self, serializer):
         """Only allow admin and system_admin to update organizations"""
