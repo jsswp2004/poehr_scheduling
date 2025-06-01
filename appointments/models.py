@@ -101,6 +101,20 @@ class Availability(models.Model):
         default='none'
     )
     recurrence_end_date = models.DateField(null=True, blank=True)
+    block_type = models.CharField(
+        max_length=32,
+        choices=[
+            ("Lunch", "Lunch"),
+            ("Meeting", "Meeting"),
+            ("Vacation", "Vacation"),
+            ("On Leave", "On Leave"),
+            ("Other", "Other"),
+        ],
+        default="Lunch",
+        blank=True,
+        null=True,
+        help_text="Type of block for this availability (if blocked)"
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 

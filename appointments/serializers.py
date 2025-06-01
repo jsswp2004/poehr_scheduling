@@ -38,7 +38,9 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Availability
-        fields = ['id', 'doctor', 'start_time', 'end_time', 'is_blocked', 'recurrence', 'doctor_name', 'recurrence_end_date']
+        fields = [
+            'id', 'doctor', 'start_time', 'end_time', 'is_blocked', 'recurrence', 'doctor_name', 'recurrence_end_date', 'block_type'
+        ]
 
     def get_doctor_name(self, obj):
         return f"{obj.doctor.first_name} {obj.doctor.last_name}"

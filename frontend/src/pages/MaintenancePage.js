@@ -22,6 +22,7 @@ function MaintenancePage() {
     is_blocked: false,
     recurrence: 'none',
     recurrence_end_date: '',
+    block_type: 'Lunch', // NEW
   });
 
   const navigate = useNavigate();
@@ -67,7 +68,7 @@ function MaintenancePage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setHolidays(res.data.filter(h => h.is_recognized));
-      } catch {}
+      } catch { }
     };
     fetchHolidays();
   }, [token]);
@@ -117,6 +118,7 @@ function MaintenancePage() {
       is_blocked: formData.is_blocked,
       recurrence: formData.recurrence,
       recurrence_end_date: formData.recurrence_end_date || null,
+      block_type: formData.is_blocked ? formData.block_type : null, // NEW
     };
 
     try {
@@ -143,6 +145,7 @@ function MaintenancePage() {
       is_blocked: schedule.is_blocked,
       recurrence: schedule.recurrence || 'none',
       recurrence_end_date: schedule.recurrence_end_date || '',
+      block_type: schedule.block_type || 'Lunch', // NEW
     });
     const doc = doctors.find(doc => doc.id === schedule.doctor);
     setSelectedDoctor(doc ? { value: doc.id, label: `Dr. ${doc.first_name} ${doc.last_name}` } : null);
@@ -197,22 +200,22 @@ function MaintenancePage() {
                       <MenuItem key={doc.id} value={doc.id}>{`Dr. ${doc.first_name} ${doc.last_name}`}</MenuItem>
                     ))}
                   </MUISelect>
-                </FormControl>                <TextField 
-                  fullWidth 
-                  label="Start Time" 
-                  type="datetime-local" 
-                  name="start_time" 
-                  value={formData.start_time} 
+                </FormControl>                <TextField
+                  fullWidth
+                  label="Start Time"
+                  type="datetime-local"
+                  name="start_time"
+                  value={formData.start_time}
                   onChange={handleChange}
                   InputLabelProps={{ shrink: true }}
                   sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
                 />
-                <TextField 
-                  fullWidth 
-                  label="End Time" 
-                  type="datetime-local" 
-                  name="end_time" 
-                  value={formData.end_time} 
+                <TextField
+                  fullWidth
+                  label="End Time"
+                  type="datetime-local"
+                  name="end_time"
+                  value={formData.end_time}
                   onChange={handleChange}
                   InputLabelProps={{ shrink: true }}
                   sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
@@ -228,17 +231,32 @@ function MaintenancePage() {
                   </MUISelect>
                 </FormControl>
 
-                <TextField 
-                  fullWidth 
-                  type="date" 
-                  label="Recurrence End Date" 
-                  value={formData.recurrence_end_date || ''} 
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Recurrence End Date"
+                  value={formData.recurrence_end_date || ''}
                   onChange={(e) => setFormData({ ...formData, recurrence_end_date: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                   sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
                 />
 
                 <FormControlLabel control={<Checkbox checked={formData.is_blocked} onChange={(e) => setFormData({ ...formData, is_blocked: e.target.checked })} />} label="Block this schedule" />
+                {formData.is_blocked && (
+                  <FormControl fullWidth>
+                    <InputLabel>Block Type</InputLabel>
+                    <MUISelect
+                      value={formData.block_type}
+                      label="Block Type"
+                      onChange={e => setFormData({ ...formData, block_type: e.target.value })}
+                    >
+                      <MenuItem value="Lunch">Lunch</MenuItem>
+                      <MenuItem value="Meeting">Meeting</MenuItem>
+                      <MenuItem value="Vacation">Vacation</MenuItem>
+                      <MenuItem value="On Leave">On Leave</MenuItem>
+                    </MUISelect>
+                  </FormControl>
+                )}
 
                 <Button type="submit" variant="contained" fullWidth>{editingId ? 'Update' : 'Save'}</Button>
                 {editingId && <Button variant="outlined" onClick={handleCancel} fullWidth>Cancel</Button>}
@@ -274,7 +292,7 @@ function MaintenancePage() {
                 <TableBody>
                   {schedules.filter(s => s.is_blocked).map(s => (
                     <TableRow key={s.id}>
-                      <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()}`}</TableCell>
+                      <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()} | ${s.block_type || ''} | Dr. ${doctors.find(d => d.id === s.doctor)?.first_name || ''} ${doctors.find(d => d.id === s.doctor)?.last_name || ''}`}</TableCell>
                       <TableCell align="right">
                         <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
                         <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
