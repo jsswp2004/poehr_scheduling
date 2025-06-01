@@ -6,7 +6,6 @@ import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
 import { toast } from 'react-toastify';
 import { jwtDecode } from 'jwt-decode';
-import { useNavigate } from 'react-router-dom';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import {
@@ -89,9 +88,7 @@ function toLocalDatetimeString(dateObj) {
 }
 
 function CalendarView({ onUpdate }) {
-  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [isPast, setIsPast] = useState(false);
@@ -339,10 +336,8 @@ function CalendarView({ onUpdate }) {
     }
 
     setIsEditing(false);
-    setIsPast(false);
-    setEditingId(null);
+    setIsPast(false); setEditingId(null);
     setSelectedDoctor(null);
-    setSelectedDate(start);
     setModalFormData({
       title: 'New Clinic Visit',
       description: '',
@@ -359,11 +354,9 @@ function CalendarView({ onUpdate }) {
       //toast.warn('Edits for availability are not allowed in Calendar view.');
       return;
     }
-    const past = isPastAppointment(event.start);
-    setIsPast(past);
+    const past = isPastAppointment(event.start); setIsPast(past);
     setIsEditing(true);
     setEditingId(event.id);
-    setSelectedDate(new Date(event.start));
     setModalFormData({
       title: event.title,
       description: event.description || '',

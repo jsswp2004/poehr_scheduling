@@ -4,26 +4,31 @@ import { Box, Stack, Typography, TextField, Button, InputLabel, FormControl, Men
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import BackButton from '../components/BackButton';
-import { notifyProfileUpdated } from '../utils/events';
 
 function CreateProfile() {
   const navigate = useNavigate();
-  const [doctors, setDoctors] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
     first_name: '',
     last_name: '',
-    role: 'patient', // still defaulting to patient
+    role: '', // Changed from 'patient' to empty string
     profile_picture: null,
+    organization: '',
   });
   const [submitting, setSubmitting] = useState(false);
-
   useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/users/doctors/')
-      .then((res) => setDoctors(res.data))
-      .catch((err) => console.error('Failed to load doctors:', err));
+    // Fetch organizations
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      axios.get('http://127.0.0.1:8000/api/users/organizations/', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then((res) => setOrganizations(res.data))
+        .catch((err) => console.error('Failed to load organizations:', err));
+    }
   }, []);
 
   const handleChange = (e) => {
@@ -98,9 +103,7 @@ function CreateProfile() {
             <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1 }}>
               {formData.profile_picture.name}
             </Typography>
-          )}
-
-          <FormControl fullWidth size="small">
+          )}          <FormControl fullWidth size="small">
             <InputLabel id="role-label">Role</InputLabel>
             <MUISelect
               labelId="role-label"
@@ -111,10 +114,30 @@ function CreateProfile() {
               required
             >
               <MenuItem value=""><em>Select a role</em></MenuItem>
+              <MenuItem value="patient">Patient</MenuItem>
               <MenuItem value="receptionist">Receptionist</MenuItem>
               <MenuItem value="doctor">Doctor</MenuItem>
               <MenuItem value="admin">Admin</MenuItem>
               <MenuItem value="registrar">Registrar</MenuItem>
+            </MUISelect>
+          </FormControl>
+
+          <FormControl fullWidth size="small">
+            <InputLabel id="organization-label">Organization</InputLabel>
+            <MUISelect
+              labelId="organization-label"
+              name="organization"
+              value={formData.organization}
+              label="Organization"
+              onChange={handleChange}
+              required
+            >
+              <MenuItem value=""><em>Select an organization</em></MenuItem>
+              {organizations.map((org) => (
+                <MenuItem key={org.id} value={org.id}>
+                  {org.name}
+                </MenuItem>
+              ))}
             </MUISelect>
           </FormControl>
 

@@ -1,22 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import {
   Box, Stack, Typography, Button, TextField, FormControl, InputLabel,
-  Select as MUISelect, MenuItem, Checkbox, FormControlLabel, Grid, Divider,
+  Select as MUISelect, MenuItem, Checkbox, FormControlLabel, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
   Container
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { jwtDecode } from 'jwt-decode';
 
 function MaintenancePage() {
   const [editingId, setEditingId] = useState(null);
   const [schedules, setSchedules] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [holidays, setHolidays] = useState([]);
-  const [formData, setFormData] = useState({
+  const [holidays, setHolidays] = useState([]); const [formData, setFormData] = useState({
     start_time: getTodayAt(8),
     end_time: getTodayAt(17),
     is_blocked: false,
@@ -25,7 +22,6 @@ function MaintenancePage() {
     block_type: 'Lunch', // NEW
   });
 
-  const navigate = useNavigate();
   const token = localStorage.getItem('access_token');
   const isFetchingRef = useRef(false);
 
@@ -71,13 +67,7 @@ function MaintenancePage() {
       } catch { }
     };
     fetchHolidays();
-  }, [token]);
-
-  useEffect(() => {
-    if (selectedDoctor) fetchSchedules();
-  }, [selectedDoctor]);
-
-  const fetchSchedules = async () => {
+  }, [token]); const fetchSchedules = useCallback(async () => {
     if (!selectedDoctor || isFetchingRef.current) return;
     try {
       isFetchingRef.current = true;
@@ -93,7 +83,11 @@ function MaintenancePage() {
     } finally {
       isFetchingRef.current = false;
     }
-  };
+  }, [selectedDoctor, token]);
+
+  useEffect(() => {
+    if (selectedDoctor) fetchSchedules();
+  }, [selectedDoctor, fetchSchedules]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
