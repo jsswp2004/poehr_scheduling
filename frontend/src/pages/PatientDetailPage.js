@@ -180,12 +180,15 @@ function PatientDetailPage() {
   }
 
   if (!patient) return <div>Loading patient details...</div>;
-
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <BackButton to="/patients" />
-      <Typography variant="h5" sx={{ mb: 2 }}>
-        Patient Details
-      </Typography>
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+      {/* Header with BackButton inline */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h5">
+          Patient Details
+        </Typography>
+        <BackButton to="/patients" />
+      </Box>
 
       {/* Show profile picture if available */}
       {patient.profile_picture && (
