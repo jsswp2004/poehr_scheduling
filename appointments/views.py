@@ -24,6 +24,7 @@ import holidays as pyholidays
 import csv
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
+from .permissions import IsAdminOrSystemAdmin
 
 from .models import Appointment
 
@@ -382,7 +383,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
             )
 
 class DownloadClinicEventsTemplate(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrSystemAdmin]
 
     def get(self, request):
         response = HttpResponse(content_type='text/csv')
@@ -417,7 +418,7 @@ class UploadClinicEventsCSV(APIView):
         return Response({"message": f"{created_count} clinic events uploaded successfully."})
 
 class DownloadAvailabilityTemplate(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrSystemAdmin]
 
     def get(self, request):
         response = HttpResponse(content_type='text/csv')

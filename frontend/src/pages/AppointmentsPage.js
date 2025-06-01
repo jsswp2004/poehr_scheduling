@@ -18,7 +18,8 @@ import DialogActions from '@mui/material/DialogActions';
 import Grid from '@mui/material/Grid';
 import TodayIcon from '@mui/icons-material/Today';
 
-function AppointmentsPage() {  const [query, setQuery] = useState('');
+function AppointmentsPage() {
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [page, setPage] = useState(1);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -34,12 +35,14 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
     if (!token) {
       navigate('/login');
       return;
-    }    try {
+    }
+    try {
       const decoded = jwtDecode(token);
       const role = decoded.role || '';
       if (role !== 'doctor' && role !== 'registrar' && role !== 'admin' && role !== 'system_admin') {
         navigate('/');
-      }      // Set admin status - allow registrars, admin and system_admin to see the admin button
+      }
+      // Set admin status - allow registrars, admin and system_admin to see the admin button
       setIsAdmin(role === 'admin' || role === 'system_admin' || role === 'registrar');
     } catch (err) {
       navigate('/login');
@@ -53,19 +56,19 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
         headers: { Authorization: `Bearer ${token}` },
       });
       const lowerQuery = searchText.trim().toLowerCase();
-      
+
       // No filter needed if search is empty
       if (!lowerQuery) {
         setResults(res.data);
         return;
       }
-      
+
       // Enhanced filtering logic to search all columns
       const filtered = res.data.filter((appt) => {
         // Basic fields
         const patientName = appt.patient_name || (appt.patient ? `${appt.patient.first_name} ${appt.patient.last_name}` : '');
         const providerName = appt.provider_name || (appt.provider ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim() : '');
-        
+
         // Date & time - multiple formats for better matching
         let dateTimeFormats = [];
         if (appt.appointment_datetime) {
@@ -81,14 +84,14 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
           dateTimeFormats.push(`${dateObj.getMonth() + 1}/${dateObj.getDate()}`); // MM/DD
         }
         const dateTimeStr = dateTimeFormats.join(' ');
-        
+
         // Other fields
         const description = appt.description || '';
         const duration = appt.duration_minutes ? appt.duration_minutes.toString() : '';
         const status = appt.status || '';
         const clinic = appt.title || '';
         const id = appt.id ? appt.id.toString() : '';
-        
+
         // Combine all searchable fields
         const combined = `
           ${patientName} 
@@ -100,10 +103,10 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
           ${clinic}
           ${id}
         `.toLowerCase();
-        
+
         return combined.includes(lowerQuery);
       });
-      
+
       console.log(`Search for "${lowerQuery}" found ${filtered.length} results out of ${res.data.length}`);
       setResults(filtered);
     } catch (err) {
@@ -119,33 +122,33 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
         const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        
+
         // Get today's date at midnight (start of the day)
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         // Get tomorrow's date at midnight (start of the next day)
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
-        
+
         console.log("Today's date (midnight):", today.toISOString());
         console.log("Tomorrow's date (midnight):", tomorrow.toISOString());
-        
+
         // Filter appointments between today midnight and tomorrow midnight
         const filtered = res.data.filter((appt) => {
           if (!appt.appointment_datetime) return false;
-          
+
           const apptDate = new Date(appt.appointment_datetime);
           const isToday = apptDate >= today && apptDate < tomorrow;
-          
+
           // Debug logging for each appointment
           if (apptDate.toDateString() === today.toDateString()) {
             console.log(`Appointment: ${appt.id}, Date: ${apptDate.toISOString()}, Included: ${isToday}`);
           }
-          
+
           return isToday;
         });
-        
+
         console.log(`Found ${filtered.length} appointments for today out of ${res.data.length} total`);
         setTodaysAppointments(filtered);
       } catch (err) {
@@ -173,55 +176,55 @@ function AppointmentsPage() {  const [query, setQuery] = useState('');
     const dateA = new Date(a.appointment_datetime);
     const dateB = new Date(b.appointment_datetime);
     return dateB - dateA;
-  });  const paginatedResults = sortedResults.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-  
+  });
+  const paginatedResults = sortedResults.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
   // Define a specific handler for back button navigation
-const handleBackNavigation = (e) => {
-  if (e) e.preventDefault(); // Protect if e is undefined
-  navigate(-1);
-};
+  const handleBackNavigation = (e) => {
+    if (e) e.preventDefault(); // Protect if e is undefined
+    navigate(-1);
+  };
 
-// Helper: get user first name from token
-const getUserFirstName = () => {
-  try {
-    if (!token) return '';
-    const decoded = jwtDecode(token);
-    return decoded.first_name || decoded.username || '';
-  } catch {
-    return '';
-  }
-};
+  // Helper: get user first name from token
+  const getUserFirstName = () => {
+    try {
+      if (!token) return '';
+      const decoded = jwtDecode(token);
+      return decoded.first_name || decoded.username || '';
+    } catch {
+      return '';
+    }
+  };
 
-// Helper: get greeting based on time of day
-const getGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-};
+  // Helper: get greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  };
 
-// Compute summary for today's appointments
-const totalToday = todaysAppointments.length;
-const doctorPatientMap = {};
-todaysAppointments.forEach(appt => {
-  let doctor = appt.provider_name || (appt.provider ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim() : 'Unknown');
-  if (!doctorPatientMap[doctor]) doctorPatientMap[doctor] = 0;
-  doctorPatientMap[doctor] += 1;
-});
-const userName = getUserFirstName();
-const greeting = getGreeting();
+  // Compute summary for today's appointments
+  const totalToday = todaysAppointments.length;
+  const doctorPatientMap = {};
+  todaysAppointments.forEach(appt => {
+    let doctor = appt.provider_name || (appt.provider ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim() : 'Unknown');
+    if (!doctorPatientMap[doctor]) doctorPatientMap[doctor] = 0;
+    doctorPatientMap[doctor] += 1;
+  });
+  const userName = getUserFirstName();
+  const greeting = getGreeting();
 
-  
+
   return (
-    <Container maxWidth="lg" sx={{ mt: 5, mx: "auto" }}>      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-
+    <Container maxWidth="lg" sx={{ mt: 5, ml: 0, mr: 'auto', pl: 0, pr: 0 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
         {isAdmin && (
-        <BackButton           
-          onClick={handleBackNavigation}
-        />
+          <BackButton onClick={handleBackNavigation} />
         )}
-      </Box>{/* Top row with two equal panels */}
-      <Grid container spacing={3} alignItems="stretch" justifyContent="center" sx={{ mb: 4 }}>        {/* Left Panel: Today's Appointments */}
+      </Box>
+      <Grid container spacing={3} alignItems="stretch" justifyContent="flex-start" sx={{ mb: 4 }}>
+        {/* Left Panel: Today's Appointments */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -237,8 +240,7 @@ const greeting = getGreeting();
                     <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
                   </TableRow>
                 </TableHead>
-                <TableBody>
-                  {todaysAppointments.length === 0 ? (
+                <TableBody>                  {todaysAppointments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary', py: 2 }}>
                         No appointments today.
@@ -246,15 +248,16 @@ const greeting = getGreeting();
                     </TableRow>
                   ) : (
                     todaysAppointments
-                      .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime))                      .map((appt) => (
-                        <TableRow 
-                          key={appt.id} 
+                      .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime))
+                      .map((appt) => (
+                        <TableRow
+                          key={appt.id}
                           hover
                           onClick={() => {
                             setSelectedAppointment(appt);
                             setDetailsOpen(true);
                           }}
-                          sx={{ 
+                          sx={{
                             cursor: 'pointer',
                             '&:hover': {
                               backgroundColor: '#f0f7ff',
@@ -274,7 +277,8 @@ const greeting = getGreeting();
               </Table>
             </TableContainer>
           </Paper>
-        </Grid>        {/* Right Panel: Summary */}
+        </Grid>
+        {/* Right Panel: Summary */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
@@ -313,7 +317,6 @@ const greeting = getGreeting();
           </Paper>
         </Grid>
       </Grid>
-
       {/* Bottom row with main content */}
       <Grid container>
         {/* Main Content: All Appointments */}
@@ -374,7 +377,8 @@ const greeting = getGreeting();
                       <TableCell>{appt.duration_minutes || '-'}</TableCell>
                       <TableCell>{appt.status || '-'}</TableCell>
                       <TableCell>
-                        <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1 }}>                          <Button
+                        <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1 }}>
+                          <Button
                             variant="outlined"
                             size="small"
                             onClick={() => {
@@ -435,23 +439,23 @@ const greeting = getGreeting();
                                     headers: { Authorization: `Bearer ${token}` },
                                   });
                                   fetchAppointments(query);
-                                  
+
                                   // Also refresh today's appointments
                                   const today = new Date();
                                   today.setHours(0, 0, 0, 0);
                                   const tomorrow = new Date(today);
                                   tomorrow.setDate(tomorrow.getDate() + 1);
-                                  
+
                                   const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
                                     headers: { Authorization: `Bearer ${token}` },
                                   });
-                                  
+
                                   const filtered = res.data.filter((appointment) => {
                                     if (!appointment.appointment_datetime) return false;
                                     const apptDate = new Date(appointment.appointment_datetime);
                                     return apptDate >= today && apptDate < tomorrow;
                                   });
-                                  
+
                                   setTodaysAppointments(filtered);
                                 } catch (err) {
                                   alert('Failed to delete appointment.');
@@ -497,7 +501,8 @@ const greeting = getGreeting();
                   <Typography><b>Clinic Event:</b> {selectedAppointment.title || '-'}</Typography>
                 </Box>
               )}
-            </DialogContent>            <DialogActions>
+            </DialogContent>
+            <DialogActions>
               <Button onClick={() => setDetailsOpen(false)} color="primary">Close</Button>
               <Button
                 color="secondary"

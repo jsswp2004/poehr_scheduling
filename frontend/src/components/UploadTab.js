@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, TableHead, TableRow, TableCell, TableBody, Button, TextField, Stack, Alert } from '@mui/material';
+import { Table, TableHead, TableRow, TableCell, TableBody, Button, Stack, Alert, TextField } from '@mui/material';
 import axios from 'axios';
 
 function UploadTab() {
@@ -13,6 +13,20 @@ function UploadTab() {
   const [availabilityUploadStatus, setAvailabilityUploadStatus] = useState('');
   const token = localStorage.getItem('access_token');
 
+  // Utility function for robust file download
+  const triggerDownload = (blob, filename) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    setTimeout(() => {
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 0);
+  };
+
   // Clinic Events handlers
   const handleDownload = async () => {
     try {
@@ -20,15 +34,11 @@ function UploadTab() {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'clinic_events_template.csv');
-      document.body.appendChild(link);
-      link.click();
+      triggerDownload(new Blob([response.data]), 'clinic_events_template.csv');
+      setUploadStatus('');
     } catch (err) {
-      console.error(err);
       setUploadStatus('❌ Download failed.');
+      console.error('Clinic Events download failed:', err);
     }
   };
 
@@ -60,15 +70,11 @@ function UploadTab() {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'providers_template.csv');
-      document.body.appendChild(link);
-      link.click();
+      triggerDownload(new Blob([response.data]), 'providers_template.csv');
+      setProviderUploadStatus('');
     } catch (err) {
-      console.error(err);
       setProviderUploadStatus('❌ Download failed.');
+      console.error('Providers download failed:', err);
     }
   };
 
@@ -100,15 +106,11 @@ function UploadTab() {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'availability_template.csv');
-      document.body.appendChild(link);
-      link.click();
+      triggerDownload(new Blob([response.data]), 'availability_template.csv');
+      setAvailabilityUploadStatus('');
     } catch (err) {
-      console.error(err);
       setAvailabilityUploadStatus('❌ Download failed.');
+      console.error('Availability download failed:', err);
     }
   };
 
@@ -138,71 +140,59 @@ function UploadTab() {
       <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: '#e3f2fd' }}>
-            <TableCell sx={{ fontWeight: 'bold', width: 200, fontSize: '1rem' }}>Items</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: 200, fontSize: '1rem', textAlign: 'left' }}>Items</TableCell>
             <TableCell sx={{ fontWeight: 'bold', width: 300, fontSize: '1rem', textAlign: 'left' }}>Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-            <TableCell>Clinic Events</TableCell>
+            <TableCell sx={{ verticalAlign: 'top' }}>Clinic Events</TableCell>
             <TableCell>
-              <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-start" flexWrap="wrap">
-                <Button variant="outlined" onClick={handleDownload}>
-                  Download Template
-                </Button>
+              <Button variant="outlined" onClick={handleDownload} sx={{ mb: 1, width: '100%' }}>DOWNLOAD TEMPLATE</Button>
+              <Stack direction="column" spacing={1}>
                 <TextField
                   type="file"
                   inputProps={{ accept: '.csv' }}
-                  onChange={(e) => setFile(e.target.files[0])}
+                  onChange={e => setFile(e.target.files[0])}
                   variant="outlined"
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Button variant="contained" onClick={handleUpload}>
-                  Upload CSV
-                </Button>
+                <Button variant="contained" onClick={handleUpload} sx={{ width: '100%' }}>UPLOAD CSV</Button>
               </Stack>
             </TableCell>
           </TableRow>
           <TableRow sx={{ '&:nth-of-type(even)': { bgcolor: '#f8fafd' } }}>
-            <TableCell>Providers/ Staff</TableCell>
+            <TableCell sx={{ verticalAlign: 'top' }}>Providers/ Staff</TableCell>
             <TableCell>
-              <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-start" flexWrap="wrap">
-                <Button variant="outlined" onClick={handleProviderDownload}>
-                  Download Template
-                </Button>
+              <Button variant="outlined" onClick={handleProviderDownload} sx={{ mb: 1, width: '100%' }}>DOWNLOAD TEMPLATE</Button>
+              <Stack direction="column" spacing={1}>
                 <TextField
                   type="file"
                   inputProps={{ accept: '.csv' }}
-                  onChange={(e) => setProviderFile(e.target.files[0])}
+                  onChange={e => setProviderFile(e.target.files[0])}
                   variant="outlined"
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Button variant="contained" onClick={handleProviderUpload}>
-                  Upload CSV
-                </Button>
+                <Button variant="contained" onClick={handleProviderUpload} sx={{ width: '100%' }}>UPLOAD CSV</Button>
               </Stack>
             </TableCell>
           </TableRow>
           <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-            <TableCell>Availability</TableCell>
+            <TableCell sx={{ verticalAlign: 'top' }}>Availability</TableCell>
             <TableCell>
-              <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-start" flexWrap="wrap">
-                <Button variant="outlined" onClick={handleAvailabilityDownload}>
-                  Download Template
-                </Button>
+              <Button variant="outlined" onClick={handleAvailabilityDownload} sx={{ mb: 1, width: '100%' }}>DOWNLOAD TEMPLATE</Button>
+              <Stack direction="column" spacing={1}>
                 <TextField
                   type="file"
                   inputProps={{ accept: '.csv' }}
-                  onChange={(e) => setAvailabilityFile(e.target.files[0])}
+                  onChange={e => setAvailabilityFile(e.target.files[0])}
                   variant="outlined"
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Button variant="contained" onClick={handleAvailabilityUpload}>
-                  Upload CSV
-                </Button>
+                <Button variant="contained" onClick={handleAvailabilityUpload} sx={{ width: '100%' }}>UPLOAD CSV</Button>
               </Stack>
             </TableCell>
           </TableRow>
