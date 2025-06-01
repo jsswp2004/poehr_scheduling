@@ -198,9 +198,8 @@ function ProfilePage() {
 
   return (
     <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto' }}>
-      <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
-        {/* Top Action Bar */}        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={3}>
-          <BackButton />
+      <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>        {/* Top Action Bar */}        
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={1}>
           <Stack direction="row" spacing={1} alignItems="center">
             <TextField
               size="small"
@@ -228,7 +227,8 @@ function ProfilePage() {
               Create Profile
             </Button>
           </Stack>
-        </Stack>        {/* Search Results */}
+          <BackButton />
+        </Stack>{/* Search Results */}
         {searchResults.length > 0 && (
           <Box sx={{ mb: 3, border: '1px solid #eee', borderRadius: 1, p: 2, maxHeight: 250, overflowY: 'auto' }}>
             <Typography variant="subtitle1" sx={{ mb: 1 }}><b>Search Results</b></Typography>

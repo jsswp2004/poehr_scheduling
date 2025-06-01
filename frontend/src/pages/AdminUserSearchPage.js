@@ -84,14 +84,16 @@ function AdminUserSearchPage() {
     const dateB = new Date(b.appointment_datetime);
     return dateB - dateA;
   });
-  const paginatedResults = sortedResults.slice((page - 1) * rowsPerPage, page * rowsPerPage);
-
-  return (
+  const paginatedResults = sortedResults.slice((page - 1) * rowsPerPage, page * rowsPerPage);  return (
     <Container maxWidth="lg" sx={{ mt: 5 }}>
 
-      <Typography variant="h5" fontWeight={600} gutterBottom>
-        Search Appointments
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="h5" fontWeight={600}>
+          Search Appointments
+        </Typography>
+        <BackButton to="/admin" />
+      </Box>
+      
       <Box
         component="form"
         onSubmit={handleSearch}
@@ -232,10 +234,9 @@ function AdminUserSearchPage() {
             onChange={(_, value) => setPage(value)}
             color="primary"
             shape="rounded"
-          />
-        </Box>
+          />        </Box>
       )}
-      <BackButton to="/admin" />
+      
       {/* Appointment Details Dialog */}
       <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Appointment Details</DialogTitle>

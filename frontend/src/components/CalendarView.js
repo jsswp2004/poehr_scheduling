@@ -147,13 +147,31 @@ function CalendarView({ onUpdate }) {
     } catch (err) {
       console.error('Failed to load clinic events:', err);
     }
-  };
-  const fetchAppointments = async () => {
+  };  const fetchAppointments = async () => {
     try {
+      console.log('Fetching appointments for user role:', userRole);
+      
+      const appointmentsPromise = axios.get('http://127.0.0.1:8000/api/appointments/', { 
+        headers: { Authorization: `Bearer ${token}` } 
+      }).catch(error => {
+        console.error('Appointments API error:', error.response?.status, error.response?.data);
+        throw error;
+      });
+      
+      const availabilityPromise = axios.get('http://127.0.0.1:8000/api/availability/', { 
+        headers: { Authorization: `Bearer ${token}` } 
+      }).catch(error => {
+        console.error('Availability API error:', error.response?.status, error.response?.data);
+        throw error;
+      });
+
       const [appointmentsRes, availabilityRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/appointments/', { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get('http://127.0.0.1:8000/api/availability/', { headers: { Authorization: `Bearer ${token}` } }),
+        appointmentsPromise,
+        availabilityPromise
       ]);
+
+      console.log('Appointments response:', appointmentsRes.data.length, 'appointments');
+      console.log('First few appointments:', appointmentsRes.data.slice(0, 3));
 
       const apptEvents = appointmentsRes.data.map((appt) => ({
         id: `appt-${appt.id}`,
@@ -199,12 +217,12 @@ function CalendarView({ onUpdate }) {
       setProviderBlocks(blockedTimes);
 
       const combinedEvents = [...apptEvents, ...availEvents, ...holidayEvents]
-        .filter(e => e && typeof e.title === 'string');
-
-      setEvents([]);
+        .filter(e => e && typeof e.title === 'string');      setEvents([]);
       setTimeout(() => setEvents(combinedEvents), 50);
     } catch (error) {
       console.error('Failed to load calendar data:', error);
+      console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
     }
   };
 
@@ -565,8 +583,8 @@ function CalendarView({ onUpdate }) {
   return (
     <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper' }}>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3, p: 2 }}>
-        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (<BackButton />
-        )}
+        {/*{(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (<BackButton />
+        )}*/}
         <Box sx={{ position: 'relative', width: 300 }}>
           <TextField
             fullWidth

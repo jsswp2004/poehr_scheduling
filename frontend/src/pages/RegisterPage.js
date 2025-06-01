@@ -102,7 +102,8 @@ function RegisterPage({ adminMode = false }) {
   };
   return (
     <Container maxWidth="sm" sx={{ mt: 6, ml: 0, mr: 'auto', pl: 0, pr: 0 }}>
-      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>        <BackButton />
+      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>        
+        {/*<BackButton />*/}
         <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>Register</Typography>
         {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
           <Box sx={{ mb: 2 }}>
