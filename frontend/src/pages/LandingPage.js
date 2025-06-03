@@ -340,54 +340,65 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Footer section */}
-      <div className="footer">
-        <div className="content">
-          <div className="info">
+      </div>      {/* Footer section */}
+      <div className="footer-section">
+        <div className="footer-container">
+          <div className="footer-content">
             {/* Company branding and description */}
-            <div className="logo-description">
-              <div className="logo2">
-                <div className="logo-icon2">
-                  <img className="power-logo-footer" src={POWERLogo} alt="POWER IT Systems" />
-                </div>
-                <div className="whitepace">POWER IT SYSTEMS</div>
+            <div className="footer-brand">
+              <div className="footer-logo">
+                <img className="power-logo-footer" src={POWERLogo} alt="POWER IT Systems" />
+                <div className="footer-brand-name">POWER IT SYSTEMS</div>
               </div>
-              <div className="whitepace-was-created-for-the-new-ways-we-live-and-work-we-make-a-better-workspace-around-the-world">
+              <div className="footer-description">
                 POWER was created for the new ways healthcare teams work. We make
                 better scheduling solutions for clinics around the world.
               </div>
             </div>
+            
             {/* Product navigation links */}
-            <div className="info2">
-              <div className="product">Product</div>
-              <div className="overview">Overview</div>
-              <div className="pricing4">Pricing</div>
-              <div className="customer-stories">Customer stories</div>
+            <div className="footer-column">
+              <div className="footer-column-title">Product</div>
+              <div className="footer-links">
+                <a href="#overview" className="footer-link">Overview</a>
+                <a href="#pricing" className="footer-link">Pricing</a>
+                <a href="#features" className="footer-link">Features</a>
+                <a href="#customer-stories" className="footer-link">Customer Stories</a>
+              </div>
             </div>
+            
             {/* Resources navigation links */}
-            <div className="info3">
-              <div className="resources3">Resources</div>
-              <div className="blog">Blog</div>
-              <div className="guides-tutorials">Guides &amp; tutorials</div>
-              <div className="help-center">Help center</div>
+            <div className="footer-column">
+              <div className="footer-column-title">Resources</div>
+              <div className="footer-links">
+                <a href="#blog" className="footer-link">Blog</a>
+                <a href="#guides" className="footer-link">Guides &amp; Tutorials</a>
+                <a href="#help" className="footer-link">Help Center</a>
+                <a href="#support" className="footer-link">Support</a>
+              </div>
             </div>
+            
             {/* Company navigation links */}
-            <div className="info3">
-              <div className="company">Company</div>
-              <div className="about-us">About us</div>
-              <div className="careers">Careers</div>
-              <div className="media-kit">Media kit</div>
+            <div className="footer-column">
+              <div className="footer-column-title">Company</div>
+              <div className="footer-links">
+                <a href="#about" className="footer-link">About Us</a>
+                <a href="#careers" className="footer-link">Careers</a>
+                <a href="#media" className="footer-link">Media Kit</a>
+                <a href="#contact" className="footer-link">Contact</a>
+              </div>
             </div>
           </div>
+          
           {/* Footer bottom section */}
-          <div className="btm">
-            <div className="tems-and-condition">
-              <div className="terms-privacy">Terms &amp; privacy</div>
-              <div className="security">Security</div>
-              <div className="status">Status</div>
-              <div className="_2021-whitepace-llc">©2025 POWER IT Systems LLC.</div>
+          <div className="footer-bottom">
+            <div className="footer-copyright">
+              ©2025 POWER IT Systems LLC. All rights reserved.
+            </div>
+            <div className="footer-legal-links">
+              <a href="#terms" className="footer-legal-link">Terms &amp; Privacy</a>
+              <a href="#security" className="footer-legal-link">Security</a>
+              <a href="#status" className="footer-legal-link">Status</a>
             </div>
           </div>
         </div>
