@@ -1,9 +1,11 @@
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import { LandingPageV1Desktop1920Px as LandingPage } from './pages/LandingPage';
 import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
@@ -13,28 +15,47 @@ import ProfilePage from './pages/ProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MaintenancePage from './pages/MaintenancePage'; 
 import CreateProfilePage from './pages/CreateProfilePage';
-import SettingsPage from './pages/SettingsPage'; // adjust path if needed
+import SettingsPage from './pages/SettingsPage';
 import HolidaysTab from './pages/HolidaysPage';
 import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
 import AdminUserSearchPage from './pages/AdminUserSearchPage';
 import EditAppointmentPage from './pages/EditAppointmentPage';
 import AppointmentsPage from './pages/AppointmentsPage';
 
+function AppContent() {
+  const location = useLocation();
+  const showNavbar = !['/', '/login', '/register', '/forgot-password'].includes(location.pathname);
 
+  // Add or remove body class based on whether navbar should be shown
+  useEffect(() => {
+    if (showNavbar) {
+      document.body.classList.add('with-navbar');
+    } else {
+      document.body.classList.remove('with-navbar');
+    }
+  }, [showNavbar]);
 
-function App() {
+  useEffect(() => {
+    const body = document.body;
+    if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password') {
+      body.classList.add('bg-gray-100');
+    } else {
+      body.classList.remove('bg-gray-100');
+    }
+  }, [location.pathname]);
+
   return (
-    <Router>
-      <Navbar />
+    <>
+      {showNavbar && <Navbar />}
       <ToastContainer position="top-center" />
       <Routes>
-        <Route path="/" element={ <PrivateRoute> <DashboardPage /> </PrivateRoute>} />
-        <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} /> {/* ✅ Added */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PatientsPage />} />
         <Route path="/patients/:id" element={<PatientDetailPage />} />
-        <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} /> {/* ✅ Added */}
+        <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/maintenance" element={<PrivateRoute><MaintenancePage /></PrivateRoute>} />
@@ -45,15 +66,15 @@ function App() {
         <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />
         <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />
-        {/* Add more routes as needed */}
-
-
-
-
-
-
-
       </Routes>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
