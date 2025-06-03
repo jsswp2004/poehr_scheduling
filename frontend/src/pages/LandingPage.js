@@ -73,16 +73,17 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="pricing2">Pricing</div>
               <img className="down-arrow4" src={DownArrow} alt="dropdown arrow" />
             </div>
+           
           </div>
           {/* Login and trial buttons */}
-          <div className="btn">
-            <div className="btn-login" onClick={handleLoginClick} style={{ cursor: 'pointer' }}>
-              <div className="login">Login</div>
-            </div>
-            <div className="btn-free-trial2">
-              <div className="try-power-for-free">Try POWER for free</div>
-            </div>
-          </div>
+            <div className="btn">
+              <div className="btn-login" onClick={handleLoginClick} style={{ cursor: 'pointer' }}>
+                <div className="login">Login</div>
+              </div>
+              <div className="btn-free-trial2">
+                <div className="try-power-for-free">Try POWER for free</div>
+              </div>
+            </div> 
         </div>
       </div>
 
