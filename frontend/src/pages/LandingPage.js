@@ -92,7 +92,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           <div className="headline">
             <div className="text-block">
               <div className="power-scheduling">
-                POWER<br />Scheduling
+                POWER Scheduling
               </div>
               {/* Feature description with bullet points */}
               <div className="keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform">
@@ -114,7 +114,44 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </div>
           </div>
           {/* Feature image placeholder */}
-          <div className="image-container2"></div>
+          
+          <div className="work-together-image">
+            <div className="ellipse-5"></div>
+            <div className="ellipse-6"></div>
+            <div className="group-293">
+              <div className="ellipse-2"></div>
+            </div>
+            <div className="group-22">
+              <div className="ellipse-142"></div>
+            </div>
+            <div className="group-28">
+              <div className="ellipse-13"></div>
+            </div>
+            <div className="group-24">
+              <div className="ellipse-10"></div>
+            </div>
+            <div className="group-298">
+              <div className="ellipse-102"></div>
+            </div>
+            <div className="group-295">
+              <div className="ellipse-103"></div>
+            </div>
+            <div className="group-29">
+              <div className="ellipse-172"></div>
+              <div className="ellipse-4"></div>
+            </div>
+            <div className="group-297">
+              <div className="ellipse-173"></div>
+              <div className="ellipse-45"></div>
+            </div>
+            <div className="group-26">
+              <div className="ellipse-162"></div>
+            </div>
+            <div className="group-327">
+              <img className="power-logo-2-2" src={POWERLogo} alt="POWER logo" />
+            </div>
+          </div>            
+          
         </div>
 
         {/* Collaboration features section */}
