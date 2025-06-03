@@ -4,32 +4,35 @@
 }
 .landing-page-v-1-desktop-1920-px {
   background: #ffffff;
-  height: 7116px;
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  min-height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 .landing-page-v-1-desktop-1920-px .hero-section {
   background: #043873;
-  padding: 140px 220px 140px 220px;
+  padding: 140px 5%;
   display: flex;
   flex-direction: row;
-  gap: 0px;
+  gap: 20px;
   align-items: center;
-  justify-content: flex-start;
-  width: 1920px;
-  position: absolute;
-  left: 0px;
-  top: 92px;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  margin-top: 92px;
 }
 .landing-page-v-1-desktop-1920-px .element {
   opacity: 0.3;
-  flex-shrink: 0;
-  width: 2651.8px;
-  height: 547px;
+  width: 100%;
+  max-width: 2651.8px;
+  height: auto;
   position: absolute;
-  left: -366px;
-  top: 192.27px;
-  transform: translate(366px, 0px);
+  z-index: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px .heading {
@@ -56,11 +59,12 @@
   color: #ffffff;
   text-align: left;
   font-family: var(--header-h2-font-family, "Inter-Bold", sans-serif);
-  font-size: var(--header-h2-font-size, 64px);
+  font-size: clamp(28px, 4vw, 64px); /* Responsive font size */
   letter-spacing: var(--header-h2-letter-spacing, -0.02em);
   font-weight: var(--header-h2-font-weight, 700);
   position: relative;
   align-self: stretch;
+  line-height: 1.2;
 }
 .landing-page-v-1-desktop-1920-px
   .healthcare-scheduling-software-that-empowers-your-team-to-coordinate-plan-and-manage-patient-care-every-day {
@@ -125,15 +129,16 @@
 }
 .landing-page-v-1-desktop-1920-px .header {
   background: #043873;
-  padding: 16px 220px 16px 220px;
+  padding: 16px 5%;
   display: flex;
   flex-direction: row;
   align-items: center;
   justify-content: space-between;
-  width: 1920px;
-  position: absolute;
+  width: 100%;
+  position: fixed;
   left: 0px;
   top: 0px;
+  z-index: 1000;
 }
 .landing-page-v-1-desktop-1920-px .logo {
   display: flex;
@@ -377,16 +382,16 @@
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px .pricing3 {
-  padding: 140px 220px 140px 220px;
+  background: #ffffff;
+  padding: 140px 5%;
   display: flex;
   flex-direction: column;
   gap: 60px;
   align-items: center;
   justify-content: center;
-  width: 1921px;
-  position: absolute;
-  left: -1px;
-  top: 2523px;
+  width: 100%;
+  position: relative;
+  margin-top: 60px;
 }
 .landing-page-v-1-desktop-1920-px .heading2 {
   display: flex;
@@ -399,25 +404,26 @@
   position: relative;
 }
 .landing-page-v-1-desktop-1920-px .element2 {
-  flex-shrink: 0;
-  width: 21.52%;
-  height: 17.61%;
+  width: 22%;
+  height: auto;
   position: absolute;
-  right: 29.05%;
-  left: 49.43%;
-  bottom: 47.53%;
-  top: 34.86%;
+  right: 29%;
+  left: auto;
+  top: 35%;
+  bottom: auto;
   overflow: visible;
+  z-index: 0;
 }
 .landing-page-v-1-desktop-1920-px .choose-your-plan {
   color: #212529;
   text-align: center;
   font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
-  font-size: var(--header-h1-font-size, 72px);
+  font-size: clamp(36px, 6vw, 72px); /* Responsive font size */
   letter-spacing: var(--header-h1-letter-spacing, -0.02em);
   font-weight: var(--header-h1-font-weight, 700);
   position: relative;
   align-self: stretch;
+  line-height: 1.1;
 }
 .landing-page-v-1-desktop-1920-px
   .whether-you-re-aiming-to-simplify-patient-scheduling-reduce-no-shows-or-optimize-your-clinic-s-workflow-power-gives-you-the-tools-to-schedule-with-confidence-and-efficiency {
@@ -980,16 +986,15 @@
 }
 .landing-page-v-1-desktop-1920-px .your-work {
   background: #043873;
-  padding: 140px 220px 140px 220px;
+  padding: 140px 5%;
   display: flex;
   flex-direction: column;
   gap: 0px;
   align-items: center;
   justify-content: flex-start;
-  width: 1921px;
-  position: absolute;
-  left: -1px;
-  top: 3795px;
+  width: 100%;
+  position: relative;
+  margin-top: 60px;
 }
 .landing-page-v-1-desktop-1920-px .heading3 {
   display: flex;
@@ -1012,25 +1017,27 @@
   position: relative;
 }
 .landing-page-v-1-desktop-1920-px .element3 {
-  flex-shrink: 0;
-  width: 47.18%;
-  height: 14.01%;
+  width: 47%;
+  height: auto;
   position: absolute;
-  right: 0.61%;
-  left: 52.21%;
-  bottom: 56.45%;
-  top: 29.55%;
+  right: 0;
+  left: auto;
+  top: 30%;
+  bottom: auto;
   overflow: visible;
+  z-index: 0;
 }
 .landing-page-v-1-desktop-1920-px .efficient-scheduling-anywhere-anytime {
   color: #ffffff;
   text-align: left;
   font-family: var(--header-h3-font-family, "Inter-Bold", sans-serif);
-  font-size: var(--header-h3-font-size, 54px);
+  font-size: clamp(32px, 5vw, 54px); /* Responsive font size */
   letter-spacing: var(--header-h3-letter-spacing, -0.02em);
   font-weight: var(--header-h3-font-weight, 700);
   position: relative;
-  width: 1064px;
+  width: 100%;
+  max-width: 1064px;
+  line-height: 1.2;
 }
 .landing-page-v-1-desktop-1920-px
   .access-your-schedules-and-patient-information-from-your-computer-phone-or-tablet-anytime-anywhere-power-keeps-everything-in-sync-so-your-appointments-and-clinic-data-are-always-up-to-date-whether-you-re-at-the-office-at-home-or-on-the-go-available-on-windows-mac-os-android-and-i-os {
@@ -1093,37 +1100,38 @@
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px .your-data {
-  padding: 140px 220px 140px 220px;
+  background: #ffffff;
+  padding: 140px 5%;
   display: flex;
   flex-direction: row;
-  gap: 0px;
+  gap: 30px;
   align-items: center;
-  justify-content: flex-start;
-  width: 1921px;
-  position: absolute;
-  left: -1px;
-  top: 4369px;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  margin-top: 60px;
 }
 .landing-page-v-1-desktop-1920-px .element4 {
-  flex-shrink: 0;
   width: 41%;
-  height: 18.19%;
+  height: auto;
   position: absolute;
-  right: 33.12%;
-  left: 25.87%;
-  bottom: 50.25%;
-  top: 31.56%;
+  right: auto;
+  left: 26%;
+  top: 32%;
+  bottom: auto;
   overflow: visible;
+  z-index: 0;
 }
 .landing-page-v-1-desktop-1920-px ._100-your-data {
   color: #212529;
   text-align: left;
   font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
-  font-size: var(--header-h1-font-size, 72px);
+  font-size: clamp(36px, 6vw, 72px); /* Responsive font size */
   letter-spacing: var(--header-h1-letter-spacing, -0.02em);
   font-weight: var(--header-h1-font-weight, 700);
   position: relative;
   align-self: stretch;
+  line-height: 1.1;
 }
 .landing-page-v-1-desktop-1920-px
   .your-data-is-always-yours-secure-and-accessible-power-uses-industry-standard-encryption-to-keep-patient-and-clinic-information-safe-and-private-ensuring-only-authorized-users-have-access-all-your-schedules-and-records-are-stored-securely-so-your-information-is-always-available-when-you-need-it {
@@ -1158,10 +1166,11 @@
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px .element5 {
-  flex-shrink: 0;
-  width: 681px;
-  height: 381.13px;
-  position: static;
+  width: 100%;
+  max-width: 681px;
+  height: auto;
+  aspect-ratio: 681/381.13;
+  position: relative;
 }
 .landing-page-v-1-desktop-1920-px .ellipse-14 {
   width: 599.74px;
@@ -1460,16 +1469,15 @@
 }
 .landing-page-v-1-desktop-1920-px .footer {
   background: #043873;
-  padding: 140px 220px 32px 220px;
+  padding: 140px 5% 32px;
   display: flex;
   flex-direction: column;
-  gap: 200px;
+  gap: 100px;
   align-items: center;
   justify-content: center;
-  width: 1920px;
-  position: absolute;
-  left: -1px;
-  top: 6637.46px;
+  width: 100%;
+  position: relative;
+  margin-top: 60px;
 }
 .landing-page-v-1-desktop-1920-px .content {
   display: flex;
@@ -1782,1004 +1790,231 @@
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  width: 1480px;
+  width: 100%;
   position: relative;
 }
-.landing-page-v-1-desktop-1920-px .tems-and-condition {
-  display: flex;
-  flex-direction: row;
-  gap: 60px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .language {
-  display: flex;
-  flex-direction: row;
-  gap: 6px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .icon20 {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .group17 {
-  flex-shrink: 0;
-  width: 19px;
-  height: 19px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .english {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-regular-font-size, 16px);
-  line-height: var(--paragraph-p3-regular-line-height, 20px);
-  letter-spacing: var(--paragraph-p3-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-regular-font-weight, 400);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .arrow {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  height: auto;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .terms-privacy {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-regular-font-size, 16px);
-  line-height: var(--paragraph-p3-regular-line-height, 20px);
-  letter-spacing: var(--paragraph-p3-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-regular-font-weight, 400);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .security {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-regular-font-size, 16px);
-  line-height: var(--paragraph-p3-regular-line-height, 20px);
-  letter-spacing: var(--paragraph-p3-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-regular-font-weight, 400);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .status {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-regular-font-size, 16px);
-  line-height: var(--paragraph-p3-regular-line-height, 20px);
-  letter-spacing: var(--paragraph-p3-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-regular-font-weight, 400);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px ._2021-whitepace-llc {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-regular-font-size, 16px);
-  line-height: var(--paragraph-p3-regular-line-height, 20px);
-  letter-spacing: var(--paragraph-p3-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-regular-font-weight, 400);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .social-icon {
-  display: flex;
-  flex-direction: row;
-  gap: 32px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .x-30-1-facebook {
-  flex-shrink: 0;
-  width: 9px;
-  height: 16.68px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .twitter {
-  flex-shrink: 0;
-  width: 17px;
-  height: 13.81px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .linkedin {
-  flex-shrink: 0;
-  width: 15px;
-  height: 15px;
-  position: relative;
-  overflow: visible;
-}
+
+/* Fix for line separator in footer */
 .landing-page-v-1-desktop-1920-px .line-2 {
   margin-top: -1px;
   border-style: solid;
   border-color: #2e4e73;
   border-width: 1px 0 0 0;
   flex-shrink: 0;
-  width: 1480px;
+  width: 100%;
   height: 0px;
-  position: absolute;
-  left: 0px;
-  top: 249.07px;
-  transform-origin: 0 0;
-  transform: rotate(0deg) scale(1, 1);
-}
-.landing-page-v-1-desktop-1920-px .testimonial {
-  padding: 140px 220px 140px 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 60px;
-  align-items: center;
-  justify-content: center;
-  width: 1919px;
-  position: absolute;
-  left: -1px;
-  top: 5025px;
-}
-.landing-page-v-1-desktop-1920-px .group18 {
-  flex-shrink: 0;
-  width: 13.44%;
-  height: 4.79%;
-  position: absolute;
-  right: 26.53%;
-  left: 60.03%;
-  bottom: 73.38%;
-  top: 21.83%;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .what-our-clients-says {
-  color: #212529;
-  text-align: center;
-  font-family: "Inter-Bold", sans-serif;
-  font-size: 70px;
-  line-height: 84px;
-  font-weight: 700;
   position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .content2 {
-  display: flex;
-  flex-direction: row;
-  gap: 32px;
-  align-items: center;
-  justify-content: flex-start;
-  align-self: stretch;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .client {
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 60px 40px 60px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 60px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex: 1;
-  position: relative;
-  box-shadow: 15px 10px 50px 0px rgba(0, 0, 0, 0.1);
-}
-.landing-page-v-1-desktop-1920-px .comment {
-  border-style: solid;
-  border-color: #212529;
-  border-width: 0px 0px 1px 0px;
-  padding: 0px 0px 40px 0px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  align-self: stretch;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .quote {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .group19 {
-  flex-shrink: 0;
-  width: 86px;
-  height: 61.46px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px
-  .power-is-designed-as-a-collaboration-platform-for-healthcare-teams-offering-a-complete-solution-for-patient-scheduling {
-  color: #212529;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p2-regular-font-size, 18px);
-  line-height: var(--paragraph-p2-regular-line-height, 30px);
-  letter-spacing: var(--paragraph-p2-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-regular-font-weight, 400);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .name-box {
-  display: flex;
-  flex-direction: row;
-  gap: 42px;
-  align-items: flex-end;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  width: 383px;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .avater {
-  border-radius: 50%;
-  flex-shrink: 0;
-  width: 95px;
-  height: 95px;
-  position: relative;
-  object-fit: cover;
-}
-.landing-page-v-1-desktop-1920-px .name {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  align-self: stretch;
-  flex: 1;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .oberon-shaw-mch {
-  color: #212529;
-  text-align: left;
-  font-family: var(
-    --paragraph-p1-semibold-font-family,
-    "Inter-SemiBold",
-    sans-serif
-  );
-  font-size: var(--paragraph-p1-semibold-font-size, 24px);
-  line-height: var(--paragraph-p1-semibold-line-height, 36px);
-  font-weight: var(--paragraph-p1-semibold-font-weight, 600);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .head-of-talent-acquisition-north-america {
-  color: #212529;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-regular-font-size, 16px);
-  line-height: var(--paragraph-p3-regular-line-height, 20px);
-  letter-spacing: var(--paragraph-p3-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-regular-font-weight, 400);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .client2 {
-  background: #4f9cf9;
-  border-radius: 10px;
-  padding: 60px 40px 60px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 60px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex: 1;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .comment2 {
-  border-style: solid;
-  border-color: #ffffff;
-  border-width: 0px 0px 1px 0px;
-  padding: 0px 0px 40px 0px;
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  align-self: stretch;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .group20 {
-  flex-shrink: 0;
-  width: 86px;
-  height: 61.46px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px
-  .designed-for-healthcare-power-delivers-seamless-collaboration-and-comprehensive-scheduling-management {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p2-regular-font-size, 18px);
-  line-height: var(--paragraph-p2-regular-line-height, 30px);
-  letter-spacing: var(--paragraph-p2-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-regular-font-weight, 400);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .oberon-shaw-mch2 {
-  color: #043873;
-  text-align: left;
-  font-family: var(
-    --paragraph-p1-semibold-font-family,
-    "Inter-SemiBold",
-    sans-serif
-  );
-  font-size: var(--paragraph-p1-semibold-font-size, 24px);
-  line-height: var(--paragraph-p1-semibold-line-height, 36px);
-  font-weight: var(--paragraph-p1-semibold-font-weight, 600);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .head-of-talent-acquisition-north-america2 {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-regular-font-size, 16px);
-  line-height: var(--paragraph-p3-regular-line-height, 20px);
-  letter-spacing: var(--paragraph-p3-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-regular-font-weight, 400);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .group21 {
-  flex-shrink: 0;
-  width: 86px;
-  height: 61.46px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px
-  .power-is-your-all-in-one-healthcare-scheduling-and-collaboration-tool-purpose-built-for-clinics-and-care-teams {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p2-regular-font-size, 18px);
-  line-height: var(--paragraph-p2-regular-line-height, 30px);
-  letter-spacing: var(--paragraph-p2-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-regular-font-weight, 400);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .slider {
-  display: flex;
-  flex-direction: row;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-42 {
-  background: #4f9cf9;
-  border-radius: 50%;
-  flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-43 {
-  background: #043873;
-  border-radius: 50%;
-  flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-44 {
-  background: #4f9cf9;
-  border-radius: 50%;
-  flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .free-trial {
-  background: #043873;
-  padding: 140px 220px 32px 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 200px;
-  align-items: center;
-  justify-content: center;
-  width: 1920px;
-  position: absolute;
-  left: -1px;
-  top: 6027.46px;
-}
-.landing-page-v-1-desktop-1920-px .heading4 {
-  display: flex;
-  flex-direction: column;
-  gap: 40px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .text-block4 {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .try-power-today {
-  color: #ffffff;
-  text-align: center;
-  font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
-  font-size: var(--header-h1-font-size, 72px);
-  letter-spacing: var(--header-h1-letter-spacing, -0.02em);
-  font-weight: var(--header-h1-font-weight, 700);
-  position: relative;
-  width: 608px;
-}
-.landing-page-v-1-desktop-1920-px
-  .get-started-for-free-add-your-whole-team-as-your-needs-grow2 {
-  color: #ffffff;
-  text-align: center;
-  font-family: var(
-    --paragraph-p1-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p1-regular-font-size, 24px);
-  line-height: var(--paragraph-p1-regular-line-height, 32px);
-  letter-spacing: var(--paragraph-p1-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p1-regular-font-weight, 400);
-  position: relative;
-  width: 550px;
-}
-.landing-page-v-1-desktop-1920-px .btn-try2 {
-  background: #4f9cf9;
-  border-radius: 10px;
-  padding: 20px 40px 20px 40px;
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .try-power-free2 {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p3-medium-font-family,
-    "Inter-Medium",
-    sans-serif
-  );
-  font-size: var(--paragraph-p3-medium-font-size, 16px);
-  letter-spacing: var(--paragraph-p3-medium-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p3-medium-font-weight, 500);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .group-2144 {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .on-a-big-team-contact-sales {
-  color: #ffffff;
-  text-align: center;
-  font-family: var(
-    --paragraph-p1-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p1-regular-font-size, 24px);
-  line-height: var(--paragraph-p1-regular-line-height, 32px);
-  letter-spacing: var(--paragraph-p1-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p1-regular-font-weight, 400);
-  position: relative;
-  width: 367px;
-}
-.landing-page-v-1-desktop-1920-px .app-icon {
-  display: flex;
-  flex-direction: row;
-  gap: 40px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .apple-black-logo-2 {
-  flex-shrink: 0;
-  width: 60px;
-  height: 60px;
-  position: relative;
-  overflow: hidden;
-}
-.landing-page-v-1-desktop-1920-px .group22 {
-  height: auto;
-  position: absolute;
-  left: 5.53px;
-  top: 0px;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .windows-logo-1 {
-  flex-shrink: 0;
-  width: 60px;
-  height: 60px;
-  position: relative;
-  overflow: hidden;
-}
-.landing-page-v-1-desktop-1920-px .group23 {
-  height: auto;
-  position: absolute;
-  left: 0px;
-  top: 0.72px;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .android-logo-1 {
-  flex-shrink: 0;
-  width: 60px;
-  height: 60px;
-  position: relative;
-  overflow: hidden;
-}
-.landing-page-v-1-desktop-1920-px .group24 {
-  height: auto;
-  position: absolute;
-  left: 4.62px;
-  top: 0px;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .work-management {
-  padding: 140px 220px 140px 220px;
-  display: flex;
-  flex-direction: column;
-  gap: 100px;
-  align-items: flex-start;
-  justify-content: center;
-  width: 1920px;
-  position: absolute;
-  left: 0px;
-  top: 921px;
-}
-.landing-page-v-1-desktop-1920-px .content3 {
-  display: flex;
-  flex-direction: row;
-  gap: 60px;
-  align-items: center;
-  justify-content: flex-start;
-  align-self: stretch;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .background2 {
-  opacity: 0.2;
-  flex-shrink: 0;
-  width: 602.84px;
-  height: 460px;
-  position: absolute;
-  left: -382.13px;
-  top: 128.2px;
-  overflow: visible;
-  mix-blend-mode: multiply;
-}
-.landing-page-v-1-desktop-1920-px .headline {
-  display: flex;
-  flex-direction: column;
-  gap: 60px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex: 1;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .element6 {
-  flex-shrink: 0;
-  width: 104.72%;
-  height: 22.76%;
-  position: absolute;
-  right: -2.34%;
-  left: -2.38%;
-  bottom: 54.73%;
-  top: 22.5%;
-  transform: translate(0px, -2.56px);
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .power-scheduling {
-  color: #212529;
-  text-align: left;
-  font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
-  font-size: var(--header-h1-font-size, 72px);
-  letter-spacing: var(--header-h1-letter-spacing, -0.02em);
-  font-weight: var(--header-h1-font-weight, 700);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px
-  .keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform {
-  color: #212529;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p2-regular-font-size, 18px);
-  line-height: var(--paragraph-p2-regular-line-height, 30px);
-  letter-spacing: var(--paragraph-p2-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-regular-font-weight, 400);
-  position: relative;
-  align-self: stretch;
-}
-.keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform-span {
-}
-.keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform-span2 {
-  list-style-type: disc;
-  padding-left: 1em;
-}
-.landing-page-v-1-desktop-1920-px .btn-get-started3 {
-  background: #4f9cf9;
-  border-radius: 6px;
-  padding: 20px 40px 20px 40px;
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .get-started3 {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-medium-font-family,
-    "Inter-Medium",
-    sans-serif
-  );
-  font-size: var(--paragraph-p2-medium-font-size, 18px);
-  line-height: var(--paragraph-p2-medium-line-height, 23px);
-  letter-spacing: var(--paragraph-p2-medium-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-medium-font-weight, 500);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .group-2145 {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .image-container2 {
-  background: var(--primary-100, #c4defd);
-  flex-shrink: 0;
-  width: 748px;
-  height: 547px;
-  position: relative;
-  overflow: hidden;
-}
-.landing-page-v-1-desktop-1920-px .content4 {
-  display: flex;
-  flex-direction: row;
-  gap: 100px;
-  align-items: center;
-  justify-content: flex-start;
-  align-self: stretch;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .work-together-image {
-  flex-shrink: 0;
-  width: 710px;
-  height: 661px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-5 {
-  border-radius: 50%;
-  border-style: dashed;
-  border-color: #a7cefc;
-  border-width: 2px;
-  width: 661px;
-  height: 661px;
-  position: absolute;
-  left: 35px;
-  top: 0px;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-6 {
-  border-radius: 50%;
-  border-style: dashed;
-  border-color: #a7cefc;
-  border-width: 2px;
-  width: 387px;
-  height: 387px;
-  position: absolute;
-  left: 172px;
-  top: 137px;
-}
-.landing-page-v-1-desktop-1920-px .group-293 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-2 {
-  background: #ff5758;
-  border-radius: 50%;
-  width: 4.73%;
-  height: 10.59%;
-  position: absolute;
-  right: 95.27%;
-  left: 0%;
-  bottom: 44.63%;
-  top: 44.78%;
-}
-.landing-page-v-1-desktop-1920-px .group-22 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-142 {
-  background: #37a3ff;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 524px;
-  top: 296px;
-}
-.landing-page-v-1-desktop-1920-px .group-28 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-13 {
-  background: #ffbf60;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 331px;
-  top: 489px;
-}
-.landing-page-v-1-desktop-1920-px .group-24 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-10 {
-  background: #37a3ff;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 137px;
-  top: 296px;
-}
-.landing-page-v-1-desktop-1920-px .group-298 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-102 {
-  background: #37a3ff;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 137px;
-  top: 568px;
-}
-.landing-page-v-1-desktop-1920-px .group-295 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-103 {
-  background: #37a3ff;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 564px;
-  top: 71px;
-}
-.landing-page-v-1-desktop-1920-px .mask-group {
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 564px;
-  top: 71px;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .group-29 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-172 {
-  background: #00ca75;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 640px;
-  top: 401px;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-4 {
-  background: #c4c4c4;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 640px;
-  top: 401px;
-}
-.landing-page-v-1-desktop-1920-px .group-297 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-173 {
-  background: #00ca75;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 332px;
-  top: 102px;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-45 {
-  background: #c4c4c4;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 332px;
-  top: 102px;
-}
-.landing-page-v-1-desktop-1920-px .group-26 {
-  width: 70px;
-  height: 70px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .ellipse-162 {
-  background: #ffdc4d;
-  border-radius: 50%;
-  width: 70px;
-  height: 70px;
-  position: absolute;
-  left: 140px;
-  top: 23px;
-}
-.landing-page-v-1-desktop-1920-px .group-327 {
-  width: 207px;
-  height: 207px;
-  position: static;
-}
-.landing-page-v-1-desktop-1920-px .power-logo-2-2 {
-  width: 207px;
-  height: 207px;
-  position: absolute;
-  left: 264px;
-  top: 230px;
-  object-fit: cover;
-  aspect-ratio: 1;
-}
-.landing-page-v-1-desktop-1920-px .element7 {
-  flex-shrink: 0;
-  width: 44.53%;
-  height: 16.85%;
-  position: absolute;
-  right: 11.74%;
-  left: 43.73%;
-  bottom: 50.07%;
-  top: 33.08%;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .power-together {
-  color: #212529;
-  text-align: left;
-  font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
-  font-size: var(--header-h1-font-size, 72px);
-  letter-spacing: var(--header-h1-letter-spacing, -0.02em);
-  font-weight: var(--header-h1-font-weight, 700);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px
-  .with-power-securely-share-schedules-notes-and-updates-with-your-team-for-real-time-collaboration-collaborate-important-information-or-announcements-and-share-links-with-staff-or-providers-as-needed {
-  color: #212529;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-regular-font-family,
-    "Inter-Regular",
-    sans-serif
-  );
-  font-size: var(--paragraph-p2-regular-font-size, 18px);
-  line-height: var(--paragraph-p2-regular-line-height, 30px);
-  letter-spacing: var(--paragraph-p2-regular-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-regular-font-weight, 400);
-  position: relative;
-  align-self: stretch;
-}
-.landing-page-v-1-desktop-1920-px .try-it-now {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-medium-font-family,
-    "Inter-Medium",
-    sans-serif
-  );
-  font-size: var(--paragraph-p2-medium-font-size, 18px);
-  line-height: var(--paragraph-p2-medium-line-height, 23px);
-  letter-spacing: var(--paragraph-p2-medium-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-medium-font-weight, 500);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .group-2146 {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  position: relative;
-  overflow: visible;
+  margin-bottom: 20px;
+}
+
+/* ========================================
+   RESPONSIVE MEDIA QUERIES
+   ======================================== */
+
+/* Tablet Styles (768px and below) */
+@media (max-width: 768px) {
+  /* Make hero section stack vertically on tablets */
+  .landing-page-v-1-desktop-1920-px .hero-section {
+    flex-direction: column;
+    padding: 80px 4%;
+    text-align: center;
+    gap: 40px;
+  }
+  
+  /* Adjust header padding for tablets */
+  .landing-page-v-1-desktop-1920-px .header {
+    padding: 12px 4%;
+  }
+  
+  /* Make navigation menu more compact */
+  .landing-page-v-1-desktop-1920-px .nav-menu {
+    gap: 20px;
+  }
+  
+  /* Stack buttons vertically if needed */
+  .landing-page-v-1-desktop-1920-px .btn {
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+  
+  /* Make pricing cards stack on tablets */
+  .landing-page-v-1-desktop-1920-px .price-list {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Reduce font sizes for better fit */
+  .landing-page-v-1-desktop-1920-px .smarter-scheduling-better-outcomes-powered-by-power {
+    font-size: 48px;
+    line-height: 1.2;
+  }
+  
+  /* Adjust decorative elements for tablet layout */
+  .landing-page-v-1-desktop-1920-px .element,
+  .landing-page-v-1-desktop-1920-px .element2,
+  .landing-page-v-1-desktop-1920-px .element3,
+  .landing-page-v-1-desktop-1920-px .element4 {
+    width: 60%;
+    height: auto;
+  }
+
+  /* Reduce spacing in footer */
+  .landing-page-v-1-desktop-1920-px .footer {
+    padding: 80px 4% 32px;
+    gap: 60px;
+  }
+  
+  /* Make the info section in the footer more compact */
+  .landing-page-v-1-desktop-1920-px .info {
+    flex-wrap: wrap;
+    gap: 40px;
+  }
+  
+  /* Adjust your-data section for tablets */
+  .landing-page-v-1-desktop-1920-px .your-data {
+    flex-direction: column;
+    padding: 80px 4%;
+    text-align: center;
+  }
+  
+  /* Reduce section padding */
+  .landing-page-v-1-desktop-1920-px .pricing3,
+  .landing-page-v-1-desktop-1920-px .your-work,
+  .landing-page-v-1-desktop-1920-px .testimonial {
+    padding: 80px 4%;
+  }
+}
+
+/* Mobile Styles (480px and below) */
+@media (max-width: 480px) {
+  /* Further reduce hero section padding */
+  .landing-page-v-1-desktop-1920-px .hero-section {
+    padding: 40px 3%;
+    gap: 30px;
+  }
+  
+  /* Reduce header padding */
+  .landing-page-v-1-desktop-1920-px .header {
+    padding: 8px 3%;
+  }
+  
+  /* Hide navigation menu on mobile (would need hamburger menu) */
+  .landing-page-v-1-desktop-1920-px .nav-menu {
+    display: none;
+  }
+  
+  /* Make logo smaller */
+  .landing-page-v-1-desktop-1920-px .power-logo-2-1 {
+    width: 50px;
+    height: 50px;
+  }
+  
+  /* Reduce main heading size */
+  .landing-page-v-1-desktop-1920-px .smarter-scheduling-better-outcomes-powered-by-power {
+    font-size: 32px;
+    line-height: 1.3;
+  }
+  
+  /* Make buttons full width */
+  .landing-page-v-1-desktop-1920-px .btn-login,
+  .landing-page-v-1-desktop-1920-px .btn-free-trial2 {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  /* Stack footer content */
+  .landing-page-v-1-desktop-1920-px .info {
+    flex-direction: column;
+    gap: 30px;
+    width: 100%;
+  }
+  
+  
+  /* Reduce text sizes for mobile */
+  .landing-page-v-1-desktop-1920-px .healthcare-scheduling-software-that-empowers-your-team-to-coordinate-plan-and-manage-patient-care-every-day {
+    font-size: 16px;
+    line-height: 1.5;
+  }
+  
+  /* Further reduce decorative elements sizes */
+  .landing-page-v-1-desktop-1920-px .element,
+  .landing-page-v-1-desktop-1920-px .element2,
+  .landing-page-v-1-desktop-1920-px .element3,
+  .landing-page-v-1-desktop-1920-px .element4 {
+    width: 70%;
+    opacity: 0.2;
+  }
+  
+  /* Hide some decorative elements that may be distracting on mobile */
+  .landing-page-v-1-desktop-1920-px .ellipse-14,
+  .landing-page-v-1-desktop-1920-px .ellipse-15,
+  .landing-page-v-1-desktop-1920-px .ellipse-16,
+  .landing-page-v-1-desktop-1920-px .ellipse-17,
+  .landing-page-v-1-desktop-1920-px .line-3,
+  .landing-page-v-1-desktop-1920-px .line-4,
+  .landing-page-v-1-desktop-1920-px .line-5 {
+    display: none;
+  }
+  
+  /* Reduce additional section padding */
+  .landing-page-v-1-desktop-1920-px .pricing3,
+  .landing-page-v-1-desktop-1920-px .your-work,
+  .landing-page-v-1-desktop-1920-px .your-data,
+  .landing-page-v-1-desktop-1920-px .testimonial,
+  .landing-page-v-1-desktop-1920-px .footer {
+    padding: 60px 3% 30px;
+  }
+  
+  /* Adjust image containers */
+  .landing-page-v-1-desktop-1920-px .image-container {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16/9;
+  }
+}
+
+/* Large Mobile/Small Tablet (600px and below) */
+@media (max-width: 600px) {
+  /* Ensure frame-375 is responsive */
+  .landing-page-v-1-desktop-1920-px .frame-375 {
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+  }
+  
+  /* Make testimonials single column */
+  .landing-page-v-1-desktop-1920-px .content2 {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  /* Adjust footer layout */
+  .landing-page-v-1-desktop-1920-px .btm {
+    flex-direction: column;
+    gap: 20px;
+    align-items: center;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .tems-and-condition {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+  }
+  
+  /* Adjust your-data section for better display on small tablets */
+  .landing-page-v-1-desktop-1920-px .rectangle-367,
+  .landing-page-v-1-desktop-1920-px .rectangle-368,
+  .landing-page-v-1-desktop-1920-px .rectangle-369,
+  .landing-page-v-1-desktop-1920-px .rectangle-370,
+  .landing-page-v-1-desktop-1920-px .rectangle-371,
+  .landing-page-v-1-desktop-1920-px .rectangle-372 {
+    display: none;
+  }
+  
+  /* Better button spacing */
+  .landing-page-v-1-desktop-1920-px .btn-free-trial,
+  .landing-page-v-1-desktop-1920-px .btn-try {
+    align-self: center;
+  }
 }

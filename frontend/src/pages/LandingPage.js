@@ -1,5 +1,7 @@
 // Import styles for the landing page component
 import '../LandingPageV1Desktop1920Px/LandingPageV1Desktop1920Px.css';
+// Import React Router navigation hook
+import { useNavigate } from 'react-router-dom';
 
 // Asset imports
 import POWERLogo from '../assets/POWER_IT.png';        // Company logo image
@@ -7,6 +9,14 @@ import DownArrow from '../assets/images/down-arrow0.svg';  // White dropdown arr
 
 // Main landing page component for POWER IT healthcare scheduling software
 export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
+  // Initialize navigation hook for routing to other pages
+  const navigate = useNavigate();
+
+  // Handler function to navigate to login page
+  const handleLoginClick = () => {
+    navigate('/login');
+  };
+
   return (
     <div className={"landing-page-v-1-desktop-1920-px " + className}>
       {/* Hero Section - Main banner with headline and call-to-action */}
@@ -63,10 +73,9 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="pricing2">Pricing </div>
               <img className="down-arrow4" src={DownArrow} alt="dropdown arrow" />
             </div>
-          </div>
-          {/* Login and trial buttons */}
+          </div>          {/* Login and trial buttons */}
           <div className="btn">
-            <div className="btn-login">
+            <div className="btn-login" onClick={handleLoginClick} style={{cursor: 'pointer'}}>
               <div className="login">Login </div>
             </div>
             <div className="btn-free-trial2">
