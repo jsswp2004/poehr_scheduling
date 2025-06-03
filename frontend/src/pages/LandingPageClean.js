@@ -220,94 +220,12 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               </div>
             </div>
           </div>
-        </div>        {/* Testimonial slider indicators */}
+        </div>
+
+        {/* Testimonial slider indicators */}
         <div className="slider">
           <div className="ellipse-12"></div>
           <div className="ellipse-13"></div>
-        </div>
-      </div>
-
-      {/* Pricing section */}
-      <div className="pricing-section">
-        <div className="pricing-header">
-          <div className="choose-your-plan">Choose Your Plan</div>
-          <div className="pricing-description">
-            Whether you're working solo or with a team, we have a plan that fits your needs.
-          </div>
-        </div>
-        
-        <div className="pricing-cards">
-          {/* Personal Plan - Free */}
-          <div className="pricing-card">
-            <div className="plan-header">
-              <div className="plan-name">Personal</div>
-              <div className="plan-price">
-                <span className="price-amount">$0</span>
-                <span className="price-period">Free</span>
-              </div>
-            </div>
-            <div className="plan-description">
-              For individuals getting started with healthcare scheduling
-            </div>
-            <div className="plan-features">
-              <div className="feature">✓ Basic scheduling</div>
-              <div className="feature">✓ Personal calendar</div>
-              <div className="feature">✓ Email notifications</div>
-              <div className="feature">✓ Mobile access</div>
-            </div>
-            <div className="plan-button">
-              <div className="btn-plan">Get Started</div>
-            </div>
-          </div>
-
-          {/* Clinic Plan - Most Popular */}
-          <div className="pricing-card popular">
-            <div className="popular-badge">Most Popular</div>
-            <div className="plan-header">
-              <div className="plan-name">Clinic</div>
-              <div className="plan-price">
-                <span className="price-amount">$11.99</span>
-                <span className="price-period">per month</span>
-              </div>
-            </div>
-            <div className="plan-description">
-              Keep home and family on track
-            </div>
-            <div className="plan-features">
-              <div className="feature">✓ Everything in Personal</div>
-              <div className="feature">✓ Team collaboration</div>
-              <div className="feature">✓ Patient management</div>
-              <div className="feature">✓ SMS notifications</div>
-              <div className="feature">✓ Advanced scheduling</div>
-            </div>
-            <div className="plan-button">
-              <div className="btn-plan">Start Free Trial</div>
-            </div>
-          </div>
-
-          {/* Group Plan - Enterprise */}
-          <div className="pricing-card">
-            <div className="plan-header">
-              <div className="plan-name">Group</div>
-              <div className="plan-price">
-                <span className="price-amount">$49.99</span>
-                <span className="price-period">per month</span>
-              </div>
-            </div>
-            <div className="plan-description">
-              For larger teams
-            </div>
-            <div className="plan-features">
-              <div className="feature">✓ Everything in Clinic</div>
-              <div className="feature">✓ Unlimited users</div>
-              <div className="feature">✓ Advanced analytics</div>
-              <div className="feature">✓ Priority support</div>
-              <div className="feature">✓ Custom integrations</div>
-            </div>
-            <div className="plan-button">
-              <div className="btn-plan">Contact Sales</div>
-            </div>
-          </div>
         </div>
       </div>
 
