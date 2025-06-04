@@ -19,6 +19,8 @@
 import '../LandingPageV1Desktop1920Px/LandingPageV1Desktop1920Px.css';
 // Import React Router navigation hook
 import { useNavigate } from 'react-router-dom';
+// Import React hooks for state management
+import { useState, useEffect } from 'react';
 
 // Asset imports
 import POWERLogo from '../assets/POWER_IT.png'; // Company logo image
@@ -27,12 +29,45 @@ import DownArrow from '../assets/images/down-arrow0.svg'; // White dropdown arro
 // Main landing page component for POWER IT healthcare scheduling software
 export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
   // Initialize navigation hook for routing to other pages
-  const navigate = useNavigate();
+  const navigate = useNavigate();  // State for dropdown menu visibility
+  const [showResourcesDropdown, setShowResourcesDropdown] = useState(false);
+  const [showSolutionsDropdown, setShowSolutionsDropdown] = useState(false);
+  const [showPricingDropdown, setShowPricingDropdown] = useState(false);
 
   // Handler function to navigate to login page
   const handleLoginClick = () => {
     navigate('/login');
   };
+
+  // Handler function to toggle Resources dropdown
+  const toggleResourcesDropdown = () => {
+    setShowResourcesDropdown(!showResourcesDropdown);
+  };
+
+  // Handler function to toggle Solutions dropdown
+  const toggleSolutionsDropdown = () => {
+    setShowSolutionsDropdown(!showSolutionsDropdown);
+  };
+
+  // Handler function to toggle Pricing dropdown
+  const togglePricingDropdown = () => {
+    setShowPricingDropdown(!showPricingDropdown);
+  };  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showResourcesDropdown && !event.target.closest('.resources')) {
+        setShowResourcesDropdown(false);
+      }
+      if (showSolutionsDropdown && !event.target.closest('.solutios')) {
+        setShowSolutionsDropdown(false);
+      }
+      if (showPricingDropdown && !event.target.closest('.pricing')) {
+        setShowPricingDropdown(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showResourcesDropdown, showSolutionsDropdown, showPricingDropdown]);
   return (
     <div className={"landing-page-v-1-desktop-1920-px " + className}>
       
@@ -48,7 +83,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           <div className="text-block">
             {/* Primary value proposition headline */}
             <div className="smarter-scheduling-better-outcomes-powered-by-power">
-              Smarter Scheduling. Better Outcomes. Powered by POWER.
+              Smarter Scheduling. Better Outcomes. That is POWER.
             </div>
             {/* Supporting description text */}
             <div className="healthcare-scheduling-software-that-empowers-your-team-to-coordinate-plan-and-manage-patient-care-every-day">
@@ -76,28 +111,45 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           <img className="power-logo-2-1" src={POWERLogo} alt="POWER IT Systems Logo" />
           <div className="power-it-systems" style={{ whiteSpace: 'nowrap' }}>POWER IT SYSTEMS</div>
         </div>
-        <div className="frame-375">
-          {/* Main navigation menu with dropdown arrows */}
-          <div className="nav-menu">
-            {/* Products dropdown menu */}
-            <div className="products">
-              <div className="products2">Products</div>
-              <img className="down-arrow" src={DownArrow} alt="dropdown arrow" />
-            </div>
-            {/* Solutions dropdown menu */}
+        <div className="frame-375">          {/* Main navigation menu with dropdown arrows */}
+          <div className="nav-menu">            {/* Solutions dropdown menu */}
             <div className="solutios">
-              <div className="solutions">Solutions</div>
+              <div className="solutions" onClick={toggleSolutionsDropdown} style={{ cursor: 'pointer' }}>
+                Solutions
+              </div>
               <img className="down-arrow2" src={DownArrow} alt="dropdown arrow" />
-            </div>
-            {/* Resources dropdown menu */}
+              {showSolutionsDropdown && (
+                <div className="dropdown-menu">
+                  <a href="#scheduler" className="dropdown-item">Scheduler</a>
+                </div>
+              )}
+            </div>{/* Resources dropdown menu */}
             <div className="resources">
-              <div className="resources2">Resources</div>
+              <div className="resources2" onClick={toggleResourcesDropdown} style={{ cursor: 'pointer' }}>
+                Resources
+              </div>
               <img className="down-arrow3" src={DownArrow} alt="dropdown arrow" />
-            </div>
-            {/* Pricing dropdown menu */}
+              {showResourcesDropdown && (
+                <div className="dropdown-menu">
+                  {/*<a href="#blog" className="dropdown-item">Blog</a>*/}
+                  <a href="#guides" className="dropdown-item">Guides & Tutorials</a>
+                  <a href="#help" className="dropdown-item">Help Center</a>
+                  <a href="#support" className="dropdown-item">Support</a>
+                </div>
+              )}
+            </div>            {/* Pricing dropdown menu */}
             <div className="pricing">
-              <div className="pricing2">Pricing</div>
+              <div className="pricing2" onClick={togglePricingDropdown} style={{ cursor: 'pointer' }}>
+                Pricing
+              </div>
               <img className="down-arrow4" src={DownArrow} alt="dropdown arrow" />
+              {showPricingDropdown && (
+                <div className="dropdown-menu">
+                  <a href="#personal" className="dropdown-item">Personal</a>
+                  <a href="#clinic" className="dropdown-item">Clinic</a>
+                  <a href="#group" className="dropdown-item">Group</a>
+                </div>
+              )}
             </div>
            
           </div>
@@ -350,7 +402,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </p>
             <div className="data-security-cta">
               <div className="btn-read-more">
-                <div className="read-more-text">Read more →</div>
+                <div className="read-more-text">Read more</div>
               </div>
             </div>
           </div>
@@ -385,7 +437,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-header">
               <div className="plan-name">Personal</div>
               <div className="plan-price">
-                <span className="price-amount">$0</span>
+                <span className="price-amount">$15</span>
                 <span className="price-period">Free</span>
               </div>
             </div>
@@ -406,7 +458,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-header">
               <div className="plan-name">Clinic</div>
               <div className="plan-price">
-                <span className="price-amount">$11.99</span>
+                <span className="price-amount">$49.99</span>
                 <span className="price-period">per month</span>
               </div>
             </div>
@@ -430,7 +482,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-header">
               <div className="plan-name">Group</div>
               <div className="plan-price">
-                <span className="price-amount">$49.99</span>
+                <span className="price-amount">$129.99</span>
                 <span className="price-period">per month</span>
               </div>
             </div>
@@ -525,7 +577,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="footer-column">
               <div className="footer-column-title">Resources</div>
               <div className="footer-links">
-                <a href="#blog" className="footer-link">Blog</a>
+                {/*<a href="#blog" className="footer-link">Blog</a>*/}
                 <a href="#guides" className="footer-link">Guides &amp; Tutorials</a>
                 <a href="#help" className="footer-link">Help Center</a>
                 <a href="#support" className="footer-link">Support</a>

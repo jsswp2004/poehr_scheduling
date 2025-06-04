@@ -1480,7 +1480,7 @@ VISUAL LOCATION: Final section at bottom of page
     transform: none;
   }
   
-  .pricing-card.popular {
+  .pricing-card.popular::after {
     top: 15px;
     right: -20px;
     padding: 6px 25px;
@@ -1746,7 +1746,7 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
   justify-content: center;
   width: 100%;
   position: relative;
-  margin: 60px 0;
+  margin: 0px 0;
   overflow: hidden;
   animation: fadeInUp 0.8s ease-out 0.2s both;
 }
@@ -1901,7 +1901,7 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
 
 /* Arrow styling within the button text */
 .landing-page-v-1-desktop-1920-px .try-power-text::after {
-  content: '→';
+  content: '';
   font-size: 20px;
   font-weight: 700;
   transition: transform 0.3s ease;
@@ -2356,7 +2356,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
   justify-content: center;
   width: 100%;
   position: relative;
-  margin-top: 60px;
+  margin-top: 0px;
 }
 
 .landing-page-v-1-desktop-1920-px .what-our-clients-says {
@@ -2579,7 +2579,7 @@ VISUAL LOCATION: Eighth section from top, near bottom of page before footer
   justify-content: center;
   width: 100%;
   position: relative;
-  margin-top: 60px;
+  margin-top: 0px;
   animation: fadeInUp 0.8s ease-out 0.5s both;
 }
 
@@ -2659,8 +2659,6 @@ VISUAL LOCATION: Eighth section from top, near bottom of page before footer
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
   box-shadow: 0 4px 16px rgba(107, 155, 255, 0.3);
-  margin: 24px auto;
-  max-width: 200px;
 }
 
 .landing-page-v-1-desktop-1920-px .btn-try2:hover {
@@ -2790,7 +2788,7 @@ VISUAL LOCATION: Sixth section from top, below efficient scheduling section
   justify-content: center;
   width: 100%;
   position: relative;
-  margin-top: 60px;
+  margin-top: 0px;
   overflow: hidden;
   animation: slideInLeft 0.8s ease-out 0.3s both;
 }
@@ -2900,6 +2898,15 @@ VISUAL LOCATION: Sixth section from top, below efficient scheduling section
   color: #10b981;
   font-weight: bold;
   font-size: 18px;
+}
+
+.landing-page-v-1-desktop-1920-px .keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform-span2 li.unavailable {
+  color: #94a3b8;
+}
+
+.landing-page-v-1-desktop-1920-px .keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform-span2 li.unavailable::before {
+  content: '×';
+  color: #ef4444;
 }
 
 .landing-page-v-1-desktop-1920-px .btn-get-started3 {
@@ -3103,544 +3110,150 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 }
 
-/* Pricing Section Styling */
-.pricing-section {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  padding: 100px 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
+/* 
+=======================================================================
+DROPDOWN MENU STYLES - Resources Navigation
+=======================================================================
+*/
 
-.pricing-section::before {
-  content: '';
+/* Resources dropdown container */
+.landing-page-v-1-desktop-1920-px .dropdown-menu {
   position: absolute;
-  top: 0;
+  top: 100%;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
-  z-index: 0;
-}
-
-.pricing-section > * {
-  position: relative;
-  z-index: 1;
-}
-
-.pricing-container {
-  max-width: 1200px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.pricing-header {
-  text-align: center;
-  margin-bottom: 60px;
-}
-
-.pricing-title {
-  font-size: clamp(32px, 5vw, 48px);
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 16px;
-  font-family: "Inter-Bold", sans-serif;
-}
-
-.pricing-subtitle {
-  font-size: 18px;
-  color: #64748b;
-  max-width: 600px;
-  margin: 0 auto;
-  line-height: 1.6;
-  font-family: "Inter-Regular", sans-serif;
-}
-
-.pricing-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px;
-  margin-top: 40px;
-}
-
-.pricing-card {
-  background: #ffffff;
-  border-radius: 20px;
-  padding: 40px 30px;
-  text-align: center;
-  position: relative;
-  border: 2px solid #e2e8f0;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-}
-
-.pricing-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(16, 185, 129, 0.02) 100%);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  z-index: 0;
-}
-
-.pricing-card:hover {
-  transform: translateY(-8px);
-  border-color: #3b82f6;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
-
-.pricing-card:hover::before {
-  opacity: 1;
-}
-
-.pricing-card.popular {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  transform: scale(1.05);
-  box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15);
-}
-
-.pricing-card.popular::after {
-  content: 'Most Popular';
-  position: absolute;
-  top: 20px;
-  right: -25px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  padding: 8px 30px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  transform: rotate(25deg);
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}
-
-.pricing-card > * {
-  position: relative;
-  z-index: 1;
-}
-
-.plan-name {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1e293b;
-  margin-bottom: 16px;
-  font-family: "Inter-SemiBold", sans-serif;
-}
-
-.plan-price {
-  font-size: 48px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 8px;
-  font-family: "Inter-Bold", sans-serif;
-}
-
-.plan-price .currency {
-  font-size: 24px;
-  vertical-align: top;
-}
-
-.plan-price .period {
-  font-size: 18px;
-  color: #64748b;
-  font-weight: 400;
-}
-
-.plan-description {
-  color: #64748b;
-  margin-bottom: 32px;
-  font-size: 16px;
-  line-height: 1.5;
-  font-family: "Inter-Regular", sans-serif;
-}
-
-.plan-features {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 32px 0;
-  text-align: left;
-}
-
-.plan-features li {
-  padding: 12px 0;
-  color: #475569;
-  display: flex;
-  align-items: center;
-  font-size: 16px;
-  border-bottom: 1px solid #f1f5f9;
-  font-family: "Inter-Regular", sans-serif;
-}
-
-.plan-features li:last-child {
-  border-bottom: none;
-}
-
-.plan-features li::before {
-  content: '✓';
-  color: #10b981;
-  font-weight: bold;
-  margin-right: 12px;
-  font-size: 18px;
-}
-
-.plan-features li.unavailable {
-  color: #94a3b8;
-}
-
-.plan-features li.unavailable::before {
-  content: '×';
-  color: #ef4444;
-}
-
-.plan-button {
-  width: 100%;
-  padding: 16px 24px;
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(226, 232, 240, 0.1);
   border-radius: 12px;
-  font-weight: 600;
-  font-size: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  padding: 8px 0;
+  margin-top: 4px;
+  min-width: 200px;
+  opacity: 0;
+  transform: translateY(-10px);
+  animation: dropdownFadeIn 0.3s ease forwards;
+}
+
+/* Dropdown fade-in animation */
+@keyframes dropdownFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Individual dropdown menu items */
+.landing-page-v-1-desktop-1920-px .dropdown-item {
+  display: block;
+  padding: 12px 20px;
+  color: #e2e8f0;
+  text-decoration: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.4;
+  transition: all 0.2s ease;
   border: none;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: "Inter-SemiBold", sans-serif;
-  text-decoration: none;
-  display: inline-block;
-  text-align: center;
+  white-space: nowrap;
 }
 
-.plan-button.primary {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  color: white;
-  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.25);
-}
-
-.plan-button.primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35);
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-}
-
-.plan-button.secondary {
-  background: #ffffff;
-  color: #3b82f6;
-  border: 2px solid #3b82f6;
-}
-
-.plan-button.secondary:hover {
-  background: #3b82f6;
-  color: white;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.25);
-}
-
-/* Footer Section Styling */
-.footer-section {
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-  color: #e2e8f0;
-  padding: 80px 20px 40px;
-  position: relative;
-  overflow: hidden;
-}
-
-.footer-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
-  z-index: 0;
-}
-
-.footer-section > * {
-  position: relative;
-  z-index: 1;
-}
-
-.footer-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.footer-content {
-  display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 60px;
-  margin-bottom: 60px;
-}
-
-.footer-brand {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-.footer-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.footer-logo img {
-  width: 40px;
-  height: 40px;
-}
-
-.footer-brand-name {
-  font-size: 24px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  font-family: "Inter-Bold", sans-serif;
-}
-
-.footer-description {
-  color: #94a3b8;
-  line-height: 1.6;
-  font-size: 16px;
-  max-width: 300px;
-  font-family: "Inter-Regular", sans-serif;
-}
-
-.footer-column {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.footer-column-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #f1f5f9;
-  margin-bottom: 8px;
-  font-family: "Inter-SemiBold", sans-serif;
-}
-
-.footer-links {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.footer-link {
-  color: #94a3b8;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  font-size: 16px;
-  font-family: "Inter-Regular", sans-serif;
-}
-
-.footer-link:hover {
-  color: #3b82f6;
+/* Dropdown item hover effects */
+.landing-page-v-1-desktop-1920-px .dropdown-item:hover {
+  background: rgba(59, 130, 246, 0.1);
+  color: #ffffff;
   transform: translateX(4px);
+  padding-left: 24px;
 }
 
-.footer-bottom {
-  border-top: 1px solid #475569;
-  padding-top: 40px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 20px;
+/* Dropdown item focus states for accessibility */
+.landing-page-v-1-desktop-1920-px .dropdown-item:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+  background: rgba(59, 130, 246, 0.1);
+  color: #ffffff;
 }
 
-.footer-copyright {
-  color: #94a3b8;
-  font-size: 14px;
-  font-family: "Inter-Regular", sans-serif;
+/* Resources container positioning adjustment for dropdown */
+.landing-page-v-1-desktop-1920-px .resources {
+  position: relative;
 }
 
-.footer-legal-links {
-  display: flex;
-  gap: 32px;
-  flex-wrap: wrap;
+/* Arrow rotation when dropdown is active */
+.landing-page-v-1-desktop-1920-px .resources.active .down-arrow3 {
+  transform: rotate(180deg);
+  transition: transform 0.3s ease;
 }
 
-.footer-legal-link {
-  color: #94a3b8;
-  text-decoration: none;
-  font-size: 14px;
-  transition: color 0.3s ease;
-  font-family: "Inter-Regular", sans-serif;
+/* Responsive design for dropdown */
+@media (max-width: 1024px) {
+  .landing-page-v-1-desktop-1920-px .dropdown-menu {
+    min-width: 180px;
+    padding: 6px 0;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .dropdown-item {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .dropdown-item:hover {
+    padding-left: 20px;
+    transform: translateX(2px);
+  }
 }
 
-.footer-legal-link:hover {
-  color: #3b82f6;
-}
-
-/* Responsive design for pricing section */
 @media (max-width: 768px) {
-  .pricing-section {
-    padding: 60px 20px;
+  .landing-page-v-1-desktop-1920-px .dropdown-menu {
+    position: static;
+    width: 100%;
+    margin-top: 8px;
+    border-radius: 8px;
+    min-width: auto;
   }
   
-  .pricing-grid {
-    grid-template-columns: 1fr;
-    gap: 20px;
+  .landing-page-v-1-desktop-1920-px .dropdown-item {
+    padding: 12px 16px;
+    text-align: center;
   }
   
-  .pricing-card.popular {
+  .landing-page-v-1-desktop-1920-px .dropdown-item:hover {
+    transform: none;
+    padding-left: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .dropdown-menu {
+    border-radius: 6px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .dropdown-item {
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  .landing-page-v-1-desktop-1920-px .dropdown-menu {
+    animation: none;
+    opacity: 1;
     transform: none;
   }
   
-  .pricing-card.popular::after {
-    top: 15px;
-    right: -20px;
-    padding: 6px 25px;
-  }
-}
-
-/* Responsive design for footer section */
-@media (max-width: 1024px) {
-  .footer-content {
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 40px;
+  .landing-page-v-1-desktop-1920-px .dropdown-item:hover {
+    transform: none;
   }
   
-  .footer-brand {
-    grid-column: 1 / -1;
-  }
-}
-
-@media (max-width: 768px) {
-  .footer-section {
-    padding: 60px 20px 30px;
-  }
-  
-  .footer-content {
-    grid-template-columns: 1fr;
-    gap: 40px;
-    text-align: center;
-  }
-  
-  .footer-bottom {
-    flex-direction: column;
-    text-align: center;
-    gap: 16px;
-  }
-  
-  .footer-legal-links {
-    justify-content: center;
-    gap: 20px;
-  }
-}
-
-@media (max-width: 480px) {
-  .footer-legal-links {
-    flex-direction: column;
-    gap: 12px;
-  }
-}
-
-/* Responsive design for content4 section */
-@media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .content4 {
-    flex-direction: column;
-    gap: 40px;
-    text-align: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .power-together {
-    font-size: clamp(28px, 6vw, 40px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .work-together-image {
-    max-width: 100%;
-    height: 300px;
-  }
-}
-
-@media (max-width: 480px) {
-  .landing-page-v-1-desktop-1920-px .content4 {
-    gap: 30px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .work-together-image {
-    height: 250px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .work-together-image .power-logo-2-2 {
-    width: 40px;
-    height: 40px;
-  }
-}
-
-/* --------- Responsive Header/Nav Fixes (add these at the end of your CSS) --------- */
-@media (max-width: 1350px) {
-  .landing-page-v-1-desktop-1920-px .frame-375 {
-    gap: 28px !important;
-  }
-  .landing-page-v-1-desktop-1920-px .nav-menu {
-    gap: 18px !important;
-    width: auto !important;
-  }
-}
-
-@media (max-width: 1200px) {
-  .landing-page-v-1-desktop-1920-px .header {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    height: auto !important;
-    padding: 12px 4% !important;
-  }
-  .landing-page-v-1-desktop-1920-px .logo {
-    margin-bottom: 8px !important;
-    justify-content: flex-start !important;
-  }
-  .landing-page-v-1-desktop-1920-px .frame-375 {
-    flex-direction: column !important;
-    width: 100% !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-  }
-  .landing-page-v-1-desktop-1920-px .nav-menu,
-  .landing-page-v-1-desktop-1920-px .btn {
-    flex-direction: row !important;
-    width: 100% !important;
-    gap: 8px !important;
-    justify-content: flex-end !important;
-  }
-  .landing-page-v-1-desktop-1920-px .nav-menu {
-    justify-content: flex-start !important;
-  }
-}
-
-@media (max-width: 900px) {
-  .landing-page-v-1-desktop-1920-px .header {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    padding: 8px 2% !important;
-  }
-  .landing-page-v-1-desktop-1920-px .frame-375 {
-    flex-direction: column !important;
-    width: 100% !important;
-    gap: 4px !important;
-  }
-  .landing-page-v-1-desktop-1920-px .nav-menu,
-  .landing-page-v-1-desktop-1920-px .btn {
-    flex-direction: column !important;
-    width: 100% !important;
-    gap: 8px !important;
-    align-items: stretch !important;
+  .landing-page-v-1-desktop-1920-px .resources.active .down-arrow3 {
+    transition: none;
   }
 }
