@@ -296,7 +296,7 @@ VISUAL LOCATION: Appears at top of page below navigation header
   color: #e2e8f0;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 20px;
+  font-size: clamp(16px, 2.5vw, 20px);
   line-height: 1.6;
   letter-spacing: -0.01em;
   font-weight: 400;
@@ -407,11 +407,135 @@ VISUAL LOCATION: Appears at top of page below navigation header
   z-index: 3;
   transition: all 0.3s ease;
   filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.1));
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: cover;
 }
 
 .landing-page-v-1-desktop-1920-px .hero-dashboard-image:hover {
   transform: scale(1.02);
   filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.15));
+}
+
+/* Scheduling dashboard image styling - responsive for all screen sizes */
+.landing-page-v-1-desktop-1920-px .scheduling-dashboard-image {
+  position: relative;
+  z-index: 3;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.1));
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+.landing-page-v-1-desktop-1920-px .scheduling-dashboard-image:hover {
+  transform: scale(1.02);
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.15));
+}
+
+/* Collaboration dashboard image styling - responsive for all screen sizes */
+.landing-page-v-1-desktop-1920-px .collaboration-dashboard-image {
+  position: relative;
+  z-index: 3;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.1));
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: cover;
+}
+
+.landing-page-v-1-desktop-1920-px .collaboration-dashboard-image:hover {
+  transform: scale(1.02);
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.15));
+}
+
+/* Enhanced responsive scaling for scheduling dashboard image */
+@media (max-width: 1400px) {
+  .landing-page-v-1-desktop-1920-px .scheduling-dashboard-image {
+    width: 95%;
+    max-width: 95%;
+  }
+}
+
+@media (max-width: 1200px) {
+  .landing-page-v-1-desktop-1920-px .scheduling-dashboard-image {
+    width: 90%;
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 992px) {
+  .landing-page-v-1-desktop-1920-px .scheduling-dashboard-image {
+    width: 85%;
+    max-width: 85%;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .scheduling-dashboard-image {
+    width: 80%;
+    max-width: 80%;
+  }
+}
+
+@media (max-width: 576px) {
+  .landing-page-v-1-desktop-1920-px .scheduling-dashboard-image {
+    width: 90%;
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .scheduling-dashboard-image {
+    width: 95%;
+    max-width: 95%;
+  }
+}
+
+/* Enhanced responsive scaling for collaboration dashboard image */
+@media (max-width: 1400px) {
+  .landing-page-v-1-desktop-1920-px .collaboration-dashboard-image {
+    width: 95%;
+    max-width: 95%;
+  }
+}
+
+@media (max-width: 1200px) {
+  .landing-page-v-1-desktop-1920-px .collaboration-dashboard-image {
+    width: 90%;
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 992px) {
+  .landing-page-v-1-desktop-1920-px .collaboration-dashboard-image {
+    width: 85%;
+    max-width: 85%;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .collaboration-dashboard-image {
+    width: 80%;
+    max-width: 80%;
+  }
+}
+
+@media (max-width: 576px) {
+  .landing-page-v-1-desktop-1920-px .collaboration-dashboard-image {
+    width: 90%;
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .collaboration-dashboard-image {
+    width: 95%;
+    max-width: 95%;
+  }
 }
 
 /* 
@@ -1131,7 +1255,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Main pricing title */
 .landing-page-v-1-desktop-1920-px .choose-your-plan {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 48px;
+  font-size: clamp(48px, 6vw, 72px);
   font-weight: 700;
   background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
   -webkit-background-clip: text;
@@ -1145,7 +1269,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Pricing description */
 .landing-page-v-1-desktop-1920-px .pricing-description {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 18px;
+  font-size: clamp(14px, 2.5vw, 18px);
   font-weight: 400;
   color: #64748b;
   line-height: 1.6;
@@ -1183,7 +1307,6 @@ VISUAL LOCATION: Third section from top, below hero section
 .landing-page-v-1-desktop-1920-px .pricing-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border-color: #3b82f6;
 }
 
 /* Popular plan styling */
@@ -1207,7 +1330,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Plan name */
 .landing-page-v-1-desktop-1920-px .plan-name {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 24px;
+  font-size: clamp(18px, 3vw, 24px);
   font-weight: 700;
   color: #1e293b;
   margin-bottom: 12px;
@@ -1224,7 +1347,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Price amount */
 .landing-page-v-1-desktop-1920-px .price-amount {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 48px;
+  font-size: clamp(28px, 6vw, 48px);
   font-weight: 800;
   background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
   -webkit-background-clip: text;
@@ -1237,7 +1360,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Price period */
 .landing-page-v-1-desktop-1920-px .price-period {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
+  font-size: clamp(12px, 2vw, 16px);
   font-weight: 500;
   color: #64748b;
 }
@@ -1245,7 +1368,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Plan description */
 .landing-page-v-1-desktop-1920-px .plan-description {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
+  font-size: clamp(13px, 2vw, 16px);
   font-weight: 400;
   color: #64748b;
   text-align: center;
@@ -1262,7 +1385,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Individual feature item */
 .landing-page-v-1-desktop-1920-px .feature {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
+  font-size: clamp(13px, 2vw, 16px);
   font-weight: 400;
   color: #475569;
   margin-bottom: 12px;
@@ -1290,7 +1413,7 @@ VISUAL LOCATION: Third section from top, below hero section
   align-items: center;
   justify-content: center;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
+  font-size: clamp(13px, 2vw, 18px);
   font-weight: 600;
   color: white;
   cursor: pointer;
@@ -1396,7 +1519,7 @@ VISUAL LOCATION: Final section at bottom of page
 }
 
 .footer-brand-name {
-  font-size: 24px;
+  font-size: clamp(16px, 3vw, 20px);
   font-weight: 700;
   background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
   -webkit-background-clip: text;
@@ -1408,7 +1531,7 @@ VISUAL LOCATION: Final section at bottom of page
 .footer-description {
   color: #94a3b8;
   line-height: 1.6;
-  font-size: 16px;
+  font-size: clamp(12px, 2vw, 16px);
   max-width: 300px;
   font-family: "Inter-Regular", sans-serif;
 }
@@ -1437,7 +1560,7 @@ VISUAL LOCATION: Final section at bottom of page
   color: #94a3b8;
   text-decoration: none;
   transition: all 0.3s ease;
-  font-size: 16px;
+  font-size: clamp(12px, 2vw, 16px);
   font-family: "Inter-Regular", sans-serif;
 }
 
@@ -1454,11 +1577,12 @@ VISUAL LOCATION: Final section at bottom of page
   align-items: center;
   flex-wrap: wrap;
   gap: 20px;
+  gap: 20px;
 }
 
 .footer-copyright {
   color: #94a3b8;
-  font-size: 14px;
+  font-size: clamp(10px, 1.5vw, 14px);
   font-family: "Inter-Regular", sans-serif;
 }
 
@@ -1471,7 +1595,7 @@ VISUAL LOCATION: Final section at bottom of page
 .footer-legal-link {
   color: #94a3b8;
   text-decoration: none;
-  font-size: 14px;
+  font-size: clamp(12px, 2vw, 16px);
   transition: color 0.3s ease;
   font-family: "Inter-Regular", sans-serif;
 }
@@ -1862,10 +1986,8 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
   box-shadow: 
-    0 8px 20px rgba(0, 0, 0, 0.15),
+    0 8px 20px rgba(0, 0, 0.15),
     0 4px 8px rgba(0, 0, 0, 0.1);
-  position: relative;
-  overflow: hidden;
 }
 
 /* Button hover effects */
@@ -1885,16 +2007,16 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
 }
 
 /* Button shimmer effect */
-.landing-page-v-1-desktop-1920-px .btn-try-power::before {
+/*.landing-page-v-1-desktop-1920-px .btn-try-power::before {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
+  left: -25%;
   width: 100%;
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
   transition: left 0.6s;
-}
+}*/
 
 .landing-page-v-1-desktop-1920-px .btn-try-power:hover::before {
   left: 100%;
@@ -2378,7 +2500,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
   color: #1e293b;
   text-align: center;
   font-family: 'Inter', sans-serif;
-  font-size: clamp(32px, 5vw, 54px);
+  font-size: clamp(24px, 4vw, 40px);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -2468,7 +2590,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
   color: #475569;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 18px;
+  font-size: clamp(15px, 2.5vw, 18px);
   line-height: 1.7;
   font-weight: 400;
   letter-spacing: -0.01em;
@@ -2523,7 +2645,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
   color: #1e293b;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(13px, 2vw, 16px);
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: -0.01em;
@@ -2535,7 +2657,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
   color: #64748b;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 14px;
+  font-size: clamp(12px, 1.8vw, 14px);
   font-weight: 400;
   line-height: 1.4;
   letter-spacing: -0.01em;
@@ -2650,7 +2772,7 @@ VISUAL LOCATION: Eighth section from top, near bottom of page before footer
   color: #94a3b8;
   text-align: center;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(12px, 2vw, 16px);
   line-height: 1.5;
   font-weight: 400;
   letter-spacing: -0.01em;
@@ -2686,7 +2808,7 @@ VISUAL LOCATION: Eighth section from top, near bottom of page before footer
   color: #ffffff;
   text-align: center;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(16px, 2.5vw, 18px);
   font-weight: 600;
   letter-spacing: -0.01em;
   position: relative;
@@ -2748,7 +2870,6 @@ VISUAL LOCATION: Eighth section from top, near bottom of page before footer
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 1);
   box-shadow: 0 8px 24px rgba(107, 155, 255, 0.15);
-  border-color: rgba(107, 155, 255, 0.2);
 }
 
 /* Platform-specific icon styling */
@@ -3272,3 +3393,110 @@ DROPDOWN MENU STYLES - Resources Navigation
     transition: none;
   }
 }
+
+/* Enhanced responsive styling for image container */
+@media (max-width: 1400px) {
+  .landing-page-v-1-desktop-1920-px .image-container {
+    width: 700px;
+    height: 466px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .landing-page-v-1-desktop-1920-px .image-container {
+    width: 600px;
+    height: 400px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .hero-section {
+    padding: 120px 3% 80px;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 992px) {
+  .landing-page-v-1-desktop-1920-px .image-container {
+    width: 500px;
+    height: 333px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .hero-section {
+    flex-direction: column;
+    text-align: center;
+    padding: 100px 3% 60px;
+    gap: 50px;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .image-container {
+    width: 90%;
+    max-width: 450px;
+    height: 300px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .hero-section {
+    padding: 80px 4% 50px;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 576px) {
+  .landing-page-v-1-desktop-1920-px .image-container {
+    width: 95%;
+    max-width: 350px;
+    height: 233px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .hero-section {
+    padding: 60px 5% 40px;
+    gap: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .image-container {
+    width: 100%;
+    max-width: 320px;
+    height: 213px;
+    border-radius: 16px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .hero-section {
+    padding: 40px 3% 30px;
+    gap: 25px;
+  }
+}
+
+/* Responsive quote symbol image for testimonials */
+.landing-page-v-1-desktop-1920-px .quote-symbol-image {
+  display: block;
+  max-width: 80px;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.10);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+@media (max-width: 1200px) {
+  .landing-page-v-1-desktop-1920-px .quote-symbol-image {
+    max-width: 64px;
+  }
+}
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .quote-symbol-image {
+    max-width: 48px;
+  }
+}
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .quote-symbol-image {
+    max-width: 36px;
+  }
+}
+.landing-page-v-1-desktop-1920-px .quote-symbol-image:hover {
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.18);
+  transform: scale(1.05);
+}
+/* End responsive quote symbol image patch */

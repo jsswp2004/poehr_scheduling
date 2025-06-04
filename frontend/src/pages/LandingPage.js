@@ -212,13 +212,12 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="btn-get-started3">
               <div className="get-started3">Get Started</div>
             </div>
-          </div>
-          {/* Feature image placeholder */}
+          </div>          {/* Feature image placeholder */}
           <div className="work-together-image">
           <img 
             src={DashboardSchedulingImage} 
             alt="POWER Healthcare Scheduler" 
-            className="hero-dashboard-image"
+            className="scheduling-dashboard-image"
             style={{
               width: '100%',
               height: '100%',
@@ -236,14 +235,13 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             - "POWER together" team collaboration showcase
             - Real-time collaboration benefits
             - Team communication features
-            ================================================================= */}
-        <div className="content4">
+            ================================================================= */}        <div className="content4">
           {/* Collaboration visualization placeholder */}
           <div className="work-together-image">
           <img 
             src={DashboardTogetherImage} 
-            alt="POWER Healthcare Scheduler" 
-            className="hero-dashboard-image"
+            alt="POWER Healthcare Collaboration Dashboard" 
+            className="collaboration-dashboard-image"
             style={{
               width: '100%',
               height: '100%',
@@ -285,17 +283,15 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="quote">
                 <div className="quote-symbol">
                   <img 
-                  src={DashboardQouteImage} 
-                  alt="POWER Healthcare Scheduler" 
-                  className="hero-dashboard-image"
-                  style={{
-                    width: '25%',
-                    height: '25%',
-                    objectFit: 'cover',
-                    borderRadius: '16px',
-                    padding: '0px'
-                  }}
-                />
+                    src={DashboardQouteImage} 
+                    alt="POWER Healthcare Scheduler" 
+                    className="quote-symbol-image"
+                    style={{
+                      objectFit: 'cover',
+                      borderRadius: '16px',
+                      padding: '0px'
+                    }}
+                  />
                 </div>
               </div>
               <div className="power-is-designed-as-a-collaboration-platform-for-healthcare-teams-offering-a-complete-solution-for-patient-scheduling">
@@ -320,17 +316,15 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="quote">
                 <div className="quote-symbol">
                   <img 
-                  src={DashboardQouteImage} 
-                  alt="POWER Healthcare Scheduler" 
-                  className="hero-dashboard-image"
-                  style={{
-                    width: '25%',
-                    height: '25%',
-                    objectFit: 'cover',
-                    borderRadius: '16px',
-                    padding: '0px'
-                  }}
-                />
+                    src={DashboardQouteImage} 
+                    alt="POWER Healthcare Scheduler" 
+                    className="quote-symbol-image"
+                    style={{
+                      objectFit: 'cover',
+                      borderRadius: '16px',
+                      padding: '0px'
+                    }}
+                  />
                 </div>
               </div>
               <div className="designed-for-healthcare-power-delivers-seamless-collaboration-and-comprehensive-scheduling-management">
