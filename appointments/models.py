@@ -68,6 +68,8 @@ class Appointment(models.Model):
         related_name='provider_appointments'  # Reverse relation from User (doctor) to appointments
     )
 
+    recurrence_end_date = models.DateField(null=True, blank=True)  # NEW FIELD
+
     def __str__(self):
         return f"{self.title} - {self.appointment_datetime}"
 

@@ -152,40 +152,79 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 settings.DEFAULT_FROM_EMAIL,
                 admin_emails,
                 fail_silently=False
-            )
+            )        # Handle recurrence logic
+        try:
+            recurrence = appointment.recurrence
+            
+            # Only process recurrence if it's not 'none'
+            if recurrence and recurrence != 'none':
+                start_time = appointment.appointment_datetime
+                duration = appointment.duration_minutes
+                recurrence_end_date = appointment.recurrence_end_date
 
-        # Handle recurrence logic
-        recurrence = appointment.recurrence
-        start_time = appointment.appointment_datetime
-        duration = appointment.duration_minutes
+                # Fetch blocked days and holidays
+                try:
+                    env = EnvironmentSetting.objects.first()
+                    blocked_days = env.blocked_days if env else []
+                except Exception:
+                    blocked_days = []
+                
+                holidays = set(
+                    Holiday.objects.filter(is_recognized=True, suppressed=False).values_list('date', flat=True)
+                )
+                
+                repeats = {
+                    'daily': 179,
+                    'weekly': 59,
+                    'monthly': 11,
+                }
+                count = repeats.get(recurrence, 0)
 
-        repeats = {
-            'daily': 179,
-            'weekly': 23,
-            'monthly': 11,
-        }
+                for i in range(1, count + 1):
+                    if recurrence == 'daily':
+                        next_time = start_time + timedelta(days=i)
+                    elif recurrence == 'weekly':
+                        next_time = start_time + timedelta(weeks=i)
+                    elif recurrence == 'monthly':
+                        next_time = start_time + relativedelta(months=i)
+                    else:
+                        continue
 
-        count = repeats.get(recurrence, 0)
-
-        for i in range(1, count + 1):
-            if recurrence == 'daily':
-                next_time = start_time + timedelta(days=i)
-            elif recurrence == 'weekly':
-                next_time = start_time + timedelta(weeks=i)
-            elif recurrence == 'monthly':
-                next_time = start_time + relativedelta(months=i)
-            else:
-                continue
-
-            Appointment.objects.create(
-                patient=appointment.patient,
-                title=appointment.title,
-                description=appointment.description,
-                appointment_datetime=next_time,
-                duration_minutes=duration,
-                recurrence='none',  # Prevent chaining
-                provider=provider  # Ensure recurrence appointments are assigned the same provider
-            )
+                    # Stop if recurrence_end_date is set and we're past it
+                    if recurrence_end_date and next_time.date() > recurrence_end_date:
+                        break
+                    # Skip weekends
+                    if next_time.weekday() in (5, 6):
+                        continue
+                    # Skip blocked days (0=Sun, ..., 6=Sat)
+                    if next_time.weekday() in blocked_days:
+                        continue
+                    # Skip holidays
+                    if next_time.date() in holidays:
+                        continue
+                    # Deduplication: don't create if already exists
+                    exists = Appointment.objects.filter(
+                        provider=provider,
+                        appointment_datetime=next_time,
+                        patient=appointment.patient,
+                        title=appointment.title
+                    ).exists()
+                    if not exists:
+                        Appointment.objects.create(
+                            patient=appointment.patient,
+                            title=appointment.title,
+                            description=appointment.description,
+                            appointment_datetime=next_time,
+                            duration_minutes=duration,
+                            recurrence='none',  # Prevent chaining
+                            provider=provider,
+                            organization=organization
+                        )
+        except Exception as e:
+            import traceback
+            print('Error in appointment recurrence logic:', e)
+            traceback.print_exc()
+            raise Exception(f"Error in appointment recurrence logic: {e}")
 
     def perform_update(self, serializer):
         provider_id = self.request.data.get('provider')

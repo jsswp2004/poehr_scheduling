@@ -265,6 +265,53 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
         </div>
       </div>
 
+      {/* Efficient Scheduling Section */}
+      <div className="efficient-scheduling-section">
+        <div className="efficient-scheduling-content">
+          <div className="efficient-scheduling-text">
+            <h2 className="efficient-scheduling-headline">
+              Efficient scheduling—anywhere, anytime.
+            </h2>
+            <p className="efficient-scheduling-description">
+              Access your schedules and patient information from your computer, phone, or tablet—anytime, anywhere. POWER keeps 
+              everything in sync, so your appointments and clinic data are always up to date, whether you're at the office, at home, or on the go. 
+              Available on Windows, macOS, Android, and iOS.
+            </p>
+            <div className="efficient-scheduling-cta">
+              <div className="btn-try-power">
+                <div className="try-power-text">Try POWER →</div>
+              </div>
+            </div>
+          </div>
+        </div>      </div>
+
+      {/* Data Security section */}
+      <div className="data-security-section">
+        <div className="data-security-content">
+          <div className="data-security-text">
+            <h2 className="data-security-headline">
+              <span className="highlight-yellow">100% your data</span>
+            </h2>
+            <p className="data-security-description">
+              Your data stays secure with end-to-end encryption and local storage options. 
+              POWER ensures complete data ownership and privacy, giving you full control over 
+              your patient information and clinic data. HIPAA compliant and trusted by healthcare 
+              professionals worldwide.
+            </p>
+            <div className="data-security-cta">
+              <div className="btn-read-more">
+                <div className="read-more-text">Read more →</div>
+              </div>
+            </div>
+          </div>
+          <div className="data-security-icons">
+            <div className="security-icon shield-icon"></div>
+            <div className="security-icon lock-icon"></div>
+            <div className="security-icon encryption-icon"></div>
+          </div>
+        </div>
+      </div>
+
       {/* Pricing section */}
       <div className="pricing-section">
         <div className="pricing-header">
@@ -296,11 +343,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-button">
               <div className="btn-plan">Get Started</div>
             </div>
-          </div>
-
-          {/* Clinic Plan - Most Popular */}
+          </div>          {/* Clinic Plan - Most Popular */}
           <div className="pricing-card popular">
-            <div className="popular-badge">Most Popular</div>
             <div className="plan-header">
               <div className="plan-name">Clinic</div>
               <div className="plan-price">
@@ -358,27 +402,26 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               Get started for free.<br />
               Add your whole team as your needs grow.
             </div>
-          </div>
-          <div className="btn-try2">
-            <div className="try-power-free2">Try POWER free</div>
+          </div>          <div className="btn-try2">
+            <div className="try-power-free2">Try POWER free →</div>
           </div>
           <div className="on-a-big-team-contact-sales">
             On a big team? Contact sales
-          </div>
-          {/* Platform download icons */}
+          </div>          {/* Platform download icons */}
           <div className="app-icon">
             <div className="apple-black-logo-2">
-              <div className="platform-icon">📱 App Store</div>
+              <div className="platform-icon">App Store</div>
             </div>
             <div className="windows-logo-1">
-              <div className="platform-icon">🖥️ Windows</div>
+              <div className="platform-icon">Windows</div>
             </div>
             <div className="android-logo-1">
-              <div className="platform-icon">🤖 Google Play</div>
+              <div className="platform-icon">Google Play</div>
             </div>
           </div>
         </div>
-      </div>      {/* Footer section */}
+      </div>      
+      {/* Footer section */}
       <div className="footer-section">
         <div className="footer-container">
           <div className="footer-content">

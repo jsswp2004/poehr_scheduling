@@ -339,11 +339,13 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
-  width: 353px;
+  justify-content: flex-start;
+  flex-shrink: 1;
+  width: auto;
+  min-width: 0;
   height: 60px;
   position: relative;
+  gap: 12px;
 }
 .landing-page-v-1-desktop-1920-px .power-logo-2-1 {
   flex-shrink: 0;
@@ -357,7 +359,7 @@
   color: #ffffff;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 24px;
+  font-size: clamp(18px, 3vw, 24px);
   font-weight: 800;
   position: relative;
   background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
@@ -365,6 +367,7 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 .landing-page-v-1-desktop-1920-px .frame-375 {
   display: flex;
@@ -378,11 +381,12 @@
 .landing-page-v-1-desktop-1920-px .nav-menu {
   display: flex;
   flex-direction: row;
-  gap: 40px;
+  gap: clamp(16px, 3vw, 40px);
   align-items: center;
   justify-content: flex-start;
-  flex-shrink: 0;
-  width: 551.5px;
+  flex-shrink: 1;
+  width: auto;
+  min-width: 0;
   position: relative;
 }
 .landing-page-v-1-desktop-1920-px .products {
@@ -410,7 +414,7 @@
   color: #e2e8f0;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(14px, 2vw, 16px);
   line-height: 1.4;
   font-weight: 500;
   position: relative;
@@ -451,7 +455,7 @@
   color: #e2e8f0;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(14px, 2vw, 16px);
   line-height: 1.4;
   font-weight: 500;
   position: relative;
@@ -485,7 +489,7 @@
   color: #e2e8f0;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(14px, 2vw, 16px);
   line-height: 1.4;
   font-weight: 500;
   position: relative;
@@ -519,7 +523,7 @@
   color: #e2e8f0;
   text-align: left;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(14px, 2vw, 16px);
   line-height: 1.4;
   font-weight: 500;
   position: relative;
@@ -1075,22 +1079,6 @@
   transform: scale(1.05) translateY(-8px);
 }
 
-/* Popular badge */
-.landing-page-v-1-desktop-1920-px .popular-badge {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  padding: 8px 24px;
-  border-radius: 20px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
-}
-
 /* Plan header section */
 .landing-page-v-1-desktop-1920-px .plan-header {
   margin-bottom: 24px;
@@ -1220,1500 +1208,1003 @@
   left: 100%;
 }
 
-/* ==================== RESPONSIVE DESIGN ==================== */
-
-/* Tablet styles */
-@media (max-width: 1024px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 80px 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    gap: 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 40px;
-  }
-}
-
-/* Mobile landscape and smaller tablets */
-@media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 60px 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    flex-direction: column;
-    gap: 20px;
-    align-items: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    max-width: 400px;
-    width: 100%;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular {
-    transform: scale(1);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
-    transform: translateY(-8px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 36px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: 16px;
-  }
-}
-
-/* Mobile portrait */
-@media (max-width: 480px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 40px 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-header {
-    margin-bottom: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 32px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: 14px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    padding: 32px 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-amount {
-    font-size: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-name {
-    font-size: 20px;
-  }
-}
-
-/* ==================== PRICING SECTION ==================== */
-
-/* Main pricing section container */
-.landing-page-v-1-desktop-1920-px .pricing-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 100px 80px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+/* Footer Section Styling */
+.footer-section {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  color: #e2e8f0;
+  padding: 80px 20px 40px;
   position: relative;
   overflow: hidden;
 }
 
-/* Add subtle background pattern */
-.landing-page-v-1-desktop-1920-px .pricing-section::before {
+.footer-section::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
-  pointer-events: none;
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+  z-index: 0;
 }
 
-/* Pricing header section */
-.landing-page-v-1-desktop-1920-px .pricing-header {
-  text-align: center;
-  margin-bottom: 60px;
-  max-width: 600px;
+.footer-section > * {
   position: relative;
   z-index: 1;
 }
 
-/* Main pricing title */
-.landing-page-v-1-desktop-1920-px .choose-your-plan {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: 16px;
-  line-height: 1.2;
-}
-
-/* Pricing description */
-.landing-page-v-1-desktop-1920-px .pricing-description {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 18px;
-  font-weight: 400;
-  color: #64748b;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Pricing cards container */
-.landing-page-v-1-desktop-1920-px .pricing-cards {
-  display: flex;
-  gap: 32px;
-  justify-content: center;
-  align-items: stretch;
-  max-width: 1200px;
-  width: 100%;
-  position: relative;
-  z-index: 1;
-}
-
-/* Individual pricing card */
-.landing-page-v-1-desktop-1920-px .pricing-card {
-  flex: 1;
-  max-width: 360px;
-  background: white;
-  border-radius: 20px;
-  padding: 40px 32px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-}
-
-/* Card hover effects */
-.landing-page-v-1-desktop-1920-px .pricing-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border-color: #3b82f6;
-}
-
-/* Popular plan styling */
-.landing-page-v-1-desktop-1920-px .pricing-card.popular {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #3b82f6;
-  transform: scale(1.05);
-  box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
-}
-
-.landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
-  transform: scale(1.05) translateY(-8px);
-}
-
-/* Popular badge */
-.landing-page-v-1-desktop-1920-px .popular-badge {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  padding: 8px 24px;
-  border-radius: 20px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
-}
-
-/* Plan header section */
-.landing-page-v-1-desktop-1920-px .plan-header {
-  margin-bottom: 24px;
-  text-align: center;
-}
-
-/* Plan name */
-.landing-page-v-1-desktop-1920-px .plan-name {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 12px;
-}
-
-/* Plan price container */
-.landing-page-v-1-desktop-1920-px .plan-price {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Price amount */
-.landing-page-v-1-desktop-1920-px .price-amount {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 48px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  line-height: 1;
-}
-
-/* Price period */
-.landing-page-v-1-desktop-1920-px .price-period {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  color: #64748b;
-}
-
-/* Plan description */
-.landing-page-v-1-desktop-1920-px .plan-description {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #64748b;
-  text-align: center;
-  margin-bottom: 32px;
-  line-height: 1.5;
-}
-
-/* Plan features list */
-.landing-page-v-1-desktop-1920-px .plan-features {
-  flex: 1;
-  margin-bottom: 32px;
-}
-
-/* Individual feature item */
-.landing-page-v-1-desktop-1920-px .feature {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #475569;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  line-height: 1.5;
-}
-
-.landing-page-v-1-desktop-1920-px .feature:last-child {
-  margin-bottom: 0;
-}
-
-/* Plan button container */
-.landing-page-v-1-desktop-1920-px .plan-button {
-  margin-top: auto;
-}
-
-/* Plan button styling */
-.landing-page-v-1-desktop-1920-px .btn-plan {
-  width: 100%;
-  height: 52px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: none;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Button hover effects */
-.landing-page-v-1-desktop-1920-px .btn-plan:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px -4px rgba(59, 130, 246, 0.4);
-}
-
-.landing-page-v-1-desktop-1920-px .btn-plan:active {
-  transform: translateY(0);
-}
-
-/* Button shimmer effect */
-.landing-page-v-1-desktop-1920-px .btn-plan::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.landing-page-v-1-desktop-1920-px .btn-plan:hover::before {
-  left: 100%;
-}
-
-/* ==================== RESPONSIVE DESIGN ==================== */
-
-/* Tablet styles */
-@media (max-width: 1024px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 80px 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    gap: 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 40px;
-  }
-}
-
-/* Mobile landscape and smaller tablets */
-@media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 60px 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    flex-direction: column;
-    gap: 20px;
-    align-items: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    max-width: 400px;
-    width: 100%;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular {
-    transform: scale(1);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
-    transform: translateY(-8px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 36px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: 16px;
-  }
-}
-
-/* Mobile portrait */
-@media (max-width: 480px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 40px 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-header {
-    margin-bottom: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 32px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: 14px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    padding: 32px 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-amount {
-    font-size: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-name {
-    font-size: 20px;
-  }
-}
-
-/* ==================== PRICING SECTION ==================== */
-
-/* Main pricing section container */
-.landing-page-v-1-desktop-1920-px .pricing-section {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 100px 80px;
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Add subtle background pattern */
-.landing-page-v-1-desktop-1920-px .pricing-section::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.05) 0%, transparent 50%),
-              radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-/* Pricing header section */
-.landing-page-v-1-desktop-1920-px .pricing-header {
-  text-align: center;
-  margin-bottom: 60px;
-  max-width: 600px;
-  position: relative;
-  z-index: 1;
-}
-
-/* Main pricing title */
-.landing-page-v-1-desktop-1920-px .choose-your-plan {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  margin-bottom: 16px;
-  line-height: 1.2;
-}
-
-/* Pricing description */
-.landing-page-v-1-desktop-1920-px .pricing-description {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 18px;
-  font-weight: 400;
-  color: #64748b;
-  line-height: 1.6;
-  margin: 0;
-}
-
-/* Pricing cards container */
-.landing-page-v-1-desktop-1920-px .pricing-cards {
-  display: flex;
-  gap: 32px;
-  justify-content: center;
-  align-items: stretch;
-  max-width: 1200px;
-  width: 100%;
-  position: relative;
-  z-index: 1;
-}
-
-/* Individual pricing card */
-.landing-page-v-1-desktop-1920-px .pricing-card {
-  flex: 1;
-  max-width: 360px;
-  background: white;
-  border-radius: 20px;
-  padding: 40px 32px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e2e8f0;
-  position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  flex-direction: column;
-}
-
-/* Card hover effects */
-.landing-page-v-1-desktop-1920-px .pricing-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border-color: #3b82f6;
-}
-
-/* Popular plan styling */
-.landing-page-v-1-desktop-1920-px .pricing-card.popular {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #3b82f6;
-  transform: scale(1.05);
-  box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
-}
-
-.landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
-  transform: scale(1.05) translateY(-8px);
-}
-
-/* Popular badge */
-.landing-page-v-1-desktop-1920-px .popular-badge {
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  color: white;
-  padding: 8px 24px;
-  border-radius: 20px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.3);
-}
-
-/* Plan header section */
-.landing-page-v-1-desktop-1920-px .plan-header {
-  margin-bottom: 24px;
-  text-align: center;
-}
-
-/* Plan name */
-.landing-page-v-1-desktop-1920-px .plan-name {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 12px;
-}
-
-/* Plan price container */
-.landing-page-v-1-desktop-1920-px .plan-price {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-/* Price amount */
-.landing-page-v-1-desktop-1920-px .price-amount {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 48px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  color: transparent;
-  line-height: 1;
-}
-
-/* Price period */
-.landing-page-v-1-desktop-1920-px .price-period {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  color: #64748b;
-}
-
-/* Plan description */
-.landing-page-v-1-desktop-1920-px .plan-description {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #64748b;
-  text-align: center;
-  margin-bottom: 32px;
-  line-height: 1.5;
-}
-
-/* Plan features list */
-.landing-page-v-1-desktop-1920-px .plan-features {
-  flex: 1;
-  margin-bottom: 32px;
-}
-
-/* Individual feature item */
-.landing-page-v-1-desktop-1920-px .feature {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #475569;
-  margin-bottom: 12px;
-  display: flex;
-  align-items: center;
-  line-height: 1.5;
-}
-
-.landing-page-v-1-desktop-1920-px .feature:last-child {
-  margin-bottom: 0;
-}
-
-/* Plan button container */
-.landing-page-v-1-desktop-1920-px .plan-button {
-  margin-top: auto;
-}
-
-/* Plan button styling */
-.landing-page-v-1-desktop-1920-px .btn-plan {
-  width: 100%;
-  height: 52px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: none;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Button hover effects */
-.landing-page-v-1-desktop-1920-px .btn-plan:hover {
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px -4px rgba(59, 130, 246, 0.4);
-}
-
-.landing-page-v-1-desktop-1920-px .btn-plan:active {
-  transform: translateY(0);
-}
-
-/* Button shimmer effect */
-.landing-page-v-1-desktop-1920-px .btn-plan::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.landing-page-v-1-desktop-1920-px .btn-plan:hover::before {
-  left: 100%;
-}
-
-/* ==================== RESPONSIVE DESIGN ==================== */
-
-/* Tablet styles */
-@media (max-width: 1024px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 80px 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    gap: 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 40px;
-  }
-}
-
-/* Mobile landscape and smaller tablets */
-@media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 60px 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    flex-direction: column;
-    gap: 20px;
-    align-items: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    max-width: 400px;
-    width: 100%;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular {
-    transform: scale(1);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
-    transform: translateY(-8px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 36px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: 16px;
-  }
-}
-
-/* Mobile portrait */
-@media (max-width: 480px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 40px 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-header {
-    margin-bottom: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: 32px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: 14px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    padding: 32px 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-amount {
-    font-size: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-name {
-    font-size: 20px;
-  }
-}
-
-/* ==================== FOOTER SECTION ==================== */
-
-/* Main footer container */
-.landing-page-v-1-desktop-1920-px .footer {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  position: relative;
-  overflow: hidden;
-}
-
-/* Add subtle background pattern */
-.landing-page-v-1-desktop-1920-px .footer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-              radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-}
-
-/* Footer content wrapper */
-.landing-page-v-1-desktop-1920-px .footer .content {
+.footer-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 80px 40px 0;
-  position: relative;
-  z-index: 1;
 }
 
-/* Main info section */
-.landing-page-v-1-desktop-1920-px .footer .info {
+.footer-content {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 60px;
   margin-bottom: 60px;
 }
 
-/* Company branding section */
-.landing-page-v-1-desktop-1920-px .logo-description {
-  max-width: 400px;
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
 }
 
-/* Logo container */
-.landing-page-v-1-desktop-1920-px .logo2 {
+.footer-logo {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 
-/* Logo icon */
-.landing-page-v-1-desktop-1920-px .logo-icon2 {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.footer-logo img {
+  width: 40px;
+  height: 40px;
 }
 
-.landing-page-v-1-desktop-1920-px .power-logo-footer {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-}
-
-/* Company name */
-.landing-page-v-1-desktop-1920-px .whitepace {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+.footer-brand-name {
   font-size: 24px;
   font-weight: 700;
-  color: white;
-  line-height: 1.2;
+  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-family: "Inter-Bold", sans-serif;
 }
 
-/* Company description */
-.landing-page-v-1-desktop-1920-px .whitepace-was-created-for-the-new-ways-we-live-and-work-we-make-a-better-workspace-around-the-world {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #cbd5e1;
+.footer-description {
+  color: #94a3b8;
   line-height: 1.6;
-  margin: 0;
+  font-size: 16px;
+  max-width: 300px;
+  font-family: "Inter-Regular", sans-serif;
 }
 
-/* Navigation sections */
-.landing-page-v-1-desktop-1920-px .info2,
-.landing-page-v-1-desktop-1920-px .info3 {
+.footer-column {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
-/* Section headers */
-.landing-page-v-1-desktop-1920-px .product,
-.landing-page-v-1-desktop-1920-px .resources3,
-.landing-page-v-1-desktop-1920-px .company {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+.footer-column-title {
   font-size: 18px;
   font-weight: 600;
-  color: white;
+  color: #f1f5f9;
   margin-bottom: 8px;
+  font-family: "Inter-SemiBold", sans-serif;
 }
 
-/* Navigation links */
-.landing-page-v-1-desktop-1920-px .overview,
-.landing-page-v-1-desktop-1920-px .pricing4,
-.landing-page-v-1-desktop-1920-px .customer-stories,
-.landing-page-v-1-desktop-1920-px .blog,
-.landing-page-v-1-desktop-1920-px .guides-tutorials,
-.landing-page-v-1-desktop-1920-px .help-center,
-.landing-page-v-1-desktop-1920-px .about-us,
-.landing-page-v-1-desktop-1920-px .careers,
-.landing-page-v-1-desktop-1920-px .media-kit {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 16px;
-  font-weight: 400;
+.footer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-link {
   color: #94a3b8;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-size: 16px;
+  font-family: "Inter-Regular", sans-serif;
 }
 
-/* Link hover effects */
-.landing-page-v-1-desktop-1920-px .overview:hover,
-.landing-page-v-1-desktop-1920-px .pricing4:hover,
-.landing-page-v-1-desktop-1920-px .customer-stories:hover,
-.landing-page-v-1-desktop-1920-px .blog:hover,
-.landing-page-v-1-desktop-1920-px .guides-tutorials:hover,
-.landing-page-v-1-desktop-1920-px .help-center:hover,
-.landing-page-v-1-desktop-1920-px .about-us:hover,
-.landing-page-v-1-desktop-1920-px .careers:hover,
-.landing-page-v-1-desktop-1920-px .media-kit:hover {
+.footer-link:hover {
   color: #3b82f6;
   transform: translateX(4px);
 }
 
-/* Add underline effect on hover */
-.landing-page-v-1-desktop-1920-px .overview::after,
-.landing-page-v-1-desktop-1920-px .pricing4::after,
-.landing-page-v-1-desktop-1920-px .customer-stories::after,
-.landing-page-v-1-desktop-1920-px .blog::after,
-.landing-page-v-1-desktop-1920-px .guides-tutorials::after,
-.landing-page-v-1-desktop-1920-px .help-center::after,
-.landing-page-v-1-desktop-1920-px .about-us::after,
-.landing-page-v-1-desktop-1920-px .careers::after,
-.landing-page-v-1-desktop-1920-px .media-kit::after {
-  content: '';
-  position: absolute;
-  bottom: -4px;
-  left: 0;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.landing-page-v-1-desktop-1920-px .overview:hover::after,
-.landing-page-v-1-desktop-1920-px .pricing4:hover::after,
-.landing-page-v-1-desktop-1920-px .customer-stories:hover::after,
-.landing-page-v-1-desktop-1920-px .blog:hover::after,
-.landing-page-v-1-desktop-1920-px .guides-tutorials:hover::after,
-.landing-page-v-1-desktop-1920-px .help-center:hover::after,
-.landing-page-v-1-desktop-1920-px .about-us:hover::after,
-.landing-page-v-1-desktop-1920-px .careers:hover::after,
-.landing-page-v-1-desktop-1920-px .media-kit:hover::after {
-  width: 100%;
-}
-
-/* Bottom section */
-.landing-page-v-1-desktop-1920-px .btm {
-  border-top: 1px solid #334155;
-  padding: 32px 0;
-}
-
-/* Terms and conditions container */
-.landing-page-v-1-desktop-1920-px .tems-and-condition {
+.footer-bottom {
+  border-top: 1px solid #475569;
+  padding-top: 40px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: 20px;
 }
 
-/* Legal links */
-.landing-page-v-1-desktop-1920-px .terms-privacy,
-.landing-page-v-1-desktop-1920-px .security,
-.landing-page-v-1-desktop-1920-px .status {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  font-weight: 400;
+.footer-copyright {
   color: #94a3b8;
-  cursor: pointer;
-  transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-size: 14px;
+  font-family: "Inter-Regular", sans-serif;
 }
 
-.landing-page-v-1-desktop-1920-px .terms-privacy:hover,
-.landing-page-v-1-desktop-1920-px .security:hover,
-.landing-page-v-1-desktop-1920-px .status:hover {
+.footer-legal-links {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.footer-legal-link {
+  color: #94a3b8;
+  text-decoration: none;
+  font-size: 14px;
+  transition: color 0.3s ease;
+  font-family: "Inter-Regular", sans-serif;
+}
+
+.footer-legal-link:hover {
   color: #3b82f6;
 }
 
-/* Copyright text */
-.landing-page-v-1-desktop-1920-px ._2021-whitepace-llc {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  color: #64748b;
+/* Responsive design for pricing section */
+@media (max-width: 768px) {
+  .pricing-section {
+    padding: 60px 20px;
+  }
+  
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .pricing-card.popular {
+    transform: none;
+  }
+  
+  .pricing-card.popular {
+    top: 15px;
+    right: -20px;
+    padding: 6px 25px;
+  }
 }
 
-/* Legal links container for mobile */
-.landing-page-v-1-desktop-1920-px .legal-links {
-  display: flex;
-  gap: 32px;
-  align-items: center;
-}
-
-/* ==================== RESPONSIVE DESIGN ==================== */
-
-/* Large tablets */
+/* Responsive design for footer section */
 @media (max-width: 1024px) {
-  .landing-page-v-1-desktop-1920-px .footer .content {
-    padding: 60px 30px 0;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .footer .info {
-    grid-template-columns: 1fr 1fr;
+  .footer-content {
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 40px;
-    margin-bottom: 40px;
   }
   
-  .landing-page-v-1-desktop-1920-px .logo-description {
+  .footer-brand {
     grid-column: 1 / -1;
-    max-width: none;
-    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer-section {
+    padding: 60px 20px 30px;
+  }
+  
+  .footer-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    text-align: center;
+  }
+  
+  .footer-bottom {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+  
+  .footer-legal-links {
+    justify-content: center;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-legal-links {
+    flex-direction: column;
+    gap: 12px;
+  }
+}
+
+/* Responsive design for content4 section */
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .content4 {
+    flex-direction: column;
+    gap: 40px;
+    text-align: center;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .power-together {
+    font-size: clamp(28px, 6vw, 40px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .work-together-image {
+    max-width: 100%;
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .content4 {
+    gap: 30px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .work-together-image {
+    height: 250px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .work-together-image .power-logo-2-2 {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* --------- Responsive Header/Nav Fixes (add these at the end of your CSS) --------- */
+@media (max-width: 1350px) {
+  .landing-page-v-1-desktop-1920-px .frame-375 {
+    gap: 28px !important;
+  }
+  .landing-page-v-1-desktop-1920-px .nav-menu {
+    gap: 18px !important;
+    width: auto !important;
+  }
+}
+
+@media (max-width: 1200px) {
+  .landing-page-v-1-desktop-1920-px .header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    height: auto !important;
+    padding: 12px 4% !important;
+  }
+  .landing-page-v-1-desktop-1920-px .logo {
+    margin-bottom: 8px !important;
+    justify-content: flex-start !important;
+  }
+  .landing-page-v-1-desktop-1920-px .frame-375 {
+    flex-direction: column !important;
+    width: 100% !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  .landing-page-v-1-desktop-1920-px .nav-menu,
+  .landing-page-v-1-desktop-1920-px .btn {
+    flex-direction: row !important;
+    width: 100% !important;
+    gap: 8px !important;
+    justify-content: flex-end !important;
+  }
+  .landing-page-v-1-desktop-1920-px .nav-menu {
+    justify-content: flex-start !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .landing-page-v-1-desktop-1920-px .header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 8px 2% !important;
+  }
+  .landing-page-v-1-desktop-1920-px .frame-375 {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 4px !important;
+  }
+  .landing-page-v-1-desktop-1920-px .nav-menu,
+  .landing-page-v-1-desktop-1920-px .btn {
+    flex-direction: column !important;
+    width: 100% !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+}
+
+/* ==================== FREE TRIAL SECTION RESPONSIVE DESIGN ==================== */
+
+/* Large tablets and smaller desktops */
+@media (max-width: 1024px) {
+  .landing-page-v-1-desktop-1920-px .btn-try2 {
+    padding: 16px 32px;
+    font-size: 17px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 17px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .app-icon {
+    gap: 20px;
+    margin-top: 24px;
   }
 }
 
 /* Tablets */
 @media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .footer .content {
-    padding: 50px 20px 0;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .footer .info {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    margin-bottom: 32px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .tems-and-condition {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .legal-links {
-    gap: 24px;
-  }
-}
-
-/* Mobile */
-@media (max-width: 480px) {
-  .landing-page-v-1-desktop-1920-px .footer .content {
-    padding: 40px 16px 0;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .footer .info {
-    gap: 24px;
-    margin-bottom: 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .logo2 {
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .power-logo-footer {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .whitepace {
-    font-size: 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .whitepace-was-created-for-the-new-ways-we-live-and-work-we-make-a-better-workspace-around-the-world {
-    font-size: 14px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .product,
-  .landing-page-v-1-desktop-1920-px .resources3,
-  .landing-page-v-1-desktop-1920-px .company {
-    font-size: 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .overview,
-  .landing-page-v-1-desktop-1920-px .pricing4,
-  .landing-page-v-1-desktop-1920-px .customer-stories,
-  .landing-page-v-1-desktop-1920-px .blog,
-  .landing-page-v-1-desktop-1920-px .guides-tutorials,
-  .landing-page-v-1-desktop-1920-px .help-center,
-  .landing-page-v-1-desktop-1920-px .about-us,
-  .landing-page-v-1-desktop-1920-px .careers,
-  .landing-page-v-1-desktop-1920-px .media-kit {
-    font-size: 14px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .info2,
-  .landing-page-v-1-desktop-1920-px .info3 {
-    gap: 12px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .legal-links {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .btm {
-    padding: 24px 0;
-  }
-}
-
-/* Large Mobile/Small Tablet (600px and below) */
-@media (max-width: 600px) {
-  /* Ensure frame-375 is responsive */
-  .landing-page-v-1-desktop-1920-px .frame-375 {
-    flex-direction: column;
-    gap: 20px;
-    align-items: center;
-  }
-  
-  /* Make testimonials single column */
-  .landing-page-v-1-desktop-1920-px .content2 {
-    flex-direction: column;
-    gap: 20px;
-  }
-  
-  /* Adjust footer layout */
-  .landing-page-v-1-desktop-1920-px .btm {
-    flex-direction: column;
-    gap: 20px;
-    align-items: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .tems-and-condition {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 20px;
-  }
-  
-  /* Adjust your-data section for better display on small tablets */
-  .landing-page-v-1-desktop-1920-px .rectangle-367,
-  .landing-page-v-1-desktop-1920-px .rectangle-368,
-  .landing-page-v-1-desktop-1920-px .rectangle-369,
-  .landing-page-v-1-desktop-1920-px .rectangle-370,
-  .landing-page-v-1-desktop-1920-px .rectangle-371,
-  .landing-page-v-1-desktop-1920-px .rectangle-372 {
-    display: none;
-  }
-  
-  /* Better button spacing */
-  .landing-page-v-1-desktop-1920-px .btn-free-trial,
-  .landing-page-v-1-desktop-1920-px .btn-try {
-    align-self: center;
-  }
-}
-
-/* TESTIMONIAL AND FREE TRIAL RESPONSIVE STYLES */
-
-/* Tablet Styles (768px and below) */
-@media (max-width: 768px) {
-  /* Testimonial Section */
-  .landing-page-v-1-desktop-1920-px .testimonial {
-    padding: 80px 4%;
-    gap: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .what-our-clients-says {
-    font-size: 32px;
-    line-height: 1.3;
-    text-align: center;
-    margin-bottom: 30px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .content2 {
-    flex-direction: column;
-    gap: 30px;
-    align-items: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .client,
-  .landing-page-v-1-desktop-1920-px .client2 {
-    width: 100%;
-    max-width: 500px;
-    padding: 25px;
-    margin: 0;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .comment,
-  .landing-page-v-1-desktop-1920-px .comment2 {
-    font-size: 16px;
-    line-height: 1.6;
-    margin-bottom: 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .quote {
-    width: 30px;
-    height: 30px;
-    margin-bottom: 15px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .name-box {
-    gap: 15px;
-    align-items: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .avater {
-    width: 50px;
-    height: 50px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .slider {
-    margin-top: 30px;
-    gap: 8px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .ellipse-12,
-  .landing-page-v-1-desktop-1920-px .ellipse-13 {
-    width: 10px;
-    height: 10px;
-  }
-    /* Free Trial Section */
-  .landing-page-v-1-desktop-1920-px .free-trial {
-    padding: 80px 4%;
-    gap: 40px;
-    text-align: center;
-    animation: fadeInUp 0.8s ease-out 0.5s both;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .heading4 {
-    font-size: 32px;
-    line-height: 1.3;
-    margin-bottom: 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .text-block4 {
-    flex-direction: column;
-    gap: 30px;
-    align-items: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .try-power-today {
-    width: 100%;
-    max-width: 600px;
-    text-align: center;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .get-started-for-free-add-your-whole-team-as-your-needs-grow2 {
-    font-size: 16px;
-    line-height: 1.6;
-    margin-bottom: 25px;
-  }
-  
   .landing-page-v-1-desktop-1920-px .btn-try2 {
-    padding: 15px 30px;
+    padding: 14px 28px;
     font-size: 16px;
-    margin-bottom: 30px;
-    min-width: 200px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 16px;
   }
   
   .landing-page-v-1-desktop-1920-px .app-icon {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 15px;
+    gap: 16px;
+    margin-top: 20px;
     justify-content: center;
-    align-items: center;
-    width: 100%;
   }
   
-  .landing-page-v-1-desktop-1920-px .app-icon img {
-    width: 45px;
-    height: 45px;
-    margin: 0;
+  .landing-page-v-1-desktop-1920-px .apple-black-logo-2,
+  .landing-page-v-1-desktop-1920-px .windows-logo-1,
+  .landing-page-v-1-desktop-1920-px .android-logo-1 {
+    font-size: 14px;
+    padding: 8px 16px;
   }
 }
 
-/* Mobile Styles (480px and below) */
+/* Mobile devices */
 @media (max-width: 480px) {
-  /* Testimonial Section Mobile */
-  .landing-page-v-1-desktop-1920-px .testimonial {
-    padding: 60px 3%;
-    gap: 30px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .what-our-clients-says {
-    font-size: 24px;
-    line-height: 1.2;
-    margin-bottom: 25px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .content2 {
-    gap: 25px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .client,
-  .landing-page-v-1-desktop-1920-px .client2 {
-    width: 100%;
-    max-width: none;
-    padding: 20px;
-    border-radius: 12px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .comment,
-  .landing-page-v-1-desktop-1920-px .comment2 {
-    font-size: 14px;
-    line-height: 1.5;
-    margin-bottom: 15px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .quote {
-    width: 25px;
-    height: 25px;
-    margin-bottom: 12px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .name-box {
-    gap: 12px;
-    flex-direction: row;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .avater {
-    width: 40px;
-    height: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .name-box .div {
-    font-size: 14px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .slider {
-    margin-top: 25px;
-    gap: 6px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .ellipse-12,
-  .landing-page-v-1-desktop-1920-px .ellipse-13 {
-    width: 8px;
-    height: 8px;
-  }
-    /* Free Trial Section Mobile */
-  .landing-page-v-1-desktop-1920-px .free-trial {
-    padding: 50px 3%;
-    gap: 30px;
-    animation: fadeInUp 0.8s ease-out 0.5s both;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .heading4 {
-    font-size: 24px;
-    line-height: 1.2;
-    margin-bottom: 15px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .text-block4 {
-    gap: 25px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .try-power-today {
-    width: 100%;
-    max-width: none;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .get-started-for-free-add-your-whole-team-as-your-needs-grow2 {
-    font-size: 14px;
-    line-height: 1.5;
-    margin-bottom: 20px;
-  }
-  
   .landing-page-v-1-desktop-1920-px .btn-try2 {
+    padding: 12px 24px;
+    font-size: 15px;
     width: 100%;
     max-width: 280px;
-    padding: 12px 25px;
-    font-size: 14px;
-    margin-bottom: 25px;
+    border-radius: 10px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 15px;
   }
   
   .landing-page-v-1-desktop-1920-px .app-icon {
     flex-direction: column;
     gap: 12px;
+    margin-top: 16px;
     align-items: center;
   }
   
-  .landing-page-v-1-desktop-1920-px .app-icon img {
-    width: 40px;
-    height: 40px;
+  .landing-page-v-1-desktop-1920-px .apple-black-logo-2,
+  .landing-page-v-1-desktop-1920-px .windows-logo-1,
+  .landing-page-v-1-desktop-1920-px .android-logo-1 {
+    font-size: 13px;
+    padding: 6px 12px;
+    min-width: 120px;
+    text-align: center;
+  }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 360px) {
+  .landing-page-v-1-desktop-1920-px .btn-try2 {
+    padding: 10px 20px;
+    font-size: 14px;
+    max-width: 260px;
   }
   
-  /* Stack app icons in rows of 2 on very small screens */
-  @media (max-width: 360px) {
-    .landing-page-v-1-desktop-1920-px .app-icon {
-      flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 10px;
-    }
-    
-    .landing-page-v-1-desktop-1920-px .app-icon img {
-      width: 35px;
-      height: 35px;
-    }
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 14px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .app-icon {
+    gap: 10px;
+    margin-top: 12px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .apple-black-logo-2,
+  .landing-page-v-1-desktop-1920-px .windows-logo-1,
+  .landing-page-v-1-desktop-1920-px .android-logo-1 {
+    font-size: 12px;
+    padding: 5px 10px;
+    min-width: 100px;
   }
 }
 
-/* Additional styles for cleaned up landing page elements */
+/* ========================================
+   EFFICIENT SCHEDULING SECTION
+   ======================================== */
 
-/* Quote symbol styling */
-.landing-page-v-1-desktop-1920-px .quote-symbol {
-  font-size: 48px;
-  color: #043873;
-  font-weight: bold;
-  line-height: 1;
+/* Main efficient scheduling section container */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-section {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  padding: 120px 5%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  margin: 60px 0;
+  overflow: hidden;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
 }
 
-/* Platform icon styling */
-.landing-page-v-1-desktop-1920-px .platform-icon {
-  font-size: 14px;
-  font-weight: 500;
-  color: #043873;
+/* Add subtle background pattern overlay */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
+  z-index: 0;
+}
+
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-section > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Content wrapper */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 800px;
+  width: 100%;
   text-align: center;
-  padding: 8px;
-  border-radius: 8px;
-  background: rgba(4, 56, 115, 0.1);
-  min-width: 100px;
+  position: relative;
 }
 
-/* Avatar placeholder styling */
-.landing-page-v-1-desktop-1920-px .avater {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #043873 0%, #4A90A4 100%);
+/* Text container */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-text {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Main headline */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-headline {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(32px, 5vw, 48px);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-align: center;
+  position: relative;
+  animation: slideInDown 0.8s ease-out 0.4s both;
+}
+
+/* Add subtle text shadow for better readability */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-headline {
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Description text */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-description {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(16px, 2.5vw, 20px);
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  margin: 0;
+  text-align: center;
+  max-width: 600px;
+  position: relative;
+  animation: slideInUp 0.8s ease-out 0.6s both;
+}
+
+/* Call-to-action container */
+.landing-page-v-1-desktop-1920-px .efficient-scheduling-cta {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: bold;
+  margin-top: 16px;
+  animation: scaleIn 0.8s ease-out 0.8s both;
+}
+
+/* Try POWER button */
+.landing-page-v-1-desktop-1920-px .btn-try-power {
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 16px;
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: none;
+  box-shadow: 
+    0 8px 20px rgba(0, 0, 0, 0.15),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Button hover effects */
+.landing-page-v-1-desktop-1920-px .btn-try-power:hover {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 12px 28px rgba(0, 0, 0, 0.2),
+    0 6px 12px rgba(0, 0, 0, 0.15);
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.landing-page-v-1-desktop-1920-px .btn-try-power:active {
+  transform: translateY(-1px);
+  box-shadow: 
+    0 6px 16px rgba(0, 0, 0, 0.15),
+    0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Button shimmer effect */
+.landing-page-v-1-desktop-1920-px .btn-try-power::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.6s;
+}
+
+.landing-page-v-1-desktop-1920-px .btn-try-power:hover::before {
+  left: 100%;
+}
+
+/* Button text */
+.landing-page-v-1-desktop-1920-px .try-power-text {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  letter-spacing: -0.01em;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Arrow styling within the button text */
+.landing-page-v-1-desktop-1920-px .try-power-text::after {
+  content: '→';
   font-size: 20px;
+  font-weight: 700;
+  transition: transform 0.3s ease;
 }
 
-.landing-page-v-1-desktop-1920-px .avater::before {
-  content: "👤";
-  font-size: 24px;
+.landing-page-v-1-desktop-1920-px .btn-try-power:hover .try-power-text::after {
+  transform: translateX(4px);
 }
 
-/* Footer logo styling */
-.landing-page-v-1-desktop-1920-px .power-logo-footer {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
+/* ==================== RESPONSIVE DESIGN ==================== */
+
+/* Large tablets and smaller desktops */
+@media (max-width: 1024px) {
+  .landing-page-v-1-desktop-1920-px .btn-try2 {
+    padding: 16px 32px;
+    font-size: 17px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 17px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .app-icon {
+    gap: 20px;
+    margin-top: 24px;
+  }
 }
 
-/* Enhanced responsive styles for cleaned elements */
+/* Tablets */
 @media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .platform-icon {
-    min-width: 80px;
+  .landing-page-v-1-desktop-1920-px .btn-try2 {
+    padding: 14px 28px;
+    font-size: 16px;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 16px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .app-icon {
+    gap: 16px;
+    margin-top: 20px;
+    justify-content: center;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .apple-black-logo-2,
+  .landing-page-v-1-desktop-1920-px .windows-logo-1,
+  .landing-page-v-1-desktop-1920-px .android-logo-1 {
+    font-size: 14px;
+    padding: 8px 16px;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .btn-try2 {
+    padding: 12px 24px;
+    font-size: 15px;
+    width: 100%;
+    max-width: 280px;
+    border-radius: 10px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 15px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .app-icon {
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+    align-items: center;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .apple-black-logo-2,
+  .landing-page-v-1-desktop-1920-px .windows-logo-1,
+  .landing-page-v-1-desktop-1920-px .android-logo-1 {
+    font-size: 13px;
+    padding: 6px 12px;
+    min-width: 120px;
+    text-align: center;
+  }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 360px) {
+  .landing-page-v-1-desktop-1920-px .btn-try2 {
+    padding: 10px 20px;
+    font-size: 14px;
+    max-width: 260px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free2 {
+    font-size: 14px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .app-icon {
+    gap: 10px;
+    margin-top: 12px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .apple-black-logo-2,
+  .landing-page-v-1-desktop-1920-px .windows-logo-1,
+  .landing-page-v-1-desktop-1920-px .android-logo-1 {
     font-size: 12px;
-    padding: 6px;
+    padding: 5px 10px;
+    min-width: 100px;
+  }
+}
+
+/* ========================================
+   DATA SECURITY SECTION
+   ======================================== */
+
+/* Main data security section */
+.landing-page-v-1-desktop-1920-px .data-security-section {
+  background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
+  padding: 120px 5%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Content wrapper */
+.landing-page-v-1-desktop-1920-px .data-security-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1200px;
+  gap: 80px;
+  position: relative;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+/* Text container */
+.landing-page-v-1-desktop-1920-px .data-security-text {
+  flex: 1;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: slideInDown 0.8s ease-out 0.2s both;
+}
+
+/* Headline with yellow highlight */
+.landing-page-v-1-desktop-1920-px .data-security-headline {
+  color: #1e293b;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(36px, 5vw, 64px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(30, 41, 59, 0.1);
+}
+
+.landing-page-v-1-desktop-1920-px .highlight-yellow {
+  position: relative;
+  z-index: 1;
+}
+
+.landing-page-v-1-desktop-1920-px .highlight-yellow::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  left: -4px;
+  right: -4px;
+  height: 12px;
+  background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+  z-index: -1;
+  border-radius: 2px;
+  opacity: 0.8;
+}
+
+/* Description text */
+.landing-page-v-1-desktop-1920-px .data-security-description {
+  color: #64748b;
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(16px, 2.5vw, 20px);
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* CTA container */
+.landing-page-v-1-desktop-1920-px .data-security-cta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 8px;
+  animation: scaleIn 0.6s ease-out 0.6s both;
+}
+
+/* Read More button */
+.landing-page-v-1-desktop-1920-px .btn-read-more {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  padding: 16px 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  position: relative;
+  overflow: hidden;
+  border: none;
+  font-family: inherit;
+}
+
+.landing-page-v-1-desktop-1920-px .btn-read-more:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.landing-page-v-1-desktop-1920-px .read-more-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  position: relative;
+  z-index: 1;
+}
+
+/* Icons container */
+.landing-page-v-1-desktop-1920-px .data-security-icons {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  align-items: center;
+  animation: slideInUp 0.8s ease-out 0.4s both;
+}
+
+/* Security icons */
+.landing-page-v-1-desktop-1920-px .security-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.3s ease;
+  animation: float 3s ease-in-out infinite;
+}
+
+.landing-page-v-1-desktop-1920-px .security-icon:nth-child(2) {
+  animation-delay: -1s;
+}
+
+.landing-page-v-1-desktop-1920-px .security-icon:nth-child(3) {
+  animation-delay: -2s;
+}
+
+.landing-page-v-1-desktop-1920-px .shield-icon {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+}
+
+.landing-page-v-1-desktop-1920-px .shield-icon::before {
+  content: '🛡️';
+  font-size: 32px;
+}
+
+.landing-page-v-1-desktop-1920-px .lock-icon {
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+}
+
+.landing-page-v-1-desktop-1920-px .lock-icon::before {
+  content: '🔒';
+  font-size: 32px;
+}
+
+.landing-page-v-1-desktop-1920-px .encryption-icon {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 8px 24px rgba(245, 158, 11, 0.3);
+}
+
+.landing-page-v-1-desktop-1920-px .encryption-icon::before {
+  content: '🔐';
+  font-size: 32px;
+}
+
+.landing-page-v-1-desktop-1920-px .security-icon:hover {
+  transform: translateY(-4px) scale(1.05);
+}
+
+/* Floating animation for icons */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Data Security Section - Mobile Responsive */
+
+/* Large tablets */
+@media (max-width: 1024px) {
+  .landing-page-v-1-desktop-1920-px .data-security-section {
+    padding: 100px 4%;
   }
   
-  .landing-page-v-1-desktop-1920-px .quote-symbol {
-    font-size: 36px;
+  .landing-page-v-1-desktop-1920-px .data-security-content {
+    flex-direction: column;
+    gap: 60px;
+    text-align: center;
   }
   
-  .landing-page-v-1-desktop-1920-px .avater {
+  .landing-page-v-1-desktop-1920-px .data-security-icons {
+    flex-direction: row;
+    gap: 30px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .security-icon {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .security-icon::before {
+    font-size: 28px;
+  }
+}
+
+/* Small tablets */
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .data-security-section {
+    padding: 80px 3%;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .data-security-content {
+    gap: 50px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .data-security-headline {
+    font-size: clamp(28px, 7vw, 48px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .data-security-description {
+    font-size: clamp(15px, 3vw, 18px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .security-icon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .security-icon::before {
+    font-size: 24px;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .data-security-section {
+    padding: 60px 20px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .data-security-content {
+    gap: 40px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .data-security-headline {
+    font-size: clamp(24px, 8vw, 36px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .data-security-description {
+    font-size: clamp(14px, 4vw, 16px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-read-more {
+    padding: 14px 28px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .read-more-text {
+    font-size: 15px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .data-security-icons {
+    gap: 20px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .security-icon {
     width: 50px;
     height: 50px;
   }
   
-  .landing-page-v-1-desktop-1920-px .avater::before {
+  .landing-page-v-1-desktop-1920-px .security-icon::before {
     font-size: 20px;
   }
 }
 
-@media (max-width: 480px) {
-  .landing-page-v-1-desktop-1920-px .platform-icon {
-    min-width: 70px;
-    font-size: 11px;
-    padding: 5px;
+/* Extra small mobile devices */
+@media (max-width: 360px) {
+  .landing-page-v-1-desktop-1920-px .data-security-section {
+    padding: 50px 16px;
   }
   
-  .landing-page-v-1-desktop-1920-px .quote-symbol {
-    font-size: 30px;
+  .landing-page-v-1-desktop-1920-px .data-security-headline {
+    font-size: clamp(20px, 8vw, 28px);
   }
   
-  .landing-page-v-1-desktop-1920-px .avater {
-    width: 40px;
-    height: 40px;
+  .landing-page-v-1-desktop-1920-px .data-security-description {
+    font-size: clamp(13px, 5vw, 15px);
   }
   
-  .landing-page-v-1-desktop-1920-px .avater::before {
-    font-size: 16px;
-  }
-}
-
-/* Popular badge for premium pricing card */
-.landing-page-v-1-desktop-1920-px .price-board2::before {
-  content: 'Most Popular';
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  color: #1f2937;
-  padding: 8px 24px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: 'Inter', sans-serif;
-  letter-spacing: -0.01em;
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
-}
-
-/* Enhanced animation for pricing cards */
-@keyframes float {
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-
-.landing-page-v-1-desktop-1920-px .price-board2 {
-  animation: float 3s ease-in-out infinite;
-  animation-delay: 0.5s;
-}
-
-/* Responsive improvements for pricing section */
-@media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .price-list {
-    flex-direction: column;
-    gap: 24px;
+  .landing-page-v-1-desktop-1920-px .btn-read-more {
+    padding: 12px 24px;
   }
   
-  .landing-page-v-1-desktop-1920-px .price-board,
-  .landing-page-v-1-desktop-1920-px .price-board2 {
-    max-width: 400px;
-    margin: 0 auto;
+  .landing-page-v-1-desktop-1920-px .read-more-text {
+    font-size: 14px;
   }
 }
 
@@ -2742,6 +2233,8 @@
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
+  margin: 0;
+  text-align: center;
   position: relative;
   margin-bottom: 20px;
   background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
@@ -2936,11 +2429,11 @@
    ======================================== */
 
 .landing-page-v-1-desktop-1920-px .free-trial {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  padding: 140px 5%;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  padding: 120px 5%;
   display: flex;
   flex-direction: column;
-  gap: 60px;
+  gap: 48px;
   align-items: center;
   justify-content: center;
   width: 100%;
@@ -2950,75 +2443,99 @@
 }
 
 .landing-page-v-1-desktop-1920-px .heading4 {
-  color: #ffffff;
-  text-align: center;
-  font-family: 'Inter', sans-serif;
-  font-size: clamp(32px, 5vw, 54px);
-  font-weight: 700;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 600px;
   position: relative;
-  margin-bottom: 20px;
-  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .landing-page-v-1-desktop-1920-px .text-block4 {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 16px;
   align-items: center;
   justify-content: center;
   width: 100%;
-  max-width: 800px;
+  text-align: center;
   position: relative;
 }
 
 .landing-page-v-1-desktop-1920-px .try-power-today {
-  color: #e2e8f0;
+  color: #ffffff;
   text-align: center;
   font-family: 'Inter', sans-serif;
-  font-size: 20px;
-  line-height: 1.6;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-size: clamp(32px, 5vw, 48px);
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   position: relative;
   width: 100%;
+  margin-bottom: 8px;
 }
 
 .landing-page-v-1-desktop-1920-px .get-started-for-free-add-your-whole-team-as-your-needs-grow2 {
   color: #cbd5e1;
   text-align: center;
   font-family: 'Inter', sans-serif;
-  font-size: 16px;
+  font-size: clamp(16px, 2.5vw, 20px);
   line-height: 1.6;
   font-weight: 400;
   letter-spacing: -0.01em;
   position: relative;
   width: 100%;
-  margin-bottom: 30px;
+  max-width: 480px;
+}
+
+.landing-page-v-1-desktop-1920-px .on-a-big-team-contact-sales {
+  color: #94a3b8;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin-top: 16px;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.landing-page-v-1-desktop-1920-px .on-a-big-team-contact-sales:hover {
+  color: #cbd5e1;
 }
 
 .landing-page-v-1-desktop-1920-px .btn-try2 {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #6B9BFF 0%, #5B89F5 100%);
   border-radius: 12px;
-  padding: 16px 32px;
+  padding: 18px 36px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
-  margin-top: 16px;
+  box-shadow: 0 4px 16px rgba(107, 155, 255, 0.3);
+  margin: 24px auto;
+  max-width: 200px;
 }
 
 .landing-page-v-1-desktop-1920-px .btn-try2:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35);
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  box-shadow: 0 8px 24px rgba(107, 155, 255, 0.4);
+  background: linear-gradient(135deg, #5B89F5 0%, #4A7AE8 100%);
+}
+
+.landing-page-v-1-desktop-1920-px .try-power-free2 {
+  color: #ffffff;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  position: relative;
 }
 
 .landing-page-v-1-desktop-1920-px .start-today2 {
@@ -3034,32 +2551,81 @@
 .landing-page-v-1-desktop-1920-px .app-icon {
   display: flex;
   flex-direction: row;
-  gap: 20px;
+  gap: 24px;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
   position: relative;
   width: 100%;
+  margin-top: 32px;
+}
+
+.landing-page-v-1-desktop-1920-px .apple-black-logo-2,
+.landing-page-v-1-desktop-1920-px .windows-logo-1,
+.landing-page-v-1-desktop-1920-px .android-logo-1 {
+  transition: all 0.3s ease;
+}
+
+.landing-page-v-1-desktop-1920-px .apple-black-logo-2:hover,
+.landing-page-v-1-desktop-1920-px .windows-logo-1:hover,
+.landing-page-v-1-desktop-1920-px .android-logo-1:hover {
+  transform: translateY(-2px);
 }
 
 .landing-page-v-1-desktop-1920-px .platform-icon {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
-  color: #1e293b;
+  color: #374151;
   text-align: center;
-  padding: 12px 16px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.9);
-  min-width: 100px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.95);
+  min-width: 120px;
   transition: all 0.3s ease;
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(107, 155, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .landing-page-v-1-desktop-1920-px .platform-icon:hover {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 1);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(107, 155, 255, 0.15);
+  border-color: rgba(107, 155, 255, 0.2);
+}
+
+/* Platform-specific icon styling */
+.landing-page-v-1-desktop-1920-px .apple-black-logo-2 .platform-icon::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: #000;
+  border-radius: 2px;
+  mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>');
+  -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>');
+}
+
+.landing-page-v-1-desktop-1920-px .windows-logo-1 .platform-icon::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: #0078d4;
+  border-radius: 1px;
+  mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.351"/></svg>');
+  -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.351"/></svg>');
+}
+
+.landing-page-v-1-desktop-1920-px .android-logo-1 .platform-icon::before {
+  content: '';
+  width: 16px;
+  height: 16px;
+  background: #3ddc84;
+  border-radius: 2px;
+  mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.2439 13.8533 7.8508 12 7.8508s-3.5902.3931-5.1367 1.0989L4.841 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3435-4.1021-2.6892-7.5743-6.1185-9.4396"/></svg>');
+  -webkit-mask: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.2439 13.8533 7.8508 12 7.8508s-3.5902.3931-5.1367 1.0989L4.841 5.4467a.4161.4161 0 00-.5677-.1521.4157.4157 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3435-4.1021-2.6892-7.5743-6.1185-9.4396"/></svg>');
 }
 
 /* ========================================
@@ -3487,7 +3053,7 @@
   box-shadow: 0 20px 40px rgba(59, 130, 246, 0.15);
 }
 
-{/*}.pricing-card.popular::after {
+.pricing-card.popular::after {
   content: 'Most Popular';
   position: absolute;
   top: 20px;
@@ -3500,7 +3066,7 @@
   font-weight: 600;
   transform: rotate(25deg);
   box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}*/}
+}
 
 .pricing-card > * {
   position: relative;
@@ -3835,7 +3401,7 @@
   }
   
   .landing-page-v-1-desktop-1920-px .power-together {
-    font-size: clamp(28px, 8vw, 48px);
+    font-size: clamp(28px, 6vw, 40px);
   }
   
   .landing-page-v-1-desktop-1920-px .work-together-image {

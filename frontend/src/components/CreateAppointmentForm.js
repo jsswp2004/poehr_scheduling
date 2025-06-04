@@ -26,6 +26,7 @@ function CreateAppointmentForm({
     appointment_datetime: '',
     duration_minutes: 30,
     recurrence: 'none',
+    recurrence_end_date: '', // Added for recurrence end date
   });
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
@@ -120,6 +121,7 @@ function CreateAppointmentForm({
           : '',
         duration_minutes: appointmentToEdit.duration_minutes || 30,
         recurrence: appointmentToEdit.recurrence || 'none',
+        recurrence_end_date: appointmentToEdit.recurrence_end_date || '', // Pre-fill recurrence_end_date
         status: appointmentToEdit.status || 'scheduled', // <-- prepopulate status
       });
 
@@ -159,7 +161,7 @@ function CreateAppointmentForm({
         );
       }
     }
-  }, [appointmentToEdit, clinicEvents]);  // Check if appointment time conflicts with provider's blocked availability
+  }, [appointmentToEdit, clinicEvents, token]);  // Check if appointment time conflicts with provider's blocked availability
   const checkAvailabilityConflict = (startDate, durationMinutes, doctorId) => {
     // Use current form data if no parameters provided
     const start = startDate || new Date(formData.appointment_datetime);
@@ -261,12 +263,27 @@ function CreateAppointmentForm({
     if (!selectedDoctor?.value) {
       toast.error("Please select a provider for this appointment.");
       return;
+    }    // Require recurrence_end_date if recurrence is set
+    if (formData.recurrence !== 'none' && !formData.recurrence_end_date) {
+      toast.error('Recurrence End Date is required for recurring appointments.');
+      return;
+    }
+
+    // Validate recurrence_end_date is after appointment start date
+    if (formData.recurrence !== 'none' && formData.recurrence_end_date) {
+      const appointmentDate = new Date(formData.appointment_datetime).toDateString();
+      const endDate = new Date(formData.recurrence_end_date).toDateString();
+      if (new Date(endDate) < new Date(appointmentDate)) {
+        toast.error('Recurrence End Date must be on or after the appointment date.');
+        return;
+      }
     }
 
     const payload = {
       ...formData,
       title: selectedClinicEvent.label,
       provider: selectedDoctor?.value || null,
+      recurrence_end_date: formData.recurrence_end_date || null, // Ensure null if blank
     };
 
     if (patientId) {
@@ -394,7 +411,22 @@ function CreateAppointmentForm({
               <MenuItem value="daily">Daily</MenuItem>
               <MenuItem value="weekly">Weekly</MenuItem>
               <MenuItem value="monthly">Monthly</MenuItem>
-            </TextField>
+            </TextField>            {formData.recurrence !== 'none' && (
+              <TextField
+                label="Recurrence End Date"
+                name="recurrence_end_date"
+                type="date"
+                value={formData.recurrence_end_date}
+                onChange={handleChange}
+                required
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                helperText="Required for recurring appointments"
+                inputProps={{
+                  min: formData.appointment_datetime ? formData.appointment_datetime.split('T')[0] : undefined
+                }}
+              />
+            )}
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Select Doctor</Typography>
               <Select
