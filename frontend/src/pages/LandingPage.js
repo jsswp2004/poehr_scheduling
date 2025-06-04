@@ -467,7 +467,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               Add your whole team as your needs grow.
             </div>
           </div>          <div className="btn-try2">
-            <div className="try-power-free2">Try POWER free →</div>
+            <div className="try-power-free2">Try POWER free</div>
           </div>
           <div className="on-a-big-team-contact-sales">
             On a big team? Contact sales
