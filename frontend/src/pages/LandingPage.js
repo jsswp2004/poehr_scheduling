@@ -27,6 +27,7 @@ import POWERLogo from '../assets/POWER_IT.png'; // Company logo image
 import DashboardImage from '../assets/dashboard_clinician.png'; // Dashboard clinician image
 import DashboardSchedulingImage from '../assets/dashboard_scheduling.png'; // Dashboard scheduling image
 import DashboardTogetherImage from '../assets/dashboard_together.png'; // Dashboard together image
+import DashboardQouteImage from '../assets/dashboard_qoutes.png'; // Dashboard quote image
 import DownArrow from '../assets/images/down-arrow0.svg'; // White dropdown arrow for navigation
 
 // Main landing page component for POWER IT healthcare scheduling software
@@ -136,7 +137,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <img className="down-arrow2" src={DownArrow} alt="dropdown arrow" />
               {showSolutionsDropdown && (
                 <div className="dropdown-menu">
-                  <a href="#scheduler" className="dropdown-item">Scheduler</a>
+                  <a href="/login" className="dropdown-item">Scheduler</a>
                 </div>
               )}
             </div>{/* Resources dropdown menu */}
@@ -282,7 +283,20 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           <div className="client">
             <div className="comment">
               <div className="quote">
-                <div className="quote-symbol">"</div>
+                <div className="quote-symbol">
+                  <img 
+                  src={DashboardQouteImage} 
+                  alt="POWER Healthcare Scheduler" 
+                  className="hero-dashboard-image"
+                  style={{
+                    width: '25%',
+                    height: '25%',
+                    objectFit: 'cover',
+                    borderRadius: '16px',
+                    padding: '0px'
+                  }}
+                />
+                </div>
               </div>
               <div className="power-is-designed-as-a-collaboration-platform-for-healthcare-teams-offering-a-complete-solution-for-patient-scheduling">
                 POWER is designed as a collaboration platform for healthcare
@@ -304,7 +318,20 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           <div className="client2">
             <div className="comment2">
               <div className="quote">
-                <div className="quote-symbol">"</div>
+                <div className="quote-symbol">
+                  <img 
+                  src={DashboardQouteImage} 
+                  alt="POWER Healthcare Scheduler" 
+                  className="hero-dashboard-image"
+                  style={{
+                    width: '25%',
+                    height: '25%',
+                    objectFit: 'cover',
+                    borderRadius: '16px',
+                    padding: '0px'
+                  }}
+                />
+                </div>
               </div>
               <div className="designed-for-healthcare-power-delivers-seamless-collaboration-and-comprehensive-scheduling-management">
                 Designed for healthcare, POWER delivers seamless collaboration
