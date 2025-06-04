@@ -279,7 +279,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </p>
             <div className="efficient-scheduling-cta">
               <div className="btn-try-power">
-                <div className="try-power-text">Try POWER →</div>
+                <div className="try-power-text">Try POWER</div>
               </div>
             </div>
           </div>
