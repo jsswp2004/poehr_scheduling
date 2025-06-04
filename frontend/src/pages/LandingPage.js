@@ -24,6 +24,9 @@ import { useState, useEffect } from 'react';
 
 // Asset imports
 import POWERLogo from '../assets/POWER_IT.png'; // Company logo image
+import DashboardImage from '../assets/dashboard_clinician.png'; // Dashboard clinician image
+import DashboardSchedulingImage from '../assets/dashboard_scheduling.png'; // Dashboard scheduling image
+import DashboardTogetherImage from '../assets/dashboard_together.png'; // Dashboard together image
 import DownArrow from '../assets/images/down-arrow0.svg'; // White dropdown arrow for navigation
 
 // Main landing page component for POWER IT healthcare scheduling software
@@ -96,7 +99,20 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="try-power-free">Try POWER free</div>
           </div>
         </div>        {/* Hero image placeholder */}
-        <div className="image-container"></div>
+        <div className="image-container">
+          <img 
+            src={DashboardImage} 
+            alt="POWER Healthcare Dashboard Preview" 
+            className="hero-dashboard-image"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              borderRadius: '16px',
+              padding: '0px'
+            }}
+          />
+        </div>
       </div>
 
       {/* ===================================================================
@@ -197,43 +213,21 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </div>
           </div>
           {/* Feature image placeholder */}
-          
           <div className="work-together-image">
-            <div className="ellipse-5"></div>
-            <div className="ellipse-6"></div>
-            <div className="group-293">
-              <div className="ellipse-2"></div>
-            </div>
-            <div className="group-22">
-              <div className="ellipse-142"></div>
-            </div>
-            <div className="group-28">
-              <div className="ellipse-13"></div>
-            </div>
-            <div className="group-24">
-              <div className="ellipse-10"></div>
-            </div>
-            <div className="group-298">
-              <div className="ellipse-102"></div>
-            </div>
-            <div className="group-295">
-              <div className="ellipse-103"></div>
-            </div>
-            <div className="group-29">
-              <div className="ellipse-172"></div>
-              <div className="ellipse-4"></div>
-            </div>
-            <div className="group-297">
-              <div className="ellipse-173"></div>
-              <div className="ellipse-45"></div>
-            </div>
-            <div className="group-26">
-              <div className="ellipse-162"></div>
-            </div>
-            <div className="group-327">
-              <img className="power-logo-2-2" src={POWERLogo} alt="POWER logo" />
-            </div>
-          </div>          
+          <img 
+            src={DashboardSchedulingImage} 
+            alt="POWER Healthcare Scheduler" 
+            className="hero-dashboard-image"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              borderRadius: '16px',
+              padding: '5px'
+            }}
+          />
+        </div>
+         
         </div>
 
         {/* ===================================================================
@@ -245,41 +239,19 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
         <div className="content4">
           {/* Collaboration visualization placeholder */}
           <div className="work-together-image">
-            <div className="ellipse-5"></div>
-            <div className="ellipse-6"></div>
-            <div className="group-293">
-              <div className="ellipse-2"></div>
-            </div>
-            <div className="group-22">
-              <div className="ellipse-142"></div>
-            </div>
-            <div className="group-28">
-              <div className="ellipse-13"></div>
-            </div>
-            <div className="group-24">
-              <div className="ellipse-10"></div>
-            </div>
-            <div className="group-298">
-              <div className="ellipse-102"></div>
-            </div>
-            <div className="group-295">
-              <div className="ellipse-103"></div>
-            </div>
-            <div className="group-29">
-              <div className="ellipse-172"></div>
-              <div className="ellipse-4"></div>
-            </div>
-            <div className="group-297">
-              <div className="ellipse-173"></div>
-              <div className="ellipse-45"></div>
-            </div>
-            <div className="group-26">
-              <div className="ellipse-162"></div>
-            </div>
-            <div className="group-327">
-              <img className="power-logo-2-2" src={POWERLogo} alt="POWER logo" />
-            </div>
-          </div>
+          <img 
+            src={DashboardTogetherImage} 
+            alt="POWER Healthcare Scheduler" 
+            className="hero-dashboard-image"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              borderRadius: '16px',
+              padding: '5px'
+            }}
+          />
+        </div>
           <div className="headline">
             <div className="text-block">
               <div className="power-together">POWER together</div>
@@ -569,7 +541,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
                 <a href="#overview" className="footer-link">Overview</a>
                 <a href="#pricing" className="footer-link">Pricing</a>
                 <a href="#features" className="footer-link">Features</a>
-                <a href="#customer-stories" className="footer-link">Customer Stories</a>
+                {/*<a href="#customer-stories" className="footer-link">Customer Stories</a>*/}
               </div>
             </div>
             
@@ -589,8 +561,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="footer-column-title">Company</div>
               <div className="footer-links">
                 <a href="#about" className="footer-link">About Us</a>
-                <a href="#careers" className="footer-link">Careers</a>
-                <a href="#media" className="footer-link">Media Kit</a>
+                {/*<a href="#careers" className="footer-link">Careers</a>*/}
+                {/*<a href="#media" className="footer-link">Media Kit</a>*/}
                 <a href="#contact" className="footer-link">Contact</a>
               </div>
             </div>

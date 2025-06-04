@@ -390,13 +390,28 @@ VISUAL LOCATION: Appears at top of page below navigation header
 }
 
 .landing-page-v-1-desktop-1920-px .image-container::after {
-  content: '🏥 Healthcare Dashboard Preview';
+  content: '';
   position: absolute;
   color: #1e40af;
   font-family: 'Inter', sans-serif;
   font-size: 24px;
   font-weight: 600;
-  text-align: center;  z-index: 2;
+  text-align: center;
+  z-index: 2;
+  display: none; /* Hide the text when we have an actual image */
+}
+
+/* Hero dashboard image styling */
+.landing-page-v-1-desktop-1920-px .hero-dashboard-image {
+  position: relative;
+  z-index: 3;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.1));
+}
+
+.landing-page-v-1-desktop-1920-px .hero-dashboard-image:hover {
+  transform: scale(1.02);
+  filter: drop-shadow(0 15px 30px rgba(0, 0, 0, 0.15));
 }
 
 /* 
