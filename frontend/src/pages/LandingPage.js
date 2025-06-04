@@ -1,3 +1,20 @@
+/*
+ * POWER IT Healthcare Scheduling - Landing Page Component
+ * 
+ * PAGE LAYOUT STRUCTURE:
+ * =====================
+ * 1. Hero Section - Main banner with headline and CTA button
+ * 2. Navigation Header - Logo, menu items, login/trial buttons  
+ * 3. Product Features - POWER Scheduling feature showcase
+ * 4. Collaboration Section - Team collaboration features
+ * 5. Customer Testimonials - Client reviews and feedback
+ * 6. Cross-Platform Section - Multi-device availability info
+ * 7. Data Security Section - Security and privacy features
+ * 8. Pricing Section - Three-tier pricing plans (Personal/Clinic/Group)
+ * 9. Free Trial CTA - Final call-to-action with platform links
+ * 10. Footer - Company info, navigation links, legal
+ */
+
 // Import styles for the landing page component
 import '../LandingPageV1Desktop1920Px/LandingPageV1Desktop1920Px.css';
 // Import React Router navigation hook
@@ -16,10 +33,15 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
   const handleLoginClick = () => {
     navigate('/login');
   };
-
   return (
     <div className={"landing-page-v-1-desktop-1920-px " + className}>
-      {/* Hero Section - Main banner with headline and call-to-action */}
+      
+      {/* ===================================================================
+          SECTION 1: HERO SECTION - TOP OF PAGE
+          - Main value proposition headline
+          - Primary call-to-action button
+          - Featured prominently at the top
+          ================================================================= */}
       <div className="hero-section">
         {/* Main headline and description text */}
         <div className="heading">
@@ -38,12 +60,16 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           <div className="btn-free-trial">
             <div className="try-power-free">Try POWER free</div>
           </div>
-        </div>
-        {/* Hero image placeholder */}
+        </div>        {/* Hero image placeholder */}
         <div className="image-container"></div>
       </div>
 
-      {/* Header with navigation and logo */}
+      {/* ===================================================================
+          SECTION 2: NAVIGATION HEADER - BELOW HERO
+          - Company logo and branding
+          - Main navigation menu (Products, Solutions, Resources, Pricing)
+          - Login and "Try POWER for free" buttons
+          ================================================================= */}
       <div className="header">
         {/* Company logo and branding */}
         <div className="logo">
@@ -83,11 +109,15 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="btn-free-trial2">
                 <div className="try-power-for-free">Try POWER for free</div>
               </div>
-            </div> 
-        </div>
+            </div>        </div>
       </div>
 
-      {/* Product features section */}
+      {/* ===================================================================
+          SECTION 3: PRODUCT FEATURES - MAIN CONTENT AREA
+          - "POWER Scheduling" feature showcase with bullet points
+          - Detailed feature descriptions and benefits
+          - Visual elements and feature graphics
+          ================================================================= */}
       <div className="work-management">
         <div className="content3">
           <div className="headline">
@@ -151,11 +181,15 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="group-327">
               <img className="power-logo-2-2" src={POWERLogo} alt="POWER logo" />
             </div>
-          </div>            
-          
+          </div>          
         </div>
 
-        {/* Collaboration features section */}
+        {/* ===================================================================
+            SUB-SECTION: COLLABORATION FEATURES
+            - "POWER together" team collaboration showcase
+            - Real-time collaboration benefits
+            - Team communication features
+            ================================================================= */}
         <div className="content4">
           {/* Collaboration visualization placeholder */}
           <div className="work-together-image">
@@ -207,11 +241,16 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="btn-get-started3">
               <div className="try-it-now">Try it now</div>
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
 
-      {/* Customer testimonials section */}
+      {/* ===================================================================
+          SECTION 4: CUSTOMER TESTIMONIALS
+          - "What Our Clients Says" heading
+          - Two testimonial cards with client quotes
+          - Client names and titles
+          - Testimonial slider indicators
+          ================================================================= */}
       <div className="testimonial">
         <div className="what-our-clients-says">What Our Clients Says</div>
         <div className="content2">
@@ -261,11 +300,16 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
         </div>        {/* Testimonial slider indicators */}
         <div className="slider">
           <div className="ellipse-12"></div>
-          <div className="ellipse-13"></div>
-        </div>
+          <div className="ellipse-13"></div>        </div>
       </div>
 
-      {/* Efficient Scheduling Section */}
+      {/* ===================================================================
+          SECTION 5: CROSS-PLATFORM AVAILABILITY
+          - "Efficient scheduling—anywhere, anytime" headline
+          - Multi-device access information
+          - Platform compatibility (Windows, macOS, Android, iOS)
+          - "Try POWER" call-to-action button
+          ================================================================= */}
       <div className="efficient-scheduling-section">
         <div className="efficient-scheduling-content">
           <div className="efficient-scheduling-text">
@@ -282,10 +326,16 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
                 <div className="try-power-text">Try POWER</div>
               </div>
             </div>
-          </div>
-        </div>      </div>
+          </div>        </div>      </div>
 
-      {/* Data Security section */}
+      {/* ===================================================================
+          SECTION 6: DATA SECURITY & PRIVACY
+          - "100% your data" headline with yellow highlight
+          - Security features and HIPAA compliance info
+          - Data ownership and privacy benefits
+          - Security icons (shield, lock, encryption)
+          - "Read more" action button
+          ================================================================= */}
       <div className="data-security-section">
         <div className="data-security-content">
           <div className="data-security-text">
@@ -308,11 +358,19 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="security-icon shield-icon"></div>
             <div className="security-icon lock-icon"></div>
             <div className="security-icon encryption-icon"></div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
 
-      {/* Pricing section */}
+      {/* ===================================================================
+          SECTION 7: PRICING PLANS
+          - "Choose Your Plan" headline and description
+          - Three pricing tiers side-by-side:
+            1. Personal ($0 Free) - Basic features
+            2. Clinic ($11.99/month) - MOST POPULAR with blue badge
+            3. Group ($49.99/month) - Enterprise features
+          - Feature lists for each plan
+          - Action buttons for each tier
+          ================================================================= */}
       <div className="pricing-section">
         <div className="pricing-header">
           <div className="choose-your-plan">Choose Your Plan</div>
@@ -389,11 +447,17 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-button">
               <div className="btn-plan">Contact Sales</div>
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
 
-      {/* Free trial call-to-action section */}
+      {/* ===================================================================
+          SECTION 8: FINAL CALL-TO-ACTION
+          - "Try POWER today" headline
+          - "Get started for free" message
+          - Primary "Try POWER free" button
+          - "Contact sales" link for large teams
+          - Platform download links (App Store, Windows, Google Play)
+          ================================================================= */}
       <div className="free-trial">
         <div className="heading4">
           <div className="text-block4">
@@ -417,11 +481,20 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </div>
             <div className="android-logo-1">
               <div className="platform-icon">Google Play</div>
-            </div>
-          </div>
+            </div>          </div>
         </div>
       </div>      
-      {/* Footer section */}
+      
+      {/* ===================================================================
+          SECTION 9: FOOTER - BOTTOM OF PAGE
+          - Company branding and logo
+          - Four-column layout with navigation links:
+            1. Company description and mission
+            2. Product links (Overview, Pricing, Features, Customer Stories)
+            3. Resources links (Blog, Guides, Help Center, Support)
+            4. Company links (About, Careers, Media Kit, Contact)
+          - Footer bottom bar with copyright and legal links
+          ================================================================= */}
       <div className="footer-section">
         <div className="footer-container">
           <div className="footer-content">
@@ -481,9 +554,42 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <a href="#security" className="footer-legal-link">Security</a>
               <a href="#status" className="footer-legal-link">Status</a>
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </div>
     </div>
   );
 };
+
+/*
+ * LANDING PAGE VISUAL FLOW SUMMARY:
+ * =================================
+ * 
+ * TOP OF PAGE
+ * ↓
+ * [1] Hero Section - Main headline "Smarter Scheduling. Better Outcomes. Powered by POWER."
+ * ↓  
+ * [2] Navigation Header - Logo + Menu (Products, Solutions, Resources, Pricing) + Login/Trial buttons
+ * ↓
+ * [3] Product Features - "POWER Scheduling" with feature bullet points + "POWER together" collaboration
+ * ↓
+ * [4] Customer Testimonials - "What Our Clients Says" with two client reviews
+ * ↓
+ * [5] Cross-Platform Section - "Efficient scheduling—anywhere, anytime" multi-device info
+ * ↓
+ * [6] Data Security - "100% your data" with security features and HIPAA compliance
+ * ↓
+ * [7] Pricing Plans - "Choose Your Plan" with 3 tiers (Personal Free, Clinic $11.99, Group $49.99)
+ * ↓
+ * [8] Final CTA - "Try POWER today" with download links for all platforms
+ * ↓
+ * [9] Footer - Company info, navigation links, legal information
+ * ↓
+ * BOTTOM OF PAGE
+ * 
+ * KEY INTERACTIVE ELEMENTS:
+ * - Multiple "Try POWER free" buttons throughout the page
+ * - Login button in header (navigates to /login route)
+ * - Pricing plan action buttons
+ * - Platform download links (App Store, Windows, Google Play)
+ * - Footer navigation links
+ */
