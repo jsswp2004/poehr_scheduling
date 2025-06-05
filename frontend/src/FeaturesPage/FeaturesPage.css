@@ -36,10 +36,10 @@
 
 .image-placeholder {
   width: 100%;
-  max-width: 1200px;
-  height: 300px;
-  margin: 40px auto;
-  border-radius: 16px;
+  max-width: 1800px;
+  height: 500px;
+  margin: 0px auto;
+  border-radius: 0px;
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   color: #ffffff;
   display: flex;
