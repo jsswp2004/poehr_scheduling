@@ -364,6 +364,7 @@
 .panel-description {
   text-align: center;
   font-size: 16px;
+  font-weight: 500;
   color: #64748b;
   line-height: 1.6;
   margin-bottom: 32px;

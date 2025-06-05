@@ -124,11 +124,13 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   Advanced features for growing individual practices
                 </div>                
                 <div className="panel-features">
-                  <div className="feature">Simple appointment scheduling for individual providers</div>
-                  <div className="feature">Standard calendar with daily and weekly views</div>
-                  <div className="feature">Basic patient notification system via SMS and email</div>
-                  <div className="feature">Access your schedule on iOS and Android devices</div>
-                  <div className="feature">Essential reporting for appointment analytics</div>
+                  <div className="feature">Simple appointment scheduling for individual providers - Easily schedule and manage appointments for individual healthcare providers using an intuitive, user-friendly interface designed to streamline your daily workflow.</div>
+                  <div className="feature">Standard calendar with daily and weekly views - Stay organized with a standard calendar that offers both daily and weekly views, allowing you to quickly review, add, or update appointments at a glance.
+
+</div>
+                  <div className="feature">Basic patient notification system via SMS and email - Keep patients informed and reduce no-shows with an integrated notification system that automatically sends appointment reminders and updates via SMS and email.</div>
+                  <div className="feature">Access your schedule on iOS and Android devices - Enjoy the convenience of accessing your appointment schedule anytime, anywhere, from any iOS or Android mobile device, ensuring you are always up to date.</div>
+                  <div className="feature">Essential reporting for appointment analytics - Make informed decisions with essential reporting tools that provide clear analytics on appointment trends, patient attendance, and provider utilization.</div>
                   {/*<div className="feature">Appointments with comprehensive patient history tracking to monitor progress over time</div>
                   <div className="feature">Calendar system with customizable color coding, multiple view options, and filtering capabilities</div>
                   <div className="feature">SMS template builder and email communication system with delivery tracking</div>
@@ -154,7 +156,7 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
               <div className="pricing-panel">
                 <div className="panel-header">
                   <div className="panel-badge">Standard</div>
-                  <div className="panel-title">Clinic Standard</div>
+                  <div className="panel-title">Clinic</div>
                   <div className="panel-price">
                     <span className="price-amount">$49.99</span>
                     <span className="price-period">per month</span>
@@ -164,12 +166,16 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   Essential tools for small to medium healthcare clinics
                 </div>
                 <div className="panel-features">
-                  <div className="feature">✓ Up to 10 providers</div>
-                  <div className="feature">✓ Team collaboration tools</div>
-                  <div className="feature">✓ Multi-location support</div>
-                  <div className="feature">✓ Patient management system</div>
-                  <div className="feature">✓ Bulk SMS notifications</div>
-                  <div className="feature">✓ Basic integrations</div>
+                  <div className="feature">Everything in Personal</div>
+                  <div className="feature">Up to 10 providers</div>
+                  <div className="feature">Unlimited appointments</div>
+                  <div className="feature">Advanced calendar features</div>
+                  <div className="feature">Team collaboration tools</div>
+                  <div className="feature">SMS + Email notifications</div>
+                  <div className="feature">Bulk SMS notifications</div>
+                  <div className="feature">Patient management system</div>                  
+                  <div className="feature">Automated reminders</div>
+                  <div className="feature">Advanced reporting & analytics</div>
                 </div>
                 <div className="panel-button">
                   <div className="btn-panel">Start Free Trial</div>
@@ -179,26 +185,33 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
               {/* Clinic Panel 2 - Premium */}
               <div className="pricing-panel featured">
                 <div className="panel-header">
-                  <div className="panel-badge popular">Recommended</div>
-                  <div className="panel-title">Clinic Premium</div>
-                  <div className="panel-price">
-                    <span className="price-amount">$89.99</span>
-                    <span className="price-period">per month</span>
-                  </div>
+                  <div className="panel-title">Features</div>
                 </div>
                 <div className="panel-description">
                   Advanced features for busy clinics with complex needs
                 </div>
                 <div className="panel-features">
-                  <div className="feature">Unlimited providers</div>
-                  <div className="feature">Advanced scheduling rules</div>
-                  <div className="feature">Custom workflows</div>
-                  <div className="feature">Advanced patient portal</div>
-                  <div className="feature">Priority support</div>
-                  <div className="feature">API access & integrations</div>
-                </div>
-                <div className="panel-button">
-                  <div className="btn-panel">Start Free Trial</div>
+                  <div className="feature">Everything in Personal
+                  - Includes all the essential features from the Personal plan, ensuring a strong foundation for your clinic or group practice.</div>
+                  <div className="feature">Up to 10 providers
+                  - Manage scheduling and appointments for up to ten individual healthcare providers within your organization, supporting group practices and clinics of varying sizes.</div>
+                  <div className="feature">Unlimited appointments
+                  - Enjoy the flexibility of booking and managing an unlimited number of appointments without any restrictions, allowing your team to grow without limits.</div>
+                  <div className="feature">Advanced calendar features
+                  - Benefit from enhanced calendar capabilities, including color-coded schedules, recurring appointments, and customizable views to better organize your practice.</div>
+                  <div className="feature">Team collaboration tools
+                  - Improve coordination and efficiency with built-in team collaboration tools, enabling staff members to share notes, assign tasks, and communicate seamlessly within the platform.</div>
+                  <div className="feature">SMS + Email notifications
+                  - Automatically send appointment confirmations, reminders, and updates to patients through both SMS and email, ensuring timely communication and improved attendance.</div>
+                  <div className="feature">Bulk SMS notifications
+                  - Easily send bulk SMS notifications to groups of patients or staff for important announcements, last-minute changes, or promotional messages.</div>
+                  <div className="feature">Patient management system
+                  - Streamline patient care with a comprehensive management system that allows you to store, update, and access essential patient information securely.</div>
+                  <div className="feature">Automated reminders
+                  - Reduce missed appointments and improve patient engagement with automated reminders delivered directly to patients through their preferred communication channels.</div>
+                  <div className="feature">Advanced reporting & analytics
+                  - Leverage advanced reporting and analytics tools to gain deeper insights into appointment trends, patient flow, and staff performance, supporting data-driven decision making.</div>
+
                 </div>
               </div>
             </div>
@@ -213,9 +226,9 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
               <div className="pricing-panel">
                 <div className="panel-header">
                   <div className="panel-badge">Enterprise</div>
-                  <div className="panel-title">Group Enterprise</div>
+                  <div className="panel-title">Group</div>
                   <div className="panel-price">
-                    <span className="price-amount">$199.99</span>
+                    <span className="price-amount">$129.99</span>
                     <span className="price-period">per month</span>
                   </div>
                 </div>
@@ -228,7 +241,6 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                  <div className="feature">Advanced analytics</div>
                  <div className="feature">Priority support</div>
                  <div className="feature">Custom integrations</div>
-                  <div className="feature">Unlimited everything</div>
                   <div className="feature">Multi-organization support</div>
                   <div className="feature">Advanced analytics & reporting</div>
                   <div className="feature">Custom branding</div>
@@ -249,27 +261,47 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
               {/* Group Panel 2 - Custom */}
               <div className="pricing-panel featured">
                 <div className="panel-header">
-                  <div className="panel-badge popular">Custom</div>
-                  <div className="panel-title">Group Custom</div>
-                  <div className="panel-price">
-                    <span className="price-amount">Custom</span>
-                    <span className="price-period">pricing</span>
-                  </div>
+                  <div className="panel-title">Features</div>
                 </div>
                 <div className="panel-description">
                   Tailored solutions for unique organizational requirements
                 </div>
                 <div className="panel-features">
-                  <div className="feature">✓ Custom feature development</div>
-                  <div className="feature">✓ White-label solutions</div>
-                  <div className="feature">✓ Custom integrations</div>
-                  <div className="feature">✓ Dedicated account manager</div>
-                  <div className="feature">✓ SLA guarantees</div>
-                  <div className="feature">✓ Professional services</div>
+                  <div className="feature">Everything in Clinic
+                  - Access all the robust features included in the Clinic plan, providing a comprehensive solution to manage your organization’s scheduling and communications at scale.</div>
+                  <div className="feature">Unlimited users
+                  - Add and manage an unlimited number of users, making it easy for large teams and growing organizations to collaborate without limitations.</div>
+                  <div className="feature">Advanced analytics
+                  - Utilize powerful analytics tools to track key performance metrics, monitor appointment trends, and optimize operational efficiency across your organization.</div>
+                  <div className="feature">Priority support
+                  - Receive expedited, high-priority support from our expert team, ensuring your issues are addressed promptly and your operations remain uninterrupted.</div>
+                  <div className="feature">Custom integrations
+                  - Integrate seamlessly with your existing systems and third-party applications through customized integrations tailored to your specific needs.</div>
+                  <div className="feature">Multi-organization support
+                  - Manage multiple organizations or locations from a single platform, enabling centralized oversight and flexible configuration for complex healthcare networks.</div>
+                  <div className="feature">Advanced analytics & reporting
+                  - Access comprehensive analytics and detailed reporting features to gain actionable insights and support data-driven decision making at every level of your organization.</div>
+                  <div className="feature">Custom branding
+                  - Customize the look and feel of your application with your own logos, color schemes, and branding elements to deliver a cohesive experience for your staff and patients.</div>
+                  <div className="feature">24/7 dedicated support
+                  - Benefit from around-the-clock dedicated support, ensuring assistance is always available whenever you need it, day or night.</div>
+                  <div className="feature">On-premise deployment option
+                  - Choose to deploy the application on your own servers or infrastructure for enhanced control, security, and compliance with organizational requirements.</div>
+                  <div className="feature">Custom feature development
+                  - Request bespoke feature development to address unique workflows or specialized needs within your organization, ensuring the platform evolves with you.</div>
+                  <div className="feature">White-label solutions
+                  - Offer the platform under your own brand with a complete white-label solution, providing your clients or partners with a seamless, branded experience.</div>
+                  <div className="feature">Custom integrations
+                  - Connect your system to other critical applications through tailor-made integrations designed to fit your operational ecosystem.</div>
+                  <div className="feature">Dedicated account manager
+                  - Work with a dedicated account manager who understands your organization’s goals, provides personalized assistance, and helps you maximize the value of your solution.</div>
+                  <div className="feature">SLA guarantees
+                  - Rely on service level agreement (SLA) guarantees that provide assurance of platform uptime, performance, and rapid issue resolution.</div>
+                  <div className="feature">Professional services
+                  - Access professional services including onboarding, training, technical consulting, and ongoing optimization to ensure your organization’s success with the platform.</div>
+
                 </div>
-                <div className="panel-button">
-                  <div className="btn-panel">Get Quote</div>
-                </div>
+
               </div>
             </div>
           </div>

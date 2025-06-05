@@ -367,10 +367,13 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </div>
             <div className="plan-features">
                   <div className="feature">Everything in Personal</div>
+                  <div className="feature">Up to 10 providers</div>
                   <div className="feature">Unlimited appointments</div>
                   <div className="feature">Advanced calendar features</div>
+                  <div className="feature">Team collaboration tools</div>
                   <div className="feature">SMS + Email notifications</div>
-                  <div className="feature">Patient management</div>
+                  <div className="feature">Bulk SMS notifications</div>
+                  <div className="feature">Patient management system</div>                  
                   <div className="feature">Automated reminders</div>
                   <div className="feature">Advanced reporting & analytics</div>
             </div>
@@ -396,8 +399,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
                  <div className="feature">Unlimited users</div>
                  <div className="feature">Advanced analytics</div>
                  <div className="feature">Priority support</div>
- 
-
+                 <div className="feature">Custom integrations</div>
                   <div className="feature">Multi-organization support</div>
                   <div className="feature">Advanced analytics & reporting</div>
                   <div className="feature">Custom branding</div>
@@ -405,10 +407,10 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
                   <div className="feature">On-premise deployment option</div>
                   <div className="feature">Custom feature development</div>
                   <div className="feature">White-label solutions</div>
-                  
+                  <div className="feature">Custom integrations</div>
                   <div className="feature">Dedicated account manager</div>
                   <div className="feature">SLA guarantees</div>
-                  <div className="feature">Professional services</div>  
+                  <div className="feature">Professional services</div> 
             </div>
             <div className="plan-button">
               <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Contact Sales</div>
