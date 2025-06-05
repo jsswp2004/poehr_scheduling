@@ -255,6 +255,9 @@ def search_users(request):
     return Response(serializer.data)
 
 class UserViewSet(viewsets.ModelViewSet):
+    """ViewSet for managing users."""
+    queryset = CustomUser.objects.all()
+    serializer_class = UserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = [
         'first_name',
