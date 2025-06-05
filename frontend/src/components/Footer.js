@@ -1,6 +1,7 @@
 import POWERLogo from '../assets/POWER_IT.png';
+import { Link } from 'react-router-dom';
 
-export const Footer = ({ pricingLink = "#pricing", featuresLink = "#features" }) => {
+export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" }) => {
   return (
     <div className="footer-section">
       <div className="footer-container">
@@ -21,9 +22,9 @@ export const Footer = ({ pricingLink = "#pricing", featuresLink = "#features" })
           <div className="footer-column">
             <div className="footer-column-title">Product</div>
             <div className="footer-links">
-              <a href="#overview" className="footer-link">Overview</a>
-              <a href={pricingLink} className="footer-link">Pricing</a>
-              <a href={featuresLink} className="footer-link">Features</a>
+              <Link to="/overview" className="footer-link">Overview</Link>
+              <Link to={pricingLink} className="footer-link">Pricing</Link>
+              <Link to={featuresLink} className="footer-link">Features</Link>
             </div>
           </div>
 
