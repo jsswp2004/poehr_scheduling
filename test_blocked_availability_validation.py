@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 Test script to verify blocked availability validation is working correctly.
-This script tests both frontend and backend validation for appointment creation
-during blocked time slots.
+This script verifies **backend** validation only for appointment creation during
+blocked time slots.
 """
 
 import os
