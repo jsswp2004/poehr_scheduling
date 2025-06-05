@@ -107,6 +107,7 @@
   gap: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
+  padding: 8px 0; /* Added to match Header.css */
 }
 
 .solutions, .resources2, .pricing2 {
@@ -125,6 +126,7 @@
   width: 16px;
   height: 16px;
   transition: transform 0.3s ease;
+  filter: brightness(0) invert(1); /* Make arrows white */
 }
 
 .solutios:hover .down-arrow2,
@@ -146,6 +148,7 @@
   z-index: 1001;
   animation: slideIn 0.3s ease;
   border: 1px solid rgba(226, 232, 240, 0.8);
+  margin-top: 8px; /* Added to match Header.css */
 }
 
 .dropdown-item {
@@ -157,6 +160,7 @@
   transition: all 0.2s ease;
   font-size: 14px;
   font-weight: 500;
+  cursor: pointer; /* Added to match Header.css */
 }
 
 .dropdown-item:hover {
@@ -892,10 +896,21 @@
    UTILITY CLASSES
    ================================================================= */
 .highlight-yellow {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  position: relative;
+  z-index: 1;
+  color: inherit; /* Use the parent's color (black by default) */
+}
+
+.highlight-yellow::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  left: -4px;
+  right: -4px;
+  height: 12px;
+  background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+  z-index: -1;
+  border-radius: 2px;
 }
 
 .text-gradient-blue {
