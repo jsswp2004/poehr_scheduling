@@ -1,44 +1,50 @@
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Typography } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import OverviewImage from '../assets/dashboard_overview.png'; // Placeholder for the overview image
+import '../OverviewPage/OverviewPage.css';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import OverviewImage from '../assets/dashboard_overview.png'; // Or use dashboard_features2.png if you prefer
 
-export const OverviewPage = () => {
-  const navigate = useNavigate();
-
-  const handleClose = () => {
-    navigate(-1); // go back to previous page
-  };
-
+export const OverviewPage = ({ className }) => {
   return (
-    <Dialog open onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>Application Overview</DialogTitle>
-      <DialogContent dividers>
-        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
-          {/* Image placeholder */}
-          <div style={{ width: '100%', height: '200px', background: '#ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px' }}>
-            <Typography variant="subtitle1">        
-              <img 
-                src={OverviewImage} 
-                alt="Features Overview" 
-                className="features-image"
-                style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'contain',
-                      borderRadius: '0px',
-                      padding: '0px'
-                    }} />
-            </Typography>
-          </div>
+    <div className={`overview-page ${className || ''}`}>
+      <Header />
+
+      <div className="page-title-section">
+        <h1 className="page-title">Application Overview</h1>
+        <p className="page-subtitle">Learn how POWER simplifies clinic scheduling.</p>
+      </div>
+
+      <div className="image-placeholder" style={{
+        width: '100%',
+        maxWidth: 900,
+        margin: '0 auto 2rem auto',
+        borderRadius: 8,
+        overflow: 'hidden',
+        boxShadow: '0 2px 16px rgba(0,0,0,0.06)'
+      }}>
+        <img
+          src={OverviewImage}
+          alt="Application Overview"
+          className="overview-image"
+          style={{
+            width: '100%',
+            height: '320px',
+            objectFit: 'cover',
+            borderRadius: '0px',
+            padding: '0px'
+          }}
+        />
+      </div>
+
+      <div className="features-section" style={{ maxWidth: 800, margin: '0 auto 3rem auto' }}>
+        <div className="feature-panel">
+          <p className="overview-text" style={{ fontSize: '1.15rem', lineHeight: 1.6 }}>
+            <b>POWER Scheduler</b> is a healthcare scheduling system built with a Django backend and React frontend. Clinics and providers can upload events, holidays, staff lists, and provider lists directly from the app, manage availability and block times, and send automated text and email reminders. Notifications keep both organization and system administrators informed whenever patients register or appointments are created, ensuring seamless collaboration across the team. Patients can also request visits from the portal.
+          </p>
         </div>
-        <Typography variant="body1" paragraph>
-          POWER Scheduler is a healthcare scheduling system built with a Django backend and React frontend. Clinics can upload events, holidays, staff lists and provider lists directly from the app, manage availability and block times, and send automated text and email reminders. Notifications keep both organization and system administrators informed whenever patients register or appointments are created, ensuring seamless collaboration across the team.
-        </Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} variant="contained">Close</Button>
-      </DialogActions>
-    </Dialog>
+      </div>
+
+      <Footer pricingLink="/pricing" featuresLink="/features" />
+    </div>
   );
 };
 
