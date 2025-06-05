@@ -463,7 +463,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             4. Company links (About, Careers, Media Kit, Contact)
           - Footer bottom bar with copyright and legal links
           ================================================================= */}
-      <Footer pricingLink="#pricing" />
+      <Footer pricingLink="/pricing" featuresLink="/features" />
     </div>
   );
 };

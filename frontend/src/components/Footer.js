@@ -1,6 +1,6 @@
 import POWERLogo from '../assets/POWER_IT.png';
 
-export const Footer = ({ pricingLink = "#pricing" }) => {
+export const Footer = ({ pricingLink = "#pricing", featuresLink = "#features" }) => {
   return (
     <div className="footer-section">
       <div className="footer-container">
@@ -23,7 +23,7 @@ export const Footer = ({ pricingLink = "#pricing" }) => {
             <div className="footer-links">
               <a href="#overview" className="footer-link">Overview</a>
               <a href={pricingLink} className="footer-link">Pricing</a>
-              <a href="#features" className="footer-link">Features</a>
+              <a href={featuresLink} className="footer-link">Features</a>
             </div>
           </div>
 
