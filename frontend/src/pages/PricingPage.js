@@ -282,7 +282,7 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
           - Navigation links in columns
           - Footer bottom bar with copyright and legal links
           ================================================================= */}
-      <Footer pricingLink="/pricing" />
+      <Footer pricingLink="/pricing" featuresLink="/features" />
     </div>
   );
 };
