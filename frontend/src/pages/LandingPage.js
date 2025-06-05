@@ -26,7 +26,7 @@ import { useNavigate } from 'react-router-dom';
 import DashboardImage from '../assets/dashboard_clinician.png'; // Dashboard clinician image
 import DashboardSchedulingImage from '../assets/dashboard_scheduling.png'; // Dashboard scheduling image
 import DashboardTogetherImage from '../assets/dashboard_together.png'; // Dashboard together image
-import DashboardQouteImage from '../assets/dashboard_qoutes.png'; // Dashboard quote image
+import DashboardQouteImage from '../assets/dashboard_quotes.png'; // Dashboard quote image
 import POWERLogo from '../assets/POWER_IT.png'; // Company logo for footer
 
 // Main landing page component for POWER IT healthcare scheduling software
