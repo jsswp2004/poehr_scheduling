@@ -21,10 +21,11 @@ import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
 import AdminUserSearchPage from './pages/AdminUserSearchPage';
 import EditAppointmentPage from './pages/EditAppointmentPage';
 import AppointmentsPage from './pages/AppointmentsPage';
+import PricingPage from './pages/PricingPage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing'].includes(location.pathname);
 
   // Add or remove body class based on whether navbar should be shown
   useEffect(() => {
@@ -34,10 +35,9 @@ function AppContent() {
       document.body.classList.remove('with-navbar');
     }
   }, [showNavbar]);
-
   useEffect(() => {
     const body = document.body;
-    if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password') {
+    if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/pricing') {
       body.classList.add('bg-gray-100');
     } else {
       body.classList.remove('bg-gray-100');
@@ -47,9 +47,9 @@ function AppContent() {
   return (
     <>
       {showNavbar && <Navbar />}
-      <ToastContainer position="top-center" />
-      <Routes>
+      <ToastContainer position="top-center" />      <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
