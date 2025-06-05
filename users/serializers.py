@@ -81,7 +81,10 @@ class UserSerializer(serializers.ModelSerializer):
         # Frontend will send 'patient' when isPatient is True.
         # If not present (non-patient), leave role blank or None
         role = validated_data.get('role')  # may be 'patient', '', or None
-        role = role if role else 'none'  # empty string should become 'none'
+
+        # Use the 'none' choice for blank roles to avoid invalid value
+        role = role if role else 'none'
+
         user = CustomUser.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
