@@ -41,7 +41,12 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
   
   return (
     <div className={"landing-page-v-1-desktop-1920-px " + className}>
-      
+      {/* ===================================================================
+          SECTION 2: NAVIGATION HEADER - BELOW HERO
+          - Reusable Header component with logo, navigation, and buttons
+          ================================================================= 
+      <Header />*/}
+      <Header />
       {/* ===================================================================
           SECTION 1: HERO SECTION - TOP OF PAGE
           - Main value proposition headline
@@ -81,11 +86,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             }}
           />
         </div>
-      </div>      {/* ===================================================================
-          SECTION 2: NAVIGATION HEADER - BELOW HERO
-          - Reusable Header component with logo, navigation, and buttons
-          ================================================================= */}
-      <Header />
+      </div>      
+
 
       {/* ===================================================================
           SECTION 3: PRODUCT FEATURES - MAIN CONTENT AREA
@@ -342,13 +344,14 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               For individuals getting started with healthcare scheduling
             </div>
             <div className="plan-features">
-              <div className="feature">✓ Basic scheduling</div>
-              <div className="feature">✓ Personal calendar</div>
-              <div className="feature">✓ Email notifications</div>
-              <div className="feature">✓ Mobile access</div>
+                  <div className="feature">Basic scheduling</div>
+                  <div className="feature">Basic calendar view</div>
+                  <div className="feature">Email notifications</div>
+                  <div className="feature">Mobile app access</div>
+                  <div className="feature">Basic reporting</div>
             </div>
             <div className="plan-button">
-              <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Get Started</div>
+              <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Start Free Trial</div>
             </div>
           </div>          {/* Clinic Plan - Most Popular */}
           <div className="pricing-card popular">
@@ -360,14 +363,16 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               </div>
             </div>
             <div className="plan-description">
-              Keep home and family on track
+              Keep your Clinic on track
             </div>
             <div className="plan-features">
-              <div className="feature">✓ Everything in Personal</div>
-              <div className="feature">✓ Team collaboration</div>
-              <div className="feature">✓ Patient management</div>
-              <div className="feature">✓ SMS notifications</div>
-              <div className="feature">✓ Advanced scheduling</div>
+                  <div className="feature">Everything in Personal</div>
+                  <div className="feature">Unlimited appointments</div>
+                  <div className="feature">Advanced calendar features</div>
+                  <div className="feature">SMS + Email notifications</div>
+                  <div className="feature">Patient management</div>
+                  <div className="feature">Automated reminders</div>
+                  <div className="feature">Advanced reporting & analytics</div>
             </div>
             <div className="plan-button">
               <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Start Free Trial</div>
@@ -387,11 +392,23 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               For larger teams
             </div>
             <div className="plan-features">
-              <div className="feature">✓ Everything in Clinic</div>
-              <div className="feature">✓ Unlimited users</div>
-              <div className="feature">✓ Advanced analytics</div>
-              <div className="feature">✓ Priority support</div>
-              <div className="feature">✓ Custom integrations</div>
+                 <div className="feature">Everything in Clinic</div>
+                 <div className="feature">Unlimited users</div>
+                 <div className="feature">Advanced analytics</div>
+                 <div className="feature">Priority support</div>
+ 
+
+                  <div className="feature">Multi-organization support</div>
+                  <div className="feature">Advanced analytics & reporting</div>
+                  <div className="feature">Custom branding</div>
+                  <div className="feature">24/7 dedicated support</div>
+                  <div className="feature">On-premise deployment option</div>
+                  <div className="feature">Custom feature development</div>
+                  <div className="feature">White-label solutions</div>
+                  
+                  <div className="feature">Dedicated account manager</div>
+                  <div className="feature">SLA guarantees</div>
+                  <div className="feature">Professional services</div>  
             </div>
             <div className="plan-button">
               <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Contact Sales</div>

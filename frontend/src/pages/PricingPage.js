@@ -88,19 +88,21 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   <div className="panel-badge">Starter</div>
                   <div className="panel-title">Personal Basic</div>
                   <div className="panel-price">
-                    <span className="price-amount">Free</span>
-                    <span className="price-period">Forever</span>
+                    <span className="price-amount">$15</span>
+
                   </div>
                 </div>
                 <div className="panel-description">
                   Perfect for individual healthcare providers just getting started
-                </div>
-                <div className="panel-features">
-                  <div className="feature">✓ Up to 5 appointments per month</div>
-                  <div className="feature">✓ Basic calendar view</div>
-                  <div className="feature">✓ Email notifications</div>
-                  <div className="feature">✓ Mobile app access</div>
-                  <div className="feature">✓ Basic reporting</div>
+                </div>                <div className="panel-features">
+
+                  <div className="feature">Basic scheduling with up to 50 appointments</div>
+                  
+                  <div className="feature">Basic calendar view with daily/weekly views</div>
+                  <div className="feature">SMS + Email appointment notifications</div>
+                  <div className="feature">Mobile app access for on-the-go management</div>
+                  <div className="feature">Basic reporting on appointment statistics</div>
+
                 </div>
                 <div className="panel-button">
                   <div className="btn-panel">Get Started Free</div>
@@ -110,27 +112,35 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
               {/* Personal Panel 2 - Pro */}
               <div className="pricing-panel featured">
                 <div className="panel-header">
-                  <div className="panel-badge popular">Most Popular</div>
+                <div className="panel-title">Features</div>
+                  {/*<div className="panel-badge popular">Most Popular</div>
                   <div className="panel-title">Personal Pro</div>
                   <div className="panel-price">
                     <span className="price-amount">$15</span>
                     <span className="price-period">per month</span>
-                  </div>
+                  </div>*/}
                 </div>
                 <div className="panel-description">
                   Advanced features for growing individual practices
-                </div>
+                </div>                
                 <div className="panel-features">
-                  <div className="feature">✓ Unlimited appointments</div>
-                  <div className="feature">✓ Advanced calendar features</div>
-                  <div className="feature">✓ SMS + Email notifications</div>
-                  <div className="feature">✓ Patient management</div>
-                  <div className="feature">✓ Automated reminders</div>
-                  <div className="feature">✓ Advanced reporting & analytics</div>
+                  <div className="feature">Simple appointment scheduling for individual providers</div>
+                  <div className="feature">Standard calendar with daily and weekly views</div>
+                  <div className="feature">Basic patient notification system via SMS and email</div>
+                  <div className="feature">Access your schedule on iOS and Android devices</div>
+                  <div className="feature">Essential reporting for appointment analytics</div>
+                  {/*<div className="feature">Appointments with comprehensive patient history tracking to monitor progress over time</div>
+                  <div className="feature">Calendar system with customizable color coding, multiple view options, and filtering capabilities</div>
+                  <div className="feature">SMS template builder and email communication system with delivery tracking</div>
+                  <div className="feature">Full patient records management including medical history, documents, and custom fields</div>
+                  <div className="feature">Intelligent reminder system with automated patient confirmation and follow-up sequences</div>
+                  <div className="feature">Comprehensive analytics dashboard with custom reporting and exportable data insights</div>
+                  <div className="feature">Fully branded appointment scheduling page with your practice's logo and color scheme</div>
+                  <div className="feature">Integration capabilities with EHR systems and third-party healthcare applications</div>*/}
                 </div>
-                <div className="panel-button">
+                {/*<div className="panel-button">
                   <div className="btn-panel">Start Free Trial</div>
-                </div>
+                </div>*/}
               </div>
             </div>
           </div>
@@ -180,12 +190,12 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   Advanced features for busy clinics with complex needs
                 </div>
                 <div className="panel-features">
-                  <div className="feature">✓ Unlimited providers</div>
-                  <div className="feature">✓ Advanced scheduling rules</div>
-                  <div className="feature">✓ Custom workflows</div>
-                  <div className="feature">✓ Advanced patient portal</div>
-                  <div className="feature">✓ Priority support</div>
-                  <div className="feature">✓ API access & integrations</div>
+                  <div className="feature">Unlimited providers</div>
+                  <div className="feature">Advanced scheduling rules</div>
+                  <div className="feature">Custom workflows</div>
+                  <div className="feature">Advanced patient portal</div>
+                  <div className="feature">Priority support</div>
+                  <div className="feature">API access & integrations</div>
                 </div>
                 <div className="panel-button">
                   <div className="btn-panel">Start Free Trial</div>
@@ -213,12 +223,23 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   Comprehensive solution for large healthcare organizations
                 </div>
                 <div className="panel-features">
-                  <div className="feature">✓ Unlimited everything</div>
-                  <div className="feature">✓ Multi-organization support</div>
-                  <div className="feature">✓ Advanced analytics & reporting</div>
-                  <div className="feature">✓ Custom branding</div>
-                  <div className="feature">✓ 24/7 dedicated support</div>
-                  <div className="feature">✓ On-premise deployment option</div>
+                 <div className="feature">Everything in Clinic</div>
+                 <div className="feature">Unlimited users</div>
+                 <div className="feature">Advanced analytics</div>
+                 <div className="feature">Priority support</div>
+                 <div className="feature">Custom integrations</div>
+                  <div className="feature">Unlimited everything</div>
+                  <div className="feature">Multi-organization support</div>
+                  <div className="feature">Advanced analytics & reporting</div>
+                  <div className="feature">Custom branding</div>
+                  <div className="feature">24/7 dedicated support</div>
+                  <div className="feature">On-premise deployment option</div>
+                  <div className="feature">Custom feature development</div>
+                  <div className="feature">White-label solutions</div>
+                  <div className="feature">Custom integrations</div>
+                  <div className="feature">Dedicated account manager</div>
+                  <div className="feature">SLA guarantees</div>
+                  <div className="feature">Professional services</div>                  
                 </div>
                 <div className="panel-button">
                   <div className="btn-panel">Contact Sales</div>
