@@ -17,61 +17,28 @@
 
 // Import styles for the landing page component
 import '../LandingPageV1Desktop1920Px/LandingPageV1Desktop1920Px.css';
-// Import React Router navigation hook
+// Import reusable Header component
+import Header from '../components/Header';
+// Import useNavigate for page navigation
 import { useNavigate } from 'react-router-dom';
-// Import React hooks for state management
-import { useState, useEffect } from 'react';
 
-// Asset imports
-import POWERLogo from '../assets/POWER_IT.png'; // Company logo image
+// Asset imports for page content (logo moved to header component)
 import DashboardImage from '../assets/dashboard_clinician.png'; // Dashboard clinician image
 import DashboardSchedulingImage from '../assets/dashboard_scheduling.png'; // Dashboard scheduling image
 import DashboardTogetherImage from '../assets/dashboard_together.png'; // Dashboard together image
 import DashboardQouteImage from '../assets/dashboard_qoutes.png'; // Dashboard quote image
-import DownArrow from '../assets/images/down-arrow0.svg'; // White dropdown arrow for navigation
+import POWERLogo from '../assets/POWER_IT.png'; // Company logo for footer
 
 // Main landing page component for POWER IT healthcare scheduling software
 export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
-  // Initialize navigation hook for routing to other pages
-  const navigate = useNavigate();  // State for dropdown menu visibility
-  const [showResourcesDropdown, setShowResourcesDropdown] = useState(false);
-  const [showSolutionsDropdown, setShowSolutionsDropdown] = useState(false);
-  const [showPricingDropdown, setShowPricingDropdown] = useState(false);
-
-  // Handler function to navigate to login page
-  const handleLoginClick = () => {
-    navigate('/login');
+  // Initialize navigation hook
+  const navigate = useNavigate();
+  
+  // Handler for pricing page navigation
+  const handlePricingClick = () => {
+    navigate('/pricing');
   };
-
-  // Handler function to toggle Resources dropdown
-  const toggleResourcesDropdown = () => {
-    setShowResourcesDropdown(!showResourcesDropdown);
-  };
-
-  // Handler function to toggle Solutions dropdown
-  const toggleSolutionsDropdown = () => {
-    setShowSolutionsDropdown(!showSolutionsDropdown);
-  };
-
-  // Handler function to toggle Pricing dropdown
-  const togglePricingDropdown = () => {
-    setShowPricingDropdown(!showPricingDropdown);
-  };  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showResourcesDropdown && !event.target.closest('.resources')) {
-        setShowResourcesDropdown(false);
-      }
-      if (showSolutionsDropdown && !event.target.closest('.solutios')) {
-        setShowSolutionsDropdown(false);
-      }
-      if (showPricingDropdown && !event.target.closest('.pricing')) {
-        setShowPricingDropdown(false);
-      }
-    };
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [showResourcesDropdown, showSolutionsDropdown, showPricingDropdown]);
+  
   return (
     <div className={"landing-page-v-1-desktop-1920-px " + className}>
       
@@ -96,7 +63,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             </div>
           </div>
           {/* Primary call-to-action button */}
-          <div className="btn-free-trial">
+          <div className="btn-free-trial" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
             <div className="try-power-free">Try POWER free</div>
           </div>
         </div>        {/* Hero image placeholder */}
@@ -114,72 +81,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             }}
           />
         </div>
-      </div>
-
-      {/* ===================================================================
+      </div>      {/* ===================================================================
           SECTION 2: NAVIGATION HEADER - BELOW HERO
-          - Company logo and branding
-          - Main navigation menu (Products, Solutions, Resources, Pricing)
-          - Login and "Try POWER for free" buttons
+          - Reusable Header component with logo, navigation, and buttons
           ================================================================= */}
-      <div className="header">
-        {/* Company logo and branding */}
-        <div className="logo">
-          <img className="power-logo-2-1" src={POWERLogo} alt="POWER IT Systems Logo" />
-          <div className="power-it-systems" style={{ whiteSpace: 'nowrap' }}>POWER IT SYSTEMS</div>
-        </div>
-        <div className="frame-375">          {/* Main navigation menu with dropdown arrows */}
-          <div className="nav-menu">            {/* Solutions dropdown menu */}
-            <div className="solutios">
-              <div className="solutions" onClick={toggleSolutionsDropdown} style={{ cursor: 'pointer' }}>
-                Solutions
-              </div>
-              <img className="down-arrow2" src={DownArrow} alt="dropdown arrow" />
-              {showSolutionsDropdown && (
-                <div className="dropdown-menu">
-                  <a href="/login" className="dropdown-item">Scheduler</a>
-                </div>
-              )}
-            </div>{/* Resources dropdown menu */}
-            <div className="resources">
-              <div className="resources2" onClick={toggleResourcesDropdown} style={{ cursor: 'pointer' }}>
-                Resources
-              </div>
-              <img className="down-arrow3" src={DownArrow} alt="dropdown arrow" />
-              {showResourcesDropdown && (
-                <div className="dropdown-menu">
-                  {/*<a href="#blog" className="dropdown-item">Blog</a>*/}
-                  <a href="#guides" className="dropdown-item">Guides & Tutorials</a>
-                  <a href="#help" className="dropdown-item">Help Center</a>
-                  <a href="#support" className="dropdown-item">Support</a>
-                </div>
-              )}
-            </div>            {/* Pricing dropdown menu */}
-            <div className="pricing">
-              <div className="pricing2" onClick={togglePricingDropdown} style={{ cursor: 'pointer' }}>
-                Pricing
-              </div>
-              <img className="down-arrow4" src={DownArrow} alt="dropdown arrow" />
-              {showPricingDropdown && (
-                <div className="dropdown-menu">
-                  <a href="#personal" className="dropdown-item">Personal</a>
-                  <a href="#clinic" className="dropdown-item">Clinic</a>
-                  <a href="#group" className="dropdown-item">Group</a>
-                </div>
-              )}
-            </div>
-           
-          </div>
-          {/* Login and trial buttons */}
-            <div className="btn">
-              <div className="btn-login" onClick={handleLoginClick} style={{ cursor: 'pointer' }}>
-                <div className="login">Login</div>
-              </div>
-              <div className="btn-free-trial2">
-                <div className="try-power-for-free">Try POWER for free</div>
-              </div>
-            </div>        </div>
-      </div>
+      <Header />
 
       {/* ===================================================================
           SECTION 3: PRODUCT FEATURES - MAIN CONTENT AREA
@@ -207,12 +113,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
                     <li>Keep all essential clinic information and communication in one secure, user-friendly platform.</li>
                   </ul>
                 </span>
-              </div>
-            </div>
-            <div className="btn-get-started3">
+              </div>            </div>
+            <div className="btn-get-started3" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
               <div className="get-started3">Get Started</div>
             </div>
-          </div>          {/* Feature image placeholder */}
+          </div>{/* Feature image placeholder */}
           <div className="work-together-image">
           <img 
             src={DashboardSchedulingImage} 
@@ -259,12 +164,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
                 your team for real-time collaboration. Collaborate important
                 information or announcements and share links with staff or
                 providers as needed.
-              </div>
-            </div>
-            <div className="btn-get-started3">
+              </div>            </div>
+            <div className="btn-get-started3" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
               <div className="try-it-now">Try it now</div>
             </div>
-          </div>        </div>
+          </div></div>
       </div>
 
       {/* ===================================================================
@@ -367,7 +271,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               Available on Windows, macOS, Android, and iOS.
             </p>
             <div className="efficient-scheduling-cta">
-              <div className="btn-try-power">
+              <div className="btn-try-power" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
                 <div className="try-power-text">Try POWER</div>
               </div>
             </div>
@@ -394,7 +298,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               professionals worldwide.
             </p>
             <div className="data-security-cta">
-              <div className="btn-read-more">
+              <div className="btn-read-more" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
                 <div className="read-more-text">Read more</div>
               </div>
             </div>
@@ -444,7 +348,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">✓ Mobile access</div>
             </div>
             <div className="plan-button">
-              <div className="btn-plan">Get Started</div>
+              <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Get Started</div>
             </div>
           </div>          {/* Clinic Plan - Most Popular */}
           <div className="pricing-card popular">
@@ -466,7 +370,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">✓ Advanced scheduling</div>
             </div>
             <div className="plan-button">
-              <div className="btn-plan">Start Free Trial</div>
+              <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Start Free Trial</div>
             </div>
           </div>
 
@@ -490,7 +394,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">✓ Custom integrations</div>
             </div>
             <div className="plan-button">
-              <div className="btn-plan">Contact Sales</div>
+              <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Contact Sales</div>
             </div>
           </div>        </div>
       </div>
@@ -510,11 +414,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="get-started-for-free-add-your-whole-team-as-your-needs-grow2">
               Get started for free.<br />
               Add your whole team as your needs grow.
-            </div>
-          </div>          <div className="btn-try2">
+            </div>          </div>          
+          <div className="btn-try2" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
             <div className="try-power-free2">Try POWER free</div>
           </div>
-          <div className="on-a-big-team-contact-sales">
+          <div className="on-a-big-team-contact-sales" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
             On a big team? Contact sales
           </div>          {/* Platform download icons */}
           <div className="app-icon">
