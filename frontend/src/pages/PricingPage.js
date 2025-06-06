@@ -14,6 +14,7 @@
 import '../PricingPage/PricingPage.css';
 // Import React hooks for state management
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 // Import reusable Header component
 import Header from '../components/Header';
 // Import logo for footer
@@ -105,7 +106,7 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
 
                 </div>
                 <div className="panel-button">
-                  <div className="btn-panel">Get Started Free</div>
+                  <Link to="/enroll" className="btn-panel">Get Started Free</Link>
                 </div>
               </div>
 
@@ -178,7 +179,7 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   <div className="feature">Advanced reporting & analytics</div>
                 </div>
                 <div className="panel-button">
-                  <div className="btn-panel">Start Free Trial</div>
+                  <Link to="/enroll" className="btn-panel">Start Free Trial</Link>
                 </div>
               </div>
 
