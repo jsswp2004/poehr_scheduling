@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import {
-  Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert, Table, TableHead, TableRow, TableCell, TableBody, Checkbox, CircularProgress, TableContainer, Divider
+  Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Dialog, DialogTitle,
+  DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
+  Alert, Table, TableHead, TableRow, TableCell, TableBody, Checkbox,
+  CircularProgress, TableContainer, Divider
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faPlus, faTrash, faEdit, faXmark, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 function HolidaysTab() {
   const navigate = useNavigate();
@@ -30,7 +32,6 @@ function HolidaysTab() {
     is_recognized: true,
   });
 
-  // Role-based access control for admin, system_admin, and registrar only
   useEffect(() => {
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -84,10 +85,10 @@ function HolidaysTab() {
         holidayList.map(h =>
           buffered[h.id] !== h.is_recognized
             ? axios.patch(
-                `http://127.0.0.1:8000/api/holidays/${h.id}/`,
-                { is_recognized: buffered[h.id] },
-                { headers: { Authorization: `Bearer ${token}` } }
-              )
+              `http://127.0.0.1:8000/api/holidays/${h.id}/`,
+              { is_recognized: buffered[h.id] },
+              { headers: { Authorization: `Bearer ${token}` } }
+            )
             : null
         )
       );
@@ -108,15 +109,13 @@ function HolidaysTab() {
     const performDelete = async () => {
       try {
         const token = localStorage.getItem('access_token');
-        // Instead of DELETE, PATCH suppressed=true
         const res = await axios.patch(`http://127.0.0.1:8000/api/holidays/${id}/`, {
           suppressed: true
         }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        console.log('Suppress response:', res);
         setStatus('Deleted!');
-        await loadHolidays(); // Only reload after successful delete
+        await loadHolidays();
       } catch (e) {
         setStatus('Failed to delete.');
         console.error(e.response?.data || e.message);
@@ -184,29 +183,20 @@ function HolidaysTab() {
     setStatus('');
     try {
       const token = localStorage.getItem('access_token');
+      const payload = {
+        name: holidayFormData.name,
+        date: holidayFormData.date,
+        is_recognized: holidayFormData.is_recognized,
+      };
       if (editingHoliday) {
-        // Update existing holiday
-        await axios.patch(
-          `http://127.0.0.1:8000/api/holidays/${editingHoliday.id}/`,
-          {
-            name: holidayFormData.name,
-            date: holidayFormData.date,
-            is_recognized: holidayFormData.is_recognized,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await axios.patch(`http://127.0.0.1:8000/api/holidays/${editingHoliday.id}/`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setStatus('Holiday updated!');
       } else {
-        // Add new holiday
-        await axios.post(
-          `http://127.0.0.1:8000/api/holidays/`,
-          {
-            name: holidayFormData.name,
-            date: holidayFormData.date,
-            is_recognized: holidayFormData.is_recognized,
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        await axios.post(`http://127.0.0.1:8000/api/holidays/`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         setStatus('Holiday added!');
       }
       handleCloseHolidayDialog();
@@ -226,11 +216,8 @@ function HolidaysTab() {
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f6fa', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', pt: 6 }}>
       <Card sx={{ width: '100%', maxWidth: 1100, boxShadow: 6, borderRadius: 3 }}>
         <CardContent>
-          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700, color: 'primary.secondary', textAlign: 'left' }}>
-            Holidays
-          </Typography>
-          
-          {/* YEAR LOADING UI */}
+          <Typography variant="h5" sx={{ mb: 2, fontWeight: 700 }}>Holidays</Typography>
+
           <Stack direction="row" spacing={2} alignItems="center" justifyContent="flex-end" sx={{ mb: 2 }}>
             <TextField
               label="Year"
@@ -239,23 +226,16 @@ function HolidaysTab() {
               value={yearInput}
               onChange={e => setYearInput(e.target.value)}
               sx={{ maxWidth: 120 }}
-              inputProps={{ min: 2000, max: 2100, step: 1 }}
               disabled={loadingYear}
             />
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={handleLoadYear}
-              disabled={loadingYear}
-            >
-              {loadingYear ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null}
+            <Button variant="outlined" color="primary" onClick={handleLoadYear} disabled={loadingYear}>
+              {loadingYear ? <FontAwesomeIcon icon={faSpinner} spin style={{ marginRight: 8 }} /> : null}
               Load Year
             </Button>
           </Stack>
 
-          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+          <Stack direction="row" spacing={2} justifyContent="space-between" sx={{ mb: 3 }}>
             <TextField
-              fullWidth
               size="small"
               variant="outlined"
               placeholder="Search holidays..."
@@ -265,67 +245,61 @@ function HolidaysTab() {
               InputProps={{
                 endAdornment: searchQuery && (
                   <IconButton size="small" onClick={() => setSearchQuery('')}>
-                    <CloseIcon fontSize="small" />
+                    <FontAwesomeIcon icon={faXmark} />
                   </IconButton>
                 )
               }}
             />
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => handleOpenHolidayDialog(null)}
-              sx={{ height: 38, minWidth: 120 }}
-            >
+            <Button variant="contained" color="primary" onClick={() => handleOpenHolidayDialog(null)}>
+              <FontAwesomeIcon icon={faPlus} style={{ marginRight: 6 }} />
               Add Holiday
             </Button>
           </Stack>
+
           <Divider sx={{ mb: 3 }} />
+
           <Box sx={{ borderRadius: 2, boxShadow: 2, bgcolor: '#fff', mb: 3 }}>
             <TableContainer component={Box}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell style={{ width: 180, minWidth: 180 }}>Date</TableCell>
-                    <TableCell style={{ minWidth: 250, color: 'black', fontWeight: 700, textAlign: 'left' }}>Holiday</TableCell>
-                    <TableCell style={{ width: 80 }}>Recognized</TableCell>
-                    <TableCell style={{ width: 80 }}>Actions</TableCell>
+                    <TableCell style={{ width: 180 }}>Date</TableCell>
+                    <TableCell style={{ minWidth: 250, fontWeight: 700 }}>Holiday</TableCell>
+                    <TableCell style={{ width: 100 }}>Recognized</TableCell>
+                    <TableCell style={{ width: 100 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={4} align="center"><CircularProgress size={24} /></TableCell>
-                    </TableRow>
+                    <TableRow><TableCell colSpan={4} align="center"><CircularProgress size={24} /></TableCell></TableRow>
                   ) : filteredHolidays.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary', py: 4 }}>
-                        No holidays found.
-                      </TableCell>
+                      <TableCell colSpan={4} align="center" sx={{ color: 'text.secondary', py: 4 }}>No holidays found.</TableCell>
                     </TableRow>
                   ) : (
                     filteredHolidays.map(h => (
                       <TableRow key={h.id} hover>
                         <TableCell>{formatDate(h.date)}</TableCell>
-                        <TableCell sx={{ color: 'black', fontWeight: 500, textAlign: 'left' }}>{h.name}</TableCell>
+                        <TableCell sx={{ fontWeight: 500 }}>{h.name}</TableCell>
                         <TableCell>
                           <Checkbox
                             checked={buffered[h.id] ?? h.is_recognized}
                             onChange={() => handleHolidayCheckbox(h.id, !(buffered[h.id] ?? h.is_recognized))}
                           />
                         </TableCell>
-                        <TableCell align="right">
-                          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
                             <Tooltip title="Edit">
                               <IconButton size="small" onClick={() => handleOpenHolidayDialog(h)}>
-                                <EditIcon fontSize="small" />
+                                <FontAwesomeIcon icon={faEdit} />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Delete">
-                              <span>
-                                <IconButton size="small" color="error" onClick={() => handleDelete(h.id)} disabled={deletingId === h.id}>
-                                  {deletingId === h.id ? <CircularProgress size={18} /> : <DeleteIcon fontSize="small" />}
-                                </IconButton>
-                              </span>
+                              <IconButton size="small" color="error" onClick={() => handleDelete(h.id)} disabled={deletingId === h.id}>
+                                {deletingId === h.id
+                                  ? <FontAwesomeIcon icon={faSpinner} spin />
+                                  : <FontAwesomeIcon icon={faTrash} />}
+                              </IconButton>
                             </Tooltip>
                           </Box>
                         </TableCell>
@@ -336,16 +310,20 @@ function HolidaysTab() {
               </Table>
             </TableContainer>
           </Box>
+
           {status && (
-            <Alert sx={{ display: 'inline-block', my: 2, px: 3 }} severity={status.includes('Failed') ? 'error' : 'success'}>
+            <Alert severity={status.includes('Failed') ? 'error' : 'success'} sx={{ mt: 2 }}>
               {status}
             </Alert>
           )}
+
           <Divider sx={{ my: 2 }} />
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            <b>Tip:</b> Click "Add Holiday" to create a new holiday. The Date column shows the exact holiday date. Use the delete button to remove any unwanted holidays.
+
+          <Typography variant="body2" color="text.secondary">
+            <b>Tip:</b> Click "Add Holiday" to create a new holiday. Use the delete button to remove any unwanted holidays.
           </Typography>
         </CardContent>
+
         <Dialog open={showHolidayDialog} onClose={handleCloseHolidayDialog} maxWidth="sm" fullWidth>
           <DialogTitle>{editingHoliday ? 'Edit Holiday' : 'Add Holiday'}</DialogTitle>
           <DialogContent dividers>
@@ -381,12 +359,8 @@ function HolidaysTab() {
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseHolidayDialog} color="secondary">
-              Cancel
-            </Button>
-            <Button onClick={handleSaveHoliday} variant="contained" color="primary">
-              Save
-            </Button>
+            <Button onClick={handleCloseHolidayDialog} color="secondary">Cancel</Button>
+            <Button onClick={handleSaveHoliday} variant="contained" color="primary">Save</Button>
           </DialogActions>
         </Dialog>
       </Card>

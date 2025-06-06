@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { Table, TableHead, TableRow, TableCell, TableBody, Button, Stack, Alert, TextField } from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDownload, faUpload } from '@fortawesome/free-solid-svg-icons';
+import {
+  Table, TableHead, TableRow, TableCell, TableBody,
+  Button, Stack, Alert, TextField, IconButton, Tooltip
+} from '@mui/material';
 import axios from 'axios';
 
 function UploadTab() {
   const [file, setFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
-  // Provider upload state
   const [providerFile, setProviderFile] = useState(null);
   const [providerUploadStatus, setProviderUploadStatus] = useState('');
-  // Availability upload state
   const [availabilityFile, setAvailabilityFile] = useState(null);
   const [availabilityUploadStatus, setAvailabilityUploadStatus] = useState('');
   const token = localStorage.getItem('access_token');
 
-  // Utility function for robust file download
   const triggerDownload = (blob, filename) => {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -27,7 +29,6 @@ function UploadTab() {
     }, 0);
   };
 
-  // Clinic Events handlers
   const handleDownload = async () => {
     try {
       const response = await axios.get('http://127.0.0.1:8000/api/upload/clinic-events/template/', {
@@ -38,15 +39,12 @@ function UploadTab() {
       setUploadStatus('');
     } catch (err) {
       setUploadStatus('❌ Download failed.');
-      console.error('Clinic Events download failed:', err);
+      console.error(err);
     }
   };
 
   const handleUpload = async () => {
-    if (!file) {
-      setUploadStatus('❌ Please select a file to upload.');
-      return;
-    }
+    if (!file) return setUploadStatus('❌ Please select a file to upload.');
     const formData = new FormData();
     formData.append('file', file);
     try {
@@ -63,7 +61,6 @@ function UploadTab() {
     }
   };
 
-  // Providers handlers
   const handleProviderDownload = async () => {
     try {
       const response = await axios.get('http://127.0.0.1:8000/api/users/providers/download-template/', {
@@ -74,15 +71,12 @@ function UploadTab() {
       setProviderUploadStatus('');
     } catch (err) {
       setProviderUploadStatus('❌ Download failed.');
-      console.error('Providers download failed:', err);
+      console.error(err);
     }
   };
 
   const handleProviderUpload = async () => {
-    if (!providerFile) {
-      setProviderUploadStatus('❌ Please select a file to upload.');
-      return;
-    }
+    if (!providerFile) return setProviderUploadStatus('❌ Please select a file to upload.');
     const formData = new FormData();
     formData.append('file', providerFile);
     try {
@@ -99,7 +93,6 @@ function UploadTab() {
     }
   };
 
-  // Availability handlers
   const handleAvailabilityDownload = async () => {
     try {
       const response = await axios.get('http://127.0.0.1:8000/api/availability/download-template/', {
@@ -110,15 +103,12 @@ function UploadTab() {
       setAvailabilityUploadStatus('');
     } catch (err) {
       setAvailabilityUploadStatus('❌ Download failed.');
-      console.error('Availability download failed:', err);
+      console.error(err);
     }
   };
 
   const handleAvailabilityUpload = async () => {
-    if (!availabilityFile) {
-      setAvailabilityUploadStatus('❌ Please select a file to upload.');
-      return;
-    }
+    if (!availabilityFile) return setAvailabilityUploadStatus('❌ Please select a file to upload.');
     const formData = new FormData();
     formData.append('file', availabilityFile);
     try {
@@ -140,64 +130,92 @@ function UploadTab() {
       <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: '#e3f2fd' }}>
-            <TableCell sx={{ fontWeight: 'bold', width: 200, fontSize: '1rem', textAlign: 'left' }}>Items</TableCell>
-            <TableCell sx={{ fontWeight: 'bold', width: 300, fontSize: '1rem', textAlign: 'left' }}>Actions</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Items</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: 300 }}>Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
+          {/* Clinic Events */}
           <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-            <TableCell sx={{ verticalAlign: 'top' }}>Clinic Events</TableCell>
+            <TableCell>Clinic Events</TableCell>
             <TableCell>
-              <Button variant="outlined" onClick={handleDownload} sx={{ mb: 1, width: '100%' }}>DOWNLOAD TEMPLATE</Button>
-              <Stack direction="column" spacing={1}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Tooltip title="Download Template">
+                  <IconButton color="primary" onClick={handleDownload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faDownload} />
+                  </IconButton>
+                </Tooltip>
                 <TextField
                   type="file"
                   inputProps={{ accept: '.csv' }}
                   onChange={e => setFile(e.target.files[0])}
-                  variant="outlined"
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Button variant="contained" onClick={handleUpload} sx={{ width: '100%' }}>UPLOAD CSV</Button>
+                <Tooltip title="Upload CSV">
+                  <IconButton color="success" onClick={handleUpload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faUpload} />
+                  </IconButton>
+                </Tooltip>
               </Stack>
             </TableCell>
           </TableRow>
+
+          {/* Providers / Staff */}
           <TableRow sx={{ '&:nth-of-type(even)': { bgcolor: '#f8fafd' } }}>
-            <TableCell sx={{ verticalAlign: 'top' }}>Providers/ Staff</TableCell>
+            <TableCell>Providers / Staff</TableCell>
             <TableCell>
-              <Button variant="outlined" onClick={handleProviderDownload} sx={{ mb: 1, width: '100%' }}>DOWNLOAD TEMPLATE</Button>
-              <Stack direction="column" spacing={1}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Tooltip title="Download Template">
+                  <IconButton color="primary" onClick={handleProviderDownload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faDownload} />
+                  </IconButton>
+                </Tooltip>
                 <TextField
                   type="file"
                   inputProps={{ accept: '.csv' }}
                   onChange={e => setProviderFile(e.target.files[0])}
-                  variant="outlined"
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Button variant="contained" onClick={handleProviderUpload} sx={{ width: '100%' }}>UPLOAD CSV</Button>
+                <Tooltip title="Upload CSV">
+                  <IconButton color="success" onClick={handleProviderUpload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faUpload} />
+                  </IconButton>
+                </Tooltip>
               </Stack>
             </TableCell>
           </TableRow>
+
+          {/* Availability */}
           <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-            <TableCell sx={{ verticalAlign: 'top' }}>Availability</TableCell>
+            <TableCell>Availability</TableCell>
             <TableCell>
-              <Button variant="outlined" onClick={handleAvailabilityDownload} sx={{ mb: 1, width: '100%' }}>DOWNLOAD TEMPLATE</Button>
-              <Stack direction="column" spacing={1}>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Tooltip title="Download Template">
+                  <IconButton color="primary" onClick={handleAvailabilityDownload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faDownload} />
+                  </IconButton>
+                </Tooltip>
                 <TextField
                   type="file"
                   inputProps={{ accept: '.csv' }}
                   onChange={e => setAvailabilityFile(e.target.files[0])}
-                  variant="outlined"
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Button variant="contained" onClick={handleAvailabilityUpload} sx={{ width: '100%' }}>UPLOAD CSV</Button>
+                <Tooltip title="Upload CSV">
+                  <IconButton color="success" onClick={handleAvailabilityUpload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faUpload} />
+                  </IconButton>
+                </Tooltip>
               </Stack>
             </TableCell>
           </TableRow>
         </TableBody>
       </Table>
+
+      {/* Alerts */}
       {uploadStatus && (
         <Alert severity={uploadStatus.startsWith('✅') ? 'success' : 'error'} sx={{ mt: 3 }}>
           {uploadStatus}
