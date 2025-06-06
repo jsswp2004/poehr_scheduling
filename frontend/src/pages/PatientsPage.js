@@ -226,26 +226,72 @@ const renderPatientTable = () => (
                     <TableCell>{patient.provider_name ? `Dr. ${patient.provider_name}` : <span style={{ color: '#888' }}>None</span>}</TableCell>
                     <TableCell>{patient.last_appointment_date ? new Date(patient.last_appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</TableCell>
                     <TableCell align="center">
-                      <Tooltip title="View patient profile" placement="top">
-                        <Button variant="outlined" size="small" color="primary" sx={{ minWidth: 36, mr: 1 }} onClick={() => navigate(`/patients/${patient.user_id}`)}>
-                          <FontAwesomeIcon icon={faEye} />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="Send SMS" placement="top">
-                        <Button variant="outlined" size="small" color="warning" sx={{ minWidth: 36, mr: 1 }} onClick={() => handleSendText(patient)}>
-                          <FontAwesomeIcon icon={faCommentDots} />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="Send email" placement="top">
-                        <Button variant="outlined" size="small" color="info" sx={{ minWidth: 36, mr: 1 }} onClick={() => handleOpenEmailModal(patient)}>
-                          <FontAwesomeIcon icon={faEnvelope} />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip title="Delete patient" placement="top">
-                        <Button variant="outlined" size="small" color="error" sx={{ minWidth: 36 }} onClick={() => handleDelete(patient.user_id)}>
-                          <FontAwesomeIcon icon={faTrash} />
-                        </Button>
-                      </Tooltip>
+                      <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>
+                        <Tooltip title="View patient profile" placement="top">
+                          <IconButton variant="contained" size="small" color="primary"
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              minWidth: 0,
+                              padding: 0,
+                              mr: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            onClick={() => navigate(`/patients/${patient.user_id}`)}>
+                            <FontAwesomeIcon icon={faEye} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Send SMS" placement="top">
+                          <IconButton variant="contained" size="small" color="warning"
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              minWidth: 0,
+                              padding: 0,
+                              mr: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            onClick={() => handleSendText(patient)}>
+                            <FontAwesomeIcon icon={faCommentDots} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Send email" placement="top">
+                          <IconButton variant="outlined" size="small" color="info"
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              minWidth: 0,
+                              padding: 0,
+                              mr: 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            onClick={() => handleOpenEmailModal(patient)}>
+                            <FontAwesomeIcon icon={faEnvelope} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete patient" placement="top">
+                          <IconButton variant="outlined" size="small" color="error"
+                            sx={{
+                              width: 36,
+                              height: 36,
+                              minWidth: 0,
+                              padding: 0,
+                              
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                            onClick={() => handleDelete(patient.user_id)}>
+                            <FontAwesomeIcon icon={faTrash} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
