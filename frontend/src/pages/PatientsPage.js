@@ -156,10 +156,25 @@ function PatientsPage() {
       toast.error('Failed to send SMS');
     }
   };
-
   const handleOpenEmailModal = (patient) => {
     setSelectedPatient(patient);
-    setEmailForm({ subject: 'Message from your provider', message: '' });
+
+    // Get current user's name from token
+    let userName = 'your provider';
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const firstName = decoded.first_name || '';
+        const lastName = decoded.last_name || '';
+        if (firstName || lastName) {
+          userName = `${firstName} ${lastName}`.trim();
+        }
+      } catch (err) {
+        console.error('Failed to decode token for user name:', err);
+      }
+    }
+
+    setEmailForm({ subject: `Message from ${userName}`, message: '' });
     setShowEmailModal(true);
   };
 
@@ -216,172 +231,171 @@ function PatientsPage() {
   };
 
   // --- Render Table for Patient List ---
-  
-const renderPatientTable = () => (
-  <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
-    {loading ? (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
-    ) : (
-      <>
-        <TableContainer>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow sx={{ bgcolor: '#e3f2fd' }}>
-                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Patient Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', width: 220 }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Provider</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Last Appointment</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 'bold', width: 180 }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {paginatedPatients.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>
-                    No patients found.
-                  </TableCell>
+
+  const renderPatientTable = () => (
+    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <TableContainer>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                  <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Patient Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', width: 220 }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Provider</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Last Appointment</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 'bold', width: 180 }}>Actions</TableCell>
                 </TableRow>
-              ) : (
-                paginatedPatients.map((patient) => (
-                  <TableRow key={patient.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-                    <TableCell>{patient.full_name}</TableCell>
-                    <TableCell>{patient.email}</TableCell>
-                    <TableCell>{patient.provider_name ? `Dr. ${patient.provider_name}` : <span style={{ color: '#888' }}>None</span>}</TableCell>
-                    <TableCell>{patient.last_appointment_date ? new Date(patient.last_appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>
-                        <Tooltip title="View patient profile" placement="top">
-                          <IconButton variant="contained" size="small" color="primary"
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              minWidth: 0,
-                              padding: 0,
-                              mr: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            onClick={() => navigate(`/patients/${patient.user_id}`)}>
-                            <FontAwesomeIcon icon={faEye} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Send SMS" placement="top">
-                          <IconButton variant="contained" size="small" color="warning"
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              minWidth: 0,
-                              padding: 0,
-                              mr: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            onClick={() => handleSendText(patient)}>
-                            <FontAwesomeIcon icon={faCommentDots} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Send email" placement="top">
-                          <IconButton variant="outlined" size="small" color="info"
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              minWidth: 0,
-                              padding: 0,
-                              mr: 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            onClick={() => handleOpenEmailModal(patient)}>
-                            <FontAwesomeIcon icon={faEnvelope} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete patient" placement="top">
-                          <IconButton variant="outlined" size="small" color="error"
-                            sx={{
-                              width: 36,
-                              height: 36,
-                              minWidth: 0,
-                              padding: 0,
-                              
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                            onClick={() => handleDelete(patient.user_id)}>
-                            <FontAwesomeIcon icon={faTrash} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
+              </TableHead>
+              <TableBody>
+                {paginatedPatients.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>
+                      No patients found.
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        <Box display="flex" justifyContent="center" alignItems="center" py={2}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setPage(page - 1)}
-            disabled={page === 1}
-            sx={{ mx: 1 }}
-          >
-            Prev
-          </Button>
-          <span>Page {page} of {totalPages}</span>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => setPage(page + 1)}
-            disabled={page === totalPages}
-            sx={{ mx: 1 }}
-          >
-            Next
-          </Button>
-        </Box>
-      </>
-    )}
-  </Paper>
-);
+                ) : (
+                  paginatedPatients.map((patient) => (
+                    <TableRow key={patient.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+                      <TableCell>{patient.full_name}</TableCell>
+                      <TableCell>{patient.email}</TableCell>
+                      <TableCell>{patient.provider_name ? `Dr. ${patient.provider_name}` : <span style={{ color: '#888' }}>None</span>}</TableCell>
+                      <TableCell>{patient.last_appointment_date ? new Date(patient.last_appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</TableCell>
+                      <TableCell align="center">
+                        <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>
+                          <Tooltip title="View patient profile" placement="top">
+                            <IconButton variant="contained" size="small" color="primary"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
+                                mr: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onClick={() => navigate(`/patients/${patient.user_id}`)}>
+                              <FontAwesomeIcon icon={faEye} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Send SMS" placement="top">
+                            <IconButton variant="contained" size="small" color="warning"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
+                                mr: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onClick={() => handleSendText(patient)}>
+                              <FontAwesomeIcon icon={faCommentDots} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Send email" placement="top">
+                            <IconButton variant="outlined" size="small" color="info"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
+                                mr: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onClick={() => handleOpenEmailModal(patient)}>
+                              <FontAwesomeIcon icon={faEnvelope} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete patient" placement="top">
+                            <IconButton variant="outlined" size="small" color="error"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
 
-const renderTeamTable = () => (
-  <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
-    {loadingTeam ? (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress />
-      </Box>
-    ) : (
-      <>
-        <TableContainer>
-          <Table size="small" stickyHeader>
-            <TableHead>
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onClick={() => handleDelete(patient.user_id)}>
+                              <FontAwesomeIcon icon={faTrash} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box display="flex" justifyContent="center" alignItems="center" py={2}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              sx={{ mx: 1 }}
+            >
+              Prev
+            </Button>
+            <span>Page {page} of {totalPages}</span>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setPage(page + 1)}
+              disabled={page === totalPages}
+              sx={{ mx: 1 }}
+            >
+              Next
+            </Button>
+          </Box>
+        </>
+      )}
+    </Paper>
+  );
+
+  const renderTeamTable = () => (
+    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+      {loadingTeam ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <TableContainer>
+            <Table size="small" stickyHeader>            <TableHead>
               <TableRow sx={{ bgcolor: '#e3f2fd' }}>
-                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', width: 220 }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Phone</TableCell>
-                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Organization</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 180 }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 140 }}>Phone</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 120 }}>Role</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 180 }}>Organization</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 'bold', width: 140 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
-            <TableBody>
-              {team.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>
+              <TableBody>
+                {team.length === 0 ? (
+                  <TableRow>                  <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 3 }}>
                     No team members found.
                   </TableCell>
-                </TableRow>
-              ) : (
-                team.map((member) => (
+                  </TableRow>
+                ) : (team.map((member) => (
                   <TableRow key={member.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
                     <TableCell>{member.full_name}</TableCell>
                     <TableCell>{member.email}</TableCell>
                     <TableCell>{member.phone_number || '—'}</TableCell>
+                    <TableCell>{member.role || 'N/A'}</TableCell>
                     <TableCell>{member.organization_name || '—'}</TableCell>
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>
@@ -403,105 +417,105 @@ const renderTeamTable = () => (
                     </TableCell>
                   </TableRow>
                 ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </>
-    )}
-  </Paper>
-);
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
+      )}
+    </Paper>
+  );
 
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        mb: 1,
-        borderRadius: 2,
-        bgcolor: '#f5faff',
-        boxShadow: 1,
-        minHeight: 48,
-        p: 1
-      }}>
-        <Tabs
-          value={tab}
-          onChange={(_, val) => setTab(val)}
-          sx={{
-            flex: 1,
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <Box sx={{
+      display: 'flex',
+      alignItems: 'center',
+      mb: 1,
+      borderRadius: 2,
+      bgcolor: '#f5faff',
+      boxShadow: 1,
+      minHeight: 48,
+      p: 1
+    }}>
+      <Tabs
+        value={tab}
+        onChange={(_, val) => setTab(val)}
+        sx={{
+          flex: 1,
+          minHeight: 40,
+          '& .MuiTabs-indicator': {
+            height: 4,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+          }, '& .MuiTab-root': {
+            fontWeight: 500,
+            fontSize: '1rem',
+            color: 'primary.main',
             minHeight: 40,
-            '& .MuiTabs-indicator': {
-              height: 4,
-              borderRadius: 2,
-              bgcolor: 'primary.main',
-            },            '& .MuiTab-root': {
-              fontWeight: 500,
-              fontSize: '1rem',
-              color: 'primary.main',
-              minHeight: 40,
-              textTransform: 'none',
-              borderRadius: 2,
-              mx: 0.5,
-              transition: 'background 0.2s',
-              '&.Mui-selected': {
-                bgcolor: 'primary.light',
-                color: 'primary.dark',
-                boxShadow: 2,
-              },
-              '&:hover': {
-                bgcolor: 'primary.lighter',
-                color: 'primary.dark',
-              },
+            textTransform: 'none',
+            borderRadius: 2,
+            mx: 0.5,
+            transition: 'background 0.2s',
+            '&.Mui-selected': {
+              bgcolor: 'primary.light',
+              color: 'primary.dark',
+              boxShadow: 2,
             },
-          }}
-        >
-          {(userRole !== 'doctor') && (
-            <Tab label="Quick Register" value="register" />
-          )}
-          <Tab label="Patients" value="patients" />
-          <Tab label="Team" value="team" />
-          <Tab label="Calendar" value="calendar" />
-          <Tab label="Appointments" value="appointments" />
-        </Tabs>
-        
-        {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
-          <Box sx={{ ml: 1 }}>
-            <BackButton />
-          </Box>
+            '&:hover': {
+              bgcolor: 'primary.lighter',
+              color: 'primary.dark',
+            },
+          },
+        }}
+      >
+        {(userRole !== 'doctor') && (
+          <Tab label="Quick Register" value="register" />
         )}
-      </Box>
+        <Tab label="Patients" value="patients" />
+        <Tab label="Team" value="team" />
+        <Tab label="Calendar" value="calendar" />
+        <Tab label="Appointments" value="appointments" />
+      </Tabs>
+
+      {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
+        <Box sx={{ ml: 1 }}>
+          <BackButton />
+        </Box>
+      )}
+    </Box>
 
       {tab === 'register' && (
         <RegisterPage adminMode={true} />
       )}
-      {tab === 'patients' && (        <>
-          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-            <TextField
-              fullWidth
-              size="small"
-              variant="outlined"
-              placeholder="Search patients..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-                fetchPatients();
-              }}
-              sx={{ maxWidth: 350 }}
-              InputProps={{
-                endAdornment:
-                  search && (
-                    <IconButton size="small" onClick={() => { setSearch(''); setPage(1); fetchPatients(); }}>
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  ),
-              }}
-            />            
-            <Button variant="contained" color="primary" onClick={exportCSV}>
-              Export CSV
-            </Button>
-          </Stack>
-          {renderPatientTable()}
-        </>
+      {tab === 'patients' && (<>
+        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+          <TextField
+            fullWidth
+            size="small"
+            variant="outlined"
+            placeholder="Search patients..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+              fetchPatients();
+            }}
+            sx={{ maxWidth: 350 }}
+            InputProps={{
+              endAdornment:
+                search && (
+                  <IconButton size="small" onClick={() => { setSearch(''); setPage(1); fetchPatients(); }}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                ),
+            }}
+          />
+          <Button variant="contained" color="primary" onClick={exportCSV}>
+            Export CSV
+          </Button>
+        </Stack>
+        {renderPatientTable()}
+      </>
       )}
       {tab === 'team' && (
         <>
@@ -535,10 +549,9 @@ const renderTeamTable = () => (
       )}
       {tab === 'appointments' && (
         <AppointmentsPage />
-      )}
-      {/* Email Modal */}
+      )}      {/* Email Modal */}
       <Dialog open={showEmailModal} onClose={() => setShowEmailModal(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Email Patient</DialogTitle>
+        <DialogTitle>Message</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
