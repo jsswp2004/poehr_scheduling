@@ -1,6 +1,6 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
-from .views import DownloadClinicEventsTemplate, UploadClinicEventsCSV, EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet, HolidayViewSet, ClinicEventViewSet, DownloadAvailabilityTemplate, UploadAvailabilityCSV  # ⬅️ import the new view
+from .views import DownloadClinicEventsTemplate, UploadClinicEventsCSV, EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet, HolidayViewSet, ClinicEventViewSet, DownloadAvailabilityTemplate, UploadAvailabilityCSV, RunWeeklyPatientRemindersView  # ⬅️ import the new view
 
 router = DefaultRouter()
 router.register(r'clinic-events', ClinicEventViewSet, basename='clinicevent')
@@ -16,4 +16,5 @@ urlpatterns = [
     path('upload/clinic-events/', UploadClinicEventsCSV.as_view(), name='upload-clinic-events'),
     path('availability/download-template/', DownloadAvailabilityTemplate.as_view(), name='download-availability-template'),
     path('availability/upload-csv/', UploadAvailabilityCSV.as_view(), name='upload-availability-csv'),
+    path('run-weekly-patient-reminders/', RunWeeklyPatientRemindersView.as_view(), name='run-weekly-patient-reminders'),
 ]+ router.urls

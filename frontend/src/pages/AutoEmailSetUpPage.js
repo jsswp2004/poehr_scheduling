@@ -10,15 +10,20 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Stack
+  Stack,
+  TextField
 } from '@mui/material';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 
 function AutoEmailSetUpPage() {
   const [frequency, setFrequency] = useState('weekly');
   const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [startDate, setStartDate] = useState(new Date());
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [runNowStatus, setRunNowStatus] = useState('');
 
   useEffect(() => {
     async function fetchSettings() {
@@ -30,6 +35,16 @@ function AutoEmailSetUpPage() {
         });
         setFrequency(res.data.auto_message_frequency || 'weekly');
         setDayOfWeek(res.data.auto_message_day_of_week || 1);
+        
+        // Handle start date from API response
+        if (res.data.auto_message_start_date) {
+          setStartDate(new Date(res.data.auto_message_start_date));
+        } else {
+          // Set default to next day if no date is set
+          const tomorrow = new Date();
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          setStartDate(tomorrow);
+        }
       } catch (err) {
         setStatus('Failed to load settings.');
         console.error(err);
@@ -44,11 +59,16 @@ function AutoEmailSetUpPage() {
     setStatus('');
     try {
       const token = localStorage.getItem('access_token');
+      
+      // Format date to YYYY-MM-DD
+      const formattedDate = startDate.toISOString().split('T')[0];
+      
       await axios.post(
         'http://127.0.0.1:8000/api/settings/environment/',
         {
           auto_message_frequency: frequency,
-          auto_message_day_of_week: dayOfWeek
+          auto_message_day_of_week: dayOfWeek,
+          auto_message_start_date: formattedDate
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -60,12 +80,43 @@ function AutoEmailSetUpPage() {
     setSaving(false);
   };
 
+  const handleRunNow = async () => {
+    setRunNowStatus('Running...');
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post(
+        'http://127.0.0.1:8000/api/run-weekly-patient-reminders/',
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRunNowStatus('Emails are being sent!');
+    } catch (e) {
+      setRunNowStatus('Failed to trigger emails.');
+    }
+  };
+
   return (
     <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
         Auto Message Frequency
       </Typography>
       <Stack spacing={2} sx={{ maxWidth: 300 }}>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={(newDate) => setStartDate(newDate)}
+            slotProps={{
+              textField: { 
+                fullWidth: true,
+                size: "medium",
+                helperText: "Select when to start sending automated emails" 
+              }
+            }}
+            disablePast
+            minDate={new Date()}
+          />
+        </LocalizationProvider>
         <FormControl fullWidth>
           <InputLabel id="frequency-label">Frequency</InputLabel>
           <Select
@@ -99,8 +150,14 @@ function AutoEmailSetUpPage() {
         <Button variant="contained" onClick={handleSave} disabled={saving || loading}>
           {saving ? <CircularProgress size={24} /> : 'Save Settings'}
         </Button>
+        <Button variant="outlined" color="secondary" onClick={handleRunNow} disabled={loading}>
+          Run Now
+        </Button>
         {status && (
           <Alert severity={status === 'Settings Saved!' ? 'success' : 'error'}>{status}</Alert>
+        )}
+        {runNowStatus && (
+          <Alert severity={runNowStatus === 'Emails are being sent!' ? 'success' : 'info'}>{runNowStatus}</Alert>
         )}
       </Stack>
     </Box>

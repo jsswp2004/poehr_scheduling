@@ -1,7 +1,7 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
 from rest_framework import viewsets, permissions
-from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent
-from .serializers import AppointmentSerializer, AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer
+from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail
+from .serializers import AppointmentSerializer, AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer, AutoEmailSerializer
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -19,7 +19,9 @@ from .models import Availability
 from django.core.mail import send_mail
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework.permissions import IsAdminUser
+from rest_framework import status
+from .tasks import send_weekly_patient_reminders
 import holidays as pyholidays
 import csv
 from django.http import HttpResponse
@@ -379,17 +381,102 @@ class EnvironmentSettingView(APIView):
         return [permissions.IsAdminUser()]          # Only admin can edit
 
     def get(self, request):
-        obj, created = EnvironmentSetting.objects.get_or_create(pk=1)
-        serializer = EnvironmentSettingSerializer(obj)
-        return Response(serializer.data)
+        # Get or create the environment settings
+        env_obj, env_created = EnvironmentSetting.objects.get_or_create(pk=1)
+        env_serializer = EnvironmentSettingSerializer(env_obj)
+        
+        # Get auto email settings for the user's organization
+        user_organization = request.user.organization
+        
+        # Try to get organization-specific settings first, fallback to global settings
+        auto_email_obj = None
+        if user_organization:
+            auto_email_obj = AutoEmail.objects.filter(organization=user_organization).first()
+        
+        # If no organization-specific settings, try to get global settings
+        if not auto_email_obj:
+            auto_email_obj = AutoEmail.objects.filter(organization__isnull=True).first()
+        
+        # If no settings at all, create default settings
+        if not auto_email_obj:
+            auto_email_obj = AutoEmail.objects.create(
+                organization=user_organization,
+                auto_message_frequency='weekly',
+                auto_message_day_of_week=1,  # Monday
+                auto_message_start_date=timezone.now().date() + timedelta(days=1)
+            )
+        
+        auto_email_serializer = AutoEmailSerializer(auto_email_obj)
+        
+        # Combine the response
+        response_data = {
+            **env_serializer.data,
+            **auto_email_serializer.data
+        }
+        
+        return Response(response_data)
 
     def post(self, request):
-        obj, created = EnvironmentSetting.objects.get_or_create(pk=1)
-        serializer = EnvironmentSettingSerializer(obj, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        # Process environment settings
+        env_obj, env_created = EnvironmentSetting.objects.get_or_create(pk=1)
+        env_data = {k: v for k, v in request.data.items() if k in ['blocked_days']}
+        
+        env_serializer = EnvironmentSettingSerializer(env_obj, data=env_data, partial=True)
+        if env_serializer.is_valid():
+            env_serializer.save()
+        else:
+            return Response(env_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Process auto email settings
+        auto_email_data = {
+            k: v for k, v in request.data.items() 
+            if k in ['auto_message_frequency', 'auto_message_day_of_week', 'auto_message_start_date', 'is_active']
+        }
+        
+        if auto_email_data:
+            user_organization = request.user.organization
+            
+            # Try to get organization-specific settings first
+            auto_email_obj = None
+            if user_organization:
+                auto_email_obj = AutoEmail.objects.filter(organization=user_organization).first()
+            
+            # If no organization-specific settings, try to get or create global settings
+            if not auto_email_obj:
+                auto_email_obj, created = AutoEmail.objects.get_or_create(
+                    organization=user_organization,
+                    defaults={
+                        'auto_message_frequency': 'weekly',
+                        'auto_message_day_of_week': 1,  # Monday
+                        'auto_message_start_date': timezone.now().date() + timedelta(days=1)
+                    }
+                )
+            auto_email_serializer = AutoEmailSerializer(auto_email_obj, data=auto_email_data, partial=True)
+            if auto_email_serializer.is_valid():
+                auto_email_obj = auto_email_serializer.save()
+                # Schedule or update Celery tasks here based on the new settings
+                self.update_celery_schedule(auto_email_obj)
+            else:
+                return Response(auto_email_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Combine the response
+        response_data = {**env_serializer.data}
+        
+        # Add auto email serializer data if available
+        if 'auto_email_serializer' in locals():
+            response_data.update(auto_email_serializer.data)
+        
+        return Response(response_data)
+    
+    def update_celery_schedule(self, auto_email_obj):
+        """
+        Updates the Celery Beat schedule based on the auto email settings
+        """
+        # Import the task to update the Celery schedule
+        from .tasks import update_celery_beat_schedule
+        
+        # Run the task asynchronously
+        update_celery_beat_schedule.delay()
     
 class HolidayViewSet(viewsets.ModelViewSet):
     queryset = Holiday.objects.all()  # <-- Add this line
@@ -526,3 +613,10 @@ class UploadAvailabilityCSV(APIView):
             "message": f"{created_count} availabilities created, {updated_count} updated.",
             "errors": errors
         })
+
+class RunWeeklyPatientRemindersView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        send_weekly_patient_reminders.delay()
+        return Response({"message": "Weekly patient reminders are being sent."}, status=status.HTTP_202_ACCEPTED)
