@@ -29,6 +29,7 @@ import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import EnrollmentPage from './pages/EnrollmentPage';
 import ToastTestPage from './pages/ToastTestPage';
+import MessagesPage from './pages/MessagesPage';
 import ToastDebugButton from './components/ToastDebugButton';
 
 function AppContent() {
@@ -84,6 +85,7 @@ function AppContent() {
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
         <Route path="/holidays" element={<PrivateRoute><HolidaysTab /></PrivateRoute>} />
         <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
+        <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />
         <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />
         <Route path="/toast-test" element={<ToastTestPage />} />
