@@ -9,6 +9,7 @@ import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import SearchIcon from '@mui/icons-material/Search';
 import LockResetIcon from '@mui/icons-material/LockReset';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -117,6 +118,22 @@ function ProfilePage() {
       }
     } catch (err) {
       toast.error('Search failed.');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this user?');
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`http://127.0.0.1:8000/api/users/${id}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success('User deleted!');
+      setSearchResults(prev => prev.filter(u => u.id !== id));
+    } catch (err) {
+      console.error('Delete failed:', err);
+      toast.error('Failed to delete user.');
     }
   };
 
@@ -240,6 +257,9 @@ function ProfilePage() {
                   <th align="left">Role</th>
                   {loggedInUserRole === 'system_admin' && <th align="left">Organization</th>}
                   <th align="left">Select</th>
+                  {(loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') && (
+                    <th align="left">Delete</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -275,6 +295,17 @@ function ProfilePage() {
                         Select
                       </Button>
                     </td>
+                    {(loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') && (
+                      <td>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(result.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
