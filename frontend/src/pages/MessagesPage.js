@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Box, Tabs, Tab, Typography } from '@mui/material';
+import AutoEmailSetUpPage from './AutoEmailSetUpPage';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
@@ -81,11 +82,7 @@ function MessagesPage() {
           <BackButton to="/admin" />
         </Box>
       </Box>
-      {tab === 'email' && (
-        <Typography variant="body1" sx={{ p: 2 }}>
-          Email messaging coming soon.
-        </Typography>
-      )}
+      {tab === 'email' && <AutoEmailSetUpPage />}
       {tab === 'sms' && (
         <Typography variant="body1" sx={{ p: 2 }}>
           SMS messaging coming soon.
