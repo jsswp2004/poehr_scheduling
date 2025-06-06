@@ -20,15 +20,24 @@ function CreateProfile() {
   });
   const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
-    // Fetch organizations
+    // Fetch organizations and current user's organization
     const token = localStorage.getItem('access_token');
-    if (token) {
-      axios.get('http://127.0.0.1:8000/api/users/organizations/', {
-        headers: { Authorization: `Bearer ${token}` }
+    if (!token) return;
+
+    const headers = { Authorization: `Bearer ${token}` };
+
+    axios.get('http://127.0.0.1:8000/api/users/organizations/', { headers })
+      .then(res => setOrganizations(res.data))
+      .catch(err => console.error('Failed to load organizations:', err));
+
+    // Fetch logged-in user's organization to use as default
+    axios.get('http://127.0.0.1:8000/api/users/me/', { headers })
+      .then(res => {
+        if (res.data && res.data.organization) {
+          setFormData(prev => ({ ...prev, organization: res.data.organization }));
+        }
       })
-        .then((res) => setOrganizations(res.data))
-        .catch((err) => console.error('Failed to load organizations:', err));
-    }
+      .catch(err => console.error('Failed to load current user info:', err));
   }, []);
 
   const handleChange = (e) => {
