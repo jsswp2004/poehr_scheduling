@@ -127,6 +127,7 @@ class DoctorListView(APIView):
         return Response(serializer.data)
 
 class RegisterView(generics.CreateAPIView):
+    class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
@@ -166,38 +167,51 @@ class RegisterView(generics.CreateAPIView):
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
-              # Initialize Stripe service
+            
+            # Initialize Stripe service
             stripe_service = StripeService()
             
             # Create or retrieve Stripe customer
-            customer = stripe_service.create_customer(
-                user=user,
+            customer_id = stripe_service.create_customer(
+                email=user.email,
+                name=f"{user.first_name} {user.last_name}",
                 payment_method_id=payment_method_id
             )
             
-            if not customer:
+            if not customer_id:
                 # Delete the user if Stripe customer creation failed
                 user.delete()
                 return Response(
                     {"error": "Failed to create Stripe customer"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
-              # Create trial subscription
-            subscription = stripe_service.create_trial_subscription(
-                user=user,
+            
+            # Create trial subscription
+            subscription_result = stripe_service.create_trial_subscription(
+                customer_id=customer_id,
                 tier=subscription_tier,
                 payment_method_id=payment_method_id
             )
             
-            if not subscription:
+            if not subscription_result['success']:
                 # Delete the user if subscription creation failed
                 user.delete()
                 return Response(
-                    {"error": "Failed to create subscription"}, 
+                    {"error": f"Failed to create subscription: {subscription_result.get('error', 'Unknown error')}"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Subscription creation was successful - user is already updated by StripeService
+            # Update user with Stripe information
+            user.stripe_customer_id = customer_id
+            user.subscription_status = 'trialing'
+            user.subscription_tier = subscription_tier
+            user.trial_start_date = subscription_result['trial_start']
+            user.trial_end_date = subscription_result['trial_end']
+            user.stripe_subscription_id = subscription_result['subscription_id']
+            
+            # Save the user with all subscription data
+            user.save()
+            
             print("✅ User created successfully with trial subscription:", user.username, user.email)
             print(f"📅 Trial period: {user.trial_start_date} to {user.trial_end_date}")
             

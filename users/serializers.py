@@ -45,13 +45,15 @@ class UserSerializer(serializers.ModelSerializer):
     profile_picture = serializers.ImageField(required=False, allow_null=True, use_url=True)  # ✅ This makes it include full path
     organization_logo = serializers.SerializerMethodField()
     organization_name = serializers.SerializerMethodField()  # New field for organization name
+    
     class Meta:
         model = CustomUser
         fields = (
             'id', 'username', 'email', 'password',
             'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture',
             'organization', 'organization_logo', 'organization_name', 'phone_number',
-            'organization_type'
+            'organization_type', 'registered', 'stripe_customer_id', 'subscription_status',
+            'subscription_tier', 'trial_start_date', 'trial_end_date', 'stripe_subscription_id'
         )
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},

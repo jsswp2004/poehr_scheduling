@@ -143,3 +143,13 @@ ADMIN_EMAIL = 'jsswp2004@outlook.com'  # 👈 where the notification goes
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
 TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+
+# ✅ Stripe settings
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+# Stripe Price IDs for subscription tiers
+STRIPE_BASIC_PRICE_ID = os.getenv('STRIPE_BASIC_PRICE_ID', 'price_test_basic')
+STRIPE_PREMIUM_PRICE_ID = os.getenv('STRIPE_PREMIUM_PRICE_ID', 'price_test_premium') 
+STRIPE_ENTERPRISE_PRICE_ID = os.getenv('STRIPE_ENTERPRISE_PRICE_ID', 'price_test_enterprise')
