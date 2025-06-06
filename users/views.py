@@ -20,6 +20,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
 from .models import Organization
 from rest_framework import permissions
+from appointments.permissions import IsAdminOrSystemAdmin
 
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
@@ -362,7 +363,7 @@ class PatientDeleteView(DestroyAPIView):
     lookup_field = 'user_id'  # because you're deleting via user_id
 
 class DownloadProvidersCSVTemplate(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrSystemAdmin]
 
     def get(self, request):
         response = HttpResponse(content_type='text/csv')
@@ -374,7 +375,7 @@ class DownloadProvidersCSVTemplate(APIView):
         return response
 
 class UploadProvidersCSV(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrSystemAdmin]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
