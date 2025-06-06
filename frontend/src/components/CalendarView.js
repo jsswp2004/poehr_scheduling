@@ -458,6 +458,7 @@ function CalendarView({ onUpdate }) {
     setIsEditing(false);
     setIsPast(false); setEditingId(null);
     setSelectedDoctor(null);
+    setShowModal(true);
     setModalFormData({
       title: 'New Clinic Visit',
       description: '',
@@ -466,7 +467,7 @@ function CalendarView({ onUpdate }) {
       appointment_datetime: toLocalDatetimeString(start),
     });
     setSelectedClinicEvent(null);
-    setShowModal(true);
+    
   };
 
   const handleSelectEvent = (event) => {

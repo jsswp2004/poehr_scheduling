@@ -26,7 +26,8 @@ import {
   FormControl,
   InputLabel,
   Select as MUISelect,
-  MenuItem
+  MenuItem,
+  Alert
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -67,9 +68,9 @@ function DashboardPage() {
     subject: '',
     message: '',
     attachments: [],
-  });
-  const [providerName, setProviderName] = useState('');
+  });  const [providerName, setProviderName] = useState('');
   const [patientName, setPatientName] = useState('');
+  const [messageSent, setMessageSent] = useState(false);
 
   const token = localStorage.getItem('access_token');
   const userRole = token ? jwtDecode(token).role : null;
@@ -251,7 +252,6 @@ function DashboardPage() {
     const files = Array.from(e.target.files || []);
     setEmailForm(prev => ({ ...prev, attachments: files }));
   };
-
   const handleSendMessage = async () => {
     try {
       const form = new FormData();
@@ -267,7 +267,25 @@ function DashboardPage() {
           'Content-Type': 'multipart/form-data',
         },
       });
-      toast.success('Message sent');
+      
+      // Show success confirmation
+      setMessageSent(true);
+      
+      // Reset the form fields
+      setEmailForm({
+        to: emailForm.to, // Keep the provider's email
+        cc: '',
+        bcc: '',
+        subject: '',
+        message: `${new Date().toLocaleDateString()}\n\nDear ${providerName},\n\n[Your message here]\n\nThank you,\n${patientName}`,
+        attachments: [],
+      });
+      
+      // Hide confirmation after 5 seconds
+      setTimeout(() => {
+        setMessageSent(false);
+      }, 5000);
+      
     } catch (err) {
       console.error('Failed to send message:', err);
       toast.error('Failed to send message');
@@ -464,9 +482,13 @@ function DashboardPage() {
             </Box>
           </Stack>
         </Box>
-      )}
-      {tab === 'message' && (
+      )}      {tab === 'message' && (
         <Box sx={{ maxWidth: 600 }}>
+          {messageSent && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Your message has been sent successfully. Your provider will respond to you as soon as possible.
+            </Alert>
+          )}
           <Stack spacing={2}>
             <TextField label="To" value={emailForm.to} onChange={handleEmailChange('to')} fullWidth />
             <TextField label="Cc" value={emailForm.cc} onChange={handleEmailChange('cc')} fullWidth />
