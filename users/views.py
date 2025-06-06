@@ -453,3 +453,31 @@ def get_current_user(request):
     user = request.user
     serializer = UserSerializer(user)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_team_members(request):
+    """Return non-patient users for the current organization"""
+    user = request.user
+    if user.role not in ['admin', 'system_admin', 'doctor', 'registrar', 'receptionist']:
+        return Response({'detail': 'Access denied'}, status=403)
+
+    if user.role == 'system_admin':
+        members = CustomUser.objects.exclude(role='patient')
+    else:
+        members = CustomUser.objects.exclude(role='patient').filter(organization=user.organization)
+
+    search = request.GET.get('search')
+    if search:
+        members = members.filter(
+            Q(first_name__icontains=search) |
+            Q(last_name__icontains=search) |
+            Q(email__icontains=search)
+        )
+
+    paginator = PageNumberPagination()
+    paginator.page_size = 25
+    result_page = paginator.paginate_queryset(members.order_by('last_name'), request)
+    serializer = UserSerializer(result_page, many=True)
+    return paginator.get_paginated_response(serializer.data)

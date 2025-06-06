@@ -19,6 +19,7 @@ from .views import (
     DownloadProvidersCSVTemplate,
     UploadProvidersCSV,
     get_current_user,
+    get_team_members,
 )
 
 router = DefaultRouter()
@@ -43,6 +44,7 @@ urlpatterns = [
     path('patients/<int:user_id>/', PatientDeleteView.as_view(), name='patient-delete'),
     path('providers/download-template/', DownloadProvidersCSVTemplate.as_view(), name='providers-download-template'),
     path('providers/upload-csv/', UploadProvidersCSV.as_view(), name='providers-upload-csv'),
+    path('team/', get_team_members, name='team-list'),
 ]
 
 # ✅ Append viewset routes
