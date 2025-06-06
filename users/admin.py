@@ -5,14 +5,14 @@ from .models import CustomUser, Organization, Patient  # ✅ Include Patient
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
     list_display = (
-        'username', 'email', 'first_name', 'last_name', 'role', 'organization', 'is_active', 'is_staff'
-    )  # <-- Shows organization
-    list_filter = ('role', 'organization', 'is_active', 'is_staff')  # <-- Filter by org and role
+        'username', 'email', 'first_name', 'last_name', 'role', 'organization_type', 'organization', 'is_active', 'is_staff'
+    )  # <-- Shows organization and type
+    list_filter = ('role', 'organization_type', 'organization', 'is_active', 'is_staff')  # <-- Filter by org and role
     fieldsets = UserAdmin.fieldsets + (
-        ('Custom Fields', {'fields': ('role', 'provider', 'organization')}), # <-- Show these on detail view
+        ('Custom Fields', {'fields': ('role', 'provider', 'organization', 'organization_type')}), # <-- Show these on detail view
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
-        ('Custom Fields', {'fields': ('role', 'provider', 'organization')}), # <-- Show these on add form
+        ('Custom Fields', {'fields': ('role', 'provider', 'organization', 'organization_type')}), # <-- Show these on add form
     )
 
 admin.site.register(CustomUser, CustomUserAdmin)

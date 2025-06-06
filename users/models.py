@@ -32,6 +32,12 @@ class CustomUser(AbstractUser):
 
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
+    ORGANIZATION_TYPE_CHOICES = [
+        ('personal', 'Personal'),
+        ('clinic', 'Clinic'),
+        ('group', 'Group'),
+    ]
+    organization_type = models.CharField(max_length=20, choices=ORGANIZATION_TYPE_CHOICES, default='personal')
 
     def __str__(self):
         return f"{self.username} ({self.role})"
