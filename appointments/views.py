@@ -303,7 +303,7 @@ class ClinicEventViewSet(viewsets.ModelViewSet):
 class AvailabilityViewSet(viewsets.ModelViewSet):
     serializer_class = AvailabilitySerializer
     permission_classes = [permissions.IsAuthenticated]
-
+    
     def get_queryset(self):
         user = self.request.user
         if user.role == 'system_admin':
