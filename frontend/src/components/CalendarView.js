@@ -142,6 +142,7 @@ function CalendarView({ onUpdate }) {
   const [availabilityEvents, setAvailabilityEvents] = useState([]); // Store availability for modal use only
   const [showAvailabilityModal, setShowAvailabilityModal] = useState(false);
   const [selectedDateAvailability, setSelectedDateAvailability] = useState(null);
+  const [preventSlotSelection, setPreventSlotSelection] = useState(false);
 
   const token = localStorage.getItem('access_token');
 
@@ -431,9 +432,15 @@ function CalendarView({ onUpdate }) {
     return false;
   }, [modalFormData.appointment_datetime, modalFormData.duration_minutes, selectedDoctor, providerBlocks, isEditing, editingId, events]); const handleDateNavigate = useCallback((newDate) => setCurrentDate(newDate), []);
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
-
   const handleSelectSlot = ({ start }) => {
     if (userRole !== 'patient') return;
+    
+    // Check if we should prevent slot selection (e.g., if availability modal was just opened)
+    if (preventSlotSelection) {
+      setPreventSlotSelection(false);
+      return;
+    }
+    
     const day = start.getDay();
 
     const isSameDay = (dateA, dateB) =>
@@ -456,7 +463,8 @@ function CalendarView({ onUpdate }) {
     }
 
     setIsEditing(false);
-    setIsPast(false); setEditingId(null);
+    setIsPast(false);
+    setEditingId(null);
     setSelectedDoctor(null);
     setShowModal(true);
     setModalFormData({
@@ -634,8 +642,7 @@ function CalendarView({ onUpdate }) {
       };
     }
     return {};
-  };
-  function CustomDateHeader({ date, holidays, setCurrentView, setCurrentDate }) {
+  };  function CustomDateHeader({ date, holidays, setCurrentView, setCurrentDate, handleDateClick, setPreventSlotSelection }) {
     const holiday = holidays.find(h => {
       const holidayDate = new Date(h.date + 'T00:00:00');
       return (
@@ -651,7 +658,18 @@ function CalendarView({ onUpdate }) {
     };
     const handleAvailabilityClick = (e) => {
       e.stopPropagation();
+      e.preventDefault();
+      
+      // Set flag to prevent slot selection
+      setPreventSlotSelection(true);
+      
+      // Call the date click handler to show availability
       handleDateClick(date);
+      
+      // Reset the flag after a short delay
+      setTimeout(() => {
+        setPreventSlotSelection(false);
+      }, 100);
     };
     return (
       <div style={{ minHeight: 32 }}>
@@ -745,6 +763,8 @@ function CalendarView({ onUpdate }) {
                     holidays={holidays}
                     setCurrentView={setCurrentView}
                     setCurrentDate={setCurrentDate}
+                    handleDateClick={handleDateClick}
+                    setPreventSlotSelection={setPreventSlotSelection}
                   />
                 ),
               },
