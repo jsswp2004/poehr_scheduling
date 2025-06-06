@@ -1,0 +1,26 @@
+/* Custom styles for React-Toastify to fix disappearing toast issue */
+.Toastify__toast {
+  min-height: 64px !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2) !important;
+}
+
+.Toastify__toast-container {
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure animations work properly */
+.Toastify__toast {
+  animation-duration: 750ms !important;
+}
+
+/* Style the progress bar to ensure it runs for full duration */
+.Toastify__progress-bar--animated {
+  animation-duration: 2s !important;
+}
+
+/* Improve visibility */
+.Toastify__toast-body {
+  font-size: 14px !important;
+  padding: 6px 0 !important;
+}

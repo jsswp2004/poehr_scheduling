@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
+import { toast } from '../components/SimpleToast';
 import logo from '../assets/POWER_Logo.png';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
@@ -16,6 +16,8 @@ import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import useForceUpdate from '../utils/useForceUpdate';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 
 function Navbar() {
   const navigate = useNavigate();
@@ -206,8 +208,7 @@ function Navbar() {
                     System Admin
                   </Box>
                 )}
-              </Button>
-              <IconButton
+              </Button>              <IconButton
                 onClick={handleLogout}
                 color="inherit"
                 sx={{
@@ -227,7 +228,7 @@ function Navbar() {
                 }}
                 title="Logout"
               >
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                <FontAwesomeIcon icon={faSignOutAlt} size="lg" />
               </IconButton>
             </>
           )}

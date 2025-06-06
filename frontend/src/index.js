@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+// Import Font Awesome initialization
+import './utils/fontAwesome';
 
 const theme = createTheme({
   palette: {

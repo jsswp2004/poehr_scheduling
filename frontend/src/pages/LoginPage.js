@@ -1,4 +1,4 @@
-import { toast } from 'react-toastify'; 
+import { toast } from '../components/SimpleToast'; 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -47,9 +47,7 @@ function LoginPage() {
       localStorage.setItem('refresh_token', refresh);
       axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;      // Decode token to get role
       const decoded = jwtDecode(access);
-      const userRole = decoded.role;
-      
-      // Notify navbar to refresh with new user data
+      const userRole = decoded.role;      // Notify navbar to refresh with new user data
       notifyProfileUpdated();
       refreshAuthState();
 
@@ -64,9 +62,7 @@ function LoginPage() {
         navigate('/patients');
       } else {
         navigate('/dashboard'); // Default for patients
-      }
-
-    } catch (error) {
+      }    } catch (error) {
       console.error(error.response?.data || error.message);
       toast.error('Login failed. Please check your credentials.');
     }

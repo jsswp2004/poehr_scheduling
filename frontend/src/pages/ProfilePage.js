@@ -11,7 +11,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import LockResetIcon from '@mui/icons-material/LockReset';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { jwtDecode } from 'jwt-decode';
-import { toast } from 'react-toastify';
+import { toast } from '../components/SimpleToast';
 import { useNavigate } from 'react-router-dom';
 import CreatableSelect from 'react-select/creatable';
 import { notifyProfileUpdated } from '../utils/events';

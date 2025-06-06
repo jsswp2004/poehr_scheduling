@@ -475,6 +475,7 @@ function PatientsPage() {
         <Tab label="Team" value="team" />
         <Tab label="Calendar" value="calendar" />
         <Tab label="Appointments" value="appointments" />
+        <Tab label="Analytics" value="analytics" />
       </Tabs>
 
       {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
