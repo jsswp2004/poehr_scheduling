@@ -26,11 +26,20 @@
 }
 
 .page-subtitle {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 400;
   color: #64748b;
   max-width: 600px;
-  margin: 0 auto;
+  margin: 0 auto 8px auto;
+  line-height: 1.6;
+}
+
+.page-subtitle-wide {
+  font-size: 20px;
+  font-weight: 400;
+  color: #64748b;
+  max-width: 1200px;
+  margin: 0 auto 8px auto;
   line-height: 1.6;
 }
 
