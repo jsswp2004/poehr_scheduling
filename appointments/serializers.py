@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Appointment, Availability, EnvironmentSetting, Holiday, ClinicEvent
+from .models import Appointment, Availability, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -97,3 +97,17 @@ class ClinicEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicEvent
         fields = '__all__'
+
+class AutoEmailSerializer(serializers.ModelSerializer):
+    organization_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AutoEmail
+        fields = ['id', 'organization', 'organization_name', 'auto_message_frequency', 
+                 'auto_message_day_of_week', 'auto_message_start_date', 'is_active', 
+                 'created_at', 'updated_at']
+    
+    def get_organization_name(self, obj):
+        if obj.organization:
+            return obj.organization.name
+        return "Global"
