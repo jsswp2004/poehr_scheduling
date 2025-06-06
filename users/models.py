@@ -11,9 +11,7 @@ class CustomUser(AbstractUser):
         ('none', 'None'),  # For non-patients, use 'None' or leave blank
         ('system_admin', 'System Admin'),  # For superusers or system admins
     )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='none')
-
-    # 🔗 Link user to organization
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='none')    # 🔗 Link user to organization
     organization = models.ForeignKey(
         'Organization',
         on_delete=models.CASCADE,
@@ -32,6 +30,36 @@ class CustomUser(AbstractUser):
 
     profile_picture = models.ImageField(upload_to='profile_pics/', null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
+    registered = models.BooleanField(default=False, help_text="Indicates if the user has completed registration")
+    
+    # Subscription and Trial Management
+    stripe_customer_id = models.CharField(max_length=255, null=True, blank=True, help_text="Stripe customer ID")
+    subscription_status = models.CharField(
+        max_length=50, 
+        default='trial',
+        choices=[
+            ('trial', 'Trial'),
+            ('active', 'Active'),
+            ('past_due', 'Past Due'),
+            ('canceled', 'Canceled'),
+            ('unpaid', 'Unpaid'),
+        ],
+        help_text="Current subscription status"
+    )
+    subscription_tier = models.CharField(
+        max_length=50,
+        default='basic',
+        choices=[
+            ('basic', 'Basic'),
+            ('premium', 'Premium'),
+            ('enterprise', 'Enterprise'),
+        ],
+        help_text="Subscription tier/plan"
+    )
+    trial_start_date = models.DateTimeField(null=True, blank=True, help_text="When the trial period started")
+    trial_end_date = models.DateTimeField(null=True, blank=True, help_text="When the trial period ends")
+    stripe_subscription_id = models.CharField(max_length=255, null=True, blank=True, help_text="Stripe subscription ID")
+    
     ORGANIZATION_TYPE_CHOICES = [
         ('personal', 'Personal'),
         ('clinic', 'Clinic'),

@@ -29,11 +29,11 @@ function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
-
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
     email: '',
+    phone_number: '',
     organization: '',
     role: '',
   });
@@ -50,9 +50,7 @@ function ProfilePage() {
     if (!token) return;
 
     const decoded = jwtDecode(token);
-    const userId = decoded.user_id;
-
-    axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
+    const userId = decoded.user_id;    axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
@@ -60,14 +58,19 @@ function ProfilePage() {
           toast.error('No user profile found.');
           return;
         }
-        setUser(res.data);
-        setFormData({
+        console.log('🔍 API Response:', res.data);
+        console.log('🔍 Phone Number from API:', res.data.phone_number);
+        setUser(res.data);        
+        const newFormData = {
           first_name: res.data.first_name,
           last_name: res.data.last_name,
           email: res.data.email,
+          phone_number: res.data.phone_number || '',
           organization: res.data.organization,
           role: res.data.role,
-        });
+        };
+        console.log('🔍 New FormData:', newFormData);
+        setFormData(newFormData);
       })
       .catch(err => {
         console.error('Failed to load user', err);
@@ -82,6 +85,12 @@ function ProfilePage() {
       .then(res => setOrganizations(res.data))
       .catch(() => setOrganizations([]));
   }, [token]);
+
+  // Debug: Log whenever formData changes
+  useEffect(() => {
+    console.log('🔄 FormData State Updated:', formData);
+    console.log('🔄 Phone Number in State:', formData.phone_number);
+  }, [formData]);
   const handleSearch = async () => {
     try {
       // Fetch the current user's organization
@@ -281,11 +290,11 @@ function ProfilePage() {
                         size="small"
                         variant="outlined"
                         onClick={() => {
-                          setUser(result);
-                          setFormData({
+                          setUser(result);                          setFormData({
                             first_name: result.first_name,
                             last_name: result.last_name,
                             email: result.email,
+                            phone_number: result.phone_number || '',
                             organization: result.organization,
                             role: result.role,
                           });
@@ -381,8 +390,7 @@ function ProfilePage() {
                 readOnly: !isEditing,
                 sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
               }}
-            />
-            <TextField
+            />            <TextField
               label="Email"
               name="email"
               type="email"
@@ -396,7 +404,27 @@ function ProfilePage() {
                 readOnly: !isEditing,
                 sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
               }}
+            />            <TextField
+              label="Phone Number"
+              name="phone_number"
+              type="tel"
+              value={formData.phone_number || ''}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              disabled={!isEditing}
+              variant="outlined"
+              placeholder="(123) 456-7890"
+              key={`phone-${formData.phone_number}`}
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
+              }}
             />
+            {/* Debug: Phone Number Field Value */}
+            <Typography variant="caption" color="textSecondary">
+              Debug - Phone Number Value: "{formData.phone_number}" (Length: {formData.phone_number?.length || 0})
+            </Typography>
 
             {/* Organization - Editable with CreatableSelect */}
             <Box>
@@ -505,11 +533,11 @@ function ProfilePage() {
                   color="secondary"
                   startIcon={<CancelIcon />}
                   onClick={() => {
-                    setIsEditing(false);
-                    setFormData({
+                    setIsEditing(false);                    setFormData({
                       first_name: user.first_name,
                       last_name: user.last_name,
                       email: user.email,
+                      phone_number: user.phone_number || '',
                       organization: user.organization,
                       role: user.role,
                     });

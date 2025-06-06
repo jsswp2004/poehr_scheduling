@@ -1,0 +1,101 @@
+<!-- Test URLs for Pricing to Enrollment Integration -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>POWER IT Healthcare - Integration Test Links</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; }
+        .url-list { list-style: none; padding: 0; }
+        .url-list li { margin: 10px 0; }
+        .url-list a { color: #0066cc; text-decoration: none; padding: 10px; display: block; background: #f9f9f9; }
+        .url-list a:hover { background: #e9e9e9; }
+        .status { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>🎉 POWER IT Healthcare - Pricing to Enrollment Integration</h1>
+    <div class="status">✅ IMPLEMENTATION COMPLETE - READY FOR TESTING</div>
+    
+    <div class="test-section">
+        <h2>🧪 Test the Integration Flow</h2>
+        <p>Click these links to test the complete pricing to enrollment flow:</p>
+        
+        <h3>1. Main Pricing Page</h3>
+        <ul class="url-list">
+            <li><a href="http://localhost:3000/pricing" target="_blank">http://localhost:3000/pricing</a></li>
+        </ul>
+        
+        <h3>2. Direct Enrollment with URL Parameters</h3>
+        <ul class="url-list">
+            <li><a href="http://localhost:3000/enroll?plan=personal&tier=basic" target="_blank">Personal Plan: /enroll?plan=personal&tier=basic</a></li>
+            <li><a href="http://localhost:3000/enroll?plan=clinic&tier=premium" target="_blank">Clinic Plan: /enroll?plan=clinic&tier=premium</a></li>
+            <li><a href="http://localhost:3000/enroll?plan=group&tier=enterprise" target="_blank">Group Plan: /enroll?plan=group&tier=enterprise</a></li>
+        </ul>
+        
+        <h3>3. Enrollment without Parameters (Fallback Test)</h3>
+        <ul class="url-list">
+            <li><a href="http://localhost:3000/enroll" target="_blank">Default Enrollment: /enroll</a></li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>📋 Testing Checklist</h2>
+        <h3>On Pricing Page:</h3>
+        <ul>
+            <li>☐ Click "Get Started Free" for Personal plan</li>
+            <li>☐ Click "Start Free Trial" for Clinic plan</li>
+            <li>☐ Click "Contact Sales" for Group plan</li>
+        </ul>
+        
+        <h3>On Enrollment Page:</h3>
+        <ul>
+            <li>☐ Verify organization type dropdown shows correct selection</li>
+            <li>☐ Verify subscription tier matches the selected plan</li>
+            <li>☐ Verify form works normally with pre-selected values</li>
+            <li>☐ Test form submission with pre-selected values</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎯 Expected Results</h2>
+        <table border="1" style="border-collapse: collapse; width: 100%;">
+            <tr>
+                <th>Action</th>
+                <th>Expected URL</th>
+                <th>Organization Type</th>
+                <th>Subscription Tier</th>
+            </tr>
+            <tr>
+                <td>Click Personal "Get Started Free"</td>
+                <td>/enroll?plan=personal&tier=basic</td>
+                <td>personal</td>
+                <td>basic</td>
+            </tr>
+            <tr>
+                <td>Click Clinic "Start Free Trial"</td>
+                <td>/enroll?plan=clinic&tier=premium</td>
+                <td>clinic</td>
+                <td>premium</td>
+            </tr>
+            <tr>
+                <td>Click Group "Contact Sales"</td>
+                <td>/enroll?plan=group&tier=enterprise</td>
+                <td>group</td>
+                <td>enterprise</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="test-section">
+        <h2>✅ Implementation Summary</h2>
+        <ul>
+            <li><strong>PricingPage.js:</strong> Added URL parameters to all action buttons</li>
+            <li><strong>EnrollmentPage.js:</strong> Added URL parameter parsing and form defaults</li>
+            <li><strong>Error Handling:</strong> Graceful fallbacks for invalid/missing parameters</li>
+            <li><strong>User Experience:</strong> Seamless transition from pricing to enrollment</li>
+        </ul>
+    </div>
+</body>
+</html>

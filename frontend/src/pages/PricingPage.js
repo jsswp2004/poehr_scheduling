@@ -89,7 +89,7 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   <div className="panel-badge">Starter</div>
                   <div className="panel-title">Personal Basic</div>
                   <div className="panel-price">
-                    <span className="price-amount">$15</span>
+                    <span className="price-amount">$19.99</span>
 
                   </div>
                 </div>
@@ -104,9 +104,8 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   <div className="feature">Mobile app access for on-the-go management</div>
                   <div className="feature">Basic reporting on appointment statistics</div>
 
-                </div>
-                <div className="panel-button">
-                  <Link to="/enroll" className="btn-panel">Get Started Free</Link>
+                </div>                <div className="panel-button">
+                  <Link to="/enroll?plan=personal&tier=basic" className="btn-panel">Get Started Free</Link>
                 </div>
               </div>
 
@@ -177,9 +176,8 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   <div className="feature">Patient management system</div>                  
                   <div className="feature">Automated reminders</div>
                   <div className="feature">Advanced reporting & analytics</div>
-                </div>
-                <div className="panel-button">
-                  <Link to="/enroll" className="btn-panel">Start Free Trial</Link>
+                </div>                <div className="panel-button">
+                  <Link to="/enroll?plan=clinic&tier=premium" className="btn-panel">Start Free Trial</Link>
                 </div>
               </div>
 
@@ -253,9 +251,8 @@ export const PricingPage = ({ className, ...props }) => {  // State for active t
                   <div className="feature">Dedicated account manager</div>
                   <div className="feature">SLA guarantees</div>
                   <div className="feature">Professional services</div>                  
-                </div>
-                <div className="panel-button">
-                  <div className="btn-panel">Contact Sales</div>
+                </div>                <div className="panel-button">
+                  <Link to="/enroll?plan=group&tier=enterprise" className="btn-panel">Contact Sales</Link>
                 </div>
               </div>
 
