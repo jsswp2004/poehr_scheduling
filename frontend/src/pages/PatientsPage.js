@@ -32,6 +32,9 @@ function PatientsPage() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [team, setTeam] = useState([]);
+  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [teamSearch, setTeamSearch] = useState('');
   const [provider, setProvider] = useState('');
   const [tab, setTab] = useState('patients');
   const [page, setPage] = useState(1);
@@ -103,9 +106,31 @@ function PatientsPage() {
     }
   };
 
+  const fetchTeam = async () => {
+    setLoadingTeam(true);
+    try {
+      const res = await axios.get('http://127.0.0.1:8000/api/users/team/', {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { search: teamSearch },
+      });
+
+      const teamWithFullName = res.data.results.map((u) => ({
+        ...u,
+        full_name: `${u.first_name} ${u.last_name}`,
+      }));
+      setTeam(teamWithFullName);
+    } catch (err) {
+      console.error('Failed to fetch team:', err);
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
+
   useEffect(() => {
     if (tab === 'patients') {
       fetchPatients();
+    } else if (tab === 'team') {
+      fetchTeam();
     }
     // eslint-disable-next-line
   }, [page, sizePerPage, tab]);
@@ -325,6 +350,68 @@ const renderPatientTable = () => (
   </Paper>
 );
 
+const renderTeamTable = () => (
+  <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+    {loadingTeam ? (
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <CircularProgress />
+      </Box>
+    ) : (
+      <>
+        <TableContainer>
+          <Table size="small" stickyHeader>
+            <TableHead>
+              <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 220 }}>Email</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Phone</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Organization</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', width: 140 }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {team.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>
+                    No team members found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                team.map((member) => (
+                  <TableRow key={member.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+                    <TableCell>{member.full_name}</TableCell>
+                    <TableCell>{member.email}</TableCell>
+                    <TableCell>{member.phone_number || '—'}</TableCell>
+                    <TableCell>{member.organization_name || '—'}</TableCell>
+                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>
+                        <Tooltip title="Send SMS" placement="top">
+                          <IconButton variant="contained" size="small" color="warning"
+                            sx={{ width: 36, height: 36, minWidth: 0, padding: 0, mr: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={() => handleSendText(member)}>
+                            <FontAwesomeIcon icon={faCommentDots} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Send email" placement="top">
+                          <IconButton variant="outlined" size="small" color="info"
+                            sx={{ width: 36, height: 36, minWidth: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            onClick={() => handleOpenEmailModal(member)}>
+                            <FontAwesomeIcon icon={faEnvelope} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </>
+    )}
+  </Paper>
+);
+
   return (
     <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <Box sx={{ 
         display: 'flex', 
@@ -371,6 +458,7 @@ const renderPatientTable = () => (
             <Tab label="Quick Register" value="register" />
           )}
           <Tab label="Patients" value="patients" />
+          <Tab label="Team" value="team" />
           <Tab label="Calendar" value="calendar" />
           <Tab label="Appointments" value="appointments" />
         </Tabs>
@@ -413,6 +501,33 @@ const renderPatientTable = () => (
             </Button>
           </Stack>
           {renderPatientTable()}
+        </>
+      )}
+      {tab === 'team' && (
+        <>
+          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
+            <TextField
+              fullWidth
+              size="small"
+              variant="outlined"
+              placeholder="Search team..."
+              value={teamSearch}
+              onChange={(e) => {
+                setTeamSearch(e.target.value);
+                fetchTeam();
+              }}
+              sx={{ maxWidth: 350 }}
+              InputProps={{
+                endAdornment:
+                  teamSearch && (
+                    <IconButton size="small" onClick={() => { setTeamSearch(''); fetchTeam(); }}>
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  ),
+              }}
+            />
+          </Stack>
+          {renderTeamTable()}
         </>
       )}
       {tab === 'calendar' && (
