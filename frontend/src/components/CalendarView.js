@@ -13,6 +13,7 @@ import {
   Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert,
   List, ListItem, ListItemText, Typography, Chip
 } from '@mui/material';
+import BackButton from './BackButton';
 import CloseIcon from '@mui/icons-material/Close';
 
 function CustomToolbar({ date, label, onNavigate, views, view, onView, searchQuery, onSearchChange }) {
@@ -344,9 +345,24 @@ function CalendarView({ onUpdate }) {
       end,
       type: 'holiday',
       allDay: true,
-    };  });
-
-  // Handle date click to show availability
+    };
+  });  // Function to get available providers for a specific date
+  const getAvailableProvidersForDate = (date) => {
+    const dateStr = moment(date).format('YYYY-MM-DD');
+    return doctors.filter(doctor => {
+      // Check if doctor has any available (non-blocked) time blocks on this date
+      const hasAvailability = availabilityEvents.some(event => {
+        if (event.type !== 'availability') return false;
+        
+        const eventDate = moment(event.start).format('YYYY-MM-DD');
+        const eventDoctor = event.doctor_id;
+        
+        return String(eventDoctor) === String(doctor.id) && 
+               eventDate === dateStr &&
+               !event.is_blocked; // Only count non-blocked availability
+      });
+      return hasAvailability;
+    });  };  // Handle date click to show availability
   const handleDateClick = async (date) => {
     console.log('🗓️ handleDateClick called for date:', date);
     console.log('👨‍⚕️ Available doctors:', doctors.length);
@@ -355,8 +371,10 @@ function CalendarView({ onUpdate }) {
     
     const dateStr = moment(date).format('YYYY-MM-DD');
     console.log('🔍 Looking for availability on date:', dateStr);
-      // Extract user role and provider information from JWT token
+    
+    // Extract user role and provider information from JWT token
     let currentUserRole = null;
+    let assignedProviderId = null;
     
     if (token) {
       try {
