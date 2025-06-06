@@ -1,7 +1,7 @@
 // src/pages/AdminPage.js
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, Button, Box, Typography, Divider } from '@mui/material';
-import { FaTools, FaCalendarCheck, FaUserCog, FaSearch } from 'react-icons/fa';
+import { FaTools, FaCalendarCheck, FaUserCog, FaSearch, FaEnvelope } from 'react-icons/fa';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 
@@ -29,7 +29,7 @@ function AdminPage() {
   }, [navigate]);
 
   return (
-    <Box sx={{ width: '100%', maxWidth: 600, mx: 'auto', mt: 8 }}>
+    <Box sx={{ width: '100%', maxWidth: 720, mx: 'auto', mt: 8 }}>
       <Card elevation={6} sx={{ textAlign: 'center', borderRadius: 3 }}>        <CardContent>
           <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>
             Management Portal
@@ -113,6 +113,24 @@ function AdminPage() {
             >
               <FaSearch size={24} style={{ marginBottom: 8 }} />
               Appointment Search
+            </Button>
+            <Button
+              variant="contained"
+              color="warning"
+              size="large"
+              onClick={() => navigate('/messages')}
+              sx={{
+                width: 120,
+                height: 120,
+                flexDirection: 'column',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center'
+              }}
+            >
+              <FaEnvelope size={24} style={{ marginBottom: 8 }} />
+              Messages
             </Button>
           </Box>
         </CardContent>
