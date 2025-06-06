@@ -43,7 +43,7 @@ export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" })
             <div className="footer-column-title">Company</div>
             <div className="footer-links">
               <Link to="/about" className="footer-link">About Us</Link>
-              <a href="#contact" className="footer-link">Contact</a>
+              <Link to="/contact" className="footer-link">Contact</Link>
             </div>
           </div>
         </div>
