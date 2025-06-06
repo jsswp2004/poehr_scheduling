@@ -13,7 +13,6 @@ import {
   Button, TextField, Tooltip, IconButton, Box, Stack, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert,
   List, ListItem, ListItemText, Typography, Chip
 } from '@mui/material';
-import BackButton from './BackButton';
 import CloseIcon from '@mui/icons-material/Close';
 
 function CustomToolbar({ date, label, onNavigate, views, view, onView, searchQuery, onSearchChange }) {
@@ -279,6 +278,46 @@ function CalendarView({ onUpdate }) {
     }
   };
 
+  // Separate function to fetch availability events for the modal
+  const fetchAvailabilityEvents = async () => {
+    try {
+      console.log('🔍 Fetching availability events for modal...');
+      const res = await axios.get('http://127.0.0.1:8000/api/availability/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      console.log('📡 Raw availability API response:', res.data);
+      
+      if (!res.data || res.data.length === 0) {
+        console.log('⚠️ No availability data found in the API response');
+        setAvailabilityEvents([]);
+        return;
+      }
+      
+      const events = res.data.map(avail => {
+        const start = new Date(avail.start_time);
+        const end = new Date(avail.end_time);
+        return {
+          id: `avail-${avail.id}`,
+          title: avail.is_blocked ? 'Blocked' : 'Available',
+          start,
+          end,
+          type: 'availability',
+          is_blocked: avail.is_blocked,
+          doctor_id: avail.doctor,
+          doctor: avail.doctor,
+          doctor_name: avail.doctor_name,
+          block_type: avail.block_type
+        };
+      });
+      
+      console.log('✅ Processed availability events:', events);
+      setAvailabilityEvents(events);
+    } catch (err) {
+      console.error('❌ Failed to fetch availability events:', err);
+      setAvailabilityEvents([]);
+    }
+  };
+
   useEffect(() => {
     async function fetchHolidays() {
       try {
@@ -305,78 +344,158 @@ function CalendarView({ onUpdate }) {
       end,
       type: 'holiday',
       allDay: true,
-    };
-  });  // Function to get available providers for a specific date
-  const getAvailableProvidersForDate = (date) => {
+    };  });
+
+  // Handle date click to show availability
+  const handleDateClick = async (date) => {
+    console.log('🗓️ handleDateClick called for date:', date);
+    console.log('👨‍⚕️ Available doctors:', doctors.length);
+    console.log('📋 Available availabilityEvents:', availabilityEvents.length);
+    console.log('📝 Sample availabilityEvents:', availabilityEvents.slice(0, 3));
+    
     const dateStr = moment(date).format('YYYY-MM-DD');
-    return doctors.filter(doctor => {
-      // Check if doctor has any available (non-blocked) time blocks on this date
-      const hasAvailability = availabilityEvents.some(event => {
-        if (event.type !== 'availability') return false;
+    console.log('🔍 Looking for availability on date:', dateStr);
+      // Extract user role and provider information from JWT token
+    let currentUserRole = null;
+    
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        currentUserRole = decoded.role;
         
-        const eventDate = moment(event.start).format('YYYY-MM-DD');
-        const eventDoctor = event.doctor_id;
-        
-        return String(eventDoctor) === String(doctor.id) && 
-               eventDate === dateStr &&
-               !event.is_blocked; // Only count non-blocked availability
-      });
-      return hasAvailability;
+        // If user is a patient, we need to get their assigned provider
+        // This will need to be fetched from the user's profile since it's not in the JWT
+        console.log('🔐 Current user role:', currentUserRole);
+      } catch (err) {
+        console.error('Failed to decode token:', err);
+      }
+    }
+    
+    // First, let's see ALL availability events for this date (both blocked and available)
+    const allAvailabilityForDate = availabilityEvents.filter(event => {
+      if (event.type !== 'availability') return false;
+      const eventDate = moment(event.start).format('YYYY-MM-DD');
+      return eventDate === dateStr;
     });
-  };// Handle date click to show availability
-  const handleDateClick = (date) => {
-    const dateStr = moment(date).format('YYYY-MM-DD');
-    const availableProviders = doctors.filter(doctor => {
-      // Get all available (non-blocked) time blocks for this doctor on this date
-      const availableSlots = availabilityEvents.filter(event => {
+    
+    console.log('📊 All availability events for this date:', allAvailabilityForDate);
+    
+    // Get providers with availability data for this date
+    const allProvidersWithAnyAvailability = doctors.filter(doctor => {
+      const anySlots = availabilityEvents.filter(event => {
         if (event.type !== 'availability') return false;
         
         const eventDate = moment(event.start).format('YYYY-MM-DD');
         const eventDoctor = event.doctor_id;
         
-        return String(eventDoctor) === String(doctor.id) && 
-               eventDate === dateStr &&
-               !event.is_blocked; // Only count non-blocked availability
+        return String(eventDoctor) === String(doctor.id) && eventDate === dateStr;
       });
       
-      return availableSlots.length > 0;
+      return anySlots.length > 0;
     }).map(doctor => {
-      // Get the specific time slots for this doctor
-      const timeSlots = availabilityEvents.filter(event => {
+      const allSlots = availabilityEvents.filter(event => {
         if (event.type !== 'availability') return false;
         
         const eventDate = moment(event.start).format('YYYY-MM-DD');
         const eventDoctor = event.doctor_id;
         
-        return String(eventDoctor) === String(doctor.id) && 
-               eventDate === dateStr &&
-               !event.is_blocked;
+        return String(eventDoctor) === String(doctor.id) && eventDate === dateStr;
       }).map(slot => ({
         start: moment(slot.start).format('h:mm A'),
         end: moment(slot.end).format('h:mm A'),
-        duration: moment(slot.end).diff(moment(slot.start), 'minutes')
+        duration: moment(slot.end).diff(moment(slot.start), 'minutes'),
+        isBlocked: slot.is_blocked
       }));
       
       return {
         ...doctor,
-        timeSlots
+        timeSlots: allSlots
       };
     });
+    
+    console.log('🏥 All providers with ANY availability (blocked or not):', allProvidersWithAnyAvailability);
+      // Role-based filtering logic
+    let providersToShow = [];
+    
+    if (currentUserRole === 'patient') {
+      // For patients: Fetch their assigned provider and only show if available
+      console.log('🔍 Patient detected - fetching assigned provider...');
+      
+      try {
+        const userResponse = await axios.get('http://127.0.0.1:8000/api/users/me/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const currentUser = userResponse.data;
+        const assignedProviderId = currentUser.provider;
+        
+        console.log('👤 Current user info:', currentUser);
+        console.log('🏥 Assigned provider ID:', assignedProviderId);
+        
+        if (assignedProviderId) {
+          // Filter to only show the assigned provider if they have AVAILABLE (non-blocked) slots
+          const assignedProviderWithAvailability = allProvidersWithAnyAvailability.find(provider => {
+            return String(provider.id) === String(assignedProviderId) && 
+                   provider.timeSlots.some(slot => !slot.isBlocked);
+          });
+          
+          if (assignedProviderWithAvailability) {
+            // Only show non-blocked slots for the assigned provider
+            const availableSlots = assignedProviderWithAvailability.timeSlots.filter(slot => !slot.isBlocked);
+            providersToShow = [{
+              ...assignedProviderWithAvailability,
+              timeSlots: availableSlots
+            }];
+            console.log('✅ Showing assigned provider with available slots:', providersToShow);
+          } else {
+            // Assigned provider has no available slots on this date
+            providersToShow = [];
+            console.log('❌ Assigned provider has no available slots on this date');
+          }
+        } else {
+          // Patient has no assigned provider
+          providersToShow = [];
+          console.log('⚠️ Patient has no assigned provider');
+        }
+      } catch (err) {
+        console.error('❌ Failed to fetch user profile for patient filtering:', err);
+        // Fallback to showing all providers with available slots
+        const providersWithAvailableSlots = allProvidersWithAnyAvailability.filter(provider => {
+          return provider.timeSlots.some(slot => !slot.isBlocked);
+        });
+        providersToShow = providersWithAvailableSlots;
+      }
+    } else {
+      // For non-patients (admin, doctor, registrar, etc.): show all providers with availability data
+      providersToShow = allProvidersWithAnyAvailability.length > 0 
+        ? allProvidersWithAnyAvailability 
+        : doctors.map(doctor => ({
+            ...doctor,
+            timeSlots: [{ 
+              start: 'No schedule data', 
+              end: 'available', 
+              duration: 0, 
+              isBlocked: false 
+            }]
+          }));
+    }
+    
+    console.log('📋 Final providers to show in modal (after role filtering):', providersToShow);
     
     setSelectedDateAvailability({
       date: dateStr,
       dateFormatted: moment(date).format('MMMM D, YYYY'),
-      providers: availableProviders
+      providers: providersToShow
     });
     setShowAvailabilityModal(true);
   };
-
   useEffect(() => {
     fetchDoctors().then(() => fetchAppointments());
     fetchBlockedDays();
     fetchClinicEvents();
+    fetchAvailabilityEvents(); // Add this to specifically fetch availability events for the modal
     // eslint-disable-next-line
-  }, [token]);  // Check if appointment time conflicts with provider's blocked availability
+  }, [token]);// Check if appointment time conflicts with provider's blocked availability
   const checkAvailabilityConflict = useCallback((startDate, durationMinutes, doctorId) => {
     // If called without params, use the current modal form data
     const start = startDate || new Date(modalFormData.appointment_datetime);
@@ -921,20 +1040,19 @@ function CalendarView({ onUpdate }) {
                               <Box>
                                 <Typography variant="body2" color="text.secondary">
                                   Specialization: {provider.specialization || 'General'}
-                                </Typography>
-                                {provider.timeSlots && provider.timeSlots.length > 0 && (
+                                </Typography>                                {provider.timeSlots && provider.timeSlots.length > 0 && (
                                   <Box sx={{ mt: 1 }}>
                                     <Typography variant="caption" color="text.secondary">
-                                      Available Times:
+                                      Time Slots:
                                     </Typography>
                                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
                                       {provider.timeSlots.map((slot, index) => (
                                         <Chip
                                           key={index}
-                                          label={`${slot.start} - ${slot.end}`}
+                                          label={`${slot.start} - ${slot.end}${slot.isBlocked !== undefined ? (slot.isBlocked ? ' (Blocked)' : ' (Available)') : ''}`}
                                           variant="outlined"
                                           size="small"
-                                          color="primary"
+                                          color={slot.isBlocked === true ? "error" : slot.isBlocked === false ? "success" : "primary"}
                                         />
                                       ))}
                                     </Box>
