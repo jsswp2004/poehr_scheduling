@@ -1,5 +1,6 @@
-import { ToastContainer } from 'react-toastify';
+import { ToastContainer } from './components/SimpleToast';
 import 'react-toastify/dist/ReactToastify.css';
+import './toastify-custom.css';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import LoginPage from './pages/LoginPage';
@@ -27,6 +28,8 @@ import OverviewPage from './pages/OverviewPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import EnrollmentPage from './pages/EnrollmentPage';
+import ToastTestPage from './pages/ToastTestPage';
+import ToastDebugButton from './components/ToastDebugButton';
 
 function AppContent() {
   const location = useLocation();
@@ -47,12 +50,20 @@ function AppContent() {
     } else {
       body.classList.remove('bg-gray-100');
     }
-  }, [location.pathname]);
-
-  return (
-    <>
-      {showNavbar && <Navbar />}
-      <ToastContainer position="top-center" />      <Routes>
+  }, [location.pathname]);  return (
+    <>      {showNavbar && <Navbar />}      <ToastContainer 
+        position="top-center"
+        autoClose={2000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+      />
+      <ToastDebugButton />
+      <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/enroll" element={<EnrollmentPage />} />
@@ -72,10 +83,10 @@ function AppContent() {
         <Route path="/create-profile" element={<PrivateRoute><CreateProfilePage /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
         <Route path="/holidays" element={<PrivateRoute><HolidaysTab /></PrivateRoute>} />
-        <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />
-        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
+        <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />
         <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />
+        <Route path="/toast-test" element={<ToastTestPage />} />
       </Routes>
     </>
   );
