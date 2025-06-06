@@ -25,10 +25,11 @@ import PricingPage from './pages/PricingPage';
 import FeaturesPage from './pages/FeaturesPage';
 import OverviewPage from './pages/OverviewPage';
 import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact'].includes(location.pathname);
 
   // Add or remove body class based on whether navbar should be shown
   useEffect(() => {
@@ -40,7 +41,7 @@ function AppContent() {
   }, [showNavbar]);
   useEffect(() => {
     const body = document.body;
-    if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/pricing' || location.pathname === '/features' || location.pathname === '/overview' || location.pathname === '/about') {
+    if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/pricing' || location.pathname === '/features' || location.pathname === '/overview' || location.pathname === '/about' || location.pathname === '/contact') {
       body.classList.add('bg-gray-100');
     } else {
       body.classList.remove('bg-gray-100');
@@ -55,6 +56,7 @@ function AppContent() {
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
