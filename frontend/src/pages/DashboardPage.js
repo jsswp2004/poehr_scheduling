@@ -59,6 +59,18 @@ function DashboardPage() {
   });
   const [showForm, setShowForm] = useState(true);
 
+  // Message my Provider form state
+  const [emailForm, setEmailForm] = useState({
+    to: '',
+    cc: '',
+    bcc: '',
+    subject: '',
+    message: '',
+    attachments: [],
+  });
+  const [providerName, setProviderName] = useState('');
+  const [patientName, setPatientName] = useState('');
+
   const token = localStorage.getItem('access_token');
   const userRole = token ? jwtDecode(token).role : null;
   const navigate = useNavigate();
@@ -100,6 +112,34 @@ function DashboardPage() {
       fetchAppointments();
     }
   }, [token, doctors.length, refreshFlag]);
+
+  useEffect(() => {
+    if (!token) return;
+    const fetchUserAndProvider = async () => {
+      try {
+        const res = await axios.get('http://127.0.0.1:8000/api/users/me/', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const user = res.data;
+        const name = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+        setPatientName(name);
+        if (user.provider) {
+          const provRes = await axios.get(`http://127.0.0.1:8000/api/users/${user.provider}/`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          const prov = provRes.data;
+          const provName = `${prov.first_name || ''} ${prov.last_name || ''}`.trim();
+          setProviderName(provName);
+          setEmailForm(prev => ({ ...prev, to: prov.email || '' }));
+          const template = `${new Date().toLocaleDateString()}\n\nDear ${provName},\n\n[Your message here]\n\nThank you,\n${name}`;
+          setEmailForm(prev => ({ ...prev, message: template }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch user/provider info:', err);
+      }
+    };
+    fetchUserAndProvider();
+  }, [token]);
 
   const handleChange = (e) => {
     setFormData({
@@ -200,6 +240,37 @@ function DashboardPage() {
     } catch (error) {
       console.error(error);
       toast.error('Failed to save appointment.');
+    }
+  };
+
+  const handleEmailChange = (field) => (e) => {
+    setEmailForm(prev => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleAttachmentChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    setEmailForm(prev => ({ ...prev, attachments: files }));
+  };
+
+  const handleSendMessage = async () => {
+    try {
+      const form = new FormData();
+      form.append('email', emailForm.to);
+      if (emailForm.cc) form.append('cc', emailForm.cc);
+      if (emailForm.bcc) form.append('bcc', emailForm.bcc);
+      form.append('subject', emailForm.subject);
+      form.append('message', emailForm.message);
+      emailForm.attachments.forEach(f => form.append('attachments', f));
+      await axios.post('http://127.0.0.1:8000/api/messages/send-email/', form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      toast.success('Message sent');
+    } catch (err) {
+      console.error('Failed to send message:', err);
+      toast.error('Failed to send message');
     }
   };
 
@@ -391,6 +462,34 @@ function DashboardPage() {
                 </Table>
               </TableContainer>
             </Box>
+          </Stack>
+        </Box>
+      )}
+      {tab === 'message' && (
+        <Box sx={{ maxWidth: 600 }}>
+          <Stack spacing={2}>
+            <TextField label="To" value={emailForm.to} onChange={handleEmailChange('to')} fullWidth />
+            <TextField label="Cc" value={emailForm.cc} onChange={handleEmailChange('cc')} fullWidth />
+            <TextField label="Bcc" value={emailForm.bcc} onChange={handleEmailChange('bcc')} fullWidth />
+            <TextField label="Subject" value={emailForm.subject} onChange={handleEmailChange('subject')} fullWidth />
+            <TextField
+              label="Message"
+              multiline
+              rows={8}
+              value={emailForm.message}
+              onChange={handleEmailChange('message')}
+              fullWidth
+            />
+            <div>
+              <Button variant="outlined" component="label">
+                Attach Files
+                <input type="file" multiple hidden onChange={handleAttachmentChange} />
+              </Button>
+              {emailForm.attachments.map((f, idx) => (
+                <Typography key={idx} variant="caption" sx={{ ml: 1, display: 'block' }}>{f.name}</Typography>
+              ))}
+            </div>
+            <Button variant="contained" onClick={handleSendMessage}>Send Message</Button>
           </Stack>
         </Box>
       )}
