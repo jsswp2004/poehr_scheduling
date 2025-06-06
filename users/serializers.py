@@ -49,7 +49,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = (
             'id', 'username', 'email', 'password',
-            'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture','organization', 'organization_logo', 'organization_name', 'phone_number'  # ✅ include provider_name
+            'first_name', 'last_name', 'role', 'provider', 'provider_name', 'profile_picture',
+            'organization', 'organization_logo', 'organization_name', 'phone_number',
+            'organization_type'
         )
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
@@ -75,6 +77,7 @@ class UserSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         provider = validated_data.pop('provider', None)
         organization = validated_data.pop('organization')
+        organization_type = validated_data.pop('organization_type', 'personal')
 
         profile_picture = validated_data.pop('profile_picture', None)  # ✅ Extract it safely
 
@@ -92,7 +95,8 @@ class UserSerializer(serializers.ModelSerializer):
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
             role=role,  # blank string if non-patient
-            organization=organization
+            organization=organization,
+            organization_type=organization_type
         )
 
         if profile_picture:  # ✅ Save the uploaded file
