@@ -428,6 +428,7 @@ VISUAL LOCATION: Appears at top of page below navigation header
   height: auto;
   max-width: 100%;
   object-fit: cover;
+  padding: 0px;
 }
 
 .landing-page-v-1-desktop-1920-px .scheduling-dashboard-image:hover {
@@ -445,6 +446,7 @@ VISUAL LOCATION: Appears at top of page below navigation header
   height: auto;
   max-width: 100%;
   object-fit: cover;
+  padding: 0px;
 }
 
 .landing-page-v-1-desktop-1920-px .collaboration-dashboard-image:hover {
@@ -1180,6 +1182,7 @@ VISUAL LOCATION: Final section at bottom of page
 }
 
 .footer-brand {
+  align-items: center;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -1189,9 +1192,18 @@ VISUAL LOCATION: Final section at bottom of page
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
-}
+  margin-bottom: 16px;  
+  flex-wrap: nowrap;             /* Prevents items from wrapping to a new line */
+  min-width: 0;  
 
+}
+.footer-logo span,
+.footer-logo img,
+.footer-logo svg {
+  white-space: nowrap;           /* Prevents text from breaking */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .footer-logo img {
   width: 40px;
   height: 40px;
@@ -1283,262 +1295,25 @@ VISUAL LOCATION: Final section at bottom of page
   color: #3b82f6;
 }
 
-/* 
-=======================================================================
-COMPREHENSIVE RESPONSIVE DESIGN FOR PRICING SECTION
-=======================================================================
-*/
-
-/* Large tablets and smaller desktops */
-@media (max-width: 1024px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 80px 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    gap: 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    max-width: 320px;
-    padding: 32px 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular {
-    transform: scale(1.02);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
-    transform: scale(1.02) translateY(-4px);
-  }
-}
-
-/* Tablets */
+/* Responsive design for pricing section */
 @media (max-width: 768px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
+  .pricing-section {
     padding: 60px 20px;
   }
   
-  .landing-page-v-1-desktop-1920-px .pricing-header {
-    margin-bottom: 40px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: clamp(32px, 8vw, 48px);
-    margin-bottom: 12px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: clamp(16px, 4vw, 18px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    flex-direction: column;
-    align-items: center;
+  .pricing-grid {
+    grid-template-columns: 1fr;
     gap: 20px;
-    max-width: 400px;
   }
   
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    width: 100%;
-    max-width: 360px;
-    padding: 28px 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular {
+  .pricing-card.popular {
     transform: none;
-    order: -1;
   }
   
-  .landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
-    transform: translateY(-4px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-name {
-    font-size: clamp(20px, 5vw, 24px);
-    margin-bottom: 8px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-amount {
-    font-size: clamp(32px, 8vw, 40px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-period {
-    font-size: clamp(14px, 3vw, 16px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-description {
-    font-size: clamp(14px, 3vw, 16px);
-    margin-bottom: 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .feature {
-    font-size: clamp(14px, 3vw, 16px);
-    margin-bottom: 10px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .btn-plan {
-    height: 48px;
-    font-size: clamp(16px, 4vw, 18px);
-  }
-}
-
-/* Mobile devices */
-@media (max-width: 576px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 50px 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-header {
-    margin-bottom: 32px;
-    max-width: 100%;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: clamp(28px, 10vw, 36px);
-    line-height: 1.1;
-    margin-bottom: 8px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: clamp(14px, 4vw, 16px);
-    line-height: 1.4;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-cards {
-    gap: 16px;
-    max-width: 100%;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    padding: 24px 16px;
-    border-radius: 16px;
-    max-width: 100%;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-header {
-    margin-bottom: 20px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-name {
-    font-size: clamp(18px, 6vw, 22px);
-    margin-bottom: 6px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-amount {
-    font-size: clamp(28px, 9vw, 36px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-period {
-    font-size: clamp(12px, 3vw, 14px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-description {
-    font-size: clamp(13px, 3.5vw, 15px);
-    margin-bottom: 20px;
-    line-height: 1.4;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-features {
-    margin-bottom: 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .feature {
-    font-size: clamp(13px, 3.5vw, 15px);
-    margin-bottom: 8px;
-    line-height: 1.3;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .btn-plan {
-    height: 44px;
-    font-size: clamp(14px, 4vw, 16px);
-    border-radius: 10px;
-  }
-}
-
-/* Small mobile devices */
-@media (max-width: 480px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 40px 12px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: clamp(24px, 12vw, 32px);
-    line-height: 1.0;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: clamp(13px, 4vw, 15px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    padding: 20px 14px;
-    border-radius: 14px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-name {
-    font-size: clamp(16px, 6vw, 20px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-amount {
-    font-size: clamp(24px, 10vw, 32px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-period {
-    font-size: clamp(11px, 3vw, 13px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-description {
-    font-size: clamp(12px, 3.5vw, 14px);
-    margin-bottom: 16px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .feature {
-    font-size: clamp(12px, 3.5vw, 14px);
-    margin-bottom: 6px;
-    line-height: 1.2;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .btn-plan {
-    height: 40px;
-    font-size: clamp(13px, 4vw, 15px);
-    border-radius: 8px;
-  }
-}
-
-/* Extra small mobile devices */
-@media (max-width: 360px) {
-  .landing-page-v-1-desktop-1920-px .pricing-section {
-    padding: 30px 8px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-card {
-    padding: 16px 12px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .choose-your-plan {
-    font-size: clamp(20px, 14vw, 28px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .pricing-description {
-    font-size: clamp(12px, 4vw, 14px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .plan-name {
-    font-size: clamp(14px, 7vw, 18px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .price-amount {
-    font-size: clamp(20px, 12vw, 28px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .feature {
-    font-size: clamp(11px, 4vw, 13px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .btn-plan {
-    height: 36px;
-    font-size: clamp(12px, 4vw, 14px);
+  .pricing-card.popular::after {
+    top: 15px;
+    right: -20px;
+    padding: 6px 25px;
   }
 }
 
@@ -3192,7 +2967,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
   font-family: var(--paragraph-p2-medium-font-family, "Inter-Medium", sans-serif);
   font-size: var(--paragraph-p2-medium-font-size, 18px);
   line-height: var(--paragraph-p2-medium-line-height, 23px);
-  letter-spacing: var(--paragraph-p2-medium-letter-spacing, -0.02em);
+  letter-spacing: -0.01em;
   font-weight: var(--paragraph-p2-medium-font-weight, 500);
   position: relative;
 }
@@ -3203,7 +2978,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
   font-family: var(--paragraph-p2-medium-font-family, "Inter-Medium", sans-serif);
   font-size: var(--paragraph-p2-medium-font-size, 18px);
   line-height: var(--paragraph-p2-medium-line-height, 23px);
-  letter-spacing: var(--paragraph-p2-medium-letter-spacing, -0.02em);
+  letter-spacing: -0.01em;
   font-weight: var(--paragraph-p2-medium-font-weight, 500);
   position: relative;
 }
@@ -3597,5 +3372,264 @@ RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT2 SECTION
   
   .landing-page-v-1-desktop-1920-px .try-power-free {
     font-size: 13px;
+  }
+}
+
+/* 
+=======================================================================
+COMPREHENSIVE RESPONSIVE DESIGN FOR PRICING SECTION
+=======================================================================
+*/
+
+/* Large tablets and smaller desktops */
+@media (max-width: 1024px) {
+  .landing-page-v-1-desktop-1920-px .pricing-section {
+    padding: 80px 40px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-cards {
+    gap: 24px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card {
+    max-width: 320px;
+    padding: 32px 24px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card.popular {
+    transform: scale(1.02);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
+    transform: scale(1.02) translateY(-4px);
+  }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .pricing-section {
+    padding: 60px 20px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-header {
+    margin-bottom: 40px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .choose-your-plan {
+    font-size: clamp(32px, 8vw, 48px);
+    margin-bottom: 12px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-description {
+    font-size: clamp(16px, 4vw, 18px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-cards {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    max-width: 400px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card {
+    width: 100%;
+    max-width: 360px;
+    padding: 28px 20px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card.popular {
+    transform: none;
+    order: -1;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card.popular:hover {
+    transform: translateY(-4px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-name {
+    font-size: clamp(20px, 5vw, 24px);
+    margin-bottom: 8px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .price-amount {
+    font-size: clamp(32px, 8vw, 40px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .price-period {
+    font-size: clamp(14px, 3vw, 16px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-description {
+    font-size: clamp(14px, 3vw, 16px);
+    margin-bottom: 24px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .feature {
+    font-size: clamp(14px, 3vw, 16px);
+    margin-bottom: 10px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-plan {
+    height: 48px;
+    font-size: clamp(16px, 4vw, 18px);
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 576px) {
+  .landing-page-v-1-desktop-1920-px .pricing-section {
+    padding: 50px 16px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-header {
+    margin-bottom: 32px;
+    max-width: 100%;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .choose-your-plan {
+    font-size: clamp(28px, 10vw, 36px);
+    line-height: 1.1;
+    margin-bottom: 8px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-description {
+    font-size: clamp(14px, 4vw, 16px);
+    line-height: 1.4;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-cards {
+    gap: 16px;
+    max-width: 100%;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card {
+    padding: 24px 16px;
+    border-radius: 16px;
+    max-width: 100%;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-header {
+    margin-bottom: 20px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-name {
+    font-size: clamp(18px, 6vw, 22px);
+    margin-bottom: 6px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .price-amount {
+    font-size: clamp(28px, 9vw, 36px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .price-period {
+    font-size: clamp(12px, 3vw, 14px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-description {
+    font-size: clamp(13px, 3.5vw, 15px);
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-features {
+    margin-bottom: 24px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .feature {
+    font-size: clamp(13px, 3.5vw, 15px);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-plan {
+    height: 44px;
+    font-size: clamp(14px, 4vw, 16px);
+    border-radius: 10px;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .pricing-section {
+    padding: 40px 12px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .choose-your-plan {
+    font-size: clamp(24px, 12vw, 32px);
+    line-height: 1.0;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-description {
+    font-size: clamp(13px, 4vw, 15px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card {
+    padding: 20px 14px;
+    border-radius: 14px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-name {
+    font-size: clamp(16px, 6vw, 20px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .price-amount {
+    font-size: clamp(24px, 10vw, 32px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .price-period {
+    font-size: clamp(11px, 3vw, 13px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-description {
+    font-size: clamp(12px, 3.5vw, 14px);
+    margin-bottom: 16px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .feature {
+    font-size: clamp(12px, 3.5vw, 14px);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-plan {
+    height: 40px;
+    font-size: clamp(13px, 4vw, 15px);
+    border-radius: 8px;
+  }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 360px) {
+  .landing-page-v-1-desktop-1920-px .pricing-section {
+    padding: 30px 8px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-card {
+    padding: 16px 12px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .choose-your-plan {
+    font-size: clamp(20px, 14vw, 28px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .pricing-description {
+    font-size: clamp(12px, 4vw, 14px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .plan-name {
+    font-size: clamp(14px, 7vw, 18px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .price-amount {
+    font-size: clamp(20px, 12vw, 28px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .feature {
+    font-size: clamp(11px, 4vw, 13px);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-plan {
+    height: 36px;
+    font-size: clamp(12px, 4vw, 14px);
   }
 }
