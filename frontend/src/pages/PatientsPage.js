@@ -248,7 +248,6 @@ function PatientsPage() {
       toast.error('Failed to delete patient.');
     }
   };
-
   const exportCSV = () => {
     const csv = Papa.unparse(
       patients.map((p) => ({
@@ -261,17 +260,353 @@ function PatientsPage() {
     saveAs(blob, 'patients.csv');
   };
 
-  const handlePrintReport = (report) => {
-    console.log('Print report:', report);
-    window.print();
+  // Helper function to fetch report data from backend
+  const fetchReportData = async (reportType) => {
+    try {
+      const params = new URLSearchParams({
+        report_type: reportType
+      });
+      
+      if (reportStartDate) {
+        params.append('start_date', reportStartDate.toISOString().split('T')[0]);
+      }
+      if (reportEndDate) {
+        params.append('end_date', reportEndDate.toISOString().split('T')[0]);
+      }
+      if (reportProvider && reportProvider !== 'all') {
+        params.append('provider_id', reportProvider);
+      }      const response = await axios.get(
+        `http://127.0.0.1:8000/api/analytics/reports/?${params}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+      
+      return response.data.data;
+    } catch (error) {
+      console.error('Failed to fetch report data:', error);
+      toast.error('Failed to fetch report data');
+      return null;
+    }
   };
 
-  const handleExportCsvReport = (report) => {
-    console.log('Export CSV for:', report);
-  };
+  // Helper function to generate printable table HTML
+  const generatePrintableTable = (reportType, data) => {
+    if (!data || data.length === 0) return '<p>No data available for this report.</p>';
 
-  const handleExportPdfReport = (report) => {
-    console.log('Export PDF for:', report);
+    if (reportType === 'Upcoming Appointments Report' || reportType === 'Past Appointments Report') {
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th>Patient Name</th>
+              <th>Provider</th>
+              <th>Title</th>
+              <th>Date & Time</th>
+              <th>Duration</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(item => `
+              <tr>
+                <td>${item.patient_name}</td>
+                <td>${item.provider_name}</td>
+                <td>${item.title}</td>
+                <td>${item.datetime}</td>
+                <td>${item.duration} min</td>
+                <td>${item.status}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    if (reportType === 'Provider Schedule Report') {
+      let html = '';
+      Object.entries(data).forEach(([provider, appointments]) => {
+        html += `
+          <h3>${provider}</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th>Title</th>
+                <th>Date & Time</th>
+                <th>Duration</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${appointments.map(apt => `
+                <tr>
+                  <td>${apt.patient_name}</td>
+                  <td>${apt.title}</td>
+                  <td>${apt.datetime}</td>
+                  <td>${apt.duration} min</td>
+                  <td>${apt.status}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      });
+      return html;
+    }
+    
+    if (reportType === 'Appointment Status Report') {
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Count</th>
+              <th>Percentage</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.summary.map(item => `
+              <tr>
+                <td>${item.status}</td>
+                <td>${item.count}</td>
+                <td>${item.percentage}%</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <p><strong>Total Appointments: ${data.total}</strong></p>
+      `;
+    }
+    
+    if (reportType === 'New Patient Registrations') {
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th>Patient Name</th>
+              <th>Email</th>
+              <th>Registration Date</th>
+              <th>Appointment Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(item => `
+              <tr>
+                <td>${item.name}</td>
+                <td>${item.email}</td>
+                <td>${item.registration_date}</td>
+                <td>${item.appointment_count}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    if (reportType === 'Blocked Time Slots') {
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th>Doctor</th>
+              <th>Start Time</th>
+              <th>End Time</th>
+              <th>Duration (hours)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(item => `
+              <tr>
+                <td>${item.doctor_name}</td>
+                <td>${item.start_time}</td>
+                <td>${item.end_time}</td>
+                <td>${item.duration_hours}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    if (reportType === 'Appointment Recurrence Report') {
+      return `
+        <table>
+          <thead>
+            <tr>
+              <th>Patient</th>
+              <th>Provider</th>
+              <th>Title</th>
+              <th>Recurrence</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(item => `
+              <tr>
+                <td>${item.patient_name}</td>
+                <td>${item.provider_name}</td>
+                <td>${item.title}</td>
+                <td>${item.recurrence}</td>
+                <td>${item.start_date}</td>
+                <td>${item.end_date}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    if (reportType === 'Appointment Duration Summary') {
+      const stats = data.statistics;
+      return `
+        <h3>Statistics Summary</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Average Duration</td><td>${stats.average_duration} minutes</td></tr>
+            <tr><td>Total Duration</td><td>${stats.total_duration_hours} hours</td></tr>
+            <tr><td>Min Duration</td><td>${stats.min_duration} minutes</td></tr>
+            <tr><td>Max Duration</td><td>${stats.max_duration} minutes</td></tr>
+            <tr><td>Total Appointments</td><td>${stats.total_appointments}</td></tr>
+          </tbody>
+        </table>
+        
+        <h3>Duration Distribution</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Duration Range</th>
+              <th>Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.entries(data.distribution).map(([range, count]) => `
+              <tr>
+                <td>${range}</td>
+                <td>${count}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+    
+    return '<p>Report type not supported for printing.</p>';
+  };
+  const handlePrintReport = async (report) => {
+    try {
+      const reportData = await fetchReportData(report);
+      if (reportData) {
+        // Create a printable version
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>${report}</title>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                h1 { color: #1976d2; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f5f5f5; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .filters { margin-bottom: 20px; font-size: 14px; color: #666; }
+                @media print { .no-print { display: none; } }
+              </style>
+            </head>
+            <body>
+              <h1>${report}</h1>
+              <div class="filters">
+                ${reportStartDate ? `Start Date: ${reportStartDate.toLocaleDateString()} ` : ''}
+                ${reportEndDate ? `End Date: ${reportEndDate.toLocaleDateString()} ` : ''}
+                ${reportProvider !== 'all' ? `Provider: ${providers.find(p => p.id == reportProvider)?.first_name || 'All'}` : 'Provider: All'}
+              </div>
+              ${generatePrintableTable(report, reportData)}
+              <script>window.print(); window.onafterprint = () => window.close();</script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+    } catch (error) {
+      console.error('Print failed:', error);
+      toast.error('Failed to generate printable report');
+    }
+  };
+  const handleExportCsvReport = async (report) => {
+    try {
+      const reportData = await fetchReportData(report);
+      if (reportData) {
+        const response = await axios.post(
+          'http://127.0.0.1:8000/api/analytics/export/',
+          {
+            format: 'csv',
+            report_type: report,
+            data: reportData
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'blob'
+          }
+        );
+        
+        const blob = new Blob([response.data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${report.replace(/ /g, '_').toLowerCase()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('CSV report downloaded successfully');
+      }
+    } catch (error) {
+      console.error('CSV export failed:', error);
+      toast.error('Failed to export CSV report');
+    }
+  };
+  const handleExportPdfReport = async (report) => {
+    try {
+      const reportData = await fetchReportData(report);
+      if (reportData) {
+        const response = await axios.post(
+          'http://127.0.0.1:8000/api/analytics/export/',
+          {
+            format: 'pdf',
+            report_type: report,
+            data: reportData
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: 'blob'
+          }
+        );
+        
+        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${report.replace(/ /g, '_').toLowerCase()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('PDF report downloaded successfully');
+      }
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      toast.error('Failed to export PDF report');
+    }
   };
 
   // --- Render Table for Patient List ---
