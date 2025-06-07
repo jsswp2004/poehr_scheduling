@@ -3,8 +3,11 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab
+  Alert, CircularProgress, Tabs, Tab, Pagination
 } from '@mui/material';
+import TodayIcon from '@mui/icons-material/Today';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import CloseIcon from '@mui/icons-material/Close';
@@ -22,7 +25,6 @@ import {
   faPrint, faFileCsv, faFilePdf,
 } from '@fortawesome/free-solid-svg-icons';
 import RegisterPage from './RegisterPage';
-import AppointmentsPage from './AppointmentsPage';
 
 function PatientsPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -43,10 +45,17 @@ function PatientsPage() {
   const [page, setPage] = useState(1);
   const [sizePerPage, setSizePerPage] = useState(10);
   const [totalSize, setTotalSize] = useState(0);
-  const [reportStartDate, setReportStartDate] = useState(null);
-  const [reportEndDate, setReportEndDate] = useState(null);
-  const [reportProvider, setReportProvider] = useState('all');
+  const [reportStartDate, setReportStartDate] = useState(null);  const [reportEndDate, setReportEndDate] = useState(null);  const [reportProvider, setReportProvider] = useState('all');
   const [providers, setProviders] = useState([]);
+  const [todaysAppointments, setTodaysAppointments] = useState([]);
+  
+  // Appointments table state
+  const [appointmentsQuery, setAppointmentsQuery] = useState('');
+  const [appointmentsResults, setAppointmentsResults] = useState([]);
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  
   const navigate = useNavigate();
   const rowsPerPage = 15;
   const totalPages = Math.ceil(patients.length / rowsPerPage);
@@ -143,7 +152,6 @@ function PatientsPage() {
       setLoadingTeam(false);
     }
   };
-
   const fetchProviders = async () => {
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
@@ -155,16 +163,104 @@ function PatientsPage() {
     }
   };
 
-  useEffect(() => {
+  // Fetch all appointments and filter client-side for main appointments table
+  const fetchAppointments = async (searchText = '') => {
+    try {
+      const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const lowerQuery = searchText.trim().toLowerCase();
+
+      if (!lowerQuery) {
+        setAppointmentsResults(res.data);
+        return;
+      }
+
+      const filtered = res.data.filter((appt) => {
+        const patientName = appt.patient_name || (appt.patient ? `${appt.patient.first_name} ${appt.patient.last_name}` : '');
+        const providerName = appt.provider_name || (appt.provider ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim() : '');
+        let dateTimeFormats = [];
+        if (appt.appointment_datetime) {
+          const dateObj = new Date(appt.appointment_datetime);
+          dateTimeFormats.push(dateObj.toLocaleString());
+          dateTimeFormats.push(dateObj.toLocaleDateString());
+          dateTimeFormats.push(dateObj.toLocaleTimeString());
+          dateTimeFormats.push(dateObj.toISOString().slice(0, 10));
+          dateTimeFormats.push(`${dateObj.getMonth() + 1}/${dateObj.getDate()}`);
+        }
+        const dateTimeStr = dateTimeFormats.join(' ');
+        const description = appt.description || '';
+        const duration = appt.duration_minutes ? appt.duration_minutes.toString() : '';
+        const status = appt.status || '';
+        const clinic = appt.title || '';
+        const id = appt.id ? appt.id.toString() : '';
+        const combined = `
+          ${patientName} 
+          ${providerName} 
+          ${dateTimeStr} 
+          ${description} 
+          ${duration} 
+          ${status}
+          ${clinic}
+          ${id}
+        `.toLowerCase();
+
+        return combined.includes(lowerQuery);
+      });
+
+      setAppointmentsResults(filtered);    } catch (err) {
+      setAppointmentsResults([]);
+    }
+  };
+
+  // Search handler for appointments
+  const handleAppointmentsSearch = async (e) => {
+    e.preventDefault();
+    fetchAppointments(appointmentsQuery);
+  };  useEffect(() => {
     if (tab === 'patients') {
       fetchPatients();
     } else if (tab === 'team') {
       fetchTeam();
     } else if (tab === 'analytics') {
       fetchProviders();
+    } else if (tab === 'appointments') {
+      fetchProviders();
+      fetchAppointments(appointmentsQuery);
     }
     // eslint-disable-next-line
   }, [page, sizePerPage, tab]);
+
+  // Fetch today's appointments for the summary panel
+  useEffect(() => {
+    const fetchTodaysAppointments = async () => {
+      if (tab !== 'appointments') return;
+      
+      try {
+        const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const filtered = res.data.filter((appt) => {
+          if (!appt.appointment_datetime) return false;
+          const apptDate = new Date(appt.appointment_datetime);
+          return apptDate >= today && apptDate < tomorrow;
+        });
+
+        setTodaysAppointments(filtered);
+      } catch (err) {
+        console.error('Failed to fetch today\'s appointments:', err);
+        setTodaysAppointments([]);
+      }
+    };
+    
+    fetchTodaysAppointments();
+  }, [token, tab]);
 
   const handleSendText = async (patient) => {
     const phone = patient.phone_number;
@@ -606,7 +702,24 @@ function PatientsPage() {
     } catch (error) {
       console.error('PDF export failed:', error);
       toast.error('Failed to export PDF report');
+    }  };
+
+  // --- Helper Functions for Summary Panel ---
+  const getUserFirstName = () => {
+    try {
+      if (!token) return '';
+      const decoded = jwtDecode(token);
+      return decoded.first_name || decoded.username || '';
+    } catch {
+      return '';
     }
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
   };
 
   // --- Render Table for Patient List ---
@@ -1002,10 +1115,363 @@ function PatientsPage() {
       )}
       {tab === 'calendar' && (
         <CalendarView />
-      )}
-      {tab === 'appointments' && (
-        <AppointmentsPage />
-      )}      {/* Email Modal */}
+      )}      {tab === 'appointments' && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {/* Two Panel Layout */}
+          <Box sx={{ display: 'flex', gap: 2, minHeight: '300px' }}>            {/* Left Panel - 20% - Summary and Today's Appointments */}
+            <Box 
+              sx={{ 
+                flex: '0 0 20%', 
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+                minHeight: 600
+              }}
+            >
+              {/* Summary Panel */}
+              <Paper 
+                sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  boxShadow: 2, 
+                  bgcolor: '#f8f9fa',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: 200
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <TodayIcon color="secondary" sx={{ mr: 1 }} />
+                  <Typography variant="h6" fontWeight={600}>Summary</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 1 }}>
+                  <Typography variant="h6" fontWeight={700} color="primary.main" gutterBottom>
+                    {getGreeting()}{getUserFirstName() ? `, ${getUserFirstName()}` : ''}! 🌞
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
+                    Wishing you a wonderful day at POWER Scheduling!
+                  </Typography>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 1 }}>
+                    Total Appointments Today: {todaysAppointments.length}
+                  </Typography>
+                  <Box sx={{ mt: 2, width: '100%' }}>
+                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
+                      Patients per Doctor:
+                    </Typography>
+                    {(() => {
+                      const doctorPatientMap = {};
+                      todaysAppointments.forEach(appt => {
+                        let doctor = appt.provider_name || (appt.provider ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim() : 'Unknown');
+                        if (!doctorPatientMap[doctor]) doctorPatientMap[doctor] = 0;
+                        doctorPatientMap[doctor] += 1;
+                      });
+                      
+                      return Object.keys(doctorPatientMap).length === 0 ? (
+                        <Typography variant="body2" color="text.secondary">No appointments scheduled for today.</Typography>
+                      ) : (
+                        <Box component="ul" sx={{ margin: 0, paddingLeft: 2, fontSize: '0.875rem' }}>
+                          {Object.entries(doctorPatientMap).map(([doctor, count]) => (
+                            <Box component="li" key={doctor} sx={{ mb: 0.5 }}>
+                              <Typography variant="body2" color="text.primary">
+                                {doctor}: {count} patient{count > 1 ? 's' : ''}
+                              </Typography>
+                            </Box>
+                          ))}
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                </Box>
+              </Paper>
+
+              {/* Today's Appointments Panel */}
+              <Paper 
+                sx={{ 
+                  p: 2, 
+                  borderRadius: 2, 
+                  boxShadow: 2, 
+                  bgcolor: '#f8f9fa',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: 380,
+                  flex: 1
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <TodayIcon color="primary" sx={{ mr: 1 }} />
+                  <Typography variant="h6" fontWeight={600}>Today's Appointments</Typography>
+                </Box>
+                <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Time</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Patient</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Provider</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {todaysAppointments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary', py: 2, fontSize: '0.75rem' }}>
+                            No appointments today.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        todaysAppointments
+                          .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime))
+                          .map((appt) => (
+                            <TableRow
+                              key={appt.id}
+                              hover
+                              sx={{
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  backgroundColor: '#f0f7ff',
+                                }
+                              }}
+                            >
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
+                                {appt.appointment_datetime ? new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                              </TableCell>
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
+                                {appt.patient_name || (appt.patient && `${appt.patient.first_name} ${appt.patient.last_name}`) || '-'}
+                              </TableCell>
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
+                                {appt.provider_name || (appt.provider && (appt.provider.first_name || appt.provider.last_name)
+                                  ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
+                                  : '-')
+                                }
+                              </TableCell>
+                            </TableRow>
+                          ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            </Box>            {/* Right Panel - 80% */}
+            <Paper 
+              sx={{ 
+                flex: '0 0 80%', 
+                p: 3, 
+                borderRadius: 2, 
+                boxShadow: 2, 
+                bgcolor: '#f0f7ff',
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: 600
+              }}
+            >
+              <Typography variant="h5" fontWeight={600} gutterBottom>
+                Appointments
+              </Typography>
+              <Box
+                component="form"
+                onSubmit={handleAppointmentsSearch}
+                sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}
+              >
+                <TextField
+                  type="text"
+                  label="Search by patient, provider, date or description"
+                  value={appointmentsQuery}
+                  onChange={(e) => setAppointmentsQuery(e.target.value)}
+                  fullWidth
+                  size="small"
+                />
+                <Button variant="contained" color="primary" type="submit">
+                  Search
+                </Button>
+              </Box>
+              <TableContainer sx={{ borderRadius: 2, boxShadow: 2, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto', minHeight: 0, width: '100%', bgcolor: 'white' }}>
+                <Table size="small" sx={{ '& tbody tr:nth-of-type(odd)': { backgroundColor: '#f7fafc' } }}>
+                  <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Clinic Event</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Date & Time</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Duration (min)</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(() => {
+                      // Sort results by appointment_datetime descending (latest first)
+                      const sortedResults = [...appointmentsResults].sort((a, b) => {
+                        const dateA = new Date(a.appointment_datetime);
+                        const dateB = new Date(b.appointment_datetime);
+                        return dateB - dateA;
+                      });
+                      const appointmentsRowsPerPage = 10;
+                      const paginatedResults = sortedResults.slice((appointmentsPage - 1) * appointmentsRowsPerPage, appointmentsPage * appointmentsRowsPerPage);
+                      
+                      return paginatedResults.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} align="center" sx={{ color: 'text.secondary', py: 3 }}>
+                            No appointments found.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        paginatedResults.map((appt) => (
+                          <TableRow key={appt.id} hover>
+                            <TableCell>{appt.title || '-'}</TableCell>
+                            <TableCell>{appt.patient_name || (appt.patient && `${appt.patient.first_name} ${appt.patient.last_name}`) || '-'}</TableCell>
+                            <TableCell>{appt.provider_name || (appt.provider && (appt.provider.first_name || appt.provider.last_name)
+                              ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
+                              : '-')
+                            }</TableCell>
+                            <TableCell>{appt.appointment_datetime ? new Date(appt.appointment_datetime).toLocaleString() : '-'}</TableCell>
+                            <TableCell>{appt.description || '-'}</TableCell>
+                            <TableCell>{appt.duration_minutes || '-'}</TableCell>
+                            <TableCell>{appt.status || '-'}</TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1 }}>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => {
+                                    setSelectedAppointment(appt);
+                                    setDetailsOpen(true);
+                                  }}
+                                  sx={{
+                                    backgroundColor: 'white',
+                                    color: 'primary.main',
+                                    borderColor: 'primary.light',
+                                    minWidth: 0,
+                                    px: 1.5,
+                                    py: 0.5,
+                                    fontWeight: 500,
+                                    fontSize: 14,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    '&:hover': {
+                                      backgroundColor: '#e3f2fd',
+                                      color: '#1976d2',
+                                      borderColor: '#1976d2',
+                                      boxShadow: '0 2px 8px 0 rgba(25, 118, 210, 0.10)',
+                                    },
+                                  }}
+                                  title="View Appointment Details"
+                                >
+                                  <VisibilityIcon fontSize="small" sx={{ mr: 0.5 }} />
+                                </Button>
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  color="error"
+                                  sx={{
+                                    backgroundColor: 'white',
+                                    borderColor: 'error.light',
+                                    color: 'error.main',
+                                    minWidth: 0,
+                                    px: 1.5,
+                                    py: 0.5,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 1,
+                                    transition: 'background 0.2s, color 0.2s',
+                                    '&:hover': {
+                                      backgroundColor: '#ffebee',
+                                      color: '#d32f2f',
+                                      borderColor: '#d32f2f',
+                                      boxShadow: '0 2px 8px 0 rgba(211, 47, 47, 0.10)',
+                                    },
+                                  }}
+                                  title="Delete Appointment"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (window.confirm('Are you sure you want to delete this appointment?')) {
+                                      try {
+                                        await axios.delete(`http://127.0.0.1:8000/api/appointments/${appt.id}/`, {
+                                          headers: { Authorization: `Bearer ${token}` },
+                                        });
+                                        fetchAppointments(appointmentsQuery);
+
+                                        // Also refresh today's appointments
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        const tomorrow = new Date(today);
+                                        tomorrow.setDate(tomorrow.getDate() + 1);
+
+                                        const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+                                          headers: { Authorization: `Bearer ${token}` },
+                                        });
+
+                                        const filtered = res.data.filter((appointment) => {
+                                          if (!appointment.appointment_datetime) return false;
+                                          const apptDate = new Date(appointment.appointment_datetime);
+                                          return apptDate >= today && apptDate < tomorrow;
+                                        });
+
+                                        setTodaysAppointments(filtered);
+                                      } catch (err) {
+                                        alert('Failed to delete appointment.');
+                                      }
+                                    }
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </Button>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      );
+                    })()}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {appointmentsResults.length > 10 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+                  <Pagination
+                    count={Math.ceil(appointmentsResults.length / 10)}
+                    page={appointmentsPage}
+                    onChange={(_, value) => setAppointmentsPage(value)}
+                    color="primary"
+                    shape="rounded"
+                  />
+                </Box>
+              )}            </Paper>
+          </Box>
+
+          {/* Appointment Details Dialog */}
+          <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="sm" fullWidth>
+            <DialogTitle>Appointment Details</DialogTitle>
+            <DialogContent dividers>
+              {selectedAppointment && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <Typography><b>Patient:</b> {selectedAppointment.patient_name || (selectedAppointment.patient ? `${selectedAppointment.patient.first_name} ${selectedAppointment.patient.last_name}` : '-')}</Typography>
+                  <Typography><b>Provider:</b> {selectedAppointment.provider_name || (selectedAppointment.provider ? `Dr. ${selectedAppointment.provider.first_name || ''} ${selectedAppointment.provider.last_name || ''}`.trim() : '-')}</Typography>
+                  <Typography><b>Date & Time:</b> {selectedAppointment.appointment_datetime ? new Date(selectedAppointment.appointment_datetime).toLocaleString() : '-'}</Typography>
+                  <Typography><b>Description:</b> {selectedAppointment.description || '-'}</Typography>
+                  <Typography><b>Duration (min):</b> {selectedAppointment.duration_minutes || '-'}</Typography>
+                  <Typography><b>Status:</b> {selectedAppointment.status || '-'}</Typography>
+                  <Typography><b>Clinic Event:</b> {selectedAppointment.title || '-'}</Typography>
+                </Box>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setDetailsOpen(false)} color="primary">Close</Button>
+              <Button
+                color="secondary"
+                variant="contained"
+                onClick={() => {
+                  setDetailsOpen(false);
+                  navigate(`/appointments/${selectedAppointment.id}/edit`);
+                }}
+              >
+                Edit
+              </Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Remove the existing AppointmentsPage component */}
+        </Box>
+      )}{/* Email Modal */}
       <Dialog open={showEmailModal} onClose={() => setShowEmailModal(false)} fullWidth maxWidth="sm">
         <DialogTitle>Message</DialogTitle>
         <DialogContent>
