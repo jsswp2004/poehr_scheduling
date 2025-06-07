@@ -1,7 +1,7 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
 from rest_framework import viewsets, permissions
-from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent
-from .serializers import AppointmentSerializer, AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer
+from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail
+from .serializers import AppointmentSerializer, AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer, AutoEmailSerializer
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -25,6 +25,8 @@ import csv
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
 from .permissions import IsAdminOrSystemAdmin
+from appointments.cron import send_patient_reminders
+from rest_framework.permissions import IsAdminUser
 
 from .models import Appointment
 
@@ -526,3 +528,18 @@ class UploadAvailabilityCSV(APIView):
             "message": f"{created_count} availabilities created, {updated_count} updated.",
             "errors": errors
         })
+
+class AutoEmailViewSet(viewsets.ModelViewSet):
+    queryset = AutoEmail.objects.all()
+    serializer_class = AutoEmailSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        # Optionally filter by organization or user if needed
+        return AutoEmail.objects.all()
+
+@api_view(['POST'])
+@permission_classes([IsAdminOrSystemAdmin])
+def run_patient_reminders_now(request):
+    send_patient_reminders()
+    return Response({'status': 'Reminders sent.'})

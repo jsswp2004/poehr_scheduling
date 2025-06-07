@@ -150,3 +150,29 @@ class Holiday(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.date})"
+
+class AutoEmail(models.Model):
+    auto_message_frequency = models.CharField(
+        max_length=20,
+        choices=[('weekly', 'Weekly'), ('bi-weekly', 'Bi-weekly'), ('monthly', 'Monthly')],
+        default='weekly',
+        help_text='How often to send auto emails'
+    )
+    auto_message_day_of_week = models.IntegerField(
+        default=1,
+        help_text='Day of week to send (0=Sunday, 1=Monday, ... 6=Saturday)'
+    )
+    auto_message_start_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text='When to start sending automated emails'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text='Whether automated emails are enabled'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"AutoEmail: {self.auto_message_frequency} on {self.auto_message_day_of_week} (Start: {self.auto_message_start_date})"
