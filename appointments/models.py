@@ -152,27 +152,62 @@ class Holiday(models.Model):
         return f"{self.name} ({self.date})"
 
 class AutoEmail(models.Model):
+    """
+    Model for configuring automated emails settings.
+    This determines when and how frequently automated emails are sent.
+    """
+    FREQUENCY_CHOICES = [
+        ('weekly', 'Weekly'),
+        ('bi-weekly', 'Bi-weekly'),
+        ('monthly', 'Monthly')
+    ]
+    
+    DAY_OF_WEEK_CHOICES = [
+        (0, 'Sunday'),
+        (1, 'Monday'),
+        (2, 'Tuesday'),
+        (3, 'Wednesday'),
+        (4, 'Thursday'),
+        (5, 'Friday'),
+        (6, 'Saturday')
+    ]
+    
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='auto_emails',
+        null=True,
+        blank=True,
+        help_text="Organization this auto email setting belongs to"
+    )
+    
     auto_message_frequency = models.CharField(
         max_length=20,
-        choices=[('weekly', 'Weekly'), ('bi-weekly', 'Bi-weekly'), ('monthly', 'Monthly')],
+        choices=FREQUENCY_CHOICES,
         default='weekly',
-        help_text='How often to send auto emails'
+        help_text="How often automated emails should be sent"
     )
+    
     auto_message_day_of_week = models.IntegerField(
-        default=1,
-        help_text='Day of week to send (0=Sunday, 1=Monday, ... 6=Saturday)'
+        choices=DAY_OF_WEEK_CHOICES,
+        default=1,  # Monday
+        help_text="Day of the week when automated emails should be sent"
     )
+    
     auto_message_start_date = models.DateField(
         null=True,
         blank=True,
-        help_text='When to start sending automated emails'
+        help_text="When to start sending automated emails"
     )
+    
     is_active = models.BooleanField(
         default=True,
-        help_text='Whether automated emails are enabled'
+        help_text="Whether automated emails are enabled"
     )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
+    
     def __str__(self):
-        return f"AutoEmail: {self.auto_message_frequency} on {self.auto_message_day_of_week} (Start: {self.auto_message_start_date})"
+        org_name = self.organization.name if self.organization else "Global"
+        return f"Auto Email ({org_name}) - {self.auto_message_frequency} on {self.get_auto_message_day_of_week_display()}"
