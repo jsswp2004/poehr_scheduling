@@ -136,7 +136,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
         </div>
          
         </div>
-
+      </div>
+      <div className="work-management2">
         {/* ===================================================================
             SUB-SECTION: COLLABORATION FEATURES
             - "POWER together" team collaboration showcase
@@ -157,7 +158,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               padding: '5px'
             }}
           />
-        </div>
+          </div>
           <div className="headline">
             <div className="text-block">
               <div className="power-together">POWER together</div>

@@ -222,7 +222,7 @@ VISUAL LOCATION: Appears at top of page below navigation header
   justify-content: space-between;
   width: 100%;
   position: relative;
-  margin-top: 92px;
+  margin-top: 0px;
   overflow: hidden;
   animation: fadeInUp 0.8s ease-out 0.2s both;
 }
@@ -540,334 +540,13 @@ VISUAL LOCATION: Appears at top of page below navigation header
 
 /* 
 =======================================================================
-SECTION 1: FIXED HEADER & NAVIGATION (TOP OVERLAY)
+SECTION 1: HEADER COMPONENT
 =======================================================================
-Fixed navigation bar that stays at the top of the page during scroll.
-Contains logo, navigation menu, and login/CTA buttons.
-Uses glassmorphism effect with backdrop blur.
-VISUAL LOCATION: Fixed at very top of viewport, overlays all content
+Header styles are now handled by the shared Header component.
+No Landing page specific overrides - uses same behavior as Overview page.
+The Header component handles all responsive behavior and styling.
 =======================================================================
 */
-
-.landing-page-v-1-desktop-1920-px .header {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 70%, #334155 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 20px 5%;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  position: fixed;
-  left: 0px;
-  top: 0px;
-  z-index: 1000;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  transition: all 0.3s ease;
-  animation: slideInDown 0.6s ease-out;
-}
-.landing-page-v-1-desktop-1920-px .logo {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 1;
-  width: auto;
-  min-width: 0;
-  height: 60px;
-  position: relative;
-  gap: 12px;
-}
-.landing-page-v-1-desktop-1920-px .power-logo-2-1 {
-  flex-shrink: 0;
-  width: 76px;
-  height: 76px;
-  position: relative;
-  object-fit: cover;
-  aspect-ratio: 1;
-}
-.landing-page-v-1-desktop-1920-px .power-it-systems {
-  color: #ffffff;
-  text-align: left;
-  font-family: 'Inter', sans-serif;
-  font-size: clamp(18px, 3vw, 24px);
-  font-weight: 800;
-  position: relative;
-  background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-.landing-page-v-1-desktop-1920-px .frame-375 {
-  display: flex;
-  flex-direction: row;
-  gap: 60px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .nav-menu {
-  display: flex;
-  flex-direction: row;
-  gap: clamp(16px, 3vw, 40px);
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 1;
-  width: auto;
-  min-width: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .products {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-  padding: 8px 16px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.landing-page-v-1-desktop-1920-px .products:hover,
-.landing-page-v-1-desktop-1920-px .solutios:hover,
-.landing-page-v-1-desktop-1920-px .resources:hover,
-.landing-page-v-1-desktop-1920-px .pricing:hover {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-1px);
-}
-.landing-page-v-1-desktop-1920-px .products2 {
-  color: #e2e8f0;
-  text-align: left;
-  font-family: 'Inter', sans-serif;
-  font-size: clamp(14px, 2vw, 16px);
-  line-height: 1.4;
-  font-weight: 500;
-  position: relative;
-  transition: color 0.2s ease;
-}
-
-.landing-page-v-1-desktop-1920-px .products2:hover,
-.landing-page-v-1-desktop-1920-px .solutions:hover,
-.landing-page-v-1-desktop-1920-px .resources2:hover,
-.landing-page-v-1-desktop-1920-px .pricing2:hover {
-  color: #ffffff;
-}
-.landing-page-v-1-desktop-1920-px .down-arrow {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  height: auto;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .solutios {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-  padding: 8px 16px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-.landing-page-v-1-desktop-1920-px .solutions {
-  color: #e2e8f0;
-  text-align: left;
-  font-family: 'Inter', sans-serif;
-  font-size: clamp(14px, 2vw, 16px);
-  line-height: 1.4;
-  font-weight: 500;
-  position: relative;
-  transition: color 0.2s ease;
-}
-.landing-page-v-1-desktop-1920-px .down-arrow2 {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  height: auto;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .resources {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-  padding: 8px 16px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-.landing-page-v-1-desktop-1920-px .resources2 {
-  color: #e2e8f0;
-  text-align: left;
-  font-family: 'Inter', sans-serif;
-  font-size: clamp(14px, 2vw, 16px);
-  line-height: 1.4;
-  font-weight: 500;
-  position: relative;
-  transition: color 0.2s ease;
-}
-.landing-page-v-1-desktop-1920-px .down-arrow3 {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  height: auto;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .pricing {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-  padding: 8px 16px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-.landing-page-v-1-desktop-1920-px .pricing2 {
-  color: #e2e8f0;
-  text-align: left;
-  font-family: 'Inter', sans-serif;
-  font-size: clamp(14px, 2vw, 16px);
-  line-height: 1.4;
-  font-weight: 500;
-  position: relative;
-  transition: color 0.2s ease;
-}
-.landing-page-v-1-desktop-1920-px .down-arrow4 {
-  display: flex;
-  flex-direction: column;
-  gap: 0px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  height: auto;
-  position: relative;
-  overflow: visible;
-}
-.landing-page-v-1-desktop-1920-px .btn {
-  display: flex;
-  flex-direction: row;
-  gap: 24px;
-  align-items: flex-start;
-  justify-content: flex-end;
-  flex-shrink: 0;
-  height: 60px;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .btn-login {
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  border-radius: 12px;
-  margin-left: 40px;
-  padding: 12px 24px;
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  height: 44px;
-  position: relative;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 8px rgba(251, 191, 36, 0.3);
-}
-
-.landing-page-v-1-desktop-1920-px .btn-login:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(251, 191, 36, 0.4);
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-.landing-page-v-1-desktop-1920-px .login {
-  color: #1f2937;
-  text-align: center;
-  font-family: 'Inter', sans-serif;
-  font-size: clamp(14px, 2vw, 16px);
-  line-height: 1.4;
-  letter-spacing: -0.01em;
-  font-weight: 600;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .btn-free-trial2 {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border-radius: 12px;
-  padding: 12px 24px;
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  height: 44px;
-  position: relative;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
-}
-
-.landing-page-v-1-desktop-1920-px .btn-free-trial2:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(59, 130, 246, 0.4);
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
-}
-.landing-page-v-1-desktop-1920-px .try-power-for-free {
-  color: #ffffff;
-  text-align: left;
-  font-family: var(
-    --paragraph-p2-medium-font-family,
-    "Inter-Medium",
-    sans-serif
-  );
-  font-size: clamp(16px, 2.5vw, 18px);
-  line-height: var(--paragraph-p2-medium-line-height, 23px);
-  letter-spacing: var(--paragraph-p2-medium-letter-spacing, -0.02em);
-  font-weight: var(--paragraph-p2-medium-font-weight, 500);
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .icon {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-shrink: 0;
-  position: relative;
-}
-.landing-page-v-1-desktop-1920-px .group-2122 {
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  position: relative;  overflow: visible;
-}
 
 /* 
 =======================================================================
@@ -1712,54 +1391,9 @@ VISUAL LOCATION: Final section at bottom of page
   }
 }
 
-@media (max-width: 1200px) {
-  .landing-page-v-1-desktop-1920-px .header {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    height: auto !important;
-    padding: 12px 4% !important;
-  }
-  .landing-page-v-1-desktop-1920-px .logo {
-    margin-bottom: 8px !important;
-    justify-content: flex-start !important;
-  }
-  .landing-page-v-1-desktop-1920-px .frame-375 {
-    flex-direction: column !important;
-    width: 100% !important;
-    align-items: stretch !important;
-    gap: 8px !important;
-  }
-  .landing-page-v-1-desktop-1920-px .nav-menu,
-  .landing-page-v-1-desktop-1920-px .btn {
-    flex-direction: row !important;
-    width: 100% !important;
-    gap: 8px !important;
-    justify-content: flex-end !important;
-  }
-  .landing-page-v-1-desktop-1920-px .nav-menu {
-    justify-content: flex-start !important;
-  }
-}
+/* Removed problematic @media (max-width: 1200px) rules that were forcing header vertical layout */
 
-@media (max-width: 900px) {
-  .landing-page-v-1-desktop-1920-px .header {
-    flex-direction: column !important;
-    align-items: stretch !important;
-    padding: 8px 2% !important;
-  }
-  .landing-page-v-1-desktop-1920-px .frame-375 {
-    flex-direction: column !important;
-    width: 100% !important;
-    gap: 4px !important;
-  }
-  .landing-page-v-1-desktop-1920-px .nav-menu,
-  .landing-page-v-1-desktop-1920-px .btn {
-    flex-direction: column !important;
-    width: 100% !important;
-    gap: 8px !important;
-    align-items: stretch !important;
-  }
-}
+/* Removed problematic @media (max-width: 900px) rules that were forcing header vertical layout */
 
 /* ==================== FREE TRIAL SECTION RESPONSIVE DESIGN ==================== */
 
@@ -1986,7 +1620,7 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: none;
   box-shadow: 
-    0 8px 20px rgba(0, 0, 0.15),
+    0 8px 20px rgba(0, 0, 0, 0.15),
     0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -3248,19 +2882,63 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
 
 /* 
 =======================================================================
-DROPDOWN MENU STYLES - Now handled by Header.css for consistency across all pages
+RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT SECTION
 =======================================================================
 */
 
-/* Resources container positioning adjustment for dropdown */
-.landing-page-v-1-desktop-1920-px .resources {
-  position: relative;
-}
+/* Fix alignment issues for work-management section on smaller screens */
+@media (max-width: 992px) {
+  /* Ensure the content3 container centers its child elements properly */
+  .landing-page-v-1-desktop-1920-px .content3 {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 40px !important;
+  }
 
-/* Arrow rotation when dropdown is active */
-.landing-page-v-1-desktop-1920-px .resources.active .down-arrow3 {
-  transform: rotate(180deg);
-  transition: transform 0.3s ease;
+  /* Center the headline block content */
+  .landing-page-v-1-desktop-1920-px .content3 .headline {
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+  }
+
+  /* Center the text block within headline */
+  .landing-page-v-1-desktop-1920-px .content3 .text-block {
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+  }
+
+  /* Center the main heading */
+  .landing-page-v-1-desktop-1920-px .power-scheduling {
+    text-align: center !important;
+  }
+
+  /* Center the description text and lists */
+  .landing-page-v-1-desktop-1920-px .keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform {
+    text-align: center !important;
+  }
+
+  /* Center the bullet points list */
+  .landing-page-v-1-desktop-1920-px .keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform-span2 {
+    text-align: left !important;
+    max-width: 600px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Center the work-together-image container */
+  .landing-page-v-1-desktop-1920-px .work-together-image {
+    margin: 0 auto !important;
+    align-self: center !important;
+  }
+
+  /* Ensure Get Started button is centered */
+  .landing-page-v-1-desktop-1920-px .btn-get-started3 {
+    align-self: center !important;
+    margin: 0 auto !important;
+  }
 }
 
 /* Enhanced responsive styling for image container */
@@ -3369,3 +3047,75 @@ DROPDOWN MENU STYLES - Now handled by Header.css for consistency across all page
   transform: scale(1.05);
 }
 /* End responsive quote symbol image patch */
+
+/* Fix hero section heading alignment on small screens */
+@media (max-width: 992px) {
+  .landing-page-v-1-desktop-1920-px .heading {
+    align-items: center !important;
+    text-align: center;
+    justify-content: center;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .text-block {
+    align-items: center !important;
+    text-align: center;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-free-trial {
+    align-self: center;
+    margin-left: 0;
+    padding: 18px 35px;
+    width: auto;
+    min-width: 200px;
+    max-width: 280px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free {
+    font-size: 16px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .smarter-scheduling-better-outcomes-powered-by-power {
+    text-align: center;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .healthcare-scheduling-software-that-empowers-your-team-to-coordinate-plan-and-manage-patient-care-every-day {
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .btn-free-trial {
+    padding: 16px 30px;
+    min-width: 180px;
+    max-width: 250px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 576px) {
+  .landing-page-v-1-desktop-1920-px .btn-free-trial {
+    padding: 14px 25px;
+    min-width: 160px;
+    max-width: 220px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .btn-free-trial {
+    padding: 12px 20px;
+    min-width: 140px;
+    max-width: 200px;
+    border-radius: 12px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-free {
+    font-size: 13px;
+  }
+}
