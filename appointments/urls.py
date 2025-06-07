@@ -1,6 +1,7 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
 from .views import DownloadClinicEventsTemplate, UploadClinicEventsCSV, EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet, HolidayViewSet, ClinicEventViewSet, DownloadAvailabilityTemplate, UploadAvailabilityCSV, RunWeeklyPatientRemindersView, RunPatientRemindersNowView, AutoEmailViewSet  # ⬅️ import the new view
+from .analytics_views import AnalyticsReportView, ExportReportView
 
 router = DefaultRouter()
 router.register(r'clinic-events', ClinicEventViewSet, basename='clinicevent')
@@ -19,4 +20,6 @@ urlpatterns = [
     path('availability/upload-csv/', UploadAvailabilityCSV.as_view(), name='upload-availability-csv'),
     path('run-weekly-patient-reminders/', RunWeeklyPatientRemindersView.as_view(), name='run-weekly-patient-reminders'),
     path('run-patient-reminders-now/', RunPatientRemindersNowView.as_view(), name='run-patient-reminders-now'),
+    path('analytics/reports/', AnalyticsReportView.as_view(), name='analytics-reports'),
+    path('analytics/export/', ExportReportView.as_view(), name='export-reports'),
 ]+ router.urls
