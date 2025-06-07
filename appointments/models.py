@@ -157,6 +157,7 @@ class AutoEmail(models.Model):
     This determines when and how frequently automated emails are sent.
     """
     FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
         ('weekly', 'Weekly'),
         ('bi-weekly', 'Bi-weekly'),
         ('monthly', 'Monthly')

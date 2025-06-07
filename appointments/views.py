@@ -21,7 +21,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAdminUser
 from rest_framework import status
-from .tasks import send_weekly_patient_reminders
 import holidays as pyholidays
 import csv
 from django.http import HttpResponse
@@ -456,30 +455,17 @@ class EnvironmentSettingView(APIView):
             auto_email_serializer = AutoEmailSerializer(auto_email_obj, data=auto_email_data, partial=True)
             if auto_email_serializer.is_valid():
                 auto_email_obj = auto_email_serializer.save()
-                # Schedule or update Celery tasks here based on the new settings
-                self.update_celery_schedule(auto_email_obj)
+                # Settings saved - django-cron will use these settings on next run
             else:
                 return Response(auto_email_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Combine the response
+          # Combine the response
         response_data = {**env_serializer.data}
         
         # Add auto email serializer data if available
         if 'auto_email_serializer' in locals():
             response_data.update(auto_email_serializer.data)
-        
         return Response(response_data)
-    
-    def update_celery_schedule(self, auto_email_obj):
-        """
-        Updates the Celery Beat schedule based on the auto email settings
-        """
-        # Import the task to update the Celery schedule
-        from .tasks import update_celery_beat_schedule
-        
-        # Run the task asynchronously
-        update_celery_beat_schedule.delay()
-    
+
 class HolidayViewSet(viewsets.ModelViewSet):
     queryset = Holiday.objects.all()  # <-- Add this line
     serializer_class = HolidaySerializer
@@ -620,8 +606,9 @@ class RunWeeklyPatientRemindersView(APIView):
     permission_classes = [IsAdminUser]
 
     def post(self, request):
-        send_weekly_patient_reminders.delay()
-        return Response({"message": "Weekly patient reminders are being sent."}, status=status.HTTP_202_ACCEPTED)
+        # Using django-cron function instead of Celery task
+        send_patient_reminders()
+        return Response({"message": "Weekly patient reminders have been sent."}, status=status.HTTP_200_OK)
 
 class RunPatientRemindersNowView(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
