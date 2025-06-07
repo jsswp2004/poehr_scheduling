@@ -97,3 +97,8 @@ class ClinicEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClinicEvent
         fields = '__all__'
+
+class AutoEmailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutoEmail
+        fields = '__all__'
