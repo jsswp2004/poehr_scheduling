@@ -5,6 +5,8 @@ import {
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
   Alert, CircularProgress, Tabs, Tab
 } from '@mui/material';
+import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import CloseIcon from '@mui/icons-material/Close';
 import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
@@ -41,6 +43,10 @@ function PatientsPage() {
   const [page, setPage] = useState(1);
   const [sizePerPage, setSizePerPage] = useState(10);
   const [totalSize, setTotalSize] = useState(0);
+  const [reportStartDate, setReportStartDate] = useState(null);
+  const [reportEndDate, setReportEndDate] = useState(null);
+  const [reportProvider, setReportProvider] = useState('all');
+  const [providers, setProviders] = useState([]);
   const navigate = useNavigate();
   const rowsPerPage = 15;
   const totalPages = Math.ceil(patients.length / rowsPerPage);
@@ -138,11 +144,24 @@ function PatientsPage() {
     }
   };
 
+  const fetchProviders = async () => {
+    try {
+      const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProviders(res.data);
+    } catch (err) {
+      console.error('Failed to fetch providers:', err);
+    }
+  };
+
   useEffect(() => {
     if (tab === 'patients') {
       fetchPatients();
     } else if (tab === 'team') {
       fetchTeam();
+    } else if (tab === 'analytics') {
+      fetchProviders();
     }
     // eslint-disable-next-line
   }, [page, sizePerPage, tab]);
@@ -452,7 +471,39 @@ function PatientsPage() {
   );
 
   const renderAnalyticsTable = () => (
-    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff', p: 2 }}>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={reportStartDate}
+            onChange={(newVal) => setReportStartDate(newVal)}
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+          />
+        </LocalizationProvider>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="End Date"
+            value={reportEndDate}
+            onChange={(newVal) => setReportEndDate(newVal)}
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+          />
+        </LocalizationProvider>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id="report-provider-label">Provider</InputLabel>
+          <MUISelect
+            labelId="report-provider-label"
+            value={reportProvider}
+            label="Provider"
+            onChange={(e) => setReportProvider(e.target.value)}
+          >
+            <MenuItem value="all">All</MenuItem>
+            {providers.map((p) => (
+              <MenuItem key={p.id} value={p.id}>{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
+            ))}
+          </MUISelect>
+        </FormControl>
+      </Stack>
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow sx={{ bgcolor: '#e3f2fd' }}>
