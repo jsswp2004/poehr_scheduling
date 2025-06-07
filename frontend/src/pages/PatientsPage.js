@@ -17,6 +17,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faDownload, faEye, faCommentDots, faEnvelope, faTrash,
+  faPrint, faFileCsv, faFilePdf,
 } from '@fortawesome/free-solid-svg-icons';
 import RegisterPage from './RegisterPage';
 import AppointmentsPage from './AppointmentsPage';
@@ -44,6 +45,17 @@ function PatientsPage() {
   const rowsPerPage = 15;
   const totalPages = Math.ceil(patients.length / rowsPerPage);
   const paginatedPatients = patients.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+
+  const analyticsReports = [
+    'Upcoming Appointments Report',
+    'Past Appointments Report',
+    'Provider Schedule Report',
+    'Appointment Status Report',
+    'New Patient Registrations',
+    'Blocked Time Slots',
+    'Appointment Recurrence Report',
+    'Appointment Duration Summary',
+  ];
 
   const token = localStorage.getItem('access_token');
   let userRole = null;
@@ -228,6 +240,19 @@ function PatientsPage() {
     );
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, 'patients.csv');
+  };
+
+  const handlePrintReport = (report) => {
+    console.log('Print report:', report);
+    window.print();
+  };
+
+  const handleExportCsvReport = (report) => {
+    console.log('Export CSV for:', report);
+  };
+
+  const handleExportPdfReport = (report) => {
+    console.log('Export PDF for:', report);
   };
 
   // --- Render Table for Patient List ---
@@ -426,6 +451,45 @@ function PatientsPage() {
     </Paper>
   );
 
+  const renderAnalyticsTable = () => (
+    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+            <TableCell sx={{ fontWeight: 'bold', width: 300 }}>Reports</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: 240 }}>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {analyticsReports.map((r, idx) => (
+            <TableRow key={idx} sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+              <TableCell>{r}</TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={1}>
+                  <Tooltip title="Print">
+                    <IconButton color="primary" onClick={() => handlePrintReport(r)} sx={{ width: 36, height: 36 }}>
+                      <FontAwesomeIcon icon={faPrint} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Export CSV">
+                    <IconButton color="success" onClick={() => handleExportCsvReport(r)} sx={{ width: 36, height: 36 }}>
+                      <FontAwesomeIcon icon={faFileCsv} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Export PDF">
+                    <IconButton color="secondary" onClick={() => handleExportPdfReport(r)} sx={{ width: 36, height: 36 }}>
+                      <FontAwesomeIcon icon={faFilePdf} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </Paper>
+  );
+
   return (
     <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <Box sx={{
       display: 'flex',
@@ -543,6 +607,11 @@ function PatientsPage() {
             />
           </Stack>
           {renderTeamTable()}
+        </>
+      )}
+      {tab === 'analytics' && (
+        <>
+          {renderAnalyticsTable()}
         </>
       )}
       {tab === 'calendar' && (
