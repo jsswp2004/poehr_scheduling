@@ -1682,6 +1682,77 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
   transform: translateX(4px);
 }
 
+/* 
+=======================================================================
+RESPONSIVE DESIGN FOR BTN-TRY-POWER BUTTON
+=======================================================================
+*/
+
+/* Large tablets and smaller desktops */
+@media (max-width: 1024px) {
+  .landing-page-v-1-desktop-1920-px .btn-try-power {
+    padding: 18px 36px;
+    border-radius: 14px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-text {
+    font-size: 17px;
+  }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .btn-try-power {
+    padding: 16px 32px;
+    border-radius: 12px;
+    box-shadow: 
+      0 6px 16px rgba(0, 0, 0, 0.12),
+      0 3px 6px rgba(0, 0, 0, 0.08);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-try-power:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+      0 8px 20px rgba(0, 0, 0, 0.15),
+      0 4px 8px rgba(0, 0, 0, 0.12);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-text {
+    font-size: 16px;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 576px) {
+  .landing-page-v-1-desktop-1920-px .btn-try-power {
+    padding: 14px 28px;
+    border-radius: 12px;
+    min-width: 160px;
+    max-width: 240px;
+    width: 100%;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-text {
+    font-size: 15px;
+    font-weight: 600;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .btn-try-power {
+    padding: 12px 24px;
+    border-radius: 10px;
+    min-width: 140px;
+    max-width: 200px;
+  }
+  
+  .landing-page-v-1-desktop-1920-px .try-power-text {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+}
+
 /* ==================== RESPONSIVE DESIGN ==================== */
 
 /* Large tablets and smaller desktops */
@@ -1893,7 +1964,6 @@ VISUAL LOCATION: Fourth section from top, below pricing section
   position: relative;
   overflow: hidden;
   border: none;
-  font-family: inherit;
 }
 
 .landing-page-v-1-desktop-1920-px .btn-read-more:hover {
@@ -1909,6 +1979,91 @@ VISUAL LOCATION: Fourth section from top, below pricing section
   letter-spacing: -0.01em;
   position: relative;
   z-index: 1;
+}
+
+/* 
+=======================================================================
+RESPONSIVE DESIGN FOR BTN-READ-MORE BUTTON
+=======================================================================
+*/
+
+/* Large tablets and smaller desktops */
+@media (max-width: 1024px) {
+  .landing-page-v-1-desktop-1920-px .btn-read-more {
+    padding: 15px 30px;
+    border-radius: 7px;
+    box-shadow: 0 3px 10px rgba(59, 130, 246, 0.25);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-read-more:hover {
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.35);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .read-more-text {
+    font-size: 15px;
+  }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+  .landing-page-v-1-desktop-1920-px .btn-read-more {
+    padding: 14px 28px;
+    border-radius: 6px;
+    box-shadow: 0 3px 8px rgba(59, 130, 246, 0.2);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-read-more:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(59, 130, 246, 0.3);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .read-more-text {
+    font-size: 15px;
+    font-weight: 600;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 576px) {
+  .landing-page-v-1-desktop-1920-px .btn-read-more {
+    padding: 12px 24px;
+    border-radius: 6px;
+    min-width: 140px;
+    max-width: 200px;
+    width: auto;
+    box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-read-more:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .read-more-text {
+    font-size: 14px;
+    font-weight: 600;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .landing-page-v-1-desktop-1920-px .btn-read-more {
+    padding: 10px 20px;
+    border-radius: 5px;
+    min-width: 120px;
+    max-width: 180px;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.15);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .btn-read-more:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(59, 130, 246, 0.2);
+  }
+  
+  .landing-page-v-1-desktop-1920-px .read-more-text {
+    font-size: 13px;
+    font-weight: 600;
+  }
 }
 
 /* Icons container */
@@ -2056,17 +2211,8 @@ VISUAL LOCATION: Fourth section from top, below pricing section
   .landing-page-v-1-desktop-1920-px .data-security-headline {
     font-size: clamp(24px, 8vw, 36px);
   }
-  
-  .landing-page-v-1-desktop-1920-px .data-security-description {
+    .landing-page-v-1-desktop-1920-px .data-security-description {
     font-size: clamp(14px, 4vw, 16px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .btn-read-more {
-    padding: 14px 28px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .read-more-text {
-    font-size: 15px;
   }
   
   .landing-page-v-1-desktop-1920-px .data-security-icons {
@@ -2092,17 +2238,8 @@ VISUAL LOCATION: Fourth section from top, below pricing section
   .landing-page-v-1-desktop-1920-px .data-security-headline {
     font-size: clamp(20px, 8vw, 28px);
   }
-  
-  .landing-page-v-1-desktop-1920-px .data-security-description {
+    .landing-page-v-1-desktop-1920-px .data-security-description {
     font-size: clamp(13px, 5vw, 15px);
-  }
-  
-  .landing-page-v-1-desktop-1920-px .btn-read-more {
-    padding: 12px 24px;
-  }
-  
-  .landing-page-v-1-desktop-1920-px .read-more-text {
-    font-size: 14px;
   }
 }
 
@@ -2711,6 +2848,39 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
 */
 
 /* Content4 Section Styling - Collaboration Features */
+.landing-page-v-1-desktop-1920-px .work-management2 {
+  background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+  padding: 140px 5%;
+  display: flex;
+  flex-direction: column;
+  gap: 60px;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  position: relative;
+  margin-top: 0px;
+  overflow: hidden;
+  animation: slideInLeft 0.8s ease-out 0.3s both;
+}
+
+.landing-page-v-1-desktop-1920-px .work-management2::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 15% 25%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 75% 85%, rgba(16, 185, 129, 0.06) 0%, transparent 50%);
+  z-index: 0;
+}
+
+.landing-page-v-1-desktop-1920-px .work-management2 > * {
+  position: relative;
+  z-index: 1;
+}
+
 .landing-page-v-1-desktop-1920-px .content4 {
   
   display: flex;
@@ -2722,6 +2892,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
   max-width: 1200px;
   position: relative;
 }
+
 
 .landing-page-v-1-desktop-1920-px .content4 .headline {
   display: flex;
@@ -2933,11 +3104,83 @@ RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT SECTION
     margin: 0 auto !important;
     align-self: center !important;
   }
-
   /* Ensure Get Started button is centered */
   .landing-page-v-1-desktop-1920-px .btn-get-started3 {
     align-self: center !important;
     margin: 0 auto !important;
+  }
+}
+
+/* 
+=======================================================================
+RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT2 SECTION
+=======================================================================
+*/
+
+/* Fix alignment issues for work-management2 section on smaller screens */
+@media (max-width: 992px) {
+  /* Ensure work-management2 container has proper styling */
+  .landing-page-v-1-desktop-1920-px .work-management2 {
+    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
+    padding: 140px 5% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 60px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    position: relative !important;
+    margin-top: 0px !important;
+    overflow: hidden !important;
+  }
+
+  /* Ensure the content4 container centers its child elements properly */
+  .landing-page-v-1-desktop-1920-px .work-management2 .content4 {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    gap: 40px !important;
+  }
+
+  /* Center the headline block content in content4 */
+  .landing-page-v-1-desktop-1920-px .work-management2 .content4 .headline {
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    order: 2 !important; /* Put text after image on mobile */
+  }
+
+  /* Center the text block within headline in content4 */
+  .landing-page-v-1-desktop-1920-px .work-management2 .content4 .text-block {
+    align-items: center !important;
+    text-align: center !important;
+    width: 100% !important;
+  }
+
+  /* Center the main heading in content4 */
+  .landing-page-v-1-desktop-1920-px .work-management2 .power-together {
+    text-align: center !important;
+  }
+
+  /* Center the description text in content4 */
+  .landing-page-v-1-desktop-1920-px .work-management2 .with-power-securely-share-schedules-notes-and-updates-with-your-team-for-real-time-collaboration-collaborate-important-information-or-announcements-and-share-links-with-staff-or-providers-as-needed {
+    text-align: center !important;
+    max-width: 600px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Center the work-together-image container in content4 */
+  .landing-page-v-1-desktop-1920-px .work-management2 .work-together-image {
+    margin: 0 auto !important;
+    align-self: center !important;
+    order: 1 !important; /* Put image before text on mobile */
+  }
+
+  /* Ensure Try it now button is centered in content4 */
+  .landing-page-v-1-desktop-1920-px .work-management2 .content4 .btn-get-started3 {
+    align-self: center !important;
+    margin: 16px auto 0 auto !important;
   }
 }
 
