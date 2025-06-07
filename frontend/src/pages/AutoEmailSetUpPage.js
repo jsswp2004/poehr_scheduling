@@ -12,10 +12,13 @@ import {
   CircularProgress,
   Stack
 } from '@mui/material';
+import { DatePicker, LocalizationProvider } from '@mui/x-date-pickers';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 function AutoEmailSetUpPage() {
   const [frequency, setFrequency] = useState('weekly');
   const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [startDate, setStartDate] = useState(null);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,11 +28,12 @@ function AutoEmailSetUpPage() {
       setLoading(true);
       try {
         const token = localStorage.getItem('access_token');
-        const res = await axios.get('http://127.0.0.1:8000/api/settings/environment/', {
+        const res = await axios.get('http://127.0.0.1:8000/api/auto-email/1/', {
           headers: { Authorization: `Bearer ${token}` }
         });
         setFrequency(res.data.auto_message_frequency || 'weekly');
         setDayOfWeek(res.data.auto_message_day_of_week || 1);
+        setStartDate(res.data.auto_message_start_date ? new Date(res.data.auto_message_start_date) : null);
       } catch (err) {
         setStatus('Failed to load settings.');
         console.error(err);
@@ -44,11 +48,12 @@ function AutoEmailSetUpPage() {
     setStatus('');
     try {
       const token = localStorage.getItem('access_token');
-      await axios.post(
-        'http://127.0.0.1:8000/api/settings/environment/',
+      await axios.put(
+        'http://127.0.0.1:8000/api/auto-email/1/',
         {
           auto_message_frequency: frequency,
-          auto_message_day_of_week: dayOfWeek
+          auto_message_day_of_week: dayOfWeek,
+          auto_message_start_date: startDate ? startDate.toISOString().split('T')[0] : null
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -58,6 +63,20 @@ function AutoEmailSetUpPage() {
       console.error(e);
     }
     setSaving(false);
+  };
+
+  const handleRunNow = async () => {
+    setStatus('');
+    try {
+      const token = localStorage.getItem('access_token');
+      await axios.post('http://127.0.0.1:8000/api/run-patient-reminders-now/', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setStatus('Auto message triggered!');
+    } catch (e) {
+      setStatus('Failed to run auto message.');
+      console.error(e);
+    }
   };
 
   return (
@@ -96,11 +115,22 @@ function AutoEmailSetUpPage() {
             <MenuItem value={0}>Sunday</MenuItem>
           </Select>
         </FormControl>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={startDate}
+            onChange={setStartDate}
+            renderInput={(params) => <FormControl fullWidth>{params.input}</FormControl>}
+          />
+        </LocalizationProvider>
         <Button variant="contained" onClick={handleSave} disabled={saving || loading}>
           {saving ? <CircularProgress size={24} /> : 'Save Settings'}
         </Button>
+        <Button variant="outlined" color="secondary" onClick={handleRunNow} disabled={loading}>
+          Run Now
+        </Button>
         {status && (
-          <Alert severity={status === 'Settings Saved!' ? 'success' : 'error'}>{status}</Alert>
+          <Alert severity={status === 'Settings Saved!' || status === 'Auto message triggered!' ? 'success' : 'error'}>{status}</Alert>
         )}
       </Stack>
     </Box>

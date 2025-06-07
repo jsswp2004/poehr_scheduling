@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     # Local apps
     'users',
     'appointments',
+    'django_cron',
 ]
 
 MIDDLEWARE = [
@@ -153,3 +154,8 @@ STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 STRIPE_BASIC_PRICE_ID = os.getenv('STRIPE_BASIC_PRICE_ID', 'price_test_basic')
 STRIPE_PREMIUM_PRICE_ID = os.getenv('STRIPE_PREMIUM_PRICE_ID', 'price_test_premium') 
 STRIPE_ENTERPRISE_PRICE_ID = os.getenv('STRIPE_ENTERPRISE_PRICE_ID', 'price_test_enterprise')
+
+# CRON settings
+CRON_CLASSES = [
+    'appointments.cron.BlastPatientReminderCronJob',
+]
