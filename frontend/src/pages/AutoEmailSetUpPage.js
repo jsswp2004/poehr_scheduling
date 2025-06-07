@@ -79,19 +79,19 @@ function AutoEmailSetUpPage() {
     }
     setSaving(false);
   };
-
   const handleRunNow = async () => {
     setRunNowStatus('Running...');
     try {
       const token = localStorage.getItem('access_token');
       await axios.post(
-        'http://127.0.0.1:8000/api/run-weekly-patient-reminders/',
+        'http://127.0.0.1:8000/api/run-patient-reminders-now/',
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRunNowStatus('Emails are being sent!');
     } catch (e) {
       setRunNowStatus('Failed to trigger emails.');
+      console.error('Error triggering reminders:', e);
     }
   };
 

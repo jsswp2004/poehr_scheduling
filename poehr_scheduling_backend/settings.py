@@ -166,3 +166,8 @@ CELERY_TIMEZONE = 'UTC'
 
 # Django Celery Beat Settings
 DJANGO_CELERY_BEAT_TZ_AWARE = True
+
+# Django Cron Settings
+CRON_CLASSES = [
+    'appointments.cron.BlastPatientReminderCronJob',
+]

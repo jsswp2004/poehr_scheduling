@@ -622,3 +622,24 @@ class RunWeeklyPatientRemindersView(APIView):
     def post(self, request):
         send_weekly_patient_reminders.delay()
         return Response({"message": "Weekly patient reminders are being sent."}, status=status.HTTP_202_ACCEPTED)
+
+class RunPatientRemindersNowView(APIView):
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def post(self, request):
+        try:
+            send_patient_reminders()
+            return Response({"message": "Patient reminders have been sent successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Failed to send patient reminders: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class AutoEmailViewSet(viewsets.ModelViewSet):
+    serializer_class = AutoEmailSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.organization:
+            return AutoEmail.objects.filter(organization=user.organization)
+        else:
+            return AutoEmail.objects.filter(organization__isnull=True)
