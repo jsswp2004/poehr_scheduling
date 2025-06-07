@@ -2,6 +2,7 @@ import '../AboutPage/AboutPage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CEOPicture from '../assets/CEO_CTO.png'; // CEO image
+import COOPicture from '../assets/COO.png'; // COO image
 
 export const AboutPage = ({ className }) => {
   return (
@@ -33,17 +34,20 @@ export const AboutPage = ({ className }) => {
           </div>
           <div className="team-card">
             <div className="team-image">
-              <img src="https://via.placeholder.com/200" alt="COO" />
+              <img src={COOPicture} alt="CEO/CTO" />
             </div>
-            <div className="team-name">Full Name</div>
+            <div className="team-name">Charlina Pangilinan, RN, BSN</div>
             <div className="team-role">COO</div>
-            <div className="team-details">Professional bio goes here.</div>
+            <div className="team-details">
+            Acute Renal Dialysis<br /> 
+            Infection Control
+            </div>
           </div>
           <div className="team-card">
             <div className="team-image">
               <img src="https://via.placeholder.com/200" alt="Senior Project Manager" />
             </div>
-            <div className="team-name">Full Name</div>
+            <div className="team-name">Danielle Bishop</div>
             <div className="team-role">Senior Project Manager</div>
             <div className="team-details">Professional bio goes here.</div>
           </div>

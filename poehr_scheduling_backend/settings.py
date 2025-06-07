@@ -28,13 +28,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'django_rest_passwordreset',
-
-    # Third-party
+    'django_rest_passwordreset',    # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
-    'django_celery_beat',
 
     # Local apps
     'users',
@@ -155,17 +152,6 @@ STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 STRIPE_BASIC_PRICE_ID = os.getenv('STRIPE_BASIC_PRICE_ID', 'price_test_basic')
 STRIPE_PREMIUM_PRICE_ID = os.getenv('STRIPE_PREMIUM_PRICE_ID', 'price_test_premium') 
 STRIPE_ENTERPRISE_PRICE_ID = os.getenv('STRIPE_ENTERPRISE_PRICE_ID', 'price_test_enterprise')
-
-# Celery Configuration
-CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-
-# Django Celery Beat Settings
-DJANGO_CELERY_BEAT_TZ_AWARE = True
 
 # Django Cron Settings
 CRON_CLASSES = [

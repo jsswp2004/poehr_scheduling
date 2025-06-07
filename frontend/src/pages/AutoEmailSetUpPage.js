@@ -116,8 +116,7 @@ function AutoEmailSetUpPage() {
             disablePast
             minDate={new Date()}
           />
-        </LocalizationProvider>
-        <FormControl fullWidth>
+        </LocalizationProvider>        <FormControl fullWidth>
           <InputLabel id="frequency-label">Frequency</InputLabel>
           <Select
             labelId="frequency-label"
@@ -125,6 +124,7 @@ function AutoEmailSetUpPage() {
             label="Frequency"
             onChange={(e) => setFrequency(e.target.value)}
           >
+            <MenuItem value="daily">Daily</MenuItem>
             <MenuItem value="weekly">Weekly</MenuItem>
             <MenuItem value="bi-weekly">Bi-weekly</MenuItem>
             <MenuItem value="monthly">Monthly</MenuItem>
@@ -137,6 +137,7 @@ function AutoEmailSetUpPage() {
             value={dayOfWeek}
             label="Day of Week"
             onChange={(e) => setDayOfWeek(Number(e.target.value))}
+            disabled={frequency === 'daily'}
           >
             <MenuItem value={1}>Monday</MenuItem>
             <MenuItem value={2}>Tuesday</MenuItem>

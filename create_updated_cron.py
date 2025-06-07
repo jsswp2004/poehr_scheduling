@@ -1,4 +1,9 @@
-from django_cron import CronJobBase, Schedule
+#!/usr/bin/env python
+"""
+Script to create the updated cron.py file with daily frequency support
+"""
+
+cron_content = '''from django_cron import CronJobBase, Schedule
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.core.cache import cache
@@ -114,3 +119,10 @@ class BlastPatientReminderCronJob(CronJobBase):
         print(f"Running cron job at {timezone.now()}")
         send_patient_reminders()
         print("Cron job completed")
+'''
+
+# Write the file
+with open('appointments/cron.py', 'w', encoding='utf-8') as f:
+    f.write(cron_content)
+
+print("Updated appointments/cron.py with daily frequency support")
