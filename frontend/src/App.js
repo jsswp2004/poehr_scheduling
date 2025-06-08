@@ -28,13 +28,14 @@ import OverviewPage from './pages/OverviewPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import EnrollmentPage from './pages/EnrollmentPage';
+import DataSecurityPage from './pages/DataSecurityPage';
 import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
 import ToastDebugButton from './components/ToastDebugButton';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security'].includes(location.pathname);
 
   // Add or remove body class based on whether navbar should be shown
   useEffect(() => {
@@ -72,6 +73,7 @@ function AppContent() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/overview" element={<OverviewPage />} />
+        <Route path="/security" element={<DataSecurityPage />} />
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
