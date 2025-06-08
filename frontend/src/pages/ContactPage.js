@@ -193,10 +193,10 @@ export const ContactPage = ({ className }) => {
       <div className="page-title-section">
         <h1 className="page-title">Contact Us</h1>
         <p className="page-subtitle">We'd love to hear from you. Reach out to our team using the information below.</p>
-      </div>
-      <div className="contact-section">
+      <p className="page-subtitle">Click on the phone or email button to send us a message.</p></div>
+      <div className="contact-section">        
         <div className="contact-grid">
-          <div className="contact-card">
+          <div className="contact-card non-interactive" style={{ cursor: 'default' }}>
             <div className="contact-title">Address</div>
             <div className="contact-details">123 Placeholder Street<br/>City, State ZIP</div>
           </div>          <div className="contact-card" onClick={() => setIsSmsModalOpen(true)} style={{ cursor: 'pointer' }}>
