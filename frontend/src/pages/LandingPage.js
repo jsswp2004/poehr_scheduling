@@ -41,6 +41,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
       navigate('/pricing');
     }
   };
+
+  // Navigate to detailed data security page
+  const handleSecurityClick = () => {
+    navigate('/security');
+  };
   
   return (
     <div className={"landing-page-v-1-desktop-1920-px " + className}>
@@ -304,7 +309,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               professionals worldwide.
             </p>
             <div className="data-security-cta">
-              <div className="btn-read-more" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
+              <div className="btn-read-more" onClick={handleSecurityClick} style={{ cursor: 'pointer' }}>
                 <div className="read-more-text">Read more</div>
               </div>
             </div>

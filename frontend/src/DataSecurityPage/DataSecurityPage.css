@@ -1,0 +1,83 @@
+/* ===================================================================
+   DATA SECURITY PAGE STYLES - Matches Landing Page theme
+   ================================================================= */
+.data-security-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: "Inter", sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.page-title-section {
+  padding: 80px 64px 60px;
+  text-align: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+
+.page-title {
+  font-size: 48px;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.page-subtitle {
+  font-size: 24px;
+  font-weight: 400;
+  color: #64748b;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+.security-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 40px;
+  padding: 60px 64px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.text-block {
+  flex: 1;
+}
+
+.section-heading {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 16px;
+}
+
+.section-text {
+  font-size: 18px;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.image-placeholder {
+  width: 300px;
+  height: 200px;
+  background: linear-gradient(135deg, #e2e8f0 0%, #f8fafc 100%);
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .security-details {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .image-placeholder {
+    width: 100%;
+    max-width: 400px;
+  }
+}
