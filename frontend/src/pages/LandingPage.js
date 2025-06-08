@@ -416,7 +416,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
                   <div className="feature">Professional services</div> 
             </div>
             <div className="plan-button">
-              <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Contact Sales</div>
+              <div className="btn-plan" onClick={() => navigate('/contact')} style={{ cursor: 'pointer' }}>Contact Sales</div>
             </div>
           </div>        </div>
       </div>
