@@ -13,18 +13,37 @@
 // Import styles for the pricing page component
 import '../PricingPage/PricingPage.css';
 // Import React hooks for state management
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 // Import reusable Header component
 import Header from '../components/Header';
 // Import logo for footer
 import Footer from '../components/Footer';
 
 // Main pricing page component for POWER IT healthcare scheduling software
-export const PricingPage = ({ className, ...props }) => {  // State for active tab (will be used later for tab functionality)
-  const [activeTab, setActiveTab] = useState('personal'); // 'personal', 'clinic', 'group'
+export const PricingPage = ({ className, ...props }) => {
+  // Get URL search parameters to check for plan pre-selection
+  const [searchParams] = useSearchParams();
+  
+  // Get initial tab from URL parameter, defaulting to 'personal'
+  const getInitialTab = () => {
+    const planParam = searchParams.get('plan');
+    // Only allow 'personal' or 'clinic' pre-selection (Group goes to contact page)
+    if (planParam === 'clinic') {
+      return 'clinic';
+    }
+    return 'personal'; // Default to personal for any other value or no parameter
+  };
 
-  // Handler function for tab clicks (will be implemented later)
+  // State for active tab with URL parameter support
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+
+  // Update tab when URL parameters change
+  useEffect(() => {
+    setActiveTab(getInitialTab());
+  }, [searchParams]);
+
+  // Handler function for tab clicks
   const handleTabClick = (tab) => {
     setActiveTab(tab);
   };
