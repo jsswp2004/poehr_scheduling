@@ -30,13 +30,16 @@ import DashboardQouteImage from '../assets/dashboard_quotes.png'; // Dashboard q
 import Footer from '../components/Footer';
 
 // Main landing page component for POWER IT healthcare scheduling software
-export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
-  // Initialize navigation hook
+export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Initialize navigation hook
   const navigate = useNavigate();
   
   // Handler for pricing page navigation
-  const handlePricingClick = () => {
-    navigate('/pricing');
+  const handlePricingClick = (planType = null) => {
+    if (planType) {
+      navigate(`/pricing?plan=${planType}`);
+    } else {
+      navigate('/pricing');
+    }
   };
   
   return (
@@ -375,11 +378,10 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
                   <div className="feature">SMS + Email notifications</div>
                   <div className="feature">Bulk SMS notifications</div>
                   <div className="feature">Patient management system</div>                  
-                  <div className="feature">Automated reminders</div>
-                  <div className="feature">Advanced reporting & analytics</div>
+                  <div className="feature">Automated reminders</div>                  <div className="feature">Advanced reporting & analytics</div>
             </div>
             <div className="plan-button">
-              <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Start Free Trial</div>
+              <div className="btn-plan" onClick={() => handlePricingClick('clinic')} style={{ cursor: 'pointer' }}>Start Free Trial</div>
             </div>
           </div>
 
