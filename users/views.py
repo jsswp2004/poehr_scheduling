@@ -430,6 +430,45 @@ def send_patient_email(request):
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
+@api_view(['POST'])
+def send_contact_email(request):
+    """
+    Public contact form endpoint - no authentication required.
+    Used for website contact form submissions.
+    """
+    email = request.data.get('email')
+    name = request.data.get('name', 'Anonymous')
+    subject = request.data.get('subject', 'Contact Form Submission')
+    message = request.data.get('message')
+
+    if not email or not message:
+        return Response({'error': 'Email and message are required.'}, status=400)
+
+    # Format the message to include contact details
+    formatted_message = f"""
+Contact Form Submission
+
+From: {name}
+Email: {email}
+Subject: {subject}
+
+Message:
+{message}
+"""
+
+    try:
+        # Send to admin/support email
+        send_mail(
+            subject=f"Contact Form: {subject}",
+            message=formatted_message,
+            from_email=None,  # defaults to DEFAULT_FROM_EMAIL
+            recipient_list=[settings.DEFAULT_FROM_EMAIL],  # Send to your support email
+            fail_silently=False,
+        )
+        return Response({'message': 'Contact form submitted successfully'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
 class PatientDeleteView(DestroyAPIView):
     queryset = Patient.objects.all()
     serializer_class = PatientSerializer
@@ -556,3 +595,42 @@ def get_team_members(request):
     result_page = paginator.paginate_queryset(members.order_by('last_name'), request)
     serializer = UserSerializer(result_page, many=True)
     return paginator.get_paginated_response(serializer.data)
+
+@api_view(['POST'])
+def send_contact_sms(request):
+    """
+    Public contact SMS endpoint - no authentication required.
+    Used for website contact form SMS submissions.
+    """
+    phone_to = request.data.get('phone_to')  # Target phone number (admin/business)
+    phone_from = request.data.get('phone_from')  # User's phone number
+    message = request.data.get('message')
+
+    if not phone_to or not phone_from or not message:
+        return Response({'error': 'phone_to, phone_from, and message are required.'}, status=400)
+
+    if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_PHONE_NUMBER]):
+        return Response({'error': 'SMS service configuration missing'}, status=500)
+
+    # Format the message to include contact details
+    formatted_message = f"""
+Contact Form SMS
+
+From: {phone_from}
+Message: {message}
+"""
+
+    try:
+        print(f"📱 Contact SMS: {phone_from} -> {phone_to}")
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        
+        sent = client.messages.create(
+            body=formatted_message,
+            from_=settings.TWILIO_PHONE_NUMBER,
+            to=phone_to
+        )
+        print("✅ Contact SMS sent:", sent.sid)
+        return Response({'message': 'SMS sent successfully', 'sid': sent.sid})
+    except Exception as e:
+        print("❌ Contact SMS error:", e)
+        return Response({'error': str(e)}, status=500)

@@ -6,10 +6,10 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'poehr_scheduling_backend.settings')
 django.setup()
 
-from users.models import User
+from users.models import CustomUser
 
 print("=== Checking Users in Database ===")
-users = User.objects.all()
+users = CustomUser.objects.all()
 print(f"Total users: {users.count()}")
 
 if users.exists():
@@ -24,7 +24,7 @@ else:
     print("\nCreating a test admin user...")
     
     # Create a test admin user
-    test_user = User.objects.create_user(
+    test_user = CustomUser.objects.create_user(
         email='admin@test.com',
         password='testpass123',
         first_name='Test',
