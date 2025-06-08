@@ -63,6 +63,12 @@
   border-color: #3b82f6;
 }
 
+.contact-card.non-interactive:hover {
+  transform: none;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-color: #e2e8f0;
+}
+
 .contact-title {
   font-size: 20px;
   font-weight: 700;
