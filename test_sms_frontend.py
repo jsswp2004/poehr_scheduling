@@ -12,10 +12,9 @@ def test_sms_api():
     """Test the SMS API endpoint with authentication"""
     
     # First, get an authentication token
-    login_url = "http://127.0.0.1:8000/api/auth/login/"
-    login_data = {
-        "username": "admin",  # Replace with actual username
-        "password": "admin123"  # Replace with actual password
+    login_url = "http://127.0.0.1:8000/api/auth/login/"    login_data = {
+        "username": "jsswp2004",  # Replace with actual username
+        "password": "krat25Miko!"  # Replace with actual password
     }
     
     print("🔐 Getting authentication token...")
