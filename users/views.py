@@ -26,12 +26,6 @@ from appointments.permissions import IsAdminOrSystemAdmin
 
 logger = logging.getLogger(__name__)
 
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')  # optional
-
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-
 class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
@@ -343,21 +337,33 @@ def send_sms(request):
     message = request.data.get('message')
 
     print("📨 SMS REQUEST RECEIVED:", phone, message)
+    print("🔧 Twilio Settings:")
+    print(f"  Account SID: {settings.TWILIO_ACCOUNT_SID}")
+    print(f"  Auth Token: {settings.TWILIO_AUTH_TOKEN[:10]}...")
+    print(f"  Phone Number: {settings.TWILIO_PHONE_NUMBER}")
 
     if not phone or not message:
         return Response({'error': 'Phone and message are required.'}, status=400)
-
+    
+    if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_PHONE_NUMBER]):
+        print("❌ Missing Twilio configuration in Django settings!")
+        return Response({'error': 'Twilio configuration missing'}, status=500)
+    
     try:
+        print("🔧 Creating Twilio client...")
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+        
+        print(f"📤 Sending SMS from {settings.TWILIO_PHONE_NUMBER} to {phone}")
         sent = client.messages.create(
             body=message,
-            from_=TWILIO_PHONE_NUMBER,
+            from_=settings.TWILIO_PHONE_NUMBER,
             to=phone
         )
         print("✅ SMS SENT:", sent.sid)
         return Response({'message': 'SMS sent successfully', 'sid': sent.sid})
     except Exception as e:
         print("❌ TWILIO ERROR:", e)
+        print(f"❌ Error type: {type(e).__name__}")
         return Response({'error': str(e)}, status=500)
 
 from django.core.mail import send_mail
