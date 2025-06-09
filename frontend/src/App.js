@@ -29,13 +29,14 @@ import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import EnrollmentPage from './pages/EnrollmentPage';
 import DataSecurityPage from './pages/DataSecurityPage';
+import SupportPage from './pages/SupportPage';
 import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
 import ToastDebugButton from './components/ToastDebugButton';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support'].includes(location.pathname);
 
   // Add or remove body class based on whether navbar should be shown
   useEffect(() => {
@@ -47,7 +48,7 @@ function AppContent() {
   }, [showNavbar]);
   useEffect(() => {
     const body = document.body;
-    if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/pricing' || location.pathname === '/features' || location.pathname === '/overview' || location.pathname === '/about' || location.pathname === '/contact' || location.pathname === '/enroll') {
+    if (location.pathname === '/login' || location.pathname === '/register' || location.pathname === '/forgot-password' || location.pathname === '/pricing' || location.pathname === '/features' || location.pathname === '/overview' || location.pathname === '/about' || location.pathname === '/contact' || location.pathname === '/enroll' || location.pathname === '/support') {
       body.classList.add('bg-gray-100');
     } else {
       body.classList.remove('bg-gray-100');
@@ -72,6 +73,7 @@ function AppContent() {
         <Route path="/features" element={<FeaturesPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
+        <Route path="/support" element={<SupportPage />} />
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/security" element={<DataSecurityPage />} />
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
