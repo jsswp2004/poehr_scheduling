@@ -126,7 +126,7 @@ export const Header = ({ className }) => {
               <div className="dropdown-menu">
                 <a href="#guides" className="dropdown-item">Guides & Tutorials</a>
                 {/*<a href="#help" className="dropdown-item">Help Center</a>*/}
-                <a href="#support" className="dropdown-item">Support</a>
+                <a href="/support" className="dropdown-item">Support</a>
               </div>
             )}
           </div>
