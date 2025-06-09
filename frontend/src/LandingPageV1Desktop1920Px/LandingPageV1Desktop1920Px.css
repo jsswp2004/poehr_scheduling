@@ -201,6 +201,20 @@ background gradients, and overall layout structure.
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   scroll-behavior: smooth;
 }
+
+/* ===== SWIRLING LINES BACKGROUND (PASTE THIS AFTER MAIN CONTAINER) ===== */
+.landing-page-v-1-desktop-1920-px::before {
+  content: '';
+  position: fixed;  /* or absolute if you want to scroll with content */
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 1; /* Behind pictures and text */
+  pointer-events: none;
+  opacity: 0.2; /* further reduced opacity to make it very subtle */
+  background-image: url("data:image/svg+xml,%3Csvg width='1600' height='1000' viewBox='0 0 1600 1000' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 200 Q400 300 800 200 T1600 200' stroke='%23e9eef5' stroke-width='6' fill='none'/%3E%3Cpath d='M0 600 Q500 500 1100 700 T1600 600' stroke='%23e1edfb' stroke-width='4' fill='none' opacity='0.7'/%3E%3Cpath d='M0 400 Q300 350 900 500 T1600 400' stroke='%23e5f1fe' stroke-width='3' fill='none' opacity='.55'/%3E%3Cpath d='M0 300 Q200 350 600 250 T1600 300' stroke='%23e9f3ff' stroke-width='2' fill='none' opacity='.5'/%3E%3Cpath d='M0 500 Q400 450 800 550 T1600 500' stroke='%23e7f0fa' stroke-width='3' fill='none' opacity='.6'/%3E%3Cpath d='M0 800 Q500 700 1000 800 T1600 750' stroke='%23eaf4fe' stroke-width='4' fill='none' opacity='.45'/%3E%3Cpath d='M0 100 Q300 150 700 100 T1600 120' stroke='%23edf5fb' stroke-width='2' fill='none' opacity='.5'/%3E%3C/svg%3E");
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
 /* 
 =======================================================================
 SECTION 2: HERO SECTION (TOP OF PAGE)
@@ -1536,7 +1550,7 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
   animation: fadeInUp 0.8s ease-out 0.2s both;
 }
 
-/* Add subtle background pattern overlay */
+/* Add swirling lines background pattern overlay */
 .landing-page-v-1-desktop-1920-px .efficient-scheduling-section::before {
   content: '';
   position: absolute;
@@ -1544,10 +1558,13 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
-    radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
-    radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.06) 0%, transparent 50%);
-  z-index: 0;
+  z-index: -1; /* Behind all content including pictures and text */
+  pointer-events: none;
+  opacity: 0.15; /* Slightly more visible on dark background */
+  background-image: url("data:image/svg+xml,%3Csvg width='1600' height='1000' viewBox='0 0 1600 1000' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 200 Q400 300 800 200 T1600 200' stroke='%23ffffff' stroke-width='6' fill='none'/%3E%3Cpath d='M0 600 Q500 500 1100 700 T1600 600' stroke='%23f8fafc' stroke-width='4' fill='none' opacity='0.7'/%3E%3Cpath d='M0 400 Q300 350 900 500 T1600 400' stroke='%23f1f5f9' stroke-width='3' fill='none' opacity='.55'/%3E%3Cpath d='M0 300 Q200 350 600 250 T1600 300' stroke='%23e2e8f0' stroke-width='2' fill='none' opacity='.5'/%3E%3Cpath d='M0 500 Q400 450 800 550 T1600 500' stroke='%23cbd5e1' stroke-width='3' fill='none' opacity='.6'/%3E%3Cpath d='M0 800 Q500 700 1000 800 T1600 750' stroke='%2394a3b8' stroke-width='4' fill='none' opacity='.45'/%3E%3Cpath d='M0 100 Q300 150 700 100 T1600 120' stroke='%2364748b' stroke-width='2' fill='none' opacity='.5'/%3E%3C/svg%3E");
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 .landing-page-v-1-desktop-1920-px .efficient-scheduling-section > * {
