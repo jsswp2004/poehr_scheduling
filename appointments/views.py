@@ -26,7 +26,7 @@ import csv
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
 from .permissions import IsAdminOrSystemAdmin
-from appointments.cron import send_patient_reminders
+from appointments.cron import send_patient_reminders, send_patient_sms_reminders
 from rest_framework.permissions import IsAdminUser
 
 from .models import Appointment
@@ -619,6 +619,17 @@ class RunPatientRemindersNowView(APIView):
             return Response({"message": "Patient reminders have been sent successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"Failed to send patient reminders: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class RunPatientSMSRemindersNowView(APIView):
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def post(self, request):
+        try:
+            send_patient_sms_reminders()
+            return Response({"message": "SMS reminders have been sent successfully."}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Failed to send SMS reminders: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class AutoEmailViewSet(viewsets.ModelViewSet):
     serializer_class = AutoEmailSerializer
