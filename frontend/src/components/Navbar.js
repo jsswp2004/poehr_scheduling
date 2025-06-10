@@ -120,7 +120,7 @@ function Navbar() {
     setOrganizationName('');
     
     toast.info('Logged out!');
-    navigate('/login');
+    navigate('/');
   };
 
   const isSystemAdmin = role === 'system_admin';
@@ -135,7 +135,7 @@ function Navbar() {
   return (
     <AppBar position="fixed" color="primary" sx={{ zIndex: 1201 }}>
       <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: 1 }} component={Link} to="/">
+        <Box sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: 1 }} component={Link} to="/login">
           <Avatar
             src={logoUrl || logo}
             alt="Logo"
@@ -208,7 +208,8 @@ function Navbar() {
                     System Admin
                   </Box>
                 )}
-              </Button>              <IconButton
+              </Button>              
+              <IconButton
                 onClick={handleLogout}
                 color="inherit"
                 sx={{
