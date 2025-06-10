@@ -1,6 +1,22 @@
 from rest_framework.routers import DefaultRouter
 from django.urls import path
-from .views import DownloadClinicEventsTemplate, UploadClinicEventsCSV, EnvironmentSettingView, AppointmentViewSet, doctor_available_slots, AvailabilityViewSet, HolidayViewSet, ClinicEventViewSet, DownloadAvailabilityTemplate, UploadAvailabilityCSV, RunWeeklyPatientRemindersView, RunPatientRemindersNowView, AutoEmailViewSet, update_appointment_status  # ⬅️ import the new view
+from .views import (
+    DownloadClinicEventsTemplate,
+    UploadClinicEventsCSV,
+    EnvironmentSettingView,
+    AppointmentViewSet,
+    doctor_available_slots,
+    AvailabilityViewSet,
+    HolidayViewSet,
+    ClinicEventViewSet,
+    DownloadAvailabilityTemplate,
+    UploadAvailabilityCSV,
+    RunWeeklyPatientRemindersView,
+    RunPatientRemindersNowView,
+    RunPatientSMSRemindersNowView,
+    AutoEmailViewSet,
+    update_appointment_status,
+)
 from .analytics_views import AnalyticsReportView, ExportReportView
 
 router = DefaultRouter()
@@ -21,6 +37,7 @@ urlpatterns = [
     path('availability/upload-csv/', UploadAvailabilityCSV.as_view(), name='upload-availability-csv'),
     path('run-weekly-patient-reminders/', RunWeeklyPatientRemindersView.as_view(), name='run-weekly-patient-reminders'),
     path('run-patient-reminders-now/', RunPatientRemindersNowView.as_view(), name='run-patient-reminders-now'),
+    path('run-patient-sms-reminders-now/', RunPatientSMSRemindersNowView.as_view(), name='run-patient-sms-reminders-now'),
     path('analytics/reports/', AnalyticsReportView.as_view(), name='analytics-reports'),
     path('analytics/export/', ExportReportView.as_view(), name='export-reports'),
 ]+ router.urls
