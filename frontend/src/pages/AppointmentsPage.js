@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Container, TextField, Button, Box, Table, TableBody,
-  TableCell, TableContainer, TableHead, TableRow, Paper, Typography
+  TableCell, TableContainer, TableHead, TableRow, Paper, Typography, Checkbox
 } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
@@ -116,7 +116,27 @@ function AppointmentsPage() {
           if (!appt.appointment_datetime) return false;
           const apptDate = new Date(appt.appointment_datetime);
           return apptDate >= today && apptDate < tomorrow;
-        });
+        });        // Debug: Log the appointments to see if arrived/no_show fields are present
+        console.log('=== DEBUG: Today\'s appointments data ===');
+        console.log('Filtered appointments:', filtered);
+        console.log('Filtered appointments count:', filtered.length);
+        
+        if (filtered.length > 0) {
+          console.log('First appointment:', filtered[0]);
+          console.log('First appointment fields:', Object.keys(filtered[0]));
+          console.log('First appointment arrived:', filtered[0].arrived);
+          console.log('First appointment no_show:', filtered[0].no_show);
+        } else {
+          console.log('No appointments found for today. Current date:', today.toDateString());
+          console.log('Total appointments in system:', res.data.length);
+          if (res.data.length > 0) {
+            console.log('Sample appointment:', res.data[0]);
+            console.log('Sample appointment date:', res.data[0].appointment_datetime);
+            console.log('Sample appointment fields:', Object.keys(res.data[0]));
+            console.log('Sample appointment arrived:', res.data[0].arrived);
+            console.log('Sample appointment no_show:', res.data[0].no_show);
+          }
+        }
 
         setTodaysAppointments(filtered);
       } catch (err) {
@@ -178,6 +198,48 @@ function AppointmentsPage() {
   const userName = getUserFirstName();
   const greeting = getGreeting();
 
+  // Handle status update for arrived/no_show
+  const handleStatusUpdate = async (appointmentId, field, value) => {
+    try {
+      const updateData = {};
+      updateData[field] = value;
+      
+      // If marking as no_show, automatically uncheck arrived
+      if (field === 'no_show' && value) {
+        updateData.arrived = false;
+      }
+      // If marking as arrived, automatically uncheck no_show
+      if (field === 'arrived' && value) {
+        updateData.no_show = false;
+      }
+
+      await axios.patch(`http://127.0.0.1:8000/api/appointments/${appointmentId}/status/`, updateData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      // Refresh today's appointments to reflect the change
+      const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const filtered = res.data.filter((appt) => {
+        if (!appt.appointment_datetime) return false;
+        const apptDate = new Date(appt.appointment_datetime);
+        return apptDate >= today && apptDate < tomorrow;
+      });
+
+      setTodaysAppointments(filtered);
+    } catch (err) {
+      console.error('Failed to update appointment status:', err);
+      alert('Failed to update appointment status.');
+    }
+  };
+
   return (
     <Container disableGutters sx={{ ml: 0, mr: 0, pl: 0, pr: 0, minHeight: '100vh', width: '100vw', maxWidth: '100vw!important', display: 'flex', flexDirection: 'column' }}>
       <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
@@ -224,31 +286,27 @@ function AppointmentsPage() {
               </Box>
             </Box>
           </Paper>
-        </Grid>
-
-        {/* Today's Appointments Panel */}
+        </Grid>        {/* Today's Appointments Panel */}
         <Grid item xs={12}>
-          <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, mb: 2, minWidth:420,        minHeight: 320, // Set the min height to your liking!
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',}}>
+          <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, mb: 2, minWidth: 800, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <TodayIcon color="primary" sx={{ mr: 1 }} />
               <Typography variant="h5" fontWeight={600}>Today's Appointments</Typography>
-            </Box>
-            <TableContainer sx={{ maxHeight: '300px', overflow: 'auto' }}>
-              <Table size="small" stickyHeader>
+            </Box>            <TableContainer sx={{ maxHeight: '300px', overflow: 'auto', width: '100%' }}>
+              <Table size="small" stickyHeader sx={{ minWidth: 800, tableLayout: 'fixed' }}>
                 <TableHead sx={{ bgcolor: '#e3f2fd' }}>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Time</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', width: '15%' }}>Time</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Patient</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Provider</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', width: '12.5%', textAlign: 'center' }}>Arrived</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', width: '12.5%', textAlign: 'center' }}>No Show</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {todaysAppointments.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary', py: 2 }}>
+                      <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 2 }}>
                         No appointments today.
                       </TableCell>
                     </TableRow>
@@ -259,23 +317,66 @@ function AppointmentsPage() {
                         <TableRow
                           key={appt.id}
                           hover
-                          onClick={() => {
-                            setSelectedAppointment(appt);
-                            setDetailsOpen(true);
-                          }}
                           sx={{
-                            cursor: 'pointer',
                             '&:hover': {
                               backgroundColor: '#f0f7ff',
                             }
                           }}
                         >
-                          <TableCell>{appt.appointment_datetime ? new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</TableCell>
-                          <TableCell>{appt.patient_name || (appt.patient && `${appt.patient.first_name} ${appt.patient.last_name}`) || '-'}</TableCell>
-                          <TableCell>{appt.provider_name || (appt.provider && (appt.provider.first_name || appt.provider.last_name)
-                            ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
-                            : '-')
-                          }</TableCell>
+                          <TableCell 
+                            onClick={() => {
+                              setSelectedAppointment(appt);
+                              setDetailsOpen(true);
+                            }}
+                            sx={{ cursor: 'pointer' }}
+                          >
+                            {appt.appointment_datetime ? new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                          </TableCell>
+                          <TableCell 
+                            onClick={() => {
+                              setSelectedAppointment(appt);
+                              setDetailsOpen(true);
+                            }}
+                            sx={{ cursor: 'pointer' }}
+                          >
+                            {appt.patient_name || (appt.patient && `${appt.patient.first_name} ${appt.patient.last_name}`) || '-'}
+                          </TableCell>
+                          <TableCell 
+                            onClick={() => {
+                              setSelectedAppointment(appt);
+                              setDetailsOpen(true);
+                            }}
+                            sx={{ cursor: 'pointer' }}
+                          >
+                            {appt.provider_name || (appt.provider && (appt.provider.first_name || appt.provider.last_name)
+                              ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
+                              : '-')
+                            }
+                          </TableCell>                          <TableCell sx={{ textAlign: 'center' }}>
+                            {console.log(`Appointment ${appt.id} - arrived: ${appt.arrived}, no_show: ${appt.no_show}`)}
+                            <Checkbox
+                              checked={appt.arrived || false}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                console.log(`Updating appointment ${appt.id} arrived to: ${e.target.checked}`);
+                                handleStatusUpdate(appt.id, 'arrived', e.target.checked);
+                              }}
+                              color="primary"
+                              size="small"
+                            />
+                          </TableCell>
+                          <TableCell sx={{ textAlign: 'center' }}>
+                            <Checkbox
+                              checked={appt.no_show || false}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                console.log(`Updating appointment ${appt.id} no_show to: ${e.target.checked}`);
+                                handleStatusUpdate(appt.id, 'no_show', e.target.checked);
+                              }}
+                              color="error"
+                              size="small"
+                            />
+                          </TableCell>
                         </TableRow>
                       ))
                   )}

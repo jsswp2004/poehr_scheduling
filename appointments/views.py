@@ -630,3 +630,50 @@ class AutoEmailViewSet(viewsets.ModelViewSet):
             return AutoEmail.objects.filter(organization=user.organization)
         else:
             return AutoEmail.objects.filter(organization__isnull=True)
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_appointment_status(request, appointment_id):
+    """
+    Update the arrived and no_show status of an appointment
+    """
+    try:
+        user = request.user
+        # Get the appointment
+        if user.role == 'system_admin':
+            appointment = Appointment.objects.get(id=appointment_id)
+        else:
+            appointment = Appointment.objects.get(
+                id=appointment_id,
+                organization=user.organization
+            )
+        
+        # Get the status to update
+        arrived = request.data.get('arrived')
+        no_show = request.data.get('no_show')
+        
+        # Update the fields if provided
+        if arrived is not None:
+            appointment.arrived = arrived
+        if no_show is not None:
+            appointment.no_show = no_show
+            # If marking as no-show, automatically mark as not arrived
+            if no_show:
+                appointment.arrived = False
+        
+        appointment.save()
+        
+        # Return updated appointment data
+        serializer = AppointmentSerializer(appointment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        
+    except Appointment.DoesNotExist:
+        return Response(
+            {'error': 'Appointment not found'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )

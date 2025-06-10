@@ -54,8 +54,7 @@ class Appointment(models.Model):
         max_length=20,
         choices=STATUS_CHOICES,
         default='scheduled',
-        help_text='Status of the appointment'
-    )
+        help_text='Status of the appointment'    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -69,6 +68,10 @@ class Appointment(models.Model):
     )
 
     recurrence_end_date = models.DateField(null=True, blank=True)  # NEW FIELD
+    
+    # Patient arrival tracking fields
+    arrived = models.BooleanField(default=False, help_text='Whether the patient has arrived for the appointment')
+    no_show = models.BooleanField(default=False, help_text='Whether the patient was a no-show for the appointment')
 
     def __str__(self):
         return f"{self.title} - {self.appointment_datetime}"
