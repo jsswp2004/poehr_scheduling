@@ -21,6 +21,7 @@ urlpatterns = [
 
     path('api/sms/', include('users.urls')),  # or sms.urls
     path('api/messages/', include('users.urls')),
+    path('api/communicator/', include('communicator.urls')),
 
 
 ] 
