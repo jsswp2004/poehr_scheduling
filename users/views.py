@@ -26,6 +26,12 @@ from appointments.permissions import IsAdminOrSystemAdmin
 
 logger = logging.getLogger(__name__)
 
+TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
+TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')  # optional
+
+client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
 class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
@@ -160,38 +166,51 @@ class RegisterView(generics.CreateAPIView):
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
-              # Initialize Stripe service
+            
+            # Initialize Stripe service
             stripe_service = StripeService()
             
             # Create or retrieve Stripe customer
-            customer = stripe_service.create_customer(
-                user=user,
+            customer_id = stripe_service.create_customer(
+                email=user.email,
+                name=f"{user.first_name} {user.last_name}",
                 payment_method_id=payment_method_id
             )
             
-            if not customer:
+            if not customer_id:
                 # Delete the user if Stripe customer creation failed
                 user.delete()
                 return Response(
                     {"error": "Failed to create Stripe customer"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
-              # Create trial subscription
-            subscription = stripe_service.create_trial_subscription(
-                user=user,
+            
+            # Create trial subscription
+            subscription_result = stripe_service.create_trial_subscription(
+                customer_id=customer_id,
                 tier=subscription_tier,
                 payment_method_id=payment_method_id
             )
             
-            if not subscription:
+            if not subscription_result['success']:
                 # Delete the user if subscription creation failed
                 user.delete()
                 return Response(
-                    {"error": "Failed to create subscription"}, 
+                    {"error": f"Failed to create subscription: {subscription_result.get('error', 'Unknown error')}"}, 
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # Subscription creation was successful - user is already updated by StripeService
+            # Update user with Stripe information
+            user.stripe_customer_id = customer_id
+            user.subscription_status = 'trialing'
+            user.subscription_tier = subscription_tier
+            user.trial_start_date = subscription_result['trial_start']
+            user.trial_end_date = subscription_result['trial_end']
+            user.stripe_subscription_id = subscription_result['subscription_id']
+            
+            # Save the user with all subscription data
+            user.save()
+            
             print("✅ User created successfully with trial subscription:", user.username, user.email)
             print(f"📅 Trial period: {user.trial_start_date} to {user.trial_end_date}")
             
@@ -228,8 +247,7 @@ def get_patients(request):
     - If doctor: only assigned patients
     - If registrar/admin: all patients in their org
     - If system_admin: all patients (all orgs)
-    Supports search and provider filtering.
-    """
+    Supports search and provider filtering.    """
     user = request.user
 
     if user.role not in ['doctor', 'registrar', 'admin', 'system_admin']:
@@ -254,12 +272,21 @@ def get_patients(request):
             Q(user__provider__first_name__icontains=search) |
             Q(user__provider__last_name__icontains=search)
         )
-
+    
     if provider_id:
         patients = patients.filter(user__provider_id=provider_id)
 
+    # Get page size from frontend parameter, default to 10
+    page_size = request.GET.get('page_size', 10)
+    try:
+        page_size = int(page_size)
+        # Limit page size to prevent excessive requests
+        page_size = min(page_size, 100)
+    except (ValueError, TypeError):
+        page_size = 10
+
     paginator = PageNumberPagination()
-    paginator.page_size = 25
+    paginator.page_size = page_size
     result_page = paginator.paginate_queryset(patients.order_by('user__last_name'), request)
     serializer = PatientSerializer(result_page, many=True)
 
@@ -337,33 +364,21 @@ def send_sms(request):
     message = request.data.get('message')
 
     print("📨 SMS REQUEST RECEIVED:", phone, message)
-    print("🔧 Twilio Settings:")
-    print(f"  Account SID: {settings.TWILIO_ACCOUNT_SID}")
-    print(f"  Auth Token: {settings.TWILIO_AUTH_TOKEN[:10]}...")
-    print(f"  Phone Number: {settings.TWILIO_PHONE_NUMBER}")
 
     if not phone or not message:
         return Response({'error': 'Phone and message are required.'}, status=400)
-    
-    if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_PHONE_NUMBER]):
-        print("❌ Missing Twilio configuration in Django settings!")
-        return Response({'error': 'Twilio configuration missing'}, status=500)
-    
+
     try:
-        print("🔧 Creating Twilio client...")
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        
-        print(f"📤 Sending SMS from {settings.TWILIO_PHONE_NUMBER} to {phone}")
         sent = client.messages.create(
             body=message,
-            from_=settings.TWILIO_PHONE_NUMBER,
+            from_=TWILIO_PHONE_NUMBER,
             to=phone
         )
         print("✅ SMS SENT:", sent.sid)
         return Response({'message': 'SMS sent successfully', 'sid': sent.sid})
     except Exception as e:
         print("❌ TWILIO ERROR:", e)
-        print(f"❌ Error type: {type(e).__name__}")
         return Response({'error': str(e)}, status=500)
 
 from django.core.mail import send_mail
@@ -427,45 +442,6 @@ def send_patient_email(request):
             fail_silently=False,
         )
         return Response({'message': 'Email sent successfully'})
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
-
-@api_view(['POST'])
-def send_contact_email(request):
-    """
-    Public contact form endpoint - no authentication required.
-    Used for website contact form submissions.
-    """
-    email = request.data.get('email')
-    name = request.data.get('name', 'Anonymous')
-    subject = request.data.get('subject', 'Contact Form Submission')
-    message = request.data.get('message')
-
-    if not email or not message:
-        return Response({'error': 'Email and message are required.'}, status=400)
-
-    # Format the message to include contact details
-    formatted_message = f"""
-Contact Form Submission
-
-From: {name}
-Email: {email}
-Subject: {subject}
-
-Message:
-{message}
-"""
-
-    try:
-        # Send to admin/support email
-        send_mail(
-            subject=f"Contact Form: {subject}",
-            message=formatted_message,
-            from_email=None,  # defaults to DEFAULT_FROM_EMAIL
-            recipient_list=[settings.DEFAULT_FROM_EMAIL],  # Send to your support email
-            fail_silently=False,
-        )
-        return Response({'message': 'Contact form submitted successfully'})
     except Exception as e:
         return Response({'error': str(e)}, status=500)
 
@@ -597,40 +573,71 @@ def get_team_members(request):
     return paginator.get_paginated_response(serializer.data)
 
 @api_view(['POST'])
+@permission_classes([AllowAny])  # Public endpoint
+def send_contact_email(request):
+    """
+    Public endpoint for sending contact emails from the website
+    """
+    try:
+        name = request.data.get('name', '')
+        email = request.data.get('email', '')
+        subject = request.data.get('subject', 'Contact Form Submission')
+        message = request.data.get('message', '')
+        
+        if not email or not message:
+            return Response({'error': 'Email and message are required'}, status=400)
+        
+        # Send email to admin/support team
+        admin_email = 'support@poehrscheduling.com'  # Replace with actual admin email
+        
+        full_message = f"""
+        Contact Form Submission:
+        
+        Name: {name}
+        Email: {email}
+        Subject: {subject}
+        
+        Message:
+        {message}
+        """
+        
+        send_mail(
+            subject=f"Contact Form: {subject}",
+            message=full_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[admin_email],
+            fail_silently=False,
+        )
+        
+        return Response({'message': 'Contact email sent successfully'}, status=200)
+        
+    except Exception as e:
+        return Response({'error': f'Failed to send contact email: {str(e)}'}, status=500)
+
+@api_view(['POST'])
+@permission_classes([AllowAny])  # Public endpoint
 def send_contact_sms(request):
     """
-    Public contact SMS endpoint - no authentication required.
-    Used for website contact form SMS submissions.
+    Public endpoint for sending contact SMS notifications
     """
-    phone_to = request.data.get('phone_to')  # Target phone number (admin/business)
-    phone_from = request.data.get('phone_from')  # User's phone number
-    message = request.data.get('message')
-
-    if not phone_to or not phone_from or not message:
-        return Response({'error': 'phone_to, phone_from, and message are required.'}, status=400)
-
-    if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_PHONE_NUMBER]):
-        return Response({'error': 'SMS service configuration missing'}, status=500)
-
-    # Format the message to include contact details
-    formatted_message = f"""
-Contact Form SMS
-
-From: {phone_from}
-Message: {message}
-"""
-
     try:
-        print(f"📱 Contact SMS: {phone_from} -> {phone_to}")
+        phone = request.data.get('phone', '')
+        message = request.data.get('message', '')
+        
+        if not phone or not message:
+            return Response({'error': 'Phone and message are required'}, status=400)
+        
+        # Initialize Twilio client
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
         
-        sent = client.messages.create(
-            body=formatted_message,
+        # Send SMS
+        message = client.messages.create(
+            body=message,
             from_=settings.TWILIO_PHONE_NUMBER,
-            to=phone_to
+            to=phone
         )
-        print("✅ Contact SMS sent:", sent.sid)
-        return Response({'message': 'SMS sent successfully', 'sid': sent.sid})
+        
+        return Response({'message': 'Contact SMS sent successfully', 'sid': message.sid}, status=200)
+        
     except Exception as e:
-        print("❌ Contact SMS error:", e)
-        return Response({'error': str(e)}, status=500)
+        return Response({'error': f'Failed to send contact SMS: {str(e)}'}, status=500)
