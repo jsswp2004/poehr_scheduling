@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab, Pagination
+  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox
 } from '@mui/material';
 import TodayIcon from '@mui/icons-material/Today';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -40,10 +40,8 @@ function PatientsPage() {
   const [team, setTeam] = useState([]);
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [teamSearch, setTeamSearch] = useState('');
-  const [provider, setProvider] = useState('');
-  const [tab, setTab] = useState('patients');
+  const [provider, setProvider] = useState('');  const [tab, setTab] = useState('patients');
   const [page, setPage] = useState(1);
-  const [sizePerPage, setSizePerPage] = useState(10);
   const [totalSize, setTotalSize] = useState(0);
   const [reportStartDate, setReportStartDate] = useState(null);  const [reportEndDate, setReportEndDate] = useState(null);  const [reportProvider, setReportProvider] = useState('all');
   const [providers, setProviders] = useState([]);
@@ -55,11 +53,9 @@ function PatientsPage() {
   const [appointmentsPage, setAppointmentsPage] = useState(1);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  
   const navigate = useNavigate();
-  const rowsPerPage = 15;
-  const totalPages = Math.ceil(patients.length / rowsPerPage);
-  const paginatedPatients = patients.slice((page - 1) * rowsPerPage, page * rowsPerPage);
+  const rowsPerPage = 10;
+  const totalPages = Math.ceil(totalSize / rowsPerPage); // Use backend totalSize instead of patients.length
 
   const analyticsReports = [
     'Upcoming Appointments Report',
@@ -111,12 +107,11 @@ function PatientsPage() {
     setLoading(true);
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/users/patients/', {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
+        headers: { Authorization: `Bearer ${token}` },        params: {
           search,
           provider,
           page,
-          page_size: sizePerPage,
+          page_size: rowsPerPage, // Use rowsPerPage instead of sizePerPage for consistency
         },
       });
 
@@ -229,7 +224,7 @@ function PatientsPage() {
       fetchAppointments(appointmentsQuery);
     }
     // eslint-disable-next-line
-  }, [page, sizePerPage, tab]);
+  }, [page, rowsPerPage, tab]);
 
   // Fetch today's appointments for the summary panel
   useEffect(() => {
@@ -261,6 +256,14 @@ function PatientsPage() {
     
     fetchTodaysAppointments();
   }, [token, tab]);
+
+  // Handle search changes for patients
+  useEffect(() => {
+    if (tab === 'patients') {
+      fetchPatients();
+    }
+    // eslint-disable-next-line
+  }, [search, provider]);
 
   const handleSendText = async (patient) => {
     const phone = patient.phone_number;
@@ -318,11 +321,51 @@ function PatientsPage() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      toast.success(`Email sent to ${selectedPatient.first_name}`);
+      toast.success('Email sent successfully!');
       setShowEmailModal(false);
+      setEmailForm({ subject: 'Message from your provider', message: '' });
     } catch (err) {
       console.error('Email failed:', err);
       toast.error('Failed to send email');
+    }
+  };
+
+  // Handle appointment status updates (arrived/no_show)
+  const handleStatusUpdate = async (appointmentId, field, value) => {
+    try {
+      const updateData = {};
+      
+      // Implement mutual exclusion logic
+      if (field === 'arrived' && value) {
+        updateData.arrived = true;
+        updateData.no_show = false;
+      } else if (field === 'no_show' && value) {
+        updateData.arrived = false;
+        updateData.no_show = true;
+      } else {
+        // If unchecking, just set that field to false
+        updateData[field] = false;
+      }
+
+      await axios.patch(
+        `http://127.0.0.1:8000/api/appointments/${appointmentId}/status/`,
+        updateData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Update the local state to reflect the changes
+      setTodaysAppointments(prev => 
+        prev.map(appt => 
+          appt.id === appointmentId 
+            ? { ...appt, ...updateData }
+            : appt
+        )
+      );
+
+      toast.success(`Appointment status updated successfully`);
+    } catch (err) {
+      console.error('Failed to update appointment status:', err);
+      toast.error('Failed to update appointment status');
     }
   };
 
@@ -742,16 +785,16 @@ function PatientsPage() {
                   <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Last Appointment</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 'bold', width: 180 }}>Actions</TableCell>
                 </TableRow>
-              </TableHead>
+              </TableHead>              
               <TableBody>
-                {paginatedPatients.length === 0 ? (
+                {patients.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 3 }}>
                       No patients found.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedPatients.map((patient) => (
+                  patients.map((patient) => (
                     <TableRow key={patient.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
                       <TableCell>{patient.full_name}</TableCell>
                       <TableCell>{patient.email}</TableCell>
@@ -1058,11 +1101,10 @@ function PatientsPage() {
             size="small"
             variant="outlined"
             placeholder="Search patients..."
-            value={search}
-            onChange={(e) => {
+            value={search}            onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
-              fetchPatients();
+              // Don't call fetchPatients() here - let useEffect handle it
             }}
             sx={{ maxWidth: 350 }}
             InputProps={{
@@ -1200,20 +1242,21 @@ function PatientsPage() {
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <TodayIcon color="primary" sx={{ mr: 1 }} />
                   <Typography variant="h6" fontWeight={600}>Today's Appointments</Typography>
-                </Box>
-                <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
+                </Box>                <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
                   <Table size="small" stickyHeader>
                     <TableHead sx={{ bgcolor: '#e3f2fd' }}>
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Time</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Patient</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Provider</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Arrived</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>No Show</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {todaysAppointments.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary', py: 2, fontSize: '0.75rem' }}>
+                          <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 2, fontSize: '0.75rem' }}>
                             No appointments today.
                           </TableCell>
                         </TableRow>
@@ -1242,6 +1285,22 @@ function PatientsPage() {
                                   ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
                                   : '-')
                                 }
+                              </TableCell>
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
+                                <Checkbox
+                                  checked={appt.arrived || false}
+                                  onChange={(e) => handleStatusUpdate(appt.id, 'arrived', e.target.checked)}
+                                  size="small"
+                                  color="success"
+                                />
+                              </TableCell>
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
+                                <Checkbox
+                                  checked={appt.no_show || false}
+                                  onChange={(e) => handleStatusUpdate(appt.id, 'no_show', e.target.checked)}
+                                  size="small"
+                                  color="error"
+                                />
                               </TableCell>
                             </TableRow>
                           ))
