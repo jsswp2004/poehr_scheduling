@@ -120,7 +120,7 @@ function Navbar() {
     setOrganizationName('');
     
     toast.info('Logged out!');
-    navigate('/login', { replace: true });
+    navigate('/login');
   };
 
   const isSystemAdmin = role === 'system_admin';
