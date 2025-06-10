@@ -40,6 +40,8 @@ function PatientsPage() {
   const [team, setTeam] = useState([]);
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [teamSearch, setTeamSearch] = useState('');
+  const [teamPage, setTeamPage] = useState(1);
+  const [teamTotalSize, setTeamTotalSize] = useState(0);
   const [provider, setProvider] = useState('');  const [tab, setTab] = useState('patients');
   const [page, setPage] = useState(1);
   const [totalSize, setTotalSize] = useState(0);
@@ -56,6 +58,7 @@ function PatientsPage() {
   const navigate = useNavigate();
   const rowsPerPage = 10;
   const totalPages = Math.ceil(totalSize / rowsPerPage); // Use backend totalSize instead of patients.length
+  const teamTotalPages = Math.ceil(teamTotalSize / rowsPerPage);
 
   const analyticsReports = [
     'Upcoming Appointments Report',
@@ -128,12 +131,16 @@ function PatientsPage() {
     }
   };
 
-  const fetchTeam = async () => {
+  const fetchTeam = async (pageParam = teamPage, searchParam = teamSearch) => {
     setLoadingTeam(true);
     try {
       const res = await axios.get('http://127.0.0.1:8000/api/users/team/', {
         headers: { Authorization: `Bearer ${token}` },
-        params: { search: teamSearch },
+        params: {
+          search: searchParam,
+          page: pageParam,
+          page_size: rowsPerPage,
+        },
       });
 
       const teamWithFullName = res.data.results.map((u) => ({
@@ -141,6 +148,7 @@ function PatientsPage() {
         full_name: `${u.first_name} ${u.last_name}`,
       }));
       setTeam(teamWithFullName);
+      setTeamTotalSize(res.data.count);
     } catch (err) {
       console.error('Failed to fetch team:', err);
     } finally {
@@ -224,7 +232,7 @@ function PatientsPage() {
       fetchAppointments(appointmentsQuery);
     }
     // eslint-disable-next-line
-  }, [page, rowsPerPage, tab]);
+  }, [page, rowsPerPage, teamPage, tab]);
 
   // Fetch today's appointments for the summary panel
   useEffect(() => {
@@ -956,6 +964,27 @@ function PatientsPage() {
               </TableBody>
             </Table>
           </TableContainer>
+          <Box display="flex" justifyContent="center" alignItems="center" py={2}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setTeamPage(teamPage - 1)}
+              disabled={teamPage === 1}
+              sx={{ mx: 1 }}
+            >
+              Prev
+            </Button>
+            <span>Page {teamPage} of {teamTotalPages}</span>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setTeamPage(teamPage + 1)}
+              disabled={teamPage === teamTotalPages}
+              sx={{ mx: 1 }}
+            >
+              Next
+            </Button>
+          </Box>
         </>
       )}
     </Paper>
@@ -1045,7 +1074,10 @@ function PatientsPage() {
     }}>
       <Tabs
         value={tab}
-        onChange={(_, val) => setTab(val)}
+        onChange={(_, val) => {
+          setTab(val);
+          if (val === 'team') setTeamPage(1);
+        }}
         sx={{
           flex: 1,
           minHeight: 40,
@@ -1133,14 +1165,23 @@ function PatientsPage() {
               placeholder="Search team..."
               value={teamSearch}
               onChange={(e) => {
-                setTeamSearch(e.target.value);
-                fetchTeam();
+                const value = e.target.value;
+                setTeamSearch(value);
+                setTeamPage(1);
+                fetchTeam(1, value);
               }}
               sx={{ maxWidth: 350 }}
               InputProps={{
                 endAdornment:
                   teamSearch && (
-                    <IconButton size="small" onClick={() => { setTeamSearch(''); fetchTeam(); }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => {
+                        setTeamSearch('');
+                        setTeamPage(1);
+                        fetchTeam(1, '');
+                      }}
+                    >
                       <CloseIcon fontSize="small" />
                     </IconButton>
                   ),
