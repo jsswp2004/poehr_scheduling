@@ -98,7 +98,7 @@ function AutoSMSSetUpPage() {
   return (
     <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
-        Auto Message Frequency
+        Automatic Text Messaging Setup
       </Typography>
       <Stack spacing={2} sx={{ maxWidth: 300 }}>
         <LocalizationProvider dateAdapter={AdapterDateFns}>

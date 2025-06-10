@@ -32,6 +32,7 @@ import DataSecurityPage from './pages/DataSecurityPage';
 import SupportPage from './pages/SupportPage';
 import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
+import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import ToastDebugButton from './components/ToastDebugButton';
 
@@ -94,6 +95,7 @@ function AppContent() {
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />
         <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />
         <Route path="/toast-test" element={<ToastTestPage />} />
+        <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
       </Routes>
     </>
   );

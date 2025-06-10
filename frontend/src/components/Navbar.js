@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '../components/SimpleToast';
 import logo from '../assets/POWER_Logo.png';
 import { jwtDecode } from 'jwt-decode';
@@ -21,6 +21,7 @@ import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 
 function Navbar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('');
   const [organizationName, setOrganizationName] = useState('');
@@ -103,9 +104,43 @@ function Navbar() {
       window.removeEventListener('profile-updated', handleProfileUpdate);
       clearInterval(interval);
     };
-  }, [isAuthenticated]);
-  
+  }, [isAuthenticated]);  const handleLogoClick = (e) => {
+    e.preventDefault(); // Prevent default link behavior
+    
+    // Show confirmation alert
+    const confirmLogout = window.confirm('Are you sure you want to log out of the application?');
+    
+    if (!confirmLogout) {
+      return; // User cancelled, don't logout
+    }
+    
+    // Clear all authentication data
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    sessionStorage.clear(); // Clear all session storage to remove any redirect traces
+    
+    // Clear user data
+    setUsername('');
+    setRole('');
+    setLogoUrl(null);
+    setOrganizationName('');
+    
+    toast.info('Logged out!');
+    
+    // Navigate to solutions page and replace history to prevent back button issues
+    navigate('/solutions', { replace: true });
+    
+    // Clear browser history to ensure no traces
+    window.history.replaceState(null, null, '/solutions');
+  };
   const handleLogout = () => {
+    // Show confirmation alert
+    const confirmLogout = window.confirm('Are you sure you want to log out of the application?');
+    
+    if (!confirmLogout) {
+      return; // User cancelled, don't logout
+    }
+    
     // Store a flag indicating we just logged out
     sessionStorage.setItem('just_logged_out', 'true');
     
@@ -119,8 +154,13 @@ function Navbar() {
     setLogoUrl(null);
     setOrganizationName('');
     
+    // Clear browser history to prevent back button issues
+    window.history.replaceState(null, '', '/solutions');
+    
     toast.info('Logged out!');
-    navigate('/login');
+    
+    // Always redirect to solutions page after logout - completely logged out
+    navigate('/solutions', { replace: true });
   };
 
   const isSystemAdmin = role === 'system_admin';
@@ -134,16 +174,17 @@ function Navbar() {
 
   return (
     <AppBar position="fixed" color="primary" sx={{ zIndex: 1201 }}>
-      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flex: 1 }} component={Link} to="/login">
+      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>        <Box 
+          sx={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer' }} 
+          onClick={handleLogoClick}
+        >
           <Avatar
             src={logoUrl || logo}
             alt="Logo"
             sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
             variant="rounded"
-          />
-          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
-            POWER Scheduler
+          /><Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+            {location.pathname === '/communicator' ? 'POWER Communicator' : 'POWER Scheduler'}
           </Typography>
           {organizationName && (
             <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
@@ -153,9 +194,8 @@ function Navbar() {
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isAuthenticated && (
-            <>
-              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin */}
-              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') && (
+            <>              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on communicator page */}
+              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') && location.pathname !== '/communicator' && (
                 <Tooltip title="Management Portal">
                   <IconButton
                     color="inherit"
