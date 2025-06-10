@@ -103,7 +103,7 @@ export const Header = ({ className }) => {
       <div className="frame-375">
         {/* Main navigation menu with dropdown arrows */}
         <div className="nav-menu">
-          {/* Solutions dropdown menu */}
+          {/* Solutions dropdown menu 
           <div className="solutios">
             <div className="solutions" onClick={toggleSolutionsDropdown} style={{ cursor: 'pointer' }}>
               Solutions
@@ -114,7 +114,7 @@ export const Header = ({ className }) => {
                 <a href="/login" className="dropdown-item">Scheduler</a>
               </div>
             )}
-          </div>
+          </div>*/}
 
           {/* Resources dropdown menu */}
           <div className="resources">
@@ -124,8 +124,8 @@ export const Header = ({ className }) => {
             <img className="down-arrow3" src={DownArrow} alt="dropdown arrow" />
             {showResourcesDropdown && (
               <div className="dropdown-menu">
-                <a href="#guides" className="dropdown-item">Guides & Tutorials</a>
-                {/*<a href="#help" className="dropdown-item">Help Center</a>*/}
+                {/*<a href="#guides" className="dropdown-item">Guides & Tutorials</a>
+                <a href="#help" className="dropdown-item">Help Center</a>*/}
                 <a href="/support" className="dropdown-item">Support</a>
               </div>
             )}
@@ -151,7 +151,7 @@ export const Header = ({ className }) => {
         </div>        {/* Login and trial buttons */}
         <div className="btn">
           <div className="btn-login" onClick={handleLoginClick} style={{ cursor: 'pointer' }}>
-            <div className="login">Login</div>
+            <div className="login">Solutions</div>
           </div>
           <div className="btn-free-trial2" onClick={handlePricingPageClick} style={{ cursor: 'pointer' }}>
             <div className="try-power-for-free">Try POWER for free</div>

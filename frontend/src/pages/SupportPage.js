@@ -7,9 +7,9 @@ export const SupportPage = ({ className }) => {
     <div className={`support-page ${className || ''}`}>
       <Header />
       <div className="page-title-section">
-        <h1 className="page-title">POEHR Scheduler Support Center</h1>
+        <h1 className="page-title">POWER Scheduler Support Center</h1>
         <p className="page-subtitle">
-          Welcome to the POEHR Support Center. Here you’ll find helpful information to guide you through setup, usage, and troubleshooting. Our team is committed to delivering exceptional support.
+          Welcome to the POWER Support Center. Here you’ll find helpful information to guide you through setup, usage, and troubleshooting. Our team is committed to delivering exceptional support.
         </p>
       </div>
       <div className="support-content">
@@ -75,8 +75,8 @@ export const SupportPage = ({ className }) => {
           <h2 className="section-heading">🧑‍💻 Technical Support</h2>
           <ul className="section-list">
             <li>For assistance, please contact:</li>
-            <li>Email: support@poehr.app</li>
-            <li>Phone: 1-800-POEHR-IT</li>
+            <li>Email: support@power.app</li>
+            <li>Phone: 1-800-POWER-IT</li>
             <li>Live Chat: [Link to chat support if applicable]</li>
           </ul>
         </div>
