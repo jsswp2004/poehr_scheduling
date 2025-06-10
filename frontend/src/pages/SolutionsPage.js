@@ -10,11 +10,13 @@ import PortalImage from '../assets/Portal.png';
 
 
 export const SolutionsPage = ({ className }) => {
-  const navigate = useNavigate();
-  const handleSchedulerClick = () => {
+  const navigate = useNavigate();  const handleSchedulerClick = () => {
     navigate('/login');
   };
-
+    const handleCommunicatorClick = () => {
+    // Always navigate to login with communicator redirect
+    navigate('/login?redirect=communicator');
+  };
   return (
     <div className={`solutions-page ${className || ''}`}>
       <Header />
@@ -24,7 +26,7 @@ export const SolutionsPage = ({ className }) => {
           <img src={SchedulerImage} alt="Scheduler" className="solution-image" />
           <div className="solution-label">Scheduler</div>
         </div>
-        <div className="solution-button" style={{ cursor: 'pointer' }}>
+        <div className="solution-button" onClick={handleCommunicatorClick}  style={{ cursor: 'pointer' }}>
           <img src={CommunicatorImage} alt="Communicator" className="solution-image" />
           <div className="solution-label">Communicator</div>
         </div>        <div className="solution-button" style={{ cursor: 'pointer' }}>

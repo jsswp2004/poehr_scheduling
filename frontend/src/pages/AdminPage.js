@@ -127,8 +127,7 @@ function AdminPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 textAlign: 'center'
-              }}
-            >
+              }}            >
               <FaEnvelope size={24} style={{ marginBottom: 8 }} />
               Messages
             </Button>
