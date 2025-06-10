@@ -13,9 +13,14 @@ export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();  const handleSchedulerClick = () => {
     navigate('/login');
   };
-    const handleCommunicatorClick = () => {
+  const handleCommunicatorClick = () => {
     // Always navigate to login with communicator redirect
     navigate('/login?redirect=communicator');
+  };
+  
+  const handlePortalClick = () => {
+    // Always navigate to login with portal redirect (to dashboard)
+    navigate('/login?redirect=portal');
   };
   return (
     <div className={`solutions-page ${className || ''}`}>
@@ -29,7 +34,7 @@ export const SolutionsPage = ({ className }) => {
         <div className="solution-button" onClick={handleCommunicatorClick}  style={{ cursor: 'pointer' }}>
           <img src={CommunicatorImage} alt="Communicator" className="solution-image" />
           <div className="solution-label">Communicator</div>
-        </div>        <div className="solution-button" style={{ cursor: 'pointer' }}>
+        </div>        <div className="solution-button" onClick={handlePortalClick} style={{ cursor: 'pointer' }}>
           <img src={PortalImage} alt="Portal" className="solution-image" />
           <div className="solution-label">Portal</div>
         </div>

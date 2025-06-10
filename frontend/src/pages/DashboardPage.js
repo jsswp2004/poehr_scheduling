@@ -303,7 +303,7 @@ function DashboardPage() {
 
   return (
     <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, maxWidth: 1200, mx: 'auto' }}>
-      <Typography variant="h5" sx={{ mb: 0 }}>Dashboard</Typography>
+      <Typography variant="h5" sx={{ mb: 0 }}>Patient Portal</Typography>
       <Tabs value={tab} onChange={(_, val) => setTab(val)} aria-label="dashboard-tabs" sx={{ mb: 0 }}>
         <Tab value="manage" label="Manage Appointments" />
         <Tab value="message" label="Message my Provider" />

@@ -183,8 +183,9 @@ function Navbar() {
             alt="Logo"
             sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
             variant="rounded"
-          /><Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
-            {location.pathname === '/communicator' ? 'POWER Communicator' : 'POWER Scheduler'}
+          />          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+            {location.pathname === '/communicator' ? 'POWER Communicator' : 
+             location.pathname === '/dashboard' ? 'POWER Portal' : 'POWER Scheduler'}
           </Typography>
           {organizationName && (
             <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
@@ -194,8 +195,10 @@ function Navbar() {
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isAuthenticated && (
-            <>              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on communicator page */}
-              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') && location.pathname !== '/communicator' && (
+            <>              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on communicator or dashboard page */}
+              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') && 
+               location.pathname !== '/communicator' && 
+               location.pathname !== '/dashboard' && (
                 <Tooltip title="Management Portal">
                   <IconButton
                     color="inherit"

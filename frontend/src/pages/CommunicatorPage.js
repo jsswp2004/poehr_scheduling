@@ -31,7 +31,8 @@ import {
   Delete as DeleteIcon,
   Edit as EditIcon,
   Email as EmailIcon,
-  Sms as SmsIcon
+  Sms as SmsIcon,
+  Print as PrintIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -255,7 +256,6 @@ function CommunicatorPage() {
       setSending(false);
     }
   };
-
   const downloadTemplate = () => {
     const csvContent = "name,phone,email\nJohn Doe,+1234567890,john@example.com\nJane Smith,+0987654321,jane@example.com";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -267,6 +267,122 @@ function CommunicatorPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handlePrintContacts = () => {
+    const printWindow = window.open('', '_blank');
+    const currentDate = new Date().toLocaleDateString();
+    
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>POWER Communicator - Contacts List</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #1976d2;
+              padding-bottom: 10px;
+            }
+            .header h1 {
+              color: #1976d2;
+              margin: 0;
+            }
+            .header p {
+              margin: 5px 0;
+              color: #666;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 20px;
+            }
+            th, td {
+              border: 1px solid #ddd;
+              padding: 12px;
+              text-align: left;
+            }
+            th {
+              background-color: #1976d2;
+              color: white;
+              font-weight: bold;
+            }
+            tr:nth-child(even) {
+              background-color: #f5f5f5;
+            }
+            .footer {
+              margin-top: 30px;
+              text-align: center;
+              color: #666;
+              font-size: 12px;
+            }
+            .contact-info {
+              display: flex;
+              align-items: center;
+              gap: 5px;
+            }
+            .empty-cell {
+              color: #999;
+              font-style: italic;
+            }
+            @media print {
+              body { margin: 0; }
+              .header { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>POWER Communicator</h1>
+            <p>Contacts Directory</p>
+            <p>Generated on: ${currentDate}</p>
+            <p>Total Contacts: ${contacts.length}</p>
+          </div>
+          
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Email</th>
+                <th>Date Added</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${contacts.length === 0 ? 
+                '<tr><td colspan="4" style="text-align: center; padding: 20px; font-style: italic;">No contacts found</td></tr>' :
+                contacts.map(contact => `
+                  <tr>
+                    <td>${contact.name}</td>
+                    <td>${contact.phone || '<span class="empty-cell">-</span>'}</td>
+                    <td>${contact.email || '<span class="empty-cell">-</span>'}</td>
+                    <td>${new Date(contact.created_at).toLocaleDateString()}</td>
+                  </tr>
+                `).join('')
+              }
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            <p>POWER Communicator System - Printed on ${currentDate}</p>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.close();
+    };
   };
 
   return (
@@ -316,7 +432,7 @@ function CommunicatorPage() {
                 setDialogOpen(true);
               }}
             >
-              Add Contact
+              Add Recipients
             </Button>
             <Button
               variant="outlined"
@@ -324,12 +440,19 @@ function CommunicatorPage() {
               onClick={() => setUploadDialogOpen(true)}
             >
               Upload CSV
-            </Button>
-            <Button
+            </Button>            <Button
               variant="text"
               onClick={downloadTemplate}
             >
               Download Template
+            </Button>
+            <Button
+              variant="text"
+              startIcon={<PrintIcon />}
+              onClick={handlePrintContacts}
+              disabled={contacts.length === 0}
+            >
+              Print Contacts
             </Button>
           </Box>
 

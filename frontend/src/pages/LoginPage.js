@@ -52,9 +52,7 @@ function LoginPage() {
       const decoded = jwtDecode(access);
       const userRole = decoded.role;      // Notify navbar to refresh with new user data
       notifyProfileUpdated();
-      refreshAuthState();      toast.success('Login successful!');
-
-      // Check if there's a specific redirect parameter
+      refreshAuthState();      toast.success('Login successful!');      // Check if there's a specific redirect parameter
       if (redirectTo === 'communicator') {
         // Check if user has admin privileges for communicator
         if (userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') {
@@ -63,6 +61,9 @@ function LoginPage() {
           toast.error('Access denied. Communicator requires admin privileges.');
           navigate('/dashboard'); // Redirect to default page for non-admin users
         }
+      } else if (redirectTo === 'portal') {
+        // Always redirect to dashboard for portal access
+        navigate('/dashboard');
       } else {
         // Default role-based redirect
         if (userRole === 'admin' || userRole === 'system_admin') {
