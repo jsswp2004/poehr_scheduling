@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox
+  Alert, CircularProgress, Tabs, Tab, Pagination
 } from '@mui/material';
 import TodayIcon from '@mui/icons-material/Today';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -230,6 +230,7 @@ function PatientsPage() {
     }
     // eslint-disable-next-line
   }, [page, sizePerPage, tab]);
+
   // Fetch today's appointments for the summary panel
   useEffect(() => {
     const fetchTodaysAppointments = async () => {
@@ -250,23 +251,6 @@ function PatientsPage() {
           const apptDate = new Date(appt.appointment_datetime);
           return apptDate >= today && apptDate < tomorrow;
         });
-
-        // Debug: Log the appointments to see if arrived/no_show fields are present
-        console.log('=== DEBUG: PatientsPage Today\'s appointments data ===');
-        console.log('All appointments from API:', res.data.length);
-        console.log('Filtered appointments for today:', filtered.length);
-        
-        if (filtered.length > 0) {
-          console.log('First appointment:', filtered[0]);
-          console.log('First appointment fields:', Object.keys(filtered[0]));
-          console.log('First appointment arrived:', filtered[0].arrived);
-          console.log('First appointment no_show:', filtered[0].no_show);
-        } else if (res.data.length > 0) {
-          console.log('Sample appointment from all data:', res.data[0]);
-          console.log('Sample appointment fields:', Object.keys(res.data[0]));
-          console.log('Sample appointment arrived:', res.data[0].arrived);
-          console.log('Sample appointment no_show:', res.data[0].no_show);
-        }
 
         setTodaysAppointments(filtered);
       } catch (err) {
@@ -341,6 +325,7 @@ function PatientsPage() {
       toast.error('Failed to send email');
     }
   };
+
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm('Are you sure you want to delete this patient?');
     if (!confirmDelete) return;
@@ -357,49 +342,6 @@ function PatientsPage() {
     } catch (error) {
       console.error('Delete failed:', error);
       toast.error('Failed to delete patient.');
-    }
-  };
-
-  // Handle status update for arrived/no_show
-  const handleStatusUpdate = async (appointmentId, field, value) => {
-    try {
-      const updateData = {};
-      updateData[field] = value;
-      
-      // If marking as no_show, automatically uncheck arrived
-      if (field === 'no_show' && value) {
-        updateData.arrived = false;
-      }
-      // If marking as arrived, automatically uncheck no_show
-      if (field === 'arrived' && value) {
-        updateData.no_show = false;
-      }
-
-      await axios.patch(`http://127.0.0.1:8000/api/appointments/${appointmentId}/status/`, updateData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      // Refresh today's appointments to reflect the change
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      const filtered = res.data.filter((appt) => {
-        if (!appt.appointment_datetime) return false;
-        const apptDate = new Date(appt.appointment_datetime);
-        return apptDate >= today && apptDate < tomorrow;
-      });
-
-      setTodaysAppointments(filtered);
-      toast.success(`Appointment status updated successfully`);
-    } catch (err) {
-      console.error('Failed to update appointment status:', err);
-      toast.error('Failed to update appointment status.');
     }
   };
   const exportCSV = () => {
@@ -1260,84 +1202,46 @@ function PatientsPage() {
                   <Typography variant="h6" fontWeight={600}>Today's Appointments</Typography>
                 </Box>
                 <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
-                  <Table size="small" stickyHeader>                    <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead sx={{ bgcolor: '#e3f2fd' }}>
                       <TableRow>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Time</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Patient</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Provider</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', textAlign: 'center' }}>Arrived</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem', textAlign: 'center' }}>No Show</TableCell>
                       </TableRow>
                     </TableHead>
-                    <TableBody>                      {todaysAppointments.length === 0 ? (
+                    <TableBody>
+                      {todaysAppointments.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 2, fontSize: '0.75rem' }}>
+                          <TableCell colSpan={3} align="center" sx={{ color: 'text.secondary', py: 2, fontSize: '0.75rem' }}>
                             No appointments today.
                           </TableCell>
                         </TableRow>
                       ) : (
                         todaysAppointments
                           .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime))
-                          .map((appt) => (                            <TableRow
+                          .map((appt) => (
+                            <TableRow
                               key={appt.id}
                               hover
                               sx={{
+                                cursor: 'pointer',
                                 '&:hover': {
                                   backgroundColor: '#f0f7ff',
                                 }
                               }}
                             >
-                              <TableCell 
-                                sx={{ fontSize: '0.75rem', py: 1, cursor: 'pointer' }}
-                                onClick={() => {
-                                  setSelectedAppointment(appt);
-                                  setDetailsOpen(true);
-                                }}
-                              >
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
                                 {appt.appointment_datetime ? new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
                               </TableCell>
-                              <TableCell 
-                                sx={{ fontSize: '0.75rem', py: 1, cursor: 'pointer' }}
-                                onClick={() => {
-                                  setSelectedAppointment(appt);
-                                  setDetailsOpen(true);
-                                }}
-                              >
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
                                 {appt.patient_name || (appt.patient && `${appt.patient.first_name} ${appt.patient.last_name}`) || '-'}
                               </TableCell>
-                              <TableCell 
-                                sx={{ fontSize: '0.75rem', py: 1, cursor: 'pointer' }}
-                                onClick={() => {
-                                  setSelectedAppointment(appt);
-                                  setDetailsOpen(true);
-                                }}
-                              >
+                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
                                 {appt.provider_name || (appt.provider && (appt.provider.first_name || appt.provider.last_name)
                                   ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
                                   : '-')
                                 }
-                              </TableCell>
-                              <TableCell sx={{ textAlign: 'center', py: 1 }}>
-                                <Checkbox
-                                  checked={appt.arrived || false}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    handleStatusUpdate(appt.id, 'arrived', e.target.checked);
-                                  }}
-                                  color="primary"
-                                  size="small"
-                                />
-                              </TableCell>
-                              <TableCell sx={{ textAlign: 'center', py: 1 }}>
-                                <Checkbox
-                                  checked={appt.no_show || false}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    handleStatusUpdate(appt.id, 'no_show', e.target.checked);
-                                  }}
-                                  color="error"
-                                  size="small"
-                                />
                               </TableCell>
                             </TableRow>
                           ))

@@ -32,8 +32,8 @@ import DataSecurityPage from './pages/DataSecurityPage';
 import SupportPage from './pages/SupportPage';
 import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
+import { SolutionsPage } from './pages/SolutionsPage';
 import ToastDebugButton from './components/ToastDebugButton';
-import SolutionsPage from './pages/SolutionsPage';
 
 function AppContent() {
   const location = useLocation();
@@ -67,8 +67,8 @@ function AppContent() {
         pauseOnHover
       />
       <ToastDebugButton />
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
+      <Routes>        <Route path="/" element={<LandingPage />} />
+        <Route path="/solutions" element={<SolutionsPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/enroll" element={<EnrollmentPage />} />
         <Route path="/features" element={<FeaturesPage />} />
@@ -77,7 +77,6 @@ function AppContent() {
         <Route path="/support" element={<SupportPage />} />
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/security" element={<DataSecurityPage />} />
-        <Route path="/solutions" element={<SolutionsPage />} />
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

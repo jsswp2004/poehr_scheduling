@@ -116,27 +116,7 @@ function AppointmentsPage() {
           if (!appt.appointment_datetime) return false;
           const apptDate = new Date(appt.appointment_datetime);
           return apptDate >= today && apptDate < tomorrow;
-        });        // Debug: Log the appointments to see if arrived/no_show fields are present
-        console.log('=== DEBUG: Today\'s appointments data ===');
-        console.log('Filtered appointments:', filtered);
-        console.log('Filtered appointments count:', filtered.length);
-        
-        if (filtered.length > 0) {
-          console.log('First appointment:', filtered[0]);
-          console.log('First appointment fields:', Object.keys(filtered[0]));
-          console.log('First appointment arrived:', filtered[0].arrived);
-          console.log('First appointment no_show:', filtered[0].no_show);
-        } else {
-          console.log('No appointments found for today. Current date:', today.toDateString());
-          console.log('Total appointments in system:', res.data.length);
-          if (res.data.length > 0) {
-            console.log('Sample appointment:', res.data[0]);
-            console.log('Sample appointment date:', res.data[0].appointment_datetime);
-            console.log('Sample appointment fields:', Object.keys(res.data[0]));
-            console.log('Sample appointment arrived:', res.data[0].arrived);
-            console.log('Sample appointment no_show:', res.data[0].no_show);
-          }
-        }
+        });
 
         setTodaysAppointments(filtered);
       } catch (err) {
@@ -286,24 +266,28 @@ function AppointmentsPage() {
               </Box>
             </Box>
           </Paper>
-        </Grid>        {/* Today's Appointments Panel */}
+        </Grid>
+
+        {/* Today's Appointments Panel */}
         <Grid item xs={12}>
-          <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, mb: 2, minWidth: 800, minHeight: 320, display: 'flex', flexDirection: 'column' }}>
+          <Paper sx={{ p: 2, borderRadius: 2, boxShadow: 2, mb: 2, minWidth:420,        minHeight: 320, // Set the min height to your liking!
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',}}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <TodayIcon color="primary" sx={{ mr: 1 }} />
               <Typography variant="h5" fontWeight={600}>Today's Appointments</Typography>
-            </Box>            <TableContainer sx={{ maxHeight: '300px', overflow: 'auto', width: '100%' }}>
-              <Table size="small" stickyHeader sx={{ minWidth: 800, tableLayout: 'fixed' }}>
+            </Box>            <TableContainer sx={{ maxHeight: '300px', overflow: 'auto' }}>
+              <Table size="small" stickyHeader>
                 <TableHead sx={{ bgcolor: '#e3f2fd' }}>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold', width: '15%' }}>Time</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Patient</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Providers</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', width: '12.5%', textAlign: 'center' }}>Arrived</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', width: '12.5%', textAlign: 'center' }}>No Show</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Time</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Arrived</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>No Show</TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
+                </TableHead>                <TableBody>
                   {todaysAppointments.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 2 }}>
@@ -352,25 +336,23 @@ function AppointmentsPage() {
                               ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
                               : '-')
                             }
-                          </TableCell>                          <TableCell sx={{ textAlign: 'center' }}>
-                            {console.log(`Appointment ${appt.id} - arrived: ${appt.arrived}, no_show: ${appt.no_show}`)}
+                          </TableCell>
+                          <TableCell>
                             <Checkbox
                               checked={appt.arrived || false}
                               onChange={(e) => {
                                 e.stopPropagation();
-                                console.log(`Updating appointment ${appt.id} arrived to: ${e.target.checked}`);
                                 handleStatusUpdate(appt.id, 'arrived', e.target.checked);
                               }}
                               color="primary"
                               size="small"
                             />
                           </TableCell>
-                          <TableCell sx={{ textAlign: 'center' }}>
+                          <TableCell>
                             <Checkbox
                               checked={appt.no_show || false}
                               onChange={(e) => {
                                 e.stopPropagation();
-                                console.log(`Updating appointment ${appt.id} no_show to: ${e.target.checked}`);
                                 handleStatusUpdate(appt.id, 'no_show', e.target.checked);
                               }}
                               color="error"

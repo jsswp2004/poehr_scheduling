@@ -2,8 +2,6 @@ from django_cron import CronJobBase, Schedule
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.core.cache import cache
-from twilio.rest import Client
-from django.conf import settings
 from datetime import timedelta
 from .models import Appointment, AutoEmail
 
@@ -116,98 +114,3 @@ class BlastPatientReminderCronJob(CronJobBase):
         print(f"Running cron job at {timezone.now()}")
         send_patient_reminders()
         print("Cron job completed")
-
-
-def send_patient_sms_reminders():
-    """Send SMS reminders to patients based on AutoEmail configuration."""
-    today = timezone.now().date()
-    current_weekday = timezone.now().weekday()
-
-    active_configs = AutoEmail.objects.filter(is_active=True)
-    if not active_configs.exists():
-        print("No active AutoEmail configurations found.")
-        return
-
-    sms_sent = cache.get('sms_patients_today', set())
-    new_sms_sent = set(sms_sent)
-
-    client = None
-    if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN:
-        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-    else:
-        print("Twilio credentials not configured")
-        return
-
-    for config in active_configs:
-        if config.auto_message_start_date and config.auto_message_start_date > today:
-            continue
-
-        should_send = False
-        if config.auto_message_frequency == 'daily':
-            should_send = True
-        elif config.auto_message_frequency == 'weekly':
-            should_send = current_weekday == config.auto_message_day_of_week
-        elif config.auto_message_frequency == 'bi-weekly':
-            if current_weekday == config.auto_message_day_of_week:
-                if config.auto_message_start_date:
-                    days_since_start = (today - config.auto_message_start_date).days
-                    weeks_since_start = days_since_start // 7
-                    should_send = weeks_since_start % 2 == 0
-                else:
-                    should_send = True
-        elif config.auto_message_frequency == 'monthly':
-            if current_weekday == config.auto_message_day_of_week:
-                if config.auto_message_start_date:
-                    days_since_start = (today - config.auto_message_start_date).days
-                    weeks_since_start = days_since_start // 7
-                    should_send = weeks_since_start % 4 == 0
-                else:
-                    should_send = True
-
-        if not should_send:
-            continue
-
-        next_week = today + timedelta(days=7)
-        if config.organization:
-            appointments = Appointment.objects.filter(
-                appointment_datetime__date__gte=today,
-                appointment_datetime__date__lte=next_week,
-                organization=config.organization
-            ).select_related('patient')
-        else:
-            appointments = Appointment.objects.filter(
-                appointment_datetime__date__gte=today,
-                appointment_datetime__date__lte=next_week
-            ).select_related('patient')
-
-        for appt in appointments:
-            patient = appt.patient
-            phone = getattr(patient, 'phone_number', None)
-            if not patient or not phone or patient.id in sms_sent:
-                continue
-
-            appt_date = appt.appointment_datetime.strftime('%A, %B %d, %Y at %I:%M %p')
-            body = f"Hi {patient.first_name}, This is a reminder of your visit on: {appt_date}. Please arrive 15 minutes early."
-            try:
-                client.messages.create(
-                    body=body,
-                    from_=settings.TWILIO_PHONE_NUMBER,
-                    to=phone
-                )
-                new_sms_sent.add(patient.id)
-                print(f"Sent SMS to {phone} for appointment on {appt_date}")
-            except Exception as e:
-                print(f"Failed to send SMS to {phone}: {str(e)}")
-
-    cache.set('sms_patients_today', new_sms_sent, 24*60*60)
-
-
-class BlastPatientSMSReminderCronJob(CronJobBase):
-    RUN_AT_TIMES = ['18:00']
-    schedule = Schedule(run_at_times=RUN_AT_TIMES)
-    code = 'appointments.blast_patient_sms_reminder_cron'
-
-    def do(self):
-        print(f"Running SMS cron job at {timezone.now()}")
-        send_patient_sms_reminders()
-        print("SMS Cron job completed")

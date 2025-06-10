@@ -156,5 +156,4 @@ STRIPE_ENTERPRISE_PRICE_ID = os.getenv('STRIPE_ENTERPRISE_PRICE_ID', 'price_test
 # Django Cron Settings
 CRON_CLASSES = [
     'appointments.cron.BlastPatientReminderCronJob',
-    'appointments.cron.BlastPatientSMSReminderCronJob',
 ]
