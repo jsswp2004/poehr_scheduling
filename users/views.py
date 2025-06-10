@@ -554,7 +554,7 @@ def get_team_members(request):
         return Response({'detail': 'Access denied'}, status=403)
 
     if user.role == 'system_admin':
-        members = CustomUser.objects.exclude(role='patient')
+        members = CustomUser.objects.exclude(role='patient')    
     else:
         members = CustomUser.objects.exclude(role='patient').filter(organization=user.organization)
 
@@ -566,8 +566,17 @@ def get_team_members(request):
             Q(email__icontains=search)
         )
 
+    # Get page size from frontend parameter, default to 10
+    page_size = request.GET.get('page_size', 10)
+    try:
+        page_size = int(page_size)
+        # Limit page size to prevent excessive requests
+        page_size = min(page_size, 100)
+    except (ValueError, TypeError):
+        page_size = 10
+
     paginator = PageNumberPagination()
-    paginator.page_size = 25
+    paginator.page_size = page_size
     result_page = paginator.paginate_queryset(members.order_by('last_name'), request)
     serializer = UserSerializer(result_page, many=True)
     return paginator.get_paginated_response(serializer.data)
