@@ -39,9 +39,9 @@ export const Header = ({ className }) => {
   const [showSolutionsDropdown, setShowSolutionsDropdown] = useState(false);
   const [showPricingDropdown, setShowPricingDropdown] = useState(false);
 
-  // Handler function to navigate to login page
+  // Handler function to navigate to the solutions page
   const handleLoginClick = () => {
-    navigate('/login');
+    navigate('/solutions');
   };
 
   // Handler function to navigate to landing page
