@@ -298,7 +298,7 @@ function AppointmentsPage() {
                   <TableRow>
                     <TableCell sx={{ fontWeight: 'bold', width: '15%' }}>Time</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Patient</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Provider</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', width: '30%' }}>Providers</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', width: '12.5%', textAlign: 'center' }}>Arrived</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', width: '12.5%', textAlign: 'center' }}>No Show</TableCell>
                   </TableRow>
