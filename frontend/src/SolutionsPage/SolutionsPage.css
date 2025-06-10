@@ -23,11 +23,8 @@
   background: #1e293b;
   color: #ffffff;
   display: flex;
-
   flex-direction: column;
-
-
-  justify-content: center;
+  justify-content: flex-end;
   align-items: center;
   font-size: 24px;
   font-weight: 600;
@@ -35,9 +32,9 @@
   transition: transform 0.2s, background 0.2s;
   text-align: center;
   text-decoration: none;
-
-  gap: 12px;
-
+  position: relative;
+  overflow: hidden;
+  padding: 0;
 }
 
 .solution-button:hover {
@@ -47,12 +44,22 @@
 
 
 .solution-image {
-  width: 80px;
-  height: 80px;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
 }
 
 .solution-label {
   font-size: 20px;
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 8px 16px;
+  margin: 0 16px;
+  border-radius: 8px;
+  z-index: 2;
 }
 
