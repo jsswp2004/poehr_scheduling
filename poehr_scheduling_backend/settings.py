@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     # Local apps
     'users',
     'appointments',
+    'communicator',
     'django_cron',
 ]
 
