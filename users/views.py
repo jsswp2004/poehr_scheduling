@@ -139,9 +139,11 @@ class RegisterView(generics.CreateAPIView):
         # Extract Stripe-related data from the request
         payment_method_id = data.get('payment_method_id')
         subscription_tier = data.get('subscription_tier', 'basic')
+        is_enrollment = data.get('is_enrollment', False)  # Check if this is service enrollment
         
         print(f"💳 Payment method ID: {payment_method_id}")
         print(f"📋 Subscription tier: {subscription_tier}")
+        print(f"🎯 Is enrollment: {is_enrollment}")
         
         # If the user is authenticated, use their organization
         if request.user.is_authenticated:
@@ -153,11 +155,13 @@ class RegisterView(generics.CreateAPIView):
             org_name = data.get('organization_name') or "Default Organization"
             organization, _ = Organization.objects.get_or_create(name=org_name)
             print(f"📂 Using organization from form: {organization}")
-            
+        
         # Validate the serializer first (without Stripe fields)
         serializer_data = {k: v for k, v in data.items() 
-                          if k not in ['payment_method_id', 'subscription_tier']}
-        serializer = self.get_serializer(data=serializer_data)        # Debug validation errors in detail
+                          if k not in ['payment_method_id', 'subscription_tier', 'is_enrollment']}
+        serializer = self.get_serializer(data=serializer_data)
+        
+        # Debug validation errors in detail
         if not serializer.is_valid():
             print("❌ Serializer validation errors:", serializer.errors)
             print("❌ Registration data causing errors:", serializer_data)
@@ -166,61 +170,67 @@ class RegisterView(generics.CreateAPIView):
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
-            
-            # Initialize Stripe service
-            stripe_service = StripeService()
-            
-            # Create or retrieve Stripe customer
-            customer_id = stripe_service.create_customer(
-                email=user.email,
-                name=f"{user.first_name} {user.last_name}",
-                payment_method_id=payment_method_id
-            )
-            
-            if not customer_id:
-                # Delete the user if Stripe customer creation failed
-                user.delete()
-                return Response(
-                    {"error": "Failed to create Stripe customer"}, 
-                    status=status.HTTP_400_BAD_REQUEST
+              # Only create Stripe customer for service enrollment, not patient registration
+            if is_enrollment:                # Initialize Stripe service
+                stripe_service = StripeService()
+                
+                # Create or retrieve Stripe customer
+                customer = stripe_service.create_customer(
+                    user=user,
+                    payment_method_id=payment_method_id
                 )
-            
-            # Create trial subscription
-            subscription_result = stripe_service.create_trial_subscription(
-                customer_id=customer_id,
-                tier=subscription_tier,
-                payment_method_id=payment_method_id
-            )
-            
-            if not subscription_result['success']:
-                # Delete the user if subscription creation failed
-                user.delete()
-                return Response(
-                    {"error": f"Failed to create subscription: {subscription_result.get('error', 'Unknown error')}"}, 
-                    status=status.HTTP_400_BAD_REQUEST
+                
+                if not customer:
+                    # Delete the user if Stripe customer creation failed
+                    user.delete()
+                    return Response(
+                        {"error": "Failed to create Stripe customer"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                customer_id = customer.id
+                  # Create trial subscription
+                subscription = stripe_service.create_trial_subscription(
+                    user=user,
+                    tier=subscription_tier,
+                    payment_method_id=payment_method_id
                 )
+                
+                if not subscription:
+                    # Delete the user if subscription creation failed
+                    user.delete()
+                    return Response(
+                        {"error": "Failed to create subscription"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Update user with Stripe information (user data is already updated in create_trial_subscription)
+                # No need to manually set these fields as they're set in the method
+                
+                print("✅ User created successfully with trial subscription:", user.username, user.email)
+                print(f"📅 Trial period: {user.trial_start_date} to {user.trial_end_date}")
+            else:
+                # For patient registration, no Stripe integration needed
+                print("✅ Patient registered successfully:", user.username, user.email)
             
-            # Update user with Stripe information
-            user.stripe_customer_id = customer_id
-            user.subscription_status = 'trialing'
-            user.subscription_tier = subscription_tier
-            user.trial_start_date = subscription_result['trial_start']
-            user.trial_end_date = subscription_result['trial_end']
-            user.stripe_subscription_id = subscription_result['subscription_id']
-            
-            # Save the user with all subscription data
+            # Save the user (with or without Stripe data)
             user.save()
             
-            print("✅ User created successfully with trial subscription:", user.username, user.email)
-            print(f"📅 Trial period: {user.trial_start_date} to {user.trial_end_date}")
-            
-            return Response({
-                "message": "User created successfully with 7-day free trial",
-                "user_id": user.id,
-                "trial_end_date": user.trial_end_date,
-                "subscription_tier": user.subscription_tier,
-                "subscription_status": user.subscription_status
-            }, status=status.HTTP_201_CREATED)
+            if is_enrollment:
+                return Response({
+                    "message": "User created successfully with 7-day free trial",
+                    "user_id": user.id,
+                    "trial_end_date": user.trial_end_date,
+                    "subscription_tier": user.subscription_tier,
+                    "subscription_status": user.subscription_status
+                }, status=status.HTTP_201_CREATED)
+            else:
+                return Response({
+                    "message": "Patient registered successfully",
+                    "user_id": user.id,
+                    "username": user.username,
+                    "email": user.email
+                }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             logger.error(f"Registration error: {str(e)}")

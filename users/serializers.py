@@ -167,8 +167,7 @@ class PatientSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
-    provider = serializers.IntegerField(source='user.provider.id', read_only=True, allow_null=True)
-    # Add writable field for provider
+    provider = serializers.IntegerField(source='user.provider.id', read_only=True, allow_null=True)    # Add writable field for provider
     provider_id = serializers.IntegerField(write_only=True, required=False, allow_null=True) 
     provider_name = serializers.SerializerMethodField()
     last_appointment_date = serializers.SerializerMethodField()
@@ -193,6 +192,9 @@ class PatientSerializer(serializers.ModelSerializer):
             'last_appointment_date',
             'organization',
         ]
+        extra_kwargs = {
+            'medical_history': {'allow_null': True, 'required': False},
+        }
 
     def get_last_appointment_date(self, obj):
         latest = Appointment.objects.filter(patient=obj.user).order_by('-appointment_datetime').first()

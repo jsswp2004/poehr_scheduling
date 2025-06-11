@@ -1107,7 +1107,7 @@ function PatientsPage() {
         }}
       >
         {(userRole !== 'doctor') && (
-          <Tab label="Quick Register" value="register" />
+          <Tab label="Register" value="register" />
         )}
         <Tab label="Patients" value="patients" />
         <Tab label="Team" value="team" />

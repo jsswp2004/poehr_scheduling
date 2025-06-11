@@ -121,12 +121,11 @@ function EnrollmentPage() {
       if (paymentFormRef.current) {
         const paymentMethod = await paymentFormRef.current.createPaymentMethod();
         paymentMethodId = paymentMethod.id;
-      }
-
-      // Step 2: Register user with subscription info
+      }      // Step 2: Register user with subscription info
       const registrationData = {
         ...formData,
-        payment_method_id: paymentMethodId
+        payment_method_id: paymentMethodId,
+        is_enrollment: true  // Flag to indicate this is service enrollment, not patient registration
       };
 
       const response = await axios.post('http://127.0.0.1:8000/api/auth/register/', registrationData);
