@@ -27,6 +27,7 @@ import BackButton from '../components/BackButton';
 import Autocomplete from '@mui/material/Autocomplete';
 import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
 import InputAdornment from '@mui/material/InputAdornment';
+import { toast } from '../components/SimpleToast';
 
 function PatientDetailPage() {
   const { id } = useParams();
@@ -142,12 +143,24 @@ function PatientDetailPage() {
     if (formData.username && formData.username.length < 3) {
       errors.push('Username must be at least 3 characters long');
     }
-    
-    // Show validation errors if any
+      // Show validation errors if any
     if (errors.length > 0) {
-      alert(`Please fix the following issues:\n\n${errors.map(error => `• ${error}`).join('\n')}`);
+      toast.error(
+        <div>
+          <strong>Please fix the following issues:</strong>
+          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+            {errors.map((error, index) => (
+              <li key={index}>{error}</li>
+            ))}
+          </ul>
+        </div>,
+        {
+          autoClose: 8000, // Give users time to read the list
+          hideProgressBar: false,
+        }
+      );
       return;
-    }    // Clone the formData and add provider_id if provider is present
+    }// Clone the formData and add provider_id if provider is present
     const dataToSend = {...formData};
     if (dataToSend.provider !== undefined) {
       dataToSend.provider_id = dataToSend.provider;
@@ -158,11 +171,10 @@ function PatientDetailPage() {
       dataToSend.medical_history = null;
     }
     
-    try {
-      await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, dataToSend, {
+    try {      await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, dataToSend, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      alert('Patient updated successfully!');
+      toast.success('Patient updated successfully! 🎉');
       setEditMode(false);
       setPatient(formData);
     } catch (err) {
@@ -183,27 +195,42 @@ function PatientDetailPage() {
             backendErrors.push(`${fieldLabel}: ${error}`);
           });
         });
-        
-        if (backendErrors.length > 0) {
-          errorMessage = `Update failed due to the following issues:\n\n${backendErrors.map(error => `• ${error}`).join('\n')}`;
+          if (backendErrors.length > 0) {
+          toast.error(
+            <div>
+              <strong>Update failed due to the following issues:</strong>
+              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                {backendErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </div>,
+            {
+              autoClose: 10000, // Give users time to read backend errors
+              hideProgressBar: false,
+            }
+          );
         } else if (typeof errorData === 'string') {
-          errorMessage = `Update failed: ${errorData}`;
+          toast.error(`Update failed: ${errorData}`);
         } else if (errorData.detail) {
-          errorMessage = `Update failed: ${errorData.detail}`;
+          toast.error(`Update failed: ${errorData.detail}`);
         }
       } else if (err.response?.status === 400) {
-        errorMessage = 'Update failed: Invalid data provided. Please check all fields and try again.';
+        toast.error('Update failed: Invalid data provided. Please check all fields and try again.');
       } else if (err.response?.status === 401) {
-        errorMessage = 'Update failed: You are not authorized to perform this action.';
+        toast.error('Update failed: You are not authorized to perform this action.');
       } else if (err.response?.status === 404) {
-        errorMessage = 'Update failed: Patient not found.';
+        toast.error('Update failed: Patient not found.');
       } else if (err.response?.status >= 500) {
-        errorMessage = 'Update failed: Server error. Please try again later.';
+        toast.error('Update failed: Server error. Please try again later.');
       } else if (err.code === 'NETWORK_ERROR' || !err.response) {
-        errorMessage = 'Update failed: Network error. Please check your connection and try again.';
+        toast.error('Update failed: Network error. Please check your connection and try again.');
       }
       
-      alert(errorMessage);
+      // Fallback error message if none of the above conditions match
+      if (!err.response?.data && err.response?.status < 500 && err.code !== 'NETWORK_ERROR') {
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -324,12 +351,12 @@ function PatientDetailPage() {
                           Authorization: `Bearer ${token}`,
                         },
                       }
-                    );
-                    setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
+                    );                    setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
                     setFormData((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
-                    alert('Profile picture updated!');
+                    toast.success('Profile picture updated successfully! 📸');
                   } catch (err) {
-                    alert('Failed to upload profile picture.');
+                    console.error('Profile picture upload error:', err);
+                    toast.error('Failed to upload profile picture. Please try again.');
                   }
                 }}
               />
@@ -590,8 +617,7 @@ function PatientDetailPage() {
             onSuccess={() => {
               setShowAppointmentForm(false);
               navigate('/patients');
-            }}
-          />
+            }}          />
         </div>
       )}
     </Box>
