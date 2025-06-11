@@ -36,7 +36,7 @@ export const SolutionsPage = ({ className }) => {
           <div className="solution-label">Communicator</div>
         </div>        <div className="solution-button" onClick={handlePortalClick} style={{ cursor: 'pointer' }}>
           <img src={PortalImage} alt="Portal" className="solution-image" />
-          <div className="solution-label">Portal</div>
+          <div className="solution-label">Patient Portal</div>
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
