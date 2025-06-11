@@ -107,12 +107,47 @@ function Navbar() {
   }, [isAuthenticated]);  const handleLogoClick = (e) => {
     e.preventDefault(); // Prevent default link behavior
     
-    // Show confirmation alert
-    const confirmLogout = window.confirm('Are you sure you want to log out of the application?');
-    
-    if (!confirmLogout) {
-      return; // User cancelled, don't logout
-    }
+    // Show confirmation toast instead of browser alert
+    toast.warning(
+      <div>
+        <p><strong>Are you sure you want to log out?</strong></p>
+        <div style={{ marginTop: '10px' }}>
+          <button 
+            onClick={() => performLogout()} 
+            style={{ 
+              marginRight: '10px', 
+              padding: '5px 15px', 
+              backgroundColor: '#d32f2f', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Yes, Log Out
+          </button>
+          <button 
+            onClick={() => toast.dismiss()} 
+            style={{ 
+              padding: '5px 15px', 
+              backgroundColor: '#757575', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>,
+      { duration: 0 } // Keep toast open until user decides
+    );
+  };
+
+  const performLogout = () => {
+    // Dismiss any open toasts
+    toast.dismiss();
     
     // Clear all authentication data
     localStorage.removeItem('access_token');
@@ -125,42 +160,50 @@ function Navbar() {
     setLogoUrl(null);
     setOrganizationName('');
     
-    toast.info('Logged out!');
+    toast.success('Logged out successfully! 👋');
     
     // Navigate to solutions page and replace history to prevent back button issues
     navigate('/solutions', { replace: true });
     
     // Clear browser history to ensure no traces
     window.history.replaceState(null, null, '/solutions');
-  };
-  const handleLogout = () => {
-    // Show confirmation alert
-    const confirmLogout = window.confirm('Are you sure you want to log out of the application?');
-    
-    if (!confirmLogout) {
-      return; // User cancelled, don't logout
-    }
-    
-    // Store a flag indicating we just logged out
-    sessionStorage.setItem('just_logged_out', 'true');
-    
-    // Remove tokens
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    
-    // Clear user data on logout
-    setUsername('');
-    setRole('');
-    setLogoUrl(null);
-    setOrganizationName('');
-    
-    // Clear browser history to prevent back button issues
-    window.history.replaceState(null, '', '/solutions');
-    
-    toast.info('Logged out!');
-    
-    // Always redirect to solutions page after logout - completely logged out
-    navigate('/solutions', { replace: true });
+  };  const handleLogout = () => {
+    // Show confirmation toast instead of browser alert
+    toast.warning(
+      <div>
+        <p><strong>Are you sure you want to log out?</strong></p>
+        <div style={{ marginTop: '10px' }}>
+          <button 
+            onClick={() => performLogout()} 
+            style={{ 
+              marginRight: '10px', 
+              padding: '5px 15px', 
+              backgroundColor: '#d32f2f', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Yes, Log Out
+          </button>
+          <button 
+            onClick={() => toast.dismiss()} 
+            style={{ 
+              padding: '5px 15px', 
+              backgroundColor: '#757575', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>,
+      { duration: 0 } // Keep toast open until user decides
+    );
   };
 
   const isSystemAdmin = role === 'system_admin';

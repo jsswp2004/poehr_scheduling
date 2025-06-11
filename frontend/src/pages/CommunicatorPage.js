@@ -160,21 +160,58 @@ function CommunicatorPage() {
       toast.error('Failed to save contact');
     }
   };
-
   // Delete contact
   const handleDeleteContact = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this contact?')) {
-      return;
-    }
+    // Show confirmation toast instead of browser confirm
+    toast.warning(
+      <div>
+        <p><strong>Are you sure you want to delete this contact?</strong></p>
+        <div style={{ marginTop: '10px' }}>
+          <button 
+            onClick={() => performDeleteContact(id)} 
+            style={{ 
+              marginRight: '10px', 
+              padding: '5px 15px', 
+              backgroundColor: '#d32f2f', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Yes, Delete
+          </button>
+          <button 
+            onClick={() => toast.dismiss()} 
+            style={{ 
+              padding: '5px 15px', 
+              backgroundColor: '#757575', 
+              color: 'white', 
+              border: 'none', 
+              borderRadius: '4px', 
+              cursor: 'pointer' 
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>,
+      { duration: 0 } // Keep toast open until user decides
+    );
+  };
+  const performDeleteContact = async (id) => {
+    // Dismiss any open toasts
+    toast.dismiss();
 
     try {
       await axios.delete(`http://127.0.0.1:8000/api/communicator/contacts/${id}/`, {
-        headers: { Authorization: `Bearer ${token}` }      });
-      toast.success('Contact deleted successfully');
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success('Contact deleted successfully! 🗑️');
       fetchContacts(true); // Show error toast for user actions
     } catch (error) {
       console.error('Failed to delete contact:', error);
-      toast.error('Failed to delete contact');
+      toast.error('Failed to delete contact. Please try again.');
     }
   };
 
