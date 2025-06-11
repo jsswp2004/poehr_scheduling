@@ -320,115 +320,60 @@ function ProfilePage() {
               </tbody>
             </table>
           </Box>
-        )}
+        )}        <Divider sx={{ mb: 3 }} />
+        <Typography variant="h6" sx={{ mb: 3 }}>User Information</Typography>
 
-        <Divider sx={{ mb: 3 }} />
-        <Typography variant="h6" sx={{ mb: 2 }}>User Information</Typography>
-        {user.organization && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="subtitle2" component="span">Organization:</Typography>{' '}
-            <Typography component="span">
-              {typeof user.organization === 'object'
-                ? user.organization.name
-                : (user.organization_name || '')}
-            </Typography>
-          </Box>
-        )}
-
-        <Stack direction="row" spacing={2} alignItems="flex-start">
-          {/* Profile Picture */}
-          {user.profile_picture && (
-            <Box sx={{ minWidth: 120, mr: 3 }}>
+        {/* Two-Column Layout */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 4, alignItems: 'start' }}>
+          {/* Left Column - Profile Picture and Organization */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {/* Profile Picture Section */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <Avatar
-                src={user.profile_picture.startsWith('http') ? user.profile_picture : `http://127.0.0.1:8000${user.profile_picture}`}
+                src={user.profile_picture 
+                  ? (user.profile_picture.startsWith('http') ? user.profile_picture : `http://127.0.0.1:8000${user.profile_picture}`)
+                  : undefined
+                }
                 alt="Profile"
-                sx={{ width: 120, height: 120, borderRadius: 2 }}
+                sx={{ 
+                  width: 160, 
+                  height: 160, 
+                  borderRadius: 3,
+                  bgcolor: user.profile_picture ? 'transparent' : 'grey.300',
+                  fontSize: '4rem',
+                  border: '3px solid',
+                  borderColor: 'primary.light',
+                  boxShadow: 2
+                }}
                 variant="square"
-              />
-            </Box>
-          )}          {/* All fields in a single vertical stack */}
-          <Stack spacing={2} sx={{ flex: 1 }}>
-            {/* Upload Profile Picture */}
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Typography>Upload New Profile Picture</Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                size="small"
-                disabled={uploading}
               >
-                Upload
+                {!user.profile_picture && (user.first_name?.[0] || 'U')}
+              </Avatar>
+              
+              {/* Upload Profile Picture Button */}
+              <Button
+                variant="contained"
+                component="label"
+                size="medium"
+                disabled={uploading}
+                startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : null}
+                sx={{ 
+                  minWidth: 160,
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600
+                }}
+              >
+                {uploading ? 'Uploading...' : 'Upload Picture'}
                 <input type="file" hidden accept="image/png, image/jpeg" ref={fileInputRef} onChange={handleUpload} />
               </Button>
-              {uploading && <CircularProgress size={20} />}
-            </Stack>
-            {/* Editable Fields */}
-            <TextField
-              label="First Name"
-              name="first_name"
-              value={formData.first_name}
-              onChange={handleChange}
-              fullWidth
-              size="small"
-              disabled={!isEditing}
-              variant="outlined"
-              InputProps={{
-                readOnly: !isEditing,
-                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
-              }}
-            />
-            <TextField
-              label="Last Name"
-              name="last_name"
-              value={formData.last_name}
-              onChange={handleChange}
-              fullWidth
-              size="small"
-              disabled={!isEditing}
-              variant="outlined"
-              InputProps={{
-                readOnly: !isEditing,
-                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
-              }}
-            />            <TextField
-              label="Email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              fullWidth
-              size="small"
-              disabled={!isEditing}
-              variant="outlined"
-              InputProps={{
-                readOnly: !isEditing,
-                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
-              }}
-            />            <TextField
-              label="Phone Number"
-              name="phone_number"
-              type="tel"
-              value={formData.phone_number || ''}
-              onChange={handleChange}
-              fullWidth
-              size="small"
-              disabled={!isEditing}
-              variant="outlined"
-              placeholder="(123) 456-7890"
-              key={`phone-${formData.phone_number}`}
-              InputProps={{
-                readOnly: !isEditing,
-                sx: !isEditing ? { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } : {},
-              }}
-            />
-            {/* Debug: Phone Number Field Value */}
-            <Typography variant="caption" color="textSecondary">
-              Debug - Phone Number Value: "{formData.phone_number}" (Length: {formData.phone_number?.length || 0})
-            </Typography>
+            </Box>
 
-            {/* Organization - Editable with CreatableSelect */}
+            {/* Organization Field */}
             <Box>
-              <Typography sx={{ mb: 0.5 }}>Organization</Typography>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600, color: 'primary.main' }}>
+                Organization
+              </Typography>
               {isEditing ? (
                 <CreatableSelect
                   name="organization"
@@ -456,27 +401,108 @@ function ProfilePage() {
                   placeholder="Select or type to add organization..."
                   formatCreateLabel={inputValue => `Add "${inputValue}"`}
                   styles={{
-                    control: (base) => ({ ...base, minHeight: 40 }),
+                    control: (base) => ({ ...base, minHeight: 40, borderRadius: 8 }),
                     menu: (base) => ({ ...base, zIndex: 9999 })
                   }}
                 />
               ) : (
-                <TextField
-                  variant="outlined"
-                  value={
-                    user.organization && (typeof user.organization === 'object'
+                <Paper 
+                  elevation={1} 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    bgcolor: '#f8f9fa',
+                    border: '1px solid #e0e0e0'
+                  }}
+                >
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {user.organization && (typeof user.organization === 'object'
                       ? user.organization.name
-                      : (user.organization_name || ''))
-                  }
-                  InputProps={{ readOnly: true, sx: { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } }}
-                  fullWidth
-                />
+                      : (user.organization_name || 'No organization assigned'))}
+                  </Typography>
+                </Paper>
               )}
             </Box>
+          </Box>
 
-            {/* Role Selection */}
+          {/* Right Column - User Information Fields */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <TextField
+              label="First Name"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              disabled={!isEditing}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f8f9fa', WebkitTextFillColor: '#333' } : {},
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+            
+            <TextField
+              label="Last Name"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              disabled={!isEditing}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f8f9fa', WebkitTextFillColor: '#333' } : {},
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+            
+            <TextField
+              label="Email"
+              name="email"
+              type="email"
+              value={formData.email}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              disabled={!isEditing}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f8f9fa', WebkitTextFillColor: '#333' } : {},
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+            
+            <TextField
+              label="Phone Number"
+              name="phone_number"
+              type="tel"
+              value={formData.phone_number || ''}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              disabled={!isEditing}
+              variant="outlined"
+              placeholder="(123) 456-7890"
+              key={`phone-${formData.phone_number}`}
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f8f9fa', WebkitTextFillColor: '#333' } : {},
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+            
+            {/* Debug: Phone Number Field Value */}
+            <Typography variant="caption" color="textSecondary">
+              Debug - Phone Number Value: "{formData.phone_number}" (Length: {formData.phone_number?.length || 0})
+            </Typography>            {/* Role Selection */}
             <Box>
-              <Typography sx={{ mb: 0.5 }}>Role</Typography>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600, color: 'primary.main' }}>
+                Role
+              </Typography>
               {isEditing && (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') ? (
                 <FormControl fullWidth size="small">
                   <InputLabel id="role-label">Role</InputLabel>
@@ -486,6 +512,7 @@ function ProfilePage() {
                     value={formData.role}
                     label="Role"
                     onChange={handleChange}
+                    sx={{ borderRadius: 2 }}
                   >
                     <MenuItem value="admin">Admin</MenuItem>
                     <MenuItem value="system_admin">System Admin</MenuItem>
@@ -496,74 +523,114 @@ function ProfilePage() {
                   </MUISelect>
                 </FormControl>
               ) : (
-                <TextField
-                  variant="outlined"
-                  value={user.role}
-                  InputProps={{ readOnly: true, sx: { color: '#333', backgroundColor: '#f3f3f3', WebkitTextFillColor: '#333' } }}
-                  fullWidth
-                />
+                <Paper 
+                  elevation={1} 
+                  sx={{ 
+                    p: 2, 
+                    borderRadius: 2, 
+                    bgcolor: '#f8f9fa',
+                    border: '1px solid #e0e0e0'
+                  }}
+                >
+                  <Typography variant="body1" sx={{ fontWeight: 500, textTransform: 'capitalize' }}>
+                    {user.role}
+                  </Typography>
+                </Paper>
               )}
             </Box>
 
             {/* Edit/Save/Cancel Buttons */}
-            {!isEditing ? (
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<EditIcon />}
-                onClick={() => setIsEditing(true)}
-                sx={{ width: 130 }}
-              >
-                Edit
-              </Button>
-            ) : (
-              <Stack direction="row" spacing={2}>
+            <Box sx={{ mt: 2 }}>
+              {!isEditing ? (
                 <Button
                   variant="contained"
-                  color="success"
-                  startIcon={<SaveIcon />}
-                  onClick={handleSave}
-                  disabled={uploading}
-                  sx={{ width: 120 }}
-                >
-                  Save
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  startIcon={<CancelIcon />}
-                  onClick={() => {
-                    setIsEditing(false);                    setFormData({
-                      first_name: user.first_name,
-                      last_name: user.last_name,
-                      email: user.email,
-                      phone_number: user.phone_number || '',
-                      organization: user.organization,
-                      role: user.role,
-                    });
+                  color="primary"
+                  startIcon={<EditIcon />}
+                  onClick={() => setIsEditing(true)}
+                  sx={{ 
+                    minWidth: 140,
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    py: 1.2
                   }}
-                  sx={{ width: 120 }}
                 >
-                  Cancel
+                  Edit Profile
                 </Button>
-              </Stack>
-            )}
+              ) : (
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSave}
+                    disabled={uploading}
+                    sx={{ 
+                      minWidth: 120,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: 1.2
+                    }}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    startIcon={<CancelIcon />}
+                    onClick={() => {
+                      setIsEditing(false);
+                      setFormData({
+                        first_name: user.first_name,
+                        last_name: user.last_name,
+                        email: user.email,
+                        phone_number: user.phone_number || '',
+                        organization: user.organization,
+                        role: user.role,
+                      });
+                    }}
+                    sx={{ 
+                      minWidth: 120,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: 1.2
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </Stack>
+              )}            </Box>
+          </Box>
+        </Box>
 
-            {/* Change Password */}
-            <Divider sx={{ my: 2 }} />
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Button
-                variant="outlined"
-                color="primary"
-                startIcon={<LockResetIcon />}
-                onClick={() => setShowPasswordForm(v => !v)}
-                sx={{ width: 220 }}
-              >
-                {showPasswordForm ? 'Cancel' : 'Change Password'}
-              </Button>
-            </Box>
-            <Collapse in={showPasswordForm}>
-              <Box sx={{ my: 2 }}>
+        {/* Change Password Section - Full Width Below */}
+        <Box sx={{ mt: 4 }}>
+          <Divider sx={{ mb: 3 }} />
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+              Security Settings
+            </Typography>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<LockResetIcon />}
+              onClick={() => setShowPasswordForm(v => !v)}
+              sx={{ 
+                minWidth: 180,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600
+              }}
+            >
+              {showPasswordForm ? 'Cancel' : 'Change Password'}
+            </Button>
+          </Box>
+          
+          <Collapse in={showPasswordForm}>
+            <Paper elevation={1} sx={{ p: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
+              <Stack spacing={2.5}>
                 <TextField
                   label="Current Password"
                   type="password"
@@ -572,7 +639,7 @@ function ProfilePage() {
                   onChange={e => setPasswordData({ ...passwordData, current_password: e.target.value })}
                   fullWidth
                   size="small"
-                  sx={{ mb: 2 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
                 <TextField
                   label="New Password"
@@ -582,7 +649,7 @@ function ProfilePage() {
                   onChange={e => setPasswordData({ ...passwordData, new_password: e.target.value })}
                   fullWidth
                   size="small"
-                  sx={{ mb: 2 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
                 <TextField
                   label="Confirm New Password"
@@ -592,15 +659,28 @@ function ProfilePage() {
                   onChange={e => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
                   fullWidth
                   size="small"
-                  sx={{ mb: 2 }}
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                 />
-                <Button variant="contained" color="success" onClick={handlePasswordChange}>
-                  Save New Password
-                </Button>
-              </Box>
-            </Collapse>
-          </Stack>
-        </Stack>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button 
+                    variant="contained" 
+                    color="success" 
+                    onClick={handlePasswordChange}
+                    sx={{ 
+                      minWidth: 180,
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      fontWeight: 600,
+                      py: 1.2
+                    }}
+                  >
+                    Save New Password
+                  </Button>
+                </Box>
+              </Stack>
+            </Paper>
+          </Collapse>
+        </Box>
       </Paper>
     </Box>
   );

@@ -220,12 +220,11 @@ function RegisterPage({ adminMode = false }) {
     if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
     return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
   };  return (
-    <Box sx={{ mt: 2, maxWidth: '100vw', px: 2 }}>
-      <Box sx={{ display: 'flex', gap: 3, minHeight: '80vh' }}>
-        
-        {/* Left Pane - Registration Form (30%) */}
+    <Box sx={{ mt: 0, maxWidth: '100vw', px: 2 }}>
+      <Box sx={{ display: 'flex', gap: 3, minHeight: '80vh' , marginTop: '0px' }}>
+          {/* Left Pane - Registration Form (30%) */}
         <Box sx={{ flex: '0 0 30%' }}>
-          <Paper elevation={4} sx={{ p: 4, borderRadius: 3, height: 'fit-content' }}>        
+          <Paper elevation={4} sx={{ p: 4, borderRadius: 3, minHeight: '70vh', height: '100%' }}>
             <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>Quick Register</Typography>
             {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
               <Box sx={{ mb: 2 }}>
@@ -337,16 +336,15 @@ function RegisterPage({ adminMode = false }) {
               </Stack>
             </form>
           </Paper>
-        </Box>
-
-        {/* Right Pane - Patient Information Display (70%) */}
+        </Box>        {/* Right Pane - Patient Information Display (70%) */}
         <Box sx={{ flex: '0 0 70%' }}>
           <Paper 
             elevation={4} 
             sx={{ 
               p: 4, 
               borderRadius: 3, 
-              minHeight: '60vh',
+              minHeight: '70vh',
+              height: '100%',
               bgcolor: registeredPatient ? 'background.paper' : 'grey.100',
               opacity: registeredPatient ? 1 : 0.7
             }}

@@ -20,7 +20,7 @@ function SettingsPage() {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            mb: 1,
+            mb: 0,
             borderRadius: 2,
             bgcolor: '#f5faff',
             boxShadow: 1,
@@ -72,7 +72,7 @@ function SettingsPage() {
         {tab === 'maintenance' && <MaintenancePage />}
         {tab === 'env' && <EnvironmentProfilePage />}
         {tab === 'uploads' && (
-          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 0 }}>
             <Typography variant="h6" sx={{ mb: 2 }}>Uploads / Downloads</Typography>
             <UploadTab />
           </Box>
