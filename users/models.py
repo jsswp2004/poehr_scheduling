@@ -76,7 +76,7 @@ class Patient(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
     address = models.CharField(max_length=255, blank=True)
-    medical_history = models.TextField(blank=True)  # Example additional fields for patients
+    medical_history = models.TextField(blank=True, null=True)  # Allow null values for optional medical history
     # Add direct organization link for easier queries
     organization = models.ForeignKey(
         'Organization',
