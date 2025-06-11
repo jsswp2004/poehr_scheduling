@@ -22,7 +22,8 @@ import {
   Chip,
   FormControlLabel,
   Checkbox,
-  LinearProgress
+  LinearProgress,
+  TablePagination
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -40,8 +41,7 @@ import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
 import { toast } from '../components/SimpleToast';
 
-function CommunicatorPage() {
-  const [contacts, setContacts] = useState([]);
+function CommunicatorPage() {  const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('contacts');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -51,6 +51,8 @@ function CommunicatorPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [page, setPage] = useState(0);
+  const [rowsPerPage] = useState(10);
 
   const [contactForm, setContactForm] = useState({
     name: '',
@@ -115,7 +117,6 @@ function CommunicatorPage() {
       [field]: event.target.value
     }));
   };
-
   // Handle message form changes
   const handleMessageFormChange = (field) => (event) => {
     if (field === 'send_email' || field === 'send_sms') {
@@ -130,6 +131,14 @@ function CommunicatorPage() {
       }));
     }
   };
+
+  // Handle pagination
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  // Get paginated contacts
+  const paginatedContacts = contacts.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
   // Save contact (create or update)
   const handleSaveContact = async () => {
@@ -421,20 +430,20 @@ function CommunicatorPage() {
       printWindow.close();
     };
   };
-
   return (
-    <Box sx={{ mt: 4, p: 3 }}>      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+    <Box sx={{ mt: 1, p: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
         <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
           Communicator
         </Typography>
         <BackButton to="/login?redirect=communicator" />
       </Box>
 
-      <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
+      <Typography variant="body1" sx={{ mb: 2, color: 'text.secondary' }}>
         Manage your contacts and send bulk messages via SMS and email.
       </Typography>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
         <Tabs value={tab} onChange={(_, newValue) => setTab(newValue)}>
           <Tab 
             label={
@@ -491,80 +500,102 @@ function CommunicatorPage() {
             >
               Print Contacts
             </Button>
-          </Box>
-
-          {loading ? (
+          </Box>          {loading ? (
             <LinearProgress sx={{ mb: 2 }} />
           ) : (
-            <TableContainer component={Paper} elevation={3}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'primary.light' }}>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Created</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {contacts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
-                        <Typography variant="body1" color="text.secondary">
-                          No contacts found. Add contacts manually or upload a CSV file.
-                        </Typography>
-                      </TableCell>
+            <Paper elevation={3}>
+              <TableContainer sx={{ maxHeight: '60vh' }}>
+                <Table stickyHeader>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: 'primary.light' }}>
+                      <TableCell sx={{ fontWeight: 'bold', py: 1.5 }}>Name</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 1.5 }}>Phone</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 1.5 }}>Email</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 1.5 }}>Created</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', py: 1.5 }}>Actions</TableCell>
                     </TableRow>
-                  ) : (
-                    contacts.map((contact) => (
-                      <TableRow key={contact.id} hover>
-                        <TableCell>{contact.name}</TableCell>
-                        <TableCell>
-                          {contact.phone ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <SmsIcon fontSize="small" color="success" />
-                              {contact.phone}
-                            </Box>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">-</Typography>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {contact.email ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <EmailIcon fontSize="small" color="info" />
-                              {contact.email}
-                            </Box>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">-</Typography>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(contact.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          <IconButton
-                            onClick={() => handleEditContact(contact)}
-                            color="primary"
-                            size="small"
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton
-                            onClick={() => handleDeleteContact(contact.id)}
-                            color="error"
-                            size="small"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
+                  </TableHead>
+                  <TableBody>
+                    {contacts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                          <Typography variant="body1" color="text.secondary">
+                            No contacts found. Add contacts manually or upload a CSV file.
+                          </Typography>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    ) : (
+                      paginatedContacts.map((contact) => (
+                        <TableRow key={contact.id} hover sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                          <TableCell sx={{ py: 1 }}>{contact.name}</TableCell>
+                          <TableCell sx={{ py: 1 }}>
+                            {contact.phone ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <SmsIcon fontSize="small" color="success" />
+                                <Typography variant="body2">{contact.phone}</Typography>
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">-</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ py: 1 }}>
+                            {contact.email ? (
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <EmailIcon fontSize="small" color="info" />
+                                <Typography variant="body2">{contact.email}</Typography>
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">-</Typography>
+                            )}
+                          </TableCell>
+                          <TableCell sx={{ py: 1 }}>
+                            <Typography variant="body2">
+                              {new Date(contact.created_at).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ py: 1 }}>
+                            <IconButton
+                              onClick={() => handleEditContact(contact)}
+                              color="primary"
+                              size="small"
+                              sx={{ mr: 0.5 }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              onClick={() => handleDeleteContact(contact.id)}
+                              color="error"
+                              size="small"
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              {contacts.length > 0 && (
+                <TablePagination
+                  component="div"
+                  count={contacts.length}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  rowsPerPage={rowsPerPage}
+                  rowsPerPageOptions={[]}
+                  showFirstButton
+                  showLastButton
+                  sx={{
+                    borderTop: 1,
+                    borderColor: 'divider',
+                    '& .MuiTablePagination-toolbar': {
+                      minHeight: 48
+                    }
+                  }}
+                />
+              )}
+            </Paper>
           )}
         </Box>
       )}
