@@ -1062,7 +1062,8 @@ function PatientsPage() {
   );
 
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      <Box sx={{
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      
+    <Box sx={{
       display: 'flex',
       alignItems: 'center',
       mb: 1,
@@ -1199,19 +1200,17 @@ function PatientsPage() {
       {tab === 'calendar' && (
         <CalendarView />
       )}      {tab === 'appointments' && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* Two Panel Layout */}
-          <Box sx={{ display: 'flex', gap: 2, minHeight: '300px' }}>            {/* Left Panel - 20% - Summary and Today's Appointments */}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>          {/* Two Panel Layout */}
+          <Box sx={{ display: 'flex', gap: 2, height: '700px' }}>            {/* Left Panel - 20% - Summary and Today's Appointments */}
             <Box 
               sx={{ 
                 flex: '0 0 20%', 
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 2,
-                minHeight: 600
+                height: '100%'
               }}
-            >
-              {/* Summary Panel */}
+            >              {/* Summary Panel */}
               <Paper 
                 sx={{ 
                   p: 2, 
@@ -1220,7 +1219,7 @@ function PatientsPage() {
                   bgcolor: '#f8f9fa',
                   display: 'flex',
                   flexDirection: 'column',
-                  minHeight: 200
+                  height: '45%'
                 }}
               >
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
