@@ -97,7 +97,7 @@ export const Header = ({ className }) => {
       {/* Company logo and branding */}
       <div className="logo" onClick={handleLogoClick} style={{ cursor: 'pointer' }}>
         <img className="power-logo-2-1" src={POWERLogo} alt="POWER IT Systems Logo" />
-        <div className="power-it-systems" style={{ whiteSpace: 'nowrap' }}>POWER IT SYSTEMS</div>
+        <div className="power-it-systems" style={{ whiteSpace: 'nowrap' }}>POWER HEALTHCARE IT SYSTEMS</div>
       </div>
       
       <div className="frame-375">

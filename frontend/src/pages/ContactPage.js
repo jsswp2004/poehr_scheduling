@@ -11,7 +11,7 @@ export const ContactPage = ({ className }) => {
   // State for SMS modal
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    to: 'jsswp2004@outlook.com',
+    to: 'info@powerhealthcareit.com  ',
     from: '',
     telephone: '',
     subject: '',
@@ -119,7 +119,7 @@ export const ContactPage = ({ className }) => {
       // Close modal and reset form
       setIsModalOpen(false);
       setFormData({
-        to: 'jsswp2004@outlook.com',
+        to: 'info@powerhealthcareit.com  ',
         from: '',
         telephone: '',
         subject: '',
@@ -192,20 +192,21 @@ export const ContactPage = ({ className }) => {
       <Header />
       <div className="page-title-section">
         <h1 className="page-title">Contact Us</h1>
-        <p className="page-subtitle">We'd love to hear from you. Reach out to our team using the information below.</p>
+        <p className="page-subtitle">We'd love to hear from you. </p>
+        <p className="page-subtitle">Reach out to our team using the information below.</p>
       <p className="page-subtitle">Click on the phone or email button to send us a message.</p></div>
       <div className="contact-section">        
         <div className="contact-grid">
           <div className="contact-card non-interactive" style={{ cursor: 'default' }}>
             <div className="contact-title">Address</div>
-            <div className="contact-details">123 Placeholder Street<br/>City, State ZIP</div>
+            <div className="contact-details">16192 Coastal Highway<br/>Lewes, Delaware 19958 <br/>Sussex County</div>
           </div>          <div className="contact-card" onClick={() => setIsSmsModalOpen(true)} style={{ cursor: 'pointer' }}>
             <div className="contact-title">Phone</div>
             <div className="contact-details">(301) 880-6015</div>
           </div>
           <div className="contact-card" onClick={() => setIsModalOpen(true)} style={{ cursor: 'pointer' }}>
             <div className="contact-title">Email</div>
-            <div className="contact-details">jswp2004@outlook.com</div>
+            <div className="contact-details">info@powerhealthcareit.com  </div>
           </div>        
         </div>
       </div>

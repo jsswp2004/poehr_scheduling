@@ -189,11 +189,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
           - Client names and titles
           - Testimonial slider indicators
           ================================================================= */}
-      <div className="testimonial">
+       {/*<div className="testimonial">
         <div className="what-our-clients-says">What Our Clients Says</div>
         <div className="content2">
-          {/* First testimonial */}
-          <div className="client">
+          {/* First testimonial */} 
+           {/*<div className="client">
             <div className="comment">
               <div className="quote">
                 <div className="quote-symbol">
@@ -226,7 +226,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
           </div>
 
           {/* Second testimonial */}
-          <div className="client2">
+          {/*<div className="client2">
             <div className="comment2">
               <div className="quote">
                 <div className="quote-symbol">
@@ -257,11 +257,13 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               </div>
             </div>
           </div>
-        </div>        {/* Testimonial slider indicators */}
-        <div className="slider">
+        </div>        
+        {/* Testimonial slider indicators */}
+        {/*<div className="slider">
           <div className="ellipse-12"></div>
-          <div className="ellipse-13"></div>        </div>
-      </div>
+          <div className="ellipse-13"></div>        
+          </div>
+      </div> */}
 
       {/* ===================================================================
           SECTION 5: CROSS-PLATFORM AVAILABILITY

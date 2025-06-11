@@ -1184,7 +1184,7 @@ VISUAL LOCATION: Final section at bottom of page
 }
 
 .footer-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
 }
 
@@ -1199,7 +1199,7 @@ VISUAL LOCATION: Final section at bottom of page
   align-items: center;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
 }
 
 .footer-logo {
@@ -1219,8 +1219,8 @@ VISUAL LOCATION: Final section at bottom of page
   text-overflow: ellipsis;
 }
 .footer-logo img {
-  width: 40px;
-  height: 40px;
+  width: 100px;
+  height: 100px;
 }
 
 .footer-brand-name {
@@ -1231,6 +1231,7 @@ VISUAL LOCATION: Final section at bottom of page
   -webkit-text-fill-color: transparent;
   background-clip: text;
   font-family: "Inter-Bold", sans-serif;
+  
 }
 
 .footer-description {
@@ -1239,6 +1240,7 @@ VISUAL LOCATION: Final section at bottom of page
   font-size: clamp(12px, 2vw, 16px);
   max-width: 300px;
   font-family: "Inter-Regular", sans-serif;
+  text-align: center;
 }
 
 .footer-column {
