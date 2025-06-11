@@ -43,6 +43,7 @@ export const AboutPage = ({ className }) => {
             Infection Control
             </div>
           </div>
+          {/*
           <div className="team-card">
             <div className="team-image">
               <img src="https://via.placeholder.com/200" alt="Senior Project Manager" />
@@ -59,6 +60,7 @@ export const AboutPage = ({ className }) => {
             <div className="team-role">Client Service Manager</div>
             <div className="team-details">Professional bio goes here.</div>
           </div>
+          */}
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />

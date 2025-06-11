@@ -10,7 +10,7 @@ export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" })
           <div className="footer-brand">
             <div className="footer-logo">
               <img className="power-logo-footer" src={POWERLogo} alt="POWER IT Systems" />
-              <div className="footer-brand-name">POWER IT SYSTEMS</div>
+              <div className="footer-brand-name">POWER HEALTHCARE IT SYSTEMS</div>
             </div>
             <div className="footer-description">
               POWER was created for the new ways healthcare teams work. We make
@@ -51,7 +51,7 @@ export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" })
         {/* Footer bottom section */}
         <div className="footer-bottom">
           <div className="footer-copyright">
-            ©2025 POWER IT Systems LLC. All rights reserved.
+            ©2025 POWER HEALTHCARE IT Systems LLC. All rights reserved.
           </div>
           <div className="footer-legal-links">
             <a href="#terms" className="footer-legal-link">Terms &amp; Privacy</a>
