@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Box, Tabs, Tab, Typography } from '@mui/material';
 import AutoEmailSetUpPage from './AutoEmailSetUpPage';
 import AutoSMSSetUpPage from './AutoSMSSetUpPage';
+import AnnouncementsPage from './AnnouncementsPage';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
@@ -74,17 +75,17 @@ function MessagesPage() {
                 color: 'primary.dark',
               },
             },
-          }}
-        >
+          }}        >
           <Tab label="Email" value="email" />
           <Tab label="SMS" value="sms" />
+          <Tab label="Announcements" value="announcements" />
         </Tabs>
         <Box sx={{ ml: 1 }}>
           <BackButton to="/admin" />
-        </Box>
-      </Box>
+        </Box>      </Box>
       {tab === 'email' && <AutoEmailSetUpPage />}
       {tab === 'sms' && <AutoSMSSetUpPage />}
+      {tab === 'announcements' && <AnnouncementsPage />}
     </Box>
   );
 }

@@ -33,6 +33,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RestoreIcon from '@mui/icons-material/Restore';
 import { useNavigate } from 'react-router-dom';
+import AnnouncementDisplay from '../components/AnnouncementDisplay';
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -300,16 +301,24 @@ function DashboardPage() {
       return apptDate.setHours(0, 0, 0, 0) >= now.setHours(0, 0, 0, 0);
     })
     .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime));
-
   return (
-    <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, maxWidth: 1200, mx: 'auto' }}>
-      <Typography variant="h5" sx={{ mb: 0 }}>Patient Portal</Typography>
-      <Tabs value={tab} onChange={(_, val) => setTab(val)} aria-label="dashboard-tabs" sx={{ mb: 0 }}>
-        <Tab value="manage" label="Manage Appointments" />
-        <Tab value="message" label="Message my Provider" />
-        <Tab value="calendar" label="Calendar" />
-      </Tabs>
-      <Divider sx={{ mb: 2 }} />
+    <Box sx={{ mt: 0, p: 3, maxWidth: '100%', mx: 'auto' }}>      <Stack direction="row" spacing={3} sx={{ height: '100vh' }}>
+        {/* Left Pane - Patient Portal (70%) */}
+        <Box sx={{ 
+          flex: '0 0 70%', 
+          boxShadow: 2, 
+          borderRadius: 2, 
+          bgcolor: 'background.paper', 
+          p: 3,
+          overflow: 'auto'
+        }}>
+          <Typography variant="h5" sx={{ mb: 0 }}>Patient Portal</Typography>
+          <Tabs value={tab} onChange={(_, val) => setTab(val)} aria-label="dashboard-tabs" sx={{ mb: 0 }}>
+            <Tab value="manage" label="Manage Appointments" />
+            <Tab value="message" label="Message my Provider" />
+            <Tab value="calendar" label="Calendar" />
+          </Tabs>
+          <Divider sx={{ mb: 2 }} />
       {tab === 'manage' && (
         <Box>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={4}>
@@ -514,12 +523,25 @@ function DashboardPage() {
             <Button variant="contained" onClick={handleSendMessage}>Send Message</Button>
           </Stack>
         </Box>
-      )}
-      {tab === 'calendar' && (
-        <Box sx={{ mt: 2 }}>
-          <CalendarView onUpdate={() => setRefreshFlag(prev => !prev)} />
+      )}          {tab === 'calendar' && (
+            <Box sx={{ mt: 2 }}>
+              <CalendarView onUpdate={() => setRefreshFlag(prev => !prev)} />
+            </Box>
+          )}        </Box>        {/* Right Pane - Announcements (30%) */}
+        <Box sx={{ 
+          flex: '0 0 30%', 
+          boxShadow: 2, 
+          borderRadius: 2, 
+          bgcolor: 'background.paper', 
+          p: 3,
+          overflow: 'auto'
+        }}>
+          <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: 'primary.main' }}>
+            Announcements
+          </Typography>
+          <AnnouncementDisplay />
         </Box>
-      )}
+      </Stack>
     </Box>
   );
 }

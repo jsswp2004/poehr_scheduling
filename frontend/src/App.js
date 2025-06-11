@@ -35,6 +35,7 @@ import MessagesPage from './pages/MessagesPage';
 import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import ToastDebugButton from './components/ToastDebugButton';
+import { AnnouncementProvider } from './contexts/AnnouncementContext';
 
 function AppContent() {
   const location = useLocation();
@@ -103,9 +104,11 @@ function AppContent() {
 
 function App() {
   return (
-    <Router>
-      <AppContent />
-    </Router>
+    <AnnouncementProvider>
+      <Router>
+        <AppContent />
+      </Router>
+    </AnnouncementProvider>
   );
 }
 
