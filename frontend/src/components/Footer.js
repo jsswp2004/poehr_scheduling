@@ -54,7 +54,7 @@ export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" })
             ©2025 POWER HEALTHCARE IT Systems LLC. All rights reserved.
           </div>
           <div className="footer-legal-links">
-            <a href="#terms" className="footer-legal-link">Terms &amp; Privacy</a>
+            <Link to="/terms" className="footer-legal-link">Terms &amp; Privacy</Link>
             <a href="#security" className="footer-legal-link">Security</a>
             <a href="#status" className="footer-legal-link">Status</a>
           </div>
