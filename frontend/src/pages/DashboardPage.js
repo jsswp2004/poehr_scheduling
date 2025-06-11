@@ -61,7 +61,6 @@ function DashboardPage() {
     provider: null,
   });
   const [showForm, setShowForm] = useState(true);
-
   // Message my Provider form state
   const [emailForm, setEmailForm] = useState({
     to: '',
@@ -70,9 +69,18 @@ function DashboardPage() {
     subject: '',
     message: '',
     attachments: [],
-  });  const [providerName, setProviderName] = useState('');
+  });
+
+  // SMS form state
+  const [smsForm, setSmsForm] = useState({
+    phone: '',
+    message: 'Please write your message to your physician.',
+  });
+
+  const [providerName, setProviderName] = useState('');
   const [patientName, setPatientName] = useState('');
   const [messageSent, setMessageSent] = useState(false);
+  const [smsSent, setSMSSent] = useState(false);
 
   const token = localStorage.getItem('access_token');
   const userRole = token ? jwtDecode(token).role : null;
@@ -125,8 +133,7 @@ function DashboardPage() {
         });
         const user = res.data;
         const name = `${user.first_name || ''} ${user.last_name || ''}`.trim();
-        setPatientName(name);
-        if (user.provider) {
+        setPatientName(name);        if (user.provider) {
           const provRes = await axios.get(`http://127.0.0.1:8000/api/users/${user.provider}/`, {
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -134,6 +141,7 @@ function DashboardPage() {
           const provName = `${prov.first_name || ''} ${prov.last_name || ''}`.trim();
           setProviderName(provName);
           setEmailForm(prev => ({ ...prev, to: prov.email || '' }));
+          setSmsForm(prev => ({ ...prev, phone: prov.phone_number || '' }));
           const template = `${new Date().toLocaleDateString()}\n\nDear ${provName},\n\n[Your message here]\n\nThank you,\n${name}`;
           setEmailForm(prev => ({ ...prev, message: template }));
         }
@@ -245,16 +253,18 @@ function DashboardPage() {
       toast.error('Failed to save appointment.');
     }
   };
-
   const handleEmailChange = (field) => (e) => {
     setEmailForm(prev => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleSMSChange = (field) => (e) => {
+    setSmsForm(prev => ({ ...prev, [field]: e.target.value }));
   };
 
   const handleAttachmentChange = (e) => {
     const files = Array.from(e.target.files || []);
     setEmailForm(prev => ({ ...prev, attachments: files }));
-  };
-  const handleSendMessage = async () => {
+  };  const handleSendMessage = async () => {
     try {
       const form = new FormData();
       form.append('email', emailForm.to);
@@ -291,6 +301,38 @@ function DashboardPage() {
     } catch (err) {
       console.error('Failed to send message:', err);
       toast.error('Failed to send message');
+    }
+  };
+
+  const handleSendSMS = async () => {
+    try {
+      await axios.post('http://127.0.0.1:8000/api/messages/send-sms/', {
+        phone: smsForm.phone,
+        message: smsForm.message,
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      // Show success confirmation
+      setSMSSent(true);
+      
+      // Reset the message field but keep the phone number
+      setSmsForm(prev => ({
+        ...prev,
+        message: 'Please write your message to your physician.',
+      }));
+      
+      // Hide confirmation after 5 seconds
+      setTimeout(() => {
+        setSMSSent(false);
+      }, 5000);
+      
+    } catch (err) {
+      console.error('Failed to send SMS:', err);
+      toast.error('Failed to send SMS');
     }
   };
 
@@ -493,38 +535,149 @@ function DashboardPage() {
           </Stack>
         </Box>
       )}      {tab === 'message' && (
-        <Box sx={{ maxWidth: 600 }}>
-          {messageSent && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Your message has been sent successfully. Your provider will respond to you as soon as possible.
-            </Alert>
-          )}
-          <Stack spacing={2}>
-            <TextField label="To" value={emailForm.to} onChange={handleEmailChange('to')} fullWidth />
-            <TextField label="Cc" value={emailForm.cc} onChange={handleEmailChange('cc')} fullWidth />
-            <TextField label="Bcc" value={emailForm.bcc} onChange={handleEmailChange('bcc')} fullWidth />
-            <TextField label="Subject" value={emailForm.subject} onChange={handleEmailChange('subject')} fullWidth />
-            <TextField
-              label="Message"
-              multiline
-              rows={8}
-              value={emailForm.message}
-              onChange={handleEmailChange('message')}
-              fullWidth
-            />
-            <div>
-              <Button variant="outlined" component="label">
-                Attach Files
-                <input type="file" multiple hidden onChange={handleAttachmentChange} />
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3, maxHeight: '70vh', overflow: 'hidden' }}>
+          {/* Left Pane - Email */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
+              📧 Email
+            </Typography>
+            {messageSent && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Your email has been sent successfully. Your provider will respond to you as soon as possible.
+              </Alert>
+            )}
+            <Stack spacing={2} sx={{ flex: 1 }}>
+              <TextField 
+                label="To" 
+                value={emailForm.to} 
+                onChange={handleEmailChange('to')} 
+                fullWidth 
+                size="small"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+              <TextField 
+                label="Cc" 
+                value={emailForm.cc} 
+                onChange={handleEmailChange('cc')} 
+                fullWidth 
+                size="small"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+              <TextField 
+                label="Bcc" 
+                value={emailForm.bcc} 
+                onChange={handleEmailChange('bcc')} 
+                fullWidth 
+                size="small"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />
+              <TextField 
+                label="Subject" 
+                value={emailForm.subject} 
+                onChange={handleEmailChange('subject')} 
+                fullWidth 
+                size="small"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+              />              <TextField
+                label="Message"
+                multiline
+                rows={4}
+                value={emailForm.message}
+                onChange={handleEmailChange('message')}
+                fullWidth
+                sx={{ 
+                  flex: 1,
+                  '& .MuiOutlinedInput-root': { borderRadius: 2 }
+                }}
+              />
+              <Box>
+                <Button 
+                  variant="outlined" 
+                  component="label"
+                  sx={{ 
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    mb: 1
+                  }}
+                >
+                  📎 Attach Files
+                  <input type="file" multiple hidden onChange={handleAttachmentChange} />
+                </Button>
+                {emailForm.attachments.map((f, idx) => (
+                  <Typography key={idx} variant="caption" sx={{ ml: 1, display: 'block' }}>
+                    {f.name}
+                  </Typography>
+                ))}
+              </Box>
+              <Button 
+                variant="contained" 
+                onClick={handleSendMessage}
+                sx={{ 
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  py: 1.5
+                }}
+              >
+                Send Email
               </Button>
-              {emailForm.attachments.map((f, idx) => (
-                <Typography key={idx} variant="caption" sx={{ ml: 1, display: 'block' }}>{f.name}</Typography>
-              ))}
-            </div>
-            <Button variant="contained" onClick={handleSendMessage}>Send Message</Button>
-          </Stack>
+            </Stack>
+          </Box>          {/* Right Pane - SMS */}
+          <Box sx={{ display: 'flex', flexDirection: 'column', maxHeight: '70vh' }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
+              💬 Text Message
+            </Typography>
+            {smsSent && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                Your text message has been sent successfully. Your provider will respond to you as soon as possible.
+              </Alert>
+            )}
+            <Stack spacing={2.5} sx={{ flex: 1 }}>
+              <TextField
+                label="Provider Phone Number"
+                value={smsForm.phone}
+                onChange={handleSMSChange('phone')}
+                fullWidth
+                size="small"
+                placeholder="(555) 123-4567"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                helperText="Your provider's phone number for text messages"
+              />              <TextField
+                label="Message"
+                multiline
+                rows={5}
+                value={smsForm.message}
+                onChange={handleSMSChange('message')}
+                fullWidth
+                sx={{ 
+                  flex: 1,
+                  '& .MuiOutlinedInput-root': { borderRadius: 2 }
+                }}
+                helperText="Keep your message concise for SMS"
+              />
+              <Box sx={{ mt: 3 }}>
+                <Button 
+                  variant="contained" 
+                  color="secondary"
+                  onClick={handleSendSMS}
+                  fullWidth
+                  sx={{ 
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    py: 1.5
+                  }}
+                >
+                  Send Text Message
+                </Button>
+              </Box>
+            </Stack>
+          </Box>
         </Box>
-      )}          {tab === 'calendar' && (
+      )}
+
+      {tab === 'calendar' && (
             <Box sx={{ mt: 2 }}>
               <CalendarView onUpdate={() => setRefreshFlag(prev => !prev)} />
             </Box>
