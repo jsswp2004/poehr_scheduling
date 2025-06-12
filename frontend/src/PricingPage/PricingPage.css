@@ -200,13 +200,14 @@
   font-weight: 800;
   color: #1e293b;
   margin-bottom: 16px;
-  letter-spacing: -0.02em;  animation: fadeInUp 0.6s ease;
+  letter-spacing: -0.02em;
+  animation: fadeInUp 0.6s ease;
 }
 
 .page-subtitle {
   font-size: 20px;
   font-weight: 400;
-  color: #334155;
+  color: #64748b;
   max-width: 600px;
   margin: 0 auto;
   line-height: 1.6;

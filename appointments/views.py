@@ -615,8 +615,7 @@ class RunPatientRemindersNowView(APIView):
 
     def post(self, request):
         try:
-            # Use force_run=True to bypass scheduling logic and send emails immediately
-            send_patient_reminders(force_run=True)
+            send_patient_reminders()
             return Response({"message": "Patient reminders have been sent successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"Failed to send patient reminders: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
