@@ -1,8 +1,15 @@
 import '../SupportPage/SupportPage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import RegistrationModal from '../components/RegistrationModal';
+import React, { useState } from 'react';
 
 export const SupportPage = ({ className }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
   return (
     <div className={`support-page ${className || ''}`}>
       <Header />
@@ -16,7 +23,13 @@ export const SupportPage = ({ className }) => {
         <div className="section">
           <h2 className="section-heading">Getting Started 🧭</h2>
           <ul className="section-list">
-            <li><strong>Registering an Account</strong> – Step-by-step guide for patients, doctors, and staff to register: [✓ Walkthrough with screenshots and role explanations]</li>
+            <li>
+              <strong>
+                <span className="registration-link" onClick={openModal}>
+                  Registering an Account
+                </span>
+              </strong> – Step-by-step guide for patients, doctors, and staff to register.
+            </li>
             <li><strong>Logging In & Out</strong> – Learn how to securely log in and out of your account. [✓ Includes how token-based access works]</li>
             <li><strong>Navigating the Dashboard</strong> – Overview of features like appointments, patient list, and scheduling blocks. [✓ Video demo recommended]</li>
           </ul>
@@ -75,8 +88,8 @@ export const SupportPage = ({ className }) => {
           <h2 className="section-heading">Technical Support 🧑‍💻 </h2>
           <ul className="section-list">
             <li>For assistance, please contact:</li>
-            <li>Email: support@power.app</li>
-            <li>Phone: 1-800-POWER-IT</li>
+            <li>Email: info@powerhealthcareit.com</li>
+            <li>Phone: 3018806015</li>
             <li>Live Chat: [Link to chat support if applicable]</li>
           </ul>
         </div>
@@ -86,9 +99,9 @@ export const SupportPage = ({ className }) => {
           <ul className="section-list">
             <li>Overview of how we handle your data securely using token authentication and role-based access.</li>
           </ul>
-        </div>
-      </div>
+        </div>      </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
+      <RegistrationModal isOpen={isModalOpen} onClose={closeModal} />
     </div>
   );
 };
