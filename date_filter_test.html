@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Date Filter Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 10px; border: 1px solid #ccc; }
+        button { margin: 10px; padding: 10px; }
+        .result { margin: 10px 0; padding: 10px; background: #f5f5f5; }
+        input { margin: 5px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>MessageLog Date Filter Testing</h1>
+    
+    <div class="test-section">
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Make sure your React app is running and you're logged in</li>
+            <li>Open the Messages page and go to Email tab</li>
+            <li>Open browser dev tools (F12) and go to Console tab</li>
+            <li>Try different date combinations in the From/To fields</li>
+            <li>Watch the console for the debug messages showing URLs and results</li>
+        </ol>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual API Test (Run in Browser Console)</h2>
+        <p>Copy and paste this code in the browser console while logged in:</p>
+        <pre id="testCode">
+// Test date filtering manually
+async function testDateFiltering() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        console.error('❌ No auth token found. Please log in first.');
+        return;
+    }
+    
+    const baseUrl = 'http://127.0.0.1:8000/api/communicator/logs/';
+    const headers = { 'Authorization': `Bearer ${token}` };
+    
+    console.log('🧪 Testing date filtering...');
+    
+    try {
+        // Test 1: All email logs
+        console.log('\n1️⃣ All email logs:');
+        const allRes = await fetch(`${baseUrl}?message_type=email`, { headers });
+        const allLogs = await allRes.json();
+        console.log(`Total logs: ${allLogs.length}`);
+        
+        if (allLogs.length > 0) {
+            console.log(`Sample dates: ${allLogs.slice(0, 3).map(log => log.created_at).join(', ')}`);
+            
+            // Test 2: Recent logs (after 2024-01-01)
+            console.log('\n2️⃣ Logs after 2024-01-01:');
+            const recentRes = await fetch(`${baseUrl}?message_type=email&created_at__gte=2024-01-01`, { headers });
+            const recentLogs = await recentRes.json();
+            console.log(`Recent logs: ${recentLogs.length}`);
+            
+            // Test 3: Logs before 2025-12-31
+            console.log('\n3️⃣ Logs before 2025-12-31:');
+            const beforeRes = await fetch(`${baseUrl}?message_type=email&created_at__lte=2025-12-31`, { headers });
+            const beforeLogs = await beforeRes.json();
+            console.log(`Before 2025: ${beforeLogs.length}`);
+            
+            // Test 4: Date range
+            console.log('\n4️⃣ Date range 2024-01-01 to 2025-12-31:');
+            const rangeRes = await fetch(`${baseUrl}?message_type=email&created_at__gte=2024-01-01&created_at__lte=2025-12-31`, { headers });
+            const rangeLogs = await rangeRes.json();
+            console.log(`Range logs: ${rangeLogs.length}`);
+            
+            // Test 5: Narrow range (should return fewer results)
+            console.log('\n5️⃣ Narrow range (June 2024):');
+            const narrowRes = await fetch(`${baseUrl}?message_type=email&created_at__gte=2024-06-01&created_at__lte=2024-06-30`, { headers });
+            const narrowLogs = await narrowRes.json();
+            console.log(`June 2024 logs: ${narrowLogs.length}`);
+            
+            console.log('\n✅ Date filtering test completed!');
+            
+            // Summary
+            console.log('\n📊 Summary:');
+            console.log(`All logs: ${allLogs.length}`);
+            console.log(`Recent (2024+): ${recentLogs.length}`);
+            console.log(`Before 2025: ${beforeLogs.length}`);
+            console.log(`Range 2024-2025: ${rangeLogs.length}`);
+            console.log(`June 2024 only: ${narrowLogs.length}`);
+            
+        } else {
+            console.log('❌ No logs found - cannot test filtering');
+        }
+        
+    } catch (error) {
+        console.error('❌ Test failed:', error);
+    }
+}
+
+// Run the test
+testDateFiltering();
+        </pre>
+    </div>
+
+    <div class="test-section">
+        <h2>Expected Behavior:</h2>
+        <ul>
+            <li><strong>No dates selected:</strong> Shows all logs</li>
+            <li><strong>From date only:</strong> Shows logs from that date onwards</li>
+            <li><strong>To date only:</strong> Shows logs up to that date</li>
+            <li><strong>Both dates:</strong> Shows logs within the date range</li>
+            <li><strong>Console logs:</strong> Should show the API URLs being called</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>Troubleshooting:</h2>
+        <ul>
+            <li>Check browser console for errors</li>
+            <li>Verify you're logged in (check localStorage.getItem('access_token'))</li>
+            <li>Check Django server logs for any errors</li>
+            <li>Verify date format is YYYY-MM-DD</li>
+        </ul>
+    </div>
+
+    <script>
+        // Make test function available globally
+        window.runDateTest = function() {
+            const code = document.getElementById('testCode').textContent;
+            console.log('Running date filter test...');
+            eval(code);
+        };
+        
+        console.log('📄 Test page loaded. Run window.runDateTest() to test date filtering.');
+    </script>
+</body>
+</html>

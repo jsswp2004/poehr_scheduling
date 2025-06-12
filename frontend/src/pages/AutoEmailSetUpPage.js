@@ -25,6 +25,7 @@ function AutoEmailSetUpPage() {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
   const [runNowStatus, setRunNowStatus] = useState('');
+  const [monthlyEmailTotal, setMonthlyEmailTotal] = useState(0);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -50,9 +51,32 @@ function AutoEmailSetUpPage() {
         setStatus('Failed to load settings.');
         console.error(err);
       }
-      setLoading(false);
-    }
+      setLoading(false);    }
     fetchSettings();
+  }, []);
+
+  const fetchMonthlyTotal = async () => {
+    try {
+      const token = localStorage.getItem('access_token');
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      
+      const startDate = firstDay.toISOString().split('T')[0];
+      const endDate = lastDay.toISOString().split('T')[0];
+      
+      const res = await axios.get(`http://127.0.0.1:8000/api/communicator/logs/?message_type=email&created_at__gte=${startDate}&created_at__lte=${endDate}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      setMonthlyEmailTotal(res.data.length);
+    } catch (err) {
+      console.error('Failed to fetch monthly email total:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchMonthlyTotal();
   }, []);
 
   const handleSave = async () => {
@@ -79,8 +103,7 @@ function AutoEmailSetUpPage() {
       console.error(e);
     }
     setSaving(false);
-  };
-  const handleRunNow = async () => {
+  };  const handleRunNow = async () => {
     setRunNowStatus('Running...');
     try {
       const token = localStorage.getItem('access_token');
@@ -90,6 +113,10 @@ function AutoEmailSetUpPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRunNowStatus('Emails are being sent!');
+      // Recalculate monthly total after sending emails
+      setTimeout(() => {
+        fetchMonthlyTotal();
+      }, 2000); // Wait 2 seconds for emails to be logged
     } catch (e) {
       setRunNowStatus('Failed to trigger emails.');
       console.error('Error triggering reminders:', e);
@@ -167,6 +194,13 @@ function AutoEmailSetUpPage() {
         )}        {runNowStatus && (
           <Alert severity={runNowStatus === 'Emails are being sent!' ? 'success' : 'info'}>{runNowStatus}</Alert>
         )}
+        
+        {/* Monthly Summary */}
+        <Box sx={{ mt: 2, p: 2, bgcolor: '#f8f9fa', borderRadius: 1, border: '1px solid #e9ecef' }}>
+          <Typography variant="body2" color="text.secondary">
+            Total emails sent for {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}: <strong>{monthlyEmailTotal}</strong>
+          </Typography>
+        </Box>
       </Stack>
     </Box>
     

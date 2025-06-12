@@ -45,43 +45,45 @@ function MessagesPage() {
           p: 1,
         }}
       >
-        <Tabs
-          value={tab}
-          onChange={(_, val) => setTab(val)}
-          sx={{
-            flex: 1,
-            minHeight: 40,
-            '& .MuiTabs-indicator': {
-              height: 4,
-              borderRadius: 2,
-              bgcolor: 'primary.main',
-            },
-            '& .MuiTab-root': {
-              fontWeight: 500,
-              fontSize: '1rem',
-              color: 'primary.main',
+          <Tabs
+            value={tab}
+            onChange={(_, val) => setTab(val)}
+            sx={{
+              flex: 1,
               minHeight: 40,
-              textTransform: 'none',
-              borderRadius: 2,
-              mx: 0.5,
-              transition: 'background 0.2s',
-              '&.Mui-selected': {
-                bgcolor: 'primary.light',
-                color: 'primary.dark',
-                boxShadow: 2,
+              '& .MuiTabs-indicator': {
+                height: 4,
+                borderRadius: 2,
+                bgcolor: 'primary.main',
               },
-              '&:hover': {
-                bgcolor: 'primary.lighter',
-                color: 'primary.dark',
+              '& .MuiTab-root': {
+                fontWeight: 500,
+                fontSize: '1rem',
+                color: 'primary.main',
+                minHeight: 40,
+                textTransform: 'none',
+                borderRadius: 2,
+                mx: 0.5,
+                transition: 'background 0.2s',
+                '&.Mui-selected': {
+                  bgcolor: 'primary.light',
+                  color: 'primary.dark',
+                  boxShadow: 2,
+                },
+                '&:hover': {
+                  bgcolor: 'primary.lighter',
+                  color: 'primary.dark',
+                },
               },
-            },
-          }}        >          <Tab label="Email" value="email" />
-          <Tab label="SMS" value="sms" />
-          <Tab label="Announcements" value="announcements" />
-        </Tabs>
-        <Box sx={{ ml: 1 }}>
-          <BackButton to="/admin" />
-        </Box>      </Box>      {tab === 'email' && <AutoEmailSetUpPage />}
+            }}        >          
+              <Tab label="Email" value="email" />
+              <Tab label="SMS" value="sms" />
+              <Tab label="Announcements" value="announcements" />
+          </Tabs>
+            <Box sx={{ ml: 1 }}>
+              <BackButton to="/admin" />
+            </Box>      
+        </Box>      {tab === 'email' && <AutoEmailSetUpPage />}
       {tab === 'sms' && <AutoSMSSetUpPage />}
       {tab === 'announcements' && <AnnouncementsPage />}
     </Box>

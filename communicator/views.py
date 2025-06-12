@@ -5,9 +5,20 @@ from rest_framework.parsers import MultiPartParser
 import csv
 
 from django_filters.rest_framework import DjangoFilterBackend
+import django_filters
 from .models import Contact, MessageLog
 from .serializers import ContactSerializer, MessageLogSerializer
 from .utils import send_sms, send_email
+
+
+class MessageLogFilter(django_filters.FilterSet):
+    message_type = django_filters.CharFilter(field_name='message_type')
+    created_at__gte = django_filters.DateFilter(field_name='created_at', lookup_expr='gte')
+    created_at__lte = django_filters.DateFilter(field_name='created_at', lookup_expr='lte')
+    
+    class Meta:
+        model = MessageLog
+        fields = ['message_type', 'created_at__gte', 'created_at__lte']
 
 
 class ContactViewSet(viewsets.ModelViewSet):
@@ -74,7 +85,7 @@ class MessageLogViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["get", "delete"]
     filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["message_type", "created_at"]
+    filterset_class = MessageLogFilter
 
     def get_queryset(self):
         # Include both user-specific emails and system-generated emails (user=None)
