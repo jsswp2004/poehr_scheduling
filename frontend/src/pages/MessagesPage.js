@@ -75,15 +75,13 @@ function MessagesPage() {
                 color: 'primary.dark',
               },
             },
-          }}        >
-          <Tab label="Email" value="email" />
+          }}        >          <Tab label="Email" value="email" />
           <Tab label="SMS" value="sms" />
           <Tab label="Announcements" value="announcements" />
         </Tabs>
         <Box sx={{ ml: 1 }}>
           <BackButton to="/admin" />
-        </Box>      </Box>
-      {tab === 'email' && <AutoEmailSetUpPage />}
+        </Box>      </Box>      {tab === 'email' && <AutoEmailSetUpPage />}
       {tab === 'sms' && <AutoSMSSetUpPage />}
       {tab === 'announcements' && <AnnouncementsPage />}
     </Box>

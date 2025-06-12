@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
+import MessageLogTable from '../components/MessageLogTable';
 
 function AutoEmailSetUpPage() {
   const [frequency, setFrequency] = useState('weekly');
@@ -94,13 +95,20 @@ function AutoEmailSetUpPage() {
       console.error('Error triggering reminders:', e);
     }
   };
-
   return (
-    <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Automatic Email Setup
-      </Typography>
-      <Stack spacing={2} sx={{ maxWidth: 300 }}>
+    <Box sx={{ display: 'flex', gap: 3, height: '100%' }}>
+      {/* Left Pane - Email Settings */}
+      <Box sx={{ 
+        flex: '0 0 400px', 
+        boxShadow: 2, 
+        borderRadius: 2, 
+        bgcolor: 'background.paper', 
+        p: 3 
+      }}>
+        <Typography variant="h6" sx={{ mb: 2 }}>
+          Automatic Email Setup
+        </Typography>
+        <Stack spacing={2} sx={{ maxWidth: 300 }}>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
             label="Start Date"
@@ -156,12 +164,17 @@ function AutoEmailSetUpPage() {
         </Button>
         {status && (
           <Alert severity={status === 'Settings Saved!' ? 'success' : 'error'}>{status}</Alert>
-        )}
-        {runNowStatus && (
+        )}        {runNowStatus && (
           <Alert severity={runNowStatus === 'Emails are being sent!' ? 'success' : 'info'}>{runNowStatus}</Alert>
         )}
       </Stack>
     </Box>
+    
+    {/* Right Pane - Email Logs */}
+    <Box sx={{ flex: 1, minWidth: 0 }}>
+      <MessageLogTable type="email" />
+    </Box>
+  </Box>
   );
 }
 
