@@ -1,6 +1,7 @@
 from django_cron import CronJobBase, Schedule
 from django.utils import timezone
 from django.core.mail import send_mail
+from communicator.utils import send_email
 from django.core.cache import cache
 from datetime import timedelta
 from .models import Appointment, AutoEmail
@@ -91,12 +92,11 @@ def send_patient_reminders():
             message = f"Hi {patient.first_name}, This is a reminder of your visit on: {appt_date}. Please arrive 15 minutes early. See you soon!"
             
             try:
-                send_mail(
+                send_email(
+                    patient.email,
                     subject,
                     message,
-                    None,
-                    [patient.email],
-                    fail_silently=False,
+                    user=None,
                 )
                 new_emailed_patients.add(patient.id)
                 print(f"Sent reminder to {patient.email} for appointment on {appt_date}")
