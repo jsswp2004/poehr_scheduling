@@ -4,8 +4,9 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser
 import csv
 
-from .models import Contact
-from .serializers import ContactSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+from .models import Contact, MessageLog
+from .serializers import ContactSerializer, MessageLogSerializer
 from .utils import send_sms, send_email
 
 
@@ -56,13 +57,24 @@ class SendBulkMessageView(APIView):
         for contact in contacts:
             if send_sms_flag and contact.phone:
                 try:
-                    send_sms(contact.phone, message)
+                    send_sms(contact.phone, message, user=request.user)
                 except Exception:
                     pass
             if send_email_flag and contact.email:
                 try:
-                    send_email(contact.email, subject, message)
+                    send_email(contact.email, subject, message, user=request.user)
                 except Exception:
                     pass
 
         return Response({'sent': contacts.count()})
+
+
+class MessageLogViewSet(viewsets.ModelViewSet):
+    serializer_class = MessageLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "delete"]
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["message_type", "created_at"]
+
+    def get_queryset(self):
+        return MessageLog.objects.filter(user=self.request.user)
