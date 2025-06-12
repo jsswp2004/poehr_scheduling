@@ -6,7 +6,6 @@ import AnnouncementsPage from './AnnouncementsPage';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
-import MessageLogTable from '../components/MessageLogTable';
 
 function MessagesPage() {
   const [tab, setTab] = useState('email');
@@ -84,18 +83,8 @@ function MessagesPage() {
         <Box sx={{ ml: 1 }}>
           <BackButton to="/admin" />
         </Box>      </Box>
-      {tab === 'email' && (
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <AutoEmailSetUpPage />
-          <MessageLogTable type="email" />
-        </Box>
-      )}
-      {tab === 'sms' && (
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <AutoSMSSetUpPage />
-          <MessageLogTable type="sms" />
-        </Box>
-      )}
+      {tab === 'email' && <AutoEmailSetUpPage />}
+      {tab === 'sms' && <AutoSMSSetUpPage />}
       {tab === 'announcements' && <AnnouncementsPage />}
     </Box>
   );

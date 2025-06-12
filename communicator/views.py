@@ -77,9 +77,4 @@ class MessageLogViewSet(viewsets.ModelViewSet):
     filterset_fields = ["message_type", "created_at"]
 
     def get_queryset(self):
-        # Include both user-specific emails and system-generated emails (user=None)
-        # This allows admin users to see patient reminder emails and other system emails
-        from django.db.models import Q
-        return MessageLog.objects.filter(
-            Q(user=self.request.user) | Q(user__isnull=True)
-        ).order_by('-created_at')
+        return MessageLog.objects.filter(user=self.request.user)
