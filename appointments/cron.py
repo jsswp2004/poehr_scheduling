@@ -6,8 +6,14 @@ from django.core.cache import cache
 from datetime import timedelta
 from .models import Appointment, AutoEmail
 
-def send_patient_reminders():
-    """Send patient reminders based on AutoEmail configuration."""
+def send_patient_reminders(force_run=False):
+    """Send patient reminders based on AutoEmail configuration.
+    
+    Args:
+        force_run (bool): If True, bypasses scheduling logic and sends emails immediately
+                         regardless of frequency/day settings. If False, respects the
+                         configured schedule (default behavior for cron jobs).
+    """
     today = timezone.now().date()
     current_weekday = timezone.now().weekday()  # 0=Monday, 6=Sunday
     
@@ -22,44 +28,49 @@ def send_patient_reminders():
     new_emailed_patients = set(emailed_patients)
     
     for config in active_configs:
-        # Check if start date is in the future
-        if config.auto_message_start_date and config.auto_message_start_date > today:
+        # Check if start date is in the future (unless force_run is True)
+        if not force_run and config.auto_message_start_date and config.auto_message_start_date > today:
+            print(f"Skipping config {config.id}: start date {config.auto_message_start_date} is in the future")
             continue
             
-        # Frequency-based logic
-        should_send = False
+        # Frequency-based logic (bypass if force_run is True)
+        should_send = force_run  # If force_run=True, always send
         
-        if config.auto_message_frequency == 'daily':
-            # Send every day - ignore day_of_week setting
-            should_send = True
-            print(f"Daily frequency: sending emails every day")
-        elif config.auto_message_frequency == 'weekly':
-            # Send weekly on the specified day
-            should_send = current_weekday == config.auto_message_day_of_week
-            if should_send:
-                print(f"Weekly frequency: sending on {config.get_auto_message_day_of_week_display()}")
-        elif config.auto_message_frequency == 'bi-weekly':
-            # Send every other week on the specified day
-            if current_weekday == config.auto_message_day_of_week:
-                if config.auto_message_start_date:
-                    days_since_start = (today - config.auto_message_start_date).days
-                    weeks_since_start = days_since_start // 7
-                    should_send = weeks_since_start % 2 == 0
-                    print(f"Bi-weekly frequency: {weeks_since_start} weeks since start, should_send: {should_send}")
-                else:
-                    should_send = True  # If no start date, send every other week
-                    print("Bi-weekly frequency: no start date, sending")
-        elif config.auto_message_frequency == 'monthly':
-            # Send monthly on the specified day (every 4 weeks)
-            if current_weekday == config.auto_message_day_of_week:
-                if config.auto_message_start_date:
-                    days_since_start = (today - config.auto_message_start_date).days
-                    weeks_since_start = days_since_start // 7
-                    should_send = weeks_since_start % 4 == 0
-                    print(f"Monthly frequency: {weeks_since_start} weeks since start, should_send: {should_send}")
-                else:
-                    should_send = True
-                    print("Monthly frequency: no start date, sending")
+        if not force_run:
+            # Only check scheduling logic if not forcing
+            if config.auto_message_frequency == 'daily':
+                # Send every day - ignore day_of_week setting
+                should_send = True
+                print(f"Daily frequency: sending emails every day")
+            elif config.auto_message_frequency == 'weekly':
+                # Send weekly on the specified day
+                should_send = current_weekday == config.auto_message_day_of_week
+                if should_send:
+                    print(f"Weekly frequency: sending on {config.get_auto_message_day_of_week_display()}")
+            elif config.auto_message_frequency == 'bi-weekly':
+                # Send every other week on the specified day
+                if current_weekday == config.auto_message_day_of_week:
+                    if config.auto_message_start_date:
+                        days_since_start = (today - config.auto_message_start_date).days
+                        weeks_since_start = days_since_start // 7
+                        should_send = weeks_since_start % 2 == 0
+                        print(f"Bi-weekly frequency: {weeks_since_start} weeks since start, should_send: {should_send}")
+                    else:
+                        should_send = True  # If no start date, send every other week
+                        print("Bi-weekly frequency: no start date, sending")
+            elif config.auto_message_frequency == 'monthly':
+                # Send monthly on the specified day (every 4 weeks)
+                if current_weekday == config.auto_message_day_of_week:
+                    if config.auto_message_start_date:
+                        days_since_start = (today - config.auto_message_start_date).days
+                        weeks_since_start = days_since_start // 7
+                        should_send = weeks_since_start % 4 == 0
+                        print(f"Monthly frequency: {weeks_since_start} weeks since start, should_send: {should_send}")
+                    else:
+                        should_send = True
+                        print("Monthly frequency: no start date, sending")
+        else:
+            print(f"FORCE RUN: Bypassing schedule logic for config {config.id} ({config.auto_message_frequency} frequency)")
         
         if not should_send:
             print(f"Skipping config {config.id}: frequency={config.auto_message_frequency}, weekday={current_weekday}, config_day={config.auto_message_day_of_week}")
