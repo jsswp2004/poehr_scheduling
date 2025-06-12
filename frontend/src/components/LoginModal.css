@@ -1,5 +1,5 @@
 /* ===================================================================
-   REGISTRATION MODAL STYLES - Professional and Clean Design
+   LOGIN MODAL STYLES - Professional and Clean Design
    ================================================================= */
 
 .modal-overlay {
@@ -31,7 +31,7 @@
   background: white;
   border-radius: 16px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
-  max-width: 800px;
+  max-width: 700px;
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
@@ -101,11 +101,11 @@
   padding: 32px;
 }
 
-.registration-section {
+.login-section {
   margin-bottom: 32px;
 }
 
-.registration-section:last-child {
+.login-section:last-child {
   margin-bottom: 0;
 }
 
@@ -113,39 +113,21 @@
   font-size: 20px;
   font-weight: 700;
   color: #1e293b;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   padding-bottom: 8px;
   border-bottom: 2px solid #3b82f6;
   display: inline-block;
 }
 
-.sub-steps {
-  list-style: none;
-  padding: 0;
-  margin: 12px 0 0 20px;
-}
-
-.sub-steps li {
-  padding: 4px 0;
-  position: relative;
-  padding-left: 20px;
-  color: #64748b;
-  font-size: 14px;
-}
-
-.sub-steps li::before {
-  content: "◦";
-  color: #64748b;
-  position: absolute;
-  left: 0;
-  top: 4px;
+.security-section .section-number {
+  border-bottom-color: #10b981;
 }
 
 /* ===================================================================
    STEP GROUPS
    ================================================================= */
 .step-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   padding: 16px 20px;
   background: #f8fafc;
   border-radius: 8px;
@@ -167,38 +149,32 @@
 }
 
 /* ===================================================================
-   HELP SECTION
+   SECURITY TIPS
    ================================================================= */
-.help-section .section-number {
-  border-bottom-color: #10b981;
+.security-tips {
+  list-style: none;
+  padding: 0;
+  margin: 0;
 }
 
-.help-tip {
-  padding: 16px 20px;
+.security-tips li {
+  padding: 12px 20px;
+  margin-bottom: 8px;
+  position: relative;
+  padding-left: 44px;
+  line-height: 1.6;
+  color: #475569;
   background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
   border-radius: 8px;
   border-left: 4px solid #10b981;
 }
 
-.help-tip p {
-  margin: 0;
-  color: #065f46;
-  font-weight: 500;
-  line-height: 1.6;
-}
-.sub-section {
-  margin: 20px 0;
-  padding: 16px 20px;
-  background: #f8fafc;
-  border-radius: 8px;
-  border-left: 4px solid #3b82f6;
-}
-
-.sub-section-title {
+.security-tips li::before {
+  content: "🛡️";
+  position: absolute;
+  left: 16px;
+  top: 12px;
   font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 12px 0;
 }
 
 /* ===================================================================
@@ -279,6 +255,14 @@ strong {
     font-size: 18px;
   }
 
+  .step-group {
+    padding: 12px 16px;
+  }
+
+  .security-tips li {
+    padding: 10px 16px 10px 40px;
+  }
+
   .modal-footer {
     padding: 20px 24px 24px;
   }
@@ -298,8 +282,12 @@ strong {
     padding: 20px;
   }
 
-  .registration-section {
+  .login-section {
     margin-bottom: 24px;
+  }
+
+  .step-group {
+    margin-bottom: 16px;
   }
 
   .modal-footer {
