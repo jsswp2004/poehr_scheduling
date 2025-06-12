@@ -41,7 +41,7 @@ export const SupportPage = ({ className }) => {
                 </span>
               </strong> – Learn how to securely log in and out of your account.
               </li>
-            <li><strong>Navigating the Dashboard</strong> – Overview of features like appointments, patient list, and scheduling blocks. [✓ Video demo recommended]</li>
+            <li><strong>Navigating the Dashboard</strong> – Overview of features like appointments, patient list, and scheduling blocks. </li>
           </ul>
         </div>
 
