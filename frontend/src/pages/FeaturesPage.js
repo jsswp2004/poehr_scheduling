@@ -1,7 +1,7 @@
 import '../FeaturesPage/FeaturesPage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import FeaturesImage from '../assets/dashboard_features2.png';
+
 
 export const FeaturesPage = ({ className }) => {
   return (
@@ -11,19 +11,7 @@ export const FeaturesPage = ({ className }) => {
         <h1 className="page-title">All Features</h1>
         <p className="page-subtitle">Explore everything POWER offers across our plans.</p>
       </div>
-      <div className="image-placeholder">
-        <img 
-        src={FeaturesImage} 
-        alt="Features Overview" 
-        className="features-image"
-        style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              borderRadius: '0px',
-              padding: '0px'
-            }} />
-      </div>
+
       <div className="features-section">
         <div className="feature-panels">
           <div className="feature-panel">

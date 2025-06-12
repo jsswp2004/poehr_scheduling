@@ -55,8 +55,8 @@ export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" })
           </div>
           <div className="footer-legal-links">
             <Link to="/terms" className="footer-legal-link">Terms &amp; Privacy</Link>
-            <a href="#security" className="footer-legal-link">Security</a>
-            <a href="#status" className="footer-legal-link">Status</a>
+            {/*<a href="#security" className="footer-legal-link">Security</a>
+            <a href="#status" className="footer-legal-link">Status</a>*/}
           </div>
         </div>
       </div>
