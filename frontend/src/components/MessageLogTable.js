@@ -19,17 +19,17 @@ function MessageLogTable({ type }) {
   const [logs, setLogs] = useState([]);
   const [search, setSearch] = useState('');
   const [start, setStart] = useState('');
-  const [end, setEnd] = useState('');
-
-  const fetchLogs = async () => {
+  const [end, setEnd] = useState('');  const fetchLogs = async () => {
     try {
       const token = localStorage.getItem('access_token');
       let url = `http://127.0.0.1:8000/api/communicator/logs/?message_type=${type}`;
       if (start) url += `&created_at__gte=${start}`;
       if (end) url += `&created_at__lte=${end}`;
+      
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      
       setLogs(res.data);
     } catch (err) {
       console.error('Failed to fetch logs', err);
@@ -50,9 +50,7 @@ function MessageLogTable({ type }) {
     } catch (err) {
       console.error('Failed to delete log', err);
     }
-  };
-
-  const filtered = logs.filter(
+  };  const filtered = logs.filter(
     (log) =>
       log.recipient.toLowerCase().includes(search.toLowerCase()) ||
       log.body.toLowerCase().includes(search.toLowerCase()) ||
