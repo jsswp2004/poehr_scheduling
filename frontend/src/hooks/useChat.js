@@ -1,20 +1,17 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useWebSocket from './useWebSocket';
 
-const useChat = (currentUser, websocketConnection = null) => {
+const useChat = (currentUser) => {
   const [chatRooms, setChatRooms] = useState({});
   const [activeRoom, setActiveRoom] = useState(null);
   const [typingUsers, setTypingUsers] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const typingTimeouts = useRef({});  console.log('🚀 useChat hook initializing with currentUser:', currentUser);
-  console.log('🔍 useChat received websocketConnection:', websocketConnection);
-  
-  // Always call useWebSocket hook, but conditionally connect
-  const shouldCreateOwnConnection = !websocketConnection;
-  console.log('🔍 shouldCreateOwnConnection:', shouldCreateOwnConnection);
-  const ownWebSocket = useWebSocket(
-    shouldCreateOwnConnection ? 'ws://localhost:8000/ws/presence/' : null,
-    shouldCreateOwnConnection ? {
+  const typingTimeouts = useRef({});
+  console.log('🚀 useChat hook initializing with currentUser:', currentUser);
+  // WebSocket connection for chat (using presence endpoint since that's what handles chat messages)
+  const { isConnected, sendMessage } = useWebSocket(
+    'ws://localhost:8000/ws/presence/',
+    {
       onOpen: () => {
         console.log('✅ Connected to chat WebSocket via presence endpoint');
       },
@@ -27,11 +24,8 @@ const useChat = (currentUser, websocketConnection = null) => {
       onClose: (event) => {
         console.log('🔌 Chat WebSocket disconnected:', event.code, event.reason);
       }
-    } : {}
+    }
   );
-    // Use either provided connection or own connection
-  const { isConnected, sendMessage } = websocketConnection || ownWebSocket;
-  console.log('🔍 Final connection state in useChat:', { isConnected, sendMessage: !!sendMessage, websocketConnection, ownWebSocket });
   
   console.log('🔍 Chat WebSocket hook result:', { isConnected, sendMessage: !!sendMessage });
   // Debug connection status

@@ -7,40 +7,22 @@ from channels.db import database_sync_to_async
 class PresenceConsumer(AsyncWebsocketConsumer):    
     async def connect(self):
         """Handle WebSocket connection"""
-        print(f"🔗 PresenceConsumer.connect() called!")
-        print(f"🔍 Scope keys: {list(self.scope.keys())}")
-        print(f"🔍 Query string: {self.scope.get('query_string', b'').decode()}")
-        
-        # Check if user is in scope (from JWT middleware)
-        self.user = self.scope.get("user")
+        self.user = self.scope["user"]
         self.is_test_user = False
         
-        print(f"WebSocket connection attempt - User: {self.user}, Type: {type(self.user) if self.user else 'None'}")
-        
-        # Handle case when user is not in scope (no JWT middleware)
-        if not self.user:
-            print("WARNING: No user in scope - creating anonymous test user")
+        print(f"WebSocket connection attempt - User: {self.user}, Type: {type(self.user)}")
+          # Handle anonymous users - allow but mark as test
+        from django.contrib.auth.models import AnonymousUser
+        if isinstance(self.user, AnonymousUser):
+            print("WARNING: WebSocket connection from anonymous user - ALLOWING FOR TESTING")
             # Create a fake user for testing
             self.user = type('TestUser', (), {
                 'id': 999,
-                'username': 'anonymous_user',
-                'first_name': 'Anonymous',
+                'username': 'test_user',
+                'first_name': 'Test',
                 'last_name': 'User'
             })()
             self.is_test_user = True
-        else:
-            # Handle anonymous users - allow but mark as test
-            from django.contrib.auth.models import AnonymousUser
-            if isinstance(self.user, AnonymousUser):
-                print("WARNING: WebSocket connection from anonymous user - ALLOWING FOR TESTING")
-                # Create a fake user for testing
-                self.user = type('TestUser', (), {
-                    'id': 999,
-                    'username': 'test_user',
-                    'first_name': 'Test',
-                    'last_name': 'User'
-                })()
-                self.is_test_user = True
         
         print(f"WebSocket connection accepted - User: {getattr(self.user, 'username', 'unknown')} (ID: {getattr(self.user, 'id', 'unknown')})")
         
