@@ -16,6 +16,10 @@ import Papa from 'papaparse';
 import { useNavigate } from 'react-router-dom';
 import CalendarView from '../components/CalendarView';
 import BackButton from '../components/BackButton';
+import OnlineIndicator from '../components/OnlineIndicator';
+import ChatModal from '../components/ChatModal';
+import useOnlineStatus from '../hooks/useOnlineStatus';
+import useChat from '../hooks/useChat';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -41,8 +45,55 @@ function PatientsPage() {
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [teamSearch, setTeamSearch] = useState('');
   const [teamPage, setTeamPage] = useState(1);
-  const [teamTotalSize, setTeamTotalSize] = useState(0);
-  const [provider, setProvider] = useState('');  const [tab, setTab] = useState('patients');
+  const [teamTotalSize, setTeamTotalSize] = useState(0);  const [provider, setProvider] = useState('');
+  
+  // ✅ Initialize hooks first
+  const { getUserOnlineStatus, isConnected: onlineStatusConnected } = useOnlineStatus();
+  
+  // ✅ Chat state management
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [selectedChatUser, setSelectedChatUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  
+  // Get current user from token
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        setCurrentUser({
+          id: decoded.user_id,
+          username: decoded.username,
+          first_name: decoded.first_name || '',
+          last_name: decoded.last_name || ''
+        });
+      } catch (error) {
+        console.error('Error decoding token:', error);
+      }
+    }
+  }, []);
+  
+  // Initialize chat hook
+  const chat = useChat(currentUser);
+  
+  // ✅ Debug online status
+  useEffect(() => {
+    console.log('🔍 Current online users state:', { getUserOnlineStatus, isConnected: onlineStatusConnected });
+    if (team.length > 0) {
+      console.log('👥 Team members and their online status:');
+      team.forEach(member => {
+        const status = getUserOnlineStatus(member.id);
+        console.log(`👤 ${member.full_name} (ID: ${member.id}):`, status);
+      });
+    }
+  }, [team, getUserOnlineStatus, onlineStatusConnected]);
+  
+  // ✅ Additional debug - check initial state
+  useEffect(() => {
+    console.log('🚀 PatientsPage initialized, WebSocket connected:', onlineStatusConnected);
+  }, []);
+  
+  const [tab, setTab] = useState('patients');
   const [page, setPage] = useState(1);
   const [totalSize, setTotalSize] = useState(0);
   const [reportStartDate, setReportStartDate] = useState(null);  const [reportEndDate, setReportEndDate] = useState(null);  const [reportProvider, setReportProvider] = useState('all');
@@ -939,9 +990,23 @@ function PatientsPage() {
                     <TableCell>{member.email}</TableCell>
                     <TableCell>{member.phone_number || '—'}</TableCell>
                     <TableCell>{member.role || 'N/A'}</TableCell>
-                    <TableCell>{member.organization_name || '—'}</TableCell>
-                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>
+                    <TableCell>{member.organization_name || '—'}</TableCell>                    <TableCell align="center">
+                      <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>                        {/* ✅ Online Status and Chat */}
+                        <OnlineIndicator
+                          user={member}
+                          isOnline={getUserOnlineStatus(member.id).isOnline}
+                          lastSeen={getUserOnlineStatus(member.id).lastSeen || member.last_seen}                          onChatClick={() => {
+                            setSelectedChatUser(member);
+                            // Open chat with the selected user
+                            chat.openChatWithUser({
+                              id: member.id,
+                              name: member.full_name || member.username,
+                              ...member
+                            });
+                            setChatModalOpen(true);
+                          }}
+                        />
+                        
                         <Tooltip title="Send SMS" placement="top">
                           <IconButton variant="contained" size="small" color="warning"
                             sx={{ width: 36, height: 36, minWidth: 0, padding: 0, mr: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -1155,8 +1220,7 @@ function PatientsPage() {
         </Stack>
         {renderPatientTable()}
       </>
-      )}
-      {tab === 'team' && (
+      )}      {tab === 'team' && (
         <>
           <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
             <TextField
@@ -1602,9 +1666,25 @@ function PatientsPage() {
           </Button>
           <Button onClick={handleSendEmail} color="primary">
             Send
-          </Button>
-        </DialogActions>
+          </Button>        </DialogActions>
       </Dialog>
+        {/* ✅ Chat Modal */}
+      <ChatModal
+        open={chatModalOpen}
+        onClose={() => {
+          setChatModalOpen(false);
+          setSelectedChatUser(null);
+        }}
+        chatPartner={selectedChatUser}
+        currentUser={currentUser}        onSendMessage={(message) => {
+          if (selectedChatUser && chat.activeRoom) {
+            chat.sendChatMessage(chat.activeRoom, message);
+          }
+        }}
+        messages={chat.activeRoom ? chat.getRoomMessages(chat.activeRoom) : []}
+        typingUsers={chat.activeRoom ? chat.getRoomTypingUsers(chat.activeRoom) : []}
+        isLoading={chat.isLoading}
+      />
     </Box>
   );
 }
