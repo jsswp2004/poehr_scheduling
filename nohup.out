@@ -1029,3 +1029,418 @@ SUCCESS: Set online result: True
 127.0.0.1:63951 - - [13/Jun/2025:10:40:27] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
 Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
 SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+2025-06-13 10:40:57,536 INFO     Starting server at tcp:port=8000:interface=127.0.0.1
+2025-06-13 10:40:57,536 INFO     HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+2025-06-13 10:40:57,536 INFO     Configuring endpoint tcp:port=8000:interface=127.0.0.1
+2025-06-13 10:40:57,537 INFO     Listening on TCP address 127.0.0.1:8000
+127.0.0.1:64045 - - [13/Jun/2025:10:40:59] "GET /api/users/37/" 200 670
+127.0.0.1:64068 - - [13/Jun/2025:10:41:08] "GET /api/users/17/" 200 661
+127.0.0.1:64076 - - [13/Jun/2025:10:41:12] "WSCONNECTING /ws/presence/" - -
+WebSocket connection attempt - User: AnonymousUser, Type: <class 'django.contrib.auth.models.AnonymousUser'>
+WARNING: WebSocket connection from anonymous user - ALLOWING FOR TESTING
+WebSocket connection accepted - User: test_user (ID: 999)
+127.0.0.1:64076 - - [13/Jun/2025:10:41:13] "WSCONNECT /ws/presence/" - -
+TEST: Test user - skipping online status update
+Received WebSocket message: {"type": "ping", "timestamp": "2025-06-13T10:41:13.048037"}
+Message type: ping
+Unknown message type: ping
+127.0.0.1:64076 - - [13/Jun/2025:10:41:16] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64081 - - [13/Jun/2025:10:41:17] "WSCONNECTING /ws/chat/" - -
+Chat WebSocket connection attempt - User: AnonymousUser, Type: <class 'django.contrib.auth.models.AnonymousUser'>
+WARNING: Chat WebSocket connection from anonymous user - ALLOWING FOR TESTING
+SUCCESS: Chat WebSocket connection accepted - User: test_user (ID: 999)
+127.0.0.1:64081 - - [13/Jun/2025:10:41:17] "WSCONNECT /ws/chat/" - -
+MESSAGE: Chat message received - Type: ping, Data: {'type': 'ping', 'timestamp': '2025-06-13T10:41:17.060785'}
+ERROR: Unknown message type: ping
+WARNING: Failed to send WebSocket message: Attempt to send on a closed protocol
+127.0.0.1:64081 - - [13/Jun/2025:10:41:17] "WSDISCONNECT /ws/chat/" - -
+DISCONNECT: Chat WebSocket disconnected - User: test_user (Code: 1000)
+127.0.0.1:64068 - - [13/Jun/2025:10:41:22] "GET /api/users/17/" 200 661
+127.0.0.1:64091 - - [13/Jun/2025:10:41:27] "GET /api/users/37/" 200 670
+127.0.0.1:64091 - - [13/Jun/2025:10:41:45] "GET /api/users/37/" 200 670
+127.0.0.1:64123 - - [13/Jun/2025:10:41:45] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64091 - - [13/Jun/2025:10:41:45] "GET /api/users/37/" 200 670
+127.0.0.1:64133 - - [13/Jun/2025:10:41:45] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64123 - - [13/Jun/2025:10:41:45] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: daniellebishop (ID: 37)
+127.0.0.1:64133 - - [13/Jun/2025:10:41:45] "WSCONNECT /ws/presence/" - -
+Setting user daniellebishop (ID: 37) as ONLINE
+Database operation: Setting user 37 online status to True
+127.0.0.1:64139 - - [13/Jun/2025:10:41:45] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64123 - - [13/Jun/2025:10:41:45] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+SUCCESS: Successfully set user 37 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64123 - - [13/Jun/2025:10:41:46] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+127.0.0.1:64139 - - [13/Jun/2025:10:41:46] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64123 - - [13/Jun/2025:10:41:47] "GET /api/users/team/?search=&page=1&page_size=10" 200 3001
+127.0.0.1:64123 - - [13/Jun/2025:10:41:49] "GET /api/users/37/" 200 670
+127.0.0.1:64068 - - [13/Jun/2025:10:41:52] "GET /api/users/17/" 200 661
+127.0.0.1:64133 - - [13/Jun/2025:10:42:04] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64139 - - [13/Jun/2025:10:42:04] "WSDISCONNECT /ws/chat/" - -
+Setting user daniellebishop (ID: 37) as OFFLINE
+Database operation: Setting user 37 online status to FalseDISCONNECT: Chat WebSocket disconnected - User: daniellebishop (Code: 1001)
+
+SUCCESS: Successfully set user 37 online status to False
+127.0.0.1:64123 - - [13/Jun/2025:10:42:04] "GET /api/users/37/" 200 671
+127.0.0.1:64091 - - [13/Jun/2025:10:42:04] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64218 - - [13/Jun/2025:10:42:04] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64123 - - [13/Jun/2025:10:42:04] "GET /api/users/37/" 200 671
+127.0.0.1:64091 - - [13/Jun/2025:10:42:05] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: daniellebishop (ID: 37)
+127.0.0.1:64218 - - [13/Jun/2025:10:42:05] "WSCONNECT /ws/presence/" - -
+Setting user daniellebishop (ID: 37) as ONLINE
+Database operation: Setting user 37 online status to True
+127.0.0.1:64226 - - [13/Jun/2025:10:42:05] "WSCONNECTING /ws/chat/" - -
+SUCCESS: Successfully set user 37 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64091 - - [13/Jun/2025:10:42:05] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64091 - - [13/Jun/2025:10:42:05] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+127.0.0.1:64226 - - [13/Jun/2025:10:42:05] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64251 - - [13/Jun/2025:10:42:06] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:06] "GET /api/users/17/" 200 661
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64246 - - [13/Jun/2025:10:42:06] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64251 - - [13/Jun/2025:10:42:06] "WSCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+127.0.0.1:64264 - - [13/Jun/2025:10:42:06] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:06] "GET /api/users/17/" 200 661
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64246 - - [13/Jun/2025:10:42:06] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64246 - - [13/Jun/2025:10:42:07] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64264 - - [13/Jun/2025:10:42:07] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64271 - - [13/Jun/2025:10:42:07] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:07] "GET /api/users/17/" 200 661
+127.0.0.1:64246 - - [13/Jun/2025:10:42:07] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64271 - - [13/Jun/2025:10:42:07] "WSCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+127.0.0.1:64278 - - [13/Jun/2025:10:42:07] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:07] "GET /api/users/17/" 200 661
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64246 - - [13/Jun/2025:10:42:07] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64246 - - [13/Jun/2025:10:42:07] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64278 - - [13/Jun/2025:10:42:07] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64246 - - [13/Jun/2025:10:42:08] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64295 - - [13/Jun/2025:10:42:08] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64246 - - [13/Jun/2025:10:42:08] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64295 - - [13/Jun/2025:10:42:08] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64301 - - [13/Jun/2025:10:42:08] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64301 - - [13/Jun/2025:10:42:08] "WSDISCONNECT /ws/chat/" - -
+WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: daniellebishop (ID: 37)
+Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+DISCONNECT: Chat WebSocket disconnected - User: daniellebishop (Code: 1006)
+Setting user daniellebishop (ID: 37) as ONLINE
+Database operation: Setting user 37 online status to True
+SUCCESS: Successfully set user 37 online status to True
+SUCCESS: Set online result: True
+Setting user daniellebishop (ID: 37) as OFFLINE
+Database operation: Setting user 37 online status to False
+SUCCESS: Successfully set user 37 online status to False
+127.0.0.1:64310 - - [13/Jun/2025:10:42:09] "WSCONNECTING /ws/presence/" - -
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64310 - - [13/Jun/2025:10:42:09] "WSCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+127.0.0.1:64314 - - [13/Jun/2025:10:42:09] "WSCONNECTING /ws/chat/" - -
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64314 - - [13/Jun/2025:10:42:10] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64310 - - [13/Jun/2025:10:42:10] "WSDISCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as OFFLINE
+Database operation: Setting user 17 online status to False
+127.0.0.1:64314 - - [13/Jun/2025:10:42:10] "WSDISCONNECT /ws/chat/" - -
+127.0.0.1:64323 - - [13/Jun/2025:10:42:10] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64246 - - [13/Jun/2025:10:42:10] "GET /api/users/team/?search=&page=1&page_size=10" 200 3002
+127.0.0.1:64323 - - [13/Jun/2025:10:42:10] "WSDISCONNECT /ws/presence/" - -
+SUCCESS: Successfully set user 17 online status to False
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1001)
+127.0.0.1:64326 - - [13/Jun/2025:10:42:10] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64326 - - [13/Jun/2025:10:42:10] "WSDISCONNECT /ws/chat/" - -
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+Setting user joshsalvacion (ID: 17) as OFFLINE
+Database operation: Setting user 17 online status to False
+SUCCESS: Successfully set user 17 online status to False
+127.0.0.1:64346 - - [13/Jun/2025:10:42:12] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64346 - - [13/Jun/2025:10:42:12] "WSDISCONNECT /ws/chat/" - -
+Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+DISCONNECT: Chat WebSocket disconnected - User: daniellebishop (Code: 1006)
+127.0.0.1:64354 - - [13/Jun/2025:10:42:13] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64354 - - [13/Jun/2025:10:42:13] "WSDISCONNECT /ws/chat/" - -
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+127.0.0.1:64358 - - [13/Jun/2025:10:42:14] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64358 - - [13/Jun/2025:10:42:14] "WSDISCONNECT /ws/chat/" - -
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+127.0.0.1:64436 - - [13/Jun/2025:10:42:30] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64436 - - [13/Jun/2025:10:42:30] "WSDISCONNECT /ws/chat/" - -
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+127.0.0.1:64444 - - [13/Jun/2025:10:42:35] "GET /api/users/37/" 200 671
+127.0.0.1:64246 - - [13/Jun/2025:10:42:36] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:42:37] "GET /api/users/17/" 200 662
+127.0.0.1:64251 - - [13/Jun/2025:10:42:38] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64264 - - [13/Jun/2025:10:42:38] "WSDISCONNECT /ws/chat/" - -
+Setting user joshsalvacion (ID: 17) as OFFLINE
+Database operation: Setting user 17 online status to FalseDISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1001)
+
+127.0.0.1:64271 - - [13/Jun/2025:10:42:38] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64278 - - [13/Jun/2025:10:42:38] "WSDISCONNECT /ws/chat/" - -
+SUCCESS: Successfully set user 17 online status to False
+Setting user joshsalvacion (ID: 17) as OFFLINE
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1001)
+127.0.0.1:64218 - - [13/Jun/2025:10:42:38] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64226 - - [13/Jun/2025:10:42:38] "WSDISCONNECT /ws/chat/" - -
+Database operation: Setting user 17 online status to False
+SUCCESS: Successfully set user 17 online status to False
+Setting user daniellebishop (ID: 37) as OFFLINE
+DISCONNECT: Chat WebSocket disconnected - User: daniellebishop (Code: 1001)
+Database operation: Setting user 37 online status to False
+SUCCESS: Successfully set user 37 online status to False
+127.0.0.1:64444 - - [13/Jun/2025:10:42:39] "GET /api/users/37/" 200 671
+127.0.0.1:64488 - - [13/Jun/2025:10:42:39] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64492 - - [13/Jun/2025:10:42:39] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64444 - - [13/Jun/2025:10:42:39] "GET /api/users/37/" 200 671
+WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: daniellebishop (ID: 37)
+127.0.0.1:64492 - - [13/Jun/2025:10:42:39] "WSCONNECT /ws/presence/" - -
+Setting user daniellebishop (ID: 37) as ONLINE
+Database operation: Setting user 37 online status to True
+127.0.0.1:64498 - - [13/Jun/2025:10:42:39] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64488 - - [13/Jun/2025:10:42:39] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64500 - - [13/Jun/2025:10:42:39] "WSCONNECTING /ws/presence/" - -
+SUCCESS: Successfully set user 37 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64488 - - [13/Jun/2025:10:42:40] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64246 - - [13/Jun/2025:10:42:40] "GET /api/users/17/" 200 662
+127.0.0.1:64068 - - [13/Jun/2025:10:42:40] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64488 - - [13/Jun/2025:10:42:40] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64246 - - [13/Jun/2025:10:42:40] "GET /api/users/17/" 200 662
+127.0.0.1:64068 - - [13/Jun/2025:10:42:40] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+127.0.0.1:64498 - - [13/Jun/2025:10:42:40] "WSCONNECT /ws/chat/" - -
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64246 - - [13/Jun/2025:10:42:40] "GET /api/users/17/" 200 662
+127.0.0.1:64500 - - [13/Jun/2025:10:42:40] "WSCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+127.0.0.1:64524 - - [13/Jun/2025:10:42:40] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:40] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64246 - - [13/Jun/2025:10:42:40] "GET /api/users/17/" 200 662
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64068 - - [13/Jun/2025:10:42:41] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64524 - - [13/Jun/2025:10:42:41] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64535 - - [13/Jun/2025:10:42:41] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:41] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64535 - - [13/Jun/2025:10:42:41] "WSCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+127.0.0.1:64540 - - [13/Jun/2025:10:42:41] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:41] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64068 - - [13/Jun/2025:10:42:41] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64068 - - [13/Jun/2025:10:42:42] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64540 - - [13/Jun/2025:10:42:42] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64550 - - [13/Jun/2025:10:42:43] "WSCONNECTING /ws/chat/" - -
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64550 - - [13/Jun/2025:10:42:43] "WSCONNECT /ws/chat/" - -
+127.0.0.1:64550 - - [13/Jun/2025:10:42:43] "WSDISCONNECT /ws/chat/" - -
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1001)
+127.0.0.1:64567 - - [13/Jun/2025:10:42:46] "WSCONNECTING /ws/presence/" - -
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64567 - - [13/Jun/2025:10:42:46] "WSCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64567 - - [13/Jun/2025:10:42:46] "WSDISCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as OFFLINE
+Database operation: Setting user 17 online status to False
+127.0.0.1:64576 - - [13/Jun/2025:10:42:47] "WSCONNECTING /ws/chat/" - -
+SUCCESS: Successfully set user 17 online status to False
+127.0.0.1:64581 - - [13/Jun/2025:10:42:47] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64576 - - [13/Jun/2025:10:42:47] "WSDISCONNECT /ws/chat/" - -
+127.0.0.1:64583 - - [13/Jun/2025:10:42:47] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64581 - - [13/Jun/2025:10:42:47] "WSDISCONNECT /ws/chat/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:47] "GET /api/users/team/?search=&page=1&page_size=10" 200 3002
+127.0.0.1:64583 - - [13/Jun/2025:10:42:47] "WSDISCONNECT /ws/chat/" - -
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+DISCONNECT: Chat WebSocket disconnected - User: daniellebishop (Code: 1006)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+127.0.0.1:64590 - - [13/Jun/2025:10:42:50] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64590 - - [13/Jun/2025:10:42:50] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64500 - - [13/Jun/2025:10:42:50] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64524 - - [13/Jun/2025:10:42:50] "WSDISCONNECT /ws/chat/" - -
+Setting user joshsalvacion (ID: 17) as OFFLINE
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1001)Database operation: Setting user 17 online status to False
+
+SUCCESS: Successfully set user 17 online status to False
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+Setting user joshsalvacion (ID: 17) as ONLINE
+Database operation: Setting user 17 online status to True
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+Setting user joshsalvacion (ID: 17) as OFFLINE
+Database operation: Setting user 17 online status to False
+SUCCESS: Successfully set user 17 online status to False
+127.0.0.1:64605 - - [13/Jun/2025:10:42:51] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64607 - - [13/Jun/2025:10:42:51] "WSCONNECTING /ws/presence/" - -
+127.0.0.1:64605 - - [13/Jun/2025:10:42:51] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64612 - - [13/Jun/2025:10:42:51] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64612 - - [13/Jun/2025:10:42:51] "WSDISCONNECT /ws/chat/" - -
+127.0.0.1:64068 - - [13/Jun/2025:10:42:51] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:42:52] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64068 - - [13/Jun/2025:10:42:52] "GET /api/users/17/" 200 662
+127.0.0.1:64607 - - [13/Jun/2025:10:42:52] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64625 - - [13/Jun/2025:10:42:52] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64625 - - [13/Jun/2025:10:42:52] "WSDISCONNECT /ws/chat/" - -
+127.0.0.1:64627 - - [13/Jun/2025:10:42:52] "WSCONNECTING /ws/presence/" - -
+WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: daniellebishop (ID: 37)
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+Setting user daniellebishop (ID: 37) as ONLINE
+Setting user joshsalvacion (ID: 17) as ONLINE
+127.0.0.1:64246 - - [13/Jun/2025:10:42:52] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+127.0.0.1:64246 - - [13/Jun/2025:10:42:52] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+Database operation: Setting user 37 online status to True
+Chat WebSocket connection attempt - User: daniellebishop (admin), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: daniellebishop (ID: 37)
+SUCCESS: Successfully set user 37 online status to True
+Database operation: Setting user 17 online status to True
+SUCCESS: Set online result: True
+127.0.0.1:64246 - - [13/Jun/2025:10:42:52] "GET /api/users/patients/?search=&provider=&page=1&page_size=10" 200 3460
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: daniellebishop (Code: 1006)
+127.0.0.1:64627 - - [13/Jun/2025:10:42:52] "WSCONNECT /ws/presence/" - -
+Setting user joshsalvacion (ID: 17) as ONLINE
+127.0.0.1:64636 - - [13/Jun/2025:10:42:52] "WSCONNECTING /ws/chat/" - -
+Database operation: Setting user 17 online status to True
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+SUCCESS: Successfully set user 17 online status to True
+SUCCESS: Set online result: True
+Setting user daniellebishop (ID: 37) as OFFLINE
+Database operation: Setting user 37 online status to False
+SUCCESS: Successfully set user 37 online status to False
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+127.0.0.1:64636 - - [13/Jun/2025:10:42:53] "WSCONNECT /ws/chat/" - -
+Setting user joshsalvacion (ID: 17) as OFFLINE
+Database operation: Setting user 17 online status to False
+SUCCESS: Successfully set user 17 online status to False
+127.0.0.1:64654 - - [13/Jun/2025:10:42:55] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64654 - - [13/Jun/2025:10:42:55] "WSDISCONNECT /ws/chat/" - -
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+127.0.0.1:64676 - - [13/Jun/2025:10:43:00] "WSCONNECTING /ws/chat/" - -
+127.0.0.1:64676 - - [13/Jun/2025:10:43:00] "WSDISCONNECT /ws/chat/" - -
+Chat WebSocket connection attempt - User: joshsalvacion (registrar), Type: <class 'users.models.CustomUser'>
+SUCCESS: Chat WebSocket connection accepted - User: joshsalvacion (ID: 17)
+DISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1006)
+127.0.0.1:64488 - - [13/Jun/2025:10:43:10] "GET /api/users/37/" 200 671
+127.0.0.1:64246 - - [13/Jun/2025:10:43:10] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:43:21] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:43:40] "GET /api/users/17/" 200 662
+127.0.0.1:64488 - - [13/Jun/2025:10:43:40] "GET /api/users/37/" 200 671
+127.0.0.1:64246 - - [13/Jun/2025:10:43:51] "GET /api/users/17/" 200 662
+127.0.0.1:64488 - - [13/Jun/2025:10:44:10] "GET /api/users/37/" 200 671
+127.0.0.1:64246 - - [13/Jun/2025:10:44:10] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:44:22] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:44:40] "GET /api/users/17/" 200 662
+127.0.0.1:64488 - - [13/Jun/2025:10:44:40] "GET /api/users/37/" 200 671
+127.0.0.1:64488 - - [13/Jun/2025:10:44:48] "GET /api/users/37/" 200 671
+127.0.0.1:64246 - - [13/Jun/2025:10:44:52] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:45:10] "GET /api/users/17/" 200 662
+127.0.0.1:64488 - - [13/Jun/2025:10:45:10] "GET /api/users/37/" 200 671
+127.0.0.1:64246 - - [13/Jun/2025:10:45:22] "GET /api/users/17/" 200 662
+127.0.0.1:64488 - - [13/Jun/2025:10:45:40] "GET /api/users/37/" 200 671
+127.0.0.1:64246 - - [13/Jun/2025:10:45:40] "GET /api/users/17/" 200 662
+127.0.0.1:64246 - - [13/Jun/2025:10:45:52] "GET /api/users/17/" 200 662
+127.0.0.1:65045 - - [13/Jun/2025:10:46:58] "GET /api/users/37/" 200 671
+127.0.0.1:65045 - - [13/Jun/2025:10:47:08] "GET /api/users/37/" 200 671
+127.0.0.1:65052 - - [13/Jun/2025:10:47:08] "GET /api/users/17/" 200 662
+127.0.0.1:65052 - - [13/Jun/2025:10:47:08] "GET /api/users/17/" 200 662
+127.0.0.1:65045 - - [13/Jun/2025:10:48:08] "GET /api/users/37/" 200 671
+127.0.0.1:65052 - - [13/Jun/2025:10:48:08] "GET /api/users/17/" 200 662
+127.0.0.1:65052 - - [13/Jun/2025:10:48:08] "GET /api/users/17/" 200 662
+127.0.0.1:65045 - - [13/Jun/2025:10:48:58] "GET /api/users/37/" 200 671
+127.0.0.1:65045 - - [13/Jun/2025:10:49:08] "GET /api/users/37/" 200 671
+127.0.0.1:65052 - - [13/Jun/2025:10:49:08] "GET /api/users/17/" 200 662
+127.0.0.1:65052 - - [13/Jun/2025:10:49:08] "GET /api/users/17/" 200 662
+127.0.0.1:65045 - - [13/Jun/2025:10:50:08] "GET /api/users/37/" 200 671
+127.0.0.1:65052 - - [13/Jun/2025:10:50:08] "GET /api/users/17/" 200 662
+127.0.0.1:65052 - - [13/Jun/2025:10:50:08] "GET /api/users/17/" 200 662
+127.0.0.1:65052 - - [13/Jun/2025:10:50:52] "GET /api/users/17/" 200 662
+127.0.0.1:65052 - - [13/Jun/2025:10:50:54] "GET /api/users/team/?search=&page=1&page_size=10" 200 3003
+127.0.0.1:65045 - - [13/Jun/2025:10:51:02] "GET /api/users/37/" 200 671
+127.0.0.1:64492 - - [13/Jun/2025:10:51:06] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64498 - - [13/Jun/2025:10:51:06] "WSDISCONNECT /ws/chat/" - -
+Setting user daniellebishop (ID: 37) as OFFLINE
+Database operation: Setting user 37 online status to FalseDISCONNECT: Chat WebSocket disconnected - User: daniellebishop (Code: 1001)
+
+SUCCESS: Successfully set user 37 online status to False
+127.0.0.1:65052 - - [13/Jun/2025:10:51:06] "GET /api/users/17/" 200 662
+127.0.0.1:64535 - - [13/Jun/2025:10:51:09] "WSDISCONNECT /ws/presence/" - -
+127.0.0.1:64540 - - [13/Jun/2025:10:51:09] "WSDISCONNECT /ws/chat/" - -
+Setting user joshsalvacion (ID: 17) as OFFLINE
+Database operation: Setting user 17 online status to FalseDISCONNECT: Chat WebSocket disconnected - User: joshsalvacion (Code: 1001)
+
+SUCCESS: Successfully set user 17 online status to False
