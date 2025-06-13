@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',                      # Add channels
     'django_rest_passwordreset',    # Third-party
     'rest_framework',
     'rest_framework_simplejwt',
@@ -71,6 +72,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'poehr_scheduling_backend.wsgi.application'
 
+# Django ASGI application
+ASGI_APPLICATION = 'poehr_scheduling_backend.asgi.application'
+
 # Database
 DATABASES = {
     'default': {
@@ -81,6 +85,16 @@ DATABASES = {
         'HOST': 'localhost',
         'PORT': '5432',
     }
+}
+
+# Channel Layer Configuration (Redis)
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
 }
 
 # Password validation
