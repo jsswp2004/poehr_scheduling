@@ -108,8 +108,7 @@ const useOnlineStatus = () => {
     getUserOnlineStatus,
     getOnlineUsersList,
     getOnlineUsersCount,
-    refreshOnlineUsers,
-    websocketConnection: { isConnected: wsConnected, sendMessage }
+    refreshOnlineUsers
   };
 };
 
