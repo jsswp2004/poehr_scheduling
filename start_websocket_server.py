@@ -14,10 +14,10 @@ if __name__ == '__main__':
     django.setup()      # Import and start Daphne
     from daphne.cli import CommandLineInterface
     print("Starting Django with WebSocket support...")
-    print("WebSocket endpoint: ws://localhost:8000/ws/presence/")
+    print("WebSocket endpoint: ws://localhost:8001/ws/presence/")
     print("HTTP endpoint: http://localhost:8000/")
     print("")
     
     # Start Daphne with our ASGI application
     cli = CommandLineInterface()
-    cli.run(['-p', '8000', 'poehr_scheduling_backend.asgi:application'])
+    cli.run(['-p', '8001', 'poehr_scheduling_backend.asgi:application'])

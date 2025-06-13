@@ -31,6 +31,7 @@ import ChatConnectionStatus from './ChatConnectionStatus';
 
 const ChatModal = ({ 
   open, 
+  fallbackOpen = false, // fallback prop
   onClose, 
   chatPartner, 
   currentUser,
@@ -40,7 +41,7 @@ const ChatModal = ({
   isLoading = false,
   connectionStatus = 'disconnected',
   operationStatus = null,
-  lastError = null,
+  chatError = null,
   onRetryConnection = null
 }) => {
   const [messageText, setMessageText] = useState('');
@@ -144,9 +145,12 @@ const ChatModal = ({
       .slice(0, 2);
   };
 
+  // Use fallbackOpen if open is false but fallbackOpen is true
+  const effectiveOpen = open || fallbackOpen;
+
   return (
     <Dialog
-      open={open}
+      open={effectiveOpen}
       onClose={onClose}
       maxWidth="sm"
       fullWidth
@@ -158,6 +162,13 @@ const ChatModal = ({
         }
       }}
     >
+      {/* Show error if chat history failed to load */}
+      {chatError && (
+        <Alert severity="error" sx={{ m: 2 }}>
+          {typeof chatError === 'string' ? chatError : 'Failed to load chat history.'}
+        </Alert>
+      )}
+      
       {/* Header */}
       <DialogTitle
         sx={{
@@ -188,7 +199,7 @@ const ChatModal = ({
           <ChatConnectionStatus 
             connectionStatus={connectionStatus}
             operationStatus={operationStatus}
-            lastError={lastError}
+            chatError={chatError}
             onRetry={onRetryConnection}
             compact={true}
           />
@@ -207,7 +218,7 @@ const ChatModal = ({
         }}
       >
         {/* Error Alert */}
-        {lastError && connectionStatus !== 'connected' && (
+        {chatError && connectionStatus !== 'connected' && (
           <Alert 
             severity="error" 
             sx={{ m: 1 }}
@@ -219,7 +230,7 @@ const ChatModal = ({
               )
             }
           >
-            {lastError}
+            {chatError}
           </Alert>
         )}
         

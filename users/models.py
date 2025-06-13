@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser  # Import AbstractUser
+from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils import timezone
 
@@ -87,6 +87,15 @@ class CustomUser(AbstractUser):
         self.save(update_fields=['is_online', 'last_seen'])
 
 
+class OnlineUser(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, primary_key=True, related_name='online_status_record')
+    is_online = models.BooleanField(default=False)
+    last_seen = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.user.username} is {'online' if self.is_online else 'offline'}"
+
+
 class Patient(models.Model):
     user = models.OneToOneField('CustomUser', on_delete=models.CASCADE, related_name='patient_profile')  # Use CustomUser instead of User
     date_of_birth = models.DateField(null=True, blank=True)
@@ -115,6 +124,30 @@ class Organization(models.Model):
 
 
 # ✅ Phase 2: Real-time Chat Models
+class ChatRoomManager(models.Manager):
+    def get_or_create_direct_room_for_participants(self, participants):
+        """
+        Get or create a direct chat room for exactly two participants.
+        Returns (room, created)
+        """
+        if len(participants) != 2:
+            raise ValueError("Direct chat rooms require exactly two participants.")
+        # Sort by id for consistency
+        participants = sorted(participants, key=lambda u: u.id)
+        # Try to find an existing direct room with exactly these two participants
+        rooms = self.filter(room_type='direct', participants=participants[0])
+        for room in rooms:
+            if room.participants.count() == 2 and all(p in room.participants.all() for p in participants):
+                return room, False
+        # No such room, create one
+        room = self.create(
+            name=f"Direct: {participants[0].username}, {participants[1].username}",
+            room_type='direct'
+        )
+        room.participants.set(participants)
+        room.save()
+        return room, True
+
 class ChatRoom(models.Model):
     """Chat room for team communication"""
     ROOM_TYPE_CHOICES = [
@@ -128,6 +161,8 @@ class ChatRoom(models.Model):
     participants = models.ManyToManyField(CustomUser, related_name='chat_rooms', help_text='Users participating in this chat room')
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
+    
+    objects = ChatRoomManager()
     
     class Meta:
         verbose_name = 'Chat Room'

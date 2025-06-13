@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const useWebSocket = (url, options = {}) => {
-  console.log('🔌 useWebSocket called with URL:', url);
+  console.log('🟢 [useWebSocket] hook called with url:', url);
   
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
@@ -17,26 +17,36 @@ const useWebSocket = (url, options = {}) => {
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
-    const maxReconnectAttempts = options.maxReconnectAttempts || 5;
+  
+  const maxReconnectAttempts = options.maxReconnectAttempts || 5;
   const reconnectInterval = options.reconnectInterval || 3000;
 
-  const connectRef = useRef();
-  const disconnectRef = useRef();
-  const connect = useCallback(() => {
-    if (!url) {
-      console.log('🚫 WebSocket URL is null, skipping connection');
-      return;
+  // Forward declaration for connect to be used in scheduleReconnect
+  const connectRef = useRef(null);
+
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+      reconnectAttemptsRef.current++;
+      console.log(`Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+      reconnectTimeoutRef.current = setTimeout(() => {
+        if (connectRef.current) {
+         connectRef.current(); // Use the ref to call the latest connect function
+        }
+      }, reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1)); // Exponential backoff
+    } else {
+      console.error('Max reconnect attempts reached.');
+      setError(new Error('Max reconnect attempts reached.'));
     }
-    
+  }, [maxReconnectAttempts, reconnectInterval]); // connectRef is stable, no need to add to deps
+
+  const connect = useCallback(() => {
+    console.log('🟢 [useWebSocket] connect() called with url:', url);
     try {
-      // Try multiple token sources for compatibility
       const token = localStorage.getItem('token') || localStorage.getItem('access_token');
       const wsUrl = token ? `${url}?token=${token}` : url;
-      
-      console.log(`🔗 Attempting WebSocket connection to: ${wsUrl}`);
-      console.log(`🔐 Token: ${token ? 'Present' : 'Missing'}`);
-      
+      console.log('🟢 [useWebSocket] Creating new WebSocket with wsUrl:', wsUrl);
       const ws = new WebSocket(wsUrl);
+      setSocket(ws);
       
       ws.onopen = () => {
         console.log('✅ WebSocket connected');
@@ -44,7 +54,9 @@ const useWebSocket = (url, options = {}) => {
         setError(null);
         reconnectAttemptsRef.current = 0;
         
-        // Start heartbeat
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current);
+        }
         heartbeatIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
@@ -52,9 +64,8 @@ const useWebSocket = (url, options = {}) => {
               timestamp: new Date().toISOString()
             }));
           }
-        }, 30000); // Send heartbeat every 30 seconds
+        }, 30000);
         
-        // Call onOpen callback if provided
         if (optionsRef.current.onOpen) {
           optionsRef.current.onOpen();
         }
@@ -62,150 +73,128 @@ const useWebSocket = (url, options = {}) => {
       
       ws.onmessage = (event) => {
         try {
+          console.log('WebSocket message received (raw):', event.data);
           const data = JSON.parse(event.data);
           setLastMessage(data);
-          
-          // Call onMessage callback if provided
           if (optionsRef.current.onMessage) {
             optionsRef.current.onMessage(data);
           }
-        } catch (err) {
-          console.error('❌ Error parsing WebSocket message:', err);
+        } catch (e) {
+          console.error('Error parsing WebSocket message:', e);
+          setError(e);
         }
       };
       
-      ws.onclose = (event) => {
-        console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+      ws.onerror = (event) => {
+        console.error('❌ WebSocket error event:', event);
+        console.error('❌ WebSocket error object:', JSON.stringify(event, Object.getOwnPropertyNames(event)));
+        setError(event);
         setIsConnected(false);
-        
-        // Clear heartbeat interval
+        if (optionsRef.current.onError) {
+          optionsRef.current.onError(event);
+        }
+        scheduleReconnect(); // scheduleReconnect is now in scope
+      };
+      
+      ws.onclose = (event) => {
+        console.log(`🔌 WebSocket disconnected. Code: ${event.code}, Reason: "${event.reason}", Was Clean: ${event.wasClean}`);
+        setIsConnected(false);
+        // Do not set socket to null here immediately if reconnecting, 
+        // setSocket(null) will be called by connect if a new one is made or if disconnect() is called.
+
         if (heartbeatIntervalRef.current) {
           clearInterval(heartbeatIntervalRef.current);
           heartbeatIntervalRef.current = null;
         }
         
-        // Attempt to reconnect if not a manual close
-        if (event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
-          reconnectAttemptsRef.current++;
-          console.log(`🔄 Attempting to reconnect... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectRef.current();
-          }, reconnectInterval);
+        // Only schedule reconnect if it wasn't a clean close (code 1000)
+        // and not a manual disconnect where socket would be nullified by disconnect()
+        if (event.code !== 1000 && event.code !== 1005 /* No Status Rcvd, often implies manual close by client */) {
+          scheduleReconnect();
         }
         
-        // Call onClose callback if provided
         if (optionsRef.current.onClose) {
           optionsRef.current.onClose(event);
         }
       };
-      
-      ws.onerror = (errorEvent) => {
-        console.error('❌ WebSocket error:', errorEvent);
-        // Don't set error state immediately to avoid render loops
-        // Only set error if it's a real connection issue
-        
-        // Call onError callback if provided
-        if (optionsRef.current.onError) {
-          optionsRef.current.onError(errorEvent);
-        }
-      };
-      
-      setSocket(ws);
     } catch (err) {
       console.error('❌ Failed to create WebSocket connection:', err);
       setError(err);
+      // If connection fails to even be created, schedule a reconnect.
+      scheduleReconnect();
     }
-  }, [url, maxReconnectAttempts, reconnectInterval]);
+  }, [url, scheduleReconnect, maxReconnectAttempts, reconnectInterval]); // Added scheduleReconnect and its deps
+
+  // Assign the connect function to the ref *after* connect is defined.
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   const disconnect = useCallback(() => {
-    if (socket) {
-      socket.close(1000, 'Manual disconnect');
-    }
-    
-    // Clear timeouts and intervals
+    console.log('Manual disconnect called');
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
     if (heartbeatIntervalRef.current) {
       clearInterval(heartbeatIntervalRef.current);
       heartbeatIntervalRef.current = null;
     }
-    
-    setSocket(null);
-    setIsConnected(false);
-  }, [socket]);
-
-  // Update refs
-  connectRef.current = connect;
-  disconnectRef.current = disconnect;
+    if (socket) {
+      // Set a flag or remove listeners before closing to prevent auto-reconnect on manual close
+      socket.onclose = () => { // Override onclose to prevent reconnect for manual disconnect
+         console.log('🔌 WebSocket manually disconnected.');
+         setIsConnected(false);
+         setSocket(null); 
+         if (optionsRef.current.onClose) {
+          optionsRef.current.onClose({code: 1000, reason: 'Manual disconnect', wasClean: true});
+        }
+      };
+      socket.close(1000, 'Manual disconnect');
+    } else {
+        // If socket is already null, ensure states are reset
+        setIsConnected(false);
+        setSocket(null);
+    }
+    reconnectAttemptsRef.current = maxReconnectAttempts +1; // Prevent auto-reconnect after manual disconnect
+  }, [socket, maxReconnectAttempts]);
 
   const sendMessage = useCallback((message) => {
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(message));
       return true;
     } else {
-      console.warn('⚠️ WebSocket not connected, cannot send message');
+      console.warn('⚠️ WebSocket not connected, cannot send message:', message);
       return false;
     }
-  }, [socket]);  // Connect on mount only
+  }, [socket]);
+
   useEffect(() => {
-    console.log('🚀 useWebSocket: Initial connection effect triggered, URL:', url);
-    if (!url) {
-      console.log('🚫 URL is null, skipping connection');
-      return;
-    }
-    if (connectRef.current) {
-      console.log('🔌 Calling connectRef.current()');
-      connectRef.current();
-    } else {
-      console.error('❌ connectRef.current is not defined!');
-    }
+    connect(); // Initial connection attempt
     
     return () => {
-      console.log('🧹 useWebSocket: Cleanup on unmount');
-      if (disconnectRef.current) {
-        disconnectRef.current();
-      }
-    };
-  }, []); // Empty dependency array - only run on mount/unmount
-
-  // Handle URL changes
-  useEffect(() => {
-    if (socket) {
-      disconnectRef.current();
-      // Small delay to ensure cleanup, then reconnect
-      const timer = setTimeout(() => {
-        connectRef.current();
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [url, socket]); // Only reconnect when URL changes
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
+      // Cleanup on unmount
+      console.log('useWebSocket unmounting, cleaning up...');
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
       }
       if (heartbeatIntervalRef.current) {
         clearInterval(heartbeatIntervalRef.current);
       }
+      if (socket) {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null; // Prevent any onclose logic during forced close on unmount
+        socket.close(1000, 'Component unmounting');
+      }
+      setSocket(null);
+      setIsConnected(false);
     };
-  }, []);
+  }, [connect]); // Rerun connect if the connect function itself changes (e.g. URL change)
 
-  return {
-    socket,
-    isConnected,
-    lastMessage,
-    error,
-    sendMessage,
-    connect,
-    disconnect
-  };
+  // Expose socket, isConnected, lastMessage, error, sendMessage, and manual connect/disconnect
+  return { socket, isConnected, lastMessage, error, sendMessage, connect, disconnect };
 };
 
 export default useWebSocket;
