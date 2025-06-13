@@ -102,15 +102,14 @@ const useOnlineStatus = () => {
   // Update connection status based on WebSocket state
   useEffect(() => {
     setIsConnected(wsConnected);
-  }, [wsConnected]);
-
-  return {
+  }, [wsConnected]);  return {
     onlineUsers,
     isConnected,
     getUserOnlineStatus,
     getOnlineUsersList,
     getOnlineUsersCount,
-    refreshOnlineUsers
+    refreshOnlineUsers,
+    websocketConnection: { isConnected: wsConnected, sendMessage }
   };
 };
 

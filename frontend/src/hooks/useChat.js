@@ -1,17 +1,22 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useWebSocket from './useWebSocket';
 
-const useChat = (currentUser) => {
+const useChat = (currentUser, websocketConnection = null) => {
   const [chatRooms, setChatRooms] = useState({});
   const [activeRoom, setActiveRoom] = useState(null);
   const [typingUsers, setTypingUsers] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const typingTimeouts = useRef({});  // WebSocket connection for chat
-  const { isConnected, sendMessage } = useWebSocket(
-    'ws://localhost:8000/ws/chat/',
-    {
+  const typingTimeouts = useRef({});  console.log('🚀 useChat hook initializing with currentUser:', currentUser);
+  console.log('🔍 useChat received websocketConnection:', websocketConnection);
+  
+  // Always call useWebSocket hook, but conditionally connect
+  const shouldCreateOwnConnection = !websocketConnection;
+  console.log('🔍 shouldCreateOwnConnection:', shouldCreateOwnConnection);
+  const ownWebSocket = useWebSocket(
+    shouldCreateOwnConnection ? 'ws://localhost:8000/ws/presence/' : null,
+    shouldCreateOwnConnection ? {
       onOpen: () => {
-        console.log('✅ Connected to chat WebSocket on port 8000');
+        console.log('✅ Connected to chat WebSocket via presence endpoint');
       },
       onMessage: (data) => {
         handleWebSocketMessage(data);
@@ -19,12 +24,16 @@ const useChat = (currentUser) => {
       onError: (error) => {
         console.error('❌ Chat WebSocket error:', error);
       },
-      onClose: () => {
-        console.log('🔌 Chat WebSocket disconnected');
+      onClose: (event) => {
+        console.log('🔌 Chat WebSocket disconnected:', event.code, event.reason);
       }
-    }
+    } : {}
   );
-
+    // Use either provided connection or own connection
+  const { isConnected, sendMessage } = websocketConnection || ownWebSocket;
+  console.log('🔍 Final connection state in useChat:', { isConnected, sendMessage: !!sendMessage, websocketConnection, ownWebSocket });
+  
+  console.log('🔍 Chat WebSocket hook result:', { isConnected, sendMessage: !!sendMessage });
   // Debug connection status
   useEffect(() => {
     console.log('🔍 Chat WebSocket connection status:', isConnected);
@@ -33,7 +42,7 @@ const useChat = (currentUser) => {
   // Debug current user
   useEffect(() => {
     console.log('👤 Current user in chat:', currentUser);
-  }, [currentUser]);  const handleWebSocketMessage = useCallback((data) => {
+  }, [currentUser]);const handleWebSocketMessage = useCallback((data) => {
     console.log('🔔 WebSocket message received:', data);
     
     switch (data.type) {
@@ -58,7 +67,7 @@ const useChat = (currentUser) => {
         handleChatHistory(data);
         break;
       case 'chat_room_created':
-        console.log('🏠 Room created:', data.room);
+        console.log('🏠 Room created response received:', data.room);
         setOperationStatus(null); // Clear creating room state
         handleChatRoomCreated(data.room);
         break;
@@ -67,9 +76,15 @@ const useChat = (currentUser) => {
         handleMessageSent(data.message);
         break;
       case 'error':
-        console.error('❌ WebSocket error:', data.error || data.message);
+        console.error('❌ WebSocket error received:', data.error || data.message);
         setLastError(data.error || data.message);
         setOperationStatus(null); // Clear any pending operation
+        // Also reject pending room creation if exists
+        if (window._pendingRoomCreation) {
+          clearTimeout(window._pendingRoomCreation.timeout);
+          window._pendingRoomCreation.reject(new Error(data.error || data.message));
+          delete window._pendingRoomCreation;
+        }
         break;
       default:
         console.log('❓ Unknown message type:', data.type, data);
@@ -322,18 +337,40 @@ const useChat = (currentUser) => {
       limit: limit
     });
   }, [isConnected, sendMessage]);
-
   const createChatRoom = useCallback((participantIds, roomName = '', roomType = 'direct') => {
-    if (!isConnected) return;
+    console.log('🏠 createChatRoom called with:', { participantIds, roomName, roomType, isConnected });
+    
+    if (!isConnected) {
+      console.error('❌ Cannot create chat room: WebSocket not connected');
+      return;
+    }
 
-    sendMessage({
+    const message = {
       type: 'create_chat_room',
       participant_ids: participantIds,
       room_name: roomName,
       room_type: roomType
-    });
-  }, [isConnected, sendMessage]);  const createDirectMessage = useCallback(async (userId, userName) => {
+    };
+    
+    console.log('📤 Sending WebSocket message:', message);
+    const sent = sendMessage(message);
+    console.log('📡 Message sent successfully:', sent);
+  }, [isConnected, sendMessage]);const createDirectMessage = useCallback(async (userId, userName) => {
     console.log('🚀 Creating direct message with:', { userId, userName });
+    console.log('🔍 Connection state:', { isConnected, currentUser });
+    
+    if (!isConnected) {
+      console.error('❌ WebSocket not connected, cannot create chat room');
+      setLastError('Chat system not connected. Please wait a moment and try again.');
+      return null;
+    }
+    
+    if (!currentUser) {
+      console.error('❌ No current user, cannot create chat room');
+      setLastError('User not logged in properly.');
+      return null;
+    }
+    
     setOperationStatus('creating_room');
     
     try {
@@ -349,13 +386,12 @@ const useChat = (currentUser) => {
         loadChatHistory(existingRoom.id);
         setOperationStatus(null);
         return existingRoom.id;
-      }
-
-      // Create new direct message room
+      }      // Create new direct message room
       console.log('🆕 Creating new direct message room');
       return new Promise((resolve, reject) => {
         // Store resolve function to call when room is created
         const roomCreationTimeout = setTimeout(() => {
+          console.error('⏰ Room creation timed out after 10 seconds');
           setOperationStatus(null);
           setLastError('Room creation timed out. Please try again.');
           reject(new Error('Room creation timeout'));
@@ -364,7 +400,12 @@ const useChat = (currentUser) => {
         // Temporarily store the resolve function
         window._pendingRoomCreation = { resolve, reject, timeout: roomCreationTimeout };
         
+        console.log('📡 Sending create_chat_room message to WebSocket...');
+        console.log('📋 Participants:', [currentUser?.id, userId]);
+        console.log('📋 Room name:', `${currentUser?.first_name || 'You'} & ${userName}`);
+        
         createChatRoom([currentUser?.id, userId], `${currentUser?.first_name || 'You'} & ${userName}`, 'direct');
+        console.log('✅ create_chat_room message sent, waiting for response...');
       });
     } catch (error) {
       setOperationStatus(null);

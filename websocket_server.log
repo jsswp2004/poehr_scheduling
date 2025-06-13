@@ -1,0 +1,9 @@
+nohup: ignoring input
+Starting Django with WebSocket support...
+WebSocket endpoint: ws://localhost:8000/ws/presence/
+HTTP endpoint: http://localhost:8000/
+
+2025-06-13 13:10:39,227 INFO     Starting server at tcp:port=8000:interface=127.0.0.1
+2025-06-13 13:10:39,228 INFO     HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+2025-06-13 13:10:39,228 INFO     Configuring endpoint tcp:port=8000:interface=127.0.0.1
+2025-06-13 13:10:39,228 CRITICAL Listen failure: Couldn't listen on 127.0.0.1:8000: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted.

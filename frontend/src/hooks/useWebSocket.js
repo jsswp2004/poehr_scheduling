@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const useWebSocket = (url, options = {}) => {
+  console.log('🔌 useWebSocket called with URL:', url);
+  
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [lastMessage, setLastMessage] = useState(null);
@@ -15,10 +17,17 @@ const useWebSocket = (url, options = {}) => {
   useEffect(() => {
     optionsRef.current = options;
   }, [options]);
-  
-  const maxReconnectAttempts = options.maxReconnectAttempts || 5;
-  const reconnectInterval = options.reconnectInterval || 3000;  const connectRef = useRef();
-  const disconnectRef = useRef();  const connect = useCallback(() => {
+    const maxReconnectAttempts = options.maxReconnectAttempts || 5;
+  const reconnectInterval = options.reconnectInterval || 3000;
+
+  const connectRef = useRef();
+  const disconnectRef = useRef();
+  const connect = useCallback(() => {
+    if (!url) {
+      console.log('🚫 WebSocket URL is null, skipping connection');
+      return;
+    }
+    
     try {
       // Try multiple token sources for compatibility
       const token = localStorage.getItem('token') || localStorage.getItem('access_token');
@@ -143,10 +152,23 @@ const useWebSocket = (url, options = {}) => {
     }
   }, [socket]);  // Connect on mount only
   useEffect(() => {
-    connectRef.current();
+    console.log('🚀 useWebSocket: Initial connection effect triggered, URL:', url);
+    if (!url) {
+      console.log('🚫 URL is null, skipping connection');
+      return;
+    }
+    if (connectRef.current) {
+      console.log('🔌 Calling connectRef.current()');
+      connectRef.current();
+    } else {
+      console.error('❌ connectRef.current is not defined!');
+    }
     
     return () => {
-      disconnectRef.current();
+      console.log('🧹 useWebSocket: Cleanup on unmount');
+      if (disconnectRef.current) {
+        disconnectRef.current();
+      }
     };
   }, []); // Empty dependency array - only run on mount/unmount
 
