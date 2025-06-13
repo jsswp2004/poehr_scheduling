@@ -36,6 +36,7 @@ import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import ToastDebugButton from './components/ToastDebugButton';
 import WebSocketTest from './components/WebSocketTest';
+import ChatTestPage from './pages/ChatTestPage';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
 
 function AppContent() {
@@ -94,9 +95,9 @@ function AppContent() {
         <Route path="/holidays" element={<PrivateRoute><HolidaysTab /></PrivateRoute>} />
         <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
-        <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />
-        <Route path="/toast-test" element={<ToastTestPage />} />
+        <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />        <Route path="/toast-test" element={<ToastTestPage />} />
         <Route path="/websocket-test" element={<WebSocketTest />} />
+        <Route path="/chat-test" element={<ChatTestPage />} />
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
       </Routes>
     </>

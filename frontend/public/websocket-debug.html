@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Debug Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .status {
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 3px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            margin: 5px;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .connect { background-color: #28a745; color: white; }
+        .disconnect { background-color: #dc3545; color: white; }
+        .send { background-color: #007bff; color: white; }
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Debug Tool</h1>
+    
+    <div class="section">
+        <h3>Authentication</h3>
+        <label>JWT Token:</label><br>
+        <input type="text" id="tokenInput" placeholder="Enter JWT token or leave empty for anonymous" style="width: 100%; padding: 5px;">
+        <div id="tokenStatus" class="status info">Token status: Not set</div>
+    </div>
+
+    <div class="section">
+        <h3>Presence WebSocket</h3>
+        <button class="connect" onclick="connectPresence()">Connect Presence</button>
+        <button class="disconnect" onclick="disconnectPresence()">Disconnect Presence</button>
+        <button class="send" onclick="sendPresenceMessage()">Send Test Message</button>
+        <div id="presenceStatus" class="status info">Status: Disconnected</div>
+        <textarea id="presenceLog" readonly placeholder="Presence WebSocket logs will appear here..."></textarea>
+    </div>
+
+    <div class="section">
+        <h3>Chat WebSocket</h3>
+        <button class="connect" onclick="connectChat()">Connect Chat</button>
+        <button class="disconnect" onclick="disconnectChat()">Disconnect Chat</button>
+        <button class="send" onclick="sendChatMessage()">Send Test Message</button>
+        <div id="chatStatus" class="status info">Status: Disconnected</div>
+        <textarea id="chatLog" readonly placeholder="Chat WebSocket logs will appear here..."></textarea>
+    </div>
+
+    <div class="section">
+        <h3>Local Storage Debug</h3>
+        <button onclick="checkStorage()">Check Local Storage</button>
+        <button onclick="clearStorage()">Clear All Storage</button>
+        <div id="storageInfo"></div>
+    </div>
+
+    <script>
+        let presenceWs = null;
+        let chatWs = null;
+
+        function log(elementId, message) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            element.value += `[${timestamp}] ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+        }
+
+        function updateStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        function getToken() {
+            const tokenInput = document.getElementById('tokenInput').value.trim();
+            if (tokenInput) {
+                updateStatus('tokenStatus', 'Using provided token', 'info');
+                return tokenInput;
+            }
+            
+            // Try to get from localStorage like the React app does
+            const storedToken = localStorage.getItem('token') || localStorage.getItem('access_token');
+            if (storedToken) {
+                updateStatus('tokenStatus', 'Using token from localStorage', 'success');
+                return storedToken;
+            }
+            
+            updateStatus('tokenStatus', 'No token available (anonymous)', 'error');
+            return null;
+        }
+
+        function connectPresence() {
+            if (presenceWs) {
+                log('presenceLog', 'Already connected to presence WebSocket');
+                return;
+            }
+
+            const token = getToken();
+            const url = token ? `ws://127.0.0.1:8000/ws/presence/?token=${token}` : 'ws://127.0.0.1:8000/ws/presence/';
+            
+            log('presenceLog', `Connecting to: ${url}`);
+            log('presenceLog', `Token: ${token ? 'Present' : 'None'}`);
+            
+            presenceWs = new WebSocket(url);
+            
+            presenceWs.onopen = () => {
+                log('presenceLog', 'Connected successfully!');
+                updateStatus('presenceStatus', 'Status: Connected', 'success');
+            };
+            
+            presenceWs.onmessage = (event) => {
+                log('presenceLog', `Received: ${event.data}`);
+            };
+            
+            presenceWs.onerror = (error) => {
+                log('presenceLog', `Error: ${error}`);
+                updateStatus('presenceStatus', 'Status: Error', 'error');
+            };
+            
+            presenceWs.onclose = (event) => {
+                log('presenceLog', `Disconnected: Code ${event.code}, Reason: ${event.reason}`);
+                updateStatus('presenceStatus', 'Status: Disconnected', 'error');
+                presenceWs = null;
+            };
+        }
+
+        function disconnectPresence() {
+            if (presenceWs) {
+                presenceWs.close();
+            }
+        }
+
+        function sendPresenceMessage() {
+            if (!presenceWs) {
+                log('presenceLog', 'Not connected to presence WebSocket');
+                return;
+            }
+            
+            const message = JSON.stringify({
+                type: 'get_online_users',
+                timestamp: new Date().toISOString()
+            });
+            
+            presenceWs.send(message);
+            log('presenceLog', `Sent: ${message}`);
+        }
+
+        function connectChat() {
+            if (chatWs) {
+                log('chatLog', 'Already connected to chat WebSocket');
+                return;
+            }
+
+            const token = getToken();
+            const url = token ? `ws://127.0.0.1:8000/ws/chat/?token=${token}` : 'ws://127.0.0.1:8000/ws/chat/';
+            
+            log('chatLog', `Connecting to: ${url}`);
+            log('chatLog', `Token: ${token ? 'Present' : 'None'}`);
+            
+            chatWs = new WebSocket(url);
+            
+            chatWs.onopen = () => {
+                log('chatLog', 'Connected successfully!');
+                updateStatus('chatStatus', 'Status: Connected', 'success');
+            };
+            
+            chatWs.onmessage = (event) => {
+                log('chatLog', `Received: ${event.data}`);
+            };
+            
+            chatWs.onerror = (error) => {
+                log('chatLog', `Error: ${error}`);
+                updateStatus('chatStatus', 'Status: Error', 'error');
+            };
+            
+            chatWs.onclose = (event) => {
+                log('chatLog', `Disconnected: Code ${event.code}, Reason: ${event.reason}`);
+                updateStatus('chatStatus', 'Status: Disconnected', 'error');
+                chatWs = null;
+            };
+        }
+
+        function disconnectChat() {
+            if (chatWs) {
+                chatWs.close();
+            }
+        }
+
+        function sendChatMessage() {
+            if (!chatWs) {
+                log('chatLog', 'Not connected to chat WebSocket');
+                return;
+            }
+            
+            const message = JSON.stringify({
+                type: 'ping',
+                message: 'Test message from debug tool',
+                timestamp: new Date().toISOString()
+            });
+            
+            chatWs.send(message);
+            log('chatLog', `Sent: ${message}`);
+        }
+
+        function checkStorage() {
+            const storageDiv = document.getElementById('storageInfo');
+            let html = '<h4>Local Storage Contents:</h4>';
+            
+            const keys = ['token', 'access_token', 'refresh_token', 'user'];
+            keys.forEach(key => {
+                const value = localStorage.getItem(key);
+                if (value) {
+                    html += `<strong>${key}:</strong> ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}<br>`;
+                } else {
+                    html += `<strong>${key}:</strong> <em>Not found</em><br>`;
+                }
+            });
+            
+            html += `<br><strong>Total localStorage keys:</strong> ${localStorage.length}`;
+            storageDiv.innerHTML = html;
+        }
+
+        function clearStorage() {
+            localStorage.clear();
+            log('presenceLog', 'Local storage cleared');
+            log('chatLog', 'Local storage cleared');
+            checkStorage();
+        }
+
+        // Auto-check storage on load
+        window.onload = () => {
+            checkStorage();
+        };
+    </script>
+</body>
+</html>
