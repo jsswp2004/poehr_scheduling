@@ -5,7 +5,7 @@ const useOnlineStatus = () => {
   const [onlineUsers, setOnlineUsers] = useState({});
   const [isConnected, setIsConnected] = useState(false);  // WebSocket connection for presence updates
   const { isConnected: wsConnected, sendMessage } = useWebSocket(
-    'ws://127.0.0.1:8005/ws/presence/',
+    'ws://localhost:8000/ws/presence/',
     {
       onOpen: () => {
         console.log('✅ Connected to presence WebSocket');

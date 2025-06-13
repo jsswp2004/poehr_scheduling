@@ -18,11 +18,11 @@ const useWebSocket = (url, options = {}) => {
   
   const maxReconnectAttempts = options.maxReconnectAttempts || 5;
   const reconnectInterval = options.reconnectInterval || 3000;  const connectRef = useRef();
-  const disconnectRef = useRef();
-  const connect = useCallback(() => {
+  const disconnectRef = useRef();  const connect = useCallback(() => {
     try {
-      const token = localStorage.getItem('access_token');
-      const wsUrl = `${url}?token=${token}`;
+      // Try multiple token sources for compatibility
+      const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+      const wsUrl = token ? `${url}?token=${token}` : url;
       
       console.log(`🔗 Attempting WebSocket connection to: ${wsUrl}`);
       console.log(`🔐 Token: ${token ? 'Present' : 'Missing'}`);

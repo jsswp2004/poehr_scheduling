@@ -995,15 +995,27 @@ function PatientsPage() {
                         <OnlineIndicator
                           user={member}
                           isOnline={getUserOnlineStatus(member.id).isOnline}
-                          lastSeen={getUserOnlineStatus(member.id).lastSeen || member.last_seen}                          onChatClick={() => {
+                          lastSeen={getUserOnlineStatus(member.id).lastSeen || member.last_seen}                          onChatClick={async () => {
+                            console.log('🎯 Chat button clicked for member:', member);
                             setSelectedChatUser(member);
-                            // Open chat with the selected user
-                            chat.openChatWithUser({
-                              id: member.id,
-                              name: member.full_name || member.username,
-                              ...member
-                            });
-                            setChatModalOpen(true);
+                            
+                            try {
+                              // Open chat with the selected user (wait for room creation)
+                              const roomId = await chat.openChatWithUser({
+                                id: member.id,
+                                name: member.full_name || member.username,
+                                ...member
+                              });
+                              
+                              if (roomId) {
+                                console.log('✅ Chat room ready, opening modal');
+                                setChatModalOpen(true);
+                              } else {
+                                console.error('❌ Failed to create/open chat room');
+                              }
+                            } catch (error) {
+                              console.error('❌ Error opening chat:', error);
+                            }
                           }}
                         />
                         
@@ -1668,22 +1680,40 @@ function PatientsPage() {
             Send
           </Button>        </DialogActions>
       </Dialog>
-        {/* ✅ Chat Modal */}
-      <ChatModal
+        {/* ✅ Chat Modal */}      <ChatModal
         open={chatModalOpen}
         onClose={() => {
           setChatModalOpen(false);
           setSelectedChatUser(null);
+          chat.clearError(); // Clear any errors when closing
         }}
         chatPartner={selectedChatUser}
-        currentUser={currentUser}        onSendMessage={(message) => {
+        currentUser={currentUser}        
+        onSendMessage={(message) => {
+          console.log('📤 ChatModal sending message:', message);
           if (selectedChatUser && chat.activeRoom) {
-            chat.sendChatMessage(chat.activeRoom, message);
+            const success = chat.sendChatMessage(chat.activeRoom, message);
+            if (!success) {
+              console.error('❌ Failed to send message');
+            }
+          } else {
+            console.error('❌ Cannot send message: no selected user or active room', {
+              selectedChatUser: !!selectedChatUser,
+              activeRoom: chat.activeRoom
+            });
           }
         }}
         messages={chat.activeRoom ? chat.getRoomMessages(chat.activeRoom) : []}
         typingUsers={chat.activeRoom ? chat.getRoomTypingUsers(chat.activeRoom) : []}
         isLoading={chat.isLoading}
+        connectionStatus={chat.connectionStatus}
+        operationStatus={chat.operationStatus}
+        lastError={chat.lastError}
+        onRetryConnection={() => {
+          console.log('🔄 Retrying chat connection...');
+          // You can add connection retry logic here if needed
+          chat.clearError();
+        }}
       />
     </Box>
   );

@@ -17,7 +17,8 @@ import {
   Chip,
   InputAdornment,
   CircularProgress,
-  Divider
+  Divider,
+  Alert
 } from '@mui/material';
 import {
   Send as SendIcon,
@@ -26,6 +27,7 @@ import {
   AttachFile as AttachIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import ChatConnectionStatus from './ChatConnectionStatus';
 
 const ChatModal = ({ 
   open, 
@@ -35,27 +37,52 @@ const ChatModal = ({
   onSendMessage,
   messages = [],
   typingUsers = [],
-  isLoading = false 
+  isLoading = false,
+  connectionStatus = 'disconnected',
+  operationStatus = null,
+  lastError = null,
+  onRetryConnection = null
 }) => {
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
-
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 ChatModal - Messages updated:', messages.length, messages);
+  }, [messages]);
+
+  useEffect(() => {
+    console.log('🔍 ChatModal - Props:', {
+      open,
+      chatPartner: chatPartner?.name || chatPartner?.full_name,
+      currentUser: currentUser?.username,
+      messagesCount: messages.length,
+      typingUsersCount: typingUsers.length,
+      isLoading
+    });
+  }, [open, chatPartner, currentUser, messages.length, typingUsers.length, isLoading]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
   const handleSendMessage = () => {
     if (messageText.trim()) {
-      onSendMessage(messageText.trim());
-      setMessageText('');
-      handleStopTyping();
+      console.log('📤 ChatModal handleSendMessage:', messageText.trim());
+      try {
+        onSendMessage(messageText.trim());
+        setMessageText('');
+        handleStopTyping();
+      } catch (error) {
+        console.error('❌ Error in handleSendMessage:', error);
+      }
+    } else {
+      console.warn('⚠️ Attempted to send empty message');
     }
   };
 
@@ -141,8 +168,7 @@ const ChatModal = ({
           borderBottom: '1px solid',
           borderColor: 'divider'
         }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>          <Avatar
+      >        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>          <Avatar
             sx={{
               width: 40,
               height: 40,
@@ -151,7 +177,7 @@ const ChatModal = ({
           >
             {getInitials(chatPartner?.full_name || chatPartner?.name || `${chatPartner?.first_name} ${chatPartner?.last_name}`)}
           </Avatar>
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography variant="h6" sx={{ mb: 0 }}>
               {chatPartner?.full_name || chatPartner?.name || `${chatPartner?.first_name} ${chatPartner?.last_name}` || 'Unknown User'}
             </Typography>
@@ -159,13 +185,18 @@ const ChatModal = ({
               {chatPartner?.role || 'Team Member'}
             </Typography>
           </Box>
+          <ChatConnectionStatus 
+            connectionStatus={connectionStatus}
+            operationStatus={operationStatus}
+            lastError={lastError}
+            onRetry={onRetryConnection}
+            compact={true}
+          />
         </Box>
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
         </IconButton>
-      </DialogTitle>
-
-      {/* Messages Area */}
+      </DialogTitle>      {/* Messages Area */}
       <DialogContent
         sx={{
           flex: 1,
@@ -175,16 +206,38 @@ const ChatModal = ({
           overflow: 'hidden'
         }}
       >
+        {/* Error Alert */}
+        {lastError && connectionStatus !== 'connected' && (
+          <Alert 
+            severity="error" 
+            sx={{ m: 1 }}
+            action={
+              onRetryConnection && (
+                <Button color="inherit" size="small" onClick={onRetryConnection}>
+                  Retry
+                </Button>
+              )
+            }
+          >
+            {lastError}
+          </Alert>
+        )}
+        
         {isLoading ? (
           <Box
             sx={{
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              flex: 1
+              flex: 1,
+              flexDirection: 'column',
+              gap: 2
             }}
           >
             <CircularProgress />
+            <Typography variant="body2" color="text.secondary">
+              {operationStatus === 'loading_history' ? 'Loading chat history...' : 'Loading...'}
+            </Typography>
           </Box>
         ) : (
           <List
@@ -193,8 +246,7 @@ const ChatModal = ({
               overflow: 'auto',
               p: 1
             }}
-          >
-            {messages.length === 0 ? (
+          >            {messages.length === 0 ? (
               <Box
                 sx={{
                   display: 'flex',
@@ -209,7 +261,10 @@ const ChatModal = ({
                   No messages yet
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Start a conversation with {chatPartner?.name}
+                  Start a conversation with {chatPartner?.full_name || chatPartner?.name || 'this user'}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Messages: {messages.length} | Active: {!!chatPartner}
                 </Typography>
               </Box>
             ) : (
@@ -321,15 +376,15 @@ const ChatModal = ({
           borderTop: '1px solid',
           borderColor: 'divider'
         }}
-      >
-        <TextField
+      >        <TextField
           fullWidth
           multiline
           maxRows={3}
-          placeholder="Type a message..."
+          placeholder={connectionStatus === 'connected' ? "Type a message..." : "Connecting..."}
           value={messageText}
           onChange={handleInputChange}
           onKeyPress={handleKeyPress}
+          disabled={connectionStatus !== 'connected' || operationStatus === 'sending_message'}
           InputProps={{
             endAdornment: (
               <InputAdornment position="end">
@@ -343,10 +398,14 @@ const ChatModal = ({
                   <IconButton
                     size="small"
                     onClick={handleSendMessage}
-                    disabled={!messageText.trim()}
+                    disabled={!messageText.trim() || connectionStatus !== 'connected' || operationStatus === 'sending_message'}
                     color="primary"
                   >
-                    <SendIcon />
+                    {operationStatus === 'sending_message' ? (
+                      <CircularProgress size={20} />
+                    ) : (
+                      <SendIcon />
+                    )}
                   </IconButton>
                 </Box>
               </InputAdornment>
