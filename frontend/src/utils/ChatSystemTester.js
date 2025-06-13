@@ -59,7 +59,7 @@ class ChatSystemTester {
     this.log('🔌 Testing WebSocket connection...');
     
     // Check if WebSocket URL is correct
-    const wsUrl = 'ws://localhost:8000/ws/presence/';
+    const wsUrl = 'ws://localhost:8001/ws/presence/';
     this.log(`Attempting connection to: ${wsUrl}`);
     
     try {
@@ -259,7 +259,7 @@ class ChatSystemTester {
         return;
       }
       
-      const wsUrl = `ws://localhost:8000/ws/presence/?token=${token}`;
+      const wsUrl = `ws://localhost:8001/ws/presence/?token=${token}`;
       const ws = new WebSocket(wsUrl);
       
       const timeout = setTimeout(() => {

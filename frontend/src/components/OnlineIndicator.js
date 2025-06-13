@@ -4,7 +4,9 @@ import ChatIcon from '@mui/icons-material/Chat';
 import { styled } from '@mui/material/styles';
 
 // ✅ Styled component for the online status dot
-const StatusDot = styled(Box)(({ theme, isOnline }) => ({
+const StatusDot = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'isOnline', // Prevent isOnline from being passed to Box
+})(({ theme, isOnline }) => ({
   position: 'absolute',
   top: 2,
   right: 2,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Typography, Chip, CircularProgress } from '@mui/material';
+import { Box, Typography, Chip, CircularProgress, Alert } from '@mui/material';
 import {
   CheckCircle as ConnectedIcon,
   Error as ErrorIcon,
@@ -9,7 +9,7 @@ import {
 const ChatConnectionStatus = ({ 
   connectionStatus, 
   operationStatus, 
-  lastError, 
+  chatError, 
   onRetry,
   compact = false 
 }) => {
@@ -75,10 +75,10 @@ const ChatConnectionStatus = ({
         {getStatusText()}
       </Typography>
       
-      {lastError && (
-        <Typography variant="caption" color="error" sx={{ ml: 1 }}>
-          {lastError}
-        </Typography>
+      {chatError && (
+        <Alert severity="error" sx={{ m: 1 }}>
+          {chatError}
+        </Alert>
       )}
       
       {connectionStatus === 'disconnected' && onRetry && (

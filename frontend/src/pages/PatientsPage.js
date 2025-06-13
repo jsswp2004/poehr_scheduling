@@ -45,45 +45,46 @@ function PatientsPage() {
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [teamSearch, setTeamSearch] = useState('');
   const [teamPage, setTeamPage] = useState(1);
-  const [teamTotalSize, setTeamTotalSize] = useState(0);  const [provider, setProvider] = useState('');    // ✅ Initialize hooks first
-  const { getUserOnlineStatus, isConnected: onlineStatusConnected, websocketConnection } = useOnlineStatus();
+  const [teamTotalSize, setTeamTotalSize] = useState(0);
+  const [provider, setProvider] = useState('');
+
+  const { 
+    getUserOnlineStatus, 
+    isConnected: onlineStatusConnected, 
+    websocketConnection, 
+    sendMessage, 
+    lastMessage: lastMessageFromOnlineStatus 
+  } = useOnlineStatus();
   
   console.log('🔍 PatientsPage - websocketConnection from useOnlineStatus:', websocketConnection);
-  
-  // ✅ Chat state management
+  console.log('📨 PatientsPage - lastMessageFromOnlineStatus:', lastMessageFromOnlineStatus);
+
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [selectedChatUser, setSelectedChatUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  // Get current user from token
+
   useEffect(() => {
-    // Try both possible token keys for compatibility
     const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-    console.log('🔍 Token check:', { token: token ? 'Present' : 'Missing', length: token?.length });
-    
     if (token) {
       try {
         const decoded = jwtDecode(token);
-        console.log('🔍 Decoded token:', decoded);
-        
         const user = {
           id: decoded.user_id,
           username: decoded.username,
           first_name: decoded.first_name || '',
           last_name: decoded.last_name || ''
         };
-        
-        console.log('✅ Setting current user:', user);
         setCurrentUser(user);
       } catch (error) {
         console.error('❌ Error decoding token:', error);
-        console.log('🔍 Token content preview:', token.substring(0, 50) + '...');
       }
     } else {
-      console.error('❌ No token found in localStorage (checked both "token" and "access_token")');
-    }  }, []);
-    // Initialize chat hook with shared WebSocket connection
-  const chat = useChat(currentUser, websocketConnection);
-  
+      console.error('❌ No token found in localStorage');
+    }
+  }, []);
+
+  const chat = useChat(currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus);
+
   // ✅ Debug online status
   useEffect(() => {
     console.log('🔍 Current online users state:', { getUserOnlineStatus, isConnected: onlineStatusConnected });
@@ -504,26 +505,10 @@ function PatientsPage() {
       return `
         <table>
           <thead>
-            <tr>
-              <th>Patient Name</th>
-              <th>Provider</th>
-              <th>Title</th>
-              <th>Date & Time</th>
-              <th>Duration</th>
-              <th>Status</th>
-            </tr>
+            <tr><th>Patient Name</th><th>Provider</th><th>Title</th><th>Date & Time</th><th>Duration</th><th>Status</th></tr>
           </thead>
           <tbody>
-            ${data.map(item => `
-              <tr>
-                <td>${item.patient_name}</td>
-                <td>${item.provider_name}</td>
-                <td>${item.title}</td>
-                <td>${item.datetime}</td>
-                <td>${item.duration} min</td>
-                <td>${item.status}</td>
-              </tr>
-            `).join('')}
+            ${data.map(item => `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.datetime}</td><td>${item.duration} min</td><td>${item.status}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -536,24 +521,10 @@ function PatientsPage() {
           <h3>${provider}</h3>
           <table>
             <thead>
-              <tr>
-                <th>Patient</th>
-                <th>Title</th>
-                <th>Date & Time</th>
-                <th>Duration</th>
-                <th>Status</th>
-              </tr>
+              <tr><th>Patient</th><th>Title</th><th>Date & Time</th><th>Duration</th><th>Status</th></tr>
             </thead>
             <tbody>
-              ${appointments.map(apt => `
-                <tr>
-                  <td>${apt.patient_name}</td>
-                  <td>${apt.title}</td>
-                  <td>${apt.datetime}</td>
-                  <td>${apt.duration} min</td>
-                  <td>${apt.status}</td>
-                </tr>
-              `).join('')}
+              ${appointments.map(apt => `<tr><td>${apt.patient_name}</td><td>${apt.title}</td><td>${apt.datetime}</td><td>${apt.duration} min</td><td>${apt.status}</td></tr>`).join('')}
             </tbody>
           </table>
         `;
@@ -565,20 +536,10 @@ function PatientsPage() {
       return `
         <table>
           <thead>
-            <tr>
-              <th>Status</th>
-              <th>Count</th>
-              <th>Percentage</th>
-            </tr>
+            <tr><th>Status</th><th>Count</th><th>Percentage</th></tr>
           </thead>
           <tbody>
-            ${data.summary.map(item => `
-              <tr>
-                <td>${item.status}</td>
-                <td>${item.count}</td>
-                <td>${item.percentage}%</td>
-              </tr>
-            `).join('')}
+            ${data.summary.map(item => `<tr><td>${item.status}</td><td>${item.count}</td><td>${item.percentage}%</td></tr>`).join('')}
           </tbody>
         </table>
         <p><strong>Total Appointments: ${data.total}</strong></p>
@@ -589,22 +550,10 @@ function PatientsPage() {
       return `
         <table>
           <thead>
-            <tr>
-              <th>Patient Name</th>
-              <th>Email</th>
-              <th>Registration Date</th>
-              <th>Appointment Count</th>
-            </tr>
+            <tr><th>Patient Name</th><th>Email</th><th>Registration Date</th><th>Appointment Count</th></tr>
           </thead>
           <tbody>
-            ${data.map(item => `
-              <tr>
-                <td>${item.name}</td>
-                <td>${item.email}</td>
-                <td>${item.registration_date}</td>
-                <td>${item.appointment_count}</td>
-              </tr>
-            `).join('')}
+            ${data.map(item => `<tr><td>${item.name}</td><td>${item.email}</td><td>${item.registration_date}</td><td>${item.appointment_count}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -614,22 +563,10 @@ function PatientsPage() {
       return `
         <table>
           <thead>
-            <tr>
-              <th>Doctor</th>
-              <th>Start Time</th>
-              <th>End Time</th>
-              <th>Duration (hours)</th>
-            </tr>
+            <tr><th>Doctor</th><th>Start Time</th><th>End Time</th><th>Duration (hours)</th></tr>
           </thead>
           <tbody>
-            ${data.map(item => `
-              <tr>
-                <td>${item.doctor_name}</td>
-                <td>${item.start_time}</td>
-                <td>${item.end_time}</td>
-                <td>${item.duration_hours}</td>
-              </tr>
-            `).join('')}
+            ${data.map(item => `<tr><td>${item.doctor_name}</td><td>${item.start_time}</td><td>${item.end_time}</td><td>${item.duration_hours}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -639,26 +576,10 @@ function PatientsPage() {
       return `
         <table>
           <thead>
-            <tr>
-              <th>Patient</th>
-              <th>Provider</th>
-              <th>Title</th>
-              <th>Recurrence</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-            </tr>
+            <tr><th>Patient</th><th>Provider</th><th>Title</th><th>Recurrence</th><th>Start Date</th><th>End Date</th></tr>
           </thead>
           <tbody>
-            ${data.map(item => `
-              <tr>
-                <td>${item.patient_name}</td>
-                <td>${item.provider_name}</td>
-                <td>${item.title}</td>
-                <td>${item.recurrence}</td>
-                <td>${item.start_date}</td>
-                <td>${item.end_date}</td>
-              </tr>
-            `).join('')}
+            ${data.map(item => `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.recurrence}</td><td>${item.start_date}</td><td>${item.end_date}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -670,10 +591,7 @@ function PatientsPage() {
         <h3>Statistics Summary</h3>
         <table>
           <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Value</th>
-            </tr>
+            <tr><th>Metric</th><th>Value</th></tr>
           </thead>
           <tbody>
             <tr><td>Average Duration</td><td>${stats.average_duration} minutes</td></tr>
@@ -687,18 +605,10 @@ function PatientsPage() {
         <h3>Duration Distribution</h3>
         <table>
           <thead>
-            <tr>
-              <th>Duration Range</th>
-              <th>Count</th>
-            </tr>
+            <tr><th>Duration Range</th><th>Count</th></tr>
           </thead>
           <tbody>
-            ${Object.entries(data.distribution).map(([range, count]) => `
-              <tr>
-                <td>${range}</td>
-                <td>${count}</td>
-              </tr>
-            `).join('')}
+            ${Object.entries(data.distribution).map(([range, count]) => `<tr><td>${range}</td><td>${count}</td></tr>`).join('')}
           </tbody>
         </table>
       `;
@@ -852,7 +762,7 @@ function PatientsPage() {
                   <TableCell sx={{ fontWeight: 'bold', width: 160 }}>Last Appointment</TableCell>
                   <TableCell align="center" sx={{ fontWeight: 'bold', width: 180 }}>Actions</TableCell>
                 </TableRow>
-              </TableHead>              
+              </TableHead>
               <TableBody>
                 {patients.length === 0 ? (
                   <TableRow>
@@ -976,102 +886,77 @@ function PatientsPage() {
       ) : (
         <>
           <TableContainer>
-            <Table size="small" stickyHeader>            <TableHead>
+            <Table size="small" stickyHeader>
+            <TableHead>
               <TableRow sx={{ bgcolor: '#e3f2fd' }}>
                 <TableCell sx={{ fontWeight: 'bold', width: 180 }}>Name</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Email</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', width: 140 }}>Phone</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', width: 120 }}>Role</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', width: 100 }}>Status</TableCell> {/* Added Status Column */}
                 <TableCell sx={{ fontWeight: 'bold', width: 180 }}>Organization</TableCell>
                 <TableCell align="center" sx={{ fontWeight: 'bold', width: 140 }}>Actions</TableCell>
               </TableRow>
             </TableHead>
               <TableBody>
                 {team.length === 0 ? (
-                  <TableRow>                  <TableCell colSpan={6} align="center" sx={{ color: 'text.secondary', py: 3 }}>
+                  <TableRow>
+                    <TableCell colSpan={7} align="center" sx={{ color: 'text.secondary', py: 3 }}> {/* Updated colSpan */}
                     No team members found.
-                  </TableCell>
+                    </TableCell>
                   </TableRow>
-                ) : (team.map((member) => (
+                ) : (team.map((member) => {
+                  const onlineStatus = getUserOnlineStatus(member.id);
+                  console.log(`Rendering OnlineIndicator for ${member.full_name} (ID: ${member.id}):`, onlineStatus);
+                  return (
                   <TableRow key={member.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
                     <TableCell>{member.full_name}</TableCell>
                     <TableCell>{member.email}</TableCell>
-                    <TableCell>{member.phone_number || '—'}</TableCell>
-                    <TableCell>{member.role || 'N/A'}</TableCell>
-                    <TableCell>{member.organization_name || '—'}</TableCell>                    <TableCell align="center">
-                      <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>                        {/* ✅ Online Status and Chat */}
-                        <OnlineIndicator
-                          user={member}
-                          isOnline={getUserOnlineStatus(member.id).isOnline}
-                          lastSeen={getUserOnlineStatus(member.id).lastSeen || member.last_seen}                          onChatClick={async () => {
-                            console.log('🎯 Chat button clicked for member:', member);
-                            console.log('🔍 Debug state:', { 
-                              currentUser, 
-                              chat: !!chat, 
-                              chatConnected: chat?.isConnected,
-                              chatModalOpen,
-                              selectedChatUser
-                            });
-                            
-                            setSelectedChatUser(member);
-                            
-                            if (!currentUser) {
-                              console.error('❌ No current user found');
-                              alert('Error: User not logged in properly');
-                              return;
-                            }
-                            
-                            if (!chat) {
-                              console.error('❌ Chat hook not initialized');
-                              alert('Error: Chat system not initialized');
-                              return;
-                            }
-                            
-                            try {
-                              console.log('🚀 Opening chat with user...');
-                              // Open chat with the selected user (wait for room creation)
-                              const roomId = await chat.openChatWithUser({
-                                id: member.id,
-                                name: member.full_name || member.username,
-                                ...member
+                    <TableCell>{member.phone_number || 'N/A'}</TableCell>
+                    <TableCell>{member.role}</TableCell>
+                    <TableCell>
+                      <OnlineIndicator 
+                        isOnline={onlineStatus.isOnline}
+                        lastSeen={onlineStatus.lastSeen}
+                      />
+                    </TableCell>
+                    <TableCell>{member.organization_name || 'N/A'}</TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Start Chat" placement="top">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => {
+                            console.log('Attempting to start chat with:', member);
+                            if (currentUser && member) {
+                              setSelectedChatUser(member);
+                              // Ensure chat.createChatRoom is called correctly
+                              chat.createChatRoom(member.id).then(roomId => {
+                                if (roomId) {
+                                  console.log(`Chat room created/joined with ID: ${roomId}, opening modal.`);
+                                  setChatModalOpen(true);
+                                } else {
+                                  console.error('Failed to create or join chat room.');
+                                  toast.error('Could not initiate chat. Please try again.');
+                                }
+                              }).catch(error => {
+                                console.error('Error in createChatRoom promise:', error);
+                                toast.error('An error occurred while starting the chat.');
                               });
-                              
-                              console.log('🏠 Room creation result:', roomId);
-                              
-                              if (roomId) {
-                                console.log('✅ Chat room ready, opening modal');
-                                setChatModalOpen(true);
-                                console.log('🔍 Modal state after setting:', chatModalOpen);
-                              } else {
-                                console.error('❌ Failed to create/open chat room');
-                                alert('Failed to create chat room. Please try again.');
-                              }
-                            } catch (error) {
-                              console.error('❌ Error opening chat:', error);
-                              alert('Error opening chat: ' + error.message);
+                            } else {
+                              console.error('Current user or selected member is null. Cannot start chat.');
+                              toast.error('Cannot start chat. User information is missing.');
                             }
                           }}
-                        />
-                        
-                        <Tooltip title="Send SMS" placement="top">
-                          <IconButton variant="contained" size="small" color="warning"
-                            sx={{ width: 36, height: 36, minWidth: 0, padding: 0, mr: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => handleSendText(member)}>
-                            <FontAwesomeIcon icon={faCommentDots} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Send email" placement="top">
-                          <IconButton variant="outlined" size="small" color="info"
-                            sx={{ width: 36, height: 36, minWidth: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onClick={() => handleOpenEmailModal(member)}>
-                            <FontAwesomeIcon icon={faEnvelope} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
+                          disabled={!onlineStatusConnected || !currentUser}
+                        >
+                          <FontAwesomeIcon icon={faCommentDots} />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
-                ))
-                )}
+                  );
+                }))}
               </TableBody>
             </Table>
           </TableContainer>
@@ -1172,584 +1057,267 @@ function PatientsPage() {
     </Paper>
   );
 
+  const handleStartChat = async (userToChatWith) => {
+    if (!currentUser) {
+      toast.error("Current user not identified. Cannot start chat.");
+      console.error("[PatientsPage] handleStartChat: currentUser is null");
+      return;
+    }
+    if (!userToChatWith || !userToChatWith.id) {
+      toast.error("Invalid user selected for chat.");
+      console.error("[PatientsPage] handleStartChat: userToChatWith is invalid", userToChatWith);
+      return;
+    }
+    if (currentUser.id === userToChatWith.id) {
+      toast.info("You cannot chat with yourself.");
+      return;
+    }
+
+    console.log(`[PatientsPage] handleStartChat: Attempting to chat with ${userToChatWith.full_name} (ID: ${userToChatWith.id})`);
+    setSelectedChatUser(userToChatWith);
+
+    try {
+      const roomId = await chat.createChatRoom(userToChatWith.id); 
+      if (roomId) {
+        console.log(`[PatientsPage] handleStartChat: Room ${roomId} ready for user ${userToChatWith.id}. Modal should open via useEffect.`);
+        // The useEffect below will handle opening the modal.
+      } else {
+        console.error(`[PatientsPage] handleStartChat: Failed to create/join chat room with ${userToChatWith.full_name}.`);
+        toast.error(`Could not open chat with ${userToChatWith.full_name}.`);
+        setSelectedChatUser(null);
+      }
+    } catch (error) {
+      console.error(`[PatientsPage] handleStartChat: Error starting chat with ${userToChatWith.id}:`, error, error?.message, error?.stack);
+      if (typeof error === 'object' && error !== null) {
+        toast.error(`Failed to start chat: ${error.message || JSON.stringify(error)}`);
+      } else {
+        toast.error(`Failed to start chat: ${error}`);
+      }
+      setSelectedChatUser(null);
+      setChatModalOpen(false); 
+    }
+  };
+
+  // Effect to open chat modal when activeRoom changes and is valid
+  useEffect(() => {
+    console.log('[PatientsPage] useEffect: chat.activeRoom:', chat.activeRoom, 'selectedChatUser:', selectedChatUser, 'chatModalOpen:', chatModalOpen);
+    if (chat.activeRoom && selectedChatUser) {
+      // Check if the active room in chat hook corresponds to the selected user's potential room
+      console.log(`[PatientsPage] useEffect: chat.activeRoom (${chat.activeRoom}) and selectedChatUser (${selectedChatUser.full_name}) are set. Opening chat modal.`);
+      setChatModalOpen(true);
+    } else if (!chat.activeRoom && chatModalOpen) {
+      // If activeRoom becomes null (e.g., chat ended or error), consider closing the modal.
+      // console.log("[PatientsPage] useEffect: chat.activeRoom is null. Closing chat modal.");
+      // setChatModalOpen(false); // This could be too aggressive. Modal close is handled by its own button.
+    }
+  }, [chat.activeRoom, selectedChatUser, chatModalOpen]);
+  
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>      
-    <Box sx={{
-      display: 'flex',
-      alignItems: 'center',
-      mb: 1,
-      borderRadius: 2,
-      bgcolor: '#f5faff',
-      boxShadow: 1,
-      minHeight: 48,
-      p: 1
-    }}>
-      <Tabs
-        value={tab}
-        onChange={(_, val) => {
-          setTab(val);
-          if (val === 'team') setTeamPage(1);
-        }}
-        sx={{
-          flex: 1,
-          minHeight: 40,
-          '& .MuiTabs-indicator': {
-            height: 4,
-            borderRadius: 2,
-            bgcolor: 'primary.main',
-          }, '& .MuiTab-root': {
-            fontWeight: 500,
-            fontSize: '1rem',
-            color: 'primary.main',
-            minHeight: 40,
-            textTransform: 'none',
-            borderRadius: 2,
-            mx: 0.5,
-            transition: 'background 0.2s',
-            '&.Mui-selected': {
-              bgcolor: 'primary.light',
-              color: 'primary.dark',
-              boxShadow: 2,
-            },
-            '&:hover': {
-              bgcolor: 'primary.lighter',
-              color: 'primary.dark',
-            },
-          },
-        }}
-      >
-        {(userRole !== 'doctor') && (
-          <Tab label="Register" value="register" />
-        )}
-        <Tab label="Patients" value="patients" />
-        <Tab label="Team" value="team" />
-        <Tab label="Calendar" value="calendar" />
-        <Tab label="Appointments" value="appointments" />
-        <Tab label="Analytics" value="analytics" />
-      </Tabs>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <Box sx={{ p: 3, bgcolor: '#eef2f6', minHeight: '100vh' }}>
+        <BackButton />
+        <Typography variant="h4" gutterBottom sx={{ color: '#1976d2', fontWeight: 'bold' }}>
+          {getGreeting()}, {getUserFirstName()}!
+        </Typography>
 
-      {(userRole === 'admin' || userRole === 'registrar' || userRole === 'system_admin') && (
-        <Box sx={{ ml: 1 }}>
-          <BackButton />
-        </Box>
-      )}
-    </Box>
-
-      {tab === 'register' && (
-        <RegisterPage adminMode={true} />
-      )}
-      {tab === 'patients' && (<>
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-          <TextField
-            fullWidth
-            size="small"
-            variant="outlined"
-            placeholder="Search patients..."
-            value={search}            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-              // Don't call fetchPatients() here - let useEffect handle it
-            }}
-            sx={{ maxWidth: 350 }}
-            InputProps={{
-              endAdornment:
-                search && (
-                  <IconButton size="small" onClick={() => { setSearch(''); setPage(1); fetchPatients(); }}>
-                    <CloseIcon fontSize="small" />
-                  </IconButton>
-                ),
-            }}
-          />
-          <Button variant="contained" color="primary" onClick={exportCSV}>
-            Export CSV
-          </Button>
-        </Stack>
-        {renderPatientTable()}
-      </>
-      )}      {tab === 'team' && (
-        <>
-          <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-            <TextField
-              fullWidth
-              size="small"
-              variant="outlined"
-              placeholder="Search team..."
-              value={teamSearch}
-              onChange={(e) => {
-                const value = e.target.value;
-                setTeamSearch(value);
-                setTeamPage(1);
-                fetchTeam(1, value);
-              }}
-              sx={{ maxWidth: 350 }}
-              InputProps={{
-                endAdornment:
-                  teamSearch && (
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setTeamSearch('');
-                        setTeamPage(1);
-                        fetchTeam(1, '');
-                      }}
-                    >
-                      <CloseIcon fontSize="small" />
-                    </IconButton>
-                  ),
-              }}
-            />
-          </Stack>
-          {renderTeamTable()}
-        </>
-      )}
-      {tab === 'analytics' && (
-        <>
-          {renderAnalyticsTable()}
-        </>
-      )}
-      {tab === 'calendar' && (
-        <CalendarView />
-      )}      {tab === 'appointments' && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>          {/* Two Panel Layout */}
-          <Box sx={{ display: 'flex', gap: 2, height: '700px' }}>            {/* Left Panel - 20% - Summary and Today's Appointments */}
-            <Box 
-              sx={{ 
-                flex: '0 0 20%', 
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 2,
-                height: '100%'
-              }}
-            >              {/* Summary Panel */}
-              <Paper 
-                sx={{ 
-                  p: 2, 
-                  borderRadius: 2, 
-                  boxShadow: 2, 
-                  bgcolor: '#f8f9fa',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  height: '45%'
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <TodayIcon color="secondary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" fontWeight={600}>Summary</Typography>
-                </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 1 }}>
-                  <Typography variant="h6" fontWeight={700} color="primary.main" gutterBottom>
-                    {getGreeting()}{getUserFirstName() ? `, ${getUserFirstName()}` : ''}! 🌞
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: 'center' }}>
-                    Wishing you a wonderful day at POWER Scheduling!
-                  </Typography>
-                  <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 1 }}>
-                    Total Appointments Today: {todaysAppointments.length}
-                  </Typography>
-                  <Box sx={{ mt: 2, width: '100%' }}>
-                    <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1 }}>
-                      Patients per Doctor:
-                    </Typography>
-                    {(() => {
-                      const doctorPatientMap = {};
-                      todaysAppointments.forEach(appt => {
-                        let doctor = appt.provider_name || (appt.provider ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim() : 'Unknown');
-                        if (!doctorPatientMap[doctor]) doctorPatientMap[doctor] = 0;
-                        doctorPatientMap[doctor] += 1;
-                      });
-                      
-                      return Object.keys(doctorPatientMap).length === 0 ? (
-                        <Typography variant="body2" color="text.secondary">No appointments scheduled for today.</Typography>
-                      ) : (
-                        <Box component="ul" sx={{ margin: 0, paddingLeft: 2, fontSize: '0.875rem' }}>
-                          {Object.entries(doctorPatientMap).map(([doctor, count]) => (
-                            <Box component="li" key={doctor} sx={{ mb: 0.5 }}>
-                              <Typography variant="body2" color="text.primary">
-                                {doctor}: {count} patient{count > 1 ? 's' : ''}
-                              </Typography>
-                            </Box>
-                          ))}
-                        </Box>
-                      );
-                    })()}
-                  </Box>
-                </Box>
-              </Paper>
-
-              {/* Today's Appointments Panel */}
-              <Paper 
-                sx={{ 
-                  p: 2, 
-                  borderRadius: 2, 
-                  boxShadow: 2, 
-                  bgcolor: '#f8f9fa',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  minHeight: 380,
-                  flex: 1
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <TodayIcon color="primary" sx={{ mr: 1 }} />
-                  <Typography variant="h6" fontWeight={600}>Today's Appointments</Typography>
-                </Box>                <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
-                  <Table size="small" stickyHeader>
-                    <TableHead sx={{ bgcolor: '#e3f2fd' }}>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Time</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Patient</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Provider</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Arrived</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>No Show</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {todaysAppointments.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={5} align="center" sx={{ color: 'text.secondary', py: 2, fontSize: '0.75rem' }}>
-                            No appointments today.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        todaysAppointments
-                          .sort((a, b) => new Date(a.appointment_datetime) - new Date(b.appointment_datetime))
-                          .map((appt) => (
-                            <TableRow
-                              key={appt.id}
-                              hover
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  backgroundColor: '#f0f7ff',
-                                }
-                              }}
-                            >
-                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
-                                {appt.appointment_datetime ? new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
-                              </TableCell>
-                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
-                                {appt.patient_name || (appt.patient && `${appt.patient.first_name} ${appt.patient.last_name}`) || '-'}
-                              </TableCell>
-                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
-                                {appt.provider_name || (appt.provider && (appt.provider.first_name || appt.provider.last_name)
-                                  ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
-                                  : '-')
-                                }
-                              </TableCell>
-                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
-                                <Checkbox
-                                  checked={appt.arrived || false}
-                                  onChange={(e) => handleStatusUpdate(appt.id, 'arrived', e.target.checked)}
-                                  size="small"
-                                  color="success"
-                                />
-                              </TableCell>
-                              <TableCell sx={{ fontSize: '0.75rem', py: 1 }}>
-                                <Checkbox
-                                  checked={appt.no_show || false}
-                                  onChange={(e) => handleStatusUpdate(appt.id, 'no_show', e.target.checked)}
-                                  size="small"
-                                  color="error"
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Paper>
-            </Box>            {/* Right Panel - 80% */}
-            <Paper 
-              sx={{ 
-                flex: '0 0 80%', 
-                p: 3, 
-                borderRadius: 2, 
-                boxShadow: 2, 
-                bgcolor: '#f0f7ff',
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 600
-              }}
-            >
-              <Typography variant="h5" fontWeight={600} gutterBottom>
-                Appointments
-              </Typography>
-              <Box
-                component="form"
-                onSubmit={handleAppointmentsSearch}
-                sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 2 }}
-              >
-                <TextField
-                  type="text"
-                  label="Search by patient, provider, date or description"
-                  value={appointmentsQuery}
-                  onChange={(e) => setAppointmentsQuery(e.target.value)}
-                  fullWidth
-                  size="small"
-                />
-                <Button variant="contained" color="primary" type="submit">
-                  Search
-                </Button>
-              </Box>
-              <TableContainer sx={{ borderRadius: 2, boxShadow: 2, flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto', minHeight: 0, width: '100%', bgcolor: 'white' }}>
-                <Table size="small" sx={{ '& tbody tr:nth-of-type(odd)': { backgroundColor: '#f7fafc' } }}>
-                  <TableHead sx={{ bgcolor: '#e3f2fd' }}>
-                    <TableRow>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Clinic Event</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Date & Time</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Duration (min)</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+        {/* Summary Panel */}
+        {tab === 'appointments' && (
+          <Paper sx={{ p: 2, mb: 3, borderRadius: 2, boxShadow: 3, bgcolor: '#fff' }}>
+            <Typography variant="h6" gutterBottom sx={{ color: '#1976d2' }}>Today's Appointments</Typography>
+            {todaysAppointments.length > 0 ? (
+              <TableContainer component={Paper} sx={{ maxHeight: 300, boxShadow: 'none', border: '1px solid #e0e0e0'}}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#e3f2fd'}}>
+                      <TableCell sx={{ fontWeight: 'bold'}}>Time</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold'}}>Patient</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold'}}>Provider</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold'}}>Status</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold'}}>Arrived</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold'}}>No Show</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(() => {
-                      // Sort results by appointment_datetime descending (latest first)
-                      const sortedResults = [...appointmentsResults].sort((a, b) => {
-                        const dateA = new Date(a.appointment_datetime);
-                        const dateB = new Date(b.appointment_datetime);
-                        return dateB - dateA;
-                      });
-                      const appointmentsRowsPerPage = 10;
-                      const paginatedResults = sortedResults.slice((appointmentsPage - 1) * appointmentsRowsPerPage, appointmentsPage * appointmentsRowsPerPage);
-                      
-                      return paginatedResults.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={8} align="center" sx={{ color: 'text.secondary', py: 3 }}>
-                            No appointments found.
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        paginatedResults.map((appt) => (
-                          <TableRow key={appt.id} hover>
-                            <TableCell>{appt.title || '-'}</TableCell>
-                            <TableCell>{appt.patient_name || (appt.patient && `${appt.patient.first_name} ${appt.patient.last_name}`) || '-'}</TableCell>
-                            <TableCell>{appt.provider_name || (appt.provider && (appt.provider.first_name || appt.provider.last_name)
-                              ? `Dr. ${appt.provider.first_name || ''} ${appt.provider.last_name || ''}`.trim()
-                              : '-')
-                            }</TableCell>
-                            <TableCell>{appt.appointment_datetime ? new Date(appt.appointment_datetime).toLocaleString() : '-'}</TableCell>
-                            <TableCell>{appt.description || '-'}</TableCell>
-                            <TableCell>{appt.duration_minutes || '-'}</TableCell>
-                            <TableCell>{appt.status || '-'}</TableCell>
-                            <TableCell>
-                              <Box sx={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 1 }}>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  onClick={() => {
-                                    setSelectedAppointment(appt);
-                                    setDetailsOpen(true);
-                                  }}
-                                  sx={{
-                                    backgroundColor: 'white',
-                                    color: 'primary.main',
-                                    borderColor: 'primary.light',
-                                    minWidth: 0,
-                                    px: 1.5,
-                                    py: 0.5,
-                                    fontWeight: 500,
-                                    fontSize: 14,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                    '&:hover': {
-                                      backgroundColor: '#e3f2fd',
-                                      color: '#1976d2',
-                                      borderColor: '#1976d2',
-                                      boxShadow: '0 2px 8px 0 rgba(25, 118, 210, 0.10)',
-                                    },
-                                  }}
-                                  title="View Appointment Details"
-                                >
-                                  <VisibilityIcon fontSize="small" sx={{ mr: 0.5 }} />
-                                </Button>
-                                <Button
-                                  variant="outlined"
-                                  size="small"
-                                  color="error"
-                                  sx={{
-                                    backgroundColor: 'white',
-                                    borderColor: 'error.light',
-                                    color: 'error.main',
-                                    minWidth: 0,
-                                    px: 1.5,
-                                    py: 0.5,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 1,
-                                    transition: 'background 0.2s, color 0.2s',
-                                    '&:hover': {
-                                      backgroundColor: '#ffebee',
-                                      color: '#d32f2f',
-                                      borderColor: '#d32f2f',
-                                      boxShadow: '0 2px 8px 0 rgba(211, 47, 47, 0.10)',
-                                    },
-                                  }}
-                                  title="Delete Appointment"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if (window.confirm('Are you sure you want to delete this appointment?')) {
-                                      try {
-                                        await axios.delete(`http://127.0.0.1:8000/api/appointments/${appt.id}/`, {
-                                          headers: { Authorization: `Bearer ${token}` },
-                                        });
-                                        fetchAppointments(appointmentsQuery);
-
-                                        // Also refresh today's appointments
-                                        const today = new Date();
-                                        today.setHours(0, 0, 0, 0);
-                                        const tomorrow = new Date(today);
-                                        tomorrow.setDate(tomorrow.getDate() + 1);
-
-                                        const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
-                                          headers: { Authorization: `Bearer ${token}` },
-                                        });
-
-                                        const filtered = res.data.filter((appointment) => {
-                                          if (!appointment.appointment_datetime) return false;
-                                          const apptDate = new Date(appointment.appointment_datetime);
-                                          return apptDate >= today && apptDate < tomorrow;
-                                        });
-
-                                        setTodaysAppointments(filtered);
-                                      } catch (err) {
-                                        alert('Failed to delete appointment.');
-                                      }
-                                    }
-                                  }}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </Button>
-                              </Box>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      );
-                    })()}
+                    {todaysAppointments.map(appt => (
+                      <TableRow key={appt.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+                        <TableCell>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
+                        <TableCell>{appt.patient_name}</TableCell>
+                        <TableCell>{appt.provider_name}</TableCell>
+                        <TableCell>{appt.status}</TableCell>
+                        <TableCell>
+                          <Checkbox 
+                            size="small"
+                            checked={!!appt.arrived}
+                            onChange={(e) => handleStatusUpdate(appt.id, 'arrived', e.target.checked)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Checkbox 
+                            size="small"
+                            checked={!!appt.no_show}
+                            onChange={(e) => handleStatusUpdate(appt.id, 'no_show', e.target.checked)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </TableContainer>
-              {appointmentsResults.length > 10 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-                  <Pagination
-                    count={Math.ceil(appointmentsResults.length / 10)}
-                    page={appointmentsPage}
-                    onChange={(_, value) => setAppointmentsPage(value)}
-                    color="primary"
-                    shape="rounded"
-                  />
-                </Box>
-              )}            </Paper>
-          </Box>
+            ) : (
+              <Typography sx={{ color: 'text.secondary' }}>No appointments scheduled for today.</Typography>
+            )}
+          </Paper>
+        )}
 
-          {/* Appointment Details Dialog */}
-          <Dialog open={detailsOpen} onClose={() => setDetailsOpen(false)} maxWidth="sm" fullWidth>
-            <DialogTitle>Appointment Details</DialogTitle>
-            <DialogContent dividers>
-              {selectedAppointment && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <Typography><b>Patient:</b> {selectedAppointment.patient_name || (selectedAppointment.patient ? `${selectedAppointment.patient.first_name} ${selectedAppointment.patient.last_name}` : '-')}</Typography>
-                  <Typography><b>Provider:</b> {selectedAppointment.provider_name || (selectedAppointment.provider ? `Dr. ${selectedAppointment.provider.first_name || ''} ${selectedAppointment.provider.last_name || ''}`.trim() : '-')}</Typography>
-                  <Typography><b>Date & Time:</b> {selectedAppointment.appointment_datetime ? new Date(selectedAppointment.appointment_datetime).toLocaleString() : '-'}</Typography>
-                  <Typography><b>Description:</b> {selectedAppointment.description || '-'}</Typography>
-                  <Typography><b>Duration (min):</b> {selectedAppointment.duration_minutes || '-'}</Typography>
-                  <Typography><b>Status:</b> {selectedAppointment.status || '-'}</Typography>
-                  <Typography><b>Clinic Event:</b> {selectedAppointment.title || '-'}</Typography>
-                </Box>
-              )}
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={() => setDetailsOpen(false)} color="primary">Close</Button>
-              <Button
-                color="secondary"
-                variant="contained"
-                onClick={() => {
-                  setDetailsOpen(false);
-                  navigate(`/appointments/${selectedAppointment.id}/edit`);
-                }}
-              >
-                Edit
+        <Tabs value={tab} onChange={(e, newVal) => setTab(newVal)} indicatorColor="primary" textColor="primary" sx={{ mb: 3, bgcolor: '#fff', borderRadius: 1, boxShadow: 1 }}>
+          <Tab label="Patients" value="patients" />
+          <Tab label="Team" value="team" />
+          <Tab label="Appointments" value="appointments" />
+          <Tab label="Analytics" value="analytics" />
+          {userRole === 'admin' || userRole === 'system_admin' ? (
+            <Tab label="Register User" value="register" />
+          ) : null}
+        </Tabs>
+
+        {tab === 'patients' && (
+          <Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+              <TextField
+                label="Search Patients"
+                variant="outlined"
+                size="small"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                sx={{ flexGrow: 1, bgcolor: '#fff' }}
+              />
+              <FormControl size="small" sx={{ minWidth: 180, bgcolor: '#fff' }}>
+                <InputLabel id="provider-select-label">Provider</InputLabel>
+                <MUISelect
+                  labelId="provider-select-label"
+                  value={provider}
+                  label="Provider"
+                  onChange={(e) => setProvider(e.target.value)}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {providers.map((p) => (
+                    <MenuItem key={p.id} value={p.id}>{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
+                  ))}
+                </MUISelect>
+              </FormControl>
+              <Button variant="contained" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={exportCSV} sx={{ bgcolor: '#4caf50', '&:hover': { bgcolor: '#388e3c' } }}>
+                Export CSV
               </Button>
-            </DialogActions>
-          </Dialog>
+            </Stack>
+            {renderPatientTable()}
+          </Box>
+        )}
 
-          {/* Remove the existing AppointmentsPage component */}
-        </Box>
-      )}{/* Email Modal */}
-      <Dialog open={showEmailModal} onClose={() => setShowEmailModal(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Message</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Subject"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={emailForm.subject}
-            onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+        {tab === 'team' && (
+          <Box>
+            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <TextField
+              label="Search Team Members"
+              variant="outlined"
+              size="small"
+              value={teamSearch}
+              onChange={(e) => {
+                setTeamSearch(e.target.value);
+                fetchTeam(1, e.target.value); // Reset to page 1 on new search
+              }}
+              sx={{ flexGrow: 1, bgcolor: '#fff' }}
+            />
+            </Stack>
+            {renderTeamTable()}
+          </Box>
+        )}
+        {tab === 'appointments' && (
+          <Box>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+              <TextField
+                label="Search Appointments (Patient, Provider, Date, Status, etc.)"
+                variant="outlined"
+                size="small"
+                value={appointmentsQuery}
+                onChange={(e) => setAppointmentsQuery(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAppointmentsSearch(e)}
+                sx={{ flexGrow: 1, bgcolor: '#fff' }}
+              />
+              <Button variant="contained" onClick={handleAppointmentsSearch} sx={{ height: '40px' }}>Search</Button>
+            </Stack>
+            <CalendarView appointments={appointmentsResults} providers={providers} token={token} fetchAppointments={() => fetchAppointments(appointmentsQuery)} />
+          </Box>
+        )}
+
+        {tab === 'analytics' && renderAnalyticsTable()}
+        
+        {tab === 'register' && <RegisterPage />}
+
+        {/* Email Modal */}
+        <Dialog open={showEmailModal} onClose={() => setShowEmailModal(false)} fullWidth maxWidth="sm">
+          <DialogTitle sx={{ bgcolor: '#1976d2', color: 'white' }}>
+            Send Email to {selectedPatient?.first_name}
+            <IconButton onClick={() => setShowEmailModal(false)} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}>
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 2 }}>
+            <TextField
+              label="Subject"
+              fullWidth
+              value={emailForm.subject}
+              onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              label="Message"
+              fullWidth
+              multiline
+              rows={6}
+              value={emailForm.message}
+              onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setShowEmailModal(false)} color="secondary">Cancel</Button>
+            <Button onClick={handleSendEmail} variant="contained" color="primary">Send</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Chat Modal */}
+        {selectedChatUser && currentUser && chat.activeRoom && (
+          <ChatModal
+            open={chatModalOpen && !!chat.activeRoom && !!chat.chatRooms[chat.activeRoom]}
+            onClose={() => {
+              console.log("[PatientsPage] Closing chat modal.");
+              setChatModalOpen(false);
+              if (chat.activeRoom && currentUser && chat.sendTypingIndicator) {
+                // chat.sendTypingIndicator(chat.activeRoom, false); 
+              }
+              if (chat.setActiveRoom) chat.setActiveRoom(null);
+              setSelectedChatUser(null);
+            }}
+            user={selectedChatUser}
+            currentUser={currentUser}
+            messages={chat.activeRoom && chat.chatRooms[chat.activeRoom] ? chat.chatRooms[chat.activeRoom].messages : []}
+            onSendMessage={(content) => {
+              if (chat.activeRoom && chat.sendChatMessage) {
+                chat.sendChatMessage(chat.activeRoom, content);
+              }
+            }}
+            typingUsers={chat.activeRoom && chat.typingUsers[chat.activeRoom] ? chat.typingUsers[chat.activeRoom] : {}}
+            onSendTypingIndicator={(isTyping) => {
+              if (chat.activeRoom && currentUser && chat.sendTypingIndicator) {
+                chat.sendTypingIndicator(chat.activeRoom, isTyping);
+              }
+            }}
+            isLoading={chat.isLoading}
+            chatError={chat.lastError}
+            // Fallback: allow modal to open even if chat history failed to load
+            fallbackOpen={chatModalOpen && !!chat.activeRoom}
           />
-          <TextField
-            margin="dense"
-            label="Message"
-            type="text"
-            fullWidth
-            variant="outlined"
-            multiline
-            rows={4}
-            value={emailForm.message}
-            onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowEmailModal(false)} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleSendEmail} color="primary">
-            Send
-          </Button>        </DialogActions>
-      </Dialog>
-        {/* ✅ Chat Modal */}      <ChatModal
-        open={chatModalOpen}
-        onClose={() => {
-          setChatModalOpen(false);
-          setSelectedChatUser(null);
-          chat.clearError(); // Clear any errors when closing
-        }}
-        chatPartner={selectedChatUser}
-        currentUser={currentUser}        
-        onSendMessage={(message) => {
-          console.log('📤 ChatModal sending message:', message);
-          if (selectedChatUser && chat.activeRoom) {
-            const success = chat.sendChatMessage(chat.activeRoom, message);
-            if (!success) {
-              console.error('❌ Failed to send message');
-            }
-          } else {
-            console.error('❌ Cannot send message: no selected user or active room', {
-              selectedChatUser: !!selectedChatUser,
-              activeRoom: chat.activeRoom
-            });
-          }
-        }}
-        messages={chat.activeRoom ? chat.getRoomMessages(chat.activeRoom) : []}
-        typingUsers={chat.activeRoom ? chat.getRoomTypingUsers(chat.activeRoom) : []}
-        isLoading={chat.isLoading}
-        connectionStatus={chat.connectionStatus}
-        operationStatus={chat.operationStatus}
-        lastError={chat.lastError}
-        onRetryConnection={() => {
-          console.log('🔄 Retrying chat connection...');
-          // You can add connection retry logic here if needed
-          chat.clearError();
-        }}
-      />
-    </Box>
+        )}
+      </Box>
+    </LocalizationProvider>
   );
 }
 

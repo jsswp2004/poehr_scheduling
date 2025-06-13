@@ -3,9 +3,10 @@ import useWebSocket from './useWebSocket';
 
 const useOnlineStatus = () => {
   const [onlineUsers, setOnlineUsers] = useState({});
-  const [isConnected, setIsConnected] = useState(false);  // WebSocket connection for presence updates
-  const { isConnected: wsConnected, sendMessage } = useWebSocket(
-    'ws://localhost:8000/ws/presence/',
+  const [isConnected, setIsConnected] = useState(false);
+  // WebSocket connection for presence updates
+  const { isConnected: wsConnected, sendMessage, socket, lastMessage } = useWebSocket( // Added lastMessage
+    'ws://localhost:8001/ws/presence/',
     {
       onOpen: () => {
         console.log('✅ Connected to presence WebSocket');
@@ -35,7 +36,7 @@ const useOnlineStatus = () => {
   const handleWebSocketMessage = useCallback((data) => {
     switch (data.type) {
       case 'user_status_update':
-        // Update specific user's online status
+        // Update specific user\'s online status
         setOnlineUsers(prev => ({
           ...prev,
           [data.user_id]: {
@@ -47,6 +48,7 @@ const useOnlineStatus = () => {
         
       case 'online_users_list':
         // Update the entire online users list
+        console.log('🟢 Received online_users_list:', data.users);
         const usersMap = {};
         data.users.forEach(user => {
           usersMap[user.id] = {
@@ -63,7 +65,7 @@ const useOnlineStatus = () => {
         break;
         
       default:
-        console.log('🔄 Received unknown message type:', data.type);
+        console.log('🔄 Received unknown message type in useOnlineStatus:', data.type, data);
     }
   }, []);
   // Get online status for a specific user
@@ -102,13 +104,21 @@ const useOnlineStatus = () => {
   // Update connection status based on WebSocket state
   useEffect(() => {
     setIsConnected(wsConnected);
-  }, [wsConnected]);  return {
+  }, [wsConnected]);
+
+  console.log('🟢 useOnlineStatus socket:', socket);
+  console.log('📨 useOnlineStatus lastMessage:', lastMessage); // Log the last message
+
+  return {
     onlineUsers,
     isConnected,
     getUserOnlineStatus,
     getOnlineUsersList,
     getOnlineUsersCount,
-    refreshOnlineUsers
+    refreshOnlineUsers,
+    websocketConnection: socket,
+    sendMessage,
+    lastMessage // Expose lastMessage
   };
 };
 

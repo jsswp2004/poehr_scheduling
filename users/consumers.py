@@ -2,7 +2,14 @@ import json
 import asyncio
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.contrib.auth import get_user_model
+# Corrected import: ChatRoom and Message are in users.models
+from .models import OnlineUser, ChatRoom, ChatMessage
+from django.utils import timezone
+import logging # Added for explicit logging if needed
 
+CustomUser = get_user_model()
+logger = logging.getLogger(__name__)
 
 class PresenceConsumer(AsyncWebsocketConsumer):    
     async def connect(self):
@@ -80,11 +87,11 @@ class PresenceConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         """Handle incoming WebSocket messages"""
-        print(f"Received WebSocket message: {text_data}")
+        print(f"DEBUG_CHAT_RECEIVE: Raw message received: {text_data}") # Log raw message data
         try:
             data = json.loads(text_data)
             message_type = data.get('type')
-            print(f"Message type: {message_type}")
+            print(f"DEBUG_CHAT_RECEIVE: Parsed message_type: {message_type}") # Log parsed message type
             
             if message_type == 'heartbeat':
                 # Update user's last seen timestamp
@@ -122,12 +129,13 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             elif message_type == 'get_chat_history':
                 print("Handling get_chat_history")
                 await self.handle_get_chat_history(data)
-                
+            
+            # Add a specific log before create_chat_room handler
             elif message_type == 'create_chat_room':
-                print("Handling create_chat_room")
+                print(f"DEBUG_CHAT_RECEIVE: Routing to handle_create_chat_room for data: {data}")
                 await self.handle_create_chat_room(data)
             else:
-                print(f"Unknown message type: {message_type}")
+                print(f"DEBUG_CHAT_RECEIVE: Unknown message type: {message_type}, Data: {data}")
         
         except json.JSONDecodeError:
             print("ERROR: Invalid JSON received")
@@ -194,7 +202,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         """Get list of online users (excluding patients)"""
         try:
             from .models import CustomUser
-            online_users = CustomUser.objects.filter(
+            online_users_qs = CustomUser.objects.filter(
                 is_online=True
             ).exclude(
                 role='patient'
@@ -202,8 +210,15 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 'id', 'username', 'first_name', 'last_name', 
                 'email', 'role', 'is_online', 'last_seen'
             )
-            return list(online_users)
-        except Exception:
+            # Convert datetime objects to ISO strings
+            online_users = []
+            for user in online_users_qs:
+                if user['last_seen']:
+                    user['last_seen'] = user['last_seen'].isoformat()
+                online_users.append(user)
+            return online_users
+        except Exception as e:
+            print(f"ERROR: Error in get_online_users: {e}")
             return []
     
     async def broadcast_user_status(self):
@@ -376,527 +391,130 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             print(f"ERROR: Error getting chat history: {e}")
             await self.send_error('Failed to load chat history')
 
-    async def handle_create_chat_room(self, data):
-        """Handle creating a new chat room"""
-        if self.is_test_user:
-            print("WARNING: Test user attempting to create chat room - blocked")
+    async def handle_create_chat_room(self, event):
+        print("Handling create_chat_room") # Existing log
+        print(f"DEBUG_CHAT: handle_create_chat_room received event: {event}")
+        participant_ids = event.get('participants', [])
+        print(f"DEBUG_CHAT: Extracted participant_ids from event.get: {participant_ids}")
+
+        if not participant_ids or not isinstance(participant_ids, list) or len(participant_ids) != 2: # Direct chats are 1-on-1
+            error_message = "Failed to create chat room: Exactly two participant IDs are required."
+            print(f"DEBUG_CHAT: Validation failed. IDs: {participant_ids}. Error: {error_message}")
+            await self.send_error(error_message)
             return
-            
-        try:
-            participant_ids = data.get('participant_ids', [])
-            room_name = data.get('room_name', '')
-            room_type = data.get('room_type', 'direct')
-            
-            print(f"ROOM: Creating chat room: participants={participant_ids}, name='{room_name}', type={room_type}")
-            
-            if not participant_ids:
-                await self.send_error('Participants required')
-                return
-            
-            # Ensure current user is in participant list
-            if self.user.id not in participant_ids:
-                participant_ids.append(self.user.id)
-                print(f"Added current user {self.user.id} to participants")
-                
-            # Check if direct message room already exists
-            if room_type == 'direct' and len(participant_ids) == 2:
-                existing_room = await self.find_existing_direct_room(participant_ids)
-                if existing_room:
-                    print(f"Found existing direct room: {existing_room['id']}")
-                    await self.join_chat_room(existing_room['id'])
-                    await self.send(text_data=json.dumps({
-                        'type': 'chat_room_created',
-                        'room': existing_room
-                    }))
-                    return
-                  
-            # Create new chat room
-            room_data = await database_sync_to_async(self.create_chat_room)(participant_ids, room_name, room_type)
-            
-            if room_data:
-                # Join the user to the newly created room
-                await self.join_chat_room(room_data['id'])
-                await self.send(text_data=json.dumps({
-                    'type': 'chat_room_created',
-                    'room': room_data
-                }))
-                print(f"SUCCESS: Chat room created successfully: {room_data['id']}")
-            else:
-                await self.send_error('Failed to create chat room')
-                print(f"ERROR: Failed to create chat room in database")
-                
-        except Exception as e:
-            print(f"ERROR: Error creating chat room: {e}")
-            import traceback
-            traceback.print_exc()
-            await self.send_error('Failed to create chat room')# Database operations for chat
-    def save_chat_message(self, room_id, message_text, recipient_id=None):
-        """Save chat message to database"""
-        try:
-            from .models import ChatRoom, ChatMessage, CustomUser
-            
-            room = ChatRoom.objects.get(id=room_id)
-            recipient = None
-            if recipient_id:
-                recipient = CustomUser.objects.get(id=recipient_id)
-                
-            message = ChatMessage.objects.create(
-                room=room,
-                sender=CustomUser.objects.get(id=self.user.id),
-                recipient=recipient,
-                message=message_text,
-                message_type='text'
-            )
-            
-            return {
-                'id': message.id,
-                'room_id': room.id,
-                'sender_id': message.sender.id,
-                'sender_name': f"{message.sender.first_name} {message.sender.last_name}".strip() or message.sender.username,
-                'recipient_id': message.recipient.id if message.recipient else None,
-                'message': message.message,
-                'timestamp': message.timestamp.isoformat(),
-                'is_read': message.is_read
-            }
-            
-        except Exception as e:
-            print(f"ERROR: Error saving chat message: {e}")
-            return None
 
-    @database_sync_to_async
-    def get_chat_messages(self, room_id, limit=50):
-        """Get chat messages from database"""
         try:
-            from .models import ChatRoom, ChatMessage
-            
-            room = ChatRoom.objects.get(id=room_id)
-            messages = ChatMessage.objects.filter(room=room).order_by('-timestamp')[:limit]
-            
-            return [{
-                'id': msg.id,
-                'room_id': room.id,
-                'sender_id': msg.sender.id,
-                'sender_name': f"{msg.sender.first_name} {msg.sender.last_name}".strip() or msg.sender.username,
-                'recipient_id': msg.recipient.id if msg.recipient else None,
-                'message': msg.message,
-                'timestamp': msg.timestamp.isoformat(),
-                'is_read': msg.is_read
-            } for msg in reversed(messages)]
-            
-        except Exception as e:
-            print(f"ERROR: Error getting chat messages: {e}")
-            return []
+            participant_ids_int = [int(pid) for pid in participant_ids]
+            print(f"DEBUG_CHAT: Converted participant_ids to int: {participant_ids_int}")
+        except ValueError:
+            error_message = "Invalid participant ID format. IDs must be integers."
+            print(f"DEBUG_CHAT: Invalid participant ID format in {participant_ids}. Error: {error_message}")
+            await self.send_error(error_message)
+            return
 
-    def create_chat_room(self, participant_ids, room_name, room_type):
-        """Create a new chat room"""
-        try:
-            from .models import ChatRoom, CustomUser
-            
-            # Create room name if not provided
-            if not room_name and room_type == 'direct':
-                participants = CustomUser.objects.filter(id__in=participant_ids)
-                room_name = ', '.join([f"{p.first_name} {p.last_name}".strip() or p.username for p in participants])
-            
-            room = ChatRoom.objects.create(
-                name=room_name or f"Chat Room {ChatRoom.objects.count() + 1}",
-                room_type=room_type
-            )
-            
-            # Add participants
-            participants = CustomUser.objects.filter(id__in=participant_ids)
-            room.participants.set(participants)
-            
-            return {
-                'id': room.id,
-                'name': room.name,
-                'room_type': room.room_type,
-                'participants': [{
-                    'id': p.id,
-                    'username': p.username,
-                    'name': f"{p.first_name} {p.last_name}".strip() or p.username
-                } for p in participants],
-                'created_at': room.created_at.isoformat()
-            }
-            
-        except Exception as e:
-            print(f"ERROR: Error creating chat room: {e}")
-            return None
-
-    @database_sync_to_async
-    def update_typing_status(self, room_id, is_typing):
-        """Update typing status in database"""
-        try:
-            from .models import ChatRoom, TypingIndicator, CustomUser
-            
-            room = ChatRoom.objects.get(id=room_id)
-            user = CustomUser.objects.get(id=self.user.id)
-            
-            indicator, created = TypingIndicator.objects.get_or_create(
-                user=user,
-                room=room,
-                defaults={'is_typing': is_typing}
-            )
-            
-            if not created:
-                indicator.set_typing(is_typing)
-                
-            return True
-        except Exception as e:
-            print(f"ERROR: Error updating typing status: {e}")
-            return False
-
-    @database_sync_to_async
-    def mark_message_read(self, message_id):
-        """Mark message as read"""
-        try:
-            from .models import ChatMessage
-            
-            message = ChatMessage.objects.get(id=message_id)
-            message.mark_as_read()
-            return True
-            
-        except Exception as e:
-            print(f"ERROR: Error marking message as read: {e}")
-            return False
-
-    # Broadcasting methods
-    async def broadcast_chat_message(self, message_data):
-        """Broadcast chat message to room participants"""
-        room_group = f"chat_room_{message_data['room_id']}"
+        # Ensure the current user is one of the participants
+        if self.scope['user'].id not in participant_ids_int:
+            error_message = "User initiating chat must be one of the participants."
+            print(f"DEBUG_CHAT: Current user {self.scope['user'].id} not in participant_ids_int {participant_ids_int}. Error: {error_message}")
+            await self.send_error(error_message)
+            return
         
-        await self.channel_layer.group_send(
-            room_group,
-            {
-                'type': 'chat_message',
-                'message': message_data
-            }
-        )
+        # Prevent user from creating a chat room with themselves
+        if len(set(participant_ids_int)) < 2:
+            error_message = "Cannot create a chat room with yourself."
+            print(f"DEBUG_CHAT: Attempt to create chat with self. IDs: {participant_ids_int}. Error: {error_message}")
+            await self.send_error(error_message)
+            return
 
-    async def broadcast_typing_indicator(self, room_id, is_typing):
-        """Broadcast typing indicator to room participants"""
-        room_group = f"chat_room_{room_id}"
-        
-        await self.channel_layer.group_send(
-            room_group,
-            {
-                'type': 'typing_indicator',
-                'user_id': self.user.id,
-                'user_name': getattr(self.user, 'username', 'Unknown'),
-                'room_id': room_id,
-                'is_typing': is_typing
-            }
-        )
+        room = await self._get_or_create_direct_chat_room(participant_ids_int)
 
-    async def broadcast_read_receipt(self, message_id):
-        """Broadcast read receipt"""
-        await self.channel_layer.group_send(
-            "presence_updates",
-            {
-                'type': 'read_receipt',
-                'message_id': message_id,
-                'reader_id': self.user.id
-            }
-        )
-
-    # WebSocket event handlers
-    async def chat_message(self, event):
-        """Handle chat message events"""
-        await self.send(text_data=json.dumps({
-            'type': 'new_message',
-            'message': event['message']
-        }))
-
-    async def typing_indicator(self, event):
-        """Handle typing indicator events"""
-        # Don't send typing indicators back to the sender
-        if event['user_id'] != self.user.id:
+        if room:
+            print(f"DEBUG_CHAT: Chat room {'created' if getattr(room, '_created_in_consumer', False) else 'retrieved'}: ID {room.id}, Name: {room.name}")
+            participant_objs = await self._get_participant_objs(room)
+            print(f"DEBUG: Sending chat_room_created to user {self.scope['user'].id} on channel {self.channel_name}")
             await self.send(text_data=json.dumps({
-                'type': 'typing_indicator',
-                'user_id': event['user_id'],
-                'user_name': event['user_name'],
-                'room_id': event['room_id'],
-                'is_typing': event['is_typing']
+                'type': 'chat_room_created',
+                'room_id': room.id,
+                'name': room.name,
+                'participants': participant_objs, # Now sending objects with id and username
+                'chat_type': room.room_type
             }))
+        else:
+            print(f"DEBUG_CHAT: Failed to create or retrieve chat room for participants: {participant_ids_int}. An error should have been sent.")
 
-    async def read_receipt(self, event):
-        """Handle read receipt events"""
-        await self.send(text_data=json.dumps({
-            'type': 'read_receipt',
-            'message_id': event['message_id'],
-            'reader_id': event['reader_id']
-        }))
+    @database_sync_to_async
+    def _get_participant_objs(self, room):
+        return [
+            {'id': p.id, 'username': p.username, 'first_name': p.first_name, 'last_name': p.last_name}
+            for p in room.participants.all()
+        ]
 
-    # Utility methods
-    async def send_error(self, message):
-        """Send error message to client"""
+    @database_sync_to_async
+    def _get_or_create_direct_chat_room(self, participant_ids_int):
+        print(f"DEBUG_CHAT: _get_or_create_direct_chat_room entered with participant_ids_int: {participant_ids_int}")
+
+        user1_id, user2_id = sorted(participant_ids_int) # Sort to ensure consistent lookup/creation if manager relies on order
+
+        user1 = CustomUser.objects.filter(id=user1_id).first()
+        user2 = CustomUser.objects.filter(id=user2_id).first()
+
+        print(f"DEBUG_CHAT: _get_or_create_direct_chat_room: Fetched user1 (ID {user1_id}): {'Found' if user1 else 'NOT FOUND'}")
+        print(f"DEBUG_CHAT: _get_or_create_direct_chat_room: Fetched user2 (ID {user2_id}): {'Found' if user2 else 'NOT FOUND'}")
+
+        if not user1 or not user2:
+            print(f"DEBUG_CHAT: _get_or_create_direct_chat_room: One or both users not found. Cannot create chat room.")
+            # No explicit self.send_error here as this is a sync function. Calling function handles it.
+            return None
+
+        participants_for_room = [user1, user2]
+        
+        # Use the manager method that expects a list of user *objects*
+        # This assumes your ChatRoomManager has a method like get_or_create_direct_room_for_participants
+        try:
+            # Assuming your manager method is robust.
+            # The log `ROOM: Creating chat room: participants=[]...` comes from your chat.models.ChatRoomManager.
+            # We are now ensuring `participants_for_room` is correctly populated.
+            print(f"DEBUG_CHAT: _get_or_create_direct_chat_room: Calling ChatRoom.objects.get_or_create_direct_room_for_participants with: {[p.username for p in participants_for_room]}")
+            
+            room, created = ChatRoom.objects.get_or_create_direct_room_for_participants(
+                participants=participants_for_room
+            )
+            # Add a flag to indicate if it was created by this call, for logging in the calling async method
+            room._created_in_consumer = created 
+            
+            print(f"DEBUG_CHAT: _get_or_create_direct_chat_room: Room {'created' if created else 'retrieved'} by manager: ID {room.id if room else 'None'}, Name {room.name if room else 'None'}")
+            return room
+        except Exception as e:
+            print(f"DEBUG_CHAT: _get_or_create_direct_chat_room: Error during ChatRoom.objects.get_or_create_direct_room_for_participants: {e}")
+            print(f"DEBUG_CHAT: Participants at error: {[p.username for p in participants_for_room] if all(participants_for_room) else 'Error with participants list'}")
+            return None
+
+    async def send_error(self, message, error_type="error"):
+        print(f"DEBUG_WEBSOCKET: Sending error: {message}")
         await self.send(text_data=json.dumps({
-            'type': 'error',
+            'type': error_type,
             'message': message
         }))
 
-    @database_sync_to_async
-    def verify_room_exists(self, room_id):
-        """Verify that a chat room exists"""
-        try:
-            from .models import ChatRoom
-            return ChatRoom.objects.filter(id=room_id, is_active=True).exists()
-        except Exception as e:
-            print(f"ERROR: Error verifying room exists: {e}")
-            return False
+    async def get_chat_messages(self, room_id, limit=50):
+        # Fetch chat messages for a room, ordered by timestamp descending, limited to 'limit' messages
+        messages = await self._get_chat_messages_from_db(room_id, limit)
+        return messages
 
     @database_sync_to_async
-    def find_existing_direct_room(self, participant_ids):
-        """Find existing direct message room between users"""
-        try:
-            from .models import ChatRoom
-            
-            # For direct messages, find room with exactly these participants
-            rooms = ChatRoom.objects.filter(
-                room_type='direct',
-                is_active=True
-            ).prefetch_related('participants')
-            
-            for room in rooms:
-                room_participant_ids = set(room.participants.values_list('id', flat=True))
-                if room_participant_ids == set(participant_ids):
-                    return {
-                        'id': room.id,
-                        'name': room.name,
-                        'room_type': room.room_type,
-                        'participants': [{
-                            'id': p.id,
-                            'username': p.username,
-                            'name': f"{p.first_name} {p.last_name}".strip() or p.username
-                        } for p in room.participants.all()],
-                        'created_at': room.created_at.isoformat()
-                    }
-            
-            return None
-            
-        except Exception as e:
-            print(f"ERROR: Error finding existing direct room: {e}")
-            return None
-
-
-class ChatConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        """Handle chat WebSocket connection"""
-        self.user = self.scope["user"]
-        self.room_id = None
-        self.room_group_name = None
-        
-        print(f"Chat WebSocket connection attempt - User: {self.user}, Type: {type(self.user)}")
-        
-        # Handle anonymous users - allow but mark as test
-        from django.contrib.auth.models import AnonymousUser
-        if isinstance(self.user, AnonymousUser):
-            print("WARNING: Chat WebSocket connection from anonymous user - ALLOWING FOR TESTING")
-            # Create a fake user for testing
-            self.user = type('TestUser', (), {
-                'id': 999,
-                'username': 'test_user',
-                'first_name': 'Test',
-                'last_name': 'User'
-            })()
-        
-        print(f"SUCCESS: Chat WebSocket connection accepted - User: {getattr(self.user, 'username', 'unknown')} (ID: {getattr(self.user, 'id', 'unknown')})")
-        
-        await self.accept()
-        
-        # Send connection confirmation
-        await self.send(text_data=json.dumps({
-            'type': 'connection_established',
-            'user_id': self.user.id,
-            'username': self.user.username
-        }))
-
-    async def disconnect(self, close_code):
-        """Handle WebSocket disconnection"""
-        print(f"DISCONNECT: Chat WebSocket disconnected - User: {getattr(self.user, 'username', 'unknown')} (Code: {close_code})")
-        
-        # Leave room group if connected to one
-        if self.room_group_name:
-            await self.channel_layer.group_discard(
-                self.room_group_name,
-                self.channel_name
-            )
-
-    async def safe_send(self, data):
-        """Safely send data to WebSocket, checking connection state first"""
-        try:
-            if hasattr(self, 'channel_name') and hasattr(self, 'send'):
-                await self.send(text_data=json.dumps(data))
-        except Exception as e:
-            print(f"WARNING: Failed to send WebSocket message: {e}")
-            # Don't raise the exception, just log it
-
-    async def receive(self, text_data):
-        """Handle messages from WebSocket"""
-        try:
-            data = json.loads(text_data)
-            message_type = data.get('type')
-            
-            print(f"MESSAGE: Chat message received - Type: {message_type}, Data: {data}")
-            
-            if message_type == 'join_room':
-                await self.handle_join_room(data)
-            elif message_type == 'send_message':
-                await self.handle_send_message(data)
-            elif message_type == 'create_room':
-                await self.handle_create_room(data)
-            else:
-                print(f"ERROR: Unknown message type: {message_type}")
-                await self.safe_send({
-                    'type': 'error',
-                    'message': f'Unknown message type: {message_type}'
-                })
-                
-        except json.JSONDecodeError as e:
-            print(f"ERROR: Invalid JSON received: {e}")
-            await self.safe_send({
-                'type': 'error',
-                'message': 'Invalid JSON format'
-            })
-        except Exception as e:
-            print(f"ERROR: Error handling chat message: {e}")
-            await self.safe_send({
-                'type': 'error',
-                'message': 'Internal server error'
-            })
-
-    async def handle_join_room(self, data):
-        """Handle joining a chat room"""
-        try:
-            room_id = data.get('room_id')
-            if not room_id:
-                await self.send(text_data=json.dumps({
-                    'type': 'error',
-                    'message': 'Room ID is required'
-                }))
-                return
-            
-            # Leave current room if connected to one
-            if self.room_group_name:
-                await self.channel_layer.group_discard(
-                    self.room_group_name,
-                    self.channel_name
-                )
-            
-            # Join new room
-            self.room_id = room_id
-            self.room_group_name = f"chat_{room_id}"
-            await self.channel_layer.group_add(
-                self.room_group_name,
-                self.channel_name
-            )
-            
-            print(f"GROUP: User {self.user.username} joined room {room_id}")
-            
-            # Send confirmation
-            await self.send(text_data=json.dumps({
-                'type': 'room_joined',
-                'room_id': room_id
-            }))
-            
-        except Exception as e:
-            print(f"ERROR: Error joining room: {e}")
-            await self.safe_send({
-                'type': 'error',
-                'message': 'Failed to join room'
-            })
-
-    async def handle_send_message(self, data):
-        """Handle sending a chat message"""
-        try:
-            if not self.room_group_name:
-                await self.safe_send({
-                    'type': 'error',
-                    'message': 'Not connected to any room'
-                })
-                return
-            
-            message_content = data.get('message', '').strip()
-            if not message_content:
-                await self.safe_send({
-                    'type': 'error',
-                    'message': 'Message content is required'
-                })
-                return
-            
-            # Store message in database (if not test user)
-            message_data = {
-                'id': f"msg_{asyncio.get_event_loop().time()}",  # Simple ID for now
-                'message': message_content,
-                'sender': {
-                    'id': self.user.id,
-                    'username': self.user.username,
-                    'name': f"{getattr(self.user, 'first_name', '')} {getattr(self.user, 'last_name', '')}".strip() or self.user.username
-                },
-                'room_id': self.room_id,
-                'timestamp': asyncio.get_event_loop().time()
+    def _get_chat_messages_from_db(self, room_id, limit):
+        qs = ChatMessage.objects.filter(room_id=room_id).order_by('-timestamp')[:limit]
+        # Return as list of dicts for JSON serialization
+        return [
+            {
+                'id': m.id,
+                'sender': m.sender.username,
+                'sender_id': m.sender.id,
+                'recipient_id': m.recipient.id if m.recipient else None,
+                'message': m.message,
+                'message_type': m.message_type,
+                'timestamp': m.timestamp.isoformat(),
+                'is_read': m.is_read
             }
-            
-            print(f"CHAT: Broadcasting message in room {self.room_id}: {message_content}")
-            
-            # Broadcast message to room group
-            await self.channel_layer.group_send(
-                self.room_group_name,
-                {
-                    'type': 'chat_message',
-                    'message_data': message_data
-                }
-            )
-            
-        except Exception as e:
-            print(f"ERROR: Error sending message: {e}")
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Failed to send message'
-            }))
-
-    async def handle_create_room(self, data):
-        """Handle creating a new chat room"""
-        try:
-            participants = data.get('participants', [])
-            if not participants:
-                await self.send(text_data=json.dumps({
-                    'type': 'error',
-                    'message': 'Participants are required'
-                }))
-                return
-            
-            # For now, create a simple room ID
-            room_id = f"room_{self.user.id}_{hash(str(sorted(participants)))}"
-            
-            room_data = {
-                'id': room_id,
-                'name': f"Chat with {len(participants)} users",
-                'room_type': 'direct' if len(participants) == 2 else 'group',
-                'participants': participants,
-                'created_at': asyncio.get_event_loop().time()
-            }
-            
-            print(f"ROOM: Created room {room_id} with participants: {participants}")
-            
-            # Send room created confirmation
-            await self.send(text_data=json.dumps({
-                'type': 'room_created',
-                'room': room_data
-            }))
-            
-        except Exception as e:
-            print(f"ERROR: Error creating room: {e}")
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': 'Failed to create room'
-            }))
-
-    # WebSocket message handlers
-    async def chat_message(self, event):
-        """Send chat message to WebSocket"""
-        message_data = event['message_data']
-        
-        await self.send(text_data=json.dumps({
-            'type': 'message_received',
-            'message': message_data
-        }))
+            for m in qs
+        ]
