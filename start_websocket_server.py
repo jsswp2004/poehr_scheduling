@@ -11,15 +11,13 @@ if __name__ == '__main__':
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'poehr_scheduling_backend.settings')
     
     # Setup Django
-    django.setup()
-    
-    # Import and start Daphne
+    django.setup()      # Import and start Daphne
     from daphne.cli import CommandLineInterface
-    print("🚀 Starting Django with WebSocket support...")
-    print("📡 WebSocket endpoint: ws://localhost:8005/ws/presence/")
-    print("🌐 HTTP endpoint: http://localhost:8005/")
+    print("Starting Django with WebSocket support...")
+    print("WebSocket endpoint: ws://localhost:8000/ws/presence/")
+    print("HTTP endpoint: http://localhost:8000/")
     print("")
     
     # Start Daphne with our ASGI application
     cli = CommandLineInterface()
-    cli.run(['-p', '8005', 'poehr_scheduling_backend.asgi:application'])
+    cli.run(['-p', '8000', 'poehr_scheduling_backend.asgi:application'])

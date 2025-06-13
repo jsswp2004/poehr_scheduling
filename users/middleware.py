@@ -17,6 +17,10 @@ class JWTAuthMiddleware(BaseMiddleware):
         # Extract token from query parameters
         token = self.get_token_from_scope(scope)
         
+        print(f"🔐 JWT Middleware - Token present: {bool(token)}")
+        if token:
+            print(f"🔐 JWT Middleware - Token (first 50 chars): {token[:50]}...")
+        
         if token:
             try:
                 # Import JWT classes inside function to avoid app loading issues
@@ -25,6 +29,7 @@ class JWTAuthMiddleware(BaseMiddleware):
                 
                 # Validate the token  
                 UntypedToken(token)
+                print("✅ JWT Middleware - Token validation passed")
                 
                 # Decode the token to get user information
                 decoded_data = jwt_decode(
@@ -32,15 +37,19 @@ class JWTAuthMiddleware(BaseMiddleware):
                     settings.SECRET_KEY, 
                     algorithms=["HS256"]
                 )
+                print(f"✅ JWT Middleware - Token decoded, user_id: {decoded_data.get('user_id')}")
                 
                 # Get the user
                 user = await self.get_user(decoded_data['user_id'])
                 scope['user'] = user
+                print(f"✅ JWT Middleware - User found: {getattr(user, 'username', 'unknown')}")
                 
-            except (InvalidToken, TokenError, KeyError):
+            except (InvalidToken, TokenError, KeyError) as e:
+                print(f"❌ JWT Middleware - Token validation failed: {e}")
                 from django.contrib.auth.models import AnonymousUser
                 scope['user'] = AnonymousUser()
         else:
+            print("❌ JWT Middleware - No token provided")
             from django.contrib.auth.models import AnonymousUser
             scope['user'] = AnonymousUser()
 

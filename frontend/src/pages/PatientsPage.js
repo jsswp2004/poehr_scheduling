@@ -45,36 +45,44 @@ function PatientsPage() {
   const [loadingTeam, setLoadingTeam] = useState(true);
   const [teamSearch, setTeamSearch] = useState('');
   const [teamPage, setTeamPage] = useState(1);
-  const [teamTotalSize, setTeamTotalSize] = useState(0);  const [provider, setProvider] = useState('');
+  const [teamTotalSize, setTeamTotalSize] = useState(0);  const [provider, setProvider] = useState('');    // ✅ Initialize hooks first
+  const { getUserOnlineStatus, isConnected: onlineStatusConnected, websocketConnection } = useOnlineStatus();
   
-  // ✅ Initialize hooks first
-  const { getUserOnlineStatus, isConnected: onlineStatusConnected } = useOnlineStatus();
+  console.log('🔍 PatientsPage - websocketConnection from useOnlineStatus:', websocketConnection);
   
   // ✅ Chat state management
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [selectedChatUser, setSelectedChatUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  
   // Get current user from token
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    // Try both possible token keys for compatibility
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+    console.log('🔍 Token check:', { token: token ? 'Present' : 'Missing', length: token?.length });
+    
     if (token) {
       try {
         const decoded = jwtDecode(token);
-        setCurrentUser({
+        console.log('🔍 Decoded token:', decoded);
+        
+        const user = {
           id: decoded.user_id,
           username: decoded.username,
           first_name: decoded.first_name || '',
           last_name: decoded.last_name || ''
-        });
+        };
+        
+        console.log('✅ Setting current user:', user);
+        setCurrentUser(user);
       } catch (error) {
-        console.error('Error decoding token:', error);
+        console.error('❌ Error decoding token:', error);
+        console.log('🔍 Token content preview:', token.substring(0, 50) + '...');
       }
-    }
-  }, []);
-  
-  // Initialize chat hook
-  const chat = useChat(currentUser);
+    } else {
+      console.error('❌ No token found in localStorage (checked both "token" and "access_token")');
+    }  }, []);
+    // Initialize chat hook with shared WebSocket connection
+  const chat = useChat(currentUser, websocketConnection);
   
   // ✅ Debug online status
   useEffect(() => {
@@ -122,7 +130,7 @@ function PatientsPage() {
     'Appointment Duration Summary',
   ];
 
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('token') || localStorage.getItem('access_token');
   let userRole = null;
 
   if (token) {
@@ -997,9 +1005,30 @@ function PatientsPage() {
                           isOnline={getUserOnlineStatus(member.id).isOnline}
                           lastSeen={getUserOnlineStatus(member.id).lastSeen || member.last_seen}                          onChatClick={async () => {
                             console.log('🎯 Chat button clicked for member:', member);
+                            console.log('🔍 Debug state:', { 
+                              currentUser, 
+                              chat: !!chat, 
+                              chatConnected: chat?.isConnected,
+                              chatModalOpen,
+                              selectedChatUser
+                            });
+                            
                             setSelectedChatUser(member);
                             
+                            if (!currentUser) {
+                              console.error('❌ No current user found');
+                              alert('Error: User not logged in properly');
+                              return;
+                            }
+                            
+                            if (!chat) {
+                              console.error('❌ Chat hook not initialized');
+                              alert('Error: Chat system not initialized');
+                              return;
+                            }
+                            
                             try {
+                              console.log('🚀 Opening chat with user...');
                               // Open chat with the selected user (wait for room creation)
                               const roomId = await chat.openChatWithUser({
                                 id: member.id,
@@ -1007,14 +1036,19 @@ function PatientsPage() {
                                 ...member
                               });
                               
+                              console.log('🏠 Room creation result:', roomId);
+                              
                               if (roomId) {
                                 console.log('✅ Chat room ready, opening modal');
                                 setChatModalOpen(true);
+                                console.log('🔍 Modal state after setting:', chatModalOpen);
                               } else {
                                 console.error('❌ Failed to create/open chat room');
+                                alert('Failed to create chat room. Please try again.');
                               }
                             } catch (error) {
                               console.error('❌ Error opening chat:', error);
+                              alert('Error opening chat: ' + error.message);
                             }
                           }}
                         />
