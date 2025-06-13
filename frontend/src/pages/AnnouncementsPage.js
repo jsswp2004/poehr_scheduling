@@ -38,8 +38,7 @@ function AnnouncementsPage() {
       <Typography variant="h6" sx={{ mb: 3, fontWeight: 600 }}>
         Manage Announcements
       </Typography>
-      
-      <Paper sx={{ p: 3, boxShadow: 2 }}>
+        <Paper sx={{ p: 3, boxShadow: 2, height: 'auto', overflow: 'visible' }}>
         <Tabs 
           value={activeTab} 
           onChange={handleTabChange}
@@ -58,11 +57,18 @@ function AnnouncementsPage() {
           <Tab label="Message #1" />
           <Tab label="Message #2" />
           <Tab label="Message #3" />
-        </Tabs>
-          <Divider sx={{ mb: 3 }} />
-        
-        <Box sx={{ display: 'flex', gap: 3, height: 'auto' }}>          {/* Left Pane - Editing Form */}
-          <Box sx={{ flex: '0 0 320px' }}>
+        </Tabs>          <Divider sx={{ mb: 3 }} />          <Box sx={{ 
+            display: 'grid', 
+            gridTemplateColumns: '29% 29% 40%',
+            gap: 2, 
+            width: '100%',
+            overflow: 'visible',
+            alignItems: 'start'
+          }}>          {/* Left Pane - Editing Form (29%) */}
+          <Box sx={{ 
+            overflow: 'visible',
+            minHeight: 0
+          }}>
             <TextField
               label="Header"
               fullWidth
@@ -137,10 +143,12 @@ function AnnouncementsPage() {
                 Click on a tab to edit that message
               </Typography>
             )}
-          </Box>
-            {/* Right Pane - Preview */}
-          <Box sx={{ flex: '0 0 380px' }}>
-            <Paper sx={{ p: 3, bgcolor: '#f8f9fa', border: '1px solid #e9ecef', minHeight: 300 }}>
+          </Box>          {/* Middle Pane - Preview (29%) */}
+          <Box sx={{ 
+            overflow: 'visible',
+            minHeight: 0
+          }}>
+            <Paper sx={{ p: 3, bgcolor: '#f8f9fa', border: '1px solid #e9ecef', height: 'auto', overflow: 'visible' }}>
               <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
                 Preview
               </Typography>
@@ -221,116 +229,153 @@ function AnnouncementsPage() {
                   </Box>
                 )}              </Box>
             </Paper>
-          </Box>
-          
-          {/* Third Pane - HTML Guide */}
-          <Box sx={{ flex: '0 0 280px' }}>
-            <Paper sx={{ p: 2, bgcolor: '#f0f8ff', border: '1px solid #d1ecf1', minHeight: 300 }}>
-              <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, fontSize: '1rem' }}>
-                HTML Tags Guide
-              </Typography>
-              
-              <Box sx={{ fontSize: '0.8rem' }}>
-                {/* Text Formatting */}
-                <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.9rem', fontWeight: 600 }}>
-                  Text Formatting
-                </Typography>
-                <Box sx={{ mb: 2, ml: 1 }}>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.7rem' }}>&lt;b&gt;text&lt;/b&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Makes text <strong>bold</strong>
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.7rem' }}>&lt;i&gt;text&lt;/i&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Makes text <em>italic</em>
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.7rem' }}>&lt;u&gt;text&lt;/u&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      <u>Underlines</u> text
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.7rem' }}>&lt;strong&gt;text&lt;/strong&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      <strong>Important</strong> text
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Layout */}
-                <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.9rem', fontWeight: 600 }}>
-                  Layout
-                </Typography>
-                <Box sx={{ mb: 2, ml: 1 }}>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.7rem' }}>&lt;br&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Line break (new line)
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.7rem' }}>&lt;p&gt;text&lt;/p&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Paragraph with spacing
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.7rem' }}>&lt;center&gt;text&lt;/center&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Centers text
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Lists */}
-                <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.9rem', fontWeight: 600 }}>
-                  Lists
-                </Typography>
-                <Box sx={{ mb: 2, ml: 1 }}>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.65rem' }}>&lt;ul&gt;&lt;li&gt;item&lt;/li&gt;&lt;/ul&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Bulleted list
-                    </Typography>
-                  </Box>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.65rem' }}>&lt;ol&gt;&lt;li&gt;item&lt;/li&gt;&lt;/ol&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Numbered list
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Colors */}
-                <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.9rem', fontWeight: 600 }}>
-                  Colors
-                </Typography>
-                <Box sx={{ mb: 2, ml: 1 }}>
-                  <Box sx={{ mb: 1 }}>
-                    <code style={{ background: '#e8f4f8', padding: '2px 4px', borderRadius: '3px', fontSize: '0.65rem' }}>&lt;font color="red"&gt;text&lt;/font&gt;</code>
-                    <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.5 }}>
-                      Colored text
-                    </Typography>
-                  </Box>
-                </Box>
-                
-                {/* Example */}
-                <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.9rem', fontWeight: 600 }}>
-                  Example
-                </Typography>
-                <Box sx={{ background: '#f8f9fa', p: 1, borderRadius: 1, border: '1px solid #ddd' }}>
-                  <Typography variant="caption" sx={{ fontFamily: 'monospace', fontSize: '0.7rem', lineHeight: 1.4 }}>
-                    &lt;b&gt;Notice:&lt;/b&gt;&lt;br&gt;<br/>
-                    Please &lt;i&gt;review&lt;/i&gt; the new policy.
+          </Box>            {/* Third Pane - HTML Guide (40% with two-column layout) */}
+          <Box sx={{ 
+            overflow: 'visible',
+            minHeight: 0
+          }}>            <Box sx={{ 
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: 1, 
+              width: '100%',
+              overflow: 'visible',
+              alignItems: 'start'
+            }}>              {/* Left sub-column */}
+              <Box sx={{ 
+                overflow: 'visible',
+                minHeight: 0
+              }}>
+                <Paper sx={{ p: 2, bgcolor: '#f0f8ff', border: '1px solid #d1ecf1', height: '450px', overflow: 'auto' }}>
+                  <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, fontSize: '0.9rem' }}>
+                    Text & Layout
                   </Typography>
-                </Box>
+                  
+                  <Box sx={{ fontSize: '0.75rem' }}>
+                    {/* Text Formatting */}
+                    <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.8rem', fontWeight: 600 }}>
+                      Text Formatting
+                    </Typography>
+                    <Box sx={{ mb: 2, ml: 1 }}>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f4f8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.6rem' }}>&lt;b&gt;text&lt;/b&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Makes text <strong>bold</strong>
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f4f8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.6rem' }}>&lt;i&gt;text&lt;/i&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Makes text <em>italic</em>
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f4f8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.6rem' }}>&lt;u&gt;text&lt;/u&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          <u>Underlines</u> text
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f4f8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.6rem' }}>&lt;strong&gt;text&lt;/strong&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          <strong>Important</strong> text
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    {/* Layout */}
+                    <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.8rem', fontWeight: 600 }}>
+                      Layout
+                    </Typography>
+                    <Box sx={{ mb: 2, ml: 1 }}>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f4f8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.6rem' }}>&lt;br&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Line break (new line)
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f4f8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.6rem' }}>&lt;p&gt;text&lt;/p&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Paragraph with spacing
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f4f8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.6rem' }}>&lt;center&gt;text&lt;/center&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Centers text
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Box>              {/* Right sub-column */}
+              <Box sx={{ 
+                overflow: 'visible',
+                minHeight: 0
+              }}>
+                <Paper sx={{ p: 2, bgcolor: '#f8fff0', border: '1px solid #d1f1d1', height: '450px', overflow: 'auto' }}>
+                  <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600, fontSize: '0.9rem' }}>
+                    Lists & Colors
+                  </Typography>
+                  
+                  <Box sx={{ fontSize: '0.75rem' }}>
+                    {/* Lists */}
+                    <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.8rem', fontWeight: 600 }}>
+                      Lists
+                    </Typography>
+                    <Box sx={{ mb: 2, ml: 1 }}>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f8e8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.55rem' }}>&lt;ul&gt;&lt;li&gt;item&lt;/li&gt;&lt;/ul&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Bulleted list
+                        </Typography>
+                      </Box>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f8e8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.55rem' }}>&lt;ol&gt;&lt;li&gt;item&lt;/li&gt;&lt;/ol&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Numbered list
+                        </Typography>
+                      </Box>
+                    </Box>
+                    
+                    {/* Colors */}
+                    <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.8rem', fontWeight: 600 }}>
+                      Colors
+                    </Typography>
+                    <Box sx={{ mb: 2, ml: 1 }}>
+                      <Box sx={{ mb: 1 }}>
+                        <code style={{ background: '#e8f8e8', padding: '1px 3px', borderRadius: '2px', fontSize: '0.55rem' }}>&lt;font color="red"&gt;text&lt;/font&gt;</code>
+                        <Typography variant="caption" sx={{ display: 'block', color: '#666', mt: 0.3, fontSize: '0.65rem' }}>
+                          Colored text
+                        </Typography>
+                      </Box>
+                    </Box>
+                      {/* Example */}
+                    <Typography variant="subtitle2" sx={{ mb: 1, color: '#2c3e50', fontSize: '0.8rem', fontWeight: 600 }}>
+                      Example
+                    </Typography>
+                    <Box sx={{ 
+                      background: '#f8f9fa', 
+                      p: 1.5, 
+                      borderRadius: 1, 
+                      border: '1px solid #ddd',
+                      mb: 1,
+                      wordBreak: 'break-word'
+                    }}>
+                      <Typography variant="caption" sx={{ 
+                        fontFamily: 'monospace', 
+                        fontSize: '0.65rem', 
+                        lineHeight: 1.4,
+                        display: 'block',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        &lt;b&gt;Notice:&lt;/b&gt;&lt;br&gt;{'\n'}Please &lt;i&gt;review&lt;/i&gt; the new policy.
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Paper>
               </Box>
-            </Paper>
+            </Box>
           </Box>
         </Box>
       </Paper>
