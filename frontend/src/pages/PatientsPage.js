@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox
+  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox, Badge
 } from '@mui/material';
 import TodayIcon from '@mui/icons-material/Today';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -26,7 +26,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faDownload, faEye, faCommentDots, faEnvelope, faTrash,
-  faPrint, faFileCsv, faFilePdf,
+  faPrint, faFileCsv, faFilePdf, faSms, faTag, faEdit, faPaperPlane,
 } from '@fortawesome/free-solid-svg-icons';
 import RegisterPage from './RegisterPage';
 
@@ -743,9 +743,8 @@ function PatientsPage() {
   };
 
   // --- Render Table for Patient List ---
-
   const renderPatientTable = () => (
-    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+    <>
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress />
@@ -866,19 +865,17 @@ function PatientsPage() {
               variant="outlined"
               size="small"
               onClick={() => setPage(page + 1)}
-              disabled={page === totalPages}
-              sx={{ mx: 1 }}
+              disabled={page === totalPages}              sx={{ mx: 1 }}
             >
               Next
             </Button>
           </Box>
         </>
       )}
-    </Paper>
+    </>
   );
-
   const renderTeamTable = () => (
-    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff' }}>
+    <>
       {loadingTeam ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress />
@@ -959,9 +956,12 @@ function PatientsPage() {
                               
                               const roomId = await chat.createChatRoom(member.id);
                               console.log('✅ Chat room created with ID:', roomId);
-                              
-                              if (roomId) {
+                                if (roomId) {
                                 console.log('🎉 Opening chat modal...');
+                                // Clear unread count for this user when opening chat
+                                if (chat.clearUnreadCount) {
+                                  chat.clearUnreadCount(member.id);
+                                }
                                 setChatModalOpen(true);
                               } else {
                                 throw new Error('Chat room creation returned null/undefined room ID');
@@ -971,11 +971,59 @@ function PatientsPage() {
                               toast.error(`Failed to start chat: ${error.message || 'Unknown error'}`);
                               setSelectedChatUser(null);
                               setChatModalOpen(false);
-                            }
+                            }                          }}                          disabled={!onlineStatusConnected || !currentUser}
+                        >                          <Badge 
+                            badgeContent={chat.getUnreadCount ? chat.getUnreadCount(member.id) : 0} 
+                            color="error"
+                            invisible={!chat.getUnreadCount || chat.getUnreadCount(member.id) === 0}
+                            sx={{
+                              '& .MuiBadge-badge': {
+                                backgroundColor: '#ff4444',
+                                color: 'white',
+                                minWidth: '18px',
+                                height: '18px',
+                                fontSize: '11px',
+                                fontWeight: 'bold',
+                                borderRadius: '50%',
+                                border: '2px solid white',
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                              }
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faCommentDots} />
+                          </Badge>
+                        </IconButton>
+                      </Tooltip>
+                      
+                      <Tooltip title={!member.phone_number ? "No phone number available" : "Send SMS"} placement="top">
+                        <IconButton
+                          size="small"
+                          color="secondary"
+                          sx={{
+                            opacity: !member.phone_number ? 0.5 : 1,
+                            cursor: !member.phone_number ? 'not-allowed' : 'pointer',
+                            mr: 1
                           }}
-                          disabled={!onlineStatusConnected || !currentUser}
+                          onClick={() => {
+                            if (!member.phone_number) {
+                              toast.warning(`No phone number available for ${member.first_name}`);
+                              return;
+                            }
+                            handleSendText(member);
+                          }}                          disabled={!member.phone_number}
                         >
-                          <FontAwesomeIcon icon={faCommentDots} />
+                          <FontAwesomeIcon icon={faSms} />
+                        </IconButton>
+                      </Tooltip>
+                      
+                      <Tooltip title="Send email" placement="top">
+                        <IconButton
+                          size="small"
+                          color="info"
+                          sx={{ mr: 1 }}
+                          onClick={() => handleOpenEmailModal(member)}
+                        >
+                          <FontAwesomeIcon icon={faEnvelope} />
                         </IconButton>
                       </Tooltip>
                     </TableCell>
@@ -1003,16 +1051,15 @@ function PatientsPage() {
               disabled={teamPage === teamTotalPages}
               sx={{ mx: 1 }}
             >
-              Next
-            </Button>
+              Next            </Button>
           </Box>
         </>
       )}
-    </Paper>
+    </>
   );
 
   const renderAnalyticsTable = () => (
-    <Paper sx={{ mb: 3, borderRadius: 2, boxShadow: 2, bgcolor: '#f5faff', p: 2 }}>
+    <>
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
@@ -1071,15 +1118,14 @@ function PatientsPage() {
                   <Tooltip title="Export PDF">
                     <IconButton color="secondary" onClick={() => handleExportPdfReport(r)} sx={{ width: 36, height: 36 }}>
                       <FontAwesomeIcon icon={faFilePdf} />
-                    </IconButton>
-                  </Tooltip>
+                    </IconButton>                  </Tooltip>
                 </Stack>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
-    </Paper>
+    </>
   );
 
   const handleStartChat = async (userToChatWith) => {
@@ -1145,76 +1191,107 @@ function PatientsPage() {
       console.log('[PatientsPage] useEffect: selectedChatUser exists but no activeRoom');
     }
   }, [chat.activeRoom, selectedChatUser, chatModalOpen, chat.chatRooms]);
-  
-  return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ p: 3, bgcolor: '#eef2f6', minHeight: '100vh' }}>
-        <BackButton />
-        <Typography variant="h4" gutterBottom sx={{ color: '#1976d2', fontWeight: 'bold' }}>
-          {getGreeting()}, {getUserFirstName()}!
-        </Typography>
+    return (
+    <div style={{ textAlign: 'left', width: '100%' }}>
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              mb: 2,
+              borderRadius: 2,
+              bgcolor: '#f5faff',
+              boxShadow: 1,
+              minHeight: 48,
+              p: 1,
+            }}
+          >            <Box sx={{ flex: 1 }}>
+              {tab === 'appointments' ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>                  <Typography variant="h5" sx={{ color: '#1976d2', fontWeight: 'bold' }}>
+                    {getGreeting()}, {getUserFirstName()}!
+                  </Typography>                  <Typography variant="h5" sx={{ color: '#1976d2' }}>
+                    Today's Appointments:
+                  </Typography>
+                  <Typography variant="h5" sx={{ color: 'text.secondary' }}>
+                    {todaysAppointments.length > 0 
+                      ? `${todaysAppointments.length} appointment${todaysAppointments.length === 1 ? '' : 's'} scheduled`
+                      : 'No appointments scheduled for today'
+                    }
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="h5" sx={{ color: '#1976d2', fontWeight: 'bold', mb: 0.5 }}>
+                  {getGreeting()}, {getUserFirstName()}!
+                </Typography>
+              )}
+            </Box>
+            <Box sx={{ ml: 1 }}>
+              <BackButton />            </Box>
+          </Box>
 
-        {/* Summary Panel */}
-        {tab === 'appointments' && (
-          <Paper sx={{ p: 2, mb: 3, borderRadius: 2, boxShadow: 3, bgcolor: '#fff' }}>
-            <Typography variant="h6" gutterBottom sx={{ color: '#1976d2' }}>Today's Appointments</Typography>
-            {todaysAppointments.length > 0 ? (
-              <TableContainer component={Paper} sx={{ maxHeight: 300, boxShadow: 'none', border: '1px solid #e0e0e0'}}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: '#e3f2fd'}}>
-                      <TableCell sx={{ fontWeight: 'bold'}}>Time</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold'}}>Patient</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold'}}>Provider</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold'}}>Status</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold'}}>Arrived</TableCell>
-                      <TableCell sx={{ fontWeight: 'bold'}}>No Show</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {todaysAppointments.map(appt => (
-                      <TableRow key={appt.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-                        <TableCell>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
-                        <TableCell>{appt.patient_name}</TableCell>
-                        <TableCell>{appt.provider_name}</TableCell>
-                        <TableCell>{appt.status}</TableCell>
-                        <TableCell>
-                          <Checkbox 
-                            size="small"
-                            checked={!!appt.arrived}
-                            onChange={(e) => handleStatusUpdate(appt.id, 'arrived', e.target.checked)}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Checkbox 
-                            size="small"
-                            checked={!!appt.no_show}
-                            onChange={(e) => handleStatusUpdate(appt.id, 'no_show', e.target.checked)}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            ) : (
-              <Typography sx={{ color: 'text.secondary' }}>No appointments scheduled for today.</Typography>
-            )}
-          </Paper>
-        )}
-
-        <Tabs value={tab} onChange={(e, newVal) => setTab(newVal)} indicatorColor="primary" textColor="primary" sx={{ mb: 3, bgcolor: '#fff', borderRadius: 1, boxShadow: 1 }}>
-          <Tab label="Patients" value="patients" />
-          <Tab label="Team" value="team" />
+          <Tabs
+            value={tab}
+            onChange={(e, newVal) => setTab(newVal)}
+            sx={{
+              mb: 3,
+              minHeight: 40,
+              '& .MuiTabs-indicator': {
+                height: 4,
+                borderRadius: 2,
+                bgcolor: 'primary.main',
+              },
+              '& .MuiTab-root': {
+                fontWeight: 500,
+                fontSize: '1rem',
+                color: 'primary.main',
+                minHeight: 40,
+                textTransform: 'none',
+                borderRadius: 2,
+                mx: 0.5,
+                transition: 'background 0.2s',
+                '&.Mui-selected': {
+                  bgcolor: 'primary.light',
+                  color: 'primary.dark',
+                  boxShadow: 2,
+                },
+                '&:hover': {
+                  bgcolor: 'primary.lighter',
+                  color: 'primary.dark',
+                },
+              },
+            }}
+          >
+            <Tab label="Patients" value="patients" />
+            <Tab 
+              label={
+                <Badge 
+                  badgeContent={chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0}
+                  color="error"
+                  invisible={!chat.getTotalUnreadCount || chat.getTotalUnreadCount() === 0}
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      backgroundColor: '#ff4444',
+                      color: 'white',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      minWidth: '16px',
+                      height: '16px'
+                    }
+                  }}
+                >
+                  Team
+              </Badge>
+            } 
+            value="team" 
+          />
           <Tab label="Appointments" value="appointments" />
           <Tab label="Analytics" value="analytics" />
           {userRole === 'admin' || userRole === 'system_admin' ? (
             <Tab label="Register User" value="register" />
           ) : null}
-        </Tabs>
-
-        {tab === 'patients' && (
-          <Box>
+        </Tabs>        {tab === 'patients' && (
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
               <TextField
                 label="Search Patients"
@@ -1244,10 +1321,8 @@ function PatientsPage() {
             </Stack>
             {renderPatientTable()}
           </Box>
-        )}
-
-        {tab === 'team' && (
-          <Box>
+        )}        {tab === 'team' && (
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
             <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
             <TextField
               label="Search Team Members"
@@ -1263,9 +1338,8 @@ function PatientsPage() {
             </Stack>
             {renderTeamTable()}
           </Box>
-        )}
-        {tab === 'appointments' && (
-          <Box>
+        )}        {tab === 'appointments' && (
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
               <TextField
                 label="Search Appointments (Patient, Provider, Date, Status, etc.)"
@@ -1275,47 +1349,309 @@ function PatientsPage() {
                 onChange={(e) => setAppointmentsQuery(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleAppointmentsSearch(e)}
                 sx={{ flexGrow: 1, bgcolor: '#fff' }}
-              />
-              <Button variant="contained" onClick={handleAppointmentsSearch} sx={{ height: '40px' }}>Search</Button>
+              />              <Button variant="contained" onClick={handleAppointmentsSearch} sx={{ height: '40px' }}>Search</Button>
             </Stack>
+            
+            {/* Today's Appointments Table */}
+            {todaysAppointments.length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom sx={{ color: '#1976d2' }}>
+                  Today's Appointments Details
+                </Typography>
+                <TableContainer component={Paper} sx={{ maxHeight: 300, boxShadow: 1, border: '1px solid #e0e0e0' }}>
+                  <Table size="small" stickyHeader>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Time</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Arrived</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>No Show</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {todaysAppointments.map(appt => (
+                        <TableRow key={appt.id} hover sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+                          <TableCell>{new Date(appt.appointment_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
+                          <TableCell>{appt.patient_name}</TableCell>
+                          <TableCell>{appt.provider_name}</TableCell>
+                          <TableCell>{appt.status}</TableCell>
+                          <TableCell>
+                            <Checkbox 
+                              size="small"
+                              checked={!!appt.arrived}
+                              onChange={(e) => handleStatusUpdate(appt.id, 'arrived', e.target.checked)}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Checkbox 
+                              size="small"
+                              checked={!!appt.no_show}
+                              onChange={(e) => handleStatusUpdate(appt.id, 'no_show', e.target.checked)}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+
             <CalendarView appointments={appointmentsResults} providers={providers} token={token} fetchAppointments={() => fetchAppointments(appointmentsQuery)} />
           </Box>
         )}
 
-        {tab === 'analytics' && renderAnalyticsTable()}
+        {tab === 'analytics' && (
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
+            {renderAnalyticsTable()}
+          </Box>
+        )}
         
-        {tab === 'register' && <RegisterPage />}
+        {tab === 'register' && (
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
+            <RegisterPage />
+          </Box>
+        )}
 
         {/* Email Modal */}
-        <Dialog open={showEmailModal} onClose={() => setShowEmailModal(false)} fullWidth maxWidth="sm">
-          <DialogTitle sx={{ bgcolor: '#1976d2', color: 'white' }}>
-            Send Email to {selectedPatient?.first_name}
-            <IconButton onClick={() => setShowEmailModal(false)} sx={{ position: 'absolute', right: 8, top: 8, color: 'white' }}>
+        <Dialog 
+          open={showEmailModal} 
+          onClose={() => setShowEmailModal(false)} 
+          fullWidth 
+          maxWidth="md"
+          PaperProps={{
+            sx: {
+              borderRadius: 3,
+              boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+            }
+          }}
+        >
+          <DialogTitle 
+            sx={{ 
+              bgcolor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              py: 3,
+              px: 3,
+              position: 'relative',
+              borderRadius: '12px 12px 0 0'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box 
+                sx={{
+                  bgcolor: 'rgba(255,255,255,0.2)',
+                  borderRadius: '50%',
+                  p: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <FontAwesomeIcon icon={faEnvelope} style={{ fontSize: '20px' }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Compose Email
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                  Send a message to {selectedPatient?.first_name} {selectedPatient?.last_name}
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton 
+              onClick={() => setShowEmailModal(false)} 
+              sx={{ 
+                position: 'absolute', 
+                right: 12, 
+                top: 12, 
+                color: 'white',
+                '&:hover': {
+                  bgcolor: 'rgba(255,255,255,0.1)'
+                }
+              }}
+            >
               <CloseIcon />
             </IconButton>
           </DialogTitle>
-          <DialogContent sx={{ pt: 2 }}>
-            <TextField
-              label="Subject"
-              fullWidth
-              value={emailForm.subject}
-              onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
-              sx={{ mb: 2 }}
-            />
-            <TextField
-              label="Message"
-              fullWidth
-              multiline
-              rows={6}
-              value={emailForm.message}
-              onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
-            />
+          
+          <DialogContent sx={{ p: 0 }}>
+            {/* Recipient Info Bar */}
+            <Box sx={{ 
+              bgcolor: '#f8f9fa', 
+              px: 3, 
+              py: 2, 
+              borderBottom: '1px solid #e9ecef',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2
+            }}>
+              <Box sx={{ 
+                bgcolor: '#e3f2fd', 
+                borderRadius: '50%', 
+                width: 40, 
+                height: 40,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 600 }}>
+                  {selectedPatient?.first_name?.charAt(0)}{selectedPatient?.last_name?.charAt(0)}
+                </Typography>
+              </Box>
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#2e3440' }}>
+                  {selectedPatient?.first_name} {selectedPatient?.last_name}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#6c757d' }}>
+                  {selectedPatient?.email}
+                </Typography>
+              </Box>
+            </Box>
+
+            {/* Email Form */}
+            <Box sx={{ p: 3 }}>
+              <TextField
+                label="Subject"
+                fullWidth
+                value={emailForm.subject}
+                onChange={(e) => setEmailForm({ ...emailForm, subject: e.target.value })}
+                variant="outlined"
+                sx={{ 
+                  mb: 3,
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    '&:hover fieldset': {
+                      borderColor: '#667eea',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#667eea',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#667eea',
+                  }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <Box sx={{ mr: 1, display: 'flex', alignItems: 'center' }}>
+                      <FontAwesomeIcon 
+                        icon={faTag} 
+                        style={{ 
+                          fontSize: '16px', 
+                          color: '#6c757d' 
+                        }} 
+                      />
+                    </Box>
+                  ),
+                }}
+              />
+              
+              <TextField
+                label="Message"
+                fullWidth
+                multiline
+                rows={8}
+                value={emailForm.message}
+                onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+                variant="outlined"
+                placeholder="Type your message here..."
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    '&:hover fieldset': {
+                      borderColor: '#667eea',
+                    },
+                    '&.Mui-focused fieldset': {
+                      borderColor: '#667eea',
+                    },
+                  },
+                  '& .MuiInputLabel-root.Mui-focused': {
+                    color: '#667eea',
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    fontSize: '16px',
+                    lineHeight: 1.6,
+                  }
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <Box sx={{ mr: 1, display: 'flex', alignItems: 'flex-start', pt: 1 }}>
+                      <FontAwesomeIcon 
+                        icon={faEdit} 
+                        style={{ 
+                          fontSize: '16px', 
+                          color: '#6c757d' 
+                        }} 
+                      />
+                    </Box>
+                  ),
+                }}
+              />
+
+              {/* Character count */}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                <Typography variant="caption" sx={{ color: '#6c757d' }}>
+                  {emailForm.message.length} characters
+                </Typography>
+              </Box>
+            </Box>
           </DialogContent>
-          <DialogActions sx={{ p: 2 }}>
-            <Button onClick={() => setShowEmailModal(false)} color="secondary">Cancel</Button>
-            <Button onClick={handleSendEmail} variant="contained" color="primary">Send</Button>
+          
+          <DialogActions sx={{ 
+            p: 3, 
+            bgcolor: '#f8f9fa',
+            borderTop: '1px solid #e9ecef',
+            gap: 2,
+            justifyContent: 'space-between'
+          }}>
+            <Typography variant="body2" sx={{ color: '#6c757d', fontStyle: 'italic' }}>
+              This email will be sent from your organization's email system
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button 
+                onClick={() => setShowEmailModal(false)} 
+                variant="outlined"
+                sx={{
+                  borderRadius: 2,
+                  px: 3,
+                  py: 1,
+                  borderColor: '#6c757d',
+                  color: '#6c757d',
+                  '&:hover': {
+                    borderColor: '#495057',
+                    color: '#495057',
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSendEmail} 
+                variant="contained"
+                disabled={!emailForm.subject.trim() || !emailForm.message.trim()}
+                sx={{
+                  borderRadius: 2,
+                  px: 4,
+                  py: 1,
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
+                  },
+                  '&:disabled': {
+                    background: '#e9ecef',
+                    color: '#6c757d',
+                  }
+                }}
+                startIcon={<FontAwesomeIcon icon={faPaperPlane} />}
+              >
+                Send Email
+              </Button>
+            </Box>
           </DialogActions>
-        </Dialog>        {/* Chat Modal */}
+        </Dialog>{/* Chat Modal */}
         {selectedChatUser && currentUser && (
           <ChatModal
             open={chatModalOpen && !!chat.activeRoom}
@@ -1350,11 +1686,11 @@ function PatientsPage() {
             onRetryConnection={() => {
               // Retry connection logic if needed
               console.log('Retrying chat connection...');
-            }}
-          />
+            }}          />
         )}
-      </Box>
-    </LocalizationProvider>
+        </Box>
+      </LocalizationProvider>
+    </div>
   );
 }
 
