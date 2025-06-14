@@ -7,6 +7,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState(null); // Added for error display
   const [operationStatus, setOperationStatus] = useState(null); // For loading/creating states
+  const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per user/room
 
   const typingTimeouts = useRef({});
   console.log('🚀 useChat hook initializing with currentUser:', currentUser);
@@ -82,7 +83,6 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         break;
     }
   }, [currentUser]); // Removed handleNewMessage, handleTypingIndicator, etc. from deps as they are stable
-
   const handleNewMessage = (message) => {
     console.log('📨 Received new message:', message);
     
@@ -106,6 +106,16 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         }
       };
     });
+
+    // Update unread counts if message is from another user and room is not active
+    if (message.sender_id !== currentUser?.id && activeRoom !== message.room_id) {
+      // Find the other user in the room to track unread count per user
+      const otherUserId = message.sender_id;
+      setUnreadCounts(prev => ({
+        ...prev,
+        [otherUserId]: (prev[otherUserId] || 0) + 1
+      }));
+    }
 
     // Mark message as read if room is active
     if (activeRoom === message.room_id) {
@@ -423,8 +433,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     sendMessage({
       type: 'get_chat_history',
       room_id: roomId
-    });
-  }, [isConnected, sendMessage]);
+    });  }, [isConnected, sendMessage]);
 
   // Effect to load chat history when active room changes
   useEffect(() => {
@@ -435,6 +444,46 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       console.log('🔄 Active room is null. Not loading history.');
     }
   }, [activeRoom, loadChatHistory]);
+  // Clear unread count when activeRoom changes (user opens a chat)
+  useEffect(() => {
+    if (activeRoom && currentUser) {
+      // Find the other user in this room and clear their unread count
+      const room = chatRooms[activeRoom];
+      if (room && room.messages && room.messages.length > 0) {
+        // Get the other user ID from the room messages
+        const otherUserIds = [...new Set(room.messages
+          .map(msg => msg.sender_id)
+          .filter(id => id !== currentUser.id)
+        )];
+        
+        // Clear unread count for all other users in this room
+        otherUserIds.forEach(userId => {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [userId]: 0
+          }));
+        });
+      }
+    }
+  }, [activeRoom, currentUser, chatRooms]);
+
+  // Clear unread count when opening a chat with a specific user
+  const clearUnreadCount = useCallback((userId) => {
+    setUnreadCounts(prev => ({
+      ...prev,
+      [userId]: 0
+    }));
+  }, []);
+
+  // Get unread count for a specific user
+  const getUnreadCount = useCallback((userId) => {
+    return unreadCounts[userId] || 0;
+  }, [unreadCounts]);
+
+  // Get total unread count across all users
+  const getTotalUnreadCount = useCallback(() => {
+    return Object.values(unreadCounts).reduce((total, count) => total + count, 0);
+  }, [unreadCounts]);
 
   // Cleanup typing timeouts on unmount
   useEffect(() => {
@@ -451,6 +500,10 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     isLoading,
     lastError, // Expose lastError
     operationStatus, // Expose operationStatus
+    unreadCounts,
+    clearUnreadCount,
+    getUnreadCount,
+    getTotalUnreadCount,
     createChatRoom,
     sendChatMessage,
     sendTypingIndicator,
