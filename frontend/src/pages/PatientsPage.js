@@ -65,15 +65,22 @@ function PatientsPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-    if (token) {
-      try {
+    if (token) {      try {
         const decoded = jwtDecode(token);
+        console.log('🔍 [DEBUG] Decoded JWT token:', {
+          user_id: decoded.user_id,
+          username: decoded.username,
+          first_name: decoded.first_name,
+          last_name: decoded.last_name,
+          role: decoded.role
+        });
         const user = {
           id: decoded.user_id,
           username: decoded.username,
           first_name: decoded.first_name || '',
           last_name: decoded.last_name || ''
         };
+        console.log('🔍 [DEBUG] Current user set to:', user);
         setCurrentUser(user);
       } catch (error) {
         console.error('❌ Error decoding token:', error);
@@ -954,28 +961,56 @@ function PatientsPage() {
                               setSelectedChatUser(member);
                               console.log('🚀 Starting chat room creation...');
                               
-                              const roomId = await chat.createChatRoom(member.id);
-                              console.log('✅ Chat room created with ID:', roomId);
-                                if (roomId) {
-                                console.log('🎉 Opening chat modal...');
-                                // Clear unread count for this user when opening chat
+                              const roomId = await chat.createChatRoom(member.id);                              console.log('✅ Chat room created with ID:', roomId);
+                                if (roomId) {                                console.log('🎉 Opening chat modal...');
+                                // Clear unread count for this user when opening chat modal (not just when room becomes active)
+                                console.log('🔔 [DEBUG] About to clear unread count - member.id:', member.id, 'chat.clearUnreadCount available:', !!chat.clearUnreadCount);
+                                console.log('🔔 [DEBUG] Current unread counts before clearing:', chat.unreadCounts);
                                 if (chat.clearUnreadCount) {
+                                  console.log('🔔 [DEBUG] Clearing unread count for user when MODAL opens:', member.id);
                                   chat.clearUnreadCount(member.id);
+                                  console.log('🔔 [DEBUG] clearUnreadCount called - checking counts after call:', chat.unreadCounts);
                                 }
                                 setChatModalOpen(true);
                               } else {
                                 throw new Error('Chat room creation returned null/undefined room ID');
-                              }
-                            } catch (error) {
+                              }} catch (error) {
                               console.error('❌ Failed to create chat room:', error);
+                              console.error('❌ Error details:', {
+                                message: error.message,
+                                stack: error.stack,
+                                error: error
+                              });
                               toast.error(`Failed to start chat: ${error.message || 'Unknown error'}`);
                               setSelectedChatUser(null);
                               setChatModalOpen(false);
-                            }                          }}                          disabled={!onlineStatusConnected || !currentUser}
-                        >                          <Badge 
-                            badgeContent={chat.getUnreadCount ? chat.getUnreadCount(member.id) : 0} 
+                            }}}                          disabled={!onlineStatusConnected || !currentUser}                        >                          <Badge                            badgeContent={(() => {
+                              // Show badge on OTHER users' buttons when they have sent unread messages to current user
+                              if (currentUser && member.id !== currentUser.id) {
+                                const count = chat.getUnreadCount ? chat.getUnreadCount(member.id) : 0;
+                                console.log('🔔 [DEBUG] Badge render - OTHER USER:', member.full_name, 'ID:', member.id, 'unread count FROM them TO current user:', count, 'currentUser:', currentUser?.id);
+                                console.log('🔔 [DEBUG] Badge render - chat.getUnreadCount available:', !!chat.getUnreadCount, 'chat object keys:', Object.keys(chat));
+                                console.log('🔔 [DEBUG] Badge render - full unread counts object:', chat.unreadCounts || 'NOT AVAILABLE');
+                                return count;
+                              } else {
+                                // No badge on current user's own button
+                                console.log('🔔 [DEBUG] Badge render - CURRENT USER (no badge):', member.full_name, 'ID:', member.id);
+                                return 0;
+                              }
+                            })()} 
                             color="error"
-                            invisible={!chat.getUnreadCount || chat.getUnreadCount(member.id) === 0}
+                            invisible={(() => {
+                              // Show badge only on other users' buttons when they have sent unread messages
+                              if (currentUser && member.id !== currentUser.id) {
+                                const count = chat.getUnreadCount ? chat.getUnreadCount(member.id) : 0;
+                                const isInvisible = !chat.getUnreadCount || count === 0;
+                                console.log('🔔 [DEBUG] Badge invisible for OTHER USER:', member.full_name, 'isInvisible:', isInvisible, 'count:', count);
+                                return isInvisible;
+                              } else {
+                                // Always invisible for current user's own button
+                                return true;
+                              }
+                            })()}
                             sx={{
                               '& .MuiBadge-badge': {
                                 backgroundColor: '#ff4444',
@@ -1167,21 +1202,13 @@ function PatientsPage() {
       setSelectedChatUser(null);
       setChatModalOpen(false); 
     }
-  };
-  // Effect to open chat modal when activeRoom changes and is valid
+  };  // Effect to open chat modal when activeRoom changes and is valid
   useEffect(() => {
     console.log('[PatientsPage] useEffect: chat.activeRoom:', chat.activeRoom, 'selectedChatUser:', selectedChatUser, 'chatModalOpen:', chatModalOpen);
     console.log('[PatientsPage] useEffect: chat.chatRooms:', Object.keys(chat.chatRooms || {}));
     
-    if (chat.activeRoom && selectedChatUser && !chatModalOpen) {
-      // Check if the active room in chat hook corresponds to the selected user's potential room
-      console.log(`[PatientsPage] useEffect: chat.activeRoom (${chat.activeRoom}) and selectedChatUser (${selectedChatUser.full_name}) are set. Opening chat modal.`);
-      setChatModalOpen(true);
-    } else if (!chat.activeRoom && chatModalOpen) {
-      // If activeRoom becomes null (e.g., chat ended or error), consider closing the modal.
-      console.log("[PatientsPage] useEffect: chat.activeRoom is null. Considering closing chat modal.");
-      // setChatModalOpen(false); // This could be too aggressive. Modal close is handled by its own button.
-    }
+    // Only auto-open modal if explicitly requested via handleOpenChat
+    // Do NOT auto-open just because activeRoom exists - this prevents clearing unread counts prematurely
     
     // Debug additional conditions
     if (chat.activeRoom && !selectedChatUser) {
@@ -1189,6 +1216,9 @@ function PatientsPage() {
     }
     if (selectedChatUser && !chat.activeRoom) {
       console.log('[PatientsPage] useEffect: selectedChatUser exists but no activeRoom');
+    }
+    if (chat.activeRoom && selectedChatUser && !chatModalOpen) {
+      console.log('[PatientsPage] useEffect: Both activeRoom and selectedChatUser exist, but NOT auto-opening modal to preserve unread counts');
     }
   }, [chat.activeRoom, selectedChatUser, chatModalOpen, chat.chatRooms]);
     return (
@@ -1263,12 +1293,20 @@ function PatientsPage() {
             }}
           >
             <Tab label="Patients" value="patients" />
-            <Tab 
-              label={
+            <Tab              label={
                 <Badge 
-                  badgeContent={chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0}
+                  badgeContent={(() => {
+                    const totalCount = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0;
+                    console.log('🔔 [DEBUG] Team tab badge total count:', totalCount, 'chat.getTotalUnreadCount available:', !!chat.getTotalUnreadCount);
+                    return totalCount;
+                  })()}
                   color="error"
-                  invisible={!chat.getTotalUnreadCount || chat.getTotalUnreadCount() === 0}
+                  invisible={(() => {
+                    const totalCount = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0;
+                    const isInvisible = !chat.getTotalUnreadCount || totalCount === 0;
+                    console.log('🔔 [DEBUG] Team tab badge invisible:', isInvisible, 'totalCount:', totalCount);
+                    return isInvisible;
+                  })()}
                   sx={{
                     '& .MuiBadge-badge': {
                       backgroundColor: '#ff4444',
