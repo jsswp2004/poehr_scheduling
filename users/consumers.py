@@ -430,6 +430,10 @@ class PresenceConsumer(AsyncWebsocketConsumer):
 
         if room:
             print(f"DEBUG_CHAT: Chat room {'created' if getattr(room, '_created_in_consumer', False) else 'retrieved'}: ID {room.id}, Name: {room.name}")
+            
+            # Join the chat room group to receive messages
+            await self.join_chat_room(room.id)
+            
             participant_objs = await self._get_participant_objs(room)
             print(f"DEBUG: Sending chat_room_created to user {self.scope['user'].id} on channel {self.channel_name}")
             await self.send(text_data=json.dumps({
@@ -518,3 +522,98 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             }
             for m in qs
         ]
+    
+    async def broadcast_chat_message(self, message_data):
+        """Broadcast a chat message to all participants in the room"""
+        print(f"BROADCAST: Broadcasting message to room {message_data.get('room_id')}")
+        
+        try:
+            room_id = message_data.get('room_id')
+            if not room_id:
+                print("ERROR: No room_id in message_data for broadcasting")
+                return
+                
+            # Send to all participants in the chat room
+            room_group_name = f"chat_room_{room_id}"
+            
+            await self.channel_layer.group_send(
+                room_group_name,
+                {
+                    'type': 'chat_message_broadcast',
+                    'message': message_data
+                }
+            )
+            print(f"SUCCESS: Message broadcasted to group {room_group_name}")
+            
+        except Exception as e:
+            print(f"ERROR: Failed to broadcast message: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    async def chat_message_broadcast(self, event):
+        """Handle broadcasting a chat message to WebSocket clients"""
+        try:
+            message_data = event['message']
+            print(f"BROADCAST_HANDLER: Sending message to WebSocket client: {message_data}")
+            
+            await self.send(text_data=json.dumps({
+                'type': 'new_message',
+                'message': message_data
+            }))
+            
+        except Exception as e:
+            print(f"ERROR: Failed to send broadcasted message to client: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def save_chat_message(self, room_id, message_text, recipient_id=None):
+        """Save a chat message to the database"""
+        try:
+            print(f"SAVE_MESSAGE: Saving message to room {room_id}")
+            
+            # Get the chat room
+            room = ChatRoom.objects.get(id=room_id)
+            # Create the message
+            # Get the recipient (other participant in the room)
+            room_participants = room.participants.exclude(id=self.user.id)
+            recipient = room_participants.first() if room_participants.exists() else None
+
+            # Create the message
+            message = ChatMessage.objects.create(
+                room=room,
+                sender=self.user,
+                recipient=recipient,
+                message=message_text,
+                
+            )
+            
+            print(f"SAVE_MESSAGE: Message saved with ID {message.id}")
+            
+            # Return message data for broadcasting
+            return {
+                'id': message.id,
+                'room_id': room_id,
+                'sender_id': self.user.id,
+                'sender_name': f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username,
+                'content': message.message,
+                'timestamp': message.timestamp.isoformat(),
+                'is_read': False
+            }
+            
+        except ChatRoom.DoesNotExist:
+            print(f"ERROR: Chat room {room_id} does not exist")
+            return None
+        except Exception as e:
+            print(f"ERROR: Failed to save message: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+            
+    @database_sync_to_async
+    def verify_room_exists(self, room_id):
+        """Verify that a chat room exists"""
+        try:
+            ChatRoom.objects.get(id=room_id)
+            return True
+        except ChatRoom.DoesNotExist:
+            return False
