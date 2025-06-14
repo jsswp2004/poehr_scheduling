@@ -192,13 +192,34 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       }
     }));
     
-    setIsLoading(false);
-  };
+    setIsLoading(false);  };
 
   // Add these function definitions before they are used
-  const handleChatRoomCreated = (room) => {
+  const handleChatRoomCreated = (data) => {
     // Log the full payload for debugging
-    console.log('DEBUG: chat_room_created payload:', room);
+    console.log('🏠 DEBUG: chat_room_created payload received:', data);
+    
+    // Extract room data - server sends room_id instead of id
+    const room = {
+      id: data.room_id,
+      name: data.name,
+      participants: data.participants,
+      room_type: data.chat_type
+    };
+    
+    console.log('🏠 Room ID:', room?.id, 'Type:', typeof room?.id);
+    console.log('🏠 Room participants:', room?.participants);
+    
+    if (!room || !room.id) {
+      console.error('❌ Invalid room data received in chat_room_created:', data);
+      if (window._pendingRoomCreation) {
+        clearTimeout(window._pendingRoomCreation.timeout);
+        window._pendingRoomCreation.reject(new Error('Invalid room data received from server'));
+        delete window._pendingRoomCreation;
+      }
+      return;
+    }
+    
     setChatRooms(prev => ({
       ...prev,
       [room.id]: {
@@ -206,24 +227,46 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         messages: []
       }
     }));
+    
     // Set this as the active room and load its history
     console.log('🎯 Setting new room as active:', room.id);
     setActiveRoom(room.id);
-    loadChatHistory(room.id);
+    
+    // Don't immediately load chat history to avoid the error
+    // loadChatHistory(room.id);
+    
     // Try to match pending room creation by participants
     if (window._pendingRoomCreation) {
       const pending = window._pendingRoomCreation;
+      console.log('🔍 Matching room creation:', {
+        pendingParticipants: pending.participants,
+        roomParticipants: room.participants
+      });
+      
       // Compare sorted participant IDs as strings
       const roomParticipantIds = (room.participants || []).map(p => p.id || p).sort((a, b) => a - b).map(String);
-      const pendingParticipantIds = (pending.participants || []).map(String);
+      const pendingParticipantIds = (pending.participants || []).map(String).sort();
       const isMatch = JSON.stringify(roomParticipantIds) === JSON.stringify(pendingParticipantIds);
+      
+      console.log('🔍 Participant match check:', {
+        roomParticipantIds,
+        pendingParticipantIds,
+        isMatch
+      });
+      
       if (isMatch) {
+        console.log('✅ Room creation matched, resolving promise with room ID:', room.id);
         clearTimeout(pending.timeout);
         pending.resolve(room.id);
         delete window._pendingRoomCreation;
       } else {
-        console.warn('Received chat_room_created for a different room than expected or no pending creation.', { expected: pendingParticipantIds, actual: roomParticipantIds });
+        console.warn('⚠️ Received chat_room_created for a different room than expected or no pending creation.', { 
+          expected: pendingParticipantIds, 
+          actual: roomParticipantIds 
+        });
       }
+    } else {
+      console.warn('⚠️ No pending room creation found when room was created');
     }
   };
 
@@ -328,29 +371,18 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     if (!roomId || !content.trim()) {
       console.warn('⚠️ Cannot send empty message or message without room ID.');
       return;
-    }
-
-    const message = {
+    }    const messagePayload = {
+      type: 'send_message',
       room_id: roomId,
+      message: content.trim(),
       sender_id: currentUser.id,
-      content: content.trim(),
-      timestamp: new Date().toISOString(),
-      // id: `temp_msg_${Date.now()}` // Optional: client-side temporary ID for optimistic updates
+      // recipient_id can be determined by the backend from the room participants
     };
 
-    console.log('📤 Sending chat message:', message);
-    const success = sendMessage({
-      type: 'chat_message',
-      message: message
-    });
-
-    if (success) {
-      // Optimistically add message to local state
-      // Backend will confirm with a `new_message` or `message_sent` event
-      // If backend sends `new_message` to all, including sender, this might cause duplicates if not handled.
-      // It\'s better if backend sends `message_sent` to sender and `new_message` to others.
-      // For now, let\'s assume `new_message` will be broadcast and handle potential duplicates there.
-      // handleNewMessage(message); // Commented out to avoid potential duplicates if backend broadcasts `new_message` to sender.
+    console.log('📤 Sending chat message:', messagePayload);
+    const success = sendMessage(messagePayload);    if (success) {
+      console.log('✅ Message sent successfully via WebSocket');
+      // Don't add to local state - wait for backend confirmation
     } else {
       console.error('❌ Failed to send chat message via WebSocket.');
       // Handle send failure (e.g., show error to user)

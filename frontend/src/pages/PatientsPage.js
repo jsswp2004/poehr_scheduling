@@ -921,31 +921,56 @@ function PatientsPage() {
                       />
                     </TableCell>
                     <TableCell>{member.organization_name || 'N/A'}</TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Start Chat" placement="top">
+                    <TableCell align="center">                      <Tooltip title={!onlineStatusConnected ? "Chat unavailable - no connection" : !currentUser ? "Chat unavailable - user not loaded" : "Start Chat"} placement="top">
                         <IconButton
                           size="small"
                           color="primary"
-                          onClick={() => {
-                            console.log('Attempting to start chat with:', member);
-                            if (currentUser && member) {
+                          sx={{
+                            opacity: (!onlineStatusConnected || !currentUser) ? 0.5 : 1,
+                            cursor: (!onlineStatusConnected || !currentUser) ? 'not-allowed' : 'pointer'
+                          }}
+                          onClick={async () => {
+                            console.log('🎯 Chat button clicked for team member:', member);
+                            console.log('🔍 Current state:', { 
+                              currentUser, 
+                              onlineStatusConnected, 
+                              websocketConnection: websocketConnection?.readyState,
+                              chatActiveRoom: chat.activeRoom 
+                            });
+                            
+                            if (!onlineStatusConnected) {
+                              toast.error('Chat is not available. WebSocket connection is not established.');
+                              return;
+                            }
+                            
+                            if (!currentUser) {
+                              toast.error('Cannot start chat. User information is not loaded.');
+                              return;
+                            }
+                            
+                            if (!member || !member.id) {
+                              toast.error('Cannot start chat. Team member information is invalid.');
+                              return;
+                            }
+
+                            try {
                               setSelectedChatUser(member);
-                              // Ensure chat.createChatRoom is called correctly
-                              chat.createChatRoom(member.id).then(roomId => {
-                                if (roomId) {
-                                  console.log(`Chat room created/joined with ID: ${roomId}, opening modal.`);
-                                  setChatModalOpen(true);
-                                } else {
-                                  console.error('Failed to create or join chat room.');
-                                  toast.error('Could not initiate chat. Please try again.');
-                                }
-                              }).catch(error => {
-                                console.error('Error in createChatRoom promise:', error);
-                                toast.error('An error occurred while starting the chat.');
-                              });
-                            } else {
-                              console.error('Current user or selected member is null. Cannot start chat.');
-                              toast.error('Cannot start chat. User information is missing.');
+                              console.log('🚀 Starting chat room creation...');
+                              
+                              const roomId = await chat.createChatRoom(member.id);
+                              console.log('✅ Chat room created with ID:', roomId);
+                              
+                              if (roomId) {
+                                console.log('🎉 Opening chat modal...');
+                                setChatModalOpen(true);
+                              } else {
+                                throw new Error('Chat room creation returned null/undefined room ID');
+                              }
+                            } catch (error) {
+                              console.error('❌ Failed to create chat room:', error);
+                              toast.error(`Failed to start chat: ${error.message || 'Unknown error'}`);
+                              setSelectedChatUser(null);
+                              setChatModalOpen(false);
                             }
                           }}
                           disabled={!onlineStatusConnected || !currentUser}
@@ -1097,20 +1122,29 @@ function PatientsPage() {
       setChatModalOpen(false); 
     }
   };
-
   // Effect to open chat modal when activeRoom changes and is valid
   useEffect(() => {
     console.log('[PatientsPage] useEffect: chat.activeRoom:', chat.activeRoom, 'selectedChatUser:', selectedChatUser, 'chatModalOpen:', chatModalOpen);
-    if (chat.activeRoom && selectedChatUser) {
+    console.log('[PatientsPage] useEffect: chat.chatRooms:', Object.keys(chat.chatRooms || {}));
+    
+    if (chat.activeRoom && selectedChatUser && !chatModalOpen) {
       // Check if the active room in chat hook corresponds to the selected user's potential room
       console.log(`[PatientsPage] useEffect: chat.activeRoom (${chat.activeRoom}) and selectedChatUser (${selectedChatUser.full_name}) are set. Opening chat modal.`);
       setChatModalOpen(true);
     } else if (!chat.activeRoom && chatModalOpen) {
       // If activeRoom becomes null (e.g., chat ended or error), consider closing the modal.
-      // console.log("[PatientsPage] useEffect: chat.activeRoom is null. Closing chat modal.");
+      console.log("[PatientsPage] useEffect: chat.activeRoom is null. Considering closing chat modal.");
       // setChatModalOpen(false); // This could be too aggressive. Modal close is handled by its own button.
     }
-  }, [chat.activeRoom, selectedChatUser, chatModalOpen]);
+    
+    // Debug additional conditions
+    if (chat.activeRoom && !selectedChatUser) {
+      console.log('[PatientsPage] useEffect: activeRoom exists but no selectedChatUser');
+    }
+    if (selectedChatUser && !chat.activeRoom) {
+      console.log('[PatientsPage] useEffect: selectedChatUser exists but no activeRoom');
+    }
+  }, [chat.activeRoom, selectedChatUser, chatModalOpen, chat.chatRooms]);
   
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -1281,22 +1315,21 @@ function PatientsPage() {
             <Button onClick={() => setShowEmailModal(false)} color="secondary">Cancel</Button>
             <Button onClick={handleSendEmail} variant="contained" color="primary">Send</Button>
           </DialogActions>
-        </Dialog>
-
-        {/* Chat Modal */}
-        {selectedChatUser && currentUser && chat.activeRoom && (
+        </Dialog>        {/* Chat Modal */}
+        {selectedChatUser && currentUser && (
           <ChatModal
-            open={chatModalOpen && !!chat.activeRoom && !!chat.chatRooms[chat.activeRoom]}
+            open={chatModalOpen && !!chat.activeRoom}
+            fallbackOpen={chatModalOpen && !!chat.activeRoom}
             onClose={() => {
               console.log("[PatientsPage] Closing chat modal.");
               setChatModalOpen(false);
               if (chat.activeRoom && currentUser && chat.sendTypingIndicator) {
-                // chat.sendTypingIndicator(chat.activeRoom, false); 
+                chat.sendTypingIndicator(chat.activeRoom, false); 
               }
               if (chat.setActiveRoom) chat.setActiveRoom(null);
               setSelectedChatUser(null);
             }}
-            user={selectedChatUser}
+            chatPartner={selectedChatUser}
             currentUser={currentUser}
             messages={chat.activeRoom && chat.chatRooms[chat.activeRoom] ? chat.chatRooms[chat.activeRoom].messages : []}
             onSendMessage={(content) => {
@@ -1304,16 +1337,20 @@ function PatientsPage() {
                 chat.sendChatMessage(chat.activeRoom, content);
               }
             }}
-            typingUsers={chat.activeRoom && chat.typingUsers[chat.activeRoom] ? chat.typingUsers[chat.activeRoom] : {}}
+            typingUsers={chat.activeRoom && chat.typingUsers[chat.activeRoom] ? Object.values(chat.typingUsers[chat.activeRoom]) : []}
             onSendTypingIndicator={(isTyping) => {
               if (chat.activeRoom && currentUser && chat.sendTypingIndicator) {
                 chat.sendTypingIndicator(chat.activeRoom, isTyping);
               }
             }}
-            isLoading={chat.isLoading}
+            isLoading={chat.isLoading || chat.operationStatus === 'creating_room'}
+            connectionStatus={onlineStatusConnected ? 'connected' : 'disconnected'}
+            operationStatus={chat.operationStatus}
             chatError={chat.lastError}
-            // Fallback: allow modal to open even if chat history failed to load
-            fallbackOpen={chatModalOpen && !!chat.activeRoom}
+            onRetryConnection={() => {
+              // Retry connection logic if needed
+              console.log('Retrying chat connection...');
+            }}
           />
         )}
       </Box>

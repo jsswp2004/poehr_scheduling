@@ -69,6 +69,19 @@ const ChatModal = ({
     });
   }, [open, chatPartner, currentUser, messages.length, typingUsers.length, isLoading]);
 
+  // Debug logging
+  console.log('🎭 ChatModal render:', { 
+    open, 
+    fallbackOpen, 
+    chatPartner: chatPartner?.full_name || chatPartner?.username,
+    currentUser: currentUser?.username,
+    messagesCount: messages.length,
+    isLoading,
+    connectionStatus,
+    operationStatus,
+    chatError
+  });
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -324,9 +337,8 @@ const ChatModal = ({
                         borderTopRightRadius: isOwnMessage(message) ? 0.5 : 2,
                         mb: 0.5
                       }}
-                    >
-                      <Typography variant="body2">
-                        {message.message}
+                    >                      <Typography variant="body2">
+                        {message.content || message.message || 'No content'}
                       </Typography>
                     </Box>
                     
