@@ -3,6 +3,7 @@ Django settings for poehr_scheduling_backend project.
 """
 
 import os
+import dj_database_url
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -76,23 +77,32 @@ WSGI_APPLICATION = 'poehr_scheduling_backend.wsgi.application'
 ASGI_APPLICATION = 'poehr_scheduling_backend.asgi.application'
 
 # Database
+# Database configuration - supports both local and Docker
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'poehr_db',
-        'USER': 'jsswp2004',
-        'PASSWORD': 'krat25Miko!',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME', 'poehr_db'),
+        'USER': os.environ.get('DB_USER', 'jsswp2004'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'krat25Miko!'),
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
+# Use DATABASE_URL if provided (Docker environment)
+if 'DATABASE_URL' in os.environ:
+    import dj_database_url
+    DATABASES['default'] = dj_database_url.parse(os.environ['DATABASE_URL'])
+
 # Channel Layer Configuration (Redis)
+redis_host = os.environ.get('REDIS_HOST', '127.0.0.1')
+redis_port = int(os.environ.get('REDIS_PORT', '6379'))
+
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
+            "hosts": [(redis_host, redis_port)],
         },
     },
 }
