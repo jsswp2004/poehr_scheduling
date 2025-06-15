@@ -73,3 +73,4 @@ wcwidth==0.2.6
 websockets==15.0.1
 yarl==1.20.0
 zope.interface==7.2
+dj-database-url==2.2.0

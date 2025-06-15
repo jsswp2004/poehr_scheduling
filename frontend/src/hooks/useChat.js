@@ -4,10 +4,10 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   const [chatRooms, setChatRooms] = useState({});
   const [activeRoom, setActiveRoom] = useState(null);
   const [typingUsers, setTypingUsers] = useState({});
-  const [isLoading, setIsLoading] = useState(false);  const [lastError, setLastError] = useState(null); // Added for error display
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastError, setLastError] = useState(null); // Added for error display
   const [operationStatus, setOperationStatus] = useState(null); // For loading/creating states
   const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per user/room
-  const clearedCounts = useRef({}); // Track which user counts have been explicitly cleared
 
   const typingTimeouts = useRef({});
   console.log('🚀 useChat hook initializing with currentUser:', currentUser);
@@ -19,39 +19,11 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   useEffect(() => {
     console.log('🔍 Chat WebSocket connection status:', isConnected);
   }, [isConnected]);
+
   // Debug current user
   useEffect(() => {
-    console.log('👤 Current user in chat:', currentUser);  }, [currentUser]);  
-  
-  // Define loadExistingChatRooms function first
-  const loadExistingChatRooms = async () => {
-    try {
-      console.log('📂 [INIT] Loading existing chat rooms...');
-      
-      // For now, let's try to load the known chat room between Joshua (17) and Carlo (3)
-      // This is a temporary solution until we have a proper backend endpoint
-      if (currentUser?.id === 3) {
-        // Carlo is loading - try to load his conversation with Joshua
-        console.log('📂 [INIT] Carlo detected - attempting to load conversation with Joshua (ID: 17)');
-        await createChatRoom(17, false); // Don't open modal, just load the room
-      } else if (currentUser?.id === 17) {
-        // Joshua is loading - try to load his conversation with Carlo
-        console.log('📂 [INIT] Joshua detected - attempting to load conversation with Carlo (ID: 3)');
-        await createChatRoom(3, false); // Don't open modal, just load the room
-      }
-    } catch (error) {
-      console.error('❌ [INIT] Failed to load existing chat rooms:', error);
-    }  };
-
-  // Initialize and load existing chat rooms when currentUser is available
-  useEffect(() => {
-    if (currentUser?.id && isConnected) {
-      console.log('🚀 [INIT] Initializing chat system for user:', currentUser.id);
-      console.log('🔔 [INIT] Current unread counts on initialization:', unreadCounts);
-      // Load existing chat conversations to populate unread counts
-      loadExistingChatRooms();
-    }
-  }, [currentUser?.id, isConnected, loadExistingChatRooms]);
+    console.log('👤 Current user in chat:', currentUser);
+  }, [currentUser]);
 
   // Process messages received from the shared WebSocket connection via lastMessageFromOnlineStatus
   useEffect(() => {
@@ -78,15 +50,12 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         handleTypingIndicator(data);
         break;
       case 'read_receipt':
-        handleReadReceipt(data);        break;
+        handleReadReceipt(data);
+        break;
       case 'chat_history':
         console.log('📚 Processing chat_history');
         setOperationStatus(null); // Clear loading state
         handleChatHistory(data);
-        break;
-      case 'user_chat_rooms':
-        console.log('📂 [INIT] Processing user_chat_rooms response');
-        handleUserChatRooms(data);
         break;
       case 'chat_room_created':
         console.log('🏠 Room created response received in useChat:', data);
@@ -138,46 +107,32 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       };
     });    // Update unread counts if message is from another user and room is not active
     if (message.sender_id !== currentUser?.id && activeRoom !== message.room_id) {
-      // Track unread count from the sender for the current user (receiver)
-      const senderUserId = message.sender_id;
-      
-      // Reset cleared status for this user since they sent a new message
-      clearedCounts.current[senderUserId] = false;
-      console.log('🔔 [DEBUG] Reset cleared status for user', senderUserId, 'due to new message');
-      
-      console.log('🔔 [DEBUG] Incrementing unread count FROM user:', senderUserId, 'FOR current user:', currentUser?.id);
-      console.log('🔔 [DEBUG] Previous count from sender:', unreadCounts[senderUserId] || 0, 'incrementing to:', (unreadCounts[senderUserId] || 0) + 1);
+      // Find the other user in the room to track unread count per user
+      const otherUserId = message.sender_id;
+      console.log('🔔 [DEBUG] Incrementing unread count for user:', otherUserId, 'from:', unreadCounts[otherUserId] || 0, 'to:', (unreadCounts[otherUserId] || 0) + 1);
       console.log('🔔 [DEBUG] Message details:', { sender_id: message.sender_id, room_id: message.room_id, activeRoom, currentUserId: currentUser?.id });
       setUnreadCounts(prev => {
         const newCounts = {
           ...prev,
-          [senderUserId]: (prev[senderUserId] || 0) + 1
+          [otherUserId]: (prev[otherUserId] || 0) + 1
         };
-        console.log('🔔 [DEBUG] Updated unread counts (messages FROM each user TO current user):', newCounts);
+        console.log('🔔 [DEBUG] Updated unread counts:', newCounts);
         return newCounts;
-      });} else {
+      });
+    } else {
       console.log('🔔 [DEBUG] NOT incrementing unread count. Reasons:', {
         isOwnMessage: message.sender_id === currentUser?.id,
         isActiveRoom: activeRoom === message.room_id,
         sender_id: message.sender_id,
         currentUserId: currentUser?.id,
         activeRoom,
-        messageRoomId: message.room_id,
-        chatModalIsOpen: activeRoom === message.room_id ? 'YES (modal open for this chat)' : 'NO (modal closed or different chat)'
+        messageRoomId: message.room_id
       });
-    }    // Mark message as read if room is active
+    }
+
+    // Mark message as read if room is active
     if (activeRoom === message.room_id) {
-      console.log('📖 [DEBUG] Auto-marking message as read because room is active:', message.id);
       markMessageAsRead(message.id);
-      
-      // Also immediately clear this sender's unread count since the room is active
-      if (message.sender_id !== currentUser?.id) {
-        console.log('📖 [DEBUG] Auto-clearing unread count for sender since message auto-read:', message.sender_id);
-        setUnreadCounts(prev => ({
-          ...prev,
-          [message.sender_id]: 0
-        }));
-      }
     }
   };
 
@@ -220,15 +175,12 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       };
     });
   };
+
   const handleReadReceipt = (data) => {
     const { message_id, reader_id } = data;
     
-    console.log('📖 [DEBUG] Read receipt received for message:', message_id, 'reader:', reader_id, 'current user:', currentUser?.id);
-    
     setChatRooms(prev => {
       const updated = { ...prev };
-      let foundMessage = null;
-      let foundRoomId = null;
       
       // Find and update the message
       Object.keys(updated).forEach(roomId => {
@@ -236,8 +188,6 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         if (room.messages) {
           const messageIndex = room.messages.findIndex(msg => msg.id === message_id);
           if (messageIndex !== -1) {
-            foundMessage = room.messages[messageIndex];
-            foundRoomId = roomId;
             updated[roomId] = {
               ...room,
               messages: room.messages.map(msg => 
@@ -248,68 +198,14 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         }
       });
       
-      // If the current user is the reader and we found the message, clear unread count for the sender
-      if (foundMessage && reader_id === currentUser?.id && foundMessage.sender_id !== currentUser?.id) {
-        console.log('📖 [DEBUG] Current user read message from sender:', foundMessage.sender_id, '- clearing unread count');
-        setUnreadCounts(prevCounts => {
-          const newCounts = {
-            ...prevCounts,
-            [foundMessage.sender_id]: Math.max(0, (prevCounts[foundMessage.sender_id] || 0) - 1)
-          };
-          console.log('📖 [DEBUG] Updated unread counts after read receipt:', newCounts);
-          return newCounts;
-        });
-      }
-      
       return updated;
     });
   };
+
   const handleChatHistory = (data) => {
     const { room_id, messages } = data;
     
     console.log('📚 Loading chat history for room:', room_id, 'Messages:', messages.length);
-    
-    // Count unread messages FROM other users TO current user
-    if (currentUser?.id) {
-      const unreadMessages = messages.filter(msg => 
-        msg.recipient_id === currentUser.id && 
-        !msg.is_read &&
-        msg.sender_id !== currentUser.id
-      );
-      
-      console.log('🔔 [DEBUG] Processing chat history - found', unreadMessages.length, 'unread messages TO current user');
-      
-      // Group unread messages by sender
-      const unreadBySender = {};
-      unreadMessages.forEach(msg => {
-        const senderId = msg.sender_id;
-        unreadBySender[senderId] = (unreadBySender[senderId] || 0) + 1;
-        console.log('🔔 [DEBUG] Unread message FROM user:', senderId, 'TO current user:', currentUser.id, 'message:', msg.message.substring(0, 20) + '...');
-      });        // Update unread counts - but preserve cleared counts
-      setUnreadCounts(prev => {
-        const updated = { ...prev };
-        Object.keys(unreadBySender).forEach(senderId => {
-          const newCount = unreadBySender[senderId];
-          const currentCount = prev[senderId] || 0;
-          
-          console.log(`🔔 [DEBUG] Chat history processing - senderId: ${senderId}, newCount: ${newCount}, currentCount: ${currentCount}`);
-          console.log(`🔔 [DEBUG] User ${senderId} cleared status:`, clearedCounts.current[senderId] || false);
-          
-          // Don't overwrite if this user's count was explicitly cleared
-          if (clearedCounts.current[senderId]) {
-            console.log(`🔔 [DEBUG] Preserving CLEARED count for user ${senderId}: keeping at 0 (not overwriting with ${newCount})`);
-          } else if (newCount > currentCount) {
-            // Only update if the new count is higher than current count
-            updated[senderId] = newCount;
-            console.log('🔔 [DEBUG] Updated unread count FROM user:', senderId, 'TO current user - new count:', updated[senderId]);
-          } else {
-            console.log(`🔔 [DEBUG] Preserving current unread count for user ${senderId}: ${currentCount} (not overwriting with ${newCount})`);
-          }
-        });
-        console.log('🔔 [DEBUG] Final unreadCounts after chat history:', updated);
-        return updated;
-      });
-    }
     
     setChatRooms(prev => ({
       ...prev,
@@ -318,20 +214,8 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         messages: messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
       }
     }));
-      setIsLoading(false);
-  };
-
-  const handleUserChatRooms = (data) => {
-    console.log('📂 [INIT] Received user chat rooms:', data);
     
-    if (data.rooms && Array.isArray(data.rooms)) {
-      // For each room, request its chat history to get unread messages
-      data.rooms.forEach(room => {
-        console.log('📂 [INIT] Loading history for room:', room.id);
-        loadChatHistory(room.id);
-      });
-    }
-  };
+    setIsLoading(false);  };
 
   // Add these function definitions before they are used
   const handleChatRoomCreated = (data) => {
@@ -410,7 +294,8 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   };
 
   const handleMessageSent = (message) => {
-    // This confirms the message was processed by the backend.    // The message should already be in local state if optimistic updates are used,
+    // This confirms the message was processed by the backend.
+    // The message should already be in local state if optimistic updates are used,
     // or this can be used to add/update it.
     console.log('✅ Message successfully sent and processed by backend:', message);
     // Optionally, update message state here if not doing optimistic updates
@@ -418,11 +303,10 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   };
 
   // When creating a chat room, store the sorted participants array for matching
-  const createChatRoom = useCallback(async (userId, shouldOpenModal = true) => {
+  const createChatRoom = useCallback(async (userId) => {
     console.log('>>> useChat createChatRoom - START'); // Log start
     console.log('>>> useChat createChatRoom - currentUser:', JSON.stringify(currentUser));
     console.log('>>> useChat createChatRoom - userId:', userId);
-    console.log('>>> useChat createChatRoom - shouldOpenModal:', shouldOpenModal);
 
     if (!currentUser || !currentUser.id) {
       console.error('❌ Current user or currentUser.id is not available for creating chat room. currentUser:', currentUser);
@@ -450,29 +334,22 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       return a - b;
     });
 
-    console.log('>>> useChat createChatRoom - currentUserId:', currentUserId, 'targetUserId:', targetUserId);    console.log('>>> useChat createChatRoom - Constructed participantsArray:', JSON.stringify(participantsArray));
-    console.log('>>> useChat createChatRoom - Current chatRooms:', Object.keys(chatRooms));
-    console.log('>>> useChat createChatRoom - Checking existing rooms...');
+    console.log('>>> useChat createChatRoom - currentUserId:', currentUserId, 'targetUserId:', targetUserId);
+    console.log('>>> useChat createChatRoom - Constructed participantsArray:', JSON.stringify(participantsArray));
 
     const existingRoomId = Object.keys(chatRooms).find(roomId => {
       const room = chatRooms[roomId];
-      console.log('>>> Checking room:', roomId, 'participants:', room.participants);
       if (room.participants && room.participants.length === 2) {
         const roomParticipantIds = room.participants.map(p => p.id || p).sort((a,b) => a - b);
-        console.log('>>> Room participant IDs:', roomParticipantIds, 'vs target:', participantsArray);
         // Ensure comparison is consistent, e.g. both are numbers or strings
-        const match = String(roomParticipantIds[0]) === String(participantsArray[0]) && String(roomParticipantIds[1]) === String(participantsArray[1]);
-        console.log('>>> Room match result:', match);
-        return match;
+        return String(roomParticipantIds[0]) === String(participantsArray[0]) && String(roomParticipantIds[1]) === String(participantsArray[1]);
       }
       return false;
     });
 
-    console.log('>>> useChat createChatRoom - Existing room search result:', existingRoomId);    if (existingRoomId) {
+    if (existingRoomId) {
       console.log('🚪 Existing room found:', existingRoomId, 'with participants:', chatRooms[existingRoomId].participants);
-      if (shouldOpenModal) {
-        setActiveRoom(existingRoomId);
-      }
+      setActiveRoom(existingRoomId);
       return Promise.resolve(existingRoomId);
     }
 
@@ -484,6 +361,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       participants: participantsArray,
     };
     console.log('>>> useChat createChatRoom - messagePayload to be sent:', JSON.stringify(messagePayload));
+
     sendMessage(messagePayload);
     return new Promise((resolve, reject) => {
       const newRoomIdentifier = participantsArray.join('_'); // Define identifier here
@@ -516,18 +394,16 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     if (!roomId || !content.trim()) {
       console.warn('⚠️ Cannot send empty message or message without room ID.');
       return;
-    }
-    
-    const messagePayload = {
+    }    const messagePayload = {
       type: 'send_message',
       room_id: roomId,
       message: content.trim(),
       sender_id: currentUser.id,
       // recipient_id can be determined by the backend from the room participants
-    };    console.log('📤 Sending chat message:', messagePayload);
-    const success = sendMessage(messagePayload);
-    
-    if (success) {
+    };
+
+    console.log('📤 Sending chat message:', messagePayload);
+    const success = sendMessage(messagePayload);    if (success) {
       console.log('✅ Message sent successfully via WebSocket');
       // Don't add to local state - wait for backend confirmation
     } else {
@@ -579,46 +455,53 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       loadChatHistory(activeRoom);
     } else {
       console.log('🔄 Active room is null. Not loading history.');
-    }  }, [activeRoom, loadChatHistory]);
-  
-  // Clear unread count when activeRoom changes (user opens a chat) - BUT ONLY if chat modal is actually open
+    }
+  }, [activeRoom, loadChatHistory]);
+  // Clear unread count when activeRoom changes (user opens a chat)
   useEffect(() => {
-    // Do NOT clear unread counts just because a room becomes active
-    // Only clear when user explicitly opens chat modal
-    console.log('🔔 [DEBUG] activeRoom changed, but NOT clearing unread counts automatically. Room:', activeRoom);
+    if (activeRoom && currentUser) {
+      // Find the other user in this room and clear their unread count
+      const room = chatRooms[activeRoom];
+      if (room && room.messages && room.messages.length > 0) {
+        // Get the other user ID from the room messages
+        const otherUserIds = [...new Set(room.messages
+          .map(msg => msg.sender_id)
+          .filter(id => id !== currentUser.id)
+        )];
+        
+        // Clear unread count for all other users in this room
+        otherUserIds.forEach(userId => {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [userId]: 0
+          }));
+        });
+      }
+    }
   }, [activeRoom, currentUser, chatRooms]);
-  
   // Clear unread count when opening a chat with a specific user
   const clearUnreadCount = useCallback((userId) => {
-    console.log('🔔 [DEBUG] clearUnreadCount called - FROM user:', userId, 'TO current user.');
-    
-    // Mark this user's count as explicitly cleared
-    clearedCounts.current[userId] = true;
-    console.log('🔔 [DEBUG] Marked user', userId, 'as explicitly cleared. clearedCounts:', clearedCounts.current);
-    
+    console.log('🔔 [DEBUG] Clearing unread count for user:', userId, 'previous count:', unreadCounts[userId] || 0);
     setUnreadCounts(prev => {
-      console.log('🔔 [DEBUG] Previous unread counts:', prev);
-      console.log('🔔 [DEBUG] Previous count for user', userId, ':', prev[userId] || 0);
-      
       const newCounts = {
         ...prev,
         [userId]: 0
       };
-      console.log('🔔 [DEBUG] NEW unread counts after clearing user', userId, ':', newCounts);
+      console.log('🔔 [DEBUG] Cleared unread counts:', newCounts);
       return newCounts;
     });
-  }, []); // Removed unreadCounts dependency to avoid stale closure
-  
-  // Get unread count for a specific user (messages FROM that user TO current user)
+  }, [unreadCounts]);
+  // Get unread count for a specific user
   const getUnreadCount = useCallback((userId) => {
     const count = unreadCounts[userId] || 0;
-    console.log('🔔 [DEBUG] getUnreadCount called for messages FROM user:', userId, 'TO current user, returning:', count, 'from unreadCounts:', unreadCounts);
+    console.log('🔔 [DEBUG] getUnreadCount called for user:', userId, 'returning:', count, 'from unreadCounts:', unreadCounts);
     return count;
   }, [unreadCounts]);
-  // Get total unread count across all users (total messages TO current user)
+
+  // Get total unread count across all users
   const getTotalUnreadCount = useCallback(() => {
     const total = Object.values(unreadCounts).reduce((total, count) => total + count, 0);
-    console.log('🔔 [DEBUG] getTotalUnreadCount called, returning total messages TO current user:', total, 'from unreadCounts:', unreadCounts);
+    console.log('🔔 [DEBUG] getTotalUnreadCount called, returning:', total, 'from unreadCounts:', unreadCounts);
     return total;
   }, [unreadCounts]);
 
