@@ -19,20 +19,74 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   useEffect(() => {
     console.log('🔍 Chat WebSocket connection status:', isConnected);
   }, [isConnected]);
-
   // Debug current user
   useEffect(() => {
     console.log('👤 Current user in chat:', currentUser);
   }, [currentUser]);
 
-  // Process messages received from the shared WebSocket connection via lastMessageFromOnlineStatus
-  useEffect(() => {
-    if (lastMessageFromOnlineStatus) {
-      console.log('🔔 useChat received message from useOnlineStatus:', lastMessageFromOnlineStatus);
-      handleWebSocketMessage(lastMessageFromOnlineStatus);
+  const handleNewMessage = useCallback((message) => {
+    console.log('📨 Received new message:', message);
+    
+    setChatRooms(prev => {
+      const room = prev[message.room_id] || { messages: [] };
+      
+      // Check if message already exists to avoid duplicates
+      const messageExists = room.messages?.some(msg => msg.id === message.id);
+      if (messageExists) {
+        console.log('📨 Message already exists, skipping:', message.id);
+        return prev;
+      }
+      
+      return {
+        ...prev,
+        [message.room_id]: {
+          ...room,
+          messages: [...(room.messages || []), message].sort((a, b) => 
+            new Date(a.timestamp) - new Date(b.timestamp)
+          )
+        }
+      };
+    });
+    
+    // Update unread counts if message is from another user and room is not active
+    if (message.sender_id !== currentUser?.id && activeRoom !== message.room_id) {
+      // Find the other user in the room to track unread count per user
+      const otherUserId = message.sender_id;
+      console.log('🔔 [DEBUG] Incrementing unread count for user:', otherUserId, 'from:', unreadCounts[otherUserId] || 0, 'to:', (unreadCounts[otherUserId] || 0) + 1);
+      console.log('🔔 [DEBUG] Message details:', { sender_id: message.sender_id, room_id: message.room_id, activeRoom, currentUserId: currentUser?.id });
+      setUnreadCounts(prev => {
+        const newCounts = {
+          ...prev,
+          [otherUserId]: (prev[otherUserId] || 0) + 1
+        };
+        console.log('🔔 [DEBUG] Updated unread counts:', newCounts);
+        return newCounts;
+      });
+    } else {
+      console.log('🔔 [DEBUG] NOT incrementing unread count. Reasons:', {
+        isOwnMessage: message.sender_id === currentUser?.id,
+        isActiveRoom: activeRoom === message.room_id,
+        sender_id: message.sender_id,
+        currentUserId: currentUser?.id,
+        activeRoom,
+        messageRoomId: message.room_id
+      });
     }
-  }, [lastMessageFromOnlineStatus]); // Dependency on lastMessageFromOnlineStatus
 
+    // Note: markMessageAsRead will be called from handleWebSocketMessage when room is active
+  }, [currentUser, activeRoom, unreadCounts]);
+  const markMessageAsRead = useCallback((messageId) => {
+    if (!currentUser || !currentUser.id) return;
+    if (!isConnected || !sendMessage) return;
+
+    sendMessage({
+      type: 'read_receipt',
+      message_id: messageId,
+      reader_id: currentUser.id
+    });
+  }, [currentUser, isConnected, sendMessage]);
+
+  // Process messages received from the shared WebSocket connection via lastMessageFromOnlineStatus
   const handleWebSocketMessage = useCallback((data) => {
     console.log('🔔 WebSocket message received in useChat:', data);
     
@@ -44,6 +98,10 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         if (data.message.sender_id !== currentUser?.id && !document.hasFocus()) {
           // You can add toast notification here if desired
           console.log('🔔 New message notification:', data.message);
+        }
+        // Mark message as read if room is active
+        if (activeRoom === data.message.room_id) {
+          markMessageAsRead(data.message.id);
         }
         break;
       case 'typing_indicator':
@@ -82,59 +140,13 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         // console.log('❓ Unknown message type in useChat:', data.type, data);
         break;
     }
-  }, [currentUser]); // Removed handleNewMessage, handleTypingIndicator, etc. from deps as they are stable
-  const handleNewMessage = (message) => {
-    console.log('📨 Received new message:', message);
-    
-    setChatRooms(prev => {
-      const room = prev[message.room_id] || { messages: [] };
-      
-      // Check if message already exists to avoid duplicates
-      const messageExists = room.messages?.some(msg => msg.id === message.id);
-      if (messageExists) {
-        console.log('📨 Message already exists, skipping:', message.id);
-        return prev;
-      }
-      
-      return {
-        ...prev,
-        [message.room_id]: {
-          ...room,
-          messages: [...(room.messages || []), message].sort((a, b) => 
-            new Date(a.timestamp) - new Date(b.timestamp)
-          )
-        }
-      };
-    });    // Update unread counts if message is from another user and room is not active
-    if (message.sender_id !== currentUser?.id && activeRoom !== message.room_id) {
-      // Find the other user in the room to track unread count per user
-      const otherUserId = message.sender_id;
-      console.log('🔔 [DEBUG] Incrementing unread count for user:', otherUserId, 'from:', unreadCounts[otherUserId] || 0, 'to:', (unreadCounts[otherUserId] || 0) + 1);
-      console.log('🔔 [DEBUG] Message details:', { sender_id: message.sender_id, room_id: message.room_id, activeRoom, currentUserId: currentUser?.id });
-      setUnreadCounts(prev => {
-        const newCounts = {
-          ...prev,
-          [otherUserId]: (prev[otherUserId] || 0) + 1
-        };
-        console.log('🔔 [DEBUG] Updated unread counts:', newCounts);
-        return newCounts;
-      });
-    } else {
-      console.log('🔔 [DEBUG] NOT incrementing unread count. Reasons:', {
-        isOwnMessage: message.sender_id === currentUser?.id,
-        isActiveRoom: activeRoom === message.room_id,
-        sender_id: message.sender_id,
-        currentUserId: currentUser?.id,
-        activeRoom,
-        messageRoomId: message.room_id
-      });
-    }
+  }, [currentUser, handleNewMessage, markMessageAsRead, activeRoom]);
 
-    // Mark message as read if room is active
-    if (activeRoom === message.room_id) {
-      markMessageAsRead(message.id);
-    }
-  };
+  useEffect(() => {
+    if (lastMessageFromOnlineStatus) {
+      console.log('🔔 useChat received message from useOnlineStatus:', lastMessageFromOnlineStatus);
+      handleWebSocketMessage(lastMessageFromOnlineStatus);
+    }  }, [lastMessageFromOnlineStatus, handleWebSocketMessage]);
 
   const handleTypingIndicator = (data) => {
     const { user_id, user_name, room_id, is_typing } = data;
@@ -175,9 +187,8 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       };
     });
   };
-
   const handleReadReceipt = (data) => {
-    const { message_id, reader_id } = data;
+    const { message_id } = data;
     
     setChatRooms(prev => {
       const updated = { ...prev };
@@ -422,19 +433,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       user_id: currentUser.id,
       user_name: currentUser.username || 'User',
       is_typing: isTyping
-    });
-  }, [currentUser, isConnected, sendMessage]);
-
-  const markMessageAsRead = useCallback((messageId) => {
-    if (!currentUser || !currentUser.id) return;
-    if (!isConnected || !sendMessage) return;
-
-    sendMessage({
-      type: 'read_receipt',
-      message_id: messageId,
-      reader_id: currentUser.id
-    });
-  }, [currentUser, isConnected, sendMessage]);
+    });  }, [currentUser, isConnected, sendMessage]);
 
   const loadChatHistory = useCallback((roomId) => {
     if (!isConnected || !sendMessage) {
@@ -457,6 +456,25 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       console.log('🔄 Active room is null. Not loading history.');
     }
   }, [activeRoom, loadChatHistory]);
+  // Test function to simulate receiving a message (for debugging badge system)
+  const simulateIncomingMessage = useCallback((fromUserId, content = "Test message") => {
+    if (!currentUser?.id) {
+      console.log('❌ Cannot simulate message: currentUser not loaded');
+      return;
+    }
+    
+    const testMessage = {
+      id: Date.now(), // Use timestamp as simple ID
+      room_id: `room_${Math.min(currentUser.id, fromUserId)}_${Math.max(currentUser.id, fromUserId)}`,
+      sender_id: fromUserId,
+      content: content,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('🧪 [TEST] Simulating incoming message:', testMessage);
+    handleNewMessage(testMessage);
+  }, [currentUser, handleNewMessage]);
+  
   // Clear unread count when activeRoom changes (user opens a chat)
   useEffect(() => {
     if (activeRoom && currentUser) {
@@ -503,12 +521,11 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     const total = Object.values(unreadCounts).reduce((total, count) => total + count, 0);
     console.log('🔔 [DEBUG] getTotalUnreadCount called, returning:', total, 'from unreadCounts:', unreadCounts);
     return total;
-  }, [unreadCounts]);
-
-  // Cleanup typing timeouts on unmount
+  }, [unreadCounts]);  // Cleanup typing timeouts on unmount
   useEffect(() => {
+    const timeoutsRef = typingTimeouts.current;
     return () => {
-      Object.values(typingTimeouts.current).forEach(clearTimeout);
+      Object.values(timeoutsRef).forEach(clearTimeout);
     };
   }, []);
 
@@ -521,14 +538,14 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     lastError, // Expose lastError
     operationStatus, // Expose operationStatus
     unreadCounts,
-    clearUnreadCount,
-    getUnreadCount,
+    clearUnreadCount,    getUnreadCount,
     getTotalUnreadCount,
     createChatRoom,
     sendChatMessage,
     sendTypingIndicator,
     markMessageAsRead,
     loadChatHistory,
+    simulateIncomingMessage, // Test function for badge debugging
     isConnected // Expose connection status for UI updates
   };
 };

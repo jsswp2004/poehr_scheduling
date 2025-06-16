@@ -15,5 +15,9 @@ frontend/build/
 # OS
 .DS_Store
 
+# Logs
+nohup.out
+*.log
+
 # VSCode
 .vscode/
