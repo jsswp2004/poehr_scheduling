@@ -11,6 +11,7 @@ import TextField from '@mui/material/TextField';
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import { notifyProfileUpdated, refreshAuthState } from '../utils/events';
+import { storeTokens } from '../utils/tokenManager';
 
 
 function LoginPage() {
@@ -41,14 +42,12 @@ function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      const response = await axios.post('http://127.0.0.1:8000/api/auth/login/', formData);
+    try {      const response = await axios.post('http://127.0.0.1:8000/api/auth/login/', formData);
       const { access, refresh } = response.data;
 
-      // Store tokens
-      localStorage.setItem('access_token', access);
-      localStorage.setItem('refresh_token', refresh);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;      // Decode token to get role
+      // Store tokens using centralized token manager
+      storeTokens(access, refresh);
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;// Decode token to get role
       const decoded = jwtDecode(access);
       const userRole = decoded.role;      // Notify navbar to refresh with new user data
       notifyProfileUpdated();

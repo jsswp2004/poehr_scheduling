@@ -1,5 +1,11 @@
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
+import { 
+  getAccessToken, 
+  getRefreshToken, 
+  storeTokens, 
+  clearTokens, 
+  isTokenExpired 
+} from './tokenManager';
 
 /**
  * Get a valid access token, refreshing if necessary
@@ -7,28 +13,19 @@ import { jwtDecode } from 'jwt-decode';
  */
 export const getValidToken = async () => {
   try {
-    const accessToken = localStorage.getItem('access_token');
-    const refreshToken = localStorage.getItem('refresh_token');
+    const accessToken = getAccessToken();
+    const refreshToken = getRefreshToken();
 
     if (!accessToken) {
       return null;
     }
 
-    // Check if token is expired
-    try {
-      const decoded = jwtDecode(accessToken);
-      const currentTime = Math.floor(Date.now() / 1000);
-      
-      // If token is still valid (with 5 minute buffer), return it
-      if (decoded.exp && decoded.exp > currentTime + 300) {
-        return accessToken;
-      }
-    } catch (decodeError) {
-      console.error('Token decode error:', decodeError);
-      // Token is malformed, try to refresh
+    // Check if token is expired using centralized function
+    if (!isTokenExpired(accessToken)) {
+      return accessToken;
     }
 
-    // Token is expired or malformed, try to refresh
+    // Token is expired, try to refresh
     if (refreshToken) {
       try {
         const response = await axios.post('http://127.0.0.1:8000/api/auth/token/refresh/', {
@@ -36,17 +33,15 @@ export const getValidToken = async () => {
         });
 
         const newAccessToken = response.data.access;
-        localStorage.setItem('access_token', newAccessToken);
+        const newRefreshToken = response.data.refresh;
         
-        // Update refresh token if provided
-        if (response.data.refresh) {
-          localStorage.setItem('refresh_token', response.data.refresh);
-        }
+        // Store tokens using centralized manager
+        storeTokens(newAccessToken, newRefreshToken);
 
         return newAccessToken;
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
-        clearAuthData();
+        clearTokens();
         return null;
       }
     }
@@ -62,9 +57,7 @@ export const getValidToken = async () => {
  * Clear all authentication data from localStorage
  */
 export const clearAuthData = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  localStorage.removeItem('token'); // Legacy key
+  clearTokens();
 };
 
 /**
