@@ -3,6 +3,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './toastify-custom.css';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
+import axios from 'axios';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -28,6 +29,7 @@ import OverviewPage from './pages/OverviewPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import EnrollmentPage from './pages/EnrollmentPage';
+import { refreshAccessToken, clearAuthData } from './utils/auth';
 import DataSecurityPage from './pages/DataSecurityPage';
 import SupportPage from './pages/SupportPage';
 import ToastTestPage from './pages/ToastTestPage';
@@ -42,6 +44,39 @@ import { AnnouncementProvider } from './contexts/AnnouncementContext';
 function AppContent() {
   const location = useLocation();
   const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions'].includes(location.pathname);
+
+  // Setup axios interceptor for automatic token refresh
+  useEffect(() => {
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        const originalRequest = error.config;
+
+        if (error.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+
+          try {
+            const newToken = await refreshAccessToken();
+            if (newToken) {
+              originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              return axios(originalRequest);
+            }
+          } catch (refreshError) {
+            console.error('Token refresh failed:', refreshError);
+            clearAuthData();
+            window.location.href = '/login';
+            return Promise.reject(refreshError);
+          }
+        }
+
+        return Promise.reject(error);
+      }
+    );
+
+    return () => {
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, []);
 
   // Add or remove body class based on whether navbar should be shown
   useEffect(() => {
