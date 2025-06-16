@@ -1320,11 +1320,11 @@ function PatientsPage() {
               </Badge>
             } 
             value="team" 
-          />
+          />          
           <Tab label="Appointments" value="appointments" />
           <Tab label="Analytics" value="analytics" />
-          {userRole === 'admin' || userRole === 'system_admin' ? (
-            <Tab label="Register User" value="register" />
+          {userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar' ? (
+            <Tab label="Register" value="register" />
           ) : null}
         </Tabs>        {tab === 'patients' && (
           <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
