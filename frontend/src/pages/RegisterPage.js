@@ -13,6 +13,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CancelIcon from '@mui/icons-material/Cancel';
+import { getValidToken, clearAuthData } from '../utils/authUtils';
 
 function RegisterPage({ adminMode = false }) {
   const [isPatient, setIsPatient] = useState(adminMode ? true : true);
@@ -39,46 +40,64 @@ function RegisterPage({ adminMode = false }) {
     phone_number: '',
     organization_name: '',
   });  useEffect(() => {
-    // Get token and check if user is logged in
-    const token = localStorage.getItem('access_token');
-    
-    // Function to fetch doctors
-    const fetchDoctors = () => {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      axios.get('http://127.0.0.1:8000/api/users/doctors/', { headers })
-        .then((res) => setDoctors(res.data))
-        .catch((err) => console.error('Failed to load doctors:', err));
-    };
-
-    // Function to fetch organizations
-    const fetchOrganizations = () => {
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      axios.get('http://127.0.0.1:8000/api/users/organizations/', { headers })
-        .then((res) => setOrganizations(res.data))
-        .catch((err) => console.error('Failed to load organizations:', err));
+    // Function to fetch doctors with valid token
+    const fetchDoctors = async () => {
+      try {
+        const token = await getValidToken();
+        if (!token) {
+          console.log('No valid token available for fetching doctors');
+          return;
+        }
+        
+        const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setDoctors(res.data);
+      } catch (err) {
+        console.error('Failed to load doctors:', err);
+      }
+    };    // Function to fetch organizations with valid token
+    const fetchOrganizations = async () => {
+      try {
+        const token = await getValidToken();
+        if (!token) {
+          console.log('No valid token available for fetching organizations');
+          return;
+        }
+        
+        const res = await axios.get('http://127.0.0.1:8000/api/users/organizations/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setOrganizations(res.data);
+      } catch (err) {
+        console.error('Failed to load organizations:', err);
+      }
     };
 
     // Function to fetch current user info if logged in
     const fetchCurrentUserOrg = async () => {
-      if (token) {
-        try {
-          // Get current user's info
-          const response = await axios.get('http://127.0.0.1:8000/api/users/me/', {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          const userData = response.data;
-          
-          // Set the organization name to the current user's organization
-          if (userData.organization_name) {
-            setFormData(prevState => ({
-              ...prevState,
-              organization_name: userData.organization_name
-            }));
-          }
-        } catch (error) {
-          console.error('Failed to fetch current user information:', error);
+      try {
+        const token = await getValidToken();
+        if (!token) {
+          console.log('No valid token available for fetching user org');
+          return;
         }
+        
+        // Get current user's info
+        const response = await axios.get('http://127.0.0.1:8000/api/users/me/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+          const userData = response.data;
+        
+        // Set the organization name to the current user's organization
+        if (userData.organization_name) {
+          setFormData(prevState => ({
+            ...prevState,
+            organization_name: userData.organization_name
+          }));
+        }
+      } catch (error) {
+        console.error('Failed to fetch current user information:', error);
       }
     };
     
@@ -112,18 +131,18 @@ function RegisterPage({ adminMode = false }) {
       provider: formData.assigned_doctor,
     };
 
-    // Get token if user is logged in
-    const token = localStorage.getItem('access_token');
-    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-
     try {
+      // Get valid token if user is logged in
+      const token = await getValidToken();
+      const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
       const response = await axios.post('http://127.0.0.1:8000/api/auth/register/', payload, config);
       toast.success('Registration successful!');
       
       // If in admin mode, fetch the created patient data and display it
       if (adminMode && token) {
         try {
-          // Fetch the newly created patient data
+          // Use the same valid token for fetching patient data
           const patientResponse = await axios.get(`http://127.0.0.1:8000/api/users/patients/`, {
             headers: { Authorization: `Bearer ${token}` },
             params: { search: formData.username }
@@ -163,12 +182,16 @@ function RegisterPage({ adminMode = false }) {
   const handlePatientEdit = () => {
     setEditMode(true);
   };
-
   const handlePatientSave = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
-
     try {
+      const token = await getValidToken();
+      if (!token) {
+        toast.error('Session expired. Please log in again.');
+        clearAuthData();
+        navigate('/login');
+        return;
+      }
+
       const updateData = {
         ...patientEditData,
         provider_id: patientEditData.provider
@@ -193,12 +216,16 @@ function RegisterPage({ adminMode = false }) {
     setPatientEditData(registeredPatient);
     setEditMode(false);
   };
-
   const handlePatientDelete = async () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) return;
-
     try {
+      const token = await getValidToken();
+      if (!token) {
+        toast.error('Session expired. Please log in again.');
+        clearAuthData();
+        navigate('/login');
+        return;
+      }
+
       await axios.delete(
         `http://127.0.0.1:8000/api/users/patients/${registeredPatient.id}/`,
         { headers: { Authorization: `Bearer ${token}` } }

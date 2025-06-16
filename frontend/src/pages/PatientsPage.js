@@ -29,6 +29,7 @@ import {
   faPrint, faFileCsv, faFilePdf, faSms, faTag, faEdit, faPaperPlane,
 } from '@fortawesome/free-solid-svg-icons';
 import RegisterPage from './RegisterPage';
+import { getValidToken, clearAuthData } from '../utils/auth';
 
 function PatientsPage() {
   const [showEmailModal, setShowEmailModal] = useState(false);
@@ -128,49 +129,61 @@ function PatientsPage() {
     'New Patient Registrations',
     'Blocked Time Slots',
     'Appointment Recurrence Report',
-    'Appointment Duration Summary',
-  ];
+    'Appointment Duration Summary',  ];
+  const [token, setToken] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
-  const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-  let userRole = null;
-
-  if (token) {
-    try {
-      const decoded = jwtDecode(token);
-      userRole = decoded.role;
-    } catch (err) {
-      console.error('Failed to decode token:', err);
-    }
-  }
-
-  // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
+  // Initialize token and role validation
   useEffect(() => {
-    if (!token) {
-      navigate('/login');
-      return;
-    }
-    try {
-      const decoded = jwtDecode(token);
-      const role = decoded.role || '';
-      if (
-        role !== 'admin' &&
-        role !== 'system_admin' &&
-        role !== 'doctor' &&
-        role !== 'registrar' &&
-        role !== 'receptionist'
-      ) {
-        navigate('/');
-      }
-    } catch (err) {
-      navigate('/login');
-    }
-  }, [navigate, token]);
+    const initializeAuth = async () => {
+      try {
+        const validToken = await getValidToken();
+        if (!validToken) {
+          console.error('No valid token available');
+          clearAuthData();
+          navigate('/login');
+          return;
+        }
 
+        setToken(validToken);
+        
+        // Validate user role
+        const decoded = jwtDecode(validToken);
+        const role = decoded.role || '';
+        setUserRole(role);
+        
+        if (
+          role !== 'admin' &&
+          role !== 'system_admin' &&
+          role !== 'doctor' &&
+          role !== 'registrar' &&
+          role !== 'receptionist'
+        ) {
+          navigate('/');
+        }
+      } catch (err) {
+        console.error('Authentication initialization failed:', err);
+        clearAuthData();
+        navigate('/login');
+      }
+    };
+
+    initializeAuth();
+  }, [navigate]);
   const fetchPatients = async () => {
     setLoading(true);
     try {
+      const validToken = await getValidToken();
+      if (!validToken) {
+        console.error('No valid token for fetching patients');
+        clearAuthData();
+        navigate('/login');
+        return;
+      }
+
       const res = await axios.get('http://127.0.0.1:8000/api/users/patients/', {
-        headers: { Authorization: `Bearer ${token}` },        params: {
+        headers: { Authorization: `Bearer ${validToken}` },
+        params: {
           search,
           provider,
           page,
@@ -190,12 +203,19 @@ function PatientsPage() {
       setLoading(false);
     }
   };
-
   const fetchTeam = async (pageParam = teamPage, searchParam = teamSearch) => {
     setLoadingTeam(true);
     try {
+      const validToken = await getValidToken();
+      if (!validToken) {
+        console.error('No valid token for fetching team');
+        clearAuthData();
+        navigate('/login');
+        return;
+      }
+
       const res = await axios.get('http://127.0.0.1:8000/api/users/team/', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${validToken}` },
         params: {
           search: searchParam,
           page: pageParam,
@@ -1424,10 +1444,9 @@ function PatientsPage() {
             {renderAnalyticsTable()}
           </Box>
         )}
-        
-        {tab === 'register' && (
+          {tab === 'register' && (
           <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
-            <RegisterPage />
+            <RegisterPage adminMode={true} />
           </Box>
         )}
 
