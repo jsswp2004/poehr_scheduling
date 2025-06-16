@@ -18,6 +18,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import MaintenancePage from './pages/MaintenancePage'; 
 import CreateProfilePage from './pages/CreateProfilePage';
 import SettingsPage from './pages/SettingsPage';
+import { autoMigrate } from './utils/tokenMigration';
 import HolidaysTab from './pages/HolidaysPage';
 import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
 import AdminUserSearchPage from './pages/AdminUserSearchPage';
@@ -44,6 +45,12 @@ import { AnnouncementProvider } from './contexts/AnnouncementContext';
 function AppContent() {
   const location = useLocation();
   const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions'].includes(location.pathname);
+
+  // Run token migration on app startup
+  useEffect(() => {
+    // Run token migration to fix any inconsistencies
+    autoMigrate();
+  }, []);
 
   // Setup axios interceptor for automatic token refresh
   useEffect(() => {

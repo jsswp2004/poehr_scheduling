@@ -1,51 +1,21 @@
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
+import { 
+  getAccessToken, 
+  getRefreshToken, 
+  storeTokens, 
+  clearTokens, 
+  isTokenExpired, 
+  isTokenExpiringSoon 
+} from './tokenManager';
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
-
-/**
- * Check if a token is expired
- * @param {string} token - JWT token
- * @returns {boolean} - true if expired, false if valid
- */
-export const isTokenExpired = (token) => {
-  if (!token) return true;
-  
-  try {
-    const decoded = jwtDecode(token);
-    const currentTime = Math.floor(Date.now() / 1000);
-    return decoded.exp < currentTime;
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return true;
-  }
-};
-
-/**
- * Check if a token will expire soon (within 5 minutes)
- * @param {string} token - JWT token
- * @returns {boolean} - true if expiring soon, false otherwise
- */
-export const isTokenExpiringSoon = (token) => {
-  if (!token) return true;
-  
-  try {
-    const decoded = jwtDecode(token);
-    const currentTime = Math.floor(Date.now() / 1000);
-    const fiveMinutesFromNow = currentTime + (5 * 60); // 5 minutes in seconds
-    return decoded.exp < fiveMinutesFromNow;
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return true;
-  }
-};
 
 /**
  * Refresh the access token using the refresh token
  * @returns {Promise<string|null>} - new access token or null if failed
  */
 export const refreshAccessToken = async () => {
-  const refreshToken = localStorage.getItem('refresh_token');
+  const refreshToken = getRefreshToken();
   
   if (!refreshToken) {
     console.error('No refresh token available');
@@ -57,10 +27,10 @@ export const refreshAccessToken = async () => {
       refresh: refreshToken
     });
 
-    const { access } = response.data;
+    const { access, refresh: newRefresh } = response.data;
     
-    // Update stored token
-    localStorage.setItem('access_token', access);
+    // Update stored tokens using centralized manager
+    storeTokens(access, newRefresh || refreshToken);
     
     // Update axios default header
     axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
@@ -71,9 +41,7 @@ export const refreshAccessToken = async () => {
     console.error('Token refresh failed:', error);
     
     // If refresh fails, clear all tokens and redirect to login
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('token');
+    clearTokens();
     delete axios.defaults.headers.common['Authorization'];
     
     return null;
@@ -85,7 +53,7 @@ export const refreshAccessToken = async () => {
  * @returns {Promise<string|null>} - valid access token or null if authentication failed
  */
 export const getValidToken = async () => {
-  let token = localStorage.getItem('access_token') || localStorage.getItem('token');
+  let token = getAccessToken();
   
   if (!token) {
     console.error('No access token found');
@@ -114,9 +82,7 @@ export const getValidToken = async () => {
  * Clear all authentication data
  */
 export const clearAuthData = () => {
-  localStorage.removeItem('access_token');
-  localStorage.removeItem('refresh_token');
-  localStorage.removeItem('token');
+  clearTokens();
   delete axios.defaults.headers.common['Authorization'];
 };
 
@@ -128,3 +94,6 @@ export const isAuthenticated = async () => {
   const token = await getValidToken();
   return !!token;
 };
+
+// Re-export token manager functions for backwards compatibility
+export { isTokenExpired, isTokenExpiringSoon } from './tokenManager';
