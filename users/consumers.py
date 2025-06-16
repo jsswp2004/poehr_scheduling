@@ -164,8 +164,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             'type': 'user_status_update',
             'user_id': event['user_id'],
             'is_online': event['is_online'],
-            'last_seen': event['last_seen']        }))
-    
+            'last_seen': event['last_seen']        }))    
     @database_sync_to_async
     def set_user_online(self, is_online):
         """Set user's online status in database"""
