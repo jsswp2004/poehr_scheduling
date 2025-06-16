@@ -1618,3 +1618,11 @@ Unauthorized: /api/users/37/
 2025-06-13 12:05:51,153 WARNING  Unauthorized: /api/users/37/
 Unauthorized: /api/users/17/
 2025-06-13 12:06:08,025 WARNING  Unauthorized: /api/users/17/
+🚀 Starting Django with WebSocket support...
+📡 WebSocket endpoint: ws://localhost:9001/ws/presence/
+🌐 HTTP endpoint: http://localhost:9001/
+
+2025-06-16 15:44:06,010 INFO     Starting server at tcp:port=9001:interface=127.0.0.1
+2025-06-16 15:44:06,010 INFO     HTTP/2 support not enabled (install the http2 and tls Twisted extras)
+2025-06-16 15:44:06,010 INFO     Configuring endpoint tcp:port=9001:interface=127.0.0.1
+2025-06-16 15:44:06,010 CRITICAL Listen failure: Couldn't listen on 127.0.0.1:9001: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted.
