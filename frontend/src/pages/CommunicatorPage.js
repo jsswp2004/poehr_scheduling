@@ -542,18 +542,19 @@ function CommunicatorPage() {
                         </TableCell>
                         <TableCell>
                           {new Date(contact.created_at).toLocaleDateString()}
-                        </TableCell>                        <TableCell>
+                        </TableCell>
+                        <TableCell>
                           <IconButton
                             onClick={() => handleEditContact(contact)}
                             color="primary"
-                            sx={{ width: 36, height: 36, mr: 1 }}
+                            size="small"
                           >
                             <EditIcon />
                           </IconButton>
                           <IconButton
                             onClick={() => handleDeleteContact(contact.id)}
                             color="error"
-                            sx={{ width: 36, height: 36 }}
+                            size="small"
                           >
                             <DeleteIcon />
                           </IconButton>
