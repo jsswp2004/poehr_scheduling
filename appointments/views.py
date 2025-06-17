@@ -509,27 +509,69 @@ class DownloadClinicEventsTemplate(APIView):
         return response
 
 class UploadClinicEventsCSV(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrSystemAdmin]
     parser_classes = [MultiPartParser]
-
+    
     def post(self, request):
         file = request.FILES.get('file')
         if not file:
             return Response({"error": "No file provided."}, status=400)
 
-        decoded_file = file.read().decode('utf-8').splitlines()
-        reader = csv.DictReader(decoded_file)
+        try:
+            decoded_file = file.read().decode('utf-8').splitlines()
+            reader = csv.DictReader(decoded_file)
 
-        created_count = 0
-        for row in reader:
-            ClinicEvent.objects.create(
-                name=row.get('name', '').strip(),
-                description=row.get('description', '').strip(),
-                is_active=row.get('is_active', 'true').strip().lower() in ['true', '1', 'yes']
-            )
-            created_count += 1
+            created_count = 0
+            skipped_count = 0
+            errors = []
 
-        return Response({"message": f"{created_count} clinic events uploaded successfully."})
+            for row_num, row in enumerate(reader, start=2):  # Start at 2 to account for header row
+                name = row.get('name', '').strip()
+                description = row.get('description', '').strip()
+                is_active = row.get('is_active', 'true').strip().lower() in ['true', '1', 'yes']
+
+                # Skip rows with empty names
+                if not name:
+                    skipped_count += 1
+                    errors.append(f"Row {row_num}: Skipped - Name field is empty")
+                    continue
+
+                # Check if clinic event with this name already exists
+                if ClinicEvent.objects.filter(name=name).exists():
+                    skipped_count += 1
+                    errors.append(f"Row {row_num}: Skipped - Clinic event '{name}' already exists")
+                    continue
+
+                try:
+                    ClinicEvent.objects.create(
+                        name=name,
+                        description=description,
+                        is_active=is_active
+                    )
+                    created_count += 1
+                except Exception as e:
+                    skipped_count += 1
+                    errors.append(f"Row {row_num}: Error creating '{name}' - {str(e)}")
+
+            # Prepare response message
+            message = f"Upload completed: {created_count} clinic events created"
+            if skipped_count > 0:
+                message += f", {skipped_count} rows skipped"
+
+            response_data = {
+                "message": message,
+                "created_count": created_count,
+                "skipped_count": skipped_count,
+                "total_rows": created_count + skipped_count
+            }
+
+            if errors:
+                response_data["errors"] = errors
+
+            return Response(response_data, status=200)
+
+        except Exception as e:
+            return Response({"error": f"Failed to process file: {str(e)}"}, status=400)
 
 class DownloadAvailabilityTemplate(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
