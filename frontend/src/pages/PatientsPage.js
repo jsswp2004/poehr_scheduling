@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox, Badge
+  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox, Badge, Grid
 } from '@mui/material';
 import TodayIcon from '@mui/icons-material/Today';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -1421,7 +1421,17 @@ function PatientsPage() {
 
         {tab === 'analytics' && (
           <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
-            {renderAnalyticsTable()}
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                {renderAnalyticsTable()}
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Box sx={{ p: 2, border: '1px dashed #9e9e9e', height: '100%' }}>
+                  <Typography variant="h6" gutterBottom>Analytics Reporting</Typography>
+                  <Typography variant="body2" color="text.secondary">Coming soon...</Typography>
+                </Box>
+              </Grid>
+            </Grid>
           </Box>
         )}
         
