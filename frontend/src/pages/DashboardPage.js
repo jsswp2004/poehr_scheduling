@@ -513,15 +513,16 @@ function DashboardPage() {
                     {filteredAppointments.map((a) => (
                       <TableRow key={a.id}>
                         <TableCell>{a.title || 'Untitled'}</TableCell>
-                        <TableCell>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</TableCell>                        <TableCell align="right">
+                        <TableCell>{a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : 'Unknown'}</TableCell>
+                        <TableCell align="right">
                           <Tooltip title="Edit appointment">
-                            <IconButton color="warning" onClick={() => handleEditClick(a)} sx={{ mr: 1, width: 36, height: 36 }}>
-                              <EditIcon />
+                            <IconButton size="small" color="warning" onClick={() => handleEditClick(a)} sx={{ mr: 1 }}>
+                              <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Delete appointment">
-                            <IconButton color="error" onClick={() => handleDelete(a.id)} sx={{ width: 36, height: 36 }}>
-                              <DeleteIcon />
+                            <IconButton size="small" color="error" onClick={() => handleDelete(a.id)}>
+                              <DeleteIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
                         </TableCell>

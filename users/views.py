@@ -481,112 +481,70 @@ class UploadProvidersCSV(APIView):
         file = request.FILES.get('file')
         if not file:
             return Response({"error": "No file provided."}, status=400)
-
-        try:
-            decoded_file = file.read().decode('utf-8').splitlines()
-            reader = csv.DictReader(decoded_file)
-            
-            created_count = 0
-            updated_count = 0
-            skipped_count = 0
-            errors = []
-
-            for row_num, row in enumerate(reader, start=2):  # Start at 2 to account for header row
-                username = row.get('username', '').strip()
-                email = row.get('email', '').strip()
-                first_name = row.get('first_name', '').strip()
-                last_name = row.get('last_name', '').strip()
-                org_name = row.get('organization', '').strip()
-                phone_number = row.get('phone_number', '').strip()
-                provider_username = row.get('provider', '').strip()
-                role = row.get('role', 'doctor').strip() or 'doctor'
-                password = row.get('password', '').strip()
-
-                # Skip rows with missing required fields
-                if not username or not email:
-                    skipped_count += 1
-                    errors.append(f"Row {row_num}: Skipped - Missing username or email")
-                    continue
-
+        decoded_file = file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+        created_count = 0
+        updated_count = 0
+        errors = []
+        for row in reader:
+            username = row.get('username', '').strip()
+            email = row.get('email', '').strip()
+            first_name = row.get('first_name', '').strip()
+            last_name = row.get('last_name', '').strip()
+            org_name = row.get('organization', '').strip()
+            phone_number = row.get('phone_number', '').strip()
+            provider_username = row.get('provider', '').strip()
+            role = row.get('role', 'doctor').strip() or 'doctor'
+            password = row.get('password', '').strip()
+            if not username or not email:
+                errors.append(f"Missing username or email for row: {row}")
+                continue
+            # Get or create organization
+            org = None
+            if org_name:
+                org, _ = Organization.objects.get_or_create(name=org_name)
+            # Get provider (if specified)
+            provider = None
+            if provider_username:
                 try:
-                    # Get or create organization
-                    org = None
-                    if org_name:
-                        org, _ = Organization.objects.get_or_create(name=org_name)
-
-                    # Get provider (if specified)
-                    provider = None
-                    if provider_username:
-                        try:
-                            provider = CustomUser.objects.get(username=provider_username)
-                        except CustomUser.DoesNotExist:
-                            errors.append(f"Row {row_num}: Warning - Provider '{provider_username}' not found for user '{username}'")
-
-                    # Create or update user
-                    user, created = CustomUser.objects.get_or_create(
-                        username=username, 
-                        defaults={
-                            'email': email,
-                            'first_name': first_name,
-                            'last_name': last_name,
-                            'role': role,
-                            'organization': org,
-                            'phone_number': phone_number,
-                        }
-                    )
-
-                    if created:
-                        if password:
-                            user.set_password(password)
-                        else:
-                            user.set_password('changeme123')
-                        user.save()
-                        created_count += 1
-                    else:
-                        # Update existing user fields
-                        user.email = email
-                        user.first_name = first_name
-                        user.last_name = last_name
-                        user.role = role
-                        user.organization = org
-                        user.phone_number = phone_number
-                        if password:
-                            user.set_password(password)
-                        user.save()
-                        updated_count += 1
-
-                    # Set provider relationship if specified
-                    if provider:
-                        user.provider = provider
-                        user.save()
-
-                except Exception as e:
-                    skipped_count += 1
-                    errors.append(f"Row {row_num}: Error processing user '{username}' - {str(e)}")
-
-            # Prepare response message
-            message = f"Upload completed: {created_count} providers created, {updated_count} updated"
-            if skipped_count > 0:
-                message += f", {skipped_count} rows skipped"
-
-            response_data = {
-                "message": message,
-                "created_count": created_count,
-                "updated_count": updated_count,
-                "skipped_count": skipped_count,
-                "total_rows": created_count + updated_count + skipped_count
-            }
-
-            if errors:
-                response_data["errors"] = errors
-
-            return Response(response_data, status=200)
-
-        except Exception as e:
-            return Response(
-                {"error": f"Failed to process CSV file: {str(e)}"}, 
-                status=400
-            )
+                    provider = CustomUser.objects.get(username=provider_username)
+                except CustomUser.DoesNotExist:
+                    errors.append(f"Provider '{provider_username}' not found for user '{username}'")
+            # Create or update user
+            user, created = CustomUser.objects.get_or_create(username=username, defaults={
+                'email': email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'role': role,
+                'organization': org,
+                'phone_number': phone_number,
+            })
+            if created:
+                if password:
+                    user.set_password(password)
+                else:
+                    user.set_password('changeme123')
+                user.save()
+                created_count += 1
+            else:
+                # Update fields
+                user.email = email
+                user.first_name = first_name
+                user.last_name = last_name
+                user.role = role
+                user.organization = org
+                user.phone_number = phone_number
+                if password:
+                    user.set_password(password)
+                user.save()
+                updated_count += 1
+            if provider:
+                user.provider = provider
+                user.save()
+        return Response({
+            "message": f"{created_count} providers created, {updated_count} updated.",
+            "errors": errors
+        })
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

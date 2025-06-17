@@ -287,14 +287,15 @@ function HolidaysTab() {
                             onChange={() => handleHolidayCheckbox(h.id, !(buffered[h.id] ?? h.is_recognized))}
                           />
                         </TableCell>
-                        <TableCell>                          <Box sx={{ display: 'flex', gap: 1 }}>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
                             <Tooltip title="Edit">
-                              <IconButton onClick={() => handleOpenHolidayDialog(h)} sx={{ width: 36, height: 36 }}>
+                              <IconButton size="small" onClick={() => handleOpenHolidayDialog(h)}>
                                 <FontAwesomeIcon icon={faEdit} />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Delete">
-                              <IconButton color="error" onClick={() => handleDelete(h.id)} disabled={deletingId === h.id} sx={{ width: 36, height: 36 }}>
+                              <IconButton size="small" color="error" onClick={() => handleDelete(h.id)} disabled={deletingId === h.id}>
                                 {deletingId === h.id
                                   ? <FontAwesomeIcon icon={faSpinner} spin />
                                   : <FontAwesomeIcon icon={faTrash} />}

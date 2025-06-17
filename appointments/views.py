@@ -26,7 +26,7 @@ import csv
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
 from .permissions import IsAdminOrSystemAdmin
-from appointments.cron import send_patient_reminders, send_patient_sms_reminders
+from appointments.cron import send_patient_reminders
 from rest_framework.permissions import IsAdminUser
 
 from .models import Appointment
@@ -657,33 +657,8 @@ class RunPatientRemindersNowView(APIView):
 
     def post(self, request):
         try:
-            # Get selected organizations from request
-            selected_organizations = request.data.get('selected_organizations', [])
-            message_type = request.data.get('message_type', 'email')  # Default to email
-            
-            # Determine organization filtering based on user role
-            if request.user.role == 'system_admin':
-                # System admin: use selected organizations or send to all
-                if not selected_organizations or any(org.get('id') == 'all' for org in selected_organizations):
-                    org_ids = None  # Send to all organizations
-                else:
-                    # Filter by specific organizations
-                    org_ids = [org.get('id') for org in selected_organizations if org.get('id') != 'all']
-            else:
-                # Regular admin: always use their organization only
-                if request.user.organization:
-                    org_ids = [request.user.organization.id]
-                else:
-                    return Response({"error": "User has no organization assigned."}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Send messages
-            if message_type == 'sms':
-                send_patient_sms_reminders(organization_ids=org_ids)
-            else:
-                send_patient_reminders(organization_ids=org_ids)
-            
-            message = "Patient SMS reminders have been sent successfully." if message_type == 'sms' else "Patient email reminders have been sent successfully."
-            return Response({"message": message}, status=status.HTTP_200_OK)
+            send_patient_reminders()
+            return Response({"message": "Patient reminders have been sent successfully."}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"Failed to send patient reminders: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 

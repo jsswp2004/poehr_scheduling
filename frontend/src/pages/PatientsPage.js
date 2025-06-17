@@ -815,7 +815,8 @@ function PatientsPage() {
                       <TableCell>{patient.last_appointment_date ? new Date(patient.last_appointment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</TableCell>
                       <TableCell align="center">
                         <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', gap: 1 }}>
-                          <Tooltip title="View patient profile" placement="top">                            <IconButton variant="contained" color="primary"
+                          <Tooltip title="View patient profile" placement="top">
+                            <IconButton variant="contained" size="small" color="primary"
                               sx={{
                                 width: 36,
                                 height: 36,
@@ -830,7 +831,8 @@ function PatientsPage() {
                               <FontAwesomeIcon icon={faEye} />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Send SMS" placement="top">                            <IconButton variant="contained" color="warning"
+                          <Tooltip title="Send SMS" placement="top">
+                            <IconButton variant="contained" size="small" color="warning"
                               sx={{
                                 width: 36,
                                 height: 36,
@@ -845,7 +847,8 @@ function PatientsPage() {
                               <FontAwesomeIcon icon={faCommentDots} />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Send email" placement="top">                            <IconButton variant="outlined" color="info"
+                          <Tooltip title="Send email" placement="top">
+                            <IconButton variant="outlined" size="small" color="info"
                               sx={{
                                 width: 36,
                                 height: 36,
@@ -860,7 +863,8 @@ function PatientsPage() {
                               <FontAwesomeIcon icon={faEnvelope} />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Delete patient" placement="top">                            <IconButton variant="outlined" color="error"
+                          <Tooltip title="Delete patient" placement="top">
+                            <IconButton variant="outlined" size="small" color="error"
                               sx={{
                                 width: 36,
                                 height: 36,
@@ -951,11 +955,11 @@ function PatientsPage() {
                       />
                     </TableCell>
                     <TableCell>{member.organization_name || 'N/A'}</TableCell>
-                    <TableCell align="center">                      <Tooltip title={!onlineStatusConnected ? "Chat unavailable - no connection" : !currentUser ? "Chat unavailable - user not loaded" : "Start Chat"} placement="top">                        <IconButton
+                    <TableCell align="center">                      <Tooltip title={!onlineStatusConnected ? "Chat unavailable - no connection" : !currentUser ? "Chat unavailable - user not loaded" : "Start Chat"} placement="top">
+                        <IconButton
+                          size="small"
                           color="primary"
                           sx={{
-                            width: 36,
-                            height: 36,
                             opacity: (!onlineStatusConnected || !currentUser) ? 0.5 : 1,
                             cursor: (!onlineStatusConnected || !currentUser) ? 'not-allowed' : 'pointer'
                           }}
@@ -1033,11 +1037,11 @@ function PatientsPage() {
                         </IconButton>
                       </Tooltip>
                       
-                      <Tooltip title={!member.phone_number ? "No phone number available" : "Send SMS"} placement="top">                        <IconButton
+                      <Tooltip title={!member.phone_number ? "No phone number available" : "Send SMS"} placement="top">
+                        <IconButton
+                          size="small"
                           color="secondary"
                           sx={{
-                            width: 36,
-                            height: 36,
                             opacity: !member.phone_number ? 0.5 : 1,
                             cursor: !member.phone_number ? 'not-allowed' : 'pointer',
                             mr: 1
@@ -1054,13 +1058,11 @@ function PatientsPage() {
                         </IconButton>
                       </Tooltip>
                       
-                      <Tooltip title="Send email" placement="top">                        <IconButton
+                      <Tooltip title="Send email" placement="top">
+                        <IconButton
+                          size="small"
                           color="info"
-                          sx={{ 
-                            width: 36,
-                            height: 36,
-                            mr: 1 
-                          }}
+                          sx={{ mr: 1 }}
                           onClick={() => handleOpenEmailModal(member)}
                         >
                           <FontAwesomeIcon icon={faEnvelope} />
