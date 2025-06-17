@@ -19,7 +19,6 @@ if __name__ == '__main__':
     print("📡 WebSocket endpoint: ws://localhost:9001/ws/presence/")
     print("🌐 HTTP endpoint: http://localhost:9001/")
     print("")
-    
-    # Start Daphne with our ASGI application
+      # Start Daphne with our ASGI application
     cli = CommandLineInterface()
-    cli.run(['-p', '9001', 'poehr_scheduling_backend.asgi:application'])
+    cli.run(['-b', '0.0.0.0', '-p', '9001', 'poehr_scheduling_backend.asgi:application'])

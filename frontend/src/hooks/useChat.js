@@ -8,9 +8,78 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   const [lastError, setLastError] = useState(null); // Added for error display
   const [operationStatus, setOperationStatus] = useState(null); // For loading/creating states
   const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per user/room
-
   const typingTimeouts = useRef({});
   console.log('🚀 useChat hook initializing with currentUser:', currentUser);
+  
+  // Notification functions
+  const requestNotificationPermission = useCallback(async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+  }, []);
+  const showDesktopNotification = useCallback((message) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const notification = new Notification(`New message from ${message.sender_name}`, {
+        body: message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content,
+        icon: '/favicon.ico', // You can customize this
+        tag: `message-${message.id}`,
+        requireInteraction: false,
+      });
+
+      // Auto-close after 5 seconds
+      setTimeout(() => notification.close(), 5000);
+
+      // Handle click to focus window
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
+  }, []);
+
+  const playNotificationSound = useCallback(() => {
+    try {
+      // Create a simple notification sound using Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+      console.log('Could not play notification sound:', error);
+    }
+  }, []);
+  // Request permission on hook initialization
+  useEffect(() => {
+    requestNotificationPermission();
+  }, [requestNotificationPermission]);
+
+  // Update browser title with unread count
+  useEffect(() => {
+    const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+    const originalTitle = 'POEHR Scheduling';
+    
+    if (totalUnread > 0) {
+      document.title = `(${totalUnread}) ${originalTitle}`;
+    } else {
+      document.title = originalTitle;
+    }
+    
+    // Cleanup function to reset title when component unmounts
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [unreadCounts]);
   // WebSocket connection for chat (using presence endpoint since that's what handles chat messages)
   const isConnected = websocketConnection && websocketConnection.readyState === WebSocket.OPEN;
   
@@ -71,9 +140,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         activeRoom,
         messageRoomId: message.room_id
       });
-    }
-
-    // Note: markMessageAsRead will be called from handleWebSocketMessage when room is active
+    }    // Note: markMessageAsRead will be called from handleWebSocketMessage when room is active
   }, [currentUser, activeRoom, unreadCounts]);
   const markMessageAsRead = useCallback((messageId) => {
     if (!currentUser || !currentUser.id) return;
@@ -93,10 +160,17 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     switch (data.type) {
       case 'new_message':
         console.log('📩 Processing new_message:', data.message);
-        handleNewMessage(data.message);
-        // Show notification if message is from another user and window is not focused
-        if (data.message.sender_id !== currentUser?.id && !document.hasFocus()) {
-          // You can add toast notification here if desired
+        handleNewMessage(data.message);        // Show notification if message is from another user
+        if (data.message.sender_id !== currentUser?.id) {
+          if (!document.hasFocus()) {
+            // Desktop notification when window not focused
+            showDesktopNotification(data.message);
+            playNotificationSound();
+          } else if (activeRoom !== data.message.room_id) {
+            // Toast notification when on page but different chat room is active
+            // Note: This will need to be handled in the component that has access to toast
+            console.log('🔔 Should show toast notification for:', data.message);
+          }
           console.log('🔔 New message notification:', data.message);
         }
         // Mark message as read if room is active
@@ -140,7 +214,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         // console.log('❓ Unknown message type in useChat:', data.type, data);
         break;
     }
-  }, [currentUser, handleNewMessage, markMessageAsRead, activeRoom]);
+  }, [currentUser, handleNewMessage, markMessageAsRead, activeRoom, showDesktopNotification, playNotificationSound]);
 
   useEffect(() => {
     if (lastMessageFromOnlineStatus) {
