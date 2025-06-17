@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox, Badge
+  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox
 } from '@mui/material';
 import TodayIcon from '@mui/icons-material/Today';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -97,11 +97,28 @@ function PatientsPage() {
       });
     }
   }, [team, getUserOnlineStatus, onlineStatusConnected]);
-  
   // ✅ Additional debug - check initial state
   useEffect(() => {
     console.log('🚀 PatientsPage initialized, WebSocket connected:', onlineStatusConnected);
-  }, []);
+  }, [onlineStatusConnected]);
+  // ✅ Toast notifications for new chat messages
+  useEffect(() => {
+    if (lastMessageFromOnlineStatus && lastMessageFromOnlineStatus.type === 'new_message') {
+      const message = lastMessageFromOnlineStatus.message;
+      
+      // Show toast if message is from another user and chat modal is not open
+      if (message && message.sender_id !== currentUser?.id && !chatModalOpen) {
+        toast.info(`💬 ${message.sender_name}: ${message.content.length > 50 ? message.content.substring(0, 50) + '...' : message.content}`, {
+          position: "top-right",
+          autoClose: 4000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+        });
+      }
+    }
+  }, [lastMessageFromOnlineStatus, currentUser, chatModalOpen]);
   
   const [tab, setTab] = useState('patients');
   const [page, setPage] = useState(1);
@@ -989,37 +1006,34 @@ function PatientsPage() {
                             } catch (error) {
                               console.error('❌ Failed to create chat room:', error);
                               toast.error(`Failed to start chat: ${error.message || 'Unknown error'}`);
-                              setSelectedChatUser(null);
-                              setChatModalOpen(false);
-                            }                          }}                          disabled={!onlineStatusConnected || !currentUser}                        >                          <Badge 
-                            badgeContent={(() => {
-                              const count = chat.getUnreadCount ? chat.getUnreadCount(member.id) : 0;
-                              console.log('🔔 [DEBUG] Badge for member:', member.full_name, 'ID:', member.id, 'count:', count, 'chat.getUnreadCount available:', !!chat.getUnreadCount);
-                              return count;
-                            })()} 
-                            color="error"
-                            invisible={(() => {
-                              const count = chat.getUnreadCount ? chat.getUnreadCount(member.id) : 0;
-                              const isInvisible = !chat.getUnreadCount || count === 0;
-                              console.log('🔔 [DEBUG] Badge invisible for member:', member.full_name, 'isInvisible:', isInvisible, 'count:', count);
-                              return isInvisible;
-                            })()}
-                            sx={{
-                              '& .MuiBadge-badge': {
-                                backgroundColor: '#ff4444',
-                                color: 'white',
-                                minWidth: '18px',
-                                height: '18px',
-                                fontSize: '11px',
-                                fontWeight: 'bold',
-                                borderRadius: '50%',
-                                border: '2px solid white',
-                                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                              }
-                            }}
-                          >
+                              setSelectedChatUser(null);                              setChatModalOpen(false);
+                            }
+                          }}
+                          disabled={!onlineStatusConnected || !currentUser}
+                        >
+                          {/* Red dot indicator for unread messages */}
+                          <Box sx={{ position: 'relative' }}>
                             <FontAwesomeIcon icon={faCommentDots} />
-                          </Badge>
+                            {(() => {
+                              const hasUnread = chat.getUnreadCount ? chat.getUnreadCount(member.id) > 0 : false;
+                              console.log('🔔 [DEBUG] Red dot for member:', member.full_name, 'ID:', member.id, 'hasUnread:', hasUnread);
+                              return hasUnread ? (
+                                <Box
+                                  sx={{
+                                    position: 'absolute',
+                                    top: -4,
+                                    right: -4,
+                                    width: 12,
+                                    height: 12,
+                                    backgroundColor: '#ff4444',
+                                    borderRadius: '50%',
+                                    border: '2px solid white',
+                                    zIndex: 1,
+                                  }}
+                                />
+                              ) : null;
+                            })()}
+                          </Box>
                         </IconButton>
                       </Tooltip>
                       
@@ -1290,37 +1304,32 @@ function PatientsPage() {
               },
             }}
           >
-            <Tab label="Patients" value="patients" />
-            <Tab              label={
-                <Badge 
-                  badgeContent={(() => {
-                    const totalCount = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0;
-                    console.log('🔔 [DEBUG] Team tab badge total count:', totalCount, 'chat.getTotalUnreadCount available:', !!chat.getTotalUnreadCount);
-                    return totalCount;
-                  })()}
-                  color="error"
-                  invisible={(() => {
-                    const totalCount = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0;
-                    const isInvisible = !chat.getTotalUnreadCount || totalCount === 0;
-                    console.log('🔔 [DEBUG] Team tab badge invisible:', isInvisible, 'totalCount:', totalCount);
-                    return isInvisible;
-                  })()}
-                  sx={{
-                    '& .MuiBadge-badge': {
-                      backgroundColor: '#ff4444',
-                      color: 'white',
-                      fontSize: '10px',
-                      fontWeight: 'bold',
-                      minWidth: '16px',
-                      height: '16px'
-                    }
-                  }}
-                >
+            <Tab label="Patients" value="patients" />            <Tab              label={
+                <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   Team
-              </Badge>
+                  {(() => {
+                    const hasUnread = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() > 0 : false;
+                    console.log('🔔 [DEBUG] Team tab red dot hasUnread:', hasUnread);
+                    return hasUnread ? (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: -8,
+                          right: -12,
+                          width: 8,
+                          height: 8,
+                          backgroundColor: '#ff4444',
+                          borderRadius: '50%',
+                          border: '1px solid white',
+                          zIndex: 1,
+                        }}
+                      />
+                    ) : null;
+                  })()}
+                </Box>
             } 
             value="team" 
-          />          
+          />
           <Tab label="Appointments" value="appointments" />
           <Tab label="Analytics" value="analytics" />
           {userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar' ? (

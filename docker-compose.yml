@@ -19,7 +19,6 @@ services:
     command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
-
   web:
     build: .
     ports:
@@ -42,6 +41,26 @@ services:
       - .:/code
       - /code/node_modules
     command: python manage.py runserver 0.0.0.0:8000
+
+  websocket:
+    build: .
+    ports:
+      - "9001:9001"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DEBUG=1
+      - DB_HOST=db
+      - DB_NAME=poehr_db
+      - DB_USER=jsswp2004
+      - DB_PASSWORD=krat27Miko!
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - .:/code
+    command: python start_websocket_server_9001.py
 
 volumes:
   redis_data:

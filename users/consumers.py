@@ -429,12 +429,9 @@ class PresenceConsumer(AsyncWebsocketConsumer):
 
         if room:
             print(f"DEBUG_CHAT: Chat room {'created' if getattr(room, '_created_in_consumer', False) else 'retrieved'}: ID {room.id}, Name: {room.name}")
-            
-            # Join the chat room group to receive messages
-            await self.join_chat_room(room.id)
-            
+              # Join the chat room group to receive messages
+            await self.join_chat_room(room.id)            
             participant_objs = await self._get_participant_objs(room)
-            print(f"DEBUG: Sending chat_room_created to user {self.scope['user'].id} on channel {self.channel_name}")
             await self.send(text_data=json.dumps({
                 'type': 'chat_room_created',
                 'room_id': room.id,
