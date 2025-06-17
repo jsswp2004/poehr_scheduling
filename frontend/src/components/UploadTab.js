@@ -140,8 +140,7 @@ function UploadTab() {
             <TableCell>Clinic Events</TableCell>
             <TableCell>
               <Stack direction="row" spacing={2} alignItems="center">
-                <Tooltip title="Download Template">
-                  <IconButton color="primary" onClick={handleDownload} sx={{ width: 40, height: 40 }}>
+                <Tooltip title="Download Template">                  <IconButton color="primary" onClick={handleDownload} sx={{ width: 36, height: 36 }}>
                     <FontAwesomeIcon icon={faDownload} />
                   </IconButton>
                 </Tooltip>
@@ -152,8 +151,7 @@ function UploadTab() {
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Tooltip title="Upload CSV">
-                  <IconButton color="success" onClick={handleUpload} sx={{ width: 40, height: 40 }}>
+                <Tooltip title="Upload CSV">                  <IconButton color="success" onClick={handleUpload} sx={{ width: 36, height: 36 }}>
                     <FontAwesomeIcon icon={faUpload} />
                   </IconButton>
                 </Tooltip>
@@ -166,8 +164,7 @@ function UploadTab() {
             <TableCell>Providers / Staff</TableCell>
             <TableCell>
               <Stack direction="row" spacing={2} alignItems="center">
-                <Tooltip title="Download Template">
-                  <IconButton color="primary" onClick={handleProviderDownload} sx={{ width: 40, height: 40 }}>
+                <Tooltip title="Download Template">                  <IconButton color="primary" onClick={handleProviderDownload} sx={{ width: 36, height: 36 }}>
                     <FontAwesomeIcon icon={faDownload} />
                   </IconButton>
                 </Tooltip>
@@ -178,8 +175,7 @@ function UploadTab() {
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Tooltip title="Upload CSV">
-                  <IconButton color="success" onClick={handleProviderUpload} sx={{ width: 40, height: 40 }}>
+                <Tooltip title="Upload CSV">                  <IconButton color="success" onClick={handleProviderUpload} sx={{ width: 36, height: 36 }}>
                     <FontAwesomeIcon icon={faUpload} />
                   </IconButton>
                 </Tooltip>
@@ -192,8 +188,7 @@ function UploadTab() {
             <TableCell>Availability</TableCell>
             <TableCell>
               <Stack direction="row" spacing={2} alignItems="center">
-                <Tooltip title="Download Template">
-                  <IconButton color="primary" onClick={handleAvailabilityDownload} sx={{ width: 40, height: 40 }}>
+                <Tooltip title="Download Template">                  <IconButton color="primary" onClick={handleAvailabilityDownload} sx={{ width: 36, height: 36 }}>
                     <FontAwesomeIcon icon={faDownload} />
                   </IconButton>
                 </Tooltip>
@@ -204,8 +199,7 @@ function UploadTab() {
                   size="small"
                   sx={{ minWidth: 180 }}
                 />
-                <Tooltip title="Upload CSV">
-                  <IconButton color="success" onClick={handleAvailabilityUpload} sx={{ width: 40, height: 40 }}>
+                <Tooltip title="Upload CSV">                  <IconButton color="success" onClick={handleAvailabilityUpload} sx={{ width: 36, height: 36 }}>
                     <FontAwesomeIcon icon={faUpload} />
                   </IconButton>
                 </Tooltip>

@@ -10,14 +10,14 @@ import {
   Button,
   Alert,
   CircularProgress,
-  Stack,
-  TextField
+  Stack
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import MessageLogTable from '../components/MessageLogTable';
+import OrganizationSelector from '../components/OrganizationSelector';
 
-function AutoSMSSetUpPage() {
+function AutoSMSSetUpPage({ selectedOrganizations, onOrganizationChange, userRole }) {
   const [frequency, setFrequency] = useState('weekly');
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [startDate, setStartDate] = useState(new Date());
@@ -107,9 +107,18 @@ function AutoSMSSetUpPage() {
     setRunNowStatus('Running...');
     try {
       const token = localStorage.getItem('access_token');
+      
+      // Prepare request data
+      const requestData = { message_type: 'sms' };
+      
+      // Only include selected_organizations for system_admin
+      if (userRole === 'system_admin') {
+        requestData.selected_organizations = selectedOrganizations;
+      }
+      
       await axios.post(
-        'http://127.0.0.1:8000/api/run-patient-sms-reminders-now/',
-        {},
+        'http://127.0.0.1:8000/api/run-patient-reminders-now/',
+        requestData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setRunNowStatus('SMS messages are being sent!');
@@ -134,8 +143,12 @@ function AutoSMSSetUpPage() {
       }}>
         <Typography variant="h6" sx={{ mb: 2 }}>
           Automatic Text Messaging Setup
-        </Typography>
-        <Stack spacing={2} sx={{ maxWidth: 300 }}>
+        </Typography>        <Stack spacing={2} sx={{ maxWidth: 300 }}>
+        <OrganizationSelector
+          selectedOrganizations={selectedOrganizations}
+          onSelectionChange={onOrganizationChange}
+          userRole={userRole}
+        />
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <DatePicker
             label="Start Date"

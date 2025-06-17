@@ -125,20 +125,18 @@ function AdminUserSearchPage() {
                   <TableCell>{appt.description || '-'}</TableCell>
                   <TableCell>{appt.duration_minutes || '-'}</TableCell>
                   <TableCell>{appt.status || '-'}</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
+                  <TableCell>                    <Box sx={{ display: 'flex', gap: 1 }}>
                       <Tooltip title="View Appointment Details">
-                        <IconButton size="small" color="primary" onClick={() => {
+                        <IconButton color="primary" onClick={() => {
                           setSelectedAppointment(appt);
                           setDetailsOpen(true);
-                        }}>
+                        }} sx={{ width: 36, height: 36 }}>
                           <FontAwesomeIcon icon={faEye} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Delete Appointment">
-                        <IconButton
-                          size="small"
+                      <Tooltip title="Delete Appointment">                        <IconButton
                           color="error"
+                          sx={{ width: 36, height: 36 }}
                           onClick={async (e) => {
                             e.stopPropagation();
                             if (window.confirm('Are you sure you want to delete this appointment?')) {
