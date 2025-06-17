@@ -412,15 +412,14 @@ function OrganizationPage() {
                   </TableCell>
                   <TableCell>{org.name}</TableCell>
                   <TableCell>{new Date(org.created_at).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <IconButton
+                  <TableCell>                    <IconButton
                       color="error"
-                      size="small"
                       onClick={(e) => {
                         e.stopPropagation(); // Prevent row click when clicking delete
                         setOrganizationToDelete(org);
                         setDeleteConfirmDialog(true);
                       }}
+                      sx={{ width: 36, height: 36 }}
                     >
                       <Delete />
                     </IconButton>

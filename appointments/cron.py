@@ -1,21 +1,31 @@
 from django_cron import CronJobBase, Schedule
 from django.utils import timezone
 from django.core.mail import send_mail
-from communicator.utils import send_email
+from communicator.utils import send_email, send_sms
 from django.core.cache import cache
 from datetime import timedelta
 from .models import Appointment, AutoEmail
 
-def send_patient_reminders():
-    """Send patient reminders based on AutoEmail configuration."""
+def send_patient_reminders(organization_ids=None):
+    """Send patient reminders based on AutoEmail configuration.
+    
+    Args:
+        organization_ids (list): List of organization IDs to filter by. If None, send to all.
+    """
     today = timezone.now().date()
     current_weekday = timezone.now().weekday()  # 0=Monday, 6=Sunday
-    
-    # Get all active AutoEmail configurations
+      # Get all active AutoEmail configurations
     active_configs = AutoEmail.objects.filter(is_active=True)
     
+    # Filter by organizations if specified
+    if organization_ids:
+        active_configs = active_configs.filter(organization__id__in=organization_ids)
+    
     if not active_configs.exists():
-        print("No active AutoEmail configurations found.")
+        if organization_ids:
+            print(f"No active AutoEmail configurations found for organizations: {organization_ids}")
+        else:
+            print("No active AutoEmail configurations found.")
         return
     
     emailed_patients = cache.get('emailed_patients_today', set())
@@ -105,6 +115,110 @@ def send_patient_reminders():
     
     cache.set('emailed_patients_today', new_emailed_patients, 24*60*60)
 
+def send_patient_sms_reminders(organization_ids=None):
+    """Send patient SMS reminders based on AutoEmail configuration.
+    
+    Args:
+        organization_ids (list): List of organization IDs to filter by. If None, send to all.
+    """
+    today = timezone.now().date()
+    current_weekday = timezone.now().weekday()  # 0=Monday, 6=Sunday
+    
+    # Get all active AutoEmail configurations (these are used for both email and SMS)
+    active_configs = AutoEmail.objects.filter(is_active=True)
+    
+    # Filter by organizations if specified
+    if organization_ids:
+        active_configs = active_configs.filter(organization__id__in=organization_ids)
+    
+    if not active_configs.exists():
+        if organization_ids:
+            print(f"No active AutoEmail configurations found for organizations: {organization_ids}")
+        else:
+            print("No active AutoEmail configurations found.")
+        return
+
+    sms_sent_patients = cache.get('sms_sent_patients_today', set())
+    new_sms_sent_patients = set(sms_sent_patients)
+    
+    for config in active_configs:
+        # Check if start date is in the future
+        if config.auto_message_start_date and config.auto_message_start_date > today:
+            continue
+            
+        # Frequency-based logic (same as email)
+        should_send = False
+        
+        if config.auto_message_frequency == 'daily':
+            should_send = True
+            print(f"Daily frequency: sending SMS every day")
+        elif config.auto_message_frequency == 'weekly':
+            should_send = current_weekday == config.auto_message_day_of_week
+            if should_send:
+                print(f"Weekly frequency: sending on {config.get_auto_message_day_of_week_display()}")
+        elif config.auto_message_frequency == 'bi-weekly':
+            if current_weekday == config.auto_message_day_of_week:
+                if config.auto_message_start_date:
+                    days_since_start = (today - config.auto_message_start_date).days
+                    weeks_since_start = days_since_start // 7
+                    should_send = weeks_since_start % 2 == 0
+                    print(f"Bi-weekly frequency: {weeks_since_start} weeks since start, should_send: {should_send}")
+                else:
+                    should_send = True
+                    print("Bi-weekly frequency: no start date, sending")
+        elif config.auto_message_frequency == 'monthly':
+            if current_weekday == config.auto_message_day_of_week:
+                if config.auto_message_start_date:
+                    days_since_start = (today - config.auto_message_start_date).days
+                    weeks_since_start = days_since_start // 7
+                    should_send = weeks_since_start % 4 == 0
+                    print(f"Monthly frequency: {weeks_since_start} weeks since start, should_send: {should_send}")
+                else:
+                    should_send = True
+                    print("Monthly frequency: no start date, sending")
+        
+        if not should_send:
+            print(f"Skipping config {config.id}: frequency={config.auto_message_frequency}, weekday={current_weekday}, config_day={config.auto_message_day_of_week}")
+            continue
+            
+        # Get appointments for next week
+        next_week = today + timedelta(days=7)
+        if config.organization:
+            appointments = Appointment.objects.filter(
+                appointment_datetime__date__gte=today,
+                appointment_datetime__date__lte=next_week,
+                organization=config.organization
+            ).select_related('patient')
+            print(f"Processing {appointments.count()} appointments for organization: {config.organization.name}")
+        else:
+            appointments = Appointment.objects.filter(
+                appointment_datetime__date__gte=today,
+                appointment_datetime__date__lte=next_week
+            ).select_related('patient')
+            print(f"Processing {appointments.count()} appointments (all organizations)")
+        
+        # Send SMS
+        for appt in appointments:
+            patient = appt.patient
+            if not patient or not patient.phone_number or patient.id in sms_sent_patients:
+                continue
+                
+            appt_date = appt.appointment_datetime.strftime('%A, %B %d, %Y at %I:%M %p')
+            message = f"Hi {patient.first_name}, This is a reminder of your visit on: {appt_date}. Please arrive 15 minutes early. See you soon!"
+            
+            try:
+                send_sms(
+                    patient.phone_number,
+                    message,
+                    user=None,
+                )
+                new_sms_sent_patients.add(patient.id)
+                print(f"Sent SMS reminder to {patient.phone_number} for appointment on {appt_date}")
+            except Exception as e:
+                print(f"Failed to send SMS to {patient.phone_number}: {str(e)}")
+    
+    cache.set('sms_sent_patients_today', new_sms_sent_patients, 24*60*60)
+
 class BlastPatientReminderCronJob(CronJobBase):
     RUN_AT_TIMES = ['18:00']
     schedule = Schedule(run_at_times=RUN_AT_TIMES)
@@ -113,4 +227,5 @@ class BlastPatientReminderCronJob(CronJobBase):
     def do(self):
         print(f"Running cron job at {timezone.now()}")
         send_patient_reminders()
+        send_patient_sms_reminders()
         print("Cron job completed")

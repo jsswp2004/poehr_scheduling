@@ -9,6 +9,8 @@ import BackButton from '../components/BackButton';
 
 function MessagesPage() {
   const [tab, setTab] = useState('email');
+  const [selectedOrganizations, setSelectedOrganizations] = useState([{ id: 'all', name: 'All Organizations' }]);
+  const [userRole, setUserRole] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -20,6 +22,7 @@ function MessagesPage() {
     try {
       const decoded = jwtDecode(token);
       const role = decoded.role || '';
+      setUserRole(role);
       if (role !== 'admin' && role !== 'system_admin' && role !== 'registrar') {
         navigate('/');
       }
@@ -83,8 +86,20 @@ function MessagesPage() {
             <Box sx={{ ml: 1 }}>
               <BackButton to="/admin" />
             </Box>      
-        </Box>      {tab === 'email' && <AutoEmailSetUpPage />}
-      {tab === 'sms' && <AutoSMSSetUpPage />}
+        </Box>      {tab === 'email' && (
+        <AutoEmailSetUpPage 
+          selectedOrganizations={selectedOrganizations}
+          onOrganizationChange={setSelectedOrganizations}
+          userRole={userRole}
+        />
+      )}
+      {tab === 'sms' && (
+        <AutoSMSSetUpPage 
+          selectedOrganizations={selectedOrganizations}
+          onOrganizationChange={setSelectedOrganizations}
+          userRole={userRole}
+        />
+      )}
       {tab === 'announcements' && <AnnouncementsPage />}
     </Box>
   );

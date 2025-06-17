@@ -137,10 +137,10 @@ function MessageLogTable({ type }) {
             <p><strong>Total records:</strong> ${filtered.length}</p>
             ${appliedStart || appliedEnd ? `<p><strong>Date range:</strong> ${appliedStart || 'All'} to ${appliedEnd || 'All'}</p>` : ''}
           </div>
-          <table>
-            <thead>
+          <table>            <thead>
               <tr>
                 <th>Recipient</th>
+                <th>Organization</th>
                 ${type === 'email' ? '<th>Subject</th>' : ''}
                 <th>Body</th>
                 <th>Date</th>
@@ -153,6 +153,7 @@ function MessageLogTable({ type }) {
       printContent += `
         <tr>
           <td>${log.recipient}</td>
+          <td>${log.organization_name || 'Unknown'}</td>
           ${type === 'email' ? `<td>${log.subject || ''}</td>` : ''}
           <td>${log.body}</td>
           <td>${new Date(log.created_at).toLocaleString()}</td>
@@ -171,20 +172,20 @@ function MessageLogTable({ type }) {
     printWindow.document.close();
     printWindow.print();
   };
-
   const handleDownloadCSV = () => {
     const logType = type === 'sms' ? 'SMS' : 'Email';
     const currentDate = new Date().toISOString().split('T')[0];
     
     // Prepare CSV headers
     const headers = type === 'email' 
-      ? ['Recipient', 'Subject', 'Body', 'Date']
-      : ['Recipient', 'Body', 'Date'];
+      ? ['Recipient', 'Organization', 'Subject', 'Body', 'Date']
+      : ['Recipient', 'Organization', 'Body', 'Date'];
     
     // Prepare CSV data
     const csvData = filtered.map(log => {
       const row = [
         `"${log.recipient.replace(/"/g, '""')}"`,
+        `"${(log.organization_name || 'Unknown').replace(/"/g, '""')}"`,
         ...(type === 'email' ? [`"${(log.subject || '').replace(/"/g, '""')}"`] : []),
         `"${log.body.replace(/"/g, '""')}"`,
         `"${new Date(log.created_at).toLocaleString()}"`
@@ -283,6 +284,7 @@ function MessageLogTable({ type }) {
       </Box><Table size="small" sx={{ '& .MuiTableCell-root': { fontSize: '0.75rem' } }}>        <TableHead>
           <TableRow sx={{ bgcolor: '#f5f5f5' }}>
             <TableCell>Recipient</TableCell>
+            <TableCell>Organization</TableCell>
             {type === 'email' && <TableCell>Subject</TableCell>}
             <TableCell>Body</TableCell>
             <TableCell>Date</TableCell>
@@ -292,15 +294,15 @@ function MessageLogTable({ type }) {
           {paginatedLogs.map((log) => (
             <TableRow key={log.id} hover>
               <TableCell>{log.recipient}</TableCell>
+              <TableCell>{log.organization_name || 'Unknown'}</TableCell>
               {type === 'email' && <TableCell>{log.subject}</TableCell>}
               <TableCell>{log.body}</TableCell>
-              <TableCell>{new Date(log.created_at).toLocaleString()}</TableCell>
-              {isSystemAdmin && (
+              <TableCell>{new Date(log.created_at).toLocaleString()}</TableCell>              {isSystemAdmin && (
                 <TableCell>
                   <IconButton
                     color="error"
-                    size="small"
                     onClick={() => handleDelete(log.id)}
+                    sx={{ width: 36, height: 36 }}
                   >
                     <Delete />
                   </IconButton>
@@ -311,7 +313,7 @@ function MessageLogTable({ type }) {
           {paginatedLogs.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={type === 'email' ? (isSystemAdmin ? 5 : 4) : (isSystemAdmin ? 4 : 3)}
+                colSpan={type === 'email' ? (isSystemAdmin ? 6 : 5) : (isSystemAdmin ? 5 : 4)}
                 align="center"
               >
                 <Typography color="text.secondary">No logs found.</Typography>
