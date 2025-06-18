@@ -460,9 +460,8 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
           setOperationStatus(null);
           if (window._pendingRoomCreation && window._pendingRoomCreation.identifier === newRoomIdentifier) {
             window._pendingRoomCreation.reject('Chat room creation timed out.');
-            delete window._pendingRoomCreation;
-          }
-        }, 10000) // 10 seconds timeout
+            delete window._pendingRoomCreation;          }
+        }, 60000) // 60 seconds timeout
       };
     });
   }, [currentUser, isConnected, sendMessage, chatRooms]);
