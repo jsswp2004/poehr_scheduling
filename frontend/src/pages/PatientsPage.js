@@ -1006,7 +1006,8 @@ function PatientsPage() {
                             } catch (error) {
                               console.error('❌ Failed to create chat room:', error);
                               toast.error(`Failed to start chat: ${error.message || 'Unknown error'}`);
-                              setSelectedChatUser(null);                              setChatModalOpen(false);
+                              setSelectedChatUser(null);                              
+                              setChatModalOpen(false);
                             }
                           }}
                           disabled={!onlineStatusConnected || !currentUser}
