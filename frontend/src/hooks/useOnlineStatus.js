@@ -104,6 +104,14 @@ const useOnlineStatus = () => {
   useEffect(() => {
     setIsConnected(wsConnected);
   }, [wsConnected]);
+  // Check if system is fully ready for chat operations
+  const isSystemReady = useCallback(() => {
+    return isConnected && 
+           socket && 
+           socket.readyState === WebSocket.OPEN && 
+           sendMessage &&
+           Object.keys(onlineUsers).length > 0; // Has loaded online users
+  }, [isConnected, socket, sendMessage, onlineUsers]);
 
   console.log('🟢 useOnlineStatus socket:', socket);
   console.log('📨 useOnlineStatus lastMessage:', lastMessage); // Log the last message
@@ -111,6 +119,7 @@ const useOnlineStatus = () => {
   return {
     onlineUsers,
     isConnected,
+    isSystemReady, // Add system ready check
     getUserOnlineStatus,
     getOnlineUsersList,
     getOnlineUsersCount,

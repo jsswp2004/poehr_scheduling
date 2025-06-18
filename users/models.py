@@ -65,11 +65,14 @@ class CustomUser(AbstractUser):
         ('personal', 'Personal'),
         ('clinic', 'Clinic'),
         ('group', 'Group'),    ]
-    organization_type = models.CharField(max_length=20, choices=ORGANIZATION_TYPE_CHOICES, default='personal')
-
-    # ✅ Online Status Fields for Real-time Chat
+    organization_type = models.CharField(max_length=20, choices=ORGANIZATION_TYPE_CHOICES, default='personal')    # ✅ Online Status Fields for Real-time Chat
     last_seen = models.DateTimeField(null=True, blank=True, help_text="Last time user was active")
     is_online = models.BooleanField(default=False, help_text="Whether user is currently online")
+      # SMS Consent Field
+    sms_consent = models.BooleanField(default=False, help_text="User consent for SMS notifications")
+    
+    # First Login Tracking
+    first_login_completed = models.BooleanField(default=False, help_text="Whether user has completed first login password change")
 
     def __str__(self):
         return f"{self.username} ({self.role})"

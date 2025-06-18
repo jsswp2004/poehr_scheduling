@@ -48,10 +48,10 @@ function PatientsPage() {
   const [teamPage, setTeamPage] = useState(1);
   const [teamTotalSize, setTeamTotalSize] = useState(0);
   const [provider, setProvider] = useState('');
-
   const { 
     getUserOnlineStatus, 
     isConnected: onlineStatusConnected, 
+    isSystemReady,
     websocketConnection, 
     sendMessage, 
     lastMessage: lastMessageFromOnlineStatus 
@@ -59,11 +59,13 @@ function PatientsPage() {
   
   console.log('🔍 PatientsPage - websocketConnection from useOnlineStatus:', websocketConnection);
   console.log('📨 PatientsPage - lastMessageFromOnlineStatus:', lastMessageFromOnlineStatus);
-
   const [chatModalOpen, setChatModalOpen] = useState(false);
   const [selectedChatUser, setSelectedChatUser] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [chatSystemInitializing, setChatSystemInitializing] = useState(true);
+  const [chatPreInitialized, setChatPreInitialized] = useState(false);
 
+  // Initialize current user immediately
   useEffect(() => {
     const token = localStorage.getItem('token') || localStorage.getItem('access_token');
     if (token) {
@@ -76,15 +78,64 @@ function PatientsPage() {
           last_name: decoded.last_name || ''
         };
         setCurrentUser(user);
+        console.log('✅ Current user loaded immediately:', user);
       } catch (error) {
         console.error('❌ Error decoding token:', error);
       }
     } else {
       console.error('❌ No token found in localStorage');
     }
-  }, []);
+  }, []);  const chat = useChat(currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus);
 
-  const chat = useChat(currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus);
+  // Pre-initialize chat system when page loads
+  useEffect(() => {
+    if (currentUser && isSystemReady()) {
+      console.log('🚀 Pre-initializing chat system...');
+      setChatSystemInitializing(true);
+      
+      // Initialize audio context proactively
+      if (chat.initializeAudioContext) {
+        chat.initializeAudioContext();
+      }
+      
+      // Test a simple operation to warm up the system
+      setTimeout(() => {
+        if (websocketConnection && websocketConnection.readyState === WebSocket.OPEN) {
+          console.log('✅ Chat system pre-initialization complete');
+          setChatPreInitialized(true);
+          setChatSystemInitializing(false);
+        } else {
+          console.log('⚠️ Waiting for WebSocket to be ready...');
+          // Retry in 1 second
+          setTimeout(() => {
+            if (websocketConnection && websocketConnection.readyState === WebSocket.OPEN) {
+              console.log('✅ Chat system pre-initialization complete (delayed)');
+              setChatPreInitialized(true);
+              setChatSystemInitializing(false);
+            }
+          }, 1000);
+        }
+      }, 500); // Small delay to ensure everything is loaded
+    }
+  }, [currentUser, isSystemReady, websocketConnection, chat]);
+
+  // State to track if chat system is fully ready
+  const [chatSystemReady, setChatSystemReady] = useState(false);
+  // Check if chat system is ready (WebSocket connected, current user loaded, chat hook initialized, and pre-initialized)
+  useEffect(() => {
+    const isReady = isSystemReady() && currentUser && chat.isConnected && chatPreInitialized && !chatSystemInitializing;
+    setChatSystemReady(isReady);
+    console.log('🔍 Chat system readiness check:', {
+      systemReady: isSystemReady(),
+      onlineStatusConnected,
+      currentUser: !!currentUser,
+      chatConnected: chat.isConnected,
+      websocketConnection: !!websocketConnection,
+      chatPreInitialized,
+      chatSystemInitializing,
+      isReady
+    });
+  }, [isSystemReady, currentUser, chat.isConnected, onlineStatusConnected, websocketConnection, chatPreInitialized, chatSystemInitializing]);
 
   // ✅ Debug online status
   useEffect(() => {
@@ -955,22 +1006,45 @@ function PatientsPage() {
                       />
                     </TableCell>
                     <TableCell>{member.organization_name || 'N/A'}</TableCell>
-                    <TableCell align="center">                      <Tooltip title={!onlineStatusConnected ? "Chat unavailable - no connection" : !currentUser ? "Chat unavailable - user not loaded" : "Start Chat"} placement="top">
+                    <TableCell align="center">                      <Tooltip title={
+                        chatSystemInitializing ? "Initializing chat system..." : 
+                        !chatSystemReady ? "Chat system not ready yet" : 
+                        !onlineStatusConnected ? "Chat unavailable - no connection" : 
+                        !currentUser ? "Chat unavailable - user not loaded" : 
+                        "Start Chat"
+                      } placement="top">
                         <IconButton
                           size="small"
                           color="primary"
                           sx={{
-                            opacity: (!onlineStatusConnected || !currentUser) ? 0.5 : 1,
-                            cursor: (!onlineStatusConnected || !currentUser) ? 'not-allowed' : 'pointer'
-                          }}
-                          onClick={async () => {
+                            opacity: chatSystemInitializing ? 0.2 : (!chatSystemReady ? 0.3 : 1),
+                            cursor: chatSystemInitializing ? 'wait' : (!chatSystemReady ? 'not-allowed' : 'pointer'),
+                            position: 'relative'
+                          }}onClick={async () => {
                             console.log('🎯 Chat button clicked for team member:', member);
+                            
+                            // Initialize audio context on first user interaction
+                            if (chat.initializeAudioContext) {
+                              chat.initializeAudioContext();
+                            }
+                            
                             console.log('🔍 Current state:', { 
                               currentUser, 
                               onlineStatusConnected, 
+                              chatSystemReady,
                               websocketConnection: websocketConnection?.readyState,
                               chatActiveRoom: chat.activeRoom 
                             });
+                            
+                            // Comprehensive readiness check
+                            if (!chatSystemReady) {
+                              console.warn('⚠️ Chat system not ready yet');
+                              toast.warn('Chat system is initializing, please wait a moment and try again.', {
+                                position: "top-right",
+                                autoClose: 3000,
+                              });
+                              return;
+                            }
                             
                             if (!onlineStatusConnected) {
                               toast.error('Chat is not available. WebSocket connection is not established.');
@@ -987,17 +1061,29 @@ function PatientsPage() {
                               return;
                             }
 
+                            // Additional WebSocket readiness check
+                            if (!websocketConnection || websocketConnection.readyState !== WebSocket.OPEN) {
+                              console.warn('⚠️ WebSocket not in OPEN state:', websocketConnection?.readyState);
+                              toast.warn('Connection is not ready. Please wait a moment and try again.', {
+                                position: "top-right",
+                                autoClose: 3000,
+                              });
+                              return;
+                            }
+
                             try {
                               setSelectedChatUser(member);
                               console.log('🚀 Starting chat room creation...');
                               
+                              // Add a small delay to ensure everything is synchronized
+                              await new Promise(resolve => setTimeout(resolve, 100));
+                              
                               const roomId = await chat.createChatRoom(member.id);
                               console.log('✅ Chat room created with ID:', roomId);
                                 if (roomId) {
-                                console.log('🎉 Opening chat modal...');
-                                // Clear unread count for this user when opening chat
-                                if (chat.clearUnreadCount) {
-                                  chat.clearUnreadCount(member.id);
+                                console.log('🎉 Opening chat modal...');                                // Clear unread status for this user when opening chat
+                                if (chat.clearUnreadStatus) {
+                                  chat.clearUnreadStatus(member.id);
                                 }
                                 setChatModalOpen(true);
                               } else {
@@ -1009,13 +1095,13 @@ function PatientsPage() {
                               setSelectedChatUser(null);                              setChatModalOpen(false);
                             }
                           }}
-                          disabled={!onlineStatusConnected || !currentUser}
+                          disabled={!chatSystemReady}
                         >
                           {/* Red dot indicator for unread messages */}
                           <Box sx={{ position: 'relative' }}>
                             <FontAwesomeIcon icon={faCommentDots} />
                             {(() => {
-                              const hasUnread = chat.getUnreadCount ? chat.getUnreadCount(member.id) > 0 : false;
+                              const hasUnread = chat.hasUnreadMessages ? chat.hasUnreadMessages(member.id) : false;
                               console.log('🔔 [DEBUG] Red dot for member:', member.full_name, 'ID:', member.id, 'hasUnread:', hasUnread);
                               return hasUnread ? (
                                 <Box
@@ -1305,10 +1391,21 @@ function PatientsPage() {
             }}
           >
             <Tab label="Patients" value="patients" />            <Tab              label={
-                <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 1 }}>
                   Team
+                  {!chatSystemReady && (
+                    <CircularProgress 
+                      size={12} 
+                      sx={{ 
+                        color: 'text.secondary',
+                        '& .MuiCircularProgress-circle': {
+                          strokeWidth: 3
+                        }
+                      }} 
+                    />
+                  )}
                   {(() => {
-                    const hasUnread = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() > 0 : false;
+                    const hasUnread = chat.hasAnyUnreadMessages ? chat.hasAnyUnreadMessages() : false;
                     console.log('🔔 [DEBUG] Team tab red dot hasUnread:', hasUnread);
                     return hasUnread ? (
                       <Box
@@ -1327,7 +1424,7 @@ function PatientsPage() {
                     ) : null;
                   })()}
                 </Box>
-            } 
+            }
             value="team" 
           />
           <Tab label="Appointments" value="appointments" />

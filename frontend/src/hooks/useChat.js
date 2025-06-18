@@ -7,9 +7,31 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState(null); // Added for error display
   const [operationStatus, setOperationStatus] = useState(null); // For loading/creating states
-  const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per user/room
+  const [unreadUsers, setUnreadUsers] = useState(new Set()); // Track which users have unread messages (boolean)
+  const [audioContextReady, setAudioContextReady] = useState(false);
   const typingTimeouts = useRef({});
+  const audioContextRef = useRef(null);
   console.log('🚀 useChat hook initializing with currentUser:', currentUser);
+  
+  // Initialize audio context when user first interacts with the page
+  const initializeAudioContext = useCallback(() => {
+    if (!audioContextRef.current && !audioContextReady) {
+      try {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        setAudioContextReady(true);
+        console.log('🔊 Audio context initialized successfully');
+      } catch (error) {
+        console.warn('Could not initialize audio context:', error);
+      }
+    }
+  }, [audioContextReady]);
+
+  // Initialize audio context when WebSocket connects (user has interacted)
+  useEffect(() => {
+    if (websocketConnection && websocketConnection.readyState === WebSocket.OPEN) {
+      initializeAudioContext();
+    }
+  }, [websocketConnection, initializeAudioContext]);
   
   // Notification functions
   const requestNotificationPermission = useCallback(async () => {
@@ -36,11 +58,16 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       };
     }
   }, []);
-
   const playNotificationSound = useCallback(() => {
     try {
-      // Create a simple notification sound using Web Audio API
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      // Use pre-initialized audio context or create new one
+      const audioContext = audioContextRef.current || new (window.AudioContext || window.webkitAudioContext)();
+      
+      // If context is suspended (common after page load), resume it
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+      
       const oscillator = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
       
@@ -55,6 +82,8 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       
       oscillator.start(audioContext.currentTime);
       oscillator.stop(audioContext.currentTime + 0.5);
+      
+      console.log('🔊 Notification sound played successfully');
     } catch (error) {
       console.log('Could not play notification sound:', error);
     }
@@ -63,14 +92,13 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   useEffect(() => {
     requestNotificationPermission();
   }, [requestNotificationPermission]);
-
-  // Update browser title with unread count
+  // Update browser title with unread indicator
   useEffect(() => {
-    const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+    const hasUnread = unreadUsers.size > 0;
     const originalTitle = 'POEHR Scheduling';
     
-    if (totalUnread > 0) {
-      document.title = `(${totalUnread}) ${originalTitle}`;
+    if (hasUnread) {
+      document.title = `(•) ${originalTitle}`;
     } else {
       document.title = originalTitle;
     }
@@ -79,7 +107,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     return () => {
       document.title = originalTitle;
     };
-  }, [unreadCounts]);
+  }, [unreadUsers]);
   // WebSocket connection for chat (using presence endpoint since that's what handles chat messages)
   const isConnected = websocketConnection && websocketConnection.readyState === WebSocket.OPEN;
   
@@ -116,23 +144,20 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         }
       };
     });
-    
-    // Update unread counts if message is from another user and room is not active
+      // Mark user as having unread messages if message is from another user and room is not active
     if (message.sender_id !== currentUser?.id && activeRoom !== message.room_id) {
-      // Find the other user in the room to track unread count per user
+      // Find the other user in the room to track unread status
       const otherUserId = message.sender_id;
-      console.log('🔔 [DEBUG] Incrementing unread count for user:', otherUserId, 'from:', unreadCounts[otherUserId] || 0, 'to:', (unreadCounts[otherUserId] || 0) + 1);
+      console.log('🔔 [DEBUG] Marking user as having unread messages:', otherUserId);
       console.log('🔔 [DEBUG] Message details:', { sender_id: message.sender_id, room_id: message.room_id, activeRoom, currentUserId: currentUser?.id });
-      setUnreadCounts(prev => {
-        const newCounts = {
-          ...prev,
-          [otherUserId]: (prev[otherUserId] || 0) + 1
-        };
-        console.log('🔔 [DEBUG] Updated unread counts:', newCounts);
-        return newCounts;
+      setUnreadUsers(prev => {
+        const newUnreadUsers = new Set(prev);
+        newUnreadUsers.add(otherUserId);
+        console.log('🔔 [DEBUG] Updated unread users:', Array.from(newUnreadUsers));
+        return newUnreadUsers;
       });
     } else {
-      console.log('🔔 [DEBUG] NOT incrementing unread count. Reasons:', {
+      console.log('🔔 [DEBUG] NOT marking as unread. Reasons:', {
         isOwnMessage: message.sender_id === currentUser?.id,
         isActiveRoom: activeRoom === message.room_id,
         sender_id: message.sender_id,
@@ -140,8 +165,8 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
         activeRoom,
         messageRoomId: message.room_id
       });
-    }    // Note: markMessageAsRead will be called from handleWebSocketMessage when room is active
-  }, [currentUser, activeRoom, unreadCounts]);
+    }// Note: markMessageAsRead will be called from handleWebSocketMessage when room is active
+  }, [currentUser, activeRoom]);
   const markMessageAsRead = useCallback((messageId) => {
     if (!currentUser || !currentUser.id) return;
     if (!isConnected || !sendMessage) return;
@@ -462,7 +487,7 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
             window._pendingRoomCreation.reject('Chat room creation timed out.');
             delete window._pendingRoomCreation;
           }
-        }, 10000) // 10 seconds timeout
+        }, 30000) // 30 seconds timeout (increased from 10)
       };
     });
   }, [currentUser, isConnected, sendMessage, chatRooms]);
@@ -560,42 +585,38 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
           .map(msg => msg.sender_id)
           .filter(id => id !== currentUser.id)
         )];
-        
-        // Clear unread count for all other users in this room
+          // Clear unread status for all other users in this room
         otherUserIds.forEach(userId => {
-          setUnreadCounts(prev => ({
-            ...prev,
-            [userId]: 0
-          }));
+          setUnreadUsers(prev => {
+            const newUnreadUsers = new Set(prev);
+            newUnreadUsers.delete(userId);
+            return newUnreadUsers;
+          });
         });
       }
     }
-  }, [activeRoom, currentUser, chatRooms]);
-  // Clear unread count when opening a chat with a specific user
-  const clearUnreadCount = useCallback((userId) => {
-    console.log('🔔 [DEBUG] Clearing unread count for user:', userId, 'previous count:', unreadCounts[userId] || 0);
-    setUnreadCounts(prev => {
-      const newCounts = {
-        ...prev,
-        [userId]: 0
-      };
-      console.log('🔔 [DEBUG] Cleared unread counts:', newCounts);
-      return newCounts;
+  }, [activeRoom, currentUser, chatRooms]);  // Clear unread status when opening a chat with a specific user
+  const clearUnreadStatus = useCallback((userId) => {
+    console.log('🔔 [DEBUG] Clearing unread status for user:', userId);
+    setUnreadUsers(prev => {
+      const newUnreadUsers = new Set(prev);
+      newUnreadUsers.delete(userId);
+      console.log('🔔 [DEBUG] Updated unread users after clearing:', Array.from(newUnreadUsers));
+      return newUnreadUsers;
     });
-  }, [unreadCounts]);
-  // Get unread count for a specific user
-  const getUnreadCount = useCallback((userId) => {
-    const count = unreadCounts[userId] || 0;
-    console.log('🔔 [DEBUG] getUnreadCount called for user:', userId, 'returning:', count, 'from unreadCounts:', unreadCounts);
-    return count;
-  }, [unreadCounts]);
+  }, []);  // Check if a specific user has unread messages
+  const hasUnreadMessages = useCallback((userId) => {
+    const hasUnread = unreadUsers.has(userId);
+    console.log('🔔 [DEBUG] hasUnreadMessages called for user:', userId, 'returning:', hasUnread, 'from unreadUsers:', Array.from(unreadUsers));
+    return hasUnread;
+  }, [unreadUsers]);
 
-  // Get total unread count across all users
-  const getTotalUnreadCount = useCallback(() => {
-    const total = Object.values(unreadCounts).reduce((total, count) => total + count, 0);
-    console.log('🔔 [DEBUG] getTotalUnreadCount called, returning:', total, 'from unreadCounts:', unreadCounts);
-    return total;
-  }, [unreadCounts]);  // Cleanup typing timeouts on unmount
+  // Check if there are any unread messages from any user
+  const hasAnyUnreadMessages = useCallback(() => {
+    const hasAny = unreadUsers.size > 0;
+    console.log('🔔 [DEBUG] hasAnyUnreadMessages called, returning:', hasAny, 'from unreadUsers:', Array.from(unreadUsers));
+    return hasAny;
+  }, [unreadUsers]);// Cleanup typing timeouts on unmount
   useEffect(() => {
     const timeoutsRef = typingTimeouts.current;
     return () => {
@@ -610,16 +631,16 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     typingUsers,
     isLoading,
     lastError, // Expose lastError
-    operationStatus, // Expose operationStatus
-    unreadCounts,
-    clearUnreadCount,    getUnreadCount,
-    getTotalUnreadCount,
+    operationStatus, // Expose operationStatus    unreadUsers,
+    clearUnreadStatus,
+    hasUnreadMessages,
+    hasAnyUnreadMessages,
     createChatRoom,
     sendChatMessage,
-    sendTypingIndicator,
-    markMessageAsRead,
+    sendTypingIndicator,    markMessageAsRead,
     loadChatHistory,
     simulateIncomingMessage, // Test function for badge debugging
+    initializeAudioContext, // Expose audio context initialization
     isConnected // Expose connection status for UI updates
   };
 };

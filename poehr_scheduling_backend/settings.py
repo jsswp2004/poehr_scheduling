@@ -182,6 +182,9 @@ STRIPE_BASIC_PRICE_ID = os.getenv('STRIPE_BASIC_PRICE_ID', 'price_test_basic')
 STRIPE_PREMIUM_PRICE_ID = os.getenv('STRIPE_PREMIUM_PRICE_ID', 'price_test_premium') 
 STRIPE_ENTERPRISE_PRICE_ID = os.getenv('STRIPE_ENTERPRISE_PRICE_ID', 'price_test_enterprise')
 
+# Frontend URL for email links
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
 # Django Cron Settings
 CRON_CLASSES = [
     'appointments.cron.BlastPatientReminderCronJob',

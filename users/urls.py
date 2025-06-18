@@ -10,11 +10,13 @@ from .views import (
     PatientUpdateView,
     UserDetailView,
     change_password,
+    first_login_password_change,
     search_users,
     send_sms,
     send_sms_email,    send_patient_email,
     send_contact_email,  # Add the new contact email function
     send_contact_sms,  # Add the new contact SMS function
+    send_welcome_email,  # Add the new welcome email function
     PatientDeleteView,
     OrganizationViewSet,  # ✅
     DownloadProvidersCSVTemplate,
@@ -34,13 +36,14 @@ urlpatterns = [
     path('patients/', get_patients, name='patient-list'),
     path('me/', get_current_user, name='current-user'),
     path('patients/by-user/<int:user_id>/', PatientDetailView.as_view(), name='patient-detail'),
-    path('patients/by-user/<int:user_id>/edit/', PatientUpdateView.as_view(), name='patient-update'),
-    path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('patients/by-user/<int:user_id>/edit/', PatientUpdateView.as_view(), name='patient-update'),    path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('users/change-password/', change_password, name='change-password'),
+    path('first-login-password-change/', first_login_password_change, name='first-login-password-change'),
     path('search/', search_users, name='user-search'),
     path('', include('django_rest_passwordreset.urls', namespace='password_reset')),
     path('send-sms/', send_sms, name='send-sms'),
     path('send-sms-email/', send_sms_email, name='send-sms-email'),    path('send-email/', send_patient_email, name='send-email'),
+    path('send-welcome-email/', send_welcome_email, name='send-welcome-email'),
     path('contact-email/', send_contact_email, name='contact-email'),  # New public contact endpoint
     path('contact-sms/', send_contact_sms, name='contact-sms'),  # New public SMS endpoint
     path('patients/<int:user_id>/', PatientDeleteView.as_view(), name='patient-delete'),

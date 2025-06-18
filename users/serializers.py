@@ -54,7 +54,7 @@ class UserSerializer(serializers.ModelSerializer):
             'organization', 'organization_logo', 'organization_name', 'phone_number',
             'organization_type', 'registered', 'stripe_customer_id', 'subscription_status',
             'subscription_tier', 'trial_start_date', 'trial_end_date', 'stripe_subscription_id',
-            'is_online', 'last_seen'  # ✅ Add online status fields
+            'is_online', 'last_seen', 'sms_consent', 'first_login_completed'  # ✅ Add online status fields, SMS consent, and first login tracking
         )
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},

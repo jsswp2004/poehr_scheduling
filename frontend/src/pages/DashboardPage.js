@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import CalendarView from '../components/CalendarView';
 import AnnouncementDisplay from '../components/AnnouncementDisplay';
+import PatientInfoPanel from '../components/PatientInfoPanel';
 import { toast } from 'react-toastify';
 import {
   Box,
@@ -32,8 +33,8 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import RestoreIcon from '@mui/icons-material/Restore';
-import { useNavigate } from 'react-router-dom';
+
+
 
 
 function toLocalDatetimeString(dateObj) {
@@ -60,7 +61,7 @@ function DashboardPage() {
     recurrence: 'none',
     provider: null,
   });
-  const [showForm, setShowForm] = useState(true);
+
   // Message my Provider form state
   const [emailForm, setEmailForm] = useState({
     to: '',
@@ -82,10 +83,14 @@ function DashboardPage() {
   const [messageSent, setMessageSent] = useState(false);
   const [smsSent, setSMSSent] = useState(false);
 
-  const token = localStorage.getItem('access_token');
-  const userRole = token ? jwtDecode(token).role : null;
-  const navigate = useNavigate();
+  const token = localStorage.getItem('access_token');  const userRole = token ? jwtDecode(token).role : null;
+
   const [tab, setTab] = useState('manage');
+
+  // Patient information state
+  const [currentPatientData, setCurrentPatientData] = useState(null);
+  const [organizations, setOrganizations] = useState([]);
+  const [currentUserOrganization, setCurrentUserOrganization] = useState(null);
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -122,7 +127,7 @@ function DashboardPage() {
     } else {
       fetchAppointments();
     }
-  }, [token, doctors.length, refreshFlag]);
+  }, [token, doctors, refreshFlag]);
 
   useEffect(() => {
     if (!token) return;
@@ -151,6 +156,135 @@ function DashboardPage() {
     };
     fetchUserAndProvider();
   }, [token]);
+
+  // Fetch patient data and organizations for My Information tab
+  useEffect(() => {
+    // Only fetch for allowed roles
+    if (!userRole || !['patient', 'admin', 'system_admin'].includes(userRole)) {
+      return;
+    }
+
+    const fetchPatientData = async () => {
+      try {
+        if (!token) return;
+
+        // Get current user's patient data
+        const userResponse = await axios.get('http://127.0.0.1:8000/api/users/me/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const userData = userResponse.data;
+
+        // Store current user's organization info
+        if (userData.organization && userData.organization_name) {
+          setCurrentUserOrganization({
+            id: userData.organization,
+            name: userData.organization_name
+          });
+        }        // If user is a patient, use their user data directly for patient info
+        if (userData.role === 'patient') {
+          // Map user data to patient data format
+          const patientData = {
+            id: userData.id,
+            first_name: userData.first_name,
+            last_name: userData.last_name,
+            email: userData.email,
+            phone_number: userData.phone_number,
+            date_of_birth: userData.date_of_birth,
+            address: userData.address,
+            gender: userData.gender,
+            medical_history: userData.medical_history,
+            username: userData.username,
+            organization: userData.organization,
+            organization_name: userData.organization_name,
+            provider: userData.provider,
+            provider_name: userData.provider_name
+          };
+          setCurrentPatientData(patientData);
+        } else if (userData.role === 'admin' || userData.role === 'system_admin') {
+          // For admin users, try to find if they have patient data
+          try {
+            const patientResponse = await axios.get('http://127.0.0.1:8000/api/users/patients/', {
+              headers: { Authorization: `Bearer ${token}` },
+              params: { search: userData.username }
+            });
+
+            if (patientResponse.data.results && patientResponse.data.results.length > 0) {
+              setCurrentPatientData(patientResponse.data.results[0]);
+            } else {
+              // If no patient data found, create a basic patient record from user data
+              const patientData = {
+                id: userData.id,
+                first_name: userData.first_name,
+                last_name: userData.last_name,
+                email: userData.email,
+                phone_number: userData.phone_number,
+                date_of_birth: userData.date_of_birth,
+                address: userData.address,
+                gender: userData.gender,
+                medical_history: userData.medical_history,
+                username: userData.username,
+                organization: userData.organization,
+                organization_name: userData.organization_name,
+                provider: userData.provider,
+                provider_name: userData.provider_name
+              };
+              setCurrentPatientData(patientData);
+            }
+          } catch (patientError) {
+            // If patient search fails, fallback to user data
+            console.warn('Could not fetch patient data for admin, using user data:', patientError);
+            const patientData = {
+              id: userData.id,
+              first_name: userData.first_name,
+              last_name: userData.last_name,
+              email: userData.email,
+              phone_number: userData.phone_number,
+              date_of_birth: userData.date_of_birth,
+              address: userData.address,
+              gender: userData.gender,
+              medical_history: userData.medical_history,
+              username: userData.username,
+              organization: userData.organization,
+              organization_name: userData.organization_name,
+              provider: userData.provider,
+              provider_name: userData.provider_name
+            };
+            setCurrentPatientData(patientData);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch patient data:', error);
+      }
+    };
+
+    const fetchOrganizations = async () => {
+      try {
+        if (!token) return;
+        
+        const res = await axios.get('http://127.0.0.1:8000/api/users/organizations/', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setOrganizations(res.data);
+      } catch (err) {
+        console.error('Failed to load organizations:', err);
+      }
+    };
+
+    fetchPatientData();
+    fetchOrganizations();
+  }, [token, userRole]);
+
+  // Check if user should see My Information tab
+  const shouldShowMyInfoTab = userRole && ['patient', 'admin', 'system_admin'].includes(userRole);
+
+  const handlePatientUpdate = (updatedPatientData) => {
+    setCurrentPatientData(updatedPatientData);
+  };
+
+  const handlePatientDelete = () => {
+    // For now, just show a message since deletion in dashboard might not be appropriate
+    toast.info('Patient deletion should be handled through the admin panel.');
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -200,7 +334,7 @@ function DashboardPage() {
 
     setEditingId(appointment.id);
     setEditMode(true);
-    setShowForm(true);
+    // Patient info updated
   };
 
   const handleDelete = async (id) => {
@@ -358,8 +492,9 @@ function DashboardPage() {
           <Typography variant="h5" sx={{ mb: 0 }}>Patient Portal</Typography>
           <Tabs value={tab} onChange={(_, val) => setTab(val)} aria-label="dashboard-tabs" sx={{ mb: 0 }}>
             <Tab value="manage" label="Manage Appointments" />
-            <Tab value="message" label="Message my Provider" />
+            <Tab value="message" label="Message my Provider" />            
             <Tab value="calendar" label="Calendar" />
+            {shouldShowMyInfoTab && <Tab value="myinfo" label="My Information" />}
           </Tabs>
           <Divider sx={{ mb: 2 }} />
       {tab === 'manage' && (
@@ -675,13 +810,32 @@ function DashboardPage() {
             </Stack>
           </Box>
         </Box>
-      )}
-
-      {tab === 'calendar' && (
+      )}      {tab === 'calendar' && (
             <Box sx={{ mt: 2 }}>
               <CalendarView onUpdate={() => setRefreshFlag(prev => !prev)} />
             </Box>
-          )}        </Box>        {/* Right Pane - Announcements (30%) */}
+          )}      {tab === 'myinfo' && (
+            <Box sx={{ mt: 2 }}>
+             {/* <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                My Information
+              </Typography> */}
+              {currentPatientData ? (                <PatientInfoPanel 
+                  patientData={currentPatientData} 
+                  onPatientUpdate={handlePatientUpdate}
+                  onPatientDelete={handlePatientDelete}
+                  showDeleteButton={false}
+                  doctors={doctors}
+                  organizations={organizations}
+                  currentUserOrganization={currentUserOrganization}
+                  currentUserRole={userRole}
+                />
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No patient data found. Please contact support if you are a patient.
+                </Typography>
+              )}
+            </Box>
+          )}</Box>        {/* Right Pane - Announcements (30%) */}
         <Box sx={{ 
           flex: '0 0 30%', 
           boxShadow: 2, 

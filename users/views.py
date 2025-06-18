@@ -322,6 +322,44 @@ def change_password(request):
 
     return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def first_login_password_change(request):
+    """Handle password change for first-time login users"""
+    user = request.user
+    current_password = request.data.get('current_password')
+    new_password = request.data.get('new_password')
+    confirm_password = request.data.get('confirm_password')
+
+    # Validate current password
+    if not user.check_password(current_password):
+        return Response({'detail': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate new passwords match
+    if new_password != confirm_password:
+        return Response({'detail': 'New passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Validate new password is different from current
+    if user.check_password(new_password):
+        return Response({'detail': 'New password must be different from current password.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Basic password strength validation
+    if len(new_password) < 8:
+        return Response({'detail': 'New password must be at least 8 characters long.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Update password and mark first login as completed
+    user.set_password(new_password)
+    user.first_login_completed = True
+    user.save()
+    
+    # Update session to prevent logout
+    update_session_auth_hash(request, user)
+
+    return Response({
+        'detail': 'Password changed successfully. Welcome to the system!',
+        'first_login_completed': True
+    }, status=status.HTTP_200_OK)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_users(request):
@@ -660,3 +698,62 @@ def send_contact_sms(request):
         
     except Exception as e:
         return Response({'error': f'Failed to send contact SMS: {str(e)}'}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def send_welcome_email(request):
+    """Send welcome email to newly registered patient"""
+    try:
+        # Get patient information from request
+        email = request.data.get('email')
+        username = request.data.get('username')
+        password = request.data.get('password')
+        first_name = request.data.get('first_name', '')
+        
+        if not email or not username or not password:
+            return Response({'error': 'Email, username, and password are required'}, status=400)
+        
+        # Create the patient portal login URL
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        login_url = f"{frontend_url}/login"
+        
+        # Compose welcome email
+        subject = "Welcome to POWER Healthcare - Patient Portal Access"
+        message = f"""Dear {first_name},
+
+Welcome to POWER Healthcare!
+
+Your patient account has been successfully created. Please use the following credentials to access your patient portal:
+
+Username: {username}
+Temporary Password: {password}
+
+Patient Portal Link: {login_url}
+
+IMPORTANT: For your security, please change your password when you log in for the first time.
+
+To access your patient portal:
+1. Click on the link above or copy and paste it into your browser
+2. Enter your username and temporary password
+3. Follow the prompts to create a new secure password
+4. Complete your profile information
+
+If you have any questions or need assistance, please contact our support team.
+
+Best regards,
+POWER Healthcare Team
+"""
+        
+        # Send the email
+        send_mail(
+            subject=subject,
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+        
+        return Response({'message': 'Welcome email sent successfully'}, status=200)
+        
+    except Exception as e:
+        return Response({'error': f'Failed to send welcome email: {str(e)}'}, status=500)

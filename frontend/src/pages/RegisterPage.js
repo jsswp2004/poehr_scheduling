@@ -3,23 +3,23 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Container, Paper, Typography, TextField, Button, Stack, Box, FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, Alert,
-  Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, InputLabel, Select as MUISelect, IconButton, Tooltip, Divider
+  Paper, Typography, TextField, Button, Stack, Box, FormControl, FormLabel, RadioGroup, FormControlLabel, Radio, Alert,
+  Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, InputLabel, Select as MUISelect, IconButton, Tooltip
 } from '@mui/material';
 import Select from 'react-select';
-import BackButton from '../components/BackButton';
-import { jwtDecode } from 'jwt-decode';
+
+
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CancelIcon from '@mui/icons-material/Cancel';
 import { getValidToken, clearAuthData } from '../utils/authUtils';
 
-function RegisterPage({ adminMode = false }) {
-  const [isPatient, setIsPatient] = useState(adminMode ? true : true);
+function RegisterPage({ adminMode = false }) {  const [isPatient, setIsPatient] = useState(adminMode ? true : true);
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
-  const [doctors, setDoctors] = useState([]);
-  const [organizations, setOrganizations] = useState([]);
+  const [doctors, setDoctors] = useState([]);  const [organizations, setOrganizations] = useState([]);
+  const [emailError, setEmailError] = useState('');
+  const [currentUserOrganization, setCurrentUserOrganization] = useState(null);
   
   // New state for patient information display
   const [registeredPatient, setRegisteredPatient] = useState(null);
@@ -89,6 +89,14 @@ function RegisterPage({ adminMode = false }) {
         });
           const userData = response.data;
         
+        // Store current user's organization info
+        if (userData.organization && userData.organization_name) {
+          setCurrentUserOrganization({
+            id: userData.organization,
+            name: userData.organization_name
+          });
+        }
+        
         // Set the organization name to the current user's organization
         if (userData.organization_name) {
           setFormData(prevState => ({
@@ -104,24 +112,71 @@ function RegisterPage({ adminMode = false }) {
     fetchDoctors();
     fetchOrganizations();
     fetchCurrentUserOrg();
-  }, []);
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  }, []);  // useEffect to set default organization when currentUserOrganization becomes available
+  useEffect(() => {
+    if (currentUserOrganization && registeredPatient && (!patientEditData.organization || patientEditData.organization === '')) {
+      console.log('🏢 Setting default organization:', currentUserOrganization.name, 'ID:', currentUserOrganization.id);
+      setPatientEditData(prev => ({
+        ...prev,
+        organization: currentUserOrganization.id
+      }));
+    }
+  }, [currentUserOrganization, registeredPatient, patientEditData.organization]);
+
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Validate email format when email field changes
+    if (name === 'email') {
+      if (value && !validateEmail(value)) {
+        setEmailError('Please enter a valid email address');
+      } else {
+        setEmailError('');
+      }
+    }
+    
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
   const handlePatientEditChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Validate email format when email field changes in edit mode
+    if (name === 'email') {
+      if (value && !validateEmail(value)) {
+        setEmailError('Please enter a valid email address');
+      } else {
+        setEmailError('');
+      }
+    }
+    
     setPatientEditData({
       ...patientEditData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
-  };  const handleSubmit = async (e) => {
+  };const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (isPatient && hasProvider === 'no' && (!formData.email || !formData.phone_number)) {
-      toast.error("Please fill out both email and phone number.");
+    // Check if email is provided and valid
+    if (!formData.email) {
+      toast.error("Email is required.");
+      return;
+    }
+    
+    if (!validateEmail(formData.email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    if (isPatient && hasProvider === 'no' && !formData.phone_number) {
+      toast.error("Please fill out phone number.");
       return;
     }
 
@@ -135,9 +190,26 @@ function RegisterPage({ adminMode = false }) {
       // Get valid token if user is logged in
       const token = await getValidToken();
       const config = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-
-      const response = await axios.post('http://127.0.0.1:8000/api/auth/register/', payload, config);
+      await axios.post('http://127.0.0.1:8000/api/auth/register/', payload, config);
       toast.success('Registration successful!');
+      
+      // Send welcome email to the newly registered patient
+      if (formData.role === 'patient' && token) {
+        try {
+          await axios.post('http://127.0.0.1:8000/api/users/send-welcome-email/', {
+            email: formData.email,
+            username: formData.username,
+            password: formData.password,
+            first_name: formData.first_name
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          toast.success('Welcome email sent to patient!');
+        } catch (emailError) {
+          console.error('Failed to send welcome email:', emailError);
+          toast.warning('Registration successful, but failed to send welcome email.');
+        }
+      }
       
       // If in admin mode, fetch the created patient data and display it
       if (adminMode && token) {
@@ -146,12 +218,16 @@ function RegisterPage({ adminMode = false }) {
           const patientResponse = await axios.get(`http://127.0.0.1:8000/api/users/patients/`, {
             headers: { Authorization: `Bearer ${token}` },
             params: { search: formData.username }
-          });
-          
-          if (patientResponse.data.results && patientResponse.data.results.length > 0) {
+          });          if (patientResponse.data.results && patientResponse.data.results.length > 0) {
             const newPatient = patientResponse.data.results[0];
             setRegisteredPatient(newPatient);
-            setPatientEditData(newPatient);
+            
+            // Set patientEditData with default organization from current user
+            const patientDataWithOrganization = {
+              ...newPatient,
+              organization: currentUserOrganization ? currentUserOrganization.id : (newPatient.organization || '')
+            };
+            setPatientEditData(patientDataWithOrganization);
             
             // Clear the registration form
             setFormData({
@@ -177,12 +253,27 @@ function RegisterPage({ adminMode = false }) {
     } catch (error) {
       console.error("Registration error:", error);      toast.error('Registration failed. Please try again.');
     }
-  };
-
-  const handlePatientEdit = () => {
+  };  const handlePatientEdit = () => {
+    // Set default organization if not already set (empty string, null, or undefined)
+    if (currentUserOrganization && (!patientEditData.organization || patientEditData.organization === '')) {
+      setPatientEditData(prev => ({
+        ...prev,
+        organization: currentUserOrganization.id
+      }));
+    }
     setEditMode(true);
-  };
-  const handlePatientSave = async () => {
+  };const handlePatientSave = async () => {
+    // Validate email before saving
+    if (!patientEditData.email) {
+      toast.error("Email is required.");
+      return;
+    }
+    
+    if (!validateEmail(patientEditData.email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+    
     try {
       const token = await getValidToken();
       if (!token) {
@@ -300,7 +391,18 @@ function RegisterPage({ adminMode = false }) {
                 <TextField label="First Name" name="first_name" value={formData.first_name} onChange={handleChange} required fullWidth size="small" />
                 <TextField label="Last Name" name="last_name" value={formData.last_name} onChange={handleChange} required fullWidth size="small" />
                 <TextField label="Username" name="username" value={formData.username} onChange={handleChange} required fullWidth size="small" />
-                <TextField label="Email" name="email" type="email" value={formData.email} onChange={handleChange} required={isPatient && hasProvider === 'no'} fullWidth size="small" />
+                <TextField 
+                  label="Email" 
+                  name="email" 
+                  type="email" 
+                  value={formData.email} 
+                  onChange={handleChange} 
+                  required 
+                  fullWidth 
+                  size="small"
+                  error={!!emailError}
+                  helperText={emailError}
+                />
                 <TextField label="Phone Number" name="phone_number" value={formData.phone_number} onChange={handleChange} required={isPatient && hasProvider === 'no'} fullWidth size="small" placeholder="e.g. (555) 123-4567" />
                 <TextField label="Password" name="password" type="password" value={formData.password} onChange={handleChange} required fullWidth size="small" />
 
@@ -444,15 +546,17 @@ function RegisterPage({ adminMode = false }) {
                     fullWidth
                     disabled={!editMode}
                     InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-                  />
-                  <TextField
+                  />                  <TextField
                     label="Email"
                     name="email"
                     type="email"
                     value={patientEditData.email || ''}
                     onChange={handlePatientEditChange}
                     fullWidth
+                    required
                     disabled={!editMode}
+                    error={editMode && !!emailError}
+                    helperText={editMode ? emailError : ''}
                     InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
                   />
                 </Box>
