@@ -1187,17 +1187,74 @@ function PatientsPage() {
       </Table>
     </>
   );
-
   const renderAdvancedAnalytics = () => (
     <>
-      <Typography variant="h6" sx={{ mb: 2 }}>Advanced Analytics Reports</Typography>
-      <List dense>
-        {advancedAnalyticsReports.map((r, idx) => (
-          <ListItem key={idx} disableGutters>
-            <ListItemText primary={r} />
-          </ListItem>
-        ))}
-      </List>
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={reportStartDate}
+            onChange={(newVal) => setReportStartDate(newVal)}
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+          />
+        </LocalizationProvider>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="End Date"
+            value={reportEndDate}
+            onChange={(newVal) => setReportEndDate(newVal)}
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+          />
+        </LocalizationProvider>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id="advanced-report-provider-label">Provider</InputLabel>
+          <MUISelect
+            labelId="advanced-report-provider-label"
+            value={reportProvider}
+            label="Provider"
+            onChange={(e) => setReportProvider(e.target.value)}
+          >
+            <MenuItem value="all">All</MenuItem>
+            {providers.map((p) => (
+              <MenuItem key={p.id} value={p.id}>{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
+            ))}
+          </MUISelect>
+        </FormControl>
+      </Stack>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+            <TableCell sx={{ fontWeight: 'bold', width: 300 }}>Advanced Reports</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: 240 }}>Actions</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {advancedAnalyticsReports.map((r, idx) => (
+            <TableRow key={idx} sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+              <TableCell>{r}</TableCell>
+              <TableCell>
+                <Stack direction="row" spacing={1}>
+                  <Tooltip title="Print">
+                    <IconButton color="primary" onClick={() => handlePrintReport(r)} sx={{ width: 36, height: 36 }}>
+                      <FontAwesomeIcon icon={faPrint} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Export CSV">
+                    <IconButton color="success" onClick={() => handleExportCsvReport(r)} sx={{ width: 36, height: 36 }}>
+                      <FontAwesomeIcon icon={faFileCsv} />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Export PDF">
+                    <IconButton color="secondary" onClick={() => handleExportPdfReport(r)} sx={{ width: 36, height: 36 }}>
+                      <FontAwesomeIcon icon={faFilePdf} />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </>
   );
 
@@ -1502,9 +1559,8 @@ function PatientsPage() {
               <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
                 {renderAnalyticsTable()}
               </Box>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, minHeight: 400 }}>
+            </Grid>            <Grid item xs={6}>
+              <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
                 {renderAdvancedAnalytics()}
               </Box>
             </Grid>
