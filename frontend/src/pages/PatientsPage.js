@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox, Grid
+  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox, Grid, List, ListItem, ListItemText
 } from '@mui/material';
 import TodayIcon from '@mui/icons-material/Today';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -149,6 +149,16 @@ function PatientsPage() {
     'Blocked Time Slots',
     'Appointment Recurrence Report',
     'Appointment Duration Summary',  ];
+  const advancedAnalyticsReports = [
+    'Appointment Volume Trends',
+    'No-Show & Cancellation Rate',
+    'Provider Utilization Report',
+    'Patient Visit Frequency',
+    'New vs. Returning Patients',
+    'Appointment Lead Time Analysis',
+    'Patient Demographic Breakdown',
+    'Blocked vs. Booked Time Comparison'
+  ];
   const [token, setToken] = useState(null);
   const [userRole, setUserRole] = useState(null);
 
@@ -1176,7 +1186,22 @@ function PatientsPage() {
         </TableBody>
       </Table>
     </>
-  );  const handleStartChat = async (userToChatWith) => {
+  );
+
+  const renderAdvancedAnalytics = () => (
+    <>
+      <Typography variant="h6" sx={{ mb: 2 }}>Advanced Analytics Reports</Typography>
+      <List dense>
+        {advancedAnalyticsReports.map((r, idx) => (
+          <ListItem key={idx} disableGutters>
+            <ListItemText primary={r} />
+          </ListItem>
+        ))}
+      </List>
+    </>
+  );
+
+  const handleStartChat = async (userToChatWith) => {
     if (!currentUser) {
       toast.error("Current user not identified. Cannot start chat.");
       console.error("[PatientsPage] handleStartChat: currentUser is null");
@@ -1478,11 +1503,9 @@ function PatientsPage() {
                 {renderAnalyticsTable()}
               </Box>
             </Grid>
-            <Grid item xs={6}>
-              <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography variant="h6" color="text.secondary">
-                  Analytics reporting coming soon...
-                </Typography>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, minHeight: 400 }}>
+                {renderAdvancedAnalytics()}
               </Box>
             </Grid>
           </Grid>
