@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import {
   Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Table, TableBody, TableCell, TableContainer,
   TableHead, TableRow, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect,
-  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox
+  Alert, CircularProgress, Tabs, Tab, Pagination, Checkbox, Grid
 } from '@mui/material';
 import TodayIcon from '@mui/icons-material/Today';
 import VisibilityIcon from '@mui/icons-material/Visibility';
@@ -1474,9 +1474,20 @@ function PatientsPage() {
         )}
 
         {tab === 'analytics' && (
-          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
-            {renderAnalyticsTable()}
-          </Box>
+          <Grid container spacing={2} sx={{ mt: 2 }}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+                {renderAnalyticsTable()}
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Typography variant="h6" color="text.secondary">
+                  Analytics reporting coming soon...
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
         )}
           {tab === 'register' && (
           <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 2 }}>
