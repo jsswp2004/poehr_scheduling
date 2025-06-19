@@ -1471,16 +1471,14 @@ function PatientsPage() {
 
             <CalendarView appointments={appointmentsResults} providers={providers} token={token} fetchAppointments={() => fetchAppointments(appointmentsQuery)} />
           </Box>
-        )}
-
-        {tab === 'analytics' && (
+        )}        {tab === 'analytics' && (
           <Grid container spacing={2} sx={{ mt: 2 }}>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
                 {renderAnalyticsTable()}
               </Box>
             </Grid>
-            <Grid item xs={12} md={6}>
+            <Grid item xs={6}>
               <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography variant="h6" color="text.secondary">
                   Analytics reporting coming soon...
