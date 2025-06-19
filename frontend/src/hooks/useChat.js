@@ -1,13 +1,55 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus) => {
-  const [chatRooms, setChatRooms] = useState({});
+// Helper function for chat initialization with retry logic
+const initializeChatWithRetry = async (chat, connectToOnlineStatus, websocketConnection, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Chat initialization attempt ${attempt}/${maxRetries}`);
+      
+      // Initialize chat socket connection
+      if (chat && chat.initialize) {
+        console.log('🔌 Connecting chat socket...');
+        await chat.initialize();
+      }
+      
+      // Initialize online status connection
+      if (connectToOnlineStatus) {
+        console.log('🟢 Connecting online status...');
+        await connectToOnlineStatus();
+      }
+      
+      // Initialize websocket connection
+      if (websocketConnection && websocketConnection.connect) {
+        console.log('🔗 Connecting websocket...');
+        await websocketConnection.connect();
+      }
+      
+      console.log('✅ Chat system initialization completed successfully');
+      return true;
+    } catch (error) {
+      console.error(`❌ Chat initialization attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('❌ All chat initialization attempts failed');
+        return false;
+      }
+    }
+  }
+  return false;
+};
+
+const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus) => {  const [chatRooms, setChatRooms] = useState({});
   const [activeRoom, setActiveRoom] = useState(null);
   const [typingUsers, setTypingUsers] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [lastError, setLastError] = useState(null); // Added for error display
   const [operationStatus, setOperationStatus] = useState(null); // For loading/creating states
   const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per user/room
+  const [chatSystemLoading, setChatSystemLoading] = useState(true); // Track chat system initialization
   const typingTimeouts = useRef({});
   console.log('🚀 useChat hook initializing with currentUser:', currentUser);
   
@@ -87,11 +129,33 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
   // Debug connection status
   useEffect(() => {
     console.log('🔍 Chat WebSocket connection status:', isConnected);
-  }, [isConnected]);
-  // Debug current user
+  }, [isConnected]);  // Debug current user
   useEffect(() => {
     console.log('👤 Current user in chat:', currentUser);
   }, [currentUser]);
+
+  // Initialize chat system on application startup
+  useEffect(() => {
+    console.log('🚀 Initializing chat system at application startup...');
+    setChatSystemLoading(true);
+    
+    const initializeChat = async () => {
+      const success = await initializeChatWithRetry(null, null, websocketConnection);
+      
+      if (!success) {
+        console.warn('⚠️ Chat system initialization failed, but continuing...');
+      }
+      
+      setChatSystemLoading(false);
+    };
+    
+    // Initialize immediately if user is available
+    if (currentUser) {
+      initializeChat();
+    } else {
+      setChatSystemLoading(false);
+    }
+  }, [currentUser, websocketConnection]);
 
   const handleNewMessage = useCallback((message) => {
     console.log('📨 Received new message:', message);
@@ -601,7 +665,6 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
       Object.values(timeoutsRef).forEach(clearTimeout);
     };
   }, []);
-
   return {
     chatRooms,
     activeRoom,
@@ -619,7 +682,8 @@ const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromO
     markMessageAsRead,
     loadChatHistory,
     simulateIncomingMessage, // Test function for badge debugging
-    isConnected // Expose connection status for UI updates
+    isConnected, // Expose connection status for UI updates
+    chatSystemLoading // Expose chat system loading status
   };
 };
 

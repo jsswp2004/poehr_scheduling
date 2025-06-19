@@ -81,10 +81,12 @@ function PatientsPage() {
       }
     } else {
       console.error('❌ No token found in localStorage');
-    }
-  }, []);
+    }  }, []);
 
   const chat = useChat(currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus);
+  
+  // Extract chatSystemLoading from the chat hook
+  const { chatSystemLoading } = chat;
 
   // ✅ Debug online status
   useEffect(() => {
@@ -955,7 +957,12 @@ function PatientsPage() {
                       />
                     </TableCell>
                     <TableCell>{member.organization_name || 'N/A'}</TableCell>
-                    <TableCell align="center">                      <Tooltip title={!onlineStatusConnected ? "Chat unavailable - no connection" : !currentUser ? "Chat unavailable - user not loaded" : "Start Chat"} placement="top">
+                    <TableCell align="center">                      <Tooltip title={
+                        chatSystemLoading ? "Chat system initializing..." : 
+                        !onlineStatusConnected ? "Chat unavailable - no connection" : 
+                        !currentUser ? "Chat unavailable - user not loaded" : 
+                        "Start Chat"
+                      } placement="top">
                         <IconButton
                           size="small"
                           color="primary"
@@ -964,15 +971,17 @@ function PatientsPage() {
                             cursor: (!onlineStatusConnected || !currentUser) ? 'not-allowed' : 'pointer'
                           }}
                           onClick={async () => {
-                            console.log('🎯 Chat button clicked for team member:', member);
-                            console.log('🔍 Current state:', { 
+                            console.log('🎯 Chat button clicked for team member:', member);                            console.log('🔍 Current state:', { 
                               currentUser, 
                               onlineStatusConnected, 
                               websocketConnection: websocketConnection?.readyState,
                               chatActiveRoom: chat.activeRoom 
                             });
                             
-                            if (!onlineStatusConnected) {
+                            if (chatSystemLoading) {
+                              toast.info('Chat system is still initializing. Please wait a moment.');
+                              return;
+                            }                            if (!onlineStatusConnected) {
                               toast.error('Chat is not available. WebSocket connection is not established.');
                               return;
                             }
@@ -1002,15 +1011,13 @@ function PatientsPage() {
                                 setChatModalOpen(true);
                               } else {
                                 throw new Error('Chat room creation returned null/undefined room ID');
-                              }
-                            } catch (error) {
+                              }                            } catch (error) {
                               console.error('❌ Failed to create chat room:', error);
-                              toast.error(`Failed to start chat: ${error.message || 'Unknown error'}`);
-                              setSelectedChatUser(null);                              
+                              toast.error('Failed to create chat room');
+                              setSelectedChatUser(null);
                               setChatModalOpen(false);
-                            }
-                          }}
-                          disabled={!onlineStatusConnected || !currentUser}
+                            }}}
+                          disabled={!onlineStatusConnected || !currentUser || chatSystemLoading}
                         >
                           {/* Red dot indicator for unread messages */}
                           <Box sx={{ position: 'relative' }}>
@@ -1169,9 +1176,7 @@ function PatientsPage() {
         </TableBody>
       </Table>
     </>
-  );
-
-  const handleStartChat = async (userToChatWith) => {
+  );  const handleStartChat = async (userToChatWith) => {
     if (!currentUser) {
       toast.error("Current user not identified. Cannot start chat.");
       console.error("[PatientsPage] handleStartChat: currentUser is null");
@@ -1194,8 +1199,7 @@ function PatientsPage() {
       const roomId = await chat.createChatRoom(userToChatWith.id); 
       if (roomId) {
         console.log(`[PatientsPage] handleStartChat: Room ${roomId} ready for user ${userToChatWith.id}. Modal should open via useEffect.`);
-        // The useEffect below will handle opening the modal.
-      } else {
+        // The useEffect below will handle opening the modal.      } else {
         console.error(`[PatientsPage] handleStartChat: Failed to create/join chat room with ${userToChatWith.full_name}.`);
         toast.error(`Could not open chat with ${userToChatWith.full_name}.`);
         setSelectedChatUser(null);
@@ -1203,9 +1207,9 @@ function PatientsPage() {
     } catch (error) {
       console.error(`[PatientsPage] handleStartChat: Error starting chat with ${userToChatWith.id}:`, error, error?.message, error?.stack);
       if (typeof error === 'object' && error !== null) {
-        toast.error(`Failed to start chat: ${error.message || JSON.stringify(error)}`);
+        toast.info("Chat is loading...");
       } else {
-        toast.error(`Failed to start chat: ${error}`);
+        toast.info("Chat is loading...");
       }
       setSelectedChatUser(null);
       setChatModalOpen(false); 
@@ -1233,11 +1237,31 @@ function PatientsPage() {
     if (selectedChatUser && !chat.activeRoom) {
       console.log('[PatientsPage] useEffect: selectedChatUser exists but no activeRoom');
     }
-  }, [chat.activeRoom, selectedChatUser, chatModalOpen, chat.chatRooms]);
-    return (
+  }, [chat.activeRoom, selectedChatUser, chatModalOpen, chat.chatRooms]);    return (
     <div style={{ textAlign: 'left', width: '100%' }}>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
         <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+          {/* Chat system loading indicator */}
+          {chatSystemLoading && (
+            <Box sx={{ 
+              position: 'fixed', 
+              top: 10, 
+              right: 10, 
+              background: '#007bff', 
+              color: 'white', 
+              padding: '8px 12px', 
+              borderRadius: '4px', 
+              fontSize: '12px',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1
+            }}>
+              <CircularProgress size={16} sx={{ color: 'white' }} />
+              Initializing chat system...
+            </Box>
+          )}
+          
           <Box
             sx={{
               display: 'flex',
