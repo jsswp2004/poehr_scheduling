@@ -310,16 +310,24 @@ def change_password(request):
     new_password = request.data.get('new_password')
     confirm_password = request.data.get('confirm_password')
 
+    print(f"🔍 Password change attempt for user: {user.username}")
+    print(f"🔍 Current password provided: '{current_password}'")
+    print(f"🔍 New password: '{new_password}'")
+    print(f"🔍 Confirm password: '{confirm_password}'")
+
     if not user.check_password(current_password):
+        print(f"❌ Current password check failed for user: {user.username}")
         return Response({'detail': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if new_password != confirm_password:
+        print(f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'")
         return Response({'detail': 'New passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
 
     user.set_password(new_password)
     user.save()
     update_session_auth_hash(request, user)
-
+    
+    print(f"✅ Password changed successfully for user: {user.username}")
     return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
@@ -546,6 +554,122 @@ class UploadProvidersCSV(APIView):
             "errors": errors
         })
 
+class DownloadPatientsCSVTemplate(APIView):
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def get(self, request):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="patients_template.csv"'
+        writer = csv.writer(response)
+        writer.writerow([
+            'username', 'email', 'first_name', 'last_name', 'organization', 'phone_number', 
+            'date_of_birth', 'address', 'medical_history', 'password'
+        ])
+        return response
+
+class UploadPatientsCSV(APIView):
+    permission_classes = [IsAdminOrSystemAdmin]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        file = request.FILES.get('file')
+        if not file:
+            return Response({"error": "No file provided."}, status=400)
+        
+        decoded_file = file.read().decode('utf-8').splitlines()
+        reader = csv.DictReader(decoded_file)
+        created_count = 0
+        updated_count = 0
+        errors = []
+        
+        for row in reader:
+            username = row.get('username', '').strip()
+            email = row.get('email', '').strip()
+            first_name = row.get('first_name', '').strip()
+            last_name = row.get('last_name', '').strip()
+            org_name = row.get('organization', '').strip()
+            phone_number = row.get('phone_number', '').strip()
+            date_of_birth = row.get('date_of_birth', '').strip()
+            address = row.get('address', '').strip()
+            medical_history = row.get('medical_history', '').strip()
+            password = row.get('password', '').strip()
+            
+            if not username or not email:
+                errors.append(f"Missing username or email for row: {row}")
+                continue
+            
+            # Parse date of birth
+            dob = None
+            if date_of_birth:
+                try:
+                    from datetime import datetime
+                    dob = datetime.strptime(date_of_birth, '%Y-%m-%d').date()
+                except ValueError:
+                    errors.append(f"Invalid date format for user '{username}'. Use YYYY-MM-DD format.")
+                    continue
+            
+            # Get or create organization
+            org = None
+            if org_name:
+                org, _ = Organization.objects.get_or_create(name=org_name)
+            
+            # Create or update user (with patient role)
+            user, created = CustomUser.objects.get_or_create(
+                username=username, 
+                defaults={
+                    'email': email,
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'role': 'patient',  # Always set role to patient
+                    'organization': org,
+                    'phone_number': phone_number,
+                }
+            )
+            
+            if created:
+                if password:
+                    user.set_password(password)
+                else:
+                    user.set_password('changeme123')
+                user.save()
+                created_count += 1
+            else:
+                # Update user fields
+                user.email = email
+                user.first_name = first_name
+                user.last_name = last_name
+                user.role = 'patient'  # Ensure role is patient
+                user.organization = org
+                user.phone_number = phone_number
+                if password:
+                    user.set_password(password)
+                user.save()
+                updated_count += 1
+            
+            # Create or update patient profile
+            patient, patient_created = Patient.objects.get_or_create(
+                user=user,
+                defaults={
+                    'date_of_birth': dob,
+                    'address': address,
+                    'medical_history': medical_history,
+                    'organization': org,
+                }
+            )
+            
+            if not patient_created:
+                # Update patient fields
+                patient.date_of_birth = dob or patient.date_of_birth
+                patient.address = address or patient.address
+                patient.medical_history = medical_history or patient.medical_history
+                patient.organization = org or patient.organization
+                patient.save()
+        
+        return Response({
+            "message": f"Upload completed. Created {created_count} patients, updated {updated_count} patients.",
+            "errors": errors
+        })
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_current_user(request):
@@ -660,3 +784,71 @@ def send_contact_sms(request):
         
     except Exception as e:
         return Response({'error': f'Failed to send contact SMS: {str(e)}'}, status=500)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def admin_change_password(request):
+    """
+    Allow admins to change another user's password by providing:
+    - target_user_id: The ID of the user whose password to change
+    - admin_password: The admin's current password for verification
+    - new_password: The new password for the target user
+    - confirm_password: Confirmation of the new password
+    """
+    admin_user = request.user
+    
+    # Only admins and system_admins can use this endpoint
+    if admin_user.role not in ['admin', 'system_admin']:
+        print(f"❌ Access denied for user: {admin_user.username} (role: {admin_user.role})")
+        return Response({'detail': 'Access denied. Admin privileges required.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    target_user_id = request.data.get('target_user_id')
+    admin_password = request.data.get('admin_password')
+    new_password = request.data.get('new_password')
+    confirm_password = request.data.get('confirm_password')
+    
+    print(f"🔍 Admin password change attempt by: {admin_user.username}")
+    print(f"🔍 Target user ID: {target_user_id}")
+    print(f"🔍 Admin password provided: '{admin_password}'")
+    print(f"🔍 New password: '{new_password}'")
+    print(f"🔍 Confirm password: '{confirm_password}'")
+    
+    if not target_user_id:
+        return Response({'detail': 'Target user ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Verify admin's password
+    if not admin_user.check_password(admin_password):
+        print(f"❌ Admin password check failed for user: {admin_user.username}")
+        return Response({'detail': 'Admin password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Verify new password confirmation
+    if new_password != confirm_password:
+        print(f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'")
+        return Response({'detail': 'New passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Get the target user
+        target_user = CustomUser.objects.get(id=target_user_id)
+        print(f"🔍 Target user found: {target_user.username}")
+        
+        # Additional security: system_admin can change anyone's password,
+        # but regular admin can only change passwords within their organization
+        if admin_user.role == 'admin':
+            if target_user.organization != admin_user.organization:
+                print(f"❌ Admin {admin_user.username} tried to change password for user in different organization")
+                return Response({
+                    'detail': 'You can only change passwords for users in your organization.'
+                }, status=status.HTTP_403_FORBIDDEN)
+        
+        # Change the target user's password
+        target_user.set_password(new_password)
+        target_user.save()
+        
+        print(f"✅ Password changed successfully for target user: {target_user.username} by admin: {admin_user.username}")
+        return Response({
+            'detail': f'Password changed successfully for {target_user.first_name} {target_user.last_name}.'
+        }, status=status.HTTP_200_OK)
+        
+    except CustomUser.DoesNotExist:
+        print(f"❌ Target user with ID {target_user_id} not found")
+        return Response({'detail': 'Target user not found.'}, status=status.HTTP_404_NOT_FOUND)

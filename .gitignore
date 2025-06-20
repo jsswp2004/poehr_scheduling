@@ -21,3 +21,9 @@ nohup.out
 
 # VSCode
 .vscode/
+
+# Docker data volumes - keep directory structure but exclude logs
+data/postgres/*.log
+data/redis/*.log
+data/pgadmin/sessions/
+data/pgadmin/storage/

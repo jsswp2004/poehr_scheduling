@@ -1,0 +1,3 @@
+username,email,first_name,last_name,organization,phone_number,date_of_birth,address,medical_history,password
+testpatient1,testpatient1@example.com,Test,Patient1,Test Organization,555-0001,1990-01-01,123 Test St,No known allergies,testpass123
+testpatient2,testpatient2@example.com,Test,Patient2,Test Organization,555-0002,1985-05-15,456 Test Ave,Diabetes Type 2,testpass123
