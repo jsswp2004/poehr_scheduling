@@ -1,0 +1,4 @@
+username,email,first_name,last_name,organization,phone_number,date_of_birth,address,medical_history,password
+johnsmith,john@example.com,John,Smith,Main Clinic,555-0123,1990-01-15,123 Main St,None,password123
+janedoe,jane@example.com,Jane,Doe,Main Clinic,555-0124,1985-07-22,456 Oak Ave,Diabetes,password123
+bobwilson,bob@example.com,Bob,Wilson,Main Clinic,555-0125,1975-12-03,789 Pine Rd,Hypertension,password123

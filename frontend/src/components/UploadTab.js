@@ -7,13 +7,14 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
-function UploadTab() {
-  const [file, setFile] = useState(null);
+function UploadTab() {  const [file, setFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [providerFile, setProviderFile] = useState(null);
   const [providerUploadStatus, setProviderUploadStatus] = useState('');
   const [availabilityFile, setAvailabilityFile] = useState(null);
   const [availabilityUploadStatus, setAvailabilityUploadStatus] = useState('');
+  const [patientFile, setPatientFile] = useState(null);
+  const [patientUploadStatus, setPatientUploadStatus] = useState('');
   const token = localStorage.getItem('access_token');
 
   const triggerDownload = (blob, filename) => {
@@ -125,6 +126,38 @@ function UploadTab() {
     }
   };
 
+  const handlePatientDownload = async () => {
+    try {
+      const response = await axios.get('http://127.0.0.1:8000/api/users/patients/download-template/', {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob',
+      });
+      triggerDownload(new Blob([response.data]), 'patients_template.csv');
+      setPatientUploadStatus('');
+    } catch (err) {
+      setPatientUploadStatus('❌ Download failed.');
+      console.error(err);
+    }
+  };
+
+  const handlePatientUpload = async () => {
+    if (!patientFile) return setPatientUploadStatus('❌ Please select a file to upload.');
+    const formData = new FormData();
+    formData.append('file', patientFile);
+    try {
+      await axios.post('http://127.0.0.1:8000/api/users/patients/upload-csv/', formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      setPatientUploadStatus('✅ Upload successful.');
+    } catch (err) {
+      console.error(err);
+      setPatientUploadStatus('❌ Upload failed.');
+    }
+  };
+
   return (
     <>
       <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
@@ -185,9 +218,7 @@ function UploadTab() {
                 </Tooltip>
               </Stack>
             </TableCell>
-          </TableRow>
-
-          {/* Availability */}
+          </TableRow>          {/* Availability */}
           <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
             <TableCell>Availability</TableCell>
             <TableCell>
@@ -212,10 +243,34 @@ function UploadTab() {
               </Stack>
             </TableCell>
           </TableRow>
-        </TableBody>
-      </Table>
 
-      {/* Alerts */}
+          {/* Patients */}
+          <TableRow sx={{ '&:nth-of-type(even)': { bgcolor: '#f8fafd' } }}>
+            <TableCell>Patients</TableCell>
+            <TableCell>
+              <Stack direction="row" spacing={2} alignItems="center">
+                <Tooltip title="Download Template">
+                  <IconButton color="primary" onClick={handlePatientDownload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faDownload} />
+                  </IconButton>
+                </Tooltip>
+                <TextField
+                  type="file"
+                  inputProps={{ accept: '.csv' }}
+                  onChange={e => setPatientFile(e.target.files[0])}
+                  size="small"
+                  sx={{ minWidth: 180 }}
+                />
+                <Tooltip title="Upload CSV">
+                  <IconButton color="success" onClick={handlePatientUpload} sx={{ width: 40, height: 40 }}>
+                    <FontAwesomeIcon icon={faUpload} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>            
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>{/* Alerts */}
       {uploadStatus && (
         <Alert severity={uploadStatus.startsWith('✅') ? 'success' : 'error'} sx={{ mt: 3 }}>
           {uploadStatus}
@@ -229,6 +284,10 @@ function UploadTab() {
       {availabilityUploadStatus && (
         <Alert severity={availabilityUploadStatus.startsWith('✅') ? 'success' : 'error'} sx={{ mt: 3 }}>
           {availabilityUploadStatus}
+        </Alert>
+      )}      {patientUploadStatus && (
+        <Alert severity={patientUploadStatus.startsWith('✅') ? 'success' : 'error'} sx={{ mt: 3 }}>
+          {patientUploadStatus}
         </Alert>
       )}
     </>

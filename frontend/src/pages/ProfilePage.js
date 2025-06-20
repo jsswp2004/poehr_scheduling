@@ -169,12 +169,37 @@ function ProfilePage() {
       toast.error('Update failed.');
     }
   };
-
   const handlePasswordChange = async () => {
     try {
-      await axios.post('http://127.0.0.1:8000/api/users/change-password/', passwordData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const decoded = jwtDecode(token);
+      const loggedInUserId = decoded.user_id;
+      const loggedInUserRole = decoded.role;
+      
+      // Check if admin is changing another user's password
+      const isAdminChangingOtherUser = (
+        (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') &&
+        user.id !== loggedInUserId
+      );
+      
+      if (isAdminChangingOtherUser) {
+        // Use admin password change endpoint
+        const adminPasswordData = {
+          target_user_id: user.id,
+          admin_password: passwordData.current_password,
+          new_password: passwordData.new_password,
+          confirm_password: passwordData.confirm_password
+        };
+        
+        await axios.post('http://127.0.0.1:8000/api/users/admin-change-password/', adminPasswordData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        // Use regular password change endpoint
+        await axios.post('http://127.0.0.1:8000/api/users/change-password/', passwordData, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      
       toast.success('Password changed successfully');
       setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
       setShowPasswordForm(false);
@@ -627,57 +652,77 @@ function ProfilePage() {
               {showPasswordForm ? 'Cancel' : 'Change Password'}
             </Button>
           </Box>
-          
-          <Collapse in={showPasswordForm}>
+            <Collapse in={showPasswordForm}>
             <Paper elevation={1} sx={{ p: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
-              <Stack spacing={2.5}>
-                <TextField
-                  label="Current Password"
-                  type="password"
-                  name="current_password"
-                  value={passwordData.current_password}
-                  onChange={e => setPasswordData({ ...passwordData, current_password: e.target.value })}
-                  fullWidth
-                  size="small"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-                <TextField
-                  label="New Password"
-                  type="password"
-                  name="new_password"
-                  value={passwordData.new_password}
-                  onChange={e => setPasswordData({ ...passwordData, new_password: e.target.value })}
-                  fullWidth
-                  size="small"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-                <TextField
-                  label="Confirm New Password"
-                  type="password"
-                  name="confirm_password"
-                  value={passwordData.confirm_password}
-                  onChange={e => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
-                  fullWidth
-                  size="small"
-                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button 
-                    variant="contained" 
-                    color="success" 
-                    onClick={handlePasswordChange}
-                    sx={{ 
-                      minWidth: 180,
-                      borderRadius: 2,
-                      textTransform: 'none',
-                      fontWeight: 600,
-                      py: 1.2
-                    }}
-                  >
-                    Save New Password
-                  </Button>
-                </Box>
-              </Stack>
+              {(() => {
+                const decoded = jwtDecode(token);
+                const loggedInUserId = decoded.user_id;
+                const loggedInUserRole = decoded.role;
+                const isAdminChangingOtherUser = (
+                  (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') &&
+                  user.id !== loggedInUserId
+                );
+                
+                return (
+                  <Stack spacing={2.5}>
+                    {isAdminChangingOtherUser && (
+                      <Box sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1, mb: 1 }}>
+                        <Typography variant="body2" color="info.contrastText">
+                          🔑 You are changing the password for <strong>{user.first_name} {user.last_name}</strong>. 
+                          Please enter your admin password below for verification.
+                        </Typography>
+                      </Box>
+                    )}
+                    <TextField
+                      label={isAdminChangingOtherUser ? "Your Admin Password" : "Current Password"}
+                      type="password"
+                      name="current_password"
+                      value={passwordData.current_password}
+                      onChange={e => setPasswordData({ ...passwordData, current_password: e.target.value })}
+                      fullWidth
+                      size="small"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                      helperText={isAdminChangingOtherUser ? "Enter your current admin password" : "Enter your current password"}
+                    />
+                    <TextField
+                      label={`New Password${isAdminChangingOtherUser ? ` for ${user.first_name}` : ''}`}
+                      type="password"
+                      name="new_password"
+                      value={passwordData.new_password}
+                      onChange={e => setPasswordData({ ...passwordData, new_password: e.target.value })}
+                      fullWidth
+                      size="small"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                    <TextField
+                      label="Confirm New Password"
+                      type="password"
+                      name="confirm_password"
+                      value={passwordData.confirm_password}
+                      onChange={e => setPasswordData({ ...passwordData, confirm_password: e.target.value })}
+                      fullWidth
+                      size="small"
+                      sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button 
+                        variant="contained" 
+                        color="success" 
+                        onClick={handlePasswordChange}
+                        sx={{ 
+                          minWidth: 180,
+                          borderRadius: 2,
+                          textTransform: 'none',
+                          fontWeight: 600,
+                          py: 1.2
+                        }}
+                      >
+                        {isAdminChangingOtherUser ? `Set Password for ${user.first_name}` : 'Save New Password'}
+                      </Button>
+                    </Box>
+                  </Stack>
+                );
+              })()}
             </Paper>
           </Collapse>
         </Box>
