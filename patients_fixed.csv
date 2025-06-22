@@ -1,3 +1,0 @@
-username,email,first_name,last_name,organization,phone_number,date_of_birth,address,medical_history,password
-patient1,patient1@test.com,John,Doe,Test Clinic,555-0001,1990-01-01,123 Main St,No allergies,pass123
-patient2,patient2@test.com,Jane,Smith,Test Clinic,555-0002,1985-05-15,456 Oak Ave,Diabetes,pass123

@@ -1,6 +1,0 @@
-first_name,last_name,email,phone_number,date_of_birth,address,emergency_contact_name,emergency_contact_phone,medical_record_number,insurance_provider,insurance_policy_number,primary_care_physician,allergies,current_medications,medical_history,preferred_contact_method
-John,Smith,john.smith@email.com,555-0101,1985-03-15,123 Main St,Jane Smith,555-0102,MRN001,Blue Cross,BC123456,Dr. Johnson,Penicillin,Lisinopril 10mg,Hypertension,email
-Sarah,Johnson,sarah.j@email.com,555-0201,1990-07-22,456 Oak Ave,Mike Johnson,555-0202,MRN002,Aetna,AET789012,Dr. Williams,None,None,None,phone
-Michael,Brown,m.brown@email.com,555-0301,1978-11-08,789 Pine Rd,Lisa Brown,555-0302,MRN003,Cigna,CIG345678,Dr. Davis,Shellfish,Metformin 500mg,Diabetes Type 2,email
-Emily,Davis,emily.davis@email.com,555-0401,1995-02-14,321 Elm St,Tom Davis,555-0402,MRN004,United Health,UH901234,Dr. Miller,Latex,Albuterol inhaler,Asthma,phone
-Robert,Wilson,r.wilson@email.com,555-0501,1982-09-30,654 Maple Dr,Carol Wilson,555-0502,MRN005,Anthem,ANT567890,Dr. Garcia,Aspirin,Atorvastatin 20mg,High cholesterol,email
