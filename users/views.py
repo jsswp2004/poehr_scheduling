@@ -843,7 +843,6 @@ def admin_change_password(request):
         # Change the target user's password
         target_user.set_password(new_password)
         target_user.save()
-        
         print(f"✅ Password changed successfully for target user: {target_user.username} by admin: {admin_user.username}")
         return Response({
             'detail': f'Password changed successfully for {target_user.first_name} {target_user.last_name}.'
@@ -852,3 +851,128 @@ def admin_change_password(request):
     except CustomUser.DoesNotExist:
         print(f"❌ Target user with ID {target_user_id} not found")
         return Response({'detail': 'Target user not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def reset_patient_password(request):
+    """
+    Reset a patient's password and send temporary password via email.
+    Only accessible by admin, system_admin, doctor, registrar, or receptionist.
+    """
+    user = request.user
+    
+    # Check if user has permission to reset patient passwords
+    if user.role not in ['admin', 'system_admin', 'doctor', 'registrar', 'receptionist']:
+        return Response(
+            {'detail': 'Access denied. You do not have permission to reset patient passwords.'}, 
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    patient_id = request.data.get('patient_id')
+    email = request.data.get('email')
+    
+    if not patient_id:
+        return Response({'detail': 'Patient ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        # Get the patient user
+        patient_user = CustomUser.objects.get(id=patient_id, role='patient')
+        
+        # Verify the email matches (security check)
+        if email and patient_user.email.lower() != email.lower():
+            return Response(
+                {'detail': 'Email does not match patient records.'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Check if the requesting user has permission to reset this patient's password
+        if user.role == 'doctor':
+            # Doctors can only reset passwords for their assigned patients
+            if patient_user.provider != user:
+                return Response(
+                    {'detail': 'You can only reset passwords for your assigned patients.'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        elif user.role in ['admin', 'registrar', 'receptionist']:
+            # Admin/registrar/receptionist can only reset passwords within their organization
+            if patient_user.organization != user.organization:
+                return Response(
+                    {'detail': 'You can only reset passwords for patients in your organization.'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        # system_admin can reset any patient's password (no additional check needed)
+        
+        # Generate a temporary password
+        import secrets
+        import string
+        temp_password = ''.join(secrets.choice(string.ascii_letters + string.digits) for _ in range(12))
+        
+        # Set the temporary password
+        patient_user.set_password(temp_password)
+        patient_user.save()
+        
+        # Send email with temporary password
+        from django.core.mail import send_mail
+        from django.template.loader import render_to_string
+        
+        subject = 'Your Password Has Been Reset - POWER Scheduler'
+        
+        # Create email content
+        message = f"""
+Dear {patient_user.first_name} {patient_user.last_name},
+
+Your password for POWER Scheduler has been reset by a healthcare provider.
+
+Your temporary login credentials are:
+Username: {patient_user.username}
+Temporary Password: {temp_password}
+
+IMPORTANT SECURITY NOTICE:
+1. This is a temporary password that must be changed immediately after logging in
+2. Log in to your account as soon as possible
+3. Go to your profile settings and change your password
+4. Do not share this temporary password with anyone
+
+If you did not request this password reset, please contact your healthcare provider immediately.
+
+Best regards,
+POWER Scheduler Support Team
+        """.strip()
+        
+        try:
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [patient_user.email],
+                fail_silently=False,
+            )
+            
+            print(f"✅ Password reset email sent successfully for patient: {patient_user.username}")
+            
+            return Response({
+                'detail': f'Password reset successfully. Temporary password sent to {patient_user.email}.',
+                'email_sent': True
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as email_error:
+            print(f"❌ Failed to send password reset email: {str(email_error)}")
+            # Password was changed but email failed
+            return Response({
+                'detail': 'Password was reset but failed to send email. Please contact IT support.',
+                'email_sent': False,
+                'temp_password': temp_password  # Include temp password if email fails
+            }, status=status.HTTP_206_PARTIAL_CONTENT)
+        
+    except CustomUser.DoesNotExist:
+        return Response(
+            {'detail': 'Patient not found.'}, 
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        print(f"❌ Password reset failed: {str(e)}")
+        return Response(
+            {'detail': f'Password reset failed: {str(e)}'}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
