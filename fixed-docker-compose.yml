@@ -1,0 +1,104 @@
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: poehr_db
+      POSTGRES_USER: jsswp2004
+      POSTGRES_PASSWORD: krat25Miko!
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7.2.4
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - ./data/redis:/data
+
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8005:8005"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DEBUG=1
+      - DB_HOST=db
+      - DB_NAME=poehr_db
+      - DB_USER=jsswp2004
+      - DB_PASSWORD=krat25Miko!
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TIME_ZONE=America/New_York
+      - EMAIL_HOST_USER=jsswp199427@gmail.com
+      - EMAIL_HOST_PASSWORD=krat13Miko!
+    volumes:
+      - .:/code
+      - /code/node_modules
+    command: python manage.py runserver 0.0.0.0:8000
+
+  websocket:
+    build: .
+    ports:
+      - "9001:9001"
+    depends_on:
+      - db
+      - redis
+    environment:
+      - DEBUG=1
+      - DB_HOST=db
+      - DB_NAME=poehr_db
+      - DB_USER=jsswp2004
+      - DB_PASSWORD=krat25Miko!
+      - DB_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TIME_ZONE=America/New_York
+      - EMAIL_HOST_USER=jsswp199427@gmail.com
+      - EMAIL_HOST_PASSWORD=krat13Miko!
+    volumes:
+      - .:/code
+    command: python start_websocket_server_9001.py
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - web
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm start
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+
+volumes:
+  redis_data:
+  postgres_data:
+  pgadmin_data:

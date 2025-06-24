@@ -7,8 +7,13 @@ import Select from 'react-select';
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
+  // Get local datetime string in YYYY-MM-DDTHH:MM format without timezone adjustment
+  const year = local.getFullYear();
+  const month = String(local.getMonth() + 1).padStart(2, '0');
+  const day = String(local.getDate()).padStart(2, '0');
+  const hours = String(local.getHours()).padStart(2, '0');
+  const minutes = String(local.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 function CreateAppointmentForm({
@@ -31,10 +36,10 @@ function CreateAppointmentForm({
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [token] = useState(localStorage.getItem('access_token'));
-  const [selectedSlot, setSelectedSlot] = useState(null);  const [clinicEvents, setClinicEvents] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null); const [clinicEvents, setClinicEvents] = useState([]);
   const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
   const [blockedDays, setBlockedDays] = useState([]);
-  const [holidays, setHolidays] = useState([]);  const [providerBlocks, setProviderBlocks] = useState([]);
+  const [holidays, setHolidays] = useState([]); const [providerBlocks, setProviderBlocks] = useState([]);
 
   let userRole = null;
   if (token) {
@@ -167,7 +172,7 @@ function CreateAppointmentForm({
     const start = startDate || new Date(formData.appointment_datetime);
     const duration = durationMinutes || formData.duration_minutes;
     const provider = doctorId || selectedDoctor?.value;
-    
+
     // If we don't have all required data, no conflict
     if (!provider || !start || !duration || isNaN(start.getTime())) {
       return false;
@@ -179,39 +184,39 @@ function CreateAppointmentForm({
       const originalDuration = appointmentToEdit.duration_minutes || 30;
       const originalEnd = new Date(originalStart.getTime() + (originalDuration * 60 * 1000));
       const currentEnd = new Date(start.getTime() + (duration * 60 * 1000));
-      
+
       // If the time hasn't changed (or changed minimally), don't check for conflicts
       const timeUnchanged = Math.abs(originalStart.getTime() - start.getTime()) < 60000 && // within 1 minute
-                           Math.abs(originalEnd.getTime() - currentEnd.getTime()) < 60000;
-      
+        Math.abs(originalEnd.getTime() - currentEnd.getTime()) < 60000;
+
       if (timeUnchanged) {
         return false;
       }
     }
 
     const end = new Date(start.getTime() + (duration * 60 * 1000));
-    
+
     // Get blocked availability for the selected provider during this time
     const providerAvailability = providerBlocks.filter(block => {
       const blockDoctorId = block.doctor_id || block.doctor;
       return String(blockDoctorId) === String(provider);
     });
-    
+
     // Find ONLY blocked availability for the selected provider during this time
     const blockedAvailability = providerAvailability.filter(block => {
       const blockStart = new Date(block.start_time);
       const blockEnd = new Date(block.end_time);
       const isBlocked = block.is_blocked === true;
       const overlaps = (start < blockEnd && end > blockStart);
-      
+
       return isBlocked && overlaps;
     });
-    
+
     // Check if appointment time overlaps with any blocked time
     if (blockedAvailability.length > 0) {
       return 'Cannot schedule appointment during provider\'s blocked time. Please select another time.';
     }
-    
+
     return false;
   };// Load provider availability when doctor changes
   useEffect(() => {
@@ -220,7 +225,7 @@ function CreateAppointmentForm({
         setProviderBlocks([]);
         return;
       }
-      
+
       try {
         const res = await axios.get(`http://127.0.0.1:8000/api/availability/?doctor=${selectedDoctor.value}`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -318,7 +323,7 @@ function CreateAppointmentForm({
       formData.duration_minutes,
       selectedDoctor.value
     );
-    
+
     if (conflictResult) {
       toast.error(conflictResult);
       return;
@@ -349,8 +354,8 @@ function CreateAppointmentForm({
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mt: 2 }}>
       {/* Left: Form */}
       <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-          {editMode ? 'Edit Appointment' : 'Create Appointment'} {patientName && <span style={{ color: '#1976d2' }}>for {patientName}</span>}
-        </Typography>
+        {editMode ? 'Edit Appointment' : 'Create Appointment'} {patientName && <span style={{ color: '#1976d2' }}>for {patientName}</span>}
+      </Typography>
         <form onSubmit={handleSubmit}>
           <Stack spacing={2}>
             <Box>
@@ -460,13 +465,13 @@ function CreateAppointmentForm({
                 <MenuItem value="pending">Pending</MenuItem>
                 <MenuItem value="in_progress">In Progress</MenuItem>
               </TextField>
-            )}            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>              <Button 
-                type="submit" 
-                variant="contained" 
-                color="primary"
-              >
-                {editMode ? 'Update Appointment' : 'Create Appointment'}
-              </Button>
+            )}            <Stack direction="row" spacing={2} sx={{ mt: 1 }}>              <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+            >
+              {editMode ? 'Update Appointment' : 'Create Appointment'}
+            </Button>
               <Button
                 variant="outlined"
                 color="secondary"
