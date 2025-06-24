@@ -119,7 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'America/New_York'
 USE_I18N = True
-USE_TZ = True
+USE_TZ = False  # Changed to False to handle naive datetimes from frontend
 
 # Static files
 STATIC_URL = 'static/'

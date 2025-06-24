@@ -1,4 +1,8 @@
 // src/utils/date.js
+/**
+ * Returns a local datetime string (YYYY-MM-DDTHH:MM) for use in <input type="datetime-local"> fields.
+ * WARNING: Do NOT use for backend payloads. Always send UTC ISO strings to backend.
+ */
 export function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
   // Get local datetime string in YYYY-MM-DDTHH:MM format without timezone adjustment

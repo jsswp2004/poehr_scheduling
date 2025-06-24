@@ -222,14 +222,15 @@ function DashboardPage() {
       toast.error('Delete failed.');
     }
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     const payload = {
-      ...formData,
-      provider: selectedDoctor?.value || null,
+      ...formData, provider: selectedDoctor?.value || null,
     };
+
+    // Keep appointment_datetime as local time - the backend expects naive datetime
+    // The datetime-local input already gives us the correct local time format
 
     try {
       if (editMode && editingId) {

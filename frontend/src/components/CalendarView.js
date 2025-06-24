@@ -15,6 +15,16 @@ import {
 import BackButton from './BackButton';
 import CloseIcon from '@mui/icons-material/Close';
 
+// Helper function to format date for datetime-local input without timezone conversion
+const formatDateForInput = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
 function CustomToolbar({ date, label, onNavigate, views, view, onView, searchQuery, onSearchChange }) {
   const [showPicker, setShowPicker] = useState(false);
   return (
@@ -109,17 +119,6 @@ const isPastAppointment = (dateString) => {
   const now = new Date();
   return new Date(dateString) < now;
 };
-
-function toLocalDatetimeString(dateObj) {
-  const local = new Date(dateObj);
-  // Get local datetime string in YYYY-MM-DDTHH:MM format without timezone adjustment
-  const year = local.getFullYear();
-  const month = String(local.getMonth() + 1).padStart(2, '0');
-  const day = String(local.getDate()).padStart(2, '0');
-  const hours = String(local.getHours()).padStart(2, '0');
-  const minutes = String(local.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
 
 function CalendarView({ onUpdate }) {
   const [showModal, setShowModal] = useState(false);
@@ -606,13 +605,12 @@ function CalendarView({ onUpdate }) {
     setIsPast(false);
     setEditingId(null);
     setSelectedDoctor(null);
-    setShowModal(true);
-    setModalFormData({
+    setShowModal(true); setModalFormData({
       title: 'New Clinic Visit',
       description: '',
       duration_minutes: 30,
       recurrence: 'none',
-      appointment_datetime: toLocalDatetimeString(start),
+      appointment_datetime: formatDateForInput(start),
     });
     setSelectedClinicEvent(null);
 
@@ -625,13 +623,14 @@ function CalendarView({ onUpdate }) {
     }
     const past = isPastAppointment(event.start); setIsPast(past);
     setIsEditing(true);
-    setEditingId(event.id);
-    setModalFormData({
+    setEditingId(event.id); setModalFormData({
       title: event.title,
       description: event.description || '',
       duration_minutes: event.duration_minutes || 30,
       recurrence: 'none',
-      appointment_datetime: toLocalDatetimeString(event.start),
+      appointment_datetime: event.start instanceof Date
+        ? formatDateForInput(event.start)
+        : formatDateForInput(new Date(event.start)),
       provider: event.provider || null,
     });
     const matchedEvent = clinicEvents.find(evt =>
@@ -647,7 +646,9 @@ function CalendarView({ onUpdate }) {
         : null
     );
     setShowModal(true);
-  }; const handleModalSave = async () => {
+  };
+
+  const handleModalSave = async () => {
     // Validate required fields
     if (!modalFormData.appointment_datetime) {
       toast.error('Please select an appointment date and time.');
@@ -670,12 +671,14 @@ function CalendarView({ onUpdate }) {
       return;
     }
 
-    const cleanTitle = modalFormData.title.split(' - ').slice(-1).join(' - ');
-    const payload = {
+    const cleanTitle = modalFormData.title.split(' - ').slice(-1).join(' - '); const payload = {
       ...modalFormData,
       title: selectedClinicEvent?.label || cleanTitle,
       provider: selectedDoctor?.value || null,
     };
+    // Keep appointment_datetime as local time - the backend expects naive datetime
+    // The datetime-local input already gives us the correct local time format
+
     if ((userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') && modalFormData.patient) {
       payload.patient = modalFormData.patient;
     }

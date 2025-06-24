@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Login Test</title>
+  </head>
+  <body>
+    <h1>Login Test</h1>
+    <button onclick="testLogin()">Test Login</button>
+    <div id="result"></div>
+
+    <script>
+      async function testLogin() {
+        const resultDiv = document.getElementById("result");
+
+        try {
+          const response = await fetch(
+            "http://127.0.0.1:8000/api/auth/login/",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                username: "jsswp2004",
+                password: "krat25Miko!",
+              }),
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            resultDiv.innerHTML = `
+                        <h3>Login Successful!</h3>
+                        <p>Access Token: ${
+                          data.access ? "Present" : "Missing"
+                        }</p>
+                        <p>Refresh Token: ${
+                          data.refresh ? "Present" : "Missing"
+                        }</p>
+                    `;
+          } else {
+            const errorData = await response.json();
+            resultDiv.innerHTML = `
+                        <h3>Login Failed!</h3>
+                        <p>Status: ${response.status}</p>
+                        <p>Error: ${JSON.stringify(errorData)}</p>
+                    `;
+          }
+        } catch (error) {
+          resultDiv.innerHTML = `
+                    <h3>Network Error!</h3>
+                    <p>Error: ${error.message}</p>
+                `;
+        }
+      }
+    </script>
+  </body>
+</html>
