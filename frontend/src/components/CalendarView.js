@@ -1,7 +1,6 @@
 import { Calendar, momentLocalizer } from 'react-big-calendar';
 import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { parseISO } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import moment from 'moment';
 import { toast } from 'react-toastify';
@@ -22,33 +21,33 @@ function CustomToolbar({ date, label, onNavigate, views, view, onView, searchQue
     <div className="rbc-toolbar d-flex align-items-center justify-content-between mb-2">
       {/* Search Field - positioned on the left after navigation controls */}
       <div style={{ position: 'relative', width: '250px', marginLeft: '16px', marginRight: '6px' }}>
-          <TextField
-            fullWidth
-            size="small"
-            variant="outlined"
-            placeholder="Search appointments..."
-            value={searchQuery}
-            onChange={onSearchChange}
-            sx={{ 
-              '& .MuiOutlinedInput-root': { 
-                height: '29px',
-                fontSize: '14px'
-              }
-            }}
-            InputProps={{
-              endAdornment: searchQuery && (
-                <IconButton
-                  size="small"
-                  onClick={() => onSearchChange({ target: { value: '' } })}
-                  sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
-                >
-                  <CloseIcon fontSize="small" />
-                </IconButton>
-              )
-            }}
-          />
+        <TextField
+          fullWidth
+          size="small"
+          variant="outlined"
+          placeholder="Search appointments..."
+          value={searchQuery}
+          onChange={onSearchChange}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              height: '29px',
+              fontSize: '14px'
+            }
+          }}
+          InputProps={{
+            endAdornment: searchQuery && (
+              <IconButton
+                size="small"
+                onClick={() => onSearchChange({ target: { value: '' } })}
+                sx={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )
+          }}
+        />
       </div>
-      <div className="d-flex align-items-center">        
+      <div className="d-flex align-items-center">
         <span className="rbc-btn-group">
           <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('TODAY')}>Today</button>
           <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('PREV')}>&lt;</button>
@@ -82,23 +81,23 @@ function CustomToolbar({ date, label, onNavigate, views, view, onView, searchQue
             )}
           </span>
           <button type="button" className="btn btn-outline-secondary btn-sm" onClick={() => onNavigate('NEXT')}>&gt;</button>
-        </span>        
+        </span>
       </div>
       <span className="rbc-btn-group ms-2">        {views.map(v => (
-          <button
-            type="button"
-            key={v}
-            className={`btn btn-${view === v ? 'primary' : 'outline-primary'} btn-sm`}
-            onClick={() => onView(v)}
-            style={{ marginLeft: 4 }}
-          >
-            {v === 'month' ? 'Month'
-              : v === 'week' ? 'Week'
-                : v === 'work_week' ? 'Work Week'
-                  : v === 'day' ? 'Day'
-                    : v.charAt(0).toUpperCase() + v.slice(1)}
-          </button>
-        ))}
+        <button
+          type="button"
+          key={v}
+          className={`btn btn-${view === v ? 'primary' : 'outline-primary'} btn-sm`}
+          onClick={() => onView(v)}
+          style={{ marginLeft: 4 }}
+        >
+          {v === 'month' ? 'Month'
+            : v === 'week' ? 'Week'
+              : v === 'work_week' ? 'Work Week'
+                : v === 'day' ? 'Day'
+                  : v.charAt(0).toUpperCase() + v.slice(1)}
+        </button>
+      ))}
       </span>
     </div>
   );
@@ -113,8 +112,13 @@ const isPastAppointment = (dateString) => {
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
-  local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-  return local.toISOString().slice(0, 16);
+  // Get local datetime string in YYYY-MM-DDTHH:MM format without timezone adjustment
+  const year = local.getFullYear();
+  const month = String(local.getMonth() + 1).padStart(2, '0');
+  const day = String(local.getDate()).padStart(2, '0');
+  const hours = String(local.getHours()).padStart(2, '0');
+  const minutes = String(local.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 function CalendarView({ onUpdate }) {
@@ -133,7 +137,7 @@ function CalendarView({ onUpdate }) {
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentDate, setCurrentDate] = useState(new Date());  const [events, setEvents] = useState([]);
+  const [currentDate, setCurrentDate] = useState(new Date()); const [events, setEvents] = useState([]);
   const [blockedDays, setBlockedDays] = useState([]);
   const [holidays, setHolidays] = useState([]);
   const [clinicEvents, setClinicEvents] = useState([]);
@@ -181,19 +185,19 @@ function CalendarView({ onUpdate }) {
     } catch (err) {
       console.error('Failed to load clinic events:', err);
     }
-  };  const fetchAppointments = async () => {
+  }; const fetchAppointments = async () => {
     try {
       console.log('Fetching appointments for user role:', userRole);
-      
-      const appointmentsPromise = axios.get('http://127.0.0.1:8000/api/appointments/', { 
-        headers: { Authorization: `Bearer ${token}` } 
+
+      const appointmentsPromise = axios.get('http://127.0.0.1:8000/api/appointments/', {
+        headers: { Authorization: `Bearer ${token}` }
       }).catch(error => {
         console.error('Appointments API error:', error.response?.status, error.response?.data);
         throw error;
       });
-      
-      const availabilityPromise = axios.get('http://127.0.0.1:8000/api/availability/', { 
-        headers: { Authorization: `Bearer ${token}` } 
+
+      const availabilityPromise = axios.get('http://127.0.0.1:8000/api/availability/', {
+        headers: { Authorization: `Bearer ${token}` }
       }).catch(error => {
         console.error('Availability API error:', error.response?.status, error.response?.data);
         throw error;
@@ -205,12 +209,10 @@ function CalendarView({ onUpdate }) {
       ]);
 
       console.log('Appointments response:', appointmentsRes.data.length, 'appointments');
-      console.log('First few appointments:', appointmentsRes.data.slice(0, 3));
-
-      const apptEvents = appointmentsRes.data.map((appt) => ({
+      console.log('First few appointments:', appointmentsRes.data.slice(0, 3)); const apptEvents = appointmentsRes.data.map((appt) => ({
         id: `appt-${appt.id}`,
         title: `${appt.patient_name || 'Unknown Patient'} - ${appt.title || 'Untitled Appointment'}`,
-        start: parseISO(appt.appointment_datetime),
+        start: new Date(appt.appointment_datetime), // Use original string with timezone
         end: new Date(new Date(appt.appointment_datetime).getTime() + appt.duration_minutes * 60000),
         type: 'appointment',
         provider: appt.provider,
@@ -227,7 +229,7 @@ function CalendarView({ onUpdate }) {
             ? { value: matchedDoctor.id, label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}` }
             : null
         );
-      }      const availEvents = availabilityRes.data.map((a) => ({
+      } const availEvents = availabilityRes.data.map((a) => ({
         id: `avail-${a.id}`,
         title: a.is_blocked
           ? `❌ ${a.block_type || 'Blocked'} | Dr. ${a.doctor_name || 'Unknown'}`
@@ -258,7 +260,7 @@ function CalendarView({ onUpdate }) {
 
       // Combine events WITH blocked availability events but WITHOUT available (green) events
       const combinedEvents = [...apptEvents, ...blockedAvailEvents, ...holidayEvents]
-        .filter(e => e && typeof e.title === 'string');setEvents([]);
+        .filter(e => e && typeof e.title === 'string'); setEvents([]);
       setTimeout(() => setEvents(combinedEvents), 50);
     } catch (error) {
       console.error('Failed to load calendar data:', error);
@@ -287,13 +289,13 @@ function CalendarView({ onUpdate }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       console.log('📡 Raw availability API response:', res.data);
-      
+
       if (!res.data || res.data.length === 0) {
         console.log('⚠️ No availability data found in the API response');
         setAvailabilityEvents([]);
         return;
       }
-      
+
       const events = res.data.map(avail => {
         const start = new Date(avail.start_time);
         const end = new Date(avail.end_time);
@@ -310,7 +312,7 @@ function CalendarView({ onUpdate }) {
           block_type: avail.block_type
         };
       });
-      
+
       console.log('✅ Processed availability events:', events);
       setAvailabilityEvents(events);
     } catch (err) {
@@ -353,34 +355,35 @@ function CalendarView({ onUpdate }) {
       // Check if doctor has any available (non-blocked) time blocks on this date
       const hasAvailability = availabilityEvents.some(event => {
         if (event.type !== 'availability') return false;
-        
+
         const eventDate = moment(event.start).format('YYYY-MM-DD');
         const eventDoctor = event.doctor_id;
-        
-        return String(eventDoctor) === String(doctor.id) && 
-               eventDate === dateStr &&
-               !event.is_blocked; // Only count non-blocked availability
+
+        return String(eventDoctor) === String(doctor.id) &&
+          eventDate === dateStr &&
+          !event.is_blocked; // Only count non-blocked availability
       });
       return hasAvailability;
-    });  };  // Handle date click to show availability
+    });
+  };  // Handle date click to show availability
   const handleDateClick = async (date) => {
     console.log('🗓️ handleDateClick called for date:', date);
     console.log('👨‍⚕️ Available doctors:', doctors.length);
     console.log('📋 Available availabilityEvents:', availabilityEvents.length);
     console.log('📝 Sample availabilityEvents:', availabilityEvents.slice(0, 3));
-    
+
     const dateStr = moment(date).format('YYYY-MM-DD');
     console.log('🔍 Looking for availability on date:', dateStr);
-    
+
     // Extract user role and provider information from JWT token
     let currentUserRole = null;
     let assignedProviderId = null;
-    
+
     if (token) {
       try {
         const decoded = jwtDecode(token);
         currentUserRole = decoded.role;
-        
+
         // If user is a patient, we need to get their assigned provider
         // This will need to be fetched from the user's profile since it's not in the JWT
         console.log('🔐 Current user role:', currentUserRole);
@@ -388,35 +391,35 @@ function CalendarView({ onUpdate }) {
         console.error('Failed to decode token:', err);
       }
     }
-    
+
     // First, let's see ALL availability events for this date (both blocked and available)
     const allAvailabilityForDate = availabilityEvents.filter(event => {
       if (event.type !== 'availability') return false;
       const eventDate = moment(event.start).format('YYYY-MM-DD');
       return eventDate === dateStr;
     });
-    
+
     console.log('📊 All availability events for this date:', allAvailabilityForDate);
-    
+
     // Get providers with availability data for this date
     const allProvidersWithAnyAvailability = doctors.filter(doctor => {
       const anySlots = availabilityEvents.filter(event => {
         if (event.type !== 'availability') return false;
-        
+
         const eventDate = moment(event.start).format('YYYY-MM-DD');
         const eventDoctor = event.doctor_id;
-        
+
         return String(eventDoctor) === String(doctor.id) && eventDate === dateStr;
       });
-      
+
       return anySlots.length > 0;
     }).map(doctor => {
       const allSlots = availabilityEvents.filter(event => {
         if (event.type !== 'availability') return false;
-        
+
         const eventDate = moment(event.start).format('YYYY-MM-DD');
         const eventDoctor = event.doctor_id;
-        
+
         return String(eventDoctor) === String(doctor.id) && eventDate === dateStr;
       }).map(slot => ({
         start: moment(slot.start).format('h:mm A'),
@@ -424,39 +427,39 @@ function CalendarView({ onUpdate }) {
         duration: moment(slot.end).diff(moment(slot.start), 'minutes'),
         isBlocked: slot.is_blocked
       }));
-      
+
       return {
         ...doctor,
         timeSlots: allSlots
       };
     });
-    
+
     console.log('🏥 All providers with ANY availability (blocked or not):', allProvidersWithAnyAvailability);
-      // Role-based filtering logic
+    // Role-based filtering logic
     let providersToShow = [];
-    
+
     if (currentUserRole === 'patient') {
       // For patients: Fetch their assigned provider and only show if available
       console.log('🔍 Patient detected - fetching assigned provider...');
-      
+
       try {
         const userResponse = await axios.get('http://127.0.0.1:8000/api/users/me/', {
           headers: { Authorization: `Bearer ${token}` }
         });
-        
+
         const currentUser = userResponse.data;
         const assignedProviderId = currentUser.provider;
-        
+
         console.log('👤 Current user info:', currentUser);
         console.log('🏥 Assigned provider ID:', assignedProviderId);
-        
+
         if (assignedProviderId) {
           // Filter to only show the assigned provider if they have AVAILABLE (non-blocked) slots
           const assignedProviderWithAvailability = allProvidersWithAnyAvailability.find(provider => {
-            return String(provider.id) === String(assignedProviderId) && 
-                   provider.timeSlots.some(slot => !slot.isBlocked);
+            return String(provider.id) === String(assignedProviderId) &&
+              provider.timeSlots.some(slot => !slot.isBlocked);
           });
-          
+
           if (assignedProviderWithAvailability) {
             // Only show non-blocked slots for the assigned provider
             const availableSlots = assignedProviderWithAvailability.timeSlots.filter(slot => !slot.isBlocked);
@@ -485,21 +488,21 @@ function CalendarView({ onUpdate }) {
       }
     } else {
       // For non-patients (admin, doctor, registrar, etc.): show all providers with availability data
-      providersToShow = allProvidersWithAnyAvailability.length > 0 
-        ? allProvidersWithAnyAvailability 
+      providersToShow = allProvidersWithAnyAvailability.length > 0
+        ? allProvidersWithAnyAvailability
         : doctors.map(doctor => ({
-            ...doctor,
-            timeSlots: [{ 
-              start: 'No schedule data', 
-              end: 'available', 
-              duration: 0, 
-              isBlocked: false 
-            }]
-          }));
+          ...doctor,
+          timeSlots: [{
+            start: 'No schedule data',
+            end: 'available',
+            duration: 0,
+            isBlocked: false
+          }]
+        }));
     }
-    
+
     console.log('📋 Final providers to show in modal (after role filtering):', providersToShow);
-    
+
     setSelectedDateAvailability({
       date: dateStr,
       dateFormatted: moment(date).format('MMMM D, YYYY'),
@@ -571,13 +574,13 @@ function CalendarView({ onUpdate }) {
   const handleViewChange = useCallback((view) => setCurrentView(view), []);
   const handleSelectSlot = ({ start }) => {
     if (userRole !== 'patient') return;
-    
+
     // Check if we should prevent slot selection (e.g., if availability modal was just opened)
     if (preventSlotSelection) {
       setPreventSlotSelection(false);
       return;
     }
-    
+
     const day = start.getDay();
 
     const isSameDay = (dateA, dateB) =>
@@ -612,7 +615,7 @@ function CalendarView({ onUpdate }) {
       appointment_datetime: toLocalDatetimeString(start),
     });
     setSelectedClinicEvent(null);
-    
+
   };
 
   const handleSelectEvent = (event) => {
@@ -779,7 +782,7 @@ function CalendarView({ onUpdate }) {
       };
     }
     return {};
-  };  function CustomDateHeader({ date, holidays, setCurrentView, setCurrentDate, handleDateClick, setPreventSlotSelection }) {
+  }; function CustomDateHeader({ date, holidays, setCurrentView, setCurrentDate, handleDateClick, setPreventSlotSelection }) {
     const holiday = holidays.find(h => {
       const holidayDate = new Date(h.date + 'T00:00:00');
       return (
@@ -796,13 +799,13 @@ function CalendarView({ onUpdate }) {
     const handleAvailabilityClick = (e) => {
       e.stopPropagation();
       e.preventDefault();
-      
+
       // Set flag to prevent slot selection
       setPreventSlotSelection(true);
-      
+
       // Call the date click handler to show availability
       handleDateClick(date);
-      
+
       // Reset the flag after a short delay
       setTimeout(() => {
         setPreventSlotSelection(false);
@@ -817,7 +820,7 @@ function CalendarView({ onUpdate }) {
         >
           {date.getDate().toString().padStart(2, '0')}
         </span>
-        <span 
+        <span
           style={{ cursor: 'pointer', fontSize: '12px', color: '#28a745', marginLeft: '4px' }}
           onClick={handleAvailabilityClick}
           title="View available providers"
@@ -885,10 +888,10 @@ function CalendarView({ onUpdate }) {
             min={new Date(1970, 1, 1, 8, 0, 0)}
             max={new Date(1970, 1, 1, 18, 0, 0)}
             step={15}
-            timeslots={2}            components={{
+            timeslots={2} components={{
               toolbar: (toolbarProps) => (
-                <CustomToolbar 
-                  {...toolbarProps} 
+                <CustomToolbar
+                  {...toolbarProps}
                   searchQuery={searchQuery}
                   onSearchChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -1032,10 +1035,10 @@ function CalendarView({ onUpdate }) {
           </Dialog>
 
           {/* Availability Modal */}
-          <Dialog 
-            open={showAvailabilityModal} 
-            onClose={() => setShowAvailabilityModal(false)} 
-            maxWidth="sm" 
+          <Dialog
+            open={showAvailabilityModal}
+            onClose={() => setShowAvailabilityModal(false)}
+            maxWidth="sm"
             fullWidth
           >
             <DialogTitle>
@@ -1047,53 +1050,53 @@ function CalendarView({ onUpdate }) {
               )}
             </DialogTitle>
             <DialogContent dividers>              {selectedDateAvailability && (
-                <Box>
-                  {selectedDateAvailability.providers.length > 0 ? (
-                    <List>
-                      {selectedDateAvailability.providers.map((provider) => (
-                        <ListItem key={provider.id} divider>
-                          <ListItemText
-                            primary={`Dr. ${provider.first_name} ${provider.last_name}`}
-                            secondary={
-                              <Box>
-                                <Typography variant="body2" color="text.secondary">
-                                  Specialization: {provider.specialization || 'General'}
-                                </Typography>                                {provider.timeSlots && provider.timeSlots.length > 0 && (
-                                  <Box sx={{ mt: 1 }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Time Slots:
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                                      {provider.timeSlots.map((slot, index) => (
-                                        <Chip
-                                          key={index}
-                                          label={`${slot.start} - ${slot.end}${slot.isBlocked !== undefined ? (slot.isBlocked ? ' (Blocked)' : ' (Available)') : ''}`}
-                                          variant="outlined"
-                                          size="small"
-                                          color={slot.isBlocked === true ? "error" : slot.isBlocked === false ? "success" : "primary"}
-                                        />
-                                      ))}
-                                    </Box>
+              <Box>
+                {selectedDateAvailability.providers.length > 0 ? (
+                  <List>
+                    {selectedDateAvailability.providers.map((provider) => (
+                      <ListItem key={provider.id} divider>
+                        <ListItemText
+                          primary={`Dr. ${provider.first_name} ${provider.last_name}`}
+                          secondary={
+                            <Box>
+                              <Typography variant="body2" color="text.secondary">
+                                Specialization: {provider.specialization || 'General'}
+                              </Typography>                                {provider.timeSlots && provider.timeSlots.length > 0 && (
+                                <Box sx={{ mt: 1 }}>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Time Slots:
+                                  </Typography>
+                                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                    {provider.timeSlots.map((slot, index) => (
+                                      <Chip
+                                        key={index}
+                                        label={`${slot.start} - ${slot.end}${slot.isBlocked !== undefined ? (slot.isBlocked ? ' (Blocked)' : ' (Available)') : ''}`}
+                                        variant="outlined"
+                                        size="small"
+                                        color={slot.isBlocked === true ? "error" : slot.isBlocked === false ? "success" : "primary"}
+                                      />
+                                    ))}
                                   </Box>
-                                )}
-                              </Box>
-                            }
-                          />
-                          <Chip
-                            label="Available"
-                            color="success"
-                            size="small"
-                          />
-                        </ListItem>
-                      ))}
-                    </List>
-                  ) : (
-                    <Typography color="text.secondary" align="center" sx={{ py: 3 }}>
-                      No providers available on this date.
-                    </Typography>
-                  )}
-                </Box>
-              )}
+                                </Box>
+                              )}
+                            </Box>
+                          }
+                        />
+                        <Chip
+                          label="Available"
+                          color="success"
+                          size="small"
+                        />
+                      </ListItem>
+                    ))}
+                  </List>
+                ) : (
+                  <Typography color="text.secondary" align="center" sx={{ py: 3 }}>
+                    No providers available on this date.
+                  </Typography>
+                )}
+              </Box>
+            )}
             </DialogContent>
             <DialogActions>
               <Button onClick={() => setShowAvailabilityModal(false)} color="primary">
