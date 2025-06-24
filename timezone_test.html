@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Timezone Test</title>
+</head>
+<body>
+    <h1>Frontend-Backend Timezone Test</h1>
+    <div id="results"></div>
+
+    <script>
+        // Test the formatDateForInput function (same as in CalendarView.js)
+        const formatDateForInput = (date) => {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
+        };
+
+        // Test with a specific local time
+        const testDate = new Date(2025, 5, 24, 14, 30); // June 24, 2025, 2:30 PM local time
+        const formattedForInput = formatDateForInput(testDate);
+        
+        console.log('Test Date:', testDate);
+        console.log('Formatted for input:', formattedForInput);
+        console.log('Original time with toISOString():', testDate.toISOString());
+        
+        // Test appointment creation
+        async function testAppointmentCreation() {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                console.log('No token found - please login first');
+                document.getElementById('results').innerHTML = 'No token found - please login first';
+                return;
+            }
+
+            const testPayload = {
+                title: 'Timezone Test Appointment',
+                description: 'Testing timezone handling',
+                duration_minutes: 30,
+                recurrence: 'none',
+                appointment_datetime: formattedForInput, // Using our helper function
+                provider: 1 // Assuming provider with ID 1 exists
+            };
+
+            console.log('Sending payload:', testPayload);
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/appointments/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(testPayload)
+                });
+
+                const result = await response.json();
+                console.log('Response:', result);
+                
+                if (response.ok) {
+                    document.getElementById('results').innerHTML = `
+                        <h2>✅ SUCCESS</h2>
+                        <p><strong>Sent:</strong> ${formattedForInput}</p>
+                        <p><strong>Received back:</strong> ${result.appointment_datetime}</p>
+                        <p><strong>Match:</strong> ${formattedForInput === result.appointment_datetime ? 'YES' : 'NO'}</p>
+                    `;
+                } else {
+                    document.getElementById('results').innerHTML = `
+                        <h2>❌ ERROR</h2>
+                        <p>${JSON.stringify(result)}</p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('results').innerHTML = `
+                    <h2>❌ NETWORK ERROR</h2>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+
+        // Display initial test info
+        document.getElementById('results').innerHTML = `
+            <h2>Initial Test</h2>
+            <p><strong>Test Date:</strong> ${testDate}</p>
+            <p><strong>Formatted for input (our method):</strong> ${formattedForInput}</p>
+            <p><strong>ISO String (problematic method):</strong> ${testDate.toISOString()}</p>
+            <button onclick="testAppointmentCreation()">Test Appointment Creation</button>
+        `;
+    </script>
+</body>
+</html>
