@@ -19,7 +19,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback-secret-key-if-missing')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153']
 
 # Application definition
 INSTALLED_APPS = [
@@ -119,7 +119,7 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'America/New_York'
 USE_I18N = True
-USE_TZ = False  # Changed to False to handle naive datetimes from frontend
+USE_TZ = True
 
 # Static files
 STATIC_URL = 'static/'

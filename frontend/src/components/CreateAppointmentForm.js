@@ -291,8 +291,12 @@ function CreateAppointmentForm({
     }
     if ((userRole === 'admin' || userRole === 'system_admin') && formData.patient) {
       payload.patient = formData.patient;
-    }    // Keep appointment_datetime as local time - the backend expects naive datetime
-    // The datetime-local input already gives us the correct local time format
+    }
+
+    // Convert appointment_datetime to UTC ISO string before sending
+    if (payload.appointment_datetime) {
+      payload.appointment_datetime = new Date(payload.appointment_datetime).toISOString();
+    }
 
     // Blocked day/holiday check
     const selectedDate = new Date(formData.appointment_datetime);
