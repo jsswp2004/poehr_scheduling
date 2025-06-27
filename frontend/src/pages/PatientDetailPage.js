@@ -97,58 +97,6 @@ function PatientDetailPage() {
       .catch((err) => setOrganizations([]));
   }, [token]);
 
-  const handleResetPassword = async () => {
-    if (!patient || !patient.email) {
-      toast.error('Patient email not found. Cannot reset password.');
-      return;
-    }
-
-    // Confirm action with user
-    const confirmed = window.confirm(
-      `Are you sure you want to reset the password for ${patient.first_name} ${patient.last_name}?\n\n` +
-      `A temporary password will be sent to: ${patient.email}\n\n` +
-      `The patient will need to log in with the temporary password and change it immediately.`
-    );
-
-    if (!confirmed) return;
-
-    try {
-      const response = await axios.post(
-        'http://127.0.0.1:8000/api/auth/reset-patient-password/',
-        {
-          patient_id: patient.user_id || patient.id,
-          email: patient.email
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-
-      toast.success(
-        `🔑 Password reset successfully!\n\n` +
-        `A temporary password has been sent to ${patient.email}.\n` +
-        `The patient should check their email and log in with the temporary password.`,
-        {
-          autoClose: 8000
-        }
-      );
-    } catch (err) {
-      console.error('Password reset error:', err);
-
-      if (err.response?.status === 403) {
-        toast.error('You do not have permission to reset patient passwords.');
-      } else if (err.response?.status === 404) {
-        toast.error('Patient not found or email is invalid.');
-      } else if (err.response?.data?.detail) {
-        toast.error(`Password reset failed: ${err.response.data.detail}`);
-      } else if (err.response?.data?.error) {
-        toast.error(`Password reset failed: ${err.response.data.error}`);
-      } else {
-        toast.error('Failed to reset password. Please try again later.');
-      }
-    }
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => {
@@ -161,9 +109,9 @@ function PatientDetailPage() {
       }
       return { ...prev, [name]: value };
     });
-  }; const handleSubmit = async (e) => {
+  };  const handleSubmit = async (e) => {
     e.preventDefault();    // Comprehensive field validation
-    const errors = []; const requiredFields = [
+    const errors = [];    const requiredFields = [
       { field: 'first_name', label: 'First Name' },
       { field: 'last_name', label: 'Last Name' },
       { field: 'username', label: 'Username' },
@@ -174,28 +122,28 @@ function PatientDetailPage() {
       { field: 'date_of_birth', label: 'Date of Birth' },
       { field: 'address', label: 'Address' }
     ];
-    // Check required fields
+      // Check required fields
     requiredFields.forEach(({ field, label }) => {
       if (!formData[field] || formData[field].toString().trim() === '') {
         errors.push(`${label} is required`);
       }
     });
-
+    
     // Email format validation
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.push('Email format is invalid');
     }
-
+    
     // Phone number validation (if provided)
     if (formData.phone_number && formData.phone_number.length > 0 && formData.phone_number.length < 10) {
       errors.push('Phone number must be at least 10 digits');
     }
-
+    
     // Username validation
     if (formData.username && formData.username.length < 3) {
       errors.push('Username must be at least 3 characters long');
     }
-    // Show validation errors if any
+      // Show validation errors if any
     if (errors.length > 0) {
       toast.error(
         <div>
@@ -213,18 +161,17 @@ function PatientDetailPage() {
       );
       return;
     }// Clone the formData and add provider_id if provider is present
-    const dataToSend = { ...formData };
+    const dataToSend = {...formData};
     if (dataToSend.provider !== undefined) {
       dataToSend.provider_id = dataToSend.provider;
     }
-
+    
     // Allow medical_history to be null - backend now handles this properly
     if (!dataToSend.medical_history || dataToSend.medical_history.trim() === '') {
       dataToSend.medical_history = null;
     }
-
-    try {
-      await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, dataToSend, {
+    
+    try {      await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, dataToSend, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success('Patient updated successfully! 🎉');
@@ -232,14 +179,14 @@ function PatientDetailPage() {
       setPatient(formData);
     } catch (err) {
       console.error('Update error:', err);
-
+      
       // Enhanced error handling with specific backend error messages
       let errorMessage = 'Failed to update patient.';
-
+      
       if (err.response?.data) {
         const backendErrors = [];
         const errorData = err.response.data;
-
+        
         // Handle field-specific errors
         Object.keys(errorData).forEach(field => {
           const fieldErrors = Array.isArray(errorData[field]) ? errorData[field] : [errorData[field]];
@@ -248,7 +195,7 @@ function PatientDetailPage() {
             backendErrors.push(`${fieldLabel}: ${error}`);
           });
         });
-        if (backendErrors.length > 0) {
+          if (backendErrors.length > 0) {
           toast.error(
             <div>
               <strong>Update failed due to the following issues:</strong>
@@ -279,7 +226,7 @@ function PatientDetailPage() {
       } else if (err.code === 'NETWORK_ERROR' || !err.response) {
         toast.error('Update failed: Network error. Please check your connection and try again.');
       }
-
+      
       // Fallback error message if none of the above conditions match
       if (!err.response?.data && err.response?.status < 500 && err.code !== 'NETWORK_ERROR') {
         toast.error(errorMessage);
@@ -314,12 +261,12 @@ function PatientDetailPage() {
           onChange(newValue || '');
           setValue(newValue || '');
           clearSuggestions();
-        }} renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Address *"
-            name="address"
-            fullWidth
+        }}        renderInput={(params) => (
+          <TextField 
+            {...params} 
+            label="Address *" 
+            name="address" 
+            fullWidth 
             required
             error={editMode && (!value || value.trim() === '')}
             helperText={editMode && (!value || value.trim() === '') ? 'Address is required' : ''}
@@ -404,7 +351,7 @@ function PatientDetailPage() {
                           Authorization: `Bearer ${token}`,
                         },
                       }
-                    ); setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
+                    );                    setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
                     setFormData((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
                     toast.success('Profile picture updated successfully! 📸');
                   } catch (err) {
@@ -421,257 +368,243 @@ function PatientDetailPage() {
         </Paper>
       )}
 
-      {!showAppointmentForm && (<form onSubmit={handleSubmit}>
-        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>Patient Information</Typography>
-
-          {/* Two-column grid layout */}
-          <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 3,
-            mb: 3
-          }}>
-            {/* Left Column */}
-            <Stack spacing={3}>
-              <TextField
-                label="First Name *"
-                name="first_name"
-                value={formData.first_name || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.first_name || formData.first_name.trim() === '')}
-                helperText={editMode && (!formData.first_name || formData.first_name.trim() === '') ? 'First name is required' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Last Name *"
-                name="last_name"
-                value={formData.last_name || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.last_name || formData.last_name.trim() === '')}
-                helperText={editMode && (!formData.last_name || formData.last_name.trim() === '') ? 'Last name is required' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Username *"
-                name="username"
-                value={formData.username || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.username || formData.username.trim() === '' || formData.username.length < 3)}
-                helperText={editMode && (!formData.username || formData.username.trim() === '') ? 'Username is required' :
-                  editMode && formData.username && formData.username.length < 3 ? 'Username must be at least 3 characters' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Email *"
-                name="email"
-                type="email"
-                value={editMode ? formatEmail(formData.email || '') : (formData.email || '')}
-                onChange={e => {
-                  const val = e.target.value;
-                  setFormData(prev => ({ ...prev, email: val.replace(/\s+/g, '') }));
-                }}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.email || formData.email.trim() === '' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))}
-                helperText={editMode && (!formData.email || formData.email.trim() === '') ? 'Email is required' :
-                  editMode && formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'Invalid email format' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Phone Number *"
-                name="phone_number"
-                value={editMode ? formatPhoneNumber(formData.phone_number || '') : (formData.phone_number || '')}
-                onChange={e => {
-                  const raw = e.target.value.replace(/\D/g, '');
-                  setFormData(prev => ({ ...prev, phone_number: raw }));
-                }}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.phone_number || formData.phone_number.length === 0 || formData.phone_number.length < 10)}
-                helperText={editMode && (!formData.phone_number || formData.phone_number.length === 0) ? 'Phone number is required' :
-                  editMode && formData.phone_number && formData.phone_number.length > 0 && formData.phone_number.length < 10 ?
-                    'Phone number must be at least 10 digits' : editMode ? 'Format: (555) 123-4567' : ''}
-                InputProps={{
-                  ...(editMode ? {} : { style: { color: '#333', background: '#f5f5f5' } }),
-                  startAdornment: <InputAdornment position="start">📞</InputAdornment>,
-                }}
-              />
-            </Stack>
-
-            {/* Right Column */}
-            <Stack spacing={3}>
-              <TextField
-                label="Date of Birth *"
-                name="date_of_birth"
-                type="date"
-                value={formData.date_of_birth || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '')}
-                helperText={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '') ? 'Date of birth is required' : ''}
-                InputLabelProps={{ shrink: true }}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <FormControl fullWidth disabled={!editMode} required>
-                <InputLabel required>Provider *</InputLabel>
-                <MUISelect
-                  name="provider"
-                  value={formData.provider || ''}
-                  onChange={handleChange}
-                  label="Provider"
-                  required
-                  error={editMode && (!formData.provider || formData.provider === '')}
-                  sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
-                >
-                  <MenuItem value="">Select a provider</MenuItem>
-                  {Array.isArray(doctors) && doctors.map((doc) => (
-                    <MenuItem key={doc.id} value={doc.id}>
-                      Dr. {doc.first_name} {doc.last_name}
-                    </MenuItem>
-                  ))}
-                </MUISelect>
-                {editMode && (!formData.provider || formData.provider === '') && (
-                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                    Provider is required
-                  </Typography>
-                )}
-              </FormControl>
-
-              <FormControl
-                fullWidth
-                disabled={!editMode}
-                required
-                error={editMode && (!formData.organization || formData.organization === '')}
-              >
-                <InputLabel required error={editMode && (!formData.organization || formData.organization === '')}>
-                  Organization *
-                </InputLabel>
-                <MUISelect
-                  name="organization"
-                  value={formData.organization || ''}
-                  onChange={handleChange}
-                  label="Organization"
-                  required
-                  error={editMode && (!formData.organization || formData.organization === '')}
-                  sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
-                >
-                  <MenuItem value="">Select an organization</MenuItem>
-                  {organizations.map((org) => (
-                    <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
-                  ))}
-                </MUISelect>
-                {editMode && (!formData.organization || formData.organization === '') && (
-                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                    Organization is required
-                  </Typography>
-                )}
-              </FormControl>
-
-              {editMode ? (
-                <GooglePlacesAutocomplete
-                  value={formData.address || ''}
-                  onChange={val => setFormData(prev => ({ ...prev, address: val }))}
-                  disabled={!editMode}
-                />
-              ) : (
+      {!showAppointmentForm && (        <form onSubmit={handleSubmit}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="h6" sx={{ mb: 3 }}>Patient Information</Typography>
+            
+            {/* Two-column grid layout */}
+            <Box sx={{ 
+              display: 'grid', 
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, 
+              gap: 3,
+              mb: 3 
+            }}>
+              {/* Left Column */}
+              <Stack spacing={3}>
                 <TextField
-                  label="Address *"
-                  name="address"
-                  value={formData.address || ''}
+                  label="First Name *"
+                  name="first_name"
+                  value={formData.first_name || ''}
+                  onChange={handleChange}
                   fullWidth
                   required
-                  disabled
-                  InputProps={{ style: { color: '#333', background: '#f5f5f5' } }}
+                  disabled={!editMode}
+                  error={editMode && (!formData.first_name || formData.first_name.trim() === '')}
+                  helperText={editMode && (!formData.first_name || formData.first_name.trim() === '') ? 'First name is required' : ''}
+                  InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
                 />
-              )}
-            </Stack>
-          </Box>
+                
+                <TextField
+                  label="Last Name *"
+                  name="last_name"
+                  value={formData.last_name || ''}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={editMode && (!formData.last_name || formData.last_name.trim() === '')}
+                  helperText={editMode && (!formData.last_name || formData.last_name.trim() === '') ? 'Last name is required' : ''}
+                  InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                />
+                
+                <TextField
+                  label="Username *"
+                  name="username"
+                  value={formData.username || ''}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={editMode && (!formData.username || formData.username.trim() === '' || formData.username.length < 3)}
+                  helperText={editMode && (!formData.username || formData.username.trim() === '') ? 'Username is required' : 
+                            editMode && formData.username && formData.username.length < 3 ? 'Username must be at least 3 characters' : ''}
+                  InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                />
+                
+                <TextField
+                  label="Email *"
+                  name="email"
+                  type="email"
+                  value={editMode ? formatEmail(formData.email || '') : (formData.email || '')}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, email: val.replace(/\s+/g, '') }));
+                  }}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={editMode && (!formData.email || formData.email.trim() === '' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))}
+                  helperText={editMode && (!formData.email || formData.email.trim() === '') ? 'Email is required' :
+                            editMode && formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'Invalid email format' : ''}
+                  InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                />
+                
+                <TextField
+                  label="Phone Number *"
+                  name="phone_number"
+                  value={editMode ? formatPhoneNumber(formData.phone_number || '') : (formData.phone_number || '')}
+                  onChange={e => {
+                    const raw = e.target.value.replace(/\D/g, '');
+                    setFormData(prev => ({ ...prev, phone_number: raw }));
+                  }}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={editMode && (!formData.phone_number || formData.phone_number.length === 0 || formData.phone_number.length < 10)}
+                  helperText={editMode && (!formData.phone_number || formData.phone_number.length === 0) ? 'Phone number is required' :
+                            editMode && formData.phone_number && formData.phone_number.length > 0 && formData.phone_number.length < 10 ? 
+                            'Phone number must be at least 10 digits' : editMode ? 'Format: (555) 123-4567' : ''}
+                  InputProps={{
+                    ...(editMode ? {} : { style: { color: '#333', background: '#f5f5f5' } }),
+                    startAdornment: <InputAdornment position="start">📞</InputAdornment>,
+                  }}
+                />
+              </Stack>
 
-          {/* Medical History - Full Width */}
-          <TextField
-            label="Notes (Optional)"
-            name="medical_history"
-            value={formData.medical_history || ''}
-            onChange={handleChange}
-            fullWidth
-            disabled={!editMode}
-            multiline
-            rows={4}
-            helperText={editMode ? 'Optional - medical history, allergies, or other notes' : ''}
-            InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-            sx={{ mb: 2 }}
-          />
+              {/* Right Column */}
+              <Stack spacing={3}>
+                <TextField
+                  label="Date of Birth *"
+                  name="date_of_birth"
+                  type="date"
+                  value={formData.date_of_birth || ''}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '')}
+                  helperText={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '') ? 'Date of birth is required' : ''}
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                />
 
-          <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-            {editMode ? (
-              <>
-                <Button variant="contained" color="primary" type="submit">
-                  Save
-                </Button>
+                <FormControl fullWidth disabled={!editMode} required>
+                  <InputLabel required>Provider *</InputLabel>
+                  <MUISelect
+                    name="provider"
+                    value={formData.provider || ''}
+                    onChange={handleChange}
+                    label="Provider"
+                    required
+                    error={editMode && (!formData.provider || formData.provider === '')}
+                    sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                  >
+                    <MenuItem value="">Select a provider</MenuItem>
+                    {Array.isArray(doctors) && doctors.map((doc) => (
+                      <MenuItem key={doc.id} value={doc.id}>
+                        Dr. {doc.first_name} {doc.last_name}
+                      </MenuItem>
+                    ))}
+                  </MUISelect>
+                  {editMode && (!formData.provider || formData.provider === '') && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                      Provider is required
+                    </Typography>
+                  )}
+                </FormControl>
+
+                <FormControl 
+                  fullWidth 
+                  disabled={!editMode} 
+                  required
+                  error={editMode && (!formData.organization || formData.organization === '')}
+                >
+                  <InputLabel required error={editMode && (!formData.organization || formData.organization === '')}>
+                    Organization *
+                  </InputLabel>
+                  <MUISelect
+                    name="organization"
+                    value={formData.organization || ''}
+                    onChange={handleChange}
+                    label="Organization"
+                    required
+                    error={editMode && (!formData.organization || formData.organization === '')}
+                    sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                  >
+                    <MenuItem value="">Select an organization</MenuItem>
+                    {organizations.map((org) => (
+                      <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
+                    ))}
+                  </MUISelect>
+                  {editMode && (!formData.organization || formData.organization === '') && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                      Organization is required
+                    </Typography>
+                  )}
+                </FormControl>
+
+                {editMode ? (
+                  <GooglePlacesAutocomplete
+                    value={formData.address || ''}
+                    onChange={val => setFormData(prev => ({ ...prev, address: val }))}
+                    disabled={!editMode}
+                  />
+                ) : (
+                  <TextField
+                    label="Address *"
+                    name="address"
+                    value={formData.address || ''}
+                    fullWidth
+                    required
+                    disabled
+                    InputProps={{ style: { color: '#333', background: '#f5f5f5' } }}
+                  />
+                )}
+              </Stack>
+            </Box>
+
+            {/* Medical History - Full Width */}
+            <TextField
+              label="Notes (Optional)"
+              name="medical_history"
+              value={formData.medical_history || ''}
+              onChange={handleChange}
+              fullWidth
+              disabled={!editMode}
+              multiline
+              rows={4}
+              helperText={editMode ? 'Optional - medical history, allergies, or other notes' : ''}
+              InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+              sx={{ mb: 2 }}
+            />
+
+            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+              {editMode ? (
+                <>
+                  <Button variant="contained" color="primary" type="submit">
+                    Save
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={() => {
+                      setEditMode(false);
+                      setFormData(patient);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
                 <Button
                   variant="outlined"
-                  color="secondary"
-                  onClick={() => {
-                    setEditMode(false);
-                    setFormData(patient);
-                  }}
+                  color="warning"
+                  onClick={() => setEditMode(true)}
                 >
-                  Cancel
+                  Edit
                 </Button>
-              </>
-            ) : (
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={() => setEditMode(true)}
-              >
-                Edit
-              </Button>
-            )}              <Button
-              variant="contained"
-              color="success"
-              onClick={() => setShowAppointmentForm(true)}
-            >
-              Create Appointment
-            </Button>
+              )}
 
-            <Button
-              variant="outlined"
-              color="warning"
-              onClick={handleResetPassword}
-              sx={{
-                borderColor: '#ff9800',
-                color: '#ff9800',
-                '&:hover': {
-                  borderColor: '#f57c00',
-                  backgroundColor: '#fff3e0'
-                }
-              }}
-            >
-              Reset Password
-            </Button>
-          </Stack>
-        </Paper>
-      </form>
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => setShowAppointmentForm(true)}
+              >
+                Create Appointment
+              </Button>
+            </Stack>
+          </Paper>
+        </form>
       )}
 
       {showAppointmentForm && (
@@ -684,7 +617,7 @@ function PatientDetailPage() {
             onSuccess={() => {
               setShowAppointmentForm(false);
               navigate('/patients');
-            }} />
+            }}          />
         </div>
       )}
     </Box>
