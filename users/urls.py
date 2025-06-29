@@ -8,6 +8,7 @@ from .views import (
     get_patients,
     PatientDetailView,
     PatientUpdateView,
+    PatientMobileView,
     UserDetailView,
     change_password,
     admin_change_password,
@@ -37,7 +38,10 @@ urlpatterns = [
     path('patients/', get_patients, name='patient-list'),
     path('me/', get_current_user, name='current-user'),
     path('patients/by-user/<int:user_id>/', PatientDetailView.as_view(), name='patient-detail'),
-    path('patients/by-user/<int:user_id>/edit/', PatientUpdateView.as_view(), name='patient-update'),    path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('patients/by-user/<int:user_id>/edit/', PatientUpdateView.as_view(), name='patient-update'),
+    # Mobile app compatible URLs - using Patient primary key
+    path('patients/<int:pk>/', PatientMobileView.as_view(), name='patient-mobile'),
+    path('<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('change-password/', change_password, name='change-password'),
     path('admin-change-password/', admin_change_password, name='admin-change-password'),
     path('search/', search_users, name='user-search'),
@@ -45,8 +49,7 @@ urlpatterns = [
     path('send-sms/', send_sms, name='send-sms'),
     path('send-sms-email/', send_sms_email, name='send-sms-email'),    path('send-email/', send_patient_email, name='send-email'),
     path('contact-email/', send_contact_email, name='contact-email'),  # New public contact endpoint
-    path('contact-sms/', send_contact_sms, name='contact-sms'),  # New public SMS endpoint
-    path('patients/<int:user_id>/', PatientDeleteView.as_view(), name='patient-delete'),    path('providers/download-template/', DownloadProvidersCSVTemplate.as_view(), name='providers-download-template'),
+    path('contact-sms/', send_contact_sms, name='contact-sms'),  # New public SMS endpoint    path('providers/download-template/', DownloadProvidersCSVTemplate.as_view(), name='providers-download-template'),
     path('providers/upload-csv/', UploadProvidersCSV.as_view(), name='providers-upload-csv'),
     path('patients/download-template/', DownloadPatientsCSVTemplate.as_view(), name='patients-download-template'),
     path('patients/upload-csv/', UploadPatientsCSV.as_view(), name='patients-upload-csv'),

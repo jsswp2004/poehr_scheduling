@@ -10,7 +10,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
         model = Appointment
         fields = '__all__'  # This will include all model fields plus both name fields
         extra_kwargs = {
-            'patient': {'read_only': True},
             'provider': {'required': True},
         }
 
@@ -50,6 +49,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
                     'recurrence_end_date': 'Recurrence end date must be after the appointment start date.'
                 })
         return data
+
+    def update(self, instance, validated_data):
+        """Override update to handle Patient ID to CustomUser ID conversion"""
+        # The conversion is now handled in to_internal_value, so just call parent
+        return super().update(instance, validated_data)
 
     def get_patient_name(self, obj):
         if obj.patient:
