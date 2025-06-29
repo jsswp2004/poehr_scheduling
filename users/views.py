@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView, DestroyAPIView
+from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView, DestroyAPIView, RetrieveUpdateDestroyAPIView, CreateAPIView
 from rest_framework.parsers import MultiPartParser, JSONParser
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
@@ -14,6 +14,7 @@ from twilio.rest import Client
 import os
 import csv
 import logging
+from django.db import transaction
 
 from .models import CustomUser, Patient
 from .serializers import UserSerializer, PatientSerializer, OrganizationSerializer
@@ -64,7 +65,6 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to create organizations.")
         
-        print(f"✅ Permission granted, creating organization")
         serializer.save()
     
     def perform_update(self, serializer):
@@ -852,3 +852,24 @@ def admin_change_password(request):
     except CustomUser.DoesNotExist:
         print(f"❌ Target user with ID {target_user_id} not found")
         return Response({'detail': 'Target user not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+class PatientMobileView(RetrieveUpdateDestroyAPIView):
+    """
+    View to handle patient operations for mobile app.
+    Supports GET, PUT, PATCH, and DELETE operations using Patient primary key.
+    URL: /api/users/patients/{patient_id}/
+    """
+    queryset = Patient.objects.select_related('user')
+    serializer_class = PatientSerializer
+    permission_classes = [IsAuthenticated]
+    lookup_field = 'pk'  # Use Patient primary key, not user_id
+    
+    def update(self, request, *args, **kwargs):
+        # Print the incoming data to debug
+        print("Mobile Patient Update Data:", request.data)
+        print("Patient ID:", kwargs.get('pk'))
+        return super().update(request, *args, **kwargs)
+    
+    def destroy(self, request, *args, **kwargs):
+        print("Mobile Patient Delete - Patient ID:", kwargs.get('pk'))
+        return super().destroy(request, *args, **kwargs)
