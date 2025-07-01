@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import {
-  Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Avatar, Collapse, FormControl, InputLabel, Select as MUISelect, MenuItem, CircularProgress, Divider, Paper
+  Box, Stack, Typography, Button, TextField, IconButton, Avatar, Collapse, FormControl, InputLabel, Select as MUISelect, MenuItem, CircularProgress, Divider, Paper
 } from '@mui/material';
 import BackButton from '../components/BackButton';
 import EditIcon from '@mui/icons-material/Edit';
@@ -30,6 +30,7 @@ function ProfilePage() {
   const [uploading, setUploading] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [formData, setFormData] = useState({
+    username: '',
     first_name: '',
     last_name: '',
     email: '',
@@ -50,7 +51,7 @@ function ProfilePage() {
     if (!token) return;
 
     const decoded = jwtDecode(token);
-    const userId = decoded.user_id;    axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
+    const userId = decoded.user_id; axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => {
@@ -60,8 +61,9 @@ function ProfilePage() {
         }
         console.log('🔍 API Response:', res.data);
         console.log('🔍 Phone Number from API:', res.data.phone_number);
-        setUser(res.data);        
+        setUser(res.data);
         const newFormData = {
+          username: res.data.username,
           first_name: res.data.first_name,
           last_name: res.data.last_name,
           email: res.data.email,
@@ -90,6 +92,7 @@ function ProfilePage() {
   useEffect(() => {
     console.log('🔄 FormData State Updated:', formData);
     console.log('🔄 Phone Number in State:', formData.phone_number);
+    console.log('🔄 Username in State:', formData.username);
   }, [formData]);
   const handleSearch = async () => {
     try {
@@ -98,30 +101,30 @@ function ProfilePage() {
       const res = await axios.get(`http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       // System admins can see all users across organizations
       const isSystemAdmin = loggedInUserRole === 'system_admin';
-      
+
       // Filter results based on role and organization
       const filtered = res.data.filter(u => {
         // Always exclude patients from search results
         if (u.role === 'patient') return false;
-        
+
         // For system admins, include all non-patient users regardless of organization
         if (isSystemAdmin) return true;
-        
+
         // For other roles, only include users from the same organization
         if (!u.organization || !orgId) return false;
-        
+
         // Handle organization as object or ID
         if (typeof u.organization === 'object') return String(u.organization.id) === String(orgId);
         return String(u.organization) === String(orgId);
       });
-      
+
       setSearchResults(filtered);
       if (filtered.length === 0) {
-        toast.info(isSystemAdmin 
-          ? 'No matching users found.' 
+        toast.info(isSystemAdmin
+          ? 'No matching users found.'
           : 'No matching users found in your organization.'
         );
       }
@@ -159,10 +162,10 @@ function ProfilePage() {
       });
       setUser(response.data);
       setIsEditing(false);
-      
+
       // Notify navbar to refresh with updated data
       notifyProfileUpdated();
-      
+
       toast.success('Profile updated!');
     } catch (error) {
       console.error('Failed to update profile', error);
@@ -174,13 +177,13 @@ function ProfilePage() {
       const decoded = jwtDecode(token);
       const loggedInUserId = decoded.user_id;
       const loggedInUserRole = decoded.role;
-      
+
       // Check if admin is changing another user's password
       const isAdminChangingOtherUser = (
         (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') &&
         user.id !== loggedInUserId
       );
-      
+
       if (isAdminChangingOtherUser) {
         // Use admin password change endpoint
         const adminPasswordData = {
@@ -189,7 +192,7 @@ function ProfilePage() {
           new_password: passwordData.new_password,
           confirm_password: passwordData.confirm_password
         };
-        
+
         await axios.post('http://127.0.0.1:8000/api/users/admin-change-password/', adminPasswordData, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -199,7 +202,7 @@ function ProfilePage() {
           headers: { Authorization: `Bearer ${token}` }
         });
       }
-      
+
       toast.success('Password changed successfully');
       setPasswordData({ current_password: '', new_password: '', confirm_password: '' });
       setShowPasswordForm(false);
@@ -224,12 +227,12 @@ function ProfilePage() {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }      );
+        });
       setUser(res.data);
-      
+
       // Notify navbar to refresh with updated profile picture
       notifyProfileUpdated();
-      
+
       toast.success('Profile picture updated!');
       fileInputRef.current.value = '';
     } catch (err) {
@@ -248,24 +251,31 @@ function ProfilePage() {
   if (!user) return <Typography color="error" align="center">User not found.</Typography>;
 
   return (
-    <Box sx={{ mt: 4, maxWidth: 800, mx: 'auto' }}>
-      <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>        {/* Top Action Bar */}        
-        <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" mb={1}>
-          <Stack direction="row" spacing={1} alignItems="center">
+    <Box sx={{ mt: 4, maxWidth: 1200, mx: 'auto', px: 2 }}>
+      <Paper elevation={3} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: '100%' }}>        {/* Top Action Bar */}
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          justifyContent="space-between"
+          mb={2}
+          sx={{ flexWrap: 'wrap' }}
+        >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
             <TextField
               size="small"
               variant="outlined"
               placeholder="Search Profile 🔍"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              sx={{ minWidth: 200 }}
+              sx={{ minWidth: { xs: '100%', sm: 200 } }}
             />
             <Button
               variant="contained"
               color="primary"
               startIcon={<SearchIcon />}
               onClick={handleSearch}
-              sx={{ height: 40 }}
+              sx={{ height: 40, minWidth: 100 }}
             >
               Search
             </Button>
@@ -273,79 +283,219 @@ function ProfilePage() {
               variant="contained"
               color="success"
               onClick={() => navigate('/create-profile')}
-              sx={{ height: 40 }}
+              sx={{ height: 40, minWidth: 120 }}
             >
               Create Profile
             </Button>
           </Stack>
           <BackButton />
-        </Stack>{/* Search Results */}
+        </Stack>        {/* Search Results */}
         {searchResults.length > 0 && (
-          <Box sx={{ mb: 3, border: '1px solid #eee', borderRadius: 1, p: 2, maxHeight: 250, overflowY: 'auto' }}>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}><b>Search Results</b></Typography>
-            <table style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th align="left">Name</th>
-                  <th align="left">Email</th>
-                  <th align="left">Role</th>
-                  {loggedInUserRole === 'system_admin' && <th align="left">Organization</th>}
-                  <th align="left">Select</th>
-                  {(loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') && (
-                    <th align="left">Delete</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {searchResults.map((result) => (
-                  <tr key={result.id}>
-                    <td>{result.first_name} {result.last_name}</td>
-                    <td>{result.email}</td>
-                    <td>{result.role}</td>
+          <Box sx={{
+            mb: 3,
+            border: '1px solid #eee',
+            borderRadius: 2,
+            p: { xs: 1, sm: 2 },
+            maxHeight: 400,
+            overflowY: 'auto',
+            bgcolor: '#fafafa',
+            width: '100%'
+          }}>
+            <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600, color: 'primary.main' }}>
+              Search Results ({searchResults.length} found)
+            </Typography>
+            <Box sx={{
+              overflowX: 'auto',
+              width: '100%',
+              '&::-webkit-scrollbar': {
+                height: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: '#f1f1f1',
+                borderRadius: '4px'
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#c1c1c1',
+                borderRadius: '4px',
+                '&:hover': {
+                  backgroundColor: '#a8a8a8'
+                }
+              }
+            }}>
+              <table style={{
+                width: '100%',
+                minWidth: loggedInUserRole === 'system_admin' ? '800px' : '600px',
+                borderCollapse: 'collapse',
+                fontSize: '0.875rem'
+              }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#e3f2fd' }}>
+                    <th style={{
+                      padding: '8px 12px',
+                      textAlign: 'left',
+                      fontWeight: 600,
+                      borderBottom: '2px solid #ddd',
+                      minWidth: '120px'
+                    }}>Name</th>
+                    <th style={{
+                      padding: '8px 12px',
+                      textAlign: 'left',
+                      fontWeight: 600,
+                      borderBottom: '2px solid #ddd',
+                      minWidth: '100px'
+                    }}>Username</th>
+                    <th style={{
+                      padding: '8px 12px',
+                      textAlign: 'left',
+                      fontWeight: 600,
+                      borderBottom: '2px solid #ddd',
+                      minWidth: '150px'
+                    }}>Email</th>
+                    <th style={{
+                      padding: '8px 12px',
+                      textAlign: 'left',
+                      fontWeight: 600,
+                      borderBottom: '2px solid #ddd',
+                      minWidth: '80px'
+                    }}>Role</th>
                     {loggedInUserRole === 'system_admin' && (
-                      <td>
-                        {result.organization_name || 
-                         (result.organization && typeof result.organization === 'object' 
-                          ? result.organization.name 
-                          : 'Unknown')}
-                      </td>
+                      <th style={{
+                        padding: '8px 12px',
+                        textAlign: 'left',
+                        fontWeight: 600,
+                        borderBottom: '2px solid #ddd',
+                        minWidth: '120px'
+                      }}>Organization</th>
                     )}
-                    <td>
-                      <Button
-                        size="small"
-                        variant="outlined"
-                        onClick={() => {
-                          setUser(result);                          setFormData({
-                            first_name: result.first_name,
-                            last_name: result.last_name,
-                            email: result.email,
-                            phone_number: result.phone_number || '',
-                            organization: result.organization,
-                            role: result.role,
-                          });
-                          setSearchResults([]);
-                        }}
-                      >
-                        Select
-                      </Button>
-                    </td>
+                    <th style={{
+                      padding: '8px 12px',
+                      textAlign: 'center',
+                      fontWeight: 600,
+                      borderBottom: '2px solid #ddd',
+                      minWidth: '70px'
+                    }}>Select</th>
                     {(loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') && (
-                      <td>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDelete(result.id)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </td>
+                      <th style={{
+                        padding: '8px 12px',
+                        textAlign: 'center',
+                        fontWeight: 600,
+                        borderBottom: '2px solid #ddd',
+                        minWidth: '60px'
+                      }}>Delete</th>
                     )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {searchResults.map((result, index) => (
+                    <tr key={result.id} style={{
+                      backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                      borderBottom: '1px solid #eee'
+                    }}>
+                      <td style={{
+                        padding: '8px 12px',
+                        maxWidth: '120px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {result.first_name} {result.last_name}
+                      </td>
+                      <td style={{
+                        padding: '8px 12px',
+                        maxWidth: '100px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem'
+                      }}>
+                        {result.username}
+                      </td>
+                      <td style={{
+                        padding: '8px 12px',
+                        maxWidth: '150px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontSize: '0.8rem'
+                      }}>
+                        {result.email}
+                      </td>
+                      <td style={{
+                        padding: '8px 12px',
+                        textTransform: 'capitalize',
+                        fontSize: '0.8rem'
+                      }}>
+                        {result.role}
+                      </td>
+                      {loggedInUserRole === 'system_admin' && (
+                        <td style={{
+                          padding: '8px 12px',
+                          maxWidth: '120px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          fontSize: '0.8rem'
+                        }}>
+                          {result.organization_name ||
+                            (result.organization && typeof result.organization === 'object'
+                              ? result.organization.name
+                              : 'Unknown')}
+                        </td>
+                      )}
+                      <td style={{
+                        padding: '8px 12px',
+                        textAlign: 'center'
+                      }}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => {
+                            setUser(result);
+                            setFormData({
+                              username: result.username,
+                              first_name: result.first_name,
+                              last_name: result.last_name,
+                              email: result.email,
+                              phone_number: result.phone_number || '',
+                              organization: result.organization,
+                              role: result.role,
+                            });
+                            setSearchResults([]);
+                          }}
+                          sx={{
+                            minWidth: 60,
+                            fontSize: '0.75rem',
+                            px: 1,
+                            py: 0.5
+                          }}
+                        >
+                          Select
+                        </Button>
+                      </td>
+                      {(loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') && (
+                        <td style={{
+                          padding: '8px 12px',
+                          textAlign: 'center'
+                        }}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDelete(result.id)}
+                            sx={{ padding: '4px' }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
           </Box>
-        )}        <Divider sx={{ mb: 3 }} />
+        )}
+        <Divider sx={{ mb: 3 }} />
         <Typography variant="h6" sx={{ mb: 3 }}>User Information</Typography>
 
         {/* Two-Column Layout */}
@@ -355,14 +505,14 @@ function ProfilePage() {
             {/* Profile Picture Section */}
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
               <Avatar
-                src={user.profile_picture 
+                src={user.profile_picture
                   ? (user.profile_picture.startsWith('http') ? user.profile_picture : `http://127.0.0.1:8000${user.profile_picture}`)
                   : undefined
                 }
                 alt="Profile"
-                sx={{ 
-                  width: 160, 
-                  height: 160, 
+                sx={{
+                  width: 160,
+                  height: 160,
                   borderRadius: 3,
                   bgcolor: user.profile_picture ? 'transparent' : 'grey.300',
                   fontSize: '4rem',
@@ -374,7 +524,7 @@ function ProfilePage() {
               >
                 {!user.profile_picture && (user.first_name?.[0] || 'U')}
               </Avatar>
-              
+
               {/* Upload Profile Picture Button */}
               <Button
                 variant="contained"
@@ -382,7 +532,7 @@ function ProfilePage() {
                 size="medium"
                 disabled={uploading}
                 startIcon={uploading ? <CircularProgress size={16} color="inherit" /> : null}
-                sx={{ 
+                sx={{
                   minWidth: 160,
                   borderRadius: 2,
                   textTransform: 'none',
@@ -431,11 +581,11 @@ function ProfilePage() {
                   }}
                 />
               ) : (
-                <Paper 
-                  elevation={1} 
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
                     bgcolor: '#f8f9fa',
                     border: '1px solid #e0e0e0'
                   }}
@@ -453,6 +603,22 @@ function ProfilePage() {
           {/* Right Column - User Information Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
             <TextField
+              label="Username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              fullWidth
+              size="small"
+              disabled={!isEditing}
+              variant="outlined"
+              InputProps={{
+                readOnly: !isEditing,
+                sx: !isEditing ? { color: '#333', backgroundColor: '#f8f9fa', WebkitTextFillColor: '#333' } : {},
+              }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+            />
+
+            <TextField
               label="First Name"
               name="first_name"
               value={formData.first_name}
@@ -467,7 +633,7 @@ function ProfilePage() {
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-            
+
             <TextField
               label="Last Name"
               name="last_name"
@@ -483,7 +649,7 @@ function ProfilePage() {
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-            
+
             <TextField
               label="Email"
               name="email"
@@ -500,7 +666,7 @@ function ProfilePage() {
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-            
+
             <TextField
               label="Phone Number"
               name="phone_number"
@@ -519,11 +685,8 @@ function ProfilePage() {
               }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
             />
-            
-            {/* Debug: Phone Number Field Value */}
-            <Typography variant="caption" color="textSecondary">
-              Debug - Phone Number Value: "{formData.phone_number}" (Length: {formData.phone_number?.length || 0})
-            </Typography>            {/* Role Selection */}
+
+            {/* Role Selection */}
             <Box>
               <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600, color: 'primary.main' }}>
                 Role
@@ -548,11 +711,11 @@ function ProfilePage() {
                   </MUISelect>
                 </FormControl>
               ) : (
-                <Paper 
-                  elevation={1} 
-                  sx={{ 
-                    p: 2, 
-                    borderRadius: 2, 
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
                     bgcolor: '#f8f9fa',
                     border: '1px solid #e0e0e0'
                   }}
@@ -572,7 +735,7 @@ function ProfilePage() {
                   color="primary"
                   startIcon={<EditIcon />}
                   onClick={() => setIsEditing(true)}
-                  sx={{ 
+                  sx={{
                     minWidth: 140,
                     borderRadius: 2,
                     textTransform: 'none',
@@ -590,7 +753,7 @@ function ProfilePage() {
                     startIcon={<SaveIcon />}
                     onClick={handleSave}
                     disabled={uploading}
-                    sx={{ 
+                    sx={{
                       minWidth: 120,
                       borderRadius: 2,
                       textTransform: 'none',
@@ -607,6 +770,7 @@ function ProfilePage() {
                     onClick={() => {
                       setIsEditing(false);
                       setFormData({
+                        username: user.username,
                         first_name: user.first_name,
                         last_name: user.last_name,
                         email: user.email,
@@ -615,7 +779,7 @@ function ProfilePage() {
                         role: user.role,
                       });
                     }}
-                    sx={{ 
+                    sx={{
                       minWidth: 120,
                       borderRadius: 2,
                       textTransform: 'none',
@@ -642,7 +806,7 @@ function ProfilePage() {
               color="primary"
               startIcon={<LockResetIcon />}
               onClick={() => setShowPasswordForm(v => !v)}
-              sx={{ 
+              sx={{
                 minWidth: 180,
                 borderRadius: 2,
                 textTransform: 'none',
@@ -652,7 +816,7 @@ function ProfilePage() {
               {showPasswordForm ? 'Cancel' : 'Change Password'}
             </Button>
           </Box>
-            <Collapse in={showPasswordForm}>
+          <Collapse in={showPasswordForm}>
             <Paper elevation={1} sx={{ p: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
               {(() => {
                 const decoded = jwtDecode(token);
@@ -662,13 +826,13 @@ function ProfilePage() {
                   (loggedInUserRole === 'admin' || loggedInUserRole === 'system_admin') &&
                   user.id !== loggedInUserId
                 );
-                
+
                 return (
                   <Stack spacing={2.5}>
                     {isAdminChangingOtherUser && (
                       <Box sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1, mb: 1 }}>
                         <Typography variant="body2" color="info.contrastText">
-                          🔑 You are changing the password for <strong>{user.first_name} {user.last_name}</strong>. 
+                          🔑 You are changing the password for <strong>{user.first_name} {user.last_name}</strong>.
                           Please enter your admin password below for verification.
                         </Typography>
                       </Box>
@@ -705,11 +869,11 @@ function ProfilePage() {
                       sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
                     />
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button 
-                        variant="contained" 
-                        color="success" 
+                      <Button
+                        variant="contained"
+                        color="success"
                         onClick={handlePasswordChange}
-                        sx={{ 
+                        sx={{
                           minWidth: 180,
                           borderRadius: 2,
                           textTransform: 'none',
