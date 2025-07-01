@@ -1,0 +1,2 @@
+username,email,first_name,last_name,organization,phone_number,provider,role,password
+test_doctor2,doctor2@test.com,Bob,Johnson,Test Clinic,555-9999,,doctor,testpass123
