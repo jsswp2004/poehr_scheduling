@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
-  Box, Stack, Typography, Button, TextField, IconButton, Tooltip, Paper, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, FormControl, InputLabel, Select as MUISelect, Alert,
+  Box, Stack, Typography, Button, Paper, Alert,
   Table, TableHead, TableRow, TableCell, TableBody, Checkbox, Tabs, Tab, CircularProgress
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import axios from 'axios';
 import HolidaysTab from './HolidaysPage';
-import OrganizationPage from './OrganizationPage';
+import OrganizationManagement from '../components/OrganizationManagement';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-import BackButton from '../components/BackButton';
 
 const DAYS = [
   { label: 'Mon', value: 1 },
@@ -21,26 +19,11 @@ const DAYS = [
   { label: 'Sun', value: 0 },
 ];
 
-const HOLIDAYS = [
-  { name: 'New Year\'s Day', date: '2024-01-01' },
-  { name: 'Martin Luther King, Jr. Day', date: '2024-01-15' },
-  { name: 'Washington’s Birthday', date: '2024-02-19' },
-  { name: 'Memorial Day', date: '2024-05-27' },
-  { name: 'Juneteenth National Independence Day', date: '2024-06-19' },
-  { name: 'Independence Day', date: '2024-07-04' },
-  { name: 'Labor Day', date: '2024-09-02' },
-  { name: 'Columbus Day', date: '2024-10-14' },
-  { name: 'Veterans Day', date: '2024-11-11' },
-  { name: 'Thanksgiving Day', date: '2024-11-28' },
-  { name: 'Christmas Day', date: '2024-12-25' }
-];
-
 function EnvironmentProfilePage() {
   const [blockedDays, setBlockedDays] = useState([0, 6]);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
-  const [selectedHolidays, setSelectedHolidays] = useState([]);
   const [tabKey, setTabKey] = useState('blocked-days');
   const navigate = useNavigate();
 
@@ -142,7 +125,8 @@ function EnvironmentProfilePage() {
               color: 'primary.dark',
             },
           },
-        }}      >
+        }}
+      >
         <Tab label="Default Blocked Days" value="blocked-days" />
         <Tab label="Holidays" value="holidays" />
         <Tab label="Organization" value="organization" />
@@ -189,13 +173,21 @@ function EnvironmentProfilePage() {
             Select which days are <b>blocked by default</b> for clinic scheduling. Unchecked days are available for appointments.
           </Typography>
         </Paper>
-      )}      {tabKey === 'holidays' && (
+      )}
+
+      {tabKey === 'holidays' && (
         <HolidaysTab />
       )}
 
       {tabKey === 'organization' && (
-        <OrganizationPage />
-      )}      
+        <Paper variant="outlined" sx={{ p: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>🏢 Organization Management</Typography>
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Organization Management component is loading...
+          </Alert>
+          <OrganizationManagement />
+        </Paper>
+      )}
     </Box>
   );
 }

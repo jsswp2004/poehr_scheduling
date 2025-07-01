@@ -49,7 +49,8 @@ urlpatterns = [
     path('send-sms/', send_sms, name='send-sms'),
     path('send-sms-email/', send_sms_email, name='send-sms-email'),    path('send-email/', send_patient_email, name='send-email'),
     path('contact-email/', send_contact_email, name='contact-email'),  # New public contact endpoint
-    path('contact-sms/', send_contact_sms, name='contact-sms'),  # New public SMS endpoint    path('providers/download-template/', DownloadProvidersCSVTemplate.as_view(), name='providers-download-template'),
+    path('contact-sms/', send_contact_sms, name='contact-sms'),  # New public SMS endpoint    
+    path('providers/download-template/', DownloadProvidersCSVTemplate.as_view(), name='providers-download-template'),
     path('providers/upload-csv/', UploadProvidersCSV.as_view(), name='providers-upload-csv'),
     path('patients/download-template/', DownloadPatientsCSVTemplate.as_view(), name='patients-download-template'),
     path('patients/upload-csv/', UploadPatientsCSV.as_view(), name='patients-upload-csv'),
