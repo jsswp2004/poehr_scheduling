@@ -379,7 +379,7 @@ class EnvironmentSettingView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [permissions.IsAuthenticated()]  # All logged-in users can read
-        return [permissions.IsAdminUser()]          # Only admin can edit
+        return [IsAdminOrSystemAdmin()]             # Only admin or system_admin can edit
 
     def get(self, request):
         # Get or create the environment settings
