@@ -602,22 +602,38 @@ function ProfilePage() {
 
           {/* Right Column - User Information Fields */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <TextField
-              label="Username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              fullWidth
-              size="small"
-              disabled={!isEditing}
-              variant="outlined"
-              InputProps={{
-                readOnly: !isEditing,
-                sx: !isEditing ? { color: '#333', backgroundColor: '#f8f9fa', WebkitTextFillColor: '#333' } : {},
-              }}
-              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
-            />
-
+            {/* Username Field - Always Visible */}
+            <Box>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600, color: 'primary.main' }}>
+                Username
+              </Typography>
+              {!isEditing ? (
+                <Paper
+                  elevation={1}
+                  sx={{
+                    p: 2,
+                    borderRadius: 2,
+                    bgcolor: '#f8f9fa',
+                    border: '1px solid #e0e0e0'
+                  }}
+                >
+                  <Typography variant="body1" sx={{ fontWeight: 500, fontFamily: 'monospace', fontSize: '1.1rem' }}>
+                    {formData.username || 'No username set'}
+                  </Typography>
+                </Paper>
+              ) : (
+                <TextField
+                  label="Username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  fullWidth
+                  size="small"
+                  variant="outlined"
+                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2 } }}
+                />
+              )}
+            </Box>
             <TextField
               label="First Name"
               name="first_name"
