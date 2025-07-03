@@ -36,7 +36,7 @@ function OrganizationPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [selectedLogo, setSelectedLogo] = useState(null);
-  const [previewLogo, setPreviewLogo] = useState(null);  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState(false);
+  const [previewLogo, setPreviewLogo] = useState(null); const [deleteConfirmDialog, setDeleteConfirmDialog] = useState(false);
   const [organizationToDelete, setOrganizationToDelete] = useState(null);
   const [editingOrganization, setEditingOrganization] = useState(null);
 
@@ -93,10 +93,10 @@ function OrganizationPage() {
   const fetchUserOrganization = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (!token || !currentUser?.organization) return;      const response = await axios.get(`http://127.0.0.1:8000/api/users/organizations/${currentUser.organization}/`, {
+      if (!token || !currentUser?.organization) return; const response = await axios.get(`http://127.0.0.1:8000/api/users/organizations/${currentUser.organization}/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       setUserOrganization(response.data);
       setFormData({
         name: response.data.name,
@@ -113,10 +113,15 @@ function OrganizationPage() {
   const fetchAllOrganizations = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) return;      const response = await axios.get('http://127.0.0.1:8000/api/users/organizations/', {
+      if (!token) return; const response = await axios.get('http://127.0.0.1:8000/api/users/organizations/', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
+      console.log('Organizations data:', response.data);
+      response.data.forEach(org => {
+        console.log(`Organization: ${org.name}, Logo: ${org.logo}`);
+      });
+
       setAllOrganizations(response.data);
       setFilteredOrganizations(response.data);
     } catch (error) {
@@ -152,7 +157,7 @@ function OrganizationPage() {
     try {
       const token = localStorage.getItem('access_token');
       const formDataToSend = new FormData();
-      
+
       formDataToSend.append('name', formData.name);
       if (selectedLogo) {
         formDataToSend.append('logo', selectedLogo);
@@ -172,7 +177,7 @@ function OrganizationPage() {
 
       if (editingOrganization) {
         // Update the organization in the search results
-        setAllOrganizations(prev => 
+        setAllOrganizations(prev =>
           prev.map(org => org.id === organizationId ? response.data : org)
         );
         setEditingOrganization(null);
@@ -180,7 +185,7 @@ function OrganizationPage() {
         // Update user's own organization
         setUserOrganization(response.data);
       }
-      
+
       setFormData({
         name: response.data.name,
         logo: response.data.logo
@@ -189,7 +194,7 @@ function OrganizationPage() {
       setSelectedLogo(null);
       setPreviewLogo(null);
       toast.success('Organization updated successfully!');
-      
+
       // Refresh all organizations list if user is system admin
       if (canSearch) {
         fetchAllOrganizations();
@@ -226,7 +231,7 @@ function OrganizationPage() {
     setEditMode(true);
     setSelectedLogo(null);
     setPreviewLogo(null);
-    
+
     // Scroll to top to show the edit form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -237,7 +242,7 @@ function OrganizationPage() {
       await axios.delete(`http://127.0.0.1:8000/api/users/organizations/${orgId}/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       toast.success('Organization deleted successfully!');
       fetchAllOrganizations();
       setDeleteConfirmDialog(false);
@@ -246,6 +251,23 @@ function OrganizationPage() {
       console.error('Failed to delete organization:', error);
       toast.error('Failed to delete organization');
     }
+  };
+
+  // Utility function to construct logo URL
+  const getLogoUrl = (logoPath) => {
+    if (!logoPath || logoPath.trim() === '') {
+      console.log('No logo path provided:', logoPath);
+      return null;
+    }
+
+    if (logoPath.startsWith('http')) {
+      console.log('Using external URL:', logoPath);
+      return logoPath;
+    }
+
+    const constructedUrl = `http://127.0.0.1:8000/media/${logoPath}`;
+    console.log('Constructed media URL:', constructedUrl);
+    return constructedUrl;
   };
 
   if (loading) {
@@ -260,97 +282,98 @@ function OrganizationPage() {
     <Box sx={{ width: '100%' }}>
       {/* User's Organization Section */}
       <Paper variant="outlined" sx={{ p: 3, mb: 3 }}>        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
-            {editingOrganization ? `Editing: ${editingOrganization.name}` : 'My Organization'}
-          </Typography>
-          {canEdit && (
-            <Stack direction="row" spacing={1}>
-              {!editMode ? (
+        <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+          {editingOrganization ? `Editing: ${editingOrganization.name}` : 'My Organization'}
+        </Typography>
+        {canEdit && (
+          <Stack direction="row" spacing={1}>
+            {!editMode ? (
+              <Button
+                variant="outlined"
+                startIcon={<Edit />}
+                onClick={() => setEditMode(true)}
+                size="small"
+              >
+                Edit
+              </Button>
+            ) : (
+              <>
                 <Button
-                  variant="outlined"
-                  startIcon={<Edit />}
-                  onClick={() => setEditMode(true)}
+                  variant="contained"
+                  startIcon={saving ? <CircularProgress size={16} /> : <Save />}
+                  onClick={handleSave}
+                  disabled={saving}
                   size="small"
                 >
-                  Edit
+                  Save
                 </Button>
-              ) : (
-                <>
-                  <Button
-                    variant="contained"
-                    startIcon={saving ? <CircularProgress size={16} /> : <Save />}
-                    onClick={handleSave}
-                    disabled={saving}
-                    size="small"
-                  >
-                    Save
-                  </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<Cancel />}
+                  onClick={handleCancel}
+                  disabled={saving}
+                  size="small"
+                >
+                  Cancel
+                </Button>
+              </>
+            )}
+          </Stack>
+        )}
+      </Stack>        {(userOrganization || editingOrganization) ? (
+        <Stack direction="row" spacing={3} alignItems="start">
+          <Box>              <Avatar
+            src={previewLogo || getLogoUrl((editingOrganization || userOrganization).logo)}
+            sx={{ width: 80, height: 80, border: '2px solid #e0e0e0' }}
+            onError={(e) => {
+              const org = editingOrganization || userOrganization;
+              console.log(`Main logo failed to load for ${org.name}:`, org.logo);
+              console.log('Attempted URL:', getLogoUrl(org.logo));
+            }}
+          >
+            {(editingOrganization || userOrganization).name.charAt(0).toUpperCase()}
+          </Avatar>
+            {editMode && (
+              <Stack spacing={1} sx={{ mt: 2 }}>
+                <input
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  id="logo-upload"
+                  type="file"
+                  onChange={handleLogoChange}
+                />
+                <label htmlFor="logo-upload">
                   <Button
                     variant="outlined"
-                    startIcon={<Cancel />}
-                    onClick={handleCancel}
-                    disabled={saving}
+                    component="span"
+                    startIcon={<Upload />}
                     size="small"
+                    fullWidth
                   >
-                    Cancel
+                    Upload Logo
                   </Button>
-                </>
-              )}
-            </Stack>
-          )}
-        </Stack>        {(userOrganization || editingOrganization) ? (
-          <Stack direction="row" spacing={3} alignItems="start">
-            <Box>              <Avatar
-                src={previewLogo || ((editingOrganization || userOrganization).logo ? (
-                  (editingOrganization || userOrganization).logo.startsWith('http') 
-                    ? (editingOrganization || userOrganization).logo 
-                    : `http://127.0.0.1:8000${(editingOrganization || userOrganization).logo}`
-                ) : null)}
-                sx={{ width: 80, height: 80, border: '2px solid #e0e0e0' }}
-              >
-                {(editingOrganization || userOrganization).name.charAt(0).toUpperCase()}
-              </Avatar>
-              {editMode && (
-                <Stack spacing={1} sx={{ mt: 2 }}>
-                  <input
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    id="logo-upload"
-                    type="file"
-                    onChange={handleLogoChange}
-                  />
-                  <label htmlFor="logo-upload">
-                    <Button
-                      variant="outlined"
-                      component="span"
-                      startIcon={<Upload />}
-                      size="small"
-                      fullWidth
-                    >
-                      Upload Logo
-                    </Button>
-                  </label>
-                </Stack>
-              )}
-            </Box>
+                </label>
+              </Stack>
+            )}
+          </Box>
 
-            <Box sx={{ flex: 1 }}>
-              <TextField
-                label="Organization Name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-                fullWidth
-                disabled={!editMode}
-                variant={editMode ? "outlined" : "filled"}
-                sx={{ mb: 2 }}
-              />
-              
-              <Typography variant="body2" color="text.secondary">
-                <strong>Created:</strong> {new Date((editingOrganization || userOrganization).created_at).toLocaleDateString()}
-              </Typography>
-            </Box>
-          </Stack>        ) : !editingOrganization ? (
+          <Box sx={{ flex: 1 }}>
+            <TextField
+              label="Organization Name"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              fullWidth
+              disabled={!editMode}
+              variant={editMode ? "outlined" : "filled"}
+              sx={{ mb: 2 }}
+            />
+
+            <Typography variant="body2" color="text.secondary">
+              <strong>Created:</strong> {new Date((editingOrganization || userOrganization).created_at).toLocaleDateString()}
+            </Typography>
+          </Box>
+        </Stack>) : !editingOrganization ? (
           <Alert severity="info">
             No organization found. Please contact your administrator.
           </Alert>
@@ -363,7 +386,7 @@ function OrganizationPage() {
           <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
             All Organizations (System Admin)
           </Typography>
-          
+
           <TextField
             label="Search Organizations"
             value={searchQuery}
@@ -381,31 +404,31 @@ function OrganizationPage() {
           />
 
           <Table size="small">            <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell sx={{ fontWeight: 'bold' }}>Logo</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Created</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
+            <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+              <TableCell sx={{ fontWeight: 'bold' }}>Logo</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Created</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+            </TableRow>
+          </TableHead>
             <TableBody>
               {filteredOrganizations.map((org) => (
-                <TableRow 
-                  key={org.id} 
-                  hover 
-                  sx={{ 
+                <TableRow
+                  key={org.id}
+                  hover
+                  sx={{
                     cursor: 'pointer',
                     backgroundColor: editingOrganization?.id === org.id ? '#e3f2fd' : 'inherit'
                   }}
                   onClick={() => handleEditOrganization(org)}
                 >                  <TableCell>
                     <Avatar
-                      src={org.logo ? (
-                        org.logo.startsWith('http') 
-                          ? org.logo 
-                          : `http://127.0.0.1:8000${org.logo}`
-                      ) : null}
+                      src={getLogoUrl(org.logo)}
                       sx={{ width: 40, height: 40 }}
+                      onError={(e) => {
+                        console.log(`Logo failed to load for ${org.name}:`, org.logo);
+                        console.log('Attempted URL:', getLogoUrl(org.logo));
+                      }}
                     >
                       {org.name.charAt(0).toUpperCase()}
                     </Avatar>
@@ -447,7 +470,7 @@ function OrganizationPage() {
       >
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete the organization "{organizationToDelete?.name}"? 
+          Are you sure you want to delete the organization "{organizationToDelete?.name}"?
           This action cannot be undone.
         </DialogContent>
         <DialogActions>
