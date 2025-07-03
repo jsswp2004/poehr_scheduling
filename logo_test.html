@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Organization Logos Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      .logo-test {
+        margin: 20px 0;
+        padding: 15px;
+        border: 1px solid #ddd;
+      }
+      .logo-img {
+        max-width: 200px;
+        max-height: 200px;
+        border: 2px solid #ccc;
+      }
+      .error {
+        color: red;
+      }
+      .success {
+        color: green;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Organization Logos Test</h1>
+    <p>Testing if organization logos are accessible via direct URLs:</p>
+
+    <div class="logo-test">
+      <h3>Desert Regional Hospital</h3>
+      <p>
+        <strong>URL:</strong>
+        <code
+          >http://127.0.0.1:8000/media/org_logos/DesertRegionalLogo_V7MKPFF.png</code
+        >
+      </p>
+      <img
+        src="http://127.0.0.1:8000/media/org_logos/DesertRegionalLogo_V7MKPFF.png"
+        alt="Desert Regional Hospital Logo"
+        class="logo-img"
+        onload="this.nextElementSibling.textContent = '✅ Image loaded successfully'"
+        onerror="this.nextElementSibling.textContent = '❌ Failed to load image'; this.nextElementSibling.className = 'error'"
+      />
+      <p class="success">Loading...</p>
+    </div>
+
+    <div class="logo-test">
+      <h3>SUNY Downstate</h3>
+      <p>
+        <strong>URL:</strong>
+        <code>http://127.0.0.1:8000/media/org_logos/SUNY_l4sOAKE.png</code>
+      </p>
+      <img
+        src="http://127.0.0.1:8000/media/org_logos/SUNY_l4sOAKE.png"
+        alt="SUNY Downstate Logo"
+        class="logo-img"
+        onload="this.nextElementSibling.textContent = '✅ Image loaded successfully'"
+        onerror="this.nextElementSibling.textContent = '❌ Failed to load image'; this.nextElementSibling.className = 'error'"
+      />
+      <p class="success">Loading...</p>
+    </div>
+
+    <div class="logo-test">
+      <h3>POWER IT</h3>
+      <p>
+        <strong>URL:</strong>
+        <code
+          >http://127.0.0.1:8000/media/org_logos/POWER_Scheduler_Logo_Design_Kt4KUyZ_TJWuHXO.png</code
+        >
+      </p>
+      <img
+        src="http://127.0.0.1:8000/media/org_logos/POWER_Scheduler_Logo_Design_Kt4KUyZ_TJWuHXO.png"
+        alt="POWER IT Logo"
+        class="logo-img"
+        onload="this.nextElementSibling.textContent = '✅ Image loaded successfully'"
+        onerror="this.nextElementSibling.textContent = '❌ Failed to load image'; this.nextElementSibling.className = 'error'"
+      />
+      <p class="success">Loading...</p>
+    </div>
+
+    <script>
+      // Additional debugging
+      console.log("Organization Logos Test Page Loaded");
+
+      // Test direct fetch of images
+      const urls = [
+        "http://127.0.0.1:8000/media/org_logos/DesertRegionalLogo_V7MKPFF.png",
+        "http://127.0.0.1:8000/media/org_logos/SUNY_l4sOAKE.png",
+        "http://127.0.0.1:8000/media/org_logos/POWER_Scheduler_Logo_Design_Kt4KUyZ_TJWuHXO.png",
+      ];
+
+      urls.forEach((url) => {
+        fetch(url, { method: "HEAD" })
+          .then((response) => {
+            console.log(`${url}: ${response.status} ${response.statusText}`);
+          })
+          .catch((error) => {
+            console.error(`${url}: Error - ${error.message}`);
+          });
+      });
+    </script>
+  </body>
+</html>
