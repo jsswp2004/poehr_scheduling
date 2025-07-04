@@ -74,6 +74,13 @@ function OrganizationManagement() {
     const isSystemAdmin = currentUser && (currentUser.role === 'system_admin' || currentUser.role === 'admin');
     const isAdmin = currentUser && ['admin', 'system_admin'].includes(currentUser.role);
 
+    // Helper function to properly construct logo URLs
+    const getLogoUrl = (logoPath) => {
+        if (!logoPath) return null;
+        if (logoPath.startsWith('http')) return logoPath;
+        return `http://127.0.0.1:8000${logoPath}`;
+    };
+
     useEffect(() => {
         fetchCurrentUser();
     }, []);
@@ -406,8 +413,12 @@ function OrganizationManagement() {
                     <Grid container spacing={2} alignItems="center">
                         <Grid item>
                             <Avatar
-                                src={userOrganization.logo ? `http://127.0.0.1:8000${userOrganization.logo}` : undefined}
+                                src={getLogoUrl(userOrganization.logo)}
                                 sx={{ width: 60, height: 60 }}
+                                onError={(e) => {
+                                    console.log(`User org logo failed to load for ${userOrganization.name}:`, userOrganization.logo);
+                                    console.log('Attempted URL:', getLogoUrl(userOrganization.logo));
+                                }}
                             >
                                 <Business />
                             </Avatar>
@@ -496,8 +507,12 @@ function OrganizationManagement() {
                                     <TableRow key={org.id} hover>
                                         <TableCell>
                                             <Avatar
-                                                src={org.logo ? `http://127.0.0.1:8000${org.logo}` : undefined}
+                                                src={getLogoUrl(org.logo)}
                                                 sx={{ width: 40, height: 40 }}
+                                                onError={(e) => {
+                                                    console.log(`Table logo failed to load for ${org.name}:`, org.logo);
+                                                    console.log('Attempted URL:', getLogoUrl(org.logo));
+                                                }}
                                             >
                                                 <Business />
                                             </Avatar>

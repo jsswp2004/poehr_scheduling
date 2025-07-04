@@ -90,8 +90,8 @@ function EnvironmentProfilePage() {
   };
 
   return (
-    <Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
-      <Typography variant="h5" sx={{ mb: 2 }}>Environment Profile</Typography>
+    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+
       <Tabs
         value={tabKey}
         onChange={(e, newValue) => setTabKey(newValue)}
@@ -182,9 +182,6 @@ function EnvironmentProfilePage() {
       {tabKey === 'organization' && (
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>🏢 Organization Management</Typography>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            Organization Management component is loading...
-          </Alert>
           <OrganizationManagement />
         </Paper>
       )}

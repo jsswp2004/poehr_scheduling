@@ -33,6 +33,10 @@ class CustomUser(AbstractUser):
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     registered = models.BooleanField(default=False, help_text="Indicates if the user has completed registration")
     
+    # SMS Consent Management
+    sms_consent = models.BooleanField(default=False, help_text="User has consented to receive SMS notifications")
+    sms_consent_date = models.DateTimeField(null=True, blank=True, help_text="When the user gave SMS consent")
+    
     # Subscription and Trial Management
     stripe_customer_id = models.CharField(max_length=255, null=True, blank=True, help_text="Stripe customer ID")
     subscription_status = models.CharField(

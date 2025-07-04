@@ -54,7 +54,7 @@ class UserSerializer(serializers.ModelSerializer):
             'organization', 'organization_logo', 'organization_name', 'phone_number',
             'organization_type', 'registered', 'stripe_customer_id', 'subscription_status',
             'subscription_tier', 'trial_start_date', 'trial_end_date', 'stripe_subscription_id',
-            'is_online', 'last_seen'  # ✅ Add online status fields
+            'is_online', 'last_seen', 'sms_consent', 'sms_consent_date'  # ✅ Add SMS consent fields
         )
         extra_kwargs = {
             'password': {'write_only': True, 'required': False},
@@ -63,8 +63,19 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     def update(self, instance, validated_data):
+        from django.utils import timezone
+        
         profile_picture = validated_data.pop('profile_picture', None)
         print("🔥 PROFILE PICTURE RECEIVED:", profile_picture)
+        
+        # Handle SMS consent timestamp
+        sms_consent = validated_data.get('sms_consent', None)
+        if sms_consent is not None and sms_consent != instance.sms_consent:
+            if sms_consent:  # User just gave consent
+                validated_data['sms_consent_date'] = timezone.now()
+            else:  # User revoked consent
+                validated_data['sms_consent_date'] = None
+        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if profile_picture:
