@@ -175,12 +175,12 @@ function MaintenancePage() {
   };
 
   return (
-    <Container maxWidth={false} disableGutters sx={{ py: 4, px: 0, textAlign: 'left' }}>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h5" gutterBottom sx={{ textAlign: 'left', m: 0 }}>
-          Clinician Schedule Maintenance 🛠️
+    <Container maxWidth={false} disableGutters sx={{ py: 0, px: 0, textAlign: 'left' }}>
+      {/*<Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }} >
+        <Typography variant="h5" sx={{ mb: 2 }}>
+          Clinician Schedule Maintenance 
         </Typography>
-      </Box>
+      </Box>*/}
       <Grid container spacing={4} justifyContent="flex-start" alignItems="flex-start" sx={{ ml: 0 }}>
         {/* LEFT: Schedule Maintenance Form */}
         <Grid item xs={12} md={6} lg={6} xl={6} sx={{ pl: 0 }}>

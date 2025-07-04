@@ -69,11 +69,20 @@ function SettingsPage() {
           </Box>
         </Box>
 
-        {tab === 'maintenance' && <MaintenancePage />}
-        {tab === 'env' && <EnvironmentProfilePage />}
+        {tab === 'maintenance' && (
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 0 }}>
+            <MaintenancePage />
+          </Box>
+        )}
+        {tab === 'env' && (
+          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 0 }}>
+            {/*<Typography variant="h6" sx={{ mb: 2 }}>Environment Profile</Typography>*/}
+            <EnvironmentProfilePage />
+          </Box>
+        )}
         {tab === 'uploads' && (
           <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 0 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>Uploads / Downloads</Typography>
+            { }
             <UploadTab />
           </Box>
         )}

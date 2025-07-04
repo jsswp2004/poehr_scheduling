@@ -251,7 +251,7 @@ function RegisterPage({ adminMode = false }) {
       <Box sx={{ display: 'flex', gap: 3, minHeight: '80vh' , marginTop: '0px' }}>
           {/* Left Pane - Registration Form (30%) */}
         <Box sx={{ flex: '0 0 30%' }}>
-          <Paper elevation={4} sx={{ p: 4, borderRadius: 3, minHeight: '70vh', height: '100%' }}>
+          <Paper elevation={4} sx={{ p: 4, borderRadius: 3, minHeight: '70vh', height: '80%' }}>
             <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>Quick Register</Typography>
             {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
               <Box sx={{ mb: 2 }}>
@@ -363,7 +363,8 @@ function RegisterPage({ adminMode = false }) {
               </Stack>
             </form>
           </Paper>
-        </Box>        {/* Right Pane - Patient Information Display (70%) */}
+        </Box>
+          {/* Right Pane - Patient Information Display (70%) */}
         <Box sx={{ flex: '0 0 70%' }}>
           <Paper 
             elevation={4} 
@@ -371,7 +372,7 @@ function RegisterPage({ adminMode = false }) {
               p: 4, 
               borderRadius: 3, 
               minHeight: '70vh',
-              height: '100%',
+              height: '80%',
               bgcolor: registeredPatient ? 'background.paper' : 'grey.100',
               opacity: registeredPatient ? 1 : 0.7
             }}
