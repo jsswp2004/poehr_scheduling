@@ -13,7 +13,11 @@ function MaintenancePage() {
   const [schedules, setSchedules] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [holidays, setHolidays] = useState([]); const [formData, setFormData] = useState({
+  const [holidays, setHolidays] = useState([]);
+  
+  // Refs for auto-scrolling tables
+  const availabilityTableRef = useRef(null);
+  const blockedTableRef = useRef(null); const [formData, setFormData] = useState({
     start_time: getTodayAt(8),
     end_time: getTodayAt(17),
     is_blocked: false,
@@ -88,6 +92,33 @@ function MaintenancePage() {
   useEffect(() => {
     if (selectedDoctor) fetchSchedules();
   }, [selectedDoctor, fetchSchedules]);
+
+  // Auto-scroll effect for tables when schedules change
+  useEffect(() => {
+    if (schedules.length > 0) {
+      // Auto-scroll availability table to bottom with smooth behavior
+      if (availabilityTableRef.current) {
+        const availabilityContainer = availabilityTableRef.current;
+        setTimeout(() => {
+          availabilityContainer.scrollTo({
+            top: availabilityContainer.scrollHeight,
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
+      
+      // Auto-scroll blocked table to bottom with smooth behavior
+      if (blockedTableRef.current) {
+        const blockedContainer = blockedTableRef.current;
+        setTimeout(() => {
+          blockedContainer.scrollTo({
+            top: blockedContainer.scrollHeight,
+            behavior: 'smooth'
+          });
+        }, 100);
+      }
+    }
+  }, [schedules]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -175,23 +206,24 @@ function MaintenancePage() {
   };
 
   return (
-    <Container maxWidth={false} disableGutters sx={{ py: 0, px: 0, textAlign: 'left' }}>
+    <Container maxWidth={false} disableGutters sx={{ py: 0, px: 0, textAlign: 'left', height: '100vh', overflow: 'hidden' }}>
       {/*<Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }} >
         <Typography variant="h5" sx={{ mb: 2 }}>
           Clinician Schedule Maintenance 
         </Typography>
       </Box>*/}
-      <Grid container spacing={4} justifyContent="flex-start" alignItems="flex-start" sx={{ ml: 0 }}>
+      <Grid container spacing={4} justifyContent="flex-start" alignItems="stretch" sx={{ ml: 0, height: 'calc(100vh - 120px)' }}>
         {/* LEFT: Schedule Maintenance Form */}
-        <Grid item xs={12} md={6} lg={6} xl={6} sx={{ pl: 0 }}>
-          <Box sx={{ p: 3, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', minHeight: 500, maxHeight: 700, minWidth: 400, width: '100%', textAlign: 'left' }}>
-            <form onSubmit={handleSubmit}>
+        <Grid item xs={12} md={6} lg={6} xl={6} sx={{ pl: 0, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ p: 3, minWidth: 400, width: '100%', textAlign: 'left', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <Stack spacing={2} sx={{ textAlign: 'left' }}>
                 <FormControl fullWidth>
-                  <InputLabel>Select Clinician</InputLabel>
+                  <InputLabel shrink>Select Clinician</InputLabel>
                   <MUISelect
                     value={selectedDoctor?.value || ''}
                     label="Select Clinician"
+                    displayEmpty
                     onChange={(e) => {
                       const doc = doctors.find(d => d.id === e.target.value);
                       setSelectedDoctor(doc ? { value: doc.id, label: `Dr. ${doc.first_name} ${doc.last_name}` } : null);
@@ -223,8 +255,13 @@ function MaintenancePage() {
                 />
 
                 <FormControl fullWidth>
-                  <InputLabel>Recurrence</InputLabel>
-                  <MUISelect value={formData.recurrence} onChange={(e) => setFormData({ ...formData, recurrence: e.target.value })}>
+                  <InputLabel shrink>Recurrence</InputLabel>
+                  <MUISelect
+                    value={formData.recurrence}
+                    label="Recurrence"
+                    onChange={(e) => setFormData({ ...formData, recurrence: e.target.value })}
+                    displayEmpty
+                  >
                     <MenuItem value="none">None</MenuItem>
                     <MenuItem value="daily">Daily</MenuItem>
                     <MenuItem value="weekly">Weekly</MenuItem>
@@ -245,10 +282,11 @@ function MaintenancePage() {
                 <FormControlLabel control={<Checkbox checked={formData.is_blocked} onChange={(e) => setFormData({ ...formData, is_blocked: e.target.checked })} />} label="Block this schedule" />
                 {formData.is_blocked && (
                   <FormControl fullWidth>
-                    <InputLabel>Block Type</InputLabel>
+                    <InputLabel shrink>Block Type</InputLabel>
                     <MUISelect
                       value={formData.block_type}
                       label="Block Type"
+                      displayEmpty
                       onChange={e => setFormData({ ...formData, block_type: e.target.value })}
                     >
                       <MenuItem value="Lunch">Lunch</MenuItem>
@@ -259,49 +297,85 @@ function MaintenancePage() {
                   </FormControl>
                 )}
 
-                <Button type="submit" variant="contained" fullWidth>{editingId ? 'Update' : 'Save'}</Button>
-                {editingId && <Button variant="outlined" onClick={handleCancel} fullWidth>Cancel</Button>}
+                <Box sx={{ mt: 'auto', pt: 2 }}>
+                  <Button type="submit" variant="contained" fullWidth sx={{ mb: 1 }}>{editingId ? 'Update' : 'Save'}</Button>
+                  {editingId && <Button variant="outlined" onClick={handleCancel} fullWidth>Cancel</Button>}
+                </Box>
               </Stack>
             </form>
           </Box>
         </Grid>
         {/* RIGHT: Schedule Overview */}
         <Grid item xs={12} md={6} lg={6} xl={6}>
-          <Box sx={{ p: 3, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', minHeight: 500, maxHeight: 700, minWidth: 400, width: '100%' }}>
+          <Box sx={{ p: 3, height: '100%', minWidth: 400, width: '100%', display: 'flex', flexDirection: 'column' }}>
             <Typography variant="h6" gutterBottom>📋 Schedule Overview</Typography>
-            <Typography color="success.main">✅ Availability</Typography>
-            <TableContainer component={Paper} sx={{ mb: 2, maxHeight: 200, overflowY: 'auto' }}>
-              <Table size="small" stickyHeader>
-                <TableHead><TableRow><TableCell>Date/Time</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
-                <TableBody>
-                  {schedules.filter(s => !s.is_blocked).map(s => (
-                    <TableRow key={s.id}>
-                      <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()}`}</TableCell>
-                      <TableCell align="right">
-                        <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
-                        <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer >
-            <Typography color="error.main">🚫 Blocked</Typography>
-            <TableContainer component={Paper} sx={{ mb: 2, maxHeight: 200, overflowY: 'auto' }}>
-              <Table size="small">
-                <TableHead><TableRow><TableCell>Date/Time</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
-                <TableBody>                  {schedules.filter(s => s.is_blocked).map(s => (
-                  <TableRow key={s.id}>
-                    <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()} | ${s.block_type || 'No Type'} | Dr. ${doctors.find(d => d.id === s.doctor)?.first_name || ''} ${doctors.find(d => d.id === s.doctor)?.last_name || ''}`}</TableCell>
-                    <TableCell align="right">
-                      <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
-                      <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'row', gap: 2, minHeight: 0 }}>
+              {/* Availability Section */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <Typography color="success.main" sx={{ mb: 1 }}>✅ Availability</Typography>
+                <TableContainer 
+                  component={Paper} 
+                  ref={availabilityTableRef}
+                  sx={{ flex: 1, overflowY: 'auto', boxShadow: 'none', borderRadius: 0, minHeight: 200 }}
+                >
+                  <Table size="small" stickyHeader>
+                    <TableHead><TableRow><TableCell>Date/Time</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
+                    <TableBody>
+                      {schedules.filter(s => !s.is_blocked).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                            No availability schedules found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        schedules.filter(s => !s.is_blocked).map(s => (
+                          <TableRow key={s.id}>
+                            <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()}`}</TableCell>
+                            <TableCell align="right">
+                              <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
+                              <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+
+              {/* Blocked Section */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <Typography color="error.main" sx={{ mb: 1 }}>🚫 Blocked</Typography>
+                <TableContainer 
+                  component={Paper} 
+                  ref={blockedTableRef}
+                  sx={{ flex: 1, overflowY: 'auto', boxShadow: 'none', borderRadius: 0, minHeight: 200 }}
+                >
+                  <Table size="small" stickyHeader>
+                    <TableHead><TableRow><TableCell>Date/Time</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
+                    <TableBody>
+                      {schedules.filter(s => s.is_blocked).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                            No blocked schedules found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        schedules.filter(s => s.is_blocked).map(s => (
+                          <TableRow key={s.id}>
+                            <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()} | ${s.block_type || 'No Type'} | Dr. ${doctors.find(d => d.id === s.doctor)?.first_name || ''} ${doctors.find(d => d.id === s.doctor)?.last_name || ''}`}</TableCell>
+                            <TableCell align="right">
+                              <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
+                              <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </Box>
           </Box>
         </Grid>
       </Grid>
