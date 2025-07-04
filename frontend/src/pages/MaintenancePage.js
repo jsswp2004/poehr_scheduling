@@ -14,7 +14,7 @@ function MaintenancePage() {
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [holidays, setHolidays] = useState([]);
-  
+
   // Refs for auto-scrolling tables
   const availabilityTableRef = useRef(null);
   const blockedTableRef = useRef(null); const [formData, setFormData] = useState({
@@ -106,7 +106,7 @@ function MaintenancePage() {
           });
         }, 100);
       }
-      
+
       // Auto-scroll blocked table to bottom with smooth behavior
       if (blockedTableRef.current) {
         const blockedContainer = blockedTableRef.current;
@@ -313,8 +313,8 @@ function MaintenancePage() {
               {/* Availability Section */}
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <Typography color="success.main" sx={{ mb: 1 }}>✅ Availability</Typography>
-                <TableContainer 
-                  component={Paper} 
+                <TableContainer
+                  component={Paper}
                   ref={availabilityTableRef}
                   sx={{ flex: 1, overflowY: 'auto', boxShadow: 'none', borderRadius: 0, minHeight: 200 }}
                 >
@@ -346,8 +346,8 @@ function MaintenancePage() {
               {/* Blocked Section */}
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
                 <Typography color="error.main" sx={{ mb: 1 }}>🚫 Blocked</Typography>
-                <TableContainer 
-                  component={Paper} 
+                <TableContainer
+                  component={Paper}
                   ref={blockedTableRef}
                   sx={{ flex: 1, overflowY: 'auto', boxShadow: 'none', borderRadius: 0, minHeight: 200 }}
                 >
