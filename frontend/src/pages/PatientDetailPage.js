@@ -103,21 +103,47 @@ function PatientDetailPage() {
       return;
     }
 
-    // Confirm action with user
+    // Get admin password for verification
+    const adminPassword = window.prompt(
+      `To reset the password for ${patient.first_name} ${patient.last_name}, please enter your admin password:`
+    );
+
+    if (!adminPassword) {
+      return; // User cancelled
+    }
+
+    // Generate a temporary password
+    const tempPassword = `Temp${Math.random().toString(36).slice(2, 8)}!`;    // Confirm action with user
     const confirmed = window.confirm(
       `Are you sure you want to reset the password for ${patient.first_name} ${patient.last_name}?\n\n` +
-      `A temporary password will be sent to: ${patient.email}\n\n` +
-      `The patient will need to log in with the temporary password and change it immediately.`
+      `New temporary password: ${tempPassword}\n\n` +
+      `This temporary password will be sent via email to the client. Provide it to them if access to email is not available and instruct them to change it immediately after logging in.`
     );
 
     if (!confirmed) return;
 
     try {
-      const response = await axios.post(
-        'http://127.0.0.1:8000/api/auth/reset-patient-password/',
+      // First, send the email with the temporary password
+      await axios.post(
+        'http://127.0.0.1:8000/api/users/send-email/',
         {
-          patient_id: patient.user_id || patient.id,
-          email: patient.email
+          email: patient.email,
+          subject: 'Password Reset - POWER Healthcare IT Systems',
+          message: `Dear ${patient.first_name} ${patient.last_name},\n\nYour password has been reset by an administrator.\n\nTemporary password: ${tempPassword}\n\nPlease log in with this temporary password and change it immediately in your account settings.\n\nIf you did not request this password reset, please contact your healthcare provider immediately.\n\nBest regards,\nPOWER Healthcare IT Systems`
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      // Then change the password in the system
+      const response = await axios.post(
+        'http://127.0.0.1:8000/api/users/admin-change-password/',
+        {
+          target_user_id: patient.user_id || patient.id,
+          admin_password: adminPassword,
+          new_password: tempPassword,
+          confirm_password: tempPassword
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -126,25 +152,64 @@ function PatientDetailPage() {
 
       toast.success(
         `🔑 Password reset successfully!\n\n` +
-        `A temporary password has been sent to ${patient.email}.\n` +
-        `The patient should check their email and log in with the temporary password.`,
+        `Temporary password: ${tempPassword}\n\n` +
+        `An email with the temporary password has been sent to ${patient.email}. The patient should check their email and log in with the temporary password to change it immediately.`,
         {
-          autoClose: 8000
+          autoClose: 12000 // Give time to read the message
         }
       );
+
     } catch (err) {
       console.error('Password reset error:', err);
 
-      if (err.response?.status === 403) {
-        toast.error('You do not have permission to reset patient passwords.');
-      } else if (err.response?.status === 404) {
-        toast.error('Patient not found or email is invalid.');
-      } else if (err.response?.data?.detail) {
-        toast.error(`Password reset failed: ${err.response.data.detail}`);
-      } else if (err.response?.data?.error) {
-        toast.error(`Password reset failed: ${err.response.data.error}`);
+      // Check if this is an email error or password change error
+      if (err.config?.url?.includes('send-email')) {
+        // Email failed, but try to continue with password reset
+        toast.warning('Failed to send email notification. Continuing with password reset...');
+
+        try {
+          await axios.post(
+            'http://127.0.0.1:8000/api/users/admin-change-password/',
+            {
+              target_user_id: patient.user_id || patient.id,
+              admin_password: adminPassword,
+              new_password: tempPassword,
+              confirm_password: tempPassword
+            },
+            {
+              headers: { Authorization: `Bearer ${token}` }
+            }
+          );
+
+          toast.success(
+            `🔑 Password reset successfully!\n\n` +
+            `Temporary password: ${tempPassword}\n\n` +
+            `⚠️ Email delivery failed. Please provide this temporary password to ${patient.first_name} ${patient.last_name} manually and instruct them to change it immediately after logging in.`,
+            {
+              autoClose: 15000
+            }
+          );
+        } catch (passwordErr) {
+          console.error('Password change also failed:', passwordErr);
+          toast.error('Both email delivery and password reset failed. Please try again.');
+        }
       } else {
-        toast.error('Failed to reset password. Please try again later.');
+        // Password change error
+        if (err.response?.status === 403) {
+          toast.error('You do not have permission to reset patient passwords.');
+        } else if (err.response?.status === 400) {
+          if (err.response.data?.detail?.includes('Admin password is incorrect')) {
+            toast.error('Incorrect admin password. Please try again.');
+          } else {
+            toast.error(`Password reset failed: ${err.response.data?.detail || 'Invalid request data'}`);
+          }
+        } else if (err.response?.status === 404) {
+          toast.error('Patient not found.');
+        } else if (err.response?.data?.detail) {
+          toast.error(`Password reset failed: ${err.response.data.detail}`);
+        } else {
+          toast.error('Failed to reset password. Please try again later.');
+        }
       }
     }
   };

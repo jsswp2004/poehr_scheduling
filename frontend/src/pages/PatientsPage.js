@@ -1728,6 +1728,7 @@ function PatientsPage() {
             borderRadius: 2,
             bgcolor: "background.paper",
             p: 3,
+            height: "100%",
           }}
         >
           {/* Chat system loading indicator */}
@@ -1831,8 +1832,7 @@ function PatientsPage() {
             }}
           >
             <Tab label="Patients" value="patients" />
-            <Tab
-              label={
+            <Tab label={
                 <Box
                   sx={{
                     position: "relative",
