@@ -20,12 +20,12 @@ function SettingsPage() {
           sx={{
             display: 'flex',
             alignItems: 'center',
-            mb: 0,
+            mb: -1, // Negative margin to pull content up and connect to tabs
             borderRadius: 2,
             bgcolor: '#f5faff',
             boxShadow: 1,
             minHeight: 48,
-            p: 1,
+            p: 0,
           }}
         >
           <Tabs
@@ -70,18 +70,18 @@ function SettingsPage() {
         </Box>
 
         {tab === 'maintenance' && (
-          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 0 }}>
+          <Box sx={{ boxShadow: 2, borderRadius: '0 0 8px 8px', bgcolor: 'background.paper', p: 3 }}>
             <MaintenancePage />
           </Box>
         )}
         {tab === 'env' && (
-          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 0 }}>
+          <Box sx={{ boxShadow: 2, borderRadius: '0 0 8px 8px', bgcolor: 'background.paper', p: 3 }}>
             {/*<Typography variant="h6" sx={{ mb: 2 }}>Environment Profile</Typography>*/}
             <EnvironmentProfilePage />
           </Box>
         )}
         {tab === 'uploads' && (
-          <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3, mt: 0 }}>
+          <Box sx={{ boxShadow: 2, borderRadius: '0 0 8px 8px', bgcolor: 'background.paper', p: 3 }}>
             { }
             <UploadTab />
           </Box>
