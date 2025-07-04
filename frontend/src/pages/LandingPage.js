@@ -24,7 +24,7 @@ import { useNavigate } from 'react-router-dom';
 
 // Asset imports for page content (logo moved to header component)
 import DashboardImage from '../assets/dashboard_clinician.png'; // Dashboard clinician image
-import DashboardSchedulingImage from '../assets/dashboard_scheduling.png'; // Dashboard scheduling image
+import DashboardSchedulingImage from '../assets/dashboard_scheduling.jpg'; // Dashboard scheduling image
 import DashboardTogetherImage from '../assets/dashboard_together.png'; // Dashboard together image
 import DashboardQouteImage from '../assets/dashboard_quotes.png'; // Dashboard quote image
 import Footer from '../components/Footer';
