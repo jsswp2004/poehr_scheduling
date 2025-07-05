@@ -28,7 +28,6 @@ function PatientDetailPage() {
   const [formData, setFormData] = useState({});
   const [doctors, setDoctors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
-  const [addressSuggestions, setAddressSuggestions] = useState([]);
   const token = localStorage.getItem('access_token');
 
   // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
@@ -341,92 +340,19 @@ function PatientDetailPage() {
     }
   };
 
-  // Simple address validation without Google Places API
-  const getAddressSuggestions = (input) => {
-    console.log('getAddressSuggestions called with input:', input);
-    
-    if (!input || input.length < 2) {
-      console.log('Input too short, clearing suggestions');
-      setAddressSuggestions([]);
-      return;
-    }
-
-    try {
-      const suggestions = [];
-      const inputLower = input.toLowerCase().trim();
-      console.log('Processing input:', inputLower);
-
-      // Common street suffixes
-      const streetTypes = ['Street', 'St', 'Avenue', 'Ave', 'Boulevard', 'Blvd', 'Drive', 'Dr', 'Lane', 'Ln', 'Road', 'Rd', 'Way', 'Circle', 'Ct', 'Court', 'Place', 'Pl'];
-
-      // Check if input already contains numbers (likely partial address)
-      const hasNumbers = /\d/.test(input);
-      console.log('Input has numbers:', hasNumbers);
-
-      if (hasNumbers) {
-        // Input has numbers - suggest completing with different street types
-        const hasStreetType = streetTypes.some(type =>
-          inputLower.includes(type.toLowerCase())
-        );
-
-        if (!hasStreetType) {
-          // Add common street types
-          streetTypes.slice(0, 6).forEach(type => {
-            suggestions.push(`${input} ${type}`);
-          });
-          console.log('Added street type suggestions:', suggestions);
-        } else {
-          // Already has street type, suggest with common city suffixes
-          suggestions.push(`${input}, New York, NY`);
-          suggestions.push(`${input}, Los Angeles, CA`);
-          suggestions.push(`${input}, Chicago, IL`);
-          suggestions.push(`${input}, Houston, TX`);
-          suggestions.push(`${input}, Phoenix, AZ`);
-          suggestions.push(`${input}, Philadelphia, PA`);
-          console.log('Added city suffix suggestions:', suggestions);
-        }
-      } else {
-        // Input doesn't have numbers - suggest adding house numbers
-        const commonNumbers = ['123', '456', '789', '101', '202', '555'];
-        const commonTypes = ['Street', 'Avenue', 'Drive', 'Lane'];
-
-        commonNumbers.slice(0, 3).forEach(num => {
-          commonTypes.slice(0, 2).forEach(type => {
-            suggestions.push(`${num} ${input} ${type}`);
-          });
-        });
-        console.log('Added house number suggestions:', suggestions);
-      }
-
-      // Limit to 6 suggestions and ensure uniqueness
-      const uniqueSuggestions = [...new Set(suggestions)].slice(0, 6);
-      console.log('Final unique suggestions:', uniqueSuggestions);
-
-      const formattedSuggestions = uniqueSuggestions.map((addr, index) => ({
-        description: addr,
-        placeId: `suggestion-${index}-${Date.now()}`
-      }));
-      
-      console.log('Setting formatted suggestions:', formattedSuggestions);
-      setAddressSuggestions(formattedSuggestions);
-      
-    } catch (error) {
-      console.error('Error generating address suggestions:', error);
-      setAddressSuggestions([]);
-    }
-  };
   // Simple Address Autocomplete component using native HTML input with datalist
   function SimpleAddressAutocomplete({ value, onChange, disabled }) {
+    const [localSuggestions, setLocalSuggestions] = useState([]);
     const debounceTimerRef = useRef(null);
     const datalistId = `address-suggestions-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Move address suggestion generation inside the component
-    const generateAddressSuggestions = (input) => {
-      console.log('generateAddressSuggestions called with input:', input);
-      
-      if (!input || input.length < 2) {
+    // Generate address suggestions locally within this component
+    const generateSuggestions = (input) => {
+      console.log('generateSuggestions called with input:', input);
+
+      if (!input || input.length < 3) {
         console.log('Input too short, clearing suggestions');
-        setAddressSuggestions([]);
+        setLocalSuggestions([]);
         return;
       }
 
@@ -481,17 +407,12 @@ function PatientDetailPage() {
         const uniqueSuggestions = [...new Set(suggestions)].slice(0, 6);
         console.log('Final unique suggestions:', uniqueSuggestions);
 
-        const formattedSuggestions = uniqueSuggestions.map((addr, index) => ({
-          description: addr,
-          placeId: `suggestion-${index}-${Date.now()}`
-        }));
-        
-        console.log('Setting formatted suggestions:', formattedSuggestions);
-        setAddressSuggestions(formattedSuggestions);
-        
+        console.log('Setting local suggestions:', uniqueSuggestions);
+        setLocalSuggestions(uniqueSuggestions);
+
       } catch (error) {
         console.error('Error generating address suggestions:', error);
-        setAddressSuggestions([]);
+        setLocalSuggestions([]);
       }
     };
 
@@ -505,13 +426,13 @@ function PatientDetailPage() {
       }
 
       // Generate suggestions with debouncing
-      if (newValue && newValue.length > 2) {
+      if (newValue && newValue.length >= 3) {
         console.log('Generating suggestions for:', newValue);
         debounceTimerRef.current = setTimeout(() => {
-          generateAddressSuggestions(newValue);
+          generateSuggestions(newValue);
         }, 300);
       } else {
-        setAddressSuggestions([]);
+        setLocalSuggestions([]);
       }
     };
 
@@ -524,7 +445,7 @@ function PatientDetailPage() {
       };
     }, []);
 
-    console.log('Current addressSuggestions:', addressSuggestions);
+    console.log('Current localSuggestions:', localSuggestions);
 
     return (
       <Box>
@@ -565,20 +486,19 @@ function PatientDetailPage() {
           }}
         />
         <datalist id={datalistId}>
-          {addressSuggestions.map((suggestion, index) => {
-            const optionValue = typeof suggestion === 'string' ? suggestion : suggestion.description;
-            console.log('Rendering option:', optionValue);
+          {localSuggestions.map((suggestion, index) => {
+            console.log('Rendering option:', suggestion);
             return (
-              <option 
-                key={typeof suggestion === 'string' ? suggestion : suggestion.placeId} 
-                value={optionValue}
+              <option
+                key={`${suggestion}-${index}`}
+                value={suggestion}
               />
             );
           })}
         </datalist>
         <Box sx={{ mt: 0.5 }}>
           <Typography variant="caption" color={(!disabled && (!value || value.trim() === '')) ? 'error' : 'text.secondary'}>
-            {!disabled && (!value || value.trim() === '') ? 'Address is required' : `Type to see suggestions (3+ characters) - ${addressSuggestions.length} suggestions available`}
+            {!disabled && (!value || value.trim() === '') ? 'Address is required' : `Type to see suggestions (3+ characters) - ${localSuggestions.length} suggestions available`}
           </Typography>
         </Box>
       </Box>
