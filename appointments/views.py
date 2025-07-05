@@ -382,17 +382,43 @@ class EnvironmentSettingView(APIView):
         return [IsAdminOrSystemAdmin()]             # Only admin or system_admin can edit
 
     def get(self, request):
-        # Get or create the environment settings
-        env_obj, env_created = EnvironmentSetting.objects.get_or_create(pk=1)
+        # Determine which organization to fetch settings for
+        target_organization = None
+        
+        # If system admin and organization_id is provided, use that organization
+        if hasattr(request.user, 'role') and request.user.role == 'system_admin':
+            org_id = request.query_params.get('organization_id')
+            if org_id:
+                try:
+                    from users.models import Organization
+                    target_organization = Organization.objects.get(id=org_id)
+                except Organization.DoesNotExist:
+                    return Response(
+                        {"error": "Organization not found"}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+        
+        # Fallback to user's own organization
+        if not target_organization:
+            target_organization = request.user.organization
+            
+        if not target_organization:
+            return Response(
+                {"error": "No organization found"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get or create the environment settings for this organization
+        env_obj, env_created = EnvironmentSetting.objects.get_or_create(
+            organization=target_organization,
+            defaults={'blocked_days': [0, 6]}  # Default: weekends blocked
+        )
         env_serializer = EnvironmentSettingSerializer(env_obj)
         
-        # Get auto email settings for the user's organization
-        user_organization = request.user.organization
-        
-        # Try to get organization-specific settings first, fallback to global settings
+        # Get auto email settings for the target organization
         auto_email_obj = None
-        if user_organization:
-            auto_email_obj = AutoEmail.objects.filter(organization=user_organization).first()
+        if target_organization:
+            auto_email_obj = AutoEmail.objects.filter(organization=target_organization).first()
         
         # If no organization-specific settings, try to get global settings
         if not auto_email_obj:
@@ -401,7 +427,7 @@ class EnvironmentSettingView(APIView):
         # If no settings at all, create default settings
         if not auto_email_obj:
             auto_email_obj = AutoEmail.objects.create(
-                organization=user_organization,
+                organization=target_organization,
                 auto_message_frequency='weekly',
                 auto_message_day_of_week=1,  # Monday
                 auto_message_start_date=timezone.now().date() + timedelta(days=1)
@@ -418,8 +444,37 @@ class EnvironmentSettingView(APIView):
         return Response(response_data)
 
     def post(self, request):
+        # Determine which organization to save settings for
+        target_organization = None
+        
+        # If system admin and organization_id is provided, use that organization
+        if hasattr(request.user, 'role') and request.user.role == 'system_admin':
+            org_id = request.data.get('organization_id')
+            if org_id:
+                try:
+                    from users.models import Organization
+                    target_organization = Organization.objects.get(id=org_id)
+                except Organization.DoesNotExist:
+                    return Response(
+                        {"error": "Organization not found"}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+        
+        # Fallback to user's own organization
+        if not target_organization:
+            target_organization = request.user.organization
+            
+        if not target_organization:
+            return Response(
+                {"error": "No organization found"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
         # Process environment settings
-        env_obj, env_created = EnvironmentSetting.objects.get_or_create(pk=1)
+        env_obj, env_created = EnvironmentSetting.objects.get_or_create(
+            organization=target_organization,
+            defaults={'blocked_days': [0, 6]}  # Default: weekends blocked
+        )
         env_data = {k: v for k, v in request.data.items() if k in ['blocked_days']}
         
         env_serializer = EnvironmentSettingSerializer(env_obj, data=env_data, partial=True)
@@ -435,17 +490,15 @@ class EnvironmentSettingView(APIView):
         }
         
         if auto_email_data:
-            user_organization = request.user.organization
-            
             # Try to get organization-specific settings first
             auto_email_obj = None
-            if user_organization:
-                auto_email_obj = AutoEmail.objects.filter(organization=user_organization).first()
+            if target_organization:
+                auto_email_obj = AutoEmail.objects.filter(organization=target_organization).first()
             
             # If no organization-specific settings, try to get or create global settings
             if not auto_email_obj:
                 auto_email_obj, created = AutoEmail.objects.get_or_create(
-                    organization=user_organization,
+                    organization=target_organization,
                     defaults={
                         'auto_message_frequency': 'weekly',
                         'auto_message_day_of_week': 1,  # Monday
@@ -458,7 +511,8 @@ class EnvironmentSettingView(APIView):
                 # Settings saved - django-cron will use these settings on next run
             else:
                 return Response(auto_email_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-          # Combine the response
+        
+        # Combine the response
         response_data = {**env_serializer.data}
         
         # Add auto email serializer data if available

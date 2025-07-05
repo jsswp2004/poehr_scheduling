@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
 import {
@@ -8,24 +8,14 @@ import {
   Typography,
   Button,
   TextField,
-  IconButton,
-  Tooltip,
   Paper,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   MenuItem,
   FormControl,
   InputLabel,
   Select as MUISelect,
-  Alert,
 } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
 import { jwtDecode } from 'jwt-decode';
 import BackButton from '../components/BackButton';
-import Autocomplete from '@mui/material/Autocomplete';
-import usePlacesAutocomplete, { getGeocode, getLatLng } from "use-places-autocomplete";
 import InputAdornment from '@mui/material/InputAdornment';
 import { toast } from '../components/SimpleToast';
 
@@ -38,8 +28,7 @@ function PatientDetailPage() {
   const [formData, setFormData] = useState({});
   const [doctors, setDoctors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
-  const [addressOptions, setAddressOptions] = useState([]);
-  const [addressInput, setAddressInput] = useState('');
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
   const token = localStorage.getItem('access_token');
 
   // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
@@ -137,7 +126,7 @@ function PatientDetailPage() {
       );
 
       // Then change the password in the system
-      const response = await axios.post(
+      await axios.post(
         'http://127.0.0.1:8000/api/users/admin-change-password/',
         {
           target_user_id: patient.user_id || patient.id,
@@ -352,45 +341,247 @@ function PatientDetailPage() {
     }
   };
 
-  // Address Autocomplete hook
-  function GooglePlacesAutocomplete({ value, onChange, disabled }) {
-    const {
-      ready,
-      value: inputValue,
-      suggestions: { status, data },
-      setValue,
-      clearSuggestions,
-    } = usePlacesAutocomplete({ debounce: 400 });
+  // Simple address validation without Google Places API
+  const getAddressSuggestions = (input) => {
+    console.log('getAddressSuggestions called with input:', input);
+    
+    if (!input || input.length < 2) {
+      console.log('Input too short, clearing suggestions');
+      setAddressSuggestions([]);
+      return;
+    }
+
+    try {
+      const suggestions = [];
+      const inputLower = input.toLowerCase().trim();
+      console.log('Processing input:', inputLower);
+
+      // Common street suffixes
+      const streetTypes = ['Street', 'St', 'Avenue', 'Ave', 'Boulevard', 'Blvd', 'Drive', 'Dr', 'Lane', 'Ln', 'Road', 'Rd', 'Way', 'Circle', 'Ct', 'Court', 'Place', 'Pl'];
+
+      // Check if input already contains numbers (likely partial address)
+      const hasNumbers = /\d/.test(input);
+      console.log('Input has numbers:', hasNumbers);
+
+      if (hasNumbers) {
+        // Input has numbers - suggest completing with different street types
+        const hasStreetType = streetTypes.some(type =>
+          inputLower.includes(type.toLowerCase())
+        );
+
+        if (!hasStreetType) {
+          // Add common street types
+          streetTypes.slice(0, 6).forEach(type => {
+            suggestions.push(`${input} ${type}`);
+          });
+          console.log('Added street type suggestions:', suggestions);
+        } else {
+          // Already has street type, suggest with common city suffixes
+          suggestions.push(`${input}, New York, NY`);
+          suggestions.push(`${input}, Los Angeles, CA`);
+          suggestions.push(`${input}, Chicago, IL`);
+          suggestions.push(`${input}, Houston, TX`);
+          suggestions.push(`${input}, Phoenix, AZ`);
+          suggestions.push(`${input}, Philadelphia, PA`);
+          console.log('Added city suffix suggestions:', suggestions);
+        }
+      } else {
+        // Input doesn't have numbers - suggest adding house numbers
+        const commonNumbers = ['123', '456', '789', '101', '202', '555'];
+        const commonTypes = ['Street', 'Avenue', 'Drive', 'Lane'];
+
+        commonNumbers.slice(0, 3).forEach(num => {
+          commonTypes.slice(0, 2).forEach(type => {
+            suggestions.push(`${num} ${input} ${type}`);
+          });
+        });
+        console.log('Added house number suggestions:', suggestions);
+      }
+
+      // Limit to 6 suggestions and ensure uniqueness
+      const uniqueSuggestions = [...new Set(suggestions)].slice(0, 6);
+      console.log('Final unique suggestions:', uniqueSuggestions);
+
+      const formattedSuggestions = uniqueSuggestions.map((addr, index) => ({
+        description: addr,
+        placeId: `suggestion-${index}-${Date.now()}`
+      }));
+      
+      console.log('Setting formatted suggestions:', formattedSuggestions);
+      setAddressSuggestions(formattedSuggestions);
+      
+    } catch (error) {
+      console.error('Error generating address suggestions:', error);
+      setAddressSuggestions([]);
+    }
+  };
+  // Simple Address Autocomplete component using native HTML input with datalist
+  function SimpleAddressAutocomplete({ value, onChange, disabled }) {
+    const debounceTimerRef = useRef(null);
+    const datalistId = `address-suggestions-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Move address suggestion generation inside the component
+    const generateAddressSuggestions = (input) => {
+      console.log('generateAddressSuggestions called with input:', input);
+      
+      if (!input || input.length < 2) {
+        console.log('Input too short, clearing suggestions');
+        setAddressSuggestions([]);
+        return;
+      }
+
+      try {
+        const suggestions = [];
+        const inputLower = input.toLowerCase().trim();
+        console.log('Processing input:', inputLower);
+
+        // Common street suffixes
+        const streetTypes = ['Street', 'St', 'Avenue', 'Ave', 'Boulevard', 'Blvd', 'Drive', 'Dr', 'Lane', 'Ln', 'Road', 'Rd', 'Way', 'Circle', 'Ct', 'Court', 'Place', 'Pl'];
+
+        // Check if input already contains numbers (likely partial address)
+        const hasNumbers = /\d/.test(input);
+        console.log('Input has numbers:', hasNumbers);
+
+        if (hasNumbers) {
+          // Input has numbers - suggest completing with different street types
+          const hasStreetType = streetTypes.some(type =>
+            inputLower.includes(type.toLowerCase())
+          );
+
+          if (!hasStreetType) {
+            // Add common street types
+            streetTypes.slice(0, 6).forEach(type => {
+              suggestions.push(`${input} ${type}`);
+            });
+            console.log('Added street type suggestions:', suggestions);
+          } else {
+            // Already has street type, suggest with common city suffixes
+            suggestions.push(`${input}, New York, NY`);
+            suggestions.push(`${input}, Los Angeles, CA`);
+            suggestions.push(`${input}, Chicago, IL`);
+            suggestions.push(`${input}, Houston, TX`);
+            suggestions.push(`${input}, Phoenix, AZ`);
+            suggestions.push(`${input}, Philadelphia, PA`);
+            console.log('Added city suffix suggestions:', suggestions);
+          }
+        } else {
+          // Input doesn't have numbers - suggest adding house numbers
+          const commonNumbers = ['123', '456', '789', '101', '202', '555'];
+          const commonTypes = ['Street', 'Avenue', 'Drive', 'Lane'];
+
+          commonNumbers.slice(0, 3).forEach(num => {
+            commonTypes.slice(0, 2).forEach(type => {
+              suggestions.push(`${num} ${input} ${type}`);
+            });
+          });
+          console.log('Added house number suggestions:', suggestions);
+        }
+
+        // Limit to 6 suggestions and ensure uniqueness
+        const uniqueSuggestions = [...new Set(suggestions)].slice(0, 6);
+        console.log('Final unique suggestions:', uniqueSuggestions);
+
+        const formattedSuggestions = uniqueSuggestions.map((addr, index) => ({
+          description: addr,
+          placeId: `suggestion-${index}-${Date.now()}`
+        }));
+        
+        console.log('Setting formatted suggestions:', formattedSuggestions);
+        setAddressSuggestions(formattedSuggestions);
+        
+      } catch (error) {
+        console.error('Error generating address suggestions:', error);
+        setAddressSuggestions([]);
+      }
+    };
+
+    const handleInputChange = (event) => {
+      const newValue = event.target.value;
+      onChange(newValue);
+
+      // Clear existing timer
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+
+      // Generate suggestions with debouncing
+      if (newValue && newValue.length > 2) {
+        console.log('Generating suggestions for:', newValue);
+        debounceTimerRef.current = setTimeout(() => {
+          generateAddressSuggestions(newValue);
+        }, 300);
+      } else {
+        setAddressSuggestions([]);
+      }
+    };
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+      return () => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+      };
+    }, []);
+
+    console.log('Current addressSuggestions:', addressSuggestions);
 
     return (
-      <Autocomplete
-        freeSolo
-        disabled={disabled}
-        options={status === "OK" ? data.map(option => option.description) : []}
-        inputValue={inputValue}
-        value={value}
-        onInputChange={(_, newInputValue, reason) => {
-          setValue(newInputValue);
-          if (reason === 'input') {
-            onChange(newInputValue);
-          }
-        }}
-        onChange={(_, newValue) => {
-          onChange(newValue || '');
-          setValue(newValue || '');
-          clearSuggestions();
-        }} renderInput={(params) => (
-          <TextField
-            {...params}
-            label="Address *"
-            name="address"
-            fullWidth
-            required
-            error={editMode && (!value || value.trim() === '')}
-            helperText={editMode && (!value || value.trim() === '') ? 'Address is required' : ''}
-          />
-        )}
-      />
+      <Box>
+        <Box sx={{ mb: 1 }}>
+          <Typography variant="body2" component="label" sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: '0.75rem' }}>
+            Address *
+          </Typography>
+        </Box>
+        <input
+          type="text"
+          value={value || ''}
+          onChange={handleInputChange}
+          disabled={disabled}
+          list={datalistId}
+          autoComplete="off"
+          placeholder="Type your address..."
+          style={{
+            width: '100%',
+            padding: '16.5px 14px',
+            border: (!disabled && (!value || value.trim() === '')) ? '2px solid #d32f2f' : '1px solid rgba(0, 0, 0, 0.23)',
+            borderRadius: '4px',
+            fontSize: '16px',
+            fontFamily: 'inherit',
+            outline: 'none',
+            backgroundColor: disabled ? '#f5f5f5' : 'white',
+            '&:focus': {
+              borderColor: '#1976d2',
+              borderWidth: '2px'
+            }
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = '#1976d2';
+            e.target.style.borderWidth = '2px';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = (!disabled && (!value || value.trim() === '')) ? '#d32f2f' : 'rgba(0, 0, 0, 0.23)';
+            e.target.style.borderWidth = (!disabled && (!value || value.trim() === '')) ? '2px' : '1px';
+          }}
+        />
+        <datalist id={datalistId}>
+          {addressSuggestions.map((suggestion, index) => {
+            const optionValue = typeof suggestion === 'string' ? suggestion : suggestion.description;
+            console.log('Rendering option:', optionValue);
+            return (
+              <option 
+                key={typeof suggestion === 'string' ? suggestion : suggestion.placeId} 
+                value={optionValue}
+              />
+            );
+          })}
+        </datalist>
+        <Box sx={{ mt: 0.5 }}>
+          <Typography variant="caption" color={(!disabled && (!value || value.trim() === '')) ? 'error' : 'text.secondary'}>
+            {!disabled && (!value || value.trim() === '') ? 'Address is required' : `Type to see suggestions (3+ characters) - ${addressSuggestions.length} suggestions available`}
+          </Typography>
+        </Box>
+      </Box>
     );
   }
 
@@ -652,7 +843,7 @@ function PatientDetailPage() {
               </FormControl>
 
               {editMode ? (
-                <GooglePlacesAutocomplete
+                <SimpleAddressAutocomplete
                   value={formData.address || ''}
                   onChange={val => setFormData(prev => ({ ...prev, address: val }))}
                   disabled={!editMode}
