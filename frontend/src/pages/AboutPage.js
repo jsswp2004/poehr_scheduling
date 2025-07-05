@@ -9,7 +9,7 @@ export const AboutPage = ({ className }) => {
     <div className={`about-page ${className || ''}`}>
       <Header />
       <div className="page-title-section">
-        <h1 className="page-title">About Us</h1>        
+        <h1 className="page-title">About Us</h1>
         <p className="page-subtitle">Meet the team behind POWER IT Systems.</p>
 
         <div className="page-subtitle-wide">
@@ -47,7 +47,7 @@ export const AboutPage = ({ className }) => {
             <div className="team-name">Charlina Pangilinan, RN, BSN</div>
             <div className="team-role">COO</div>
             <div className="team-details">
-              Acute Renal Dialysis<br /> 
+              Acute Renal Dialysis<br />
               Infection Control
             </div>
           </div>

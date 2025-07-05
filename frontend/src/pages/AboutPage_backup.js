@@ -9,7 +9,7 @@ export const AboutPage = ({ className }) => {
     <div className={`about-page ${className || ''}`}>
       <Header />
       <div className="page-title-section">
-        <h1 className="page-title">About Us</h1>        
+        <h1 className="page-title">About Us</h1>
         <p className="page-subtitle">Meet the team behind POWER IT Systems.</p>
 
         <p className="page-subtitle-wide">At the heart of our mission is a deep understanding of healthcare—built on more than 20 years of combined experience in clinical environments, administrative systems, and patient care coordination. Our team brings firsthand knowledge of healthcare workflows and operational processes, allowing us to design solutions that are not only technically sound but also practically effective.
@@ -40,8 +40,8 @@ export const AboutPage = ({ className }) => {
             <div className="team-name">Charlina Pangilinan, RN, BSN</div>
             <div className="team-role">COO</div>
             <div className="team-details">
-            Acute Renal Dialysis<br /> 
-            Infection Control
+              Acute Renal Dialysis<br />
+              Infection Control
             </div>
           </div>
           {/*
