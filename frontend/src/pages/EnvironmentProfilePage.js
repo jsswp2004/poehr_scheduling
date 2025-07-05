@@ -1,67 +1,130 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
-  Box, Stack, Typography, Button, Paper, Alert,
-  Table, TableHead, TableRow, TableCell, TableBody, Checkbox, Tabs, Tab, CircularProgress
-} from '@mui/material';
-import axios from 'axios';
-import HolidaysTab from './HolidaysPage';
-import OrganizationManagement from '../components/OrganizationManagement';
-import { useNavigate } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
+  Box,
+  Stack,
+  Typography,
+  Button,
+  Alert,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  Checkbox,
+  Tabs,
+  Tab,
+  CircularProgress,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
+import axios from "axios";
+import HolidaysTab from "./HolidaysPage";
+import OrganizationManagement from "../components/OrganizationManagement";
+import { useNavigate } from "react-router-dom";
+import { jwtDecode } from "jwt-decode";
 
 const DAYS = [
-  { label: 'Mon', value: 1 },
-  { label: 'Tue', value: 2 },
-  { label: 'Wed', value: 3 },
-  { label: 'Thu', value: 4 },
-  { label: 'Fri', value: 5 },
-  { label: 'Sat', value: 6 },
-  { label: 'Sun', value: 0 },
+  { label: "Mon", value: 1 },
+  { label: "Tue", value: 2 },
+  { label: "Wed", value: 3 },
+  { label: "Thu", value: 4 },
+  { label: "Fri", value: 5 },
+  { label: "Sat", value: 6 },
+  { label: "Sun", value: 0 },
 ];
 
 function EnvironmentProfilePage() {
   const [blockedDays, setBlockedDays] = useState([0, 6]);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
-  const [tabKey, setTabKey] = useState('blocked-days');
+  const [tabKey, setTabKey] = useState("blocked-days");
+  const [userRole, setUserRole] = useState("");
+  const [organizations, setOrganizations] = useState([]);
+  const [selectedOrganization, setSelectedOrganization] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     // Role-based access control for admin and system_admin only
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     if (!token) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
     try {
       const decoded = jwtDecode(token);
-      const role = decoded.role || '';
-      if (role !== 'admin' && role !== 'system_admin') {
-        navigate('/');
+      const role = decoded.role || "";
+      setUserRole(role);
+      if (role !== "admin" && role !== "system_admin") {
+        navigate("/");
       }
     } catch (err) {
-      navigate('/login');
+      navigate("/login");
     }
   }, [navigate]);
+
+  useEffect(() => {
+    // Fetch organizations for system admin
+    const fetchOrganizations = async () => {
+      if (userRole === "system_admin") {
+        const token = localStorage.getItem("access_token");
+        try {
+          const res = await axios.get("http://127.0.0.1:8000/api/organizations/", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setOrganizations(res.data);
+          if (res.data.length > 0) {
+            setSelectedOrganization(res.data[0].id);
+          }
+        } catch (err) {
+          console.error("Failed to fetch organizations:", err);
+          // Try alternative endpoint
+          try {
+            const res = await axios.get("http://127.0.0.1:8000/api/users/organizations/", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            setOrganizations(res.data);
+            if (res.data.length > 0) {
+              setSelectedOrganization(res.data[0].id);
+            }
+          } catch (err2) {
+            console.error("Alternative endpoint also failed:", err2);
+          }
+        }
+      }
+    };
+    fetchOrganizations();
+  }, [userRole]);
 
   useEffect(() => {
     async function fetchSettings() {
       setLoading(true);
       try {
-        const token = localStorage.getItem('access_token');
-        const res = await axios.get('http://127.0.0.1:8000/api/settings/environment/', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const token = localStorage.getItem("access_token");
+        const params = {};
+        if (userRole === "system_admin" && selectedOrganization) {
+          params.organization_id = selectedOrganization;
+        }
+        const res = await axios.get(
+          "http://127.0.0.1:8000/api/settings/environment/",
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            params,
+          }
+        );
         setBlockedDays(res.data.blocked_days || []);
       } catch (err) {
-        setStatus('Failed to load settings.');
+        setStatus("Failed to load settings.");
         console.error(err);
       }
       setLoading(false);
     }
-    fetchSettings();
-  }, []);
+    if (userRole && (userRole !== "system_admin" || selectedOrganization)) {
+      fetchSettings();
+    }
+  }, [userRole, selectedOrganization]);
 
   const handleCheckbox = (dayValue) => {
     setBlockedDays((prev) =>
@@ -73,56 +136,55 @@ function EnvironmentProfilePage() {
 
   const handleSave = async () => {
     setSaving(true);
-    setStatus('');
+    setStatus("");
     try {
-      const token = localStorage.getItem('access_token');
+      const token = localStorage.getItem("access_token");
+      const payload = { blocked_days: blockedDays };
+      if (userRole === "system_admin" && selectedOrganization) {
+        payload.organization_id = selectedOrganization;
+      }
       await axios.post(
-        'http://127.0.0.1:8000/api/settings/environment/',
-        { blocked_days: blockedDays },
+        "http://127.0.0.1:8000/api/settings/environment/",
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setStatus('Saved!');
+      setStatus("Saved!");
     } catch (e) {
-      setStatus('Failed to save.');
+      setStatus("Failed to save.");
       console.error(e);
     }
     setSaving(false);
   };
 
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
-
+    <Box
+      sx={{
+        mt: 0,
+        bgcolor: "background.paper",
+      }}
+    >
       <Tabs
         value={tabKey}
         onChange={(e, newValue) => setTabKey(newValue)}
         sx={{
           mb: 3,
-          borderRadius: 2,
-          bgcolor: '#f5faff',
-          boxShadow: 1,
           minHeight: 48,
-          '& .MuiTabs-indicator': {
-            height: 4,
-            borderRadius: 2,
-            bgcolor: 'primary.main',
+          "& .MuiTabs-indicator": {
+            height: 2,
+            bgcolor: "primary.main",
           },
-          '& .MuiTab-root': {
-            fontWeight: 700,
-            fontSize: '1rem',
-            color: 'primary.main',
+          "& .MuiTab-root": {
+            fontWeight: 400,
+            fontSize: "1rem",
+            color: "text.secondary",
             minHeight: 48,
-            textTransform: 'none',
-            borderRadius: 2,
-            mx: 0.5,
-            transition: 'background 0.2s',
-            '&.Mui-selected': {
-              bgcolor: 'primary.light',
-              color: 'primary.dark',
-              boxShadow: 2,
+            textTransform: "none",
+            transition: "color 0.2s",
+            "&.Mui-selected": {
+              color: "primary.main",
             },
-            '&:hover': {
-              bgcolor: 'primary.lighter',
-              color: 'primary.dark',
+            "&:hover": {
+              color: "primary.main",
             },
           },
         }}
@@ -132,23 +194,74 @@ function EnvironmentProfilePage() {
         <Tab label="Organization" value="organization" />
       </Tabs>
 
-      {tabKey === 'blocked-days' && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 2 }}><b>Default Blocked Days</b></Typography>
-          <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1 }}>
+      {tabKey === "blocked-days" && (
+        <Box sx={{ p: 2 }}>
+          {userRole === "system_admin" ? (
+            <>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Organization Default Blocked Days
+              </Typography>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Select Organization</InputLabel>
+                <Select
+                  value={selectedOrganization}
+                  label="Select Organization"
+                  onChange={(e) => setSelectedOrganization(e.target.value)}
+                  disabled={loading || saving || organizations.length === 0}
+                >
+                  {organizations.length === 0 ? (
+                    <MenuItem disabled>
+                      {loading ? "Loading organizations..." : "No organizations found"}
+                    </MenuItem>
+                  ) : (
+                    organizations.map((org) => (
+                      <MenuItem key={org.id} value={org.id}>
+                        {org.name}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+              </FormControl>
+            </>
+          ) : (
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Organization Default Blocked Days
+            </Typography>
+          )}
+          <Table
+            size="small"
+            stickyHeader
+            sx={{ bgcolor: "#f5faff", borderRadius: 2 }}
+          >
             <TableHead>
-              <TableRow sx={{ bgcolor: '#e3f2fd' }}>
-                <TableCell sx={{ fontWeight: 'bold', width: 180, fontSize: '1rem' }}>Setting</TableCell>
+              <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                <TableCell
+                  sx={{ fontWeight: "bold", width: 180, fontSize: "1rem" }}
+                >
+                  Setting
+                </TableCell>
                 {DAYS.map((d) => (
-                  <TableCell key={d.value} sx={{ fontWeight: 'bold', width: 80, textAlign: 'center', fontSize: '1rem' }}>{d.label}</TableCell>
+                  <TableCell
+                    key={d.value}
+                    sx={{
+                      fontWeight: "bold",
+                      width: 80,
+                      textAlign: "center",
+                      fontSize: "1rem",
+                    }}
+                  >
+                    {d.label}
+                  </TableCell>
                 ))}
               </TableRow>
             </TableHead>
             <TableBody>
-              <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
-                <TableCell className="text-start"><b>Default Blocked Days</b></TableCell>
+              <TableRow sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}>
+                <TableCell className="text-start">
+                  <b>Organization Blocked Days</b>
+                </TableCell>
                 {DAYS.map((d) => (
-                  <TableCell key={d.value} sx={{ textAlign: 'center' }}>
+                  <TableCell key={d.value} sx={{ textAlign: "center" }}>
                     <Checkbox
                       checked={blockedDays.includes(d.value)}
                       onChange={() => handleCheckbox(d.value)}
@@ -160,30 +273,41 @@ function EnvironmentProfilePage() {
             </TableBody>
           </Table>
           <Stack direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center">
-            <Button variant="contained" onClick={handleSave} disabled={saving || loading}>
-              {saving ? <CircularProgress size={24} /> : 'Save Settings'}
+            <Button
+              variant="contained"
+              onClick={handleSave}
+              disabled={saving || loading}
+            >
+              {saving ? <CircularProgress size={24} /> : "Save Settings"}
             </Button>
             {status && (
-              <Alert severity={status === 'Saved!' ? 'success' : 'error'} sx={{ flex: 1 }}>
+              <Alert
+                severity={status === "Saved!" ? "success" : "error"}
+                sx={{ flex: 1 }}
+              >
                 {status}
               </Alert>
             )}
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            Select which days are <b>blocked by default</b> for clinic scheduling. Unchecked days are available for appointments.
+            <b>Organization-wide setting:</b> Select which days are blocked by default for
+            {userRole === "system_admin" && selectedOrganization && organizations.length > 0
+              ? ` ${organizations.find(org => org.id === selectedOrganization)?.name || 'this organization'}'s`
+              : " your organization's"} scheduling.
+            This affects all clinic appointments and is separate from individual provider availability.
           </Typography>
-        </Paper>
+        </Box>
       )}
 
-      {tabKey === 'holidays' && (
-        <HolidaysTab />
-      )}
+      {tabKey === "holidays" && <HolidaysTab />}
 
-      {tabKey === 'organization' && (
-        <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>🏢 Organization Management</Typography>
+      {tabKey === "organization" && (
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Organization Management
+          </Typography>
           <OrganizationManagement />
-        </Paper>
+        </Box>
       )}
     </Box>
   );

@@ -128,6 +128,13 @@ class Availability(models.Model):
         return f"{status} for Dr. {self.doctor.get_full_name()} on {self.start_time}"
 
 class EnvironmentSetting(models.Model):
+    # Link to organization for per-organization settings
+    organization = models.OneToOneField(
+        'users.Organization',
+        on_delete=models.CASCADE,
+        related_name='environment_setting',
+        help_text="Organization this setting belongs to"
+    )
     # Store the blocked days as an array of integers [0,6]
     blocked_days = ArrayField(
         models.IntegerField(),
@@ -138,7 +145,7 @@ class EnvironmentSetting(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Environment Setting ({self.pk})"
+        return f"Environment Setting for {self.organization.name}"
     
 class Holiday(models.Model):
     name = models.CharField(max_length=64)
