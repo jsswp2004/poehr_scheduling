@@ -32,7 +32,7 @@ import Footer from '../components/Footer';
 // Main landing page component for POWER IT healthcare scheduling software
 export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Initialize navigation hook
   const navigate = useNavigate();
-  
+
   // Handler for pricing page navigation
   const handlePricingClick = (planType = null) => {
     if (planType) {
@@ -46,7 +46,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
   const handleSecurityClick = () => {
     navigate('/security');
   };
-  
+
   return (
     <div className={"landing-page-v-1-desktop-1920-px " + className}>
       {/* ===================================================================
@@ -81,9 +81,9 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
           </div>
         </div>        {/* Hero image placeholder */}
         <div className="image-container">
-          <img 
-            src={DashboardImage} 
-            alt="POWER Healthcare Dashboard Preview" 
+          <img
+            src={DashboardImage}
+            alt="POWER Healthcare Dashboard Preview"
             className="hero-dashboard-image"
             style={{
               width: '100%',
@@ -94,7 +94,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
             }}
           />
         </div>
-      </div>      
+      </div>
 
 
       {/* ===================================================================
@@ -129,20 +129,20 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
             </div>
           </div>{/* Feature image placeholder */}
           <div className="work-together-image">
-          <img 
-            src={DashboardSchedulingImage} 
-            alt="POWER Healthcare Scheduler" 
-            className="scheduling-dashboard-image"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              borderRadius: '16px',
-              padding: '5px'
-            }}
-          />
-        </div>
-         
+            <img
+              src={DashboardSchedulingImage}
+              alt="POWER Healthcare Scheduler"
+              className="scheduling-dashboard-image"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius: '16px',
+                padding: '5px'
+              }}
+            />
+          </div>
+
         </div>
       </div>
       <div className="work-management2">
@@ -154,18 +154,18 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
             ================================================================= */}        <div className="content4">
           {/* Collaboration visualization placeholder */}
           <div className="work-together-image">
-          <img 
-            src={DashboardTogetherImage} 
-            alt="POWER Healthcare Collaboration Dashboard" 
-            className="collaboration-dashboard-image"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              borderRadius: '16px',
-              padding: '5px'
-            }}
-          />
+            <img
+              src={DashboardTogetherImage}
+              alt="POWER Healthcare Collaboration Dashboard"
+              className="collaboration-dashboard-image"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                borderRadius: '16px',
+                padding: '5px'
+              }}
+            />
           </div>
           <div className="headline">
             <div className="text-block">
@@ -189,11 +189,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
           - Client names and titles
           - Testimonial slider indicators
           ================================================================= */}
-       {/*<div className="testimonial">
+      {/*<div className="testimonial">
         <div className="what-our-clients-says">What Our Clients Says</div>
         <div className="content2">
-          {/* First testimonial */} 
-           {/*<div className="client">
+          {/* First testimonial */}
+      {/*<div className="client">
             <div className="comment">
               <div className="quote">
                 <div className="quote-symbol">
@@ -226,7 +226,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
           </div>
 
           {/* Second testimonial */}
-          {/*<div className="client2">
+      {/*<div className="client2">
             <div className="comment2">
               <div className="quote">
                 <div className="quote-symbol">
@@ -259,7 +259,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
           </div>
         </div>        
         {/* Testimonial slider indicators */}
-        {/*<div className="slider">
+      {/*<div className="slider">
           <div className="ellipse-12"></div>
           <div className="ellipse-13"></div>        
           </div>
@@ -279,8 +279,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               Efficient scheduling—anywhere, anytime.
             </h2>
             <p className="efficient-scheduling-description">
-              Access your schedules and patient information from your computer, phone, or tablet—anytime, anywhere. POWER keeps 
-              everything in sync, so your appointments and clinic data are always up to date, whether you're at the office, at home, or on the go. 
+              Access your schedules and patient information from your computer, phone, or tablet—anytime, anywhere. POWER keeps
+              everything in sync, so your appointments and clinic data are always up to date, whether you're at the office, at home, or on the go.
               Available on Windows, macOS, Android, and iOS.
             </p>
             <div className="efficient-scheduling-cta">
@@ -305,9 +305,9 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               <span className="highlight-yellow">100% your data</span>
             </h2>
             <p className="data-security-description">
-              Your data stays secure with end-to-end encryption and local storage options. 
-              POWER ensures complete data ownership and privacy, giving you full control over 
-              your patient information and clinic data. HIPAA compliant and trusted by healthcare 
+              Your data stays secure with end-to-end encryption and local storage options.
+              POWER ensures complete data ownership and privacy, giving you full control over
+              your patient information and clinic data. HIPAA compliant and trusted by healthcare
               professionals worldwide.
             </p>
             <div className="data-security-cta">
@@ -340,7 +340,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
             Whether you're working solo or with a team, we have a plan that fits your needs.
           </div>
         </div>
-        
+
         <div className="pricing-cards">
           {/* Personal Plan - Free */}
           <div className="pricing-card">
@@ -355,11 +355,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               For individuals getting started with healthcare scheduling
             </div>
             <div className="plan-features">
-                  <div className="feature">Basic scheduling</div>
-                  <div className="feature">Basic calendar view</div>
-                  <div className="feature">Email notifications</div>
-                  <div className="feature">Mobile app access</div>
-                  <div className="feature">Basic reporting</div>
+              <div className="feature">Basic scheduling</div>
+              <div className="feature">Basic calendar view</div>
+              <div className="feature">Email notifications</div>
+              <div className="feature">Mobile app access</div>
+              <div className="feature">Basic reporting</div>
             </div>
             <div className="plan-button">
               <div className="btn-plan" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>Start Free Trial</div>
@@ -377,15 +377,15 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               Keep your Clinic on track
             </div>
             <div className="plan-features">
-                  <div className="feature">Everything in Personal</div>
-                  <div className="feature">Up to 10 providers</div>
-                  <div className="feature">Unlimited appointments</div>
-                  <div className="feature">Advanced calendar features</div>
-                  <div className="feature">Team collaboration tools</div>
-                  <div className="feature">SMS + Email notifications</div>
-                  <div className="feature">Bulk SMS notifications</div>
-                  <div className="feature">Patient management system</div>                  
-                  <div className="feature">Automated reminders</div>                  <div className="feature">Advanced reporting & analytics</div>
+              <div className="feature">Everything in Personal</div>
+              <div className="feature">Up to 10 providers</div>
+              <div className="feature">Unlimited appointments</div>
+              <div className="feature">Advanced calendar features</div>
+              <div className="feature">Team collaboration tools</div>
+              <div className="feature">SMS + Email notifications</div>
+              <div className="feature">Bulk SMS notifications</div>
+              <div className="feature">Patient management system</div>
+              <div className="feature">Automated reminders</div>                  <div className="feature">Advanced reporting & analytics</div>
             </div>
             <div className="plan-button">
               <div className="btn-plan" onClick={() => handlePricingClick('clinic')} style={{ cursor: 'pointer' }}>Start Free Trial</div>
@@ -405,22 +405,22 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               For larger teams
             </div>
             <div className="plan-features">
-                 <div className="feature">Everything in Clinic</div>
-                 <div className="feature">Unlimited users</div>
-                 <div className="feature">Advanced analytics</div>
-                 <div className="feature">Priority support</div>
-                 <div className="feature">Custom integrations</div>
-                  <div className="feature">Multi-organization support</div>
-                  <div className="feature">Advanced analytics & reporting</div>
-                  <div className="feature">Custom branding</div>
-                  <div className="feature">24/7 dedicated support</div>
-                  <div className="feature">On-premise deployment option</div>
-                  <div className="feature">Custom feature development</div>
-                  <div className="feature">White-label solutions</div>
-                  <div className="feature">Custom integrations</div>
-                  <div className="feature">Dedicated account manager</div>
-                  <div className="feature">SLA guarantees</div>
-                  <div className="feature">Professional services</div> 
+              <div className="feature">Everything in Clinic</div>
+              <div className="feature">Unlimited users</div>
+              <div className="feature">Advanced analytics</div>
+              <div className="feature">Priority support</div>
+              <div className="feature">Custom integrations</div>
+              <div className="feature">Multi-organization support</div>
+              <div className="feature">Advanced analytics & reporting</div>
+              <div className="feature">Custom branding</div>
+              <div className="feature">24/7 dedicated support</div>
+              <div className="feature">On-premise deployment option</div>
+              <div className="feature">Custom feature development</div>
+              <div className="feature">White-label solutions</div>
+              <div className="feature">Custom integrations</div>
+              <div className="feature">Dedicated account manager</div>
+              <div className="feature">SLA guarantees</div>
+              <div className="feature">Professional services</div>
             </div>
             <div className="plan-button">
               <div className="btn-plan" onClick={() => navigate('/contact')} style={{ cursor: 'pointer' }}>Contact Sales</div>
@@ -443,7 +443,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
             <div className="get-started-for-free-add-your-whole-team-as-your-needs-grow2">
               Get started for free.<br />
               Add your whole team as your needs grow.
-            </div>          </div>          
+            </div>          </div>
           <div className="btn-try2" onClick={handlePricingClick} style={{ cursor: 'pointer' }}>
             <div className="try-power-free2">Try POWER free</div>
           </div>
@@ -461,8 +461,8 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {  // Ini
               <div className="platform-icon">Google Play</div>
             </div>          </div>
         </div>
-      </div>      
-      
+      </div>
+
       {/* ===================================================================
           SECTION 9: FOOTER - BOTTOM OF PAGE
           - Company branding and logo

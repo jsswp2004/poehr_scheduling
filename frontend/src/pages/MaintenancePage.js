@@ -4,8 +4,10 @@ import {
   Box, Stack, Typography, Button, TextField, FormControl, InputLabel,
   Select as MUISelect, MenuItem, Checkbox, FormControlLabel, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
-  Container
+  Container, IconButton, Tooltip
 } from '@mui/material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEdit, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { toast } from 'react-toastify';
 
 function MaintenancePage() {
@@ -308,7 +310,7 @@ function MaintenancePage() {
         {/* RIGHT: Schedule Overview */}
         <Grid item xs={12} md={6} lg={6} xl={6}>
           <Box sx={{ p: 3, height: '100%', minWidth: 400, width: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Typography variant="h6" gutterBottom>📋 Schedule Overview</Typography>
+            <Typography variant="h6" gutterBottom>Schedule Overview</Typography>
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'row', gap: 2, minHeight: 0 }}>
               {/* Availability Section */}
               <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -316,7 +318,29 @@ function MaintenancePage() {
                 <TableContainer
                   component={Paper}
                   ref={availabilityTableRef}
-                  sx={{ flex: 1, overflowY: 'auto', boxShadow: 'none', borderRadius: 0, minHeight: 200 }}
+                  sx={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    boxShadow: 'none',
+                    borderRadius: 0,
+                    minHeight: 200,
+                    maxHeight: '500px',
+                    border: '1px solid #e0e0e0',
+                    '&::-webkit-scrollbar': {
+                      width: '8px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: '#f1f1f1',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: '#888',
+                      borderRadius: '4px',
+                    },
+                    '&::-webkit-scrollbar-thumb:hover': {
+                      background: '#555',
+                    },
+                  }}
                 >
                   <Table size="small" stickyHeader>
                     <TableHead><TableRow><TableCell>Date/Time</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
@@ -332,8 +356,52 @@ function MaintenancePage() {
                           <TableRow key={s.id}>
                             <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()}`}</TableCell>
                             <TableCell align="right">
-                              <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
-                              <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: "row",
+                                  justifyContent: "center",
+                                  gap: 1,
+                                }}
+                              >
+                                <Tooltip title="Edit schedule" placement="top">
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    sx={{
+                                      width: 36,
+                                      height: 36,
+                                      minWidth: 0,
+                                      padding: 0,
+                                      mr: 1,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                    onClick={() => handleEdit(s)}
+                                  >
+                                    <FontAwesomeIcon icon={faEdit} />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete schedule" placement="top">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    sx={{
+                                      width: 36,
+                                      height: 36,
+                                      minWidth: 0,
+                                      padding: 0,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                    onClick={() => handleDelete(s.id)}
+                                  >
+                                    <FontAwesomeIcon icon={faTrash} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ))
@@ -349,7 +417,29 @@ function MaintenancePage() {
                 <TableContainer
                   component={Paper}
                   ref={blockedTableRef}
-                  sx={{ flex: 1, overflowY: 'auto', boxShadow: 'none', borderRadius: 0, minHeight: 200 }}
+                  sx={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    overflowX: 'hidden',
+                    boxShadow: 'none',
+                    borderRadius: 0,
+                    minHeight: 200,
+                    maxHeight: '500px',
+                    border: '1px solid #e0e0e0',
+                    '&::-webkit-scrollbar': {
+                      width: '8px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      background: '#f1f1f1',
+                    },
+                    '&::-webkit-scrollbar-thumb': {
+                      background: '#888',
+                      borderRadius: '4px',
+                    },
+                    '&::-webkit-scrollbar-thumb:hover': {
+                      background: '#555',
+                    },
+                  }}
                 >
                   <Table size="small" stickyHeader>
                     <TableHead><TableRow><TableCell>Date/Time</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
@@ -365,8 +455,52 @@ function MaintenancePage() {
                           <TableRow key={s.id}>
                             <TableCell>{`${new Date(s.start_time).toLocaleString()} — ${new Date(s.end_time).toLocaleString()} | ${s.block_type || 'No Type'} | Dr. ${doctors.find(d => d.id === s.doctor)?.first_name || ''} ${doctors.find(d => d.id === s.doctor)?.last_name || ''}`}</TableCell>
                             <TableCell align="right">
-                              <Button size="small" variant="outlined" onClick={() => handleEdit(s)}>✏️</Button>
-                              <Button size="small" variant="outlined" color="error" onClick={() => handleDelete(s.id)}>🗑️</Button>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexDirection: "row",
+                                  justifyContent: "center",
+                                  gap: 1,
+                                }}
+                              >
+                                <Tooltip title="Edit schedule" placement="top">
+                                  <IconButton
+                                    size="small"
+                                    color="primary"
+                                    sx={{
+                                      width: 36,
+                                      height: 36,
+                                      minWidth: 0,
+                                      padding: 0,
+                                      mr: 1,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                    onClick={() => handleEdit(s)}
+                                  >
+                                    <FontAwesomeIcon icon={faEdit} />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Delete schedule" placement="top">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    sx={{
+                                      width: 36,
+                                      height: 36,
+                                      minWidth: 0,
+                                      padding: 0,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                    onClick={() => handleDelete(s.id)}
+                                  >
+                                    <FontAwesomeIcon icon={faTrash} />
+                                  </IconButton>
+                                </Tooltip>
+                              </Box>
                             </TableCell>
                           </TableRow>
                         ))

@@ -78,10 +78,19 @@ services:
     environment:
       - REACT_APP_API_URL=http://localhost:8000
       - CHOKIDAR_USEPOLLING=true
+      - NODE_OPTIONS=--max_old_space_size=16384 --max-semi-space-size=2048
+      - GENERATE_SOURCEMAP=false
+      - DISABLE_ESLINT_PLUGIN=true
     volumes:
       - ./frontend:/app
       - /app/node_modules
     command: npm start
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
 
   pgadmin:
     image: dpage/pgadmin4:latest
