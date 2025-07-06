@@ -303,10 +303,12 @@ function RegisterPage({ adminMode = false }) {
         elevation={4}
         sx={{
           borderRadius: 3,
-          minHeight: "80vh",
+          minHeight: "70vh",
+          maxHeight: "75vh",
+          overflowY: "auto",
           p: 3,
           display: "flex",
-          gap: 3
+          gap: 3,
         }}
       >
         {/* Left Pane - Registration Form (30%) */}
@@ -634,9 +636,7 @@ function RegisterPage({ adminMode = false }) {
                     onChange={handlePatientEditChange}
                     label="Provider"
                     sx={
-                      !editMode
-                        ? { color: "#333", background: "#f5f5f5" }
-                        : {}
+                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
                     }
                   >
                     <MenuItem value="">Select a provider</MenuItem>
@@ -656,9 +656,7 @@ function RegisterPage({ adminMode = false }) {
                     onChange={handlePatientEditChange}
                     label="Organization"
                     sx={
-                      !editMode
-                        ? { color: "#333", background: "#f5f5f5" }
-                        : {}
+                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
                     }
                   >
                     <MenuItem value="">Select an organization</MenuItem>
