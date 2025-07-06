@@ -172,10 +172,9 @@ function PatientsPage() {
       // Show toast if message is from another user and chat modal is not open
       if (message && message.sender_id !== currentUser?.id && !chatModalOpen) {
         toast.info(
-          `💬 ${message.sender_name}: ${
-            message.content.length > 50
-              ? message.content.substring(0, 50) + "..."
-              : message.content
+          `💬 ${message.sender_name}: ${message.content.length > 50
+            ? message.content.substring(0, 50) + "..."
+            : message.content
           }`,
           {
             position: "top-right",
@@ -368,8 +367,7 @@ function PatientsPage() {
         const providerName =
           appt.provider_name ||
           (appt.provider
-            ? `Dr. ${appt.provider.first_name || ""} ${
-                appt.provider.last_name || ""
+            ? `Dr. ${appt.provider.first_name || ""} ${appt.provider.last_name || ""
               }`.trim()
             : "");
         let dateTimeFormats = [];
@@ -653,11 +651,11 @@ function PatientsPage() {
           </thead>
           <tbody>
             ${data
-              .map(
-                (item) =>
-                  `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.datetime}</td><td>${item.duration} min</td><td>${item.status}</td></tr>`
-              )
-              .join("")}
+          .map(
+            (item) =>
+              `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.datetime}</td><td>${item.duration} min</td><td>${item.status}</td></tr>`
+          )
+          .join("")}
           </tbody>
         </table>
       `;
@@ -674,11 +672,11 @@ function PatientsPage() {
             </thead>
             <tbody>
               ${appointments
-                .map(
-                  (apt) =>
-                    `<tr><td>${apt.patient_name}</td><td>${apt.title}</td><td>${apt.datetime}</td><td>${apt.duration} min</td><td>${apt.status}</td></tr>`
-                )
-                .join("")}
+            .map(
+              (apt) =>
+                `<tr><td>${apt.patient_name}</td><td>${apt.title}</td><td>${apt.datetime}</td><td>${apt.duration} min</td><td>${apt.status}</td></tr>`
+            )
+            .join("")}
             </tbody>
           </table>
         `;
@@ -694,11 +692,11 @@ function PatientsPage() {
           </thead>
           <tbody>
             ${data.summary
-              .map(
-                (item) =>
-                  `<tr><td>${item.status}</td><td>${item.count}</td><td>${item.percentage}%</td></tr>`
-              )
-              .join("")}
+          .map(
+            (item) =>
+              `<tr><td>${item.status}</td><td>${item.count}</td><td>${item.percentage}%</td></tr>`
+          )
+          .join("")}
           </tbody>
         </table>
         <p><strong>Total Appointments: ${data.total}</strong></p>
@@ -713,11 +711,11 @@ function PatientsPage() {
           </thead>
           <tbody>
             ${data
-              .map(
-                (item) =>
-                  `<tr><td>${item.name}</td><td>${item.email}</td><td>${item.registration_date}</td><td>${item.appointment_count}</td></tr>`
-              )
-              .join("")}
+          .map(
+            (item) =>
+              `<tr><td>${item.name}</td><td>${item.email}</td><td>${item.registration_date}</td><td>${item.appointment_count}</td></tr>`
+          )
+          .join("")}
           </tbody>
         </table>
       `;
@@ -731,11 +729,11 @@ function PatientsPage() {
           </thead>
           <tbody>
             ${data
-              .map(
-                (item) =>
-                  `<tr><td>${item.doctor_name}</td><td>${item.start_time}</td><td>${item.end_time}</td><td>${item.duration_hours}</td></tr>`
-              )
-              .join("")}
+          .map(
+            (item) =>
+              `<tr><td>${item.doctor_name}</td><td>${item.start_time}</td><td>${item.end_time}</td><td>${item.duration_hours}</td></tr>`
+          )
+          .join("")}
           </tbody>
         </table>
       `;
@@ -749,11 +747,11 @@ function PatientsPage() {
           </thead>
           <tbody>
             ${data
-              .map(
-                (item) =>
-                  `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.recurrence}</td><td>${item.start_date}</td><td>${item.end_date}</td></tr>`
-              )
-              .join("")}
+          .map(
+            (item) =>
+              `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.recurrence}</td><td>${item.start_date}</td><td>${item.end_date}</td></tr>`
+          )
+          .join("")}
           </tbody>
         </table>
       `;
@@ -768,17 +766,14 @@ function PatientsPage() {
             <tr><th>Metric</th><th>Value</th></tr>
           </thead>
           <tbody>
-            <tr><td>Average Duration</td><td>${
-              stats.average_duration
-            } minutes</td></tr>
-            <tr><td>Total Duration</td><td>${
-              stats.total_duration_hours
-            } hours</td></tr>
+            <tr><td>Average Duration</td><td>${stats.average_duration
+        } minutes</td></tr>
+            <tr><td>Total Duration</td><td>${stats.total_duration_hours
+        } hours</td></tr>
             <tr><td>Min Duration</td><td>${stats.min_duration} minutes</td></tr>
             <tr><td>Max Duration</td><td>${stats.max_duration} minutes</td></tr>
-            <tr><td>Total Appointments</td><td>${
-              stats.total_appointments
-            }</td></tr>
+            <tr><td>Total Appointments</td><td>${stats.total_appointments
+        }</td></tr>
           </tbody>
         </table>
         
@@ -789,11 +784,11 @@ function PatientsPage() {
           </thead>
           <tbody>
             ${Object.entries(data.distribution)
-              .map(
-                ([range, count]) =>
-                  `<tr><td>${range}</td><td>${count}</td></tr>`
-              )
-              .join("")}
+          .map(
+            ([range, count]) =>
+              `<tr><td>${range}</td><td>${count}</td></tr>`
+          )
+          .join("")}
           </tbody>
         </table>
       `;
@@ -825,24 +820,20 @@ function PatientsPage() {
             <body>
               <h1>${report}</h1>
               <div class="filters">
-                ${
-                  reportStartDate
-                    ? `Start Date: ${reportStartDate.toLocaleDateString()} `
-                    : ""
-                }
-                ${
-                  reportEndDate
-                    ? `End Date: ${reportEndDate.toLocaleDateString()} `
-                    : ""
-                }
-                ${
-                  reportProvider !== "all"
-                    ? `Provider: ${
-                        providers.find((p) => p.id == reportProvider)
-                          ?.first_name || "All"
-                      }`
-                    : "Provider: All"
-                }
+                ${reportStartDate
+            ? `Start Date: ${reportStartDate.toLocaleDateString()} `
+            : ""
+          }
+                ${reportEndDate
+            ? `End Date: ${reportEndDate.toLocaleDateString()} `
+            : ""
+          }
+                ${reportProvider !== "all"
+            ? `Provider: ${providers.find((p) => p.id == reportProvider)
+              ?.first_name || "All"
+            }`
+            : "Provider: All"
+          }
               </div>
               ${generatePrintableTable(report, reportData)}
               <script>window.print(); window.onafterprint = () => window.close();</script>
@@ -1006,12 +997,12 @@ function PatientsPage() {
                       <TableCell>
                         {patient.last_appointment_date
                           ? new Date(
-                              patient.last_appointment_date
-                            ).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
+                            patient.last_appointment_date
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
                           : "—"}
                       </TableCell>
                       <TableCell align="center">
@@ -1230,10 +1221,10 @@ function PatientsPage() {
                               chatSystemLoading
                                 ? "Chat system initializing..."
                                 : !onlineStatusConnected
-                                ? "Chat unavailable - no connection"
-                                : !currentUser
-                                ? "Chat unavailable - user not loaded"
-                                : "Start Chat"
+                                  ? "Chat unavailable - no connection"
+                                  : !currentUser
+                                    ? "Chat unavailable - user not loaded"
+                                    : "Start Chat"
                             }
                             placement="top"
                           >
@@ -1790,9 +1781,8 @@ function PatientsPage() {
                   </Typography>
                   <Typography variant="h6" sx={{ color: "text.secondary" }}>
                     {todaysAppointments.length > 0
-                      ? `${todaysAppointments.length} appointment${
-                          todaysAppointments.length === 1 ? "" : "s"
-                        } scheduled`
+                      ? `${todaysAppointments.length} appointment${todaysAppointments.length === 1 ? "" : "s"
+                      } scheduled`
                       : "No appointments scheduled for today"}
                   </Typography>
                 </Box>
@@ -1883,8 +1873,8 @@ function PatientsPage() {
             <Tab label="Appointments" value="appointments" />
             <Tab label="Analytics" value="analytics" />
             {userRole === "admin" ||
-            userRole === "system_admin" ||
-            userRole === "registrar" ? (
+              userRole === "system_admin" ||
+              userRole === "registrar" ? (
               <Tab label="Register" value="register" />
             ) : null}
           </Tabs>
@@ -1936,8 +1926,9 @@ function PatientsPage() {
             </>
           )}{" "}
           {tab === "team" && (
-            <>
-              <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+            <Box>
+
+              <Stack direction="row" spacing={2} sx={{ mb: 2, width: "100%" }}>
                 <TextField
                   label="Search Team Members"
                   variant="outlined"
@@ -1950,8 +1941,10 @@ function PatientsPage() {
                   sx={{ flexGrow: 1, bgcolor: "#fff" }}
                 />
               </Stack>
+
               {renderTeamTable()}
-            </>
+
+            </Box>
           )}{" "}
           {tab === "appointments" && (
             <>
@@ -2084,7 +2077,7 @@ function PatientsPage() {
             </>
           )}{" "}
           {tab === "analytics" && (
-            <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Grid container spacing={2} sx={{ mt: 0, minHeight: "70vh", maxHeight: "75vh", overflowY: "auto" }}>
               <Grid item xs={6}>
                 {renderAnalyticsTable()}
               </Grid>

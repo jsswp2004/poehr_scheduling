@@ -1,7 +1,7 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useEffect, useState, useRef } from 'react';
-import axios from 'axios';
-import CreateAppointmentForm from '../components/CreateAppointmentForm';
+import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useState, useCallback, useRef, memo } from "react";
+import axios from "axios";
+import CreateAppointmentForm from "../components/CreateAppointmentForm";
 import {
   Box,
   Stack,
@@ -13,11 +13,448 @@ import {
   FormControl,
   InputLabel,
   Select as MUISelect,
-} from '@mui/material';
-import { jwtDecode } from 'jwt-decode';
-import BackButton from '../components/BackButton';
-import InputAdornment from '@mui/material/InputAdornment';
-import { toast } from '../components/SimpleToast';
+} from "@mui/material";
+import { jwtDecode } from "jwt-decode";
+import BackButton from "../components/BackButton";
+import InputAdornment from "@mui/material/InputAdornment";
+import { toast } from "../components/SimpleToast";
+
+// PRODUCTION-READY ADDRESS AUTOCOMPLETE WITH GOOGLE PLACES API + COST OPTIMIZATION
+const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
+  value,
+  onChange,
+  disabled,
+}) {
+  const inputRef = useRef(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const abortControllerRef = useRef(null);
+
+  // Cost Optimization #2: Local caching to reduce duplicate API calls
+  const cacheRef = useRef(new Map());
+  const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache
+
+  // Cache helper functions
+  const getCachedSuggestions = useCallback((query) => {
+    const cached = cacheRef.current.get(query.toLowerCase());
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return cached.suggestions;
+    }
+    return null;
+  }, [CACHE_DURATION]);
+
+  const setCachedSuggestions = useCallback((query, suggestions) => {
+    cacheRef.current.set(query.toLowerCase(), {
+      suggestions,
+      timestamp: Date.now()
+    });
+
+    // Clean old cache entries (simple cleanup)
+    if (cacheRef.current.size > 100) {
+      const entries = Array.from(cacheRef.current.entries());
+      const now = Date.now();
+      entries.forEach(([key, value]) => {
+        if (now - value.timestamp > CACHE_DURATION) {
+          cacheRef.current.delete(key);
+        }
+      });
+    }
+  }, [CACHE_DURATION]);
+
+  // Sync the input value with the parent value only when needed
+  useEffect(() => {
+    if (inputRef.current && inputRef.current.value !== value) {
+      inputRef.current.value = value || "";
+    }
+  }, [value]);
+
+  // Google Places API with fallback to OpenStreetMap + Cost Optimization
+  const fetchAddressSuggestions = useCallback(async (query) => {
+    if (query.length < 2) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    // Cost Optimization #2: Check cache first
+    const cachedResults = getCachedSuggestions(query);
+    if (cachedResults) {
+      console.log('Using cached address suggestions for:', query);
+      setSuggestions(cachedResults);
+      setShowDropdown(cachedResults.length > 0);
+      setSelectedIndex(-1);
+      setIsLoading(false);
+      return;
+    }
+
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller
+    abortControllerRef.current = new AbortController();
+
+    setIsLoading(true);
+
+    try {
+      let addressSuggestions = [];
+
+      // Strategy 1: Try to use Google Places API if available and loaded
+      const GOOGLE_API_KEY = process.env.REACT_APP_GOOGLE_PLACES_API_KEY;
+
+      if (GOOGLE_API_KEY && window.google?.maps?.places?.AutocompleteService) {
+        try {
+          const service = new window.google.maps.places.AutocompleteService();
+
+          const request = {
+            input: query,
+            types: ["address"],
+            componentRestrictions: { country: "us" },
+          };
+
+          // Use Promise wrapper for the callback-based API
+          const predictions = await new Promise((resolve, reject) => {
+            service.getPlacePredictions(request, (predictions, status) => {
+              if (
+                status === window.google.maps.places.PlacesServiceStatus.OK &&
+                predictions
+              ) {
+                resolve(predictions);
+              } else {
+                reject(new Error(`Google Places API status: ${status}`));
+              }
+            });
+          });
+
+          // Cost Optimization #4: Limit to 5 results max to reduce costs
+          const limitedPredictions = predictions.slice(0, 5);
+          const googleSuggestions = limitedPredictions.map(
+            (prediction) => prediction.description
+          );
+
+          // Cost Optimization #2: Cache the results
+          setCachedSuggestions(query, googleSuggestions);
+          console.log('Google Places API call made for:', query, '- Results cached');
+
+          setSuggestions(googleSuggestions);
+          setShowDropdown(googleSuggestions.length > 0);
+          setSelectedIndex(-1);
+          setIsLoading(false);
+          return; // Successfully used Google API, exit early
+        } catch (googleError) {
+          console.warn("Google Places API failed:", googleError);
+          // Continue to OpenStreetMap fallback
+        }
+      } else if (
+        GOOGLE_API_KEY &&
+        !window.google?.maps?.places?.AutocompleteService
+      ) {
+        // Google API key is available but Google Maps script not loaded yet
+        // Load Google Maps script dynamically
+        if (!window.googleMapsScriptLoading && !window.google) {
+          window.googleMapsScriptLoading = true;
+          const script = document.createElement("script");
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places`;
+          script.async = true;
+          script.defer = true;
+          script.onload = () => {
+            window.googleMapsScriptLoading = false;
+            console.log("Google Maps script loaded successfully");
+          };
+          script.onerror = () => {
+            window.googleMapsScriptLoading = false;
+            console.warn("Failed to load Google Maps script");
+          };
+          document.head.appendChild(script);
+        }
+        // Fall through to OpenStreetMap for this request
+      }
+
+      // Strategy 2: Fallback to OpenStreetMap (Photon API)
+      try {
+        const photonResponse = await fetch(
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(
+            query
+          )}&limit=6`,
+          { signal: abortControllerRef.current.signal }
+        );
+
+        if (photonResponse.ok) {
+          const photonData = await photonResponse.json();
+          const photonSuggestions =
+            photonData.features?.map((feature) => {
+              const props = feature.properties;
+              const parts = [];
+
+              // Build comprehensive address from all available components
+              if (props.housenumber) parts.push(props.housenumber);
+
+              // Handle street names more comprehensively
+              if (props.street) {
+                parts.push(props.street);
+              } else if (props.name && !props.city && !props.state) {
+                parts.push(props.name);
+              }
+
+              // Handle locality (city/town/village)
+              if (props.city) {
+                parts.push(props.city);
+              } else if (props.district) {
+                parts.push(props.district);
+              } else if (props.county) {
+                parts.push(props.county);
+              }
+
+              if (props.state) parts.push(props.state);
+              if (props.postcode) parts.push(props.postcode);
+
+              const fullAddress = parts.join(", ");
+              return (
+                fullAddress || props.name || props.display_name || "Address"
+              );
+            }) || [];
+
+          addressSuggestions.push(...photonSuggestions);
+        }
+      } catch (photonError) {
+        console.warn("Photon API failed:", photonError);
+      }
+
+      // Strategy 3: Enhanced fallback suggestions based on query pattern
+      if (addressSuggestions.length === 0) {
+        const fallbackSuggestions = [];
+
+        // Analyze the query to provide intelligent suggestions
+        if (/^\d+\s+/.test(query)) {
+          // Starts with house number - suggest street types
+          fallbackSuggestions.push(
+            `${query} Street`,
+            `${query} Avenue`,
+            `${query} Drive`,
+            `${query} Road`,
+            `${query} Lane`
+          );
+        } else if (/\d{5}(-\d{4})?/.test(query)) {
+          // Contains ZIP code - suggest locations
+          const zipMatch = query.match(/\d{5}(-\d{4})?/)[0];
+          fallbackSuggestions.push(
+            `Main Street, ${zipMatch}`,
+            `First Avenue, ${zipMatch}`,
+            `Park Avenue, ${zipMatch}`,
+            `${query}, USA`
+          );
+        } else if (
+          query.toLowerCase().includes("street") ||
+          query.toLowerCase().includes("avenue") ||
+          query.toLowerCase().includes("road") ||
+          query.toLowerCase().includes("drive") ||
+          query.toLowerCase().includes("lane") ||
+          query.toLowerCase().includes("blvd")
+        ) {
+          // Already contains street type - suggest completions
+          fallbackSuggestions.push(
+            `${query}, City, State`,
+            `123 ${query}`,
+            `456 ${query}`,
+            `${query}, USA`
+          );
+        } else {
+          // General query - could be street name, city, etc.
+          fallbackSuggestions.push(
+            `${query} Street`,
+            `${query} Avenue`,
+            `${query} Drive`,
+            `123 ${query} Street`,
+            `${query}, USA`
+          );
+        }
+
+        addressSuggestions = fallbackSuggestions;
+      }
+
+      // Remove duplicates and limit results
+      const uniqueSuggestions = [...new Set(addressSuggestions)].slice(0, 6);
+
+      // Cache the OpenStreetMap/fallback results too (for cost optimization)
+      if (uniqueSuggestions.length > 0) {
+        setCachedSuggestions(query, uniqueSuggestions);
+        console.log('OpenStreetMap/fallback results cached for:', query);
+      }
+
+      setSuggestions(uniqueSuggestions);
+      setShowDropdown(uniqueSuggestions.length > 0);
+      setSelectedIndex(-1);
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        console.warn("All address lookup methods failed:", error);
+        // Final fallback
+        setSuggestions([
+          `${query} (Type full address)`,
+          `${query} Street`,
+          `${query} Avenue`,
+        ]);
+        setShowDropdown(true);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [getCachedSuggestions, setCachedSuggestions]);
+
+  // Debounce the API calls
+  useEffect(() => {
+    const currentValue = inputRef.current?.value || "";
+    const timeoutId = setTimeout(() => {
+      fetchAddressSuggestions(currentValue);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [fetchAddressSuggestions]);
+
+  const handleInputChange = (event) => {
+    const newValue = event.target.value;
+    onChange(newValue);
+
+    // Trigger suggestions fetch
+    const timeoutId = setTimeout(() => {
+      fetchAddressSuggestions(newValue);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  };
+
+  const handleSuggestionClick = (suggestion) => {
+    onChange(suggestion);
+    setShowDropdown(false);
+    setSelectedIndex(-1);
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (event) => {
+    if (!showDropdown || suggestions.length === 0) return;
+
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < suggestions.length - 1 ? prev + 1 : 0
+        );
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        setSelectedIndex((prev) =>
+          prev > 0 ? prev - 1 : suggestions.length - 1
+        );
+        break;
+      case "Enter":
+        event.preventDefault();
+        if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
+          handleSuggestionClick(suggestions[selectedIndex]);
+        }
+        break;
+      case "Escape":
+        setShowDropdown(false);
+        setSelectedIndex(-1);
+        break;
+      default:
+        // No action needed for other keys
+        break;
+    }
+  };
+
+  const handleBlur = () => {
+    // Delay hiding to allow clicks on suggestions
+    setTimeout(() => {
+      setShowDropdown(false);
+      setSelectedIndex(-1);
+    }, 150);
+  };
+
+  const currentValue = value || "";
+
+  return (
+    <Box sx={{ position: "relative", width: "100%" }}>
+      <TextField
+        inputRef={inputRef}
+        label="Address *"
+        defaultValue={currentValue}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        onBlur={handleBlur}
+        onFocus={() =>
+          currentValue.length >= 2 && setShowDropdown(suggestions.length > 0)
+        }
+        fullWidth
+        required
+        disabled={disabled}
+        placeholder="Enter street address..."
+        InputProps={{
+          endAdornment: isLoading ? (
+            <Box sx={{ display: "flex", alignItems: "center", mr: 1 }}>
+              <Box
+                sx={{
+                  width: 16,
+                  height: 16,
+                  border: "2px solid #ccc",
+                  borderTop: "2px solid #1976d2",
+                  borderRadius: "50%",
+                  animation: "spin 1s linear infinite",
+                  "@keyframes spin": {
+                    "0%": { transform: "rotate(0deg)" },
+                    "100%": { transform: "rotate(360deg)" },
+                  },
+                }}
+              />
+            </Box>
+          ) : null,
+        }}
+        error={!currentValue && disabled === false}
+        helperText={
+          !currentValue && disabled === false ? "Address is required" : ""
+        }
+      />
+
+      {showDropdown && suggestions.length > 0 && (
+        <Paper
+          elevation={3}
+          sx={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            right: 0,
+            zIndex: 10000,
+            maxHeight: 200,
+            overflow: "auto",
+            mt: 0.5,
+          }}
+        >
+          {suggestions.map((suggestion, index) => (
+            <Box
+              key={index}
+              sx={{
+                px: 2,
+                py: 1.5,
+                cursor: "pointer",
+                backgroundColor:
+                  selectedIndex === index ? "action.hover" : "transparent",
+                "&:hover": {
+                  backgroundColor: "action.hover",
+                },
+                borderBottom: index < suggestions.length - 1 ? 1 : 0,
+                borderColor: "divider",
+              }}
+              onClick={() => handleSuggestionClick(suggestion)}
+            >
+              <Typography variant="body2">{suggestion}</Typography>
+            </Box>
+          ))}
+        </Paper>
+      )}
+    </Box>
+  );
+});
 
 function PatientDetailPage() {
   const { id } = useParams();
@@ -28,28 +465,28 @@ function PatientDetailPage() {
   const [formData, setFormData] = useState({});
   const [doctors, setDoctors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem("access_token");
 
   // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
   useEffect(() => {
     if (!token) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
     try {
       const decoded = jwtDecode(token);
-      const role = decoded.role || '';
+      const role = decoded.role || "";
       if (
-        role !== 'admin' &&
-        role !== 'system_admin' &&
-        role !== 'doctor' &&
-        role !== 'registrar' &&
-        role !== 'receptionist'
+        role !== "admin" &&
+        role !== "system_admin" &&
+        role !== "doctor" &&
+        role !== "registrar" &&
+        role !== "receptionist"
       ) {
-        navigate('/');
+        navigate("/");
       }
     } catch (err) {
-      navigate('/login');
+      navigate("/login");
     }
   }, [navigate, token]);
   // Fetch patient data
@@ -62,23 +499,23 @@ function PatientDetailPage() {
         setPatient(res.data);
         setFormData(res.data);
       })
-      .catch((err) => console.error('Error fetching patient:', err));
+      .catch((err) => console.error("Error fetching patient:", err));
   }, [id, token]);
 
   // Fetch doctors for dropdown
   useEffect(() => {
     axios
-      .get('http://127.0.0.1:8000/api/users/doctors/', {
+      .get("http://127.0.0.1:8000/api/users/doctors/", {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setDoctors(res.data))
-      .catch((err) => console.error('Failed to load doctors:', err));
+      .catch((err) => console.error("Failed to load doctors:", err));
   }, [token]);
 
   // Fetch organizations for dropdown
   useEffect(() => {
     axios
-      .get('http://127.0.0.1:8000/api/users/organizations/', {
+      .get("http://127.0.0.1:8000/api/users/organizations/", {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setOrganizations(res.data))
@@ -87,7 +524,7 @@ function PatientDetailPage() {
 
   const handleResetPassword = async () => {
     if (!patient || !patient.email) {
-      toast.error('Patient email not found. Cannot reset password.');
+      toast.error("Patient email not found. Cannot reset password.");
       return;
     }
 
@@ -101,7 +538,7 @@ function PatientDetailPage() {
     }
 
     // Generate a temporary password
-    const tempPassword = `Temp${Math.random().toString(36).slice(2, 8)}!`;    // Confirm action with user
+    const tempPassword = `Temp${Math.random().toString(36).slice(2, 8)}!`; // Confirm action with user
     const confirmed = window.confirm(
       `Are you sure you want to reset the password for ${patient.first_name} ${patient.last_name}?\n\n` +
       `New temporary password: ${tempPassword}\n\n` +
@@ -113,28 +550,28 @@ function PatientDetailPage() {
     try {
       // First, send the email with the temporary password
       await axios.post(
-        'http://127.0.0.1:8000/api/users/send-email/',
+        "http://127.0.0.1:8000/api/users/send-email/",
         {
           email: patient.email,
-          subject: 'Password Reset - POWER Healthcare IT Systems',
-          message: `Dear ${patient.first_name} ${patient.last_name},\n\nYour password has been reset by an administrator.\n\nTemporary password: ${tempPassword}\n\nPlease log in with this temporary password and change it immediately in your account settings.\n\nIf you did not request this password reset, please contact your healthcare provider immediately.\n\nBest regards,\nPOWER Healthcare IT Systems`
+          subject: "Password Reset - POWER Healthcare IT Systems",
+          message: `Dear ${patient.first_name} ${patient.last_name},\n\nYour password has been reset by an administrator.\n\nTemporary password: ${tempPassword}\n\nPlease log in with this temporary password and change it immediately in your account settings.\n\nIf you did not request this password reset, please contact your healthcare provider immediately.\n\nBest regards,\nPOWER Healthcare IT Systems`,
         },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       // Then change the password in the system
       await axios.post(
-        'http://127.0.0.1:8000/api/users/admin-change-password/',
+        "http://127.0.0.1:8000/api/users/admin-change-password/",
         {
           target_user_id: patient.user_id || patient.id,
           admin_password: adminPassword,
           new_password: tempPassword,
-          confirm_password: tempPassword
+          confirm_password: tempPassword,
         },
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -143,29 +580,30 @@ function PatientDetailPage() {
         `Temporary password: ${tempPassword}\n\n` +
         `An email with the temporary password has been sent to ${patient.email}. The patient should check their email and log in with the temporary password to change it immediately.`,
         {
-          autoClose: 12000 // Give time to read the message
+          autoClose: 12000, // Give time to read the message
         }
       );
-
     } catch (err) {
-      console.error('Password reset error:', err);
+      console.error("Password reset error:", err);
 
       // Check if this is an email error or password change error
-      if (err.config?.url?.includes('send-email')) {
+      if (err.config?.url?.includes("send-email")) {
         // Email failed, but try to continue with password reset
-        toast.warning('Failed to send email notification. Continuing with password reset...');
+        toast.warning(
+          "Failed to send email notification. Continuing with password reset..."
+        );
 
         try {
           await axios.post(
-            'http://127.0.0.1:8000/api/users/admin-change-password/',
+            "http://127.0.0.1:8000/api/users/admin-change-password/",
             {
               target_user_id: patient.user_id || patient.id,
               admin_password: adminPassword,
               new_password: tempPassword,
-              confirm_password: tempPassword
+              confirm_password: tempPassword,
             },
             {
-              headers: { Authorization: `Bearer ${token}` }
+              headers: { Authorization: `Bearer ${token}` },
             }
           );
 
@@ -174,29 +612,36 @@ function PatientDetailPage() {
             `Temporary password: ${tempPassword}\n\n` +
             `⚠️ Email delivery failed. Please provide this temporary password to ${patient.first_name} ${patient.last_name} manually and instruct them to change it immediately after logging in.`,
             {
-              autoClose: 15000
+              autoClose: 15000,
             }
           );
         } catch (passwordErr) {
-          console.error('Password change also failed:', passwordErr);
-          toast.error('Both email delivery and password reset failed. Please try again.');
+          console.error("Password change also failed:", passwordErr);
+          toast.error(
+            "Both email delivery and password reset failed. Please try again."
+          );
         }
       } else {
         // Password change error
         if (err.response?.status === 403) {
-          toast.error('You do not have permission to reset patient passwords.');
+          toast.error("You do not have permission to reset patient passwords.");
         } else if (err.response?.status === 400) {
-          if (err.response.data?.detail?.includes('Admin password is incorrect')) {
-            toast.error('Incorrect admin password. Please try again.');
+          if (
+            err.response.data?.detail?.includes("Admin password is incorrect")
+          ) {
+            toast.error("Incorrect admin password. Please try again.");
           } else {
-            toast.error(`Password reset failed: ${err.response.data?.detail || 'Invalid request data'}`);
+            toast.error(
+              `Password reset failed: ${err.response.data?.detail || "Invalid request data"
+              }`
+            );
           }
         } else if (err.response?.status === 404) {
-          toast.error('Patient not found.');
+          toast.error("Patient not found.");
         } else if (err.response?.data?.detail) {
           toast.error(`Password reset failed: ${err.response.data.detail}`);
         } else {
-          toast.error('Failed to reset password. Please try again later.');
+          toast.error("Failed to reset password. Please try again later.");
         }
       }
     }
@@ -207,53 +652,70 @@ function PatientDetailPage() {
     setFormData((prev) => {
       // If provider is changed, update organization to match provider's org
       if (name === "provider") {
-        const selectedProvider = doctors.find((doc) => String(doc.id) === String(value));
+        const selectedProvider = doctors.find(
+          (doc) => String(doc.id) === String(value)
+        );
         if (selectedProvider && selectedProvider.organization) {
-          return { ...prev, provider: value, organization: selectedProvider.organization };
+          return {
+            ...prev,
+            provider: value,
+            organization: selectedProvider.organization,
+          };
         }
       }
       return { ...prev, [name]: value };
     });
-  }; const handleSubmit = async (e) => {
-    e.preventDefault();    // Comprehensive field validation
-    const errors = []; const requiredFields = [
-      { field: 'first_name', label: 'First Name' },
-      { field: 'last_name', label: 'Last Name' },
-      { field: 'username', label: 'Username' },
-      { field: 'email', label: 'Email' },
-      { field: 'provider', label: 'Provider' },
-      { field: 'organization', label: 'Organization' },
-      { field: 'phone_number', label: 'Phone Number' },
-      { field: 'date_of_birth', label: 'Date of Birth' },
-      { field: 'address', label: 'Address' }
+  };
+
+  // Stable callback for address changes to prevent re-renders
+  const handleAddressChange = useCallback((newAddress) => {
+    setFormData((prev) => ({ ...prev, address: newAddress }));
+  }, []);
+  const handleSubmit = async (e) => {
+    e.preventDefault(); // Comprehensive field validation
+    const errors = [];
+    const requiredFields = [
+      { field: "first_name", label: "First Name" },
+      { field: "last_name", label: "Last Name" },
+      { field: "username", label: "Username" },
+      { field: "email", label: "Email" },
+      { field: "provider", label: "Provider" },
+      { field: "organization", label: "Organization" },
+      { field: "phone_number", label: "Phone Number" },
+      { field: "date_of_birth", label: "Date of Birth" },
+      { field: "address", label: "Address" },
     ];
     // Check required fields
     requiredFields.forEach(({ field, label }) => {
-      if (!formData[field] || formData[field].toString().trim() === '') {
+      if (!formData[field] || formData[field].toString().trim() === "") {
         errors.push(`${label} is required`);
       }
     });
 
     // Email format validation
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      errors.push('Email format is invalid');
+      errors.push("Email format is invalid");
     }
 
     // Phone number validation (if provided)
-    if (formData.phone_number && formData.phone_number.length > 0 && formData.phone_number.length < 10) {
-      errors.push('Phone number must be at least 10 digits');
+    if (
+      formData.phone_number &&
+      formData.phone_number.length > 0 &&
+      formData.phone_number.length < 10
+    ) {
+      errors.push("Phone number must be at least 10 digits");
     }
 
     // Username validation
     if (formData.username && formData.username.length < 3) {
-      errors.push('Username must be at least 3 characters long');
+      errors.push("Username must be at least 3 characters long");
     }
     // Show validation errors if any
     if (errors.length > 0) {
       toast.error(
         <div>
           <strong>Please fix the following issues:</strong>
-          <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+          <ul style={{ margin: "8px 0", paddingLeft: "20px" }}>
             {errors.map((error, index) => (
               <li key={index}>{error}</li>
             ))}
@@ -265,39 +727,49 @@ function PatientDetailPage() {
         }
       );
       return;
-    }// Clone the formData and add provider_id if provider is present
+    } // Clone the formData and add provider_id if provider is present
     const dataToSend = { ...formData };
     if (dataToSend.provider !== undefined) {
       dataToSend.provider_id = dataToSend.provider;
     }
 
     // Allow medical_history to be null - backend now handles this properly
-    if (!dataToSend.medical_history || dataToSend.medical_history.trim() === '') {
+    if (
+      !dataToSend.medical_history ||
+      dataToSend.medical_history.trim() === ""
+    ) {
       dataToSend.medical_history = null;
     }
 
     try {
-      await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, dataToSend, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      toast.success('Patient updated successfully! 🎉');
+      await axios.put(
+        `http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`,
+        dataToSend,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      toast.success("Patient updated successfully! 🎉");
       setEditMode(false);
       setPatient(formData);
     } catch (err) {
-      console.error('Update error:', err);
+      console.error("Update error:", err);
 
       // Enhanced error handling with specific backend error messages
-      let errorMessage = 'Failed to update patient.';
+      let errorMessage = "Failed to update patient.";
 
       if (err.response?.data) {
         const backendErrors = [];
         const errorData = err.response.data;
 
         // Handle field-specific errors
-        Object.keys(errorData).forEach(field => {
-          const fieldErrors = Array.isArray(errorData[field]) ? errorData[field] : [errorData[field]];
-          fieldErrors.forEach(error => {
-            const fieldLabel = requiredFields.find(f => f.field === field)?.label || field;
+        Object.keys(errorData).forEach((field) => {
+          const fieldErrors = Array.isArray(errorData[field])
+            ? errorData[field]
+            : [errorData[field]];
+          fieldErrors.forEach((error) => {
+            const fieldLabel =
+              requiredFields.find((f) => f.field === field)?.label || field;
             backendErrors.push(`${fieldLabel}: ${error}`);
           });
         });
@@ -305,7 +777,7 @@ function PatientDetailPage() {
           toast.error(
             <div>
               <strong>Update failed due to the following issues:</strong>
-              <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+              <ul style={{ margin: "8px 0", paddingLeft: "20px" }}>
                 {backendErrors.map((error, index) => (
                   <li key={index}>{error}</li>
                 ))}
@@ -316,247 +788,121 @@ function PatientDetailPage() {
               hideProgressBar: false,
             }
           );
-        } else if (typeof errorData === 'string') {
+        } else if (typeof errorData === "string") {
           toast.error(`Update failed: ${errorData}`);
         } else if (errorData.detail) {
           toast.error(`Update failed: ${errorData.detail}`);
         }
       } else if (err.response?.status === 400) {
-        toast.error('Update failed: Invalid data provided. Please check all fields and try again.');
+        toast.error(
+          "Update failed: Invalid data provided. Please check all fields and try again."
+        );
       } else if (err.response?.status === 401) {
-        toast.error('Update failed: You are not authorized to perform this action.');
+        toast.error(
+          "Update failed: You are not authorized to perform this action."
+        );
       } else if (err.response?.status === 404) {
-        toast.error('Update failed: Patient not found.');
+        toast.error("Update failed: Patient not found.");
       } else if (err.response?.status >= 500) {
-        toast.error('Update failed: Server error. Please try again later.');
-      } else if (err.code === 'NETWORK_ERROR' || !err.response) {
-        toast.error('Update failed: Network error. Please check your connection and try again.');
+        toast.error("Update failed: Server error. Please try again later.");
+      } else if (err.code === "NETWORK_ERROR" || !err.response) {
+        toast.error(
+          "Update failed: Network error. Please check your connection and try again."
+        );
       }
 
       // Fallback error message if none of the above conditions match
-      if (!err.response?.data && err.response?.status < 500 && err.code !== 'NETWORK_ERROR') {
+      if (
+        !err.response?.data &&
+        err.response?.status < 500 &&
+        err.code !== "NETWORK_ERROR"
+      ) {
         toast.error(errorMessage);
       }
     }
   };
 
-  // Simple Address Autocomplete component using native HTML input with datalist
-  function SimpleAddressAutocomplete({ value, onChange, disabled }) {
-    const [localSuggestions, setLocalSuggestions] = useState([]);
-    const debounceTimerRef = useRef(null);
-    const datalistId = `address-suggestions-${Math.random().toString(36).substr(2, 9)}`;
-
-    // Generate address suggestions locally within this component
-    const generateSuggestions = (input) => {
-      console.log('generateSuggestions called with input:', input);
-
-      if (!input || input.length < 3) {
-        console.log('Input too short, clearing suggestions');
-        setLocalSuggestions([]);
-        return;
-      }
-
-      try {
-        const suggestions = [];
-        const inputLower = input.toLowerCase().trim();
-        console.log('Processing input:', inputLower);
-
-        // Common street suffixes
-        const streetTypes = ['Street', 'St', 'Avenue', 'Ave', 'Boulevard', 'Blvd', 'Drive', 'Dr', 'Lane', 'Ln', 'Road', 'Rd', 'Way', 'Circle', 'Ct', 'Court', 'Place', 'Pl'];
-
-        // Check if input already contains numbers (likely partial address)
-        const hasNumbers = /\d/.test(input);
-        console.log('Input has numbers:', hasNumbers);
-
-        if (hasNumbers) {
-          // Input has numbers - suggest completing with different street types
-          const hasStreetType = streetTypes.some(type =>
-            inputLower.includes(type.toLowerCase())
-          );
-
-          if (!hasStreetType) {
-            // Add common street types
-            streetTypes.slice(0, 6).forEach(type => {
-              suggestions.push(`${input} ${type}`);
-            });
-            console.log('Added street type suggestions:', suggestions);
-          } else {
-            // Already has street type, suggest with common city suffixes
-            suggestions.push(`${input}, New York, NY`);
-            suggestions.push(`${input}, Los Angeles, CA`);
-            suggestions.push(`${input}, Chicago, IL`);
-            suggestions.push(`${input}, Houston, TX`);
-            suggestions.push(`${input}, Phoenix, AZ`);
-            suggestions.push(`${input}, Philadelphia, PA`);
-            console.log('Added city suffix suggestions:', suggestions);
-          }
-        } else {
-          // Input doesn't have numbers - suggest adding house numbers
-          const commonNumbers = ['123', '456', '789', '101', '202', '555'];
-          const commonTypes = ['Street', 'Avenue', 'Drive', 'Lane'];
-
-          commonNumbers.slice(0, 3).forEach(num => {
-            commonTypes.slice(0, 2).forEach(type => {
-              suggestions.push(`${num} ${input} ${type}`);
-            });
-          });
-          console.log('Added house number suggestions:', suggestions);
-        }
-
-        // Limit to 6 suggestions and ensure uniqueness
-        const uniqueSuggestions = [...new Set(suggestions)].slice(0, 6);
-        console.log('Final unique suggestions:', uniqueSuggestions);
-
-        console.log('Setting local suggestions:', uniqueSuggestions);
-        setLocalSuggestions(uniqueSuggestions);
-
-      } catch (error) {
-        console.error('Error generating address suggestions:', error);
-        setLocalSuggestions([]);
-      }
-    };
-
-    const handleInputChange = (event) => {
-      const newValue = event.target.value;
-      onChange(newValue);
-
-      // Clear existing timer
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-
-      // Generate suggestions with debouncing
-      if (newValue && newValue.length >= 3) {
-        console.log('Generating suggestions for:', newValue);
-        debounceTimerRef.current = setTimeout(() => {
-          generateSuggestions(newValue);
-        }, 300);
-      } else {
-        setLocalSuggestions([]);
-      }
-    };
-
-    // Cleanup timer on unmount
-    useEffect(() => {
-      return () => {
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-        }
-      };
-    }, []);
-
-    console.log('Current localSuggestions:', localSuggestions);
-
-    return (
-      <Box>
-        <Box sx={{ mb: 1 }}>
-          <Typography variant="body2" component="label" sx={{ color: 'rgba(0, 0, 0, 0.6)', fontSize: '0.75rem' }}>
-            Address *
-          </Typography>
-        </Box>
-        <input
-          type="text"
-          value={value || ''}
-          onChange={handleInputChange}
-          disabled={disabled}
-          list={datalistId}
-          autoComplete="off"
-          placeholder="Type your address..."
-          style={{
-            width: '100%',
-            padding: '16.5px 14px',
-            border: (!disabled && (!value || value.trim() === '')) ? '2px solid #d32f2f' : '1px solid rgba(0, 0, 0, 0.23)',
-            borderRadius: '4px',
-            fontSize: '16px',
-            fontFamily: 'inherit',
-            outline: 'none',
-            backgroundColor: disabled ? '#f5f5f5' : 'white',
-            '&:focus': {
-              borderColor: '#1976d2',
-              borderWidth: '2px'
-            }
-          }}
-          onFocus={(e) => {
-            e.target.style.borderColor = '#1976d2';
-            e.target.style.borderWidth = '2px';
-          }}
-          onBlur={(e) => {
-            e.target.style.borderColor = (!disabled && (!value || value.trim() === '')) ? '#d32f2f' : 'rgba(0, 0, 0, 0.23)';
-            e.target.style.borderWidth = (!disabled && (!value || value.trim() === '')) ? '2px' : '1px';
-          }}
-        />
-        <datalist id={datalistId}>
-          {localSuggestions.map((suggestion, index) => {
-            console.log('Rendering option:', suggestion);
-            return (
-              <option
-                key={`${suggestion}-${index}`}
-                value={suggestion}
-              />
-            );
-          })}
-        </datalist>
-        <Box sx={{ mt: 0.5 }}>
-          <Typography variant="caption" color={(!disabled && (!value || value.trim() === '')) ? 'error' : 'text.secondary'}>
-            {!disabled && (!value || value.trim() === '') ? 'Address is required' : `Type to see suggestions (3+ characters) - ${localSuggestions.length} suggestions available`}
-          </Typography>
-        </Box>
-      </Box>
-    );
-  }
-
   function formatPhoneNumber(value) {
     // Remove all non-digit characters
-    const digits = value.replace(/\D/g, '');
+    const digits = value.replace(/\D/g, "");
     if (digits.length <= 3) return digits;
     if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(
+      6,
+      10
+    )}`;
   }
 
   function formatEmail(value) {
     // Lowercase and trim whitespace
-    return value.replace(/\s+/g, '').toLowerCase();
+    return value.replace(/\s+/g, "").toLowerCase();
   }
 
   if (!patient) return <div>Loading patient details...</div>;
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+    <Box
+      sx={{
+        mt: 0,
+        boxShadow: 2,
+        borderRadius: 2,
+        bgcolor: "background.paper",
+        p: 3,
+      }}
+    >
       {/* Header with BackButton inline */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5">
-          Patient Details
-        </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 2,
+        }}
+      >
+        <Typography variant="h5">Patient Details</Typography>
         <BackButton to="/patients" />
       </Box>
-
       {/* Show profile picture if available */}
       {patient.profile_picture && (
         <div className="mb-3 text-center">
           <img
-            src={patient.profile_picture.startsWith('http') ? patient.profile_picture : `http://127.0.0.1:8000${patient.profile_picture}`}
+            src={
+              patient.profile_picture.startsWith("http")
+                ? patient.profile_picture
+                : `http://127.0.0.1:8000${patient.profile_picture}`
+            }
             alt="Profile"
-            style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #ccc' }}
+            style={{
+              width: 120,
+              height: 120,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "2px solid #ccc",
+            }}
           />
         </div>
-      )}      {/* Upload profile picture in edit mode */}
+      )}{" "}
+      {/* Upload profile picture in edit mode */}
       {editMode && (
-        <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
-          <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
+        <Paper
+          elevation={1}
+          sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "#f8f9fa" }}
+        >
+          <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
             Profile Picture
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Button
               variant="outlined"
               component="label"
               sx={{
-                textTransform: 'none',
+                textTransform: "none",
                 borderRadius: 2,
                 px: 3,
                 py: 1.5,
-                borderColor: 'primary.main',
-                '&:hover': {
-                  bgcolor: 'primary.light',
-                  borderColor: 'primary.dark',
+                borderColor: "primary.main",
+                "&:hover": {
+                  bgcolor: "primary.light",
+                  borderColor: "primary.dark",
                 },
               }}
             >
@@ -569,23 +915,33 @@ function PatientDetailPage() {
                   const file = e.target.files[0];
                   if (!file) return;
                   const formDataPic = new FormData();
-                  formDataPic.append('profile_picture', file);
+                  formDataPic.append("profile_picture", file);
                   try {
                     const res = await axios.patch(
-                      `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id}/`,
+                      `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id
+                      }/`,
                       formDataPic,
                       {
                         headers: {
-                          'Content-Type': 'multipart/form-data',
+                          "Content-Type": "multipart/form-data",
                           Authorization: `Bearer ${token}`,
                         },
                       }
-                    ); setPatient((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
-                    setFormData((prev) => ({ ...prev, profile_picture: res.data.profile_picture }));
-                    toast.success('Profile picture updated successfully! 📸');
+                    );
+                    setPatient((prev) => ({
+                      ...prev,
+                      profile_picture: res.data.profile_picture,
+                    }));
+                    setFormData((prev) => ({
+                      ...prev,
+                      profile_picture: res.data.profile_picture,
+                    }));
+                    toast.success("Profile picture updated successfully! 📸");
                   } catch (err) {
-                    console.error('Profile picture upload error:', err);
-                    toast.error('Failed to upload profile picture. Please try again.');
+                    console.error("Profile picture upload error:", err);
+                    toast.error(
+                      "Failed to upload profile picture. Please try again."
+                    );
                   }
                 }}
               />
@@ -596,260 +952,409 @@ function PatientDetailPage() {
           </Box>
         </Paper>
       )}
+      {!showAppointmentForm && (
+        <form onSubmit={handleSubmit}>
+          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+            <Typography variant="h6" sx={{ mb: 3 }}>
+              Patient Information
+            </Typography>
 
-      {!showAppointmentForm && (<form onSubmit={handleSubmit}>
-        <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>Patient Information</Typography>
-
-          {/* Two-column grid layout */}
-          <Box sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-            gap: 3,
-            mb: 3
-          }}>
-            {/* Left Column */}
-            <Stack spacing={3}>
-              <TextField
-                label="First Name *"
-                name="first_name"
-                value={formData.first_name || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.first_name || formData.first_name.trim() === '')}
-                helperText={editMode && (!formData.first_name || formData.first_name.trim() === '') ? 'First name is required' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Last Name *"
-                name="last_name"
-                value={formData.last_name || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.last_name || formData.last_name.trim() === '')}
-                helperText={editMode && (!formData.last_name || formData.last_name.trim() === '') ? 'Last name is required' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Username *"
-                name="username"
-                value={formData.username || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.username || formData.username.trim() === '' || formData.username.length < 3)}
-                helperText={editMode && (!formData.username || formData.username.trim() === '') ? 'Username is required' :
-                  editMode && formData.username && formData.username.length < 3 ? 'Username must be at least 3 characters' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Email *"
-                name="email"
-                type="email"
-                value={editMode ? formatEmail(formData.email || '') : (formData.email || '')}
-                onChange={e => {
-                  const val = e.target.value;
-                  setFormData(prev => ({ ...prev, email: val.replace(/\s+/g, '') }));
-                }}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.email || formData.email.trim() === '' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))}
-                helperText={editMode && (!formData.email || formData.email.trim() === '') ? 'Email is required' :
-                  editMode && formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'Invalid email format' : ''}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <TextField
-                label="Phone Number *"
-                name="phone_number"
-                value={editMode ? formatPhoneNumber(formData.phone_number || '') : (formData.phone_number || '')}
-                onChange={e => {
-                  const raw = e.target.value.replace(/\D/g, '');
-                  setFormData(prev => ({ ...prev, phone_number: raw }));
-                }}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.phone_number || formData.phone_number.length === 0 || formData.phone_number.length < 10)}
-                helperText={editMode && (!formData.phone_number || formData.phone_number.length === 0) ? 'Phone number is required' :
-                  editMode && formData.phone_number && formData.phone_number.length > 0 && formData.phone_number.length < 10 ?
-                    'Phone number must be at least 10 digits' : editMode ? 'Format: (555) 123-4567' : ''}
-                InputProps={{
-                  ...(editMode ? {} : { style: { color: '#333', background: '#f5f5f5' } }),
-                  startAdornment: <InputAdornment position="start">📞</InputAdornment>,
-                }}
-              />
-            </Stack>
-
-            {/* Right Column */}
-            <Stack spacing={3}>
-              <TextField
-                label="Date of Birth *"
-                name="date_of_birth"
-                type="date"
-                value={formData.date_of_birth || ''}
-                onChange={handleChange}
-                fullWidth
-                required
-                disabled={!editMode}
-                error={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '')}
-                helperText={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '') ? 'Date of birth is required' : ''}
-                InputLabelProps={{ shrink: true }}
-                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-              />
-
-              <FormControl fullWidth disabled={!editMode} required>
-                <InputLabel required>Provider *</InputLabel>
-                <MUISelect
-                  name="provider"
-                  value={formData.provider || ''}
-                  onChange={handleChange}
-                  label="Provider"
-                  required
-                  error={editMode && (!formData.provider || formData.provider === '')}
-                  sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
-                >
-                  <MenuItem value="">Select a provider</MenuItem>
-                  {Array.isArray(doctors) && doctors.map((doc) => (
-                    <MenuItem key={doc.id} value={doc.id}>
-                      Dr. {doc.first_name} {doc.last_name}
-                    </MenuItem>
-                  ))}
-                </MUISelect>
-                {editMode && (!formData.provider || formData.provider === '') && (
-                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                    Provider is required
-                  </Typography>
-                )}
-              </FormControl>
-
-              <FormControl
-                fullWidth
-                disabled={!editMode}
-                required
-                error={editMode && (!formData.organization || formData.organization === '')}
-              >
-                <InputLabel required error={editMode && (!formData.organization || formData.organization === '')}>
-                  Organization *
-                </InputLabel>
-                <MUISelect
-                  name="organization"
-                  value={formData.organization || ''}
-                  onChange={handleChange}
-                  label="Organization"
-                  required
-                  error={editMode && (!formData.organization || formData.organization === '')}
-                  sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
-                >
-                  <MenuItem value="">Select an organization</MenuItem>
-                  {organizations.map((org) => (
-                    <MenuItem key={org.id} value={org.id}>{org.name}</MenuItem>
-                  ))}
-                </MUISelect>
-                {editMode && (!formData.organization || formData.organization === '') && (
-                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                    Organization is required
-                  </Typography>
-                )}
-              </FormControl>
-
-              {editMode ? (
-                <SimpleAddressAutocomplete
-                  value={formData.address || ''}
-                  onChange={val => setFormData(prev => ({ ...prev, address: val }))}
-                  disabled={!editMode}
-                />
-              ) : (
+            {/* Two-column grid layout */}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 3,
+                mb: 3,
+              }}
+            >
+              {/* Left Column */}
+              <Stack spacing={3}>
                 <TextField
-                  label="Address *"
-                  name="address"
-                  value={formData.address || ''}
+                  label="First Name *"
+                  name="first_name"
+                  value={formData.first_name || ""}
+                  onChange={handleChange}
                   fullWidth
                   required
-                  disabled
-                  InputProps={{ style: { color: '#333', background: '#f5f5f5' } }}
+                  disabled={!editMode}
+                  error={
+                    editMode &&
+                    (!formData.first_name || formData.first_name.trim() === "")
+                  }
+                  helperText={
+                    editMode &&
+                      (!formData.first_name || formData.first_name.trim() === "")
+                      ? "First name is required"
+                      : ""
+                  }
+                  InputProps={
+                    !editMode
+                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      : {}
+                  }
                 />
-              )}
-            </Stack>
-          </Box>
 
-          {/* Medical History - Full Width */}
-          <TextField
-            label="Notes (Optional)"
-            name="medical_history"
-            value={formData.medical_history || ''}
-            onChange={handleChange}
-            fullWidth
-            disabled={!editMode}
-            multiline
-            rows={4}
-            helperText={editMode ? 'Optional - medical history, allergies, or other notes' : ''}
-            InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
-            sx={{ mb: 2 }}
-          />
+                <TextField
+                  label="Last Name *"
+                  name="last_name"
+                  value={formData.last_name || ""}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={
+                    editMode &&
+                    (!formData.last_name || formData.last_name.trim() === "")
+                  }
+                  helperText={
+                    editMode &&
+                      (!formData.last_name || formData.last_name.trim() === "")
+                      ? "Last name is required"
+                      : ""
+                  }
+                  InputProps={
+                    !editMode
+                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      : {}
+                  }
+                />
 
-          <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
-            {editMode ? (
-              <>
-                <Button variant="contained" color="primary" type="submit">
-                  Save
-                </Button>
+                <TextField
+                  label="Username *"
+                  name="username"
+                  value={formData.username || ""}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={
+                    editMode &&
+                    (!formData.username ||
+                      formData.username.trim() === "" ||
+                      formData.username.length < 3)
+                  }
+                  helperText={
+                    editMode &&
+                      (!formData.username || formData.username.trim() === "")
+                      ? "Username is required"
+                      : editMode &&
+                        formData.username &&
+                        formData.username.length < 3
+                        ? "Username must be at least 3 characters"
+                        : ""
+                  }
+                  InputProps={
+                    !editMode
+                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      : {}
+                  }
+                />
+
+                <TextField
+                  label="Email *"
+                  name="email"
+                  type="email"
+                  value={
+                    editMode
+                      ? formatEmail(formData.email || "")
+                      : formData.email || ""
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      email: val.replace(/\s+/g, ""),
+                    }));
+                  }}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={
+                    editMode &&
+                    (!formData.email ||
+                      formData.email.trim() === "" ||
+                      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))
+                  }
+                  helperText={
+                    editMode &&
+                      (!formData.email || formData.email.trim() === "")
+                      ? "Email is required"
+                      : editMode &&
+                        formData.email &&
+                        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+                        ? "Invalid email format"
+                        : ""
+                  }
+                  InputProps={
+                    !editMode
+                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      : {}
+                  }
+                />
+
+                <TextField
+                  label="Phone Number *"
+                  name="phone_number"
+                  value={
+                    editMode
+                      ? formatPhoneNumber(formData.phone_number || "")
+                      : formData.phone_number || ""
+                  }
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/\D/g, "");
+                    setFormData((prev) => ({ ...prev, phone_number: raw }));
+                  }}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={
+                    editMode &&
+                    (!formData.phone_number ||
+                      formData.phone_number.length === 0 ||
+                      formData.phone_number.length < 10)
+                  }
+                  helperText={
+                    editMode &&
+                      (!formData.phone_number ||
+                        formData.phone_number.length === 0)
+                      ? "Phone number is required"
+                      : editMode &&
+                        formData.phone_number &&
+                        formData.phone_number.length > 0 &&
+                        formData.phone_number.length < 10
+                        ? "Phone number must be at least 10 digits"
+                        : editMode
+                          ? "Format: (555) 123-4567"
+                          : ""
+                  }
+                  InputProps={{
+                    ...(editMode
+                      ? {}
+                      : { style: { color: "#333", background: "#f5f5f5" } }),
+                    startAdornment: (
+                      <InputAdornment position="start">📞</InputAdornment>
+                    ),
+                  }}
+                />
+              </Stack>
+
+              {/* Right Column */}
+              <Stack spacing={3}>
+                <TextField
+                  label="Date of Birth *"
+                  name="date_of_birth"
+                  type="date"
+                  value={formData.date_of_birth || ""}
+                  onChange={handleChange}
+                  fullWidth
+                  required
+                  disabled={!editMode}
+                  error={
+                    editMode &&
+                    (!formData.date_of_birth ||
+                      formData.date_of_birth.trim() === "")
+                  }
+                  helperText={
+                    editMode &&
+                      (!formData.date_of_birth ||
+                        formData.date_of_birth.trim() === "")
+                      ? "Date of birth is required"
+                      : ""
+                  }
+                  InputLabelProps={{ shrink: true }}
+                  InputProps={
+                    !editMode
+                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      : {}
+                  }
+                />
+
+                <FormControl fullWidth disabled={!editMode} required>
+                  <InputLabel required>Provider *</InputLabel>
+                  <MUISelect
+                    name="provider"
+                    value={formData.provider || ""}
+                    onChange={handleChange}
+                    label="Provider"
+                    required
+                    error={
+                      editMode &&
+                      (!formData.provider || formData.provider === "")
+                    }
+                    sx={
+                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
+                    }
+                  >
+                    <MenuItem value="">Select a provider</MenuItem>
+                    {Array.isArray(doctors) &&
+                      doctors.map((doc) => (
+                        <MenuItem key={doc.id} value={doc.id}>
+                          Dr. {doc.first_name} {doc.last_name}
+                        </MenuItem>
+                      ))}
+                  </MUISelect>
+                  {editMode &&
+                    (!formData.provider || formData.provider === "") && (
+                      <Typography
+                        variant="caption"
+                        color="error"
+                        sx={{ mt: 0.5, ml: 1.5 }}
+                      >
+                        Provider is required
+                      </Typography>
+                    )}
+                </FormControl>
+
+                <FormControl
+                  fullWidth
+                  disabled={!editMode}
+                  required
+                  error={
+                    editMode &&
+                    (!formData.organization || formData.organization === "")
+                  }
+                >
+                  <InputLabel
+                    required
+                    error={
+                      editMode &&
+                      (!formData.organization || formData.organization === "")
+                    }
+                  >
+                    Organization *
+                  </InputLabel>
+                  <MUISelect
+                    name="organization"
+                    value={formData.organization || ""}
+                    onChange={handleChange}
+                    label="Organization"
+                    required
+                    error={
+                      editMode &&
+                      (!formData.organization || formData.organization === "")
+                    }
+                    sx={
+                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
+                    }
+                  >
+                    <MenuItem value="">Select an organization</MenuItem>
+                    {organizations.map((org) => (
+                      <MenuItem key={org.id} value={org.id}>
+                        {org.name}
+                      </MenuItem>
+                    ))}
+                  </MUISelect>
+                  {editMode &&
+                    (!formData.organization ||
+                      formData.organization === "") && (
+                      <Typography
+                        variant="caption"
+                        color="error"
+                        sx={{ mt: 0.5, ml: 1.5 }}
+                      >
+                        Organization is required
+                      </Typography>
+                    )}
+                </FormControl>
+
+                {editMode ? (
+                  <SimpleAddressAutocomplete
+                    value={formData.address || ""}
+                    onChange={handleAddressChange}
+                    disabled={!editMode}
+                  />
+                ) : (
+                  <TextField
+                    label="Address *"
+                    name="address"
+                    value={formData.address || ""}
+                    fullWidth
+                    required
+                    disabled
+                    InputProps={{
+                      style: { color: "#333", background: "#f5f5f5" },
+                    }}
+                  />
+                )}
+              </Stack>
+            </Box>
+
+            {/* Medical History - Full Width */}
+            <TextField
+              label="Notes (Optional)"
+              name="medical_history"
+              value={formData.medical_history || ""}
+              onChange={handleChange}
+              fullWidth
+              disabled={!editMode}
+              multiline
+              rows={4}
+              helperText={
+                editMode
+                  ? "Optional - medical history, allergies, or other notes"
+                  : ""
+              }
+              InputProps={
+                !editMode
+                  ? { style: { color: "#333", background: "#f5f5f5" } }
+                  : {}
+              }
+              sx={{ mb: 2 }}
+            />
+
+            <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+              {editMode ? (
+                <>
+                  <Button variant="contained" color="primary" type="submit">
+                    Save
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={() => {
+                      setEditMode(false);
+                      setFormData(patient);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
                 <Button
                   variant="outlined"
-                  color="secondary"
-                  onClick={() => {
-                    setEditMode(false);
-                    setFormData(patient);
-                  }}
+                  color="warning"
+                  onClick={() => setEditMode(true)}
                 >
-                  Cancel
+                  Edit
                 </Button>
-              </>
-            ) : (
+              )}{" "}
+              <Button
+                variant="contained"
+                color="success"
+                onClick={() => setShowAppointmentForm(true)}
+              >
+                Create Appointment
+              </Button>
               <Button
                 variant="outlined"
                 color="warning"
-                onClick={() => setEditMode(true)}
+                onClick={handleResetPassword}
+                sx={{
+                  borderColor: "#ff9800",
+                  color: "#ff9800",
+                  "&:hover": {
+                    borderColor: "#f57c00",
+                    backgroundColor: "#fff3e0",
+                  },
+                }}
               >
-                Edit
+                Reset Password
               </Button>
-            )}              <Button
-              variant="contained"
-              color="success"
-              onClick={() => setShowAppointmentForm(true)}
-            >
-              Create Appointment
-            </Button>
-
-            <Button
-              variant="outlined"
-              color="warning"
-              onClick={handleResetPassword}
-              sx={{
-                borderColor: '#ff9800',
-                color: '#ff9800',
-                '&:hover': {
-                  borderColor: '#f57c00',
-                  backgroundColor: '#fff3e0'
-                }
-              }}
-            >
-              Reset Password
-            </Button>
-          </Stack>
-        </Paper>
-      </form>
+            </Stack>
+          </Paper>
+        </form>
       )}
-
       {showAppointmentForm && (
         <div className="mt-4">
           <CreateAppointmentForm
@@ -859,8 +1364,9 @@ function PatientDetailPage() {
             appointmentToEdit={null}
             onSuccess={() => {
               setShowAppointmentForm(false);
-              navigate('/patients');
-            }} />
+              navigate("/patients");
+            }}
+          />
         </div>
       )}
     </Box>
