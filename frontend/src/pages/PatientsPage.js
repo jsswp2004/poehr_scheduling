@@ -232,6 +232,13 @@ function PatientsPage() {
   const [token, setToken] = useState(null);
   const [userRole, setUserRole] = useState(null);
 
+  // Organization state for reports
+  const [organizationData, setOrganizationData] = useState(null);
+  const [organizationLogo, setOrganizationLogo] = useState(null);
+
+  // Analytics sub-tab state
+  const [analyticsTab, setAnalyticsTab] = useState("standard");
+
   // Initialize token and role validation
   useEffect(() => {
     const initializeAuth = async () => {
@@ -260,6 +267,9 @@ function PatientsPage() {
         ) {
           navigate("/");
         }
+
+        // Fetch organization data after successful token validation
+        await fetchOrganizationData();
       } catch (err) {
         console.error("Authentication initialization failed:", err);
         clearAuthData();
@@ -798,26 +808,51 @@ function PatientsPage() {
   };
   const handlePrintReport = async (report) => {
     try {
+      console.log("[DEBUG] Printing report. organizationLogo:", organizationLogo);
+      console.log("[DEBUG] organizationData:", organizationData);
+
       const reportData = await fetchReportData(report);
       if (reportData) {
-        // Create a printable version
+        // Create a printable version with organization logo
         const printWindow = window.open("", "_blank");
+        const logoSection = organizationLogo
+          ? `
+          <div class="header">
+            <img src="${organizationLogo}" alt="Organization Logo" class="logo" onerror="console.error('Logo failed to load: ${organizationLogo}')" />
+            <div class="org-info">
+              <h2>${organizationData?.name || "Healthcare Organization"}</h2>
+            </div>
+          </div>
+        `
+          : `
+          <div class="header">
+            <h2>${organizationData?.name || "Healthcare Organization"}</h2>
+          </div>
+        `;
+
+        console.log("[DEBUG] Logo section HTML:", logoSection);
+
         printWindow.document.write(`
           <html>
             <head>
               <title>${report}</title>
               <style>
                 body { font-family: Arial, sans-serif; margin: 20px; }
+                .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #1976d2; padding-bottom: 20px; }
+                .logo { max-height: 80px; max-width: 200px; margin-right: 20px; }
+                .org-info h2 { color: #1976d2; margin: 0; }
                 h1 { color: #1976d2; margin-bottom: 20px; }
                 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                 th { background-color: #f5f5f5; font-weight: bold; }
                 tr:nth-child(even) { background-color: #f9f9f9; }
                 .filters { margin-bottom: 20px; font-size: 14px; color: #666; }
+                .generated-date { text-align: right; color: #666; font-size: 12px; margin-top: 20px; }
                 @media print { .no-print { display: none; } }
               </style>
             </head>
             <body>
+              ${logoSection}
               <h1>${report}</h1>
               <div class="filters">
                 ${reportStartDate
@@ -829,13 +864,16 @@ function PatientsPage() {
             : ""
           }
                 ${reportProvider !== "all"
-            ? `Provider: ${providers.find((p) => p.id == reportProvider)
+            ? `Provider: ${providers.find((p) => p.id === reportProvider)
               ?.first_name || "All"
             }`
             : "Provider: All"
           }
               </div>
               ${generatePrintableTable(report, reportData)}
+              <div class="generated-date">
+                Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+              </div>
               <script>window.print(); window.onafterprint = () => window.close();</script>
             </body>
           </html>
@@ -857,6 +895,16 @@ function PatientsPage() {
             format: "csv",
             report_type: report,
             data: reportData,
+            organization: organizationData,
+            filters: {
+              start_date: reportStartDate?.toISOString(),
+              end_date: reportEndDate?.toISOString(),
+              provider: reportProvider,
+              provider_name:
+                reportProvider !== "all"
+                  ? providers.find((p) => p.id === reportProvider)?.first_name
+                  : "All",
+            },
           },
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -891,6 +939,17 @@ function PatientsPage() {
             format: "pdf",
             report_type: report,
             data: reportData,
+            organization: organizationData,
+            organization_logo: organizationLogo,
+            filters: {
+              start_date: reportStartDate?.toISOString(),
+              end_date: reportEndDate?.toISOString(),
+              provider: reportProvider,
+              provider_name:
+                reportProvider !== "all"
+                  ? providers.find((p) => p.id === reportProvider)?.first_name
+                  : "All",
+            },
           },
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -1438,99 +1497,104 @@ function PatientsPage() {
       )}
     </>
   );
+  const renderAnalyticsTable = () => {
+    console.log("[DEBUG] Rendering analytics table:");
+    console.log("[DEBUG] organizationData:", organizationData);
+    console.log("[DEBUG] organizationLogo:", organizationLogo);
 
-  const renderAnalyticsTable = () => (
-    <>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <DatePicker
-            label="Start Date"
-            value={reportStartDate}
-            onChange={(newVal) => setReportStartDate(newVal)}
-            slotProps={{ textField: { size: "small", fullWidth: true } }}
-          />
-        </LocalizationProvider>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <DatePicker
-            label="End Date"
-            value={reportEndDate}
-            onChange={(newVal) => setReportEndDate(newVal)}
-            slotProps={{ textField: { size: "small", fullWidth: true } }}
-          />
-        </LocalizationProvider>
-        <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel id="report-provider-label">Provider</InputLabel>
-          <MUISelect
-            labelId="report-provider-label"
-            value={reportProvider}
-            label="Provider"
-            onChange={(e) => setReportProvider(e.target.value)}
-          >
-            <MenuItem value="all">All</MenuItem>
-            {providers.map((p) => (
-              <MenuItem
-                key={p.id}
-                value={p.id}
-              >{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
-            ))}
-          </MUISelect>
-        </FormControl>
-      </Stack>
-      <Table size="small" stickyHeader>
-        <TableHead>
-          <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-            <TableCell sx={{ fontWeight: "bold", width: 300 }}>
-              Reports
-            </TableCell>
-            <TableCell sx={{ fontWeight: "bold", width: 240 }}>
-              Actions
-            </TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {analyticsReports.map((r, idx) => (
-            <TableRow
-              key={idx}
-              sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+    return (
+      <>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="Start Date"
+              value={reportStartDate}
+              onChange={(newVal) => setReportStartDate(newVal)}
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
+            />
+          </LocalizationProvider>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="End Date"
+              value={reportEndDate}
+              onChange={(newVal) => setReportEndDate(newVal)}
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
+            />
+          </LocalizationProvider>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="report-provider-label">Provider</InputLabel>
+            <MUISelect
+              labelId="report-provider-label"
+              value={reportProvider}
+              label="Provider"
+              onChange={(e) => setReportProvider(e.target.value)}
             >
-              <TableCell>{r}</TableCell>
-              <TableCell>
-                <Stack direction="row" spacing={1}>
-                  <Tooltip title="Print">
-                    <IconButton
-                      color="primary"
-                      onClick={() => handlePrintReport(r)}
-                      sx={{ width: 36, height: 36 }}
-                    >
-                      <FontAwesomeIcon icon={faPrint} />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Export CSV">
-                    <IconButton
-                      color="success"
-                      onClick={() => handleExportCsvReport(r)}
-                      sx={{ width: 36, height: 36 }}
-                    >
-                      <FontAwesomeIcon icon={faFileCsv} />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Export PDF">
-                    <IconButton
-                      color="secondary"
-                      onClick={() => handleExportPdfReport(r)}
-                      sx={{ width: 36, height: 36 }}
-                    >
-                      <FontAwesomeIcon icon={faFilePdf} />
-                    </IconButton>{" "}
-                  </Tooltip>
-                </Stack>
+              <MenuItem value="all">All</MenuItem>
+              {providers.map((p) => (
+                <MenuItem
+                  key={p.id}
+                  value={p.id}
+                >{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
+              ))}
+            </MUISelect>
+          </FormControl>
+        </Stack>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+              <TableCell sx={{ fontWeight: "bold", width: 300 }}>
+                Reports
+              </TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 240 }}>
+                Actions
               </TableCell>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </>
-  );
+          </TableHead>
+          <TableBody>
+            {analyticsReports.map((r, idx) => (
+              <TableRow
+                key={idx}
+                sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+              >
+                <TableCell>{r}</TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="Print">
+                      <IconButton
+                        color="primary"
+                        onClick={() => handlePrintReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faPrint} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Export CSV">
+                      <IconButton
+                        color="success"
+                        onClick={() => handleExportCsvReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faFileCsv} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Export PDF">
+                      <IconButton
+                        color="secondary"
+                        onClick={() => handleExportPdfReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faFilePdf} />
+                      </IconButton>{" "}
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </>
+    );
+  };
   const renderAdvancedAnalytics = () => (
     <>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
@@ -1718,6 +1782,68 @@ function PatientsPage() {
       );
     }
   }, [chat.activeRoom, selectedChatUser, chatModalOpen, chat.chatRooms]);
+
+  // Fetch organization data including logo
+  const fetchOrganizationData = async () => {
+    try {
+      const validToken = await getValidToken();
+      if (!validToken) {
+        console.error("No valid token for fetching organization data");
+        return;
+      }
+
+      // Decode token to get organization info
+      const decoded = jwtDecode(validToken);
+      const organizationId = decoded.organization_id || decoded.organization;
+
+      if (organizationId) {
+        // Fetch organization details from API
+        const res = await axios.get(
+          `http://127.0.0.1:8000/api/organizations/${organizationId}/`,
+          {
+            headers: { Authorization: `Bearer ${validToken}` },
+          }
+        );
+
+        console.log("[DEBUG] Organization data fetched:", res.data);
+        setOrganizationData(res.data);
+
+        // Set logo URL if available
+        if (res.data.logo) {
+          console.log("[DEBUG] Setting organization logo:", res.data.logo);
+          // Ensure logo URL is absolute for printing
+          const logoUrl = res.data.logo.startsWith('http')
+            ? res.data.logo
+            : `http://127.0.0.1:8000/${res.data.logo}`;
+          setOrganizationLogo(logoUrl);
+          console.log("[DEBUG] Final logo URL:", logoUrl);
+        } else {
+          console.log("[DEBUG] No logo found in organization data");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch organization data:", err);
+      // Try to get organization info from token as fallback
+      try {
+        const validToken = await getValidToken();
+        const decoded = jwtDecode(validToken);
+        const fallbackOrg = {
+          id: decoded.organization_id || decoded.organization,
+          name: decoded.organization_name || "Healthcare Organization",
+          logo: null,
+        };
+        setOrganizationData(fallbackOrg);
+      } catch (tokenErr) {
+        console.error("Failed to get organization from token:", tokenErr);
+      }
+    }
+  };
+
+  // Initial fetch for organization data
+  useEffect(() => {
+    fetchOrganizationData();
+  }, []);
+
   return (
     <div style={{ textAlign: "left", width: "100%" }}>
       <LocalizationProvider dateAdapter={AdapterDateFns}>
@@ -1927,7 +2053,6 @@ function PatientsPage() {
           )}{" "}
           {tab === "team" && (
             <Box>
-
               <Stack direction="row" spacing={2} sx={{ mb: 2, width: "100%" }}>
                 <TextField
                   label="Search Team Members"
@@ -1943,7 +2068,6 @@ function PatientsPage() {
               </Stack>
 
               {renderTeamTable()}
-
             </Box>
           )}{" "}
           {tab === "appointments" && (
@@ -2077,14 +2201,85 @@ function PatientsPage() {
             </>
           )}{" "}
           {tab === "analytics" && (
-            <Grid container spacing={2} sx={{ mt: 0, minHeight: "70vh", maxHeight: "75vh", overflowY: "auto" }}>
-              <Grid item xs={6}>
-                {renderAnalyticsTable()}
-              </Grid>
-              <Grid item xs={6}>
-                {renderAdvancedAnalytics()}
-              </Grid>
-            </Grid>
+            <Box>
+              {/* Organization Header */}
+              {(organizationData || organizationLogo) && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    mb: 3,
+                    p: 2,
+                    bgcolor: "#f8f9fa",
+                    borderRadius: 2,
+                    border: "1px solid #e3f2fd",
+                  }}
+                >
+                  {organizationLogo && (
+                    <img
+                      src={organizationLogo}
+                      alt="Organization Logo"
+                      style={{
+                        maxHeight: "50px",
+                        maxWidth: "120px",
+                        marginRight: "16px",
+                      }}
+                    />
+                  )}
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      sx={{ color: "#1976d2", fontWeight: "bold" }}
+                    >
+                      {organizationData?.name || "Healthcare Organization"}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "#666" }}>
+                      Analytics Reports
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+
+              {/* Analytics Sub-tabs */}
+              <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+                <Tabs
+                  value={analyticsTab}
+                  onChange={(e, newVal) => setAnalyticsTab(newVal)}
+                  sx={{
+                    minHeight: 36,
+                    "& .MuiTabs-indicator": {
+                      height: 2,
+                      borderRadius: 1,
+                      bgcolor: "primary.main",
+                    },
+                    "& .MuiTab-root": {
+                      fontWeight: 500,
+                      fontSize: "0.9rem",
+                      color: "text.secondary",
+                      minHeight: 36,
+                      textTransform: "none",
+                      px: 3,
+                      "&.Mui-selected": {
+                        color: "primary.main",
+                        fontWeight: 600,
+                      },
+                      "&:hover": {
+                        color: "primary.main",
+                      },
+                    },
+                  }}
+                >
+                  <Tab label="Standard Reports" value="standard" />
+                  <Tab label="Advanced Analytics" value="advanced" />
+                </Tabs>
+              </Box>
+
+              {/* Analytics Content */}
+              <Box sx={{ minHeight: "60vh", maxHeight: "70vh", overflowY: "auto" }}>
+                {analyticsTab === "standard" && renderAnalyticsTable()}
+                {analyticsTab === "advanced" && renderAdvancedAnalytics()}
+              </Box>
+            </Box>
           )}
           {tab === "register" && <RegisterPage adminMode={true} />}
           {/* Email Modal */}
