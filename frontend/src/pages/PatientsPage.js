@@ -1535,8 +1535,11 @@ function PatientsPage() {
         <Table size="small" stickyHeader>
           <TableHead>
             <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-              <TableCell sx={{ fontWeight: "bold", width: 300 }}>
+              <TableCell sx={{ fontWeight: "bold", width: 250 }}>
                 Reports
+              </TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 400 }}>
+                Description
               </TableCell>
               <TableCell sx={{ fontWeight: "bold", width: 240 }}>
                 Actions
@@ -1544,45 +1547,62 @@ function PatientsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {analyticsReports.map((r, idx) => (
-              <TableRow
-                key={idx}
-                sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
-              >
-                <TableCell>{r}</TableCell>
-                <TableCell>
-                  <Stack direction="row" spacing={1}>
-                    <Tooltip title="Print">
-                      <IconButton
-                        color="primary"
-                        onClick={() => handlePrintReport(r)}
-                        sx={{ width: 36, height: 36 }}
-                      >
-                        <FontAwesomeIcon icon={faPrint} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Export CSV">
-                      <IconButton
-                        color="success"
-                        onClick={() => handleExportCsvReport(r)}
-                        sx={{ width: 36, height: 36 }}
-                      >
-                        <FontAwesomeIcon icon={faFileCsv} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Export PDF">
-                      <IconButton
-                        color="secondary"
-                        onClick={() => handleExportPdfReport(r)}
-                        sx={{ width: 36, height: 36 }}
-                      >
-                        <FontAwesomeIcon icon={faFilePdf} />
-                      </IconButton>{" "}
-                    </Tooltip>
-                  </Stack>
-                </TableCell>
-              </TableRow>
-            ))}
+            {analyticsReports.map((r, idx) => {
+              // Define descriptions for each report
+              const reportDescriptions = {
+                "Upcoming Appointments Report": "Shows all scheduled appointments from today onwards, including patient details, providers, and appointment times.",
+                "Past Appointments Report": "Displays historical appointment data with completion status, no-shows, and cancellations for analysis.",
+                "Provider Schedule Report": "Comprehensive view of each provider's schedule, workload distribution, and appointment patterns.",
+                "Appointment Status Report": "Statistical breakdown of appointment statuses including completed, cancelled, no-shows, and pending appointments.",
+                "New Patient Registrations": "Track new patient registrations over a specified time period with registration trends and demographics.",
+                "Blocked Time Slots": "Reports on blocked or unavailable time slots for providers, including maintenance and personal time.",
+                "Appointment Recurrence Report": "Analysis of recurring appointments, frequency patterns, and patient follow-up schedules.",
+                "Appointment Duration Summary": "Statistical analysis of appointment durations including averages, patterns, and provider efficiency metrics."
+              };
+
+              return (
+                <TableRow
+                  key={idx}
+                  sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+                >
+                  <TableCell>{r}</TableCell>
+                  <TableCell sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
+                    {reportDescriptions[r] || "Detailed analytics report for healthcare management."}
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Print">
+                        <IconButton
+                          color="primary"
+                          onClick={() => handlePrintReport(r)}
+                          sx={{ width: 36, height: 36 }}
+                        >
+                          <FontAwesomeIcon icon={faPrint} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Export CSV">
+                        <IconButton
+                          color="success"
+                          onClick={() => handleExportCsvReport(r)}
+                          sx={{ width: 36, height: 36 }}
+                        >
+                          <FontAwesomeIcon icon={faFileCsv} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Export PDF">
+                        <IconButton
+                          color="secondary"
+                          onClick={() => handleExportPdfReport(r)}
+                          sx={{ width: 36, height: 36 }}
+                        >
+                          <FontAwesomeIcon icon={faFilePdf} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </>
@@ -1628,8 +1648,11 @@ function PatientsPage() {
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-            <TableCell sx={{ fontWeight: "bold", width: 300 }}>
+            <TableCell sx={{ fontWeight: "bold", width: 250 }}>
               Advanced Reports
+            </TableCell>
+            <TableCell sx={{ fontWeight: "bold", width: 400 }}>
+              Description
             </TableCell>
             <TableCell sx={{ fontWeight: "bold", width: 240 }}>
               Actions
@@ -1637,45 +1660,62 @@ function PatientsPage() {
           </TableRow>
         </TableHead>
         <TableBody>
-          {advancedAnalyticsReports.map((r, idx) => (
-            <TableRow
-              key={idx}
-              sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
-            >
-              <TableCell>{r}</TableCell>
-              <TableCell>
-                <Stack direction="row" spacing={1}>
-                  <Tooltip title="Print">
-                    <IconButton
-                      color="primary"
-                      onClick={() => handlePrintReport(r)}
-                      sx={{ width: 36, height: 36 }}
-                    >
-                      <FontAwesomeIcon icon={faPrint} />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Export CSV">
-                    <IconButton
-                      color="success"
-                      onClick={() => handleExportCsvReport(r)}
-                      sx={{ width: 36, height: 36 }}
-                    >
-                      <FontAwesomeIcon icon={faFileCsv} />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Export PDF">
-                    <IconButton
-                      color="secondary"
-                      onClick={() => handleExportPdfReport(r)}
-                      sx={{ width: 36, height: 36 }}
-                    >
-                      <FontAwesomeIcon icon={faFilePdf} />
-                    </IconButton>
-                  </Tooltip>
-                </Stack>
-              </TableCell>
-            </TableRow>
-          ))}
+          {advancedAnalyticsReports.map((r, idx) => {
+            // Define descriptions for each advanced report
+            const advancedReportDescriptions = {
+              "Appointment Volume Trends": "Analyze appointment booking patterns over time, showing peak hours, seasonal trends, and volume fluctuations to optimize scheduling.",
+              "No-Show & Cancellation Rate": "Track and analyze patient no-show rates and cancellation patterns to identify trends and improve appointment management strategies.",
+              "Provider Utilization Report": "Comprehensive analysis of provider efficiency, workload distribution, and availability utilization across different time periods.",
+              "Patient Visit Frequency": "Monitor patient visit patterns, frequency of appointments, and follow-up compliance to enhance patient care coordination.",
+              "New vs. Returning Patients": "Compare new patient acquisition with returning patient retention rates, including demographic breakdowns and growth metrics.",
+              "Appointment Lead Time Analysis": "Analyze the time between appointment booking and actual visit dates to optimize scheduling availability and patient satisfaction.",
+              "Patient Demographic Breakdown": "Detailed demographic analysis including age groups, geographic distribution, and patient population statistics for strategic planning.",
+              "Blocked vs. Booked Time Comparison": "Compare blocked time slots with actual booked appointments to optimize provider schedules and maximize clinic efficiency."
+            };
+
+            return (
+              <TableRow
+                key={idx}
+                sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+              >
+                <TableCell>{r}</TableCell>
+                <TableCell sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
+                  {advancedReportDescriptions[r] || "Advanced analytics report for healthcare insights and optimization."}
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="Print">
+                      <IconButton
+                        color="primary"
+                        onClick={() => handlePrintReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faPrint} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Export CSV">
+                      <IconButton
+                        color="success"
+                        onClick={() => handleExportCsvReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faFileCsv} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Export PDF">
+                      <IconButton
+                        color="secondary"
+                        onClick={() => handleExportPdfReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faFilePdf} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </>
