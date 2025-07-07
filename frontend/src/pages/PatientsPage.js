@@ -808,29 +808,12 @@ function PatientsPage() {
   };
   const handlePrintReport = async (report) => {
     try {
-      console.log("[DEBUG] Printing report. organizationLogo:", organizationLogo);
-      console.log("[DEBUG] organizationData:", organizationData);
+      console.log("[DEBUG] Printing report.");
 
       const reportData = await fetchReportData(report);
       if (reportData) {
-        // Create a printable version with organization logo
+        // Create a printable version
         const printWindow = window.open("", "_blank");
-        const logoSection = organizationLogo
-          ? `
-          <div class="header">
-            <img src="${organizationLogo}" alt="Organization Logo" class="logo" onerror="console.error('Logo failed to load: ${organizationLogo}')" />
-            <div class="org-info">
-              <h2>${organizationData?.name || "Healthcare Organization"}</h2>
-            </div>
-          </div>
-        `
-          : `
-          <div class="header">
-            <h2>${organizationData?.name || "Healthcare Organization"}</h2>
-          </div>
-        `;
-
-        console.log("[DEBUG] Logo section HTML:", logoSection);
 
         printWindow.document.write(`
           <html>
@@ -838,9 +821,8 @@ function PatientsPage() {
               <title>${report}</title>
               <style>
                 body { font-family: Arial, sans-serif; margin: 20px; }
-                .header { display: flex; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #1976d2; padding-bottom: 20px; }
-                .logo { max-height: 80px; max-width: 200px; margin-right: 20px; }
-                .org-info h2 { color: #1976d2; margin: 0; }
+                .header { margin-bottom: 30px; border-bottom: 2px solid #1976d2; padding-bottom: 20px; }
+                .header h2 { color: #1976d2; margin: 0; }
                 h1 { color: #1976d2; margin-bottom: 20px; }
                 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
@@ -852,7 +834,9 @@ function PatientsPage() {
               </style>
             </head>
             <body>
-              ${logoSection}
+              <div class="header">
+                <h2>Healthcare Organization</h2>
+              </div>
               <h1>${report}</h1>
               <div class="filters">
                 ${reportStartDate
@@ -1785,6 +1769,7 @@ function PatientsPage() {
 
   // Fetch organization data including logo
   const fetchOrganizationData = async () => {
+    console.log("[DEBUG] fetchOrganizationData called");
     try {
       const validToken = await getValidToken();
       if (!validToken) {
@@ -1792,33 +1777,45 @@ function PatientsPage() {
         return;
       }
 
-      // Decode token to get organization info
+      // Decode token to get user info
       const decoded = jwtDecode(validToken);
-      const organizationId = decoded.organization_id || decoded.organization;
+      const userId = decoded.user_id;
+      console.log("[DEBUG] Decoded user ID:", userId);
 
-      if (organizationId) {
-        // Fetch organization details from API
+      if (userId) {
+        // Fetch current user details which includes organization logo and name
         const res = await axios.get(
-          `http://127.0.0.1:8000/api/organizations/${organizationId}/`,
+          `http://127.0.0.1:8000/api/users/${userId}/`,
           {
             headers: { Authorization: `Bearer ${validToken}` },
           }
         );
 
-        console.log("[DEBUG] Organization data fetched:", res.data);
-        setOrganizationData(res.data);
+        console.log("[DEBUG] User data fetched:", res.data);
+
+        // Extract organization data from user response
+        const orgData = {
+          id: res.data.organization,
+          name: res.data.organization_name,
+          logo: res.data.organization_logo,
+        };
+
+        console.log("[DEBUG] Extracted organization data:", orgData);
+        setOrganizationData(orgData);
+        console.log("[DEBUG] Organization data state updated");
 
         // Set logo URL if available
-        if (res.data.logo) {
-          console.log("[DEBUG] Setting organization logo:", res.data.logo);
-          // Ensure logo URL is absolute for printing
-          const logoUrl = res.data.logo.startsWith('http')
-            ? res.data.logo
-            : `http://127.0.0.1:8000/${res.data.logo}`;
+        if (res.data.organization_logo) {
+          console.log("[DEBUG] Setting organization logo:", res.data.organization_logo);
+          // Convert relative URL to full URL
+          const logoUrl = res.data.organization_logo.startsWith('/')
+            ? `http://127.0.0.1:8000${res.data.organization_logo}`
+            : res.data.organization_logo;
+          console.log("[DEBUG] Full logo URL:", logoUrl);
           setOrganizationLogo(logoUrl);
-          console.log("[DEBUG] Final logo URL:", logoUrl);
+          console.log("[DEBUG] Organization logo state updated");
         } else {
-          console.log("[DEBUG] No logo found in organization data");
+          console.log("[DEBUG] No logo found in user data");
         }
       }
     } catch (err) {
@@ -1839,10 +1836,17 @@ function PatientsPage() {
     }
   };
 
-  // Initial fetch for organization data
+  // Note: fetchOrganizationData is called in initializeAuth after authentication
+  // No need for separate useEffect here
+
+  // Debug effect to track organization state changes
   useEffect(() => {
-    fetchOrganizationData();
-  }, []);
+    console.log("[DEBUG] Organization data changed:", organizationData);
+  }, [organizationData]);
+
+  useEffect(() => {
+    console.log("[DEBUG] Organization logo changed:", organizationLogo);
+  }, [organizationLogo]);
 
   return (
     <div style={{ textAlign: "left", width: "100%" }}>
@@ -2202,44 +2206,6 @@ function PatientsPage() {
           )}{" "}
           {tab === "analytics" && (
             <Box>
-              {/* Organization Header */}
-              {(organizationData || organizationLogo) && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    mb: 3,
-                    p: 2,
-                    bgcolor: "#f8f9fa",
-                    borderRadius: 2,
-                    border: "1px solid #e3f2fd",
-                  }}
-                >
-                  {organizationLogo && (
-                    <img
-                      src={organizationLogo}
-                      alt="Organization Logo"
-                      style={{
-                        maxHeight: "50px",
-                        maxWidth: "120px",
-                        marginRight: "16px",
-                      }}
-                    />
-                  )}
-                  <Box>
-                    <Typography
-                      variant="h6"
-                      sx={{ color: "#1976d2", fontWeight: "bold" }}
-                    >
-                      {organizationData?.name || "Healthcare Organization"}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: "#666" }}>
-                      Analytics Reports
-                    </Typography>
-                  </Box>
-                </Box>
-              )}
-
               {/* Analytics Sub-tabs */}
               <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
                 <Tabs
