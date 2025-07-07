@@ -131,7 +131,17 @@ function AutoEmailSetUpPage() {
     }
   };
   return (
-    <Box sx={{ boxShadow: 2, borderRadius: 2, bgcolor: "background.paper", p: 3, height: "100%" }}>
+    <Box
+      sx={{
+        boxShadow: 2,
+        borderRadius: 2,
+        bgcolor: "background.paper",
+        p: 3,
+        height: "100%",
+        maxHeight: "90vh", 
+        overflowY: "auto", // Enable scrolling if content overflows
+      }}
+    >
       <Box sx={{ display: "flex", gap: 3, height: "100%" }}>
         {/* Left Pane - Email Settings */}
         <Box
