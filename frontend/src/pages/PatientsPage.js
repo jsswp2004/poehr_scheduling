@@ -808,12 +808,21 @@ function PatientsPage() {
   };
   const handlePrintReport = async (report) => {
     try {
-      console.log("[DEBUG] Printing report.");
+      console.log("[DEBUG] Printing report. organizationLogo:", organizationLogo);
+      console.log("[DEBUG] organizationData:", organizationData);
 
       const reportData = await fetchReportData(report);
       if (reportData) {
         // Create a printable version
         const printWindow = window.open("", "_blank");
+
+        // Create the logo section
+        const logoSection = organizationLogo
+          ? `<div style="display: flex; align-items: center; margin-bottom: 10px;">
+              <img src="${organizationLogo}" alt="Organization Logo" style="height: 60px; margin-right: 15px;" onerror="console.error('Logo failed to load: ${organizationLogo}')" />
+              <h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"}</h2>
+            </div>`
+          : `<h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"}</h2>`;
 
         printWindow.document.write(`
           <html>
@@ -823,7 +832,7 @@ function PatientsPage() {
                 body { font-family: Arial, sans-serif; margin: 20px; }
                 .header { margin-bottom: 30px; border-bottom: 2px solid #1976d2; padding-bottom: 20px; }
                 .header h2 { color: #1976d2; margin: 0; }
-                h1 { color: #1976d2; margin-bottom: 20px; }
+                h1 { color: #1976d2; margin-bottom: 15px; font-size: 20px; font-weight: 600; }
                 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                 th { background-color: #f5f5f5; font-weight: bold; }
@@ -835,7 +844,7 @@ function PatientsPage() {
             </head>
             <body>
               <div class="header">
-                <h2>Healthcare Organization</h2>
+                ${logoSection}
               </div>
               <h1>${report}</h1>
               <div class="filters">
