@@ -239,6 +239,9 @@ function PatientsPage() {
   // Analytics sub-tab state
   const [analyticsTab, setAnalyticsTab] = useState("standard");
 
+  // Appointments sub-tab state
+  const [appointmentsTab, setAppointmentsTab] = useState("today");
+
   // Initialize token and role validation
   useEffect(() => {
     const initializeAuth = async () => {
@@ -419,11 +422,6 @@ function PatientsPage() {
     }
   };
 
-  // Search handler for appointments
-  const handleAppointmentsSearch = async (e) => {
-    e.preventDefault();
-    fetchAppointments(appointmentsQuery);
-  };
   useEffect(() => {
     if (tab === "patients") {
       fetchPatients();
@@ -433,7 +431,7 @@ function PatientsPage() {
       fetchProviders();
     } else if (tab === "appointments") {
       fetchProviders();
-      fetchAppointments(appointmentsQuery);
+      // fetchAppointments is now handled by the dedicated useEffect below
     }
     // eslint-disable-next-line
   }, [page, rowsPerPage, teamPage, tab]);
@@ -476,6 +474,14 @@ function PatientsPage() {
     }
     // eslint-disable-next-line
   }, [search, provider]);
+
+  // Handle search changes for appointments
+  useEffect(() => {
+    if (tab === "appointments" && token) {
+      fetchAppointments(appointmentsQuery);
+    }
+    // eslint-disable-next-line
+  }, [appointmentsQuery, tab, token]);
 
   const handleSendText = async (patient) => {
     const phone = patient.phone_number;
@@ -808,7 +814,10 @@ function PatientsPage() {
   };
   const handlePrintReport = async (report) => {
     try {
-      console.log("[DEBUG] Printing report. organizationLogo:", organizationLogo);
+      console.log(
+        "[DEBUG] Printing report. organizationLogo:",
+        organizationLogo
+      );
       console.log("[DEBUG] organizationData:", organizationData);
 
       const reportData = await fetchReportData(report);
@@ -820,9 +829,11 @@ function PatientsPage() {
         const logoSection = organizationLogo
           ? `<div style="display: flex; align-items: center; margin-bottom: 10px;">
               <img src="${organizationLogo}" alt="Organization Logo" style="height: 60px; margin-right: 15px;" onerror="console.error('Logo failed to load: ${organizationLogo}')" />
-              <h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"}</h2>
+              <h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"
+          }</h2>
             </div>`
-          : `<h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"}</h2>`;
+          : `<h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"
+          }</h2>`;
 
         printWindow.document.write(`
           <html>
@@ -1497,7 +1508,11 @@ function PatientsPage() {
 
     return (
       <>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{ mb: 2 }}
+        >
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <DatePicker
               label="Start Date"
@@ -1550,14 +1565,22 @@ function PatientsPage() {
             {analyticsReports.map((r, idx) => {
               // Define descriptions for each report
               const reportDescriptions = {
-                "Upcoming Appointments Report": "Shows all scheduled appointments from today onwards, including patient details, providers, and appointment times.",
-                "Past Appointments Report": "Displays historical appointment data with completion status, no-shows, and cancellations for analysis.",
-                "Provider Schedule Report": "Comprehensive view of each provider's schedule, workload distribution, and appointment patterns.",
-                "Appointment Status Report": "Statistical breakdown of appointment statuses including completed, cancelled, no-shows, and pending appointments.",
-                "New Patient Registrations": "Track new patient registrations over a specified time period with registration trends and demographics.",
-                "Blocked Time Slots": "Reports on blocked or unavailable time slots for providers, including maintenance and personal time.",
-                "Appointment Recurrence Report": "Analysis of recurring appointments, frequency patterns, and patient follow-up schedules.",
-                "Appointment Duration Summary": "Statistical analysis of appointment durations including averages, patterns, and provider efficiency metrics."
+                "Upcoming Appointments Report":
+                  "Shows all scheduled appointments from today onwards, including patient details, providers, and appointment times.",
+                "Past Appointments Report":
+                  "Displays historical appointment data with completion status, no-shows, and cancellations for analysis.",
+                "Provider Schedule Report":
+                  "Comprehensive view of each provider's schedule, workload distribution, and appointment patterns.",
+                "Appointment Status Report":
+                  "Statistical breakdown of appointment statuses including completed, cancelled, no-shows, and pending appointments.",
+                "New Patient Registrations":
+                  "Track new patient registrations over a specified time period with registration trends and demographics.",
+                "Blocked Time Slots":
+                  "Reports on blocked or unavailable time slots for providers, including maintenance and personal time.",
+                "Appointment Recurrence Report":
+                  "Analysis of recurring appointments, frequency patterns, and patient follow-up schedules.",
+                "Appointment Duration Summary":
+                  "Statistical analysis of appointment durations including averages, patterns, and provider efficiency metrics.",
               };
 
               return (
@@ -1566,8 +1589,11 @@ function PatientsPage() {
                   sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
                 >
                   <TableCell>{r}</TableCell>
-                  <TableCell sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
-                    {reportDescriptions[r] || "Detailed analytics report for healthcare management."}
+                  <TableCell
+                    sx={{ fontSize: "0.875rem", color: "text.secondary" }}
+                  >
+                    {reportDescriptions[r] ||
+                      "Detailed analytics report for healthcare management."}
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1}>
@@ -1663,14 +1689,22 @@ function PatientsPage() {
           {advancedAnalyticsReports.map((r, idx) => {
             // Define descriptions for each advanced report
             const advancedReportDescriptions = {
-              "Appointment Volume Trends": "Analyze appointment booking patterns over time, showing peak hours, seasonal trends, and volume fluctuations to optimize scheduling.",
-              "No-Show & Cancellation Rate": "Track and analyze patient no-show rates and cancellation patterns to identify trends and improve appointment management strategies.",
-              "Provider Utilization Report": "Comprehensive analysis of provider efficiency, workload distribution, and availability utilization across different time periods.",
-              "Patient Visit Frequency": "Monitor patient visit patterns, frequency of appointments, and follow-up compliance to enhance patient care coordination.",
-              "New vs. Returning Patients": "Compare new patient acquisition with returning patient retention rates, including demographic breakdowns and growth metrics.",
-              "Appointment Lead Time Analysis": "Analyze the time between appointment booking and actual visit dates to optimize scheduling availability and patient satisfaction.",
-              "Patient Demographic Breakdown": "Detailed demographic analysis including age groups, geographic distribution, and patient population statistics for strategic planning.",
-              "Blocked vs. Booked Time Comparison": "Compare blocked time slots with actual booked appointments to optimize provider schedules and maximize clinic efficiency."
+              "Appointment Volume Trends":
+                "Analyze appointment booking patterns over time, showing peak hours, seasonal trends, and volume fluctuations to optimize scheduling.",
+              "No-Show & Cancellation Rate":
+                "Track and analyze patient no-show rates and cancellation patterns to identify trends and improve appointment management strategies.",
+              "Provider Utilization Report":
+                "Comprehensive analysis of provider efficiency, workload distribution, and availability utilization across different time periods.",
+              "Patient Visit Frequency":
+                "Monitor patient visit patterns, frequency of appointments, and follow-up compliance to enhance patient care coordination.",
+              "New vs. Returning Patients":
+                "Compare new patient acquisition with returning patient retention rates, including demographic breakdowns and growth metrics.",
+              "Appointment Lead Time Analysis":
+                "Analyze the time between appointment booking and actual visit dates to optimize scheduling availability and patient satisfaction.",
+              "Patient Demographic Breakdown":
+                "Detailed demographic analysis including age groups, geographic distribution, and patient population statistics for strategic planning.",
+              "Blocked vs. Booked Time Comparison":
+                "Compare blocked time slots with actual booked appointments to optimize provider schedules and maximize clinic efficiency.",
             };
 
             return (
@@ -1679,8 +1713,11 @@ function PatientsPage() {
                 sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
               >
                 <TableCell>{r}</TableCell>
-                <TableCell sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
-                  {advancedReportDescriptions[r] || "Advanced analytics report for healthcare insights and optimization."}
+                <TableCell
+                  sx={{ fontSize: "0.875rem", color: "text.secondary" }}
+                >
+                  {advancedReportDescriptions[r] ||
+                    "Advanced analytics report for healthcare insights and optimization."}
                 </TableCell>
                 <TableCell>
                   <Stack direction="row" spacing={1}>
@@ -1855,9 +1892,12 @@ function PatientsPage() {
 
         // Set logo URL if available
         if (res.data.organization_logo) {
-          console.log("[DEBUG] Setting organization logo:", res.data.organization_logo);
+          console.log(
+            "[DEBUG] Setting organization logo:",
+            res.data.organization_logo
+          );
           // Convert relative URL to full URL
-          const logoUrl = res.data.organization_logo.startsWith('/')
+          const logoUrl = res.data.organization_logo.startsWith("/")
             ? `http://127.0.0.1:8000${res.data.organization_logo}`
             : res.data.organization_logo;
           console.log("[DEBUG] Full logo URL:", logoUrl);
@@ -1982,7 +2022,7 @@ function PatientsPage() {
             value={tab}
             onChange={(e, newVal) => setTab(newVal)}
             sx={{
-              mb: 0,
+              mb: 3,
               minHeight: 40,
               "& .MuiTabs-indicator": {
                 height: 4,
@@ -2124,7 +2164,8 @@ function PatientsPage() {
             </Box>
           )}{" "}
           {tab === "appointments" && (
-            <>
+            <Box>
+              {/* Search Section */}
               <Stack
                 direction={{ xs: "column", sm: "row" }}
                 spacing={2}
@@ -2136,122 +2177,204 @@ function PatientsPage() {
                   size="small"
                   value={appointmentsQuery}
                   onChange={(e) => setAppointmentsQuery(e.target.value)}
-                  onKeyPress={(e) =>
-                    e.key === "Enter" && handleAppointmentsSearch(e)
-                  }
                   sx={{ flexGrow: 1, bgcolor: "#fff" }}
-                />{" "}
-                <Button
-                  variant="contained"
-                  onClick={handleAppointmentsSearch}
-                  sx={{ height: "40px" }}
-                >
-                  Search
-                </Button>
+                />
               </Stack>
 
-              {/* Today's Appointments Table */}
-              {todaysAppointments.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ color: "#1976d2" }}
-                  >
-                    Today's Appointments Details
-                  </Typography>
-                  <TableContainer
-                    component={Paper}
-                    sx={{
-                      maxHeight: 300,
-                      boxShadow: 1,
-                      border: "1px solid #e0e0e0",
-                    }}
-                  >
-                    <Table size="small" stickyHeader>
-                      <TableHead>
-                        <TableRow sx={{ bgcolor: "#e3f2fd" }}>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Time
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Patient
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Provider
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Status
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Arrived
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            No Show
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {todaysAppointments.map((appt) => (
-                          <TableRow
-                            key={appt.id}
-                            hover
+              {/* Appointments Sub-tabs */}
+              <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+                <Tabs
+                  value={appointmentsTab}
+                  onChange={(e, newVal) => setAppointmentsTab(newVal)}
+                  sx={{
+                    minHeight: 36,
+                    "& .MuiTabs-indicator": {
+                      height: 2,
+                      borderRadius: 1,
+                      bgcolor: "primary.main",
+                    },
+                    "& .MuiTab-root": {
+                      fontWeight: 500,
+                      fontSize: "0.9rem",
+                      color: "text.secondary",
+                      minHeight: 36,
+                      textTransform: "none",
+                      px: 3,
+                      "&.Mui-selected": {
+                        color: "primary.main",
+                        fontWeight: 600,
+                      },
+                      "&:hover": {
+                        color: "primary.main",
+                      },
+                    },
+                  }}
+                >
+                  <Tab label="Today's Appointments" value="today" />
+                  <Tab label="Calendar View" value="calendar" />
+                </Tabs>
+              </Box>
+
+              {/* Appointments Content */}
+              <Box sx={{ minHeight: "60vh", maxHeight: "70vh", overflowY: "auto" }}>
+                {appointmentsTab === "today" && (
+                  <Box>
+                    {/* Today's Appointments Table */}
+                    {(() => {
+                      // Filter today's appointments based on search query
+                      const lowerQuery = appointmentsQuery.trim().toLowerCase();
+                      const filteredTodaysAppointments = !lowerQuery
+                        ? todaysAppointments
+                        : todaysAppointments.filter((appt) => {
+                          const patientName = appt.patient_name || "";
+                          const providerName = appt.provider_name || "";
+                          const status = appt.status || "";
+                          const description = appt.description || "";
+                          const id = appt.id ? appt.id.toString() : "";
+                          const combined = `${patientName} ${providerName} ${status} ${description} ${id}`.toLowerCase();
+                          return combined.includes(lowerQuery);
+                        });
+
+                      console.log("[DEBUG] Appointments search - query:", appointmentsQuery);
+                      console.log("[DEBUG] Today's appointments total:", todaysAppointments.length);
+                      console.log("[DEBUG] Filtered today's appointments:", filteredTodaysAppointments.length);
+
+                      return filteredTodaysAppointments.length > 0 ? (
+                        <Box sx={{ mb: 3 }}>
+                          <Typography
+                            variant="h6"
+                            gutterBottom
+                            sx={{ color: "#1976d2" }}
+                          >
+                            Today's Appointments Details
+                          </Typography>
+                          <TableContainer
+                            component={Paper}
                             sx={{
-                              "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" },
+                              maxHeight: 300,
+                              boxShadow: 1,
+                              border: "1px solid #e0e0e0",
                             }}
                           >
-                            <TableCell>
-                              {new Date(
-                                appt.appointment_datetime
-                              ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </TableCell>
-                            <TableCell>{appt.patient_name}</TableCell>
-                            <TableCell>{appt.provider_name}</TableCell>
-                            <TableCell>{appt.status}</TableCell>
-                            <TableCell>
-                              <Checkbox
-                                size="small"
-                                checked={!!appt.arrived}
-                                onChange={(e) =>
-                                  handleStatusUpdate(
-                                    appt.id,
-                                    "arrived",
-                                    e.target.checked
-                                  )
-                                }
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Checkbox
-                                size="small"
-                                checked={!!appt.no_show}
-                                onChange={(e) =>
-                                  handleStatusUpdate(
-                                    appt.id,
-                                    "no_show",
-                                    e.target.checked
-                                  )
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              )}
+                            <Table size="small" stickyHeader>
+                              <TableHead>
+                                <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Time
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Patient
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Provider
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Status
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Arrived
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    No Show
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {filteredTodaysAppointments.map((appt) => (
+                                  <TableRow
+                                    key={appt.id}
+                                    hover
+                                    sx={{
+                                      "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" },
+                                    }}
+                                  >
+                                    <TableCell>
+                                      {new Date(
+                                        appt.appointment_datetime
+                                      ).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </TableCell>
+                                    <TableCell>{appt.patient_name}</TableCell>
+                                    <TableCell>{appt.provider_name}</TableCell>
+                                    <TableCell>{appt.status}</TableCell>
+                                    <TableCell>
+                                      <Checkbox
+                                        size="small"
+                                        checked={!!appt.arrived}
+                                        onChange={(e) =>
+                                          handleStatusUpdate(
+                                            appt.id,
+                                            "arrived",
+                                            e.target.checked
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <Checkbox
+                                        size="small"
+                                        checked={!!appt.no_show}
+                                        onChange={(e) =>
+                                          handleStatusUpdate(
+                                            appt.id,
+                                            "no_show",
+                                            e.target.checked
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            py: 3,
+                            textAlign: "center",
+                          }}
+                        >
+                          <Typography
+                            variant="h6"
+                            sx={{ color: "text.secondary", mb: 1 }}
+                          >
+                            {appointmentsQuery.trim()
+                              ? `No appointments found matching "${appointmentsQuery}"`
+                              : "No appointments scheduled for today"
+                            }
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            {appointmentsQuery.trim()
+                              ? "Try adjusting your search terms"
+                              : "Check the Calendar View for upcoming appointments"
+                            }
+                          </Typography>
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                )}
 
-              <CalendarView
-                appointments={appointmentsResults}
-                providers={providers}
-                token={token}
-                fetchAppointments={() => fetchAppointments(appointmentsQuery)}
-              />
-            </>
+                {appointmentsTab === "calendar" && (
+                  <Box>
+                    <CalendarView
+                      appointments={appointmentsResults}
+                      providers={providers}
+                      token={token}
+                      fetchAppointments={() => fetchAppointments(appointmentsQuery)}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Box>
           )}{" "}
           {tab === "analytics" && (
             <Box>
@@ -2290,7 +2413,9 @@ function PatientsPage() {
               </Box>
 
               {/* Analytics Content */}
-              <Box sx={{ minHeight: "60vh", maxHeight: "70vh", overflowY: "auto" }}>
+              <Box
+                sx={{ minHeight: "60vh", maxHeight: "70vh", overflowY: "auto" }}
+              >
                 {analyticsTab === "standard" && renderAnalyticsTable()}
                 {analyticsTab === "advanced" && renderAdvancedAnalytics()}
               </Box>
