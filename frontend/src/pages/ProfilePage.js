@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import {
   Box,
@@ -176,12 +176,12 @@ function ProfilePage() {
     }
   };
 
-  const handleChange = (e) => {
+  const handleChange = useCallback((e) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
-  };
+  }, []);
   const handleSave = async () => {
     try {
       const response = await axios.patch(
@@ -905,7 +905,7 @@ function ProfilePage() {
               disabled={!isEditing}
               variant="outlined"
               placeholder="(123) 456-7890"
-              key={`phone-${formData.phone_number}`}
+              key="phone-field-unique"
               InputProps={{
                 readOnly: !isEditing,
                 sx: !isEditing
@@ -1128,8 +1128,8 @@ function ProfilePage() {
                     />
                     <TextField
                       label={`New Password${isAdminChangingOtherUser
-                          ? ` for ${user.first_name}`
-                          : ""
+                        ? ` for ${user.first_name}`
+                        : ""
                         }`}
                       type="password"
                       name="new_password"
