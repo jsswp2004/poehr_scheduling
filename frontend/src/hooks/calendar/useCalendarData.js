@@ -6,11 +6,11 @@ import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
 import { calendarApi } from "../../utils/calendar/calendarApi";
 import {
-  transformAppointmentsToEvents,
-  transformAvailabilityToEvents,
-  transformClinicEvents,
-  transformHolidays,
-  filterEventsBySearch,
+    transformAppointmentsToEvents,
+    transformAvailabilityToEvents,
+    transformClinicEvents,
+    transformHolidays,
+    filterEventsBySearch,
 } from "../../utils/calendar/eventTransformers";
 import { getDefaultView } from "../../utils/calendar/dateUtils";
 

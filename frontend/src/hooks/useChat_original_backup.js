@@ -1,0 +1,690 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+
+// Helper function for chat initialization with retry logic
+const initializeChatWithRetry = async (chat, connectToOnlineStatus, websocketConnection, maxRetries = 3) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Chat initialization attempt ${attempt}/${maxRetries}`);
+      
+      // Initialize chat socket connection
+      if (chat && chat.initialize) {
+        console.log('🔌 Connecting chat socket...');
+        await chat.initialize();
+      }
+      
+      // Initialize online status connection
+      if (connectToOnlineStatus) {
+        console.log('🟢 Connecting online status...');
+        await connectToOnlineStatus();
+      }
+      
+      // Initialize websocket connection
+      if (websocketConnection && websocketConnection.connect) {
+        console.log('🔗 Connecting websocket...');
+        await websocketConnection.connect();
+      }
+      
+      console.log('✅ Chat system initialization completed successfully');
+      return true;
+    } catch (error) {
+      console.error(`❌ Chat initialization attempt ${attempt} failed:`, error);
+      
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error('❌ All chat initialization attempts failed');
+        return false;
+      }
+    }
+  }
+  return false;
+};
+
+const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus) => {  const [chatRooms, setChatRooms] = useState({});
+  const [activeRoom, setActiveRoom] = useState(null);
+  const [typingUsers, setTypingUsers] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [lastError, setLastError] = useState(null); // Added for error display
+  const [operationStatus, setOperationStatus] = useState(null); // For loading/creating states
+  const [unreadCounts, setUnreadCounts] = useState({}); // Track unread messages per user/room
+  const [chatSystemLoading, setChatSystemLoading] = useState(true); // Track chat system initialization
+  const typingTimeouts = useRef({});
+  console.log('🚀 useChat hook initializing with currentUser:', currentUser);
+  
+  // Notification functions
+  const requestNotificationPermission = useCallback(async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+  }, []);
+  const showDesktopNotification = useCallback((message) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const notification = new Notification(`New message from ${message.sender_name}`, {
+        body: message.content.length > 100 ? message.content.substring(0, 100) + '...' : message.content,
+        icon: '/favicon.ico', // You can customize this
+        tag: `message-${message.id}`,
+        requireInteraction: false,
+      });
+
+      // Auto-close after 5 seconds
+      setTimeout(() => notification.close(), 5000);
+
+      // Handle click to focus window
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    }
+  }, []);
+
+  const playNotificationSound = useCallback(() => {
+    try {
+      // Create a simple notification sound using Web Audio API
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+    } catch (error) {
+      console.log('Could not play notification sound:', error);
+    }
+  }, []);
+  // Request permission on hook initialization
+  useEffect(() => {
+    requestNotificationPermission();
+  }, [requestNotificationPermission]);
+
+  // Update browser title with unread count
+  useEffect(() => {
+    const totalUnread = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+    const originalTitle = 'POEHR Scheduling';
+    
+    if (totalUnread > 0) {
+      document.title = `(${totalUnread}) ${originalTitle}`;
+    } else {
+      document.title = originalTitle;
+    }
+    
+    // Cleanup function to reset title when component unmounts
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [unreadCounts]);
+  // WebSocket connection for chat (using presence endpoint since that's what handles chat messages)
+  const isConnected = websocketConnection && websocketConnection.readyState === WebSocket.OPEN;
+  
+  console.log('🔍 Chat WebSocket hook result:', { isConnected, sendMessage: !!sendMessage });
+  // Debug connection status
+  useEffect(() => {
+    console.log('🔍 Chat WebSocket connection status:', isConnected);
+  }, [isConnected]);  // Debug current user
+  useEffect(() => {
+    console.log('👤 Current user in chat:', currentUser);
+  }, [currentUser]);
+
+  // Initialize chat system on application startup
+  useEffect(() => {
+    console.log('🚀 Initializing chat system at application startup...');
+    setChatSystemLoading(true);
+    
+    const initializeChat = async () => {
+      const success = await initializeChatWithRetry(null, null, websocketConnection);
+      
+      if (!success) {
+        console.warn('⚠️ Chat system initialization failed, but continuing...');
+      }
+      
+      setChatSystemLoading(false);
+    };
+    
+    // Initialize immediately if user is available
+    if (currentUser) {
+      initializeChat();
+    } else {
+      setChatSystemLoading(false);
+    }
+  }, [currentUser, websocketConnection]);
+
+  const handleNewMessage = useCallback((message) => {
+    console.log('📨 Received new message:', message);
+    
+    setChatRooms(prev => {
+      const room = prev[message.room_id] || { messages: [] };
+      
+      // Check if message already exists to avoid duplicates
+      const messageExists = room.messages?.some(msg => msg.id === message.id);
+      if (messageExists) {
+        console.log('📨 Message already exists, skipping:', message.id);
+        return prev;
+      }
+      
+      return {
+        ...prev,
+        [message.room_id]: {
+          ...room,
+          messages: [...(room.messages || []), message].sort((a, b) => 
+            new Date(a.timestamp) - new Date(b.timestamp)
+          )
+        }
+      };
+    });
+    
+    // Update unread counts if message is from another user and room is not active
+    if (message.sender_id !== currentUser?.id && activeRoom !== message.room_id) {
+      // Find the other user in the room to track unread count per user
+      const otherUserId = message.sender_id;
+      console.log('🔔 [DEBUG] Incrementing unread count for user:', otherUserId, 'from:', unreadCounts[otherUserId] || 0, 'to:', (unreadCounts[otherUserId] || 0) + 1);
+      console.log('🔔 [DEBUG] Message details:', { sender_id: message.sender_id, room_id: message.room_id, activeRoom, currentUserId: currentUser?.id });
+      setUnreadCounts(prev => {
+        const newCounts = {
+          ...prev,
+          [otherUserId]: (prev[otherUserId] || 0) + 1
+        };
+        console.log('🔔 [DEBUG] Updated unread counts:', newCounts);
+        return newCounts;
+      });
+    } else {
+      console.log('🔔 [DEBUG] NOT incrementing unread count. Reasons:', {
+        isOwnMessage: message.sender_id === currentUser?.id,
+        isActiveRoom: activeRoom === message.room_id,
+        sender_id: message.sender_id,
+        currentUserId: currentUser?.id,
+        activeRoom,
+        messageRoomId: message.room_id
+      });
+    }    // Note: markMessageAsRead will be called from handleWebSocketMessage when room is active
+  }, [currentUser, activeRoom, unreadCounts]);
+  const markMessageAsRead = useCallback((messageId) => {
+    if (!currentUser || !currentUser.id) return;
+    if (!isConnected || !sendMessage) return;
+
+    sendMessage({
+      type: 'read_receipt',
+      message_id: messageId,
+      reader_id: currentUser.id
+    });
+  }, [currentUser, isConnected, sendMessage]);
+
+  // Process messages received from the shared WebSocket connection via lastMessageFromOnlineStatus
+  const handleWebSocketMessage = useCallback((data) => {
+    console.log('🔔 WebSocket message received in useChat:', data);
+    
+    switch (data.type) {
+      case 'new_message':
+        console.log('📩 Processing new_message:', data.message);
+        handleNewMessage(data.message);        // Show notification if message is from another user
+        if (data.message.sender_id !== currentUser?.id) {
+          if (!document.hasFocus()) {
+            // Desktop notification when window not focused
+            showDesktopNotification(data.message);
+            playNotificationSound();
+          } else if (activeRoom !== data.message.room_id) {
+            // Toast notification when on page but different chat room is active
+            // Note: This will need to be handled in the component that has access to toast
+            console.log('🔔 Should show toast notification for:', data.message);
+          }
+          console.log('🔔 New message notification:', data.message);
+        }
+        // Mark message as read if room is active
+        if (activeRoom === data.message.room_id) {
+          markMessageAsRead(data.message.id);
+        }
+        break;
+      case 'typing_indicator':
+        handleTypingIndicator(data);
+        break;
+      case 'read_receipt':
+        handleReadReceipt(data);
+        break;
+      case 'chat_history':
+        console.log('📚 Processing chat_history');
+        setOperationStatus(null); // Clear loading state
+        handleChatHistory(data);
+        break;
+      case 'chat_room_created':
+        console.log('🏠 Room created response received in useChat:', data);
+        setOperationStatus(null); // Clear creating room state
+        handleChatRoomCreated(data);
+        break;
+      case 'message_sent':
+        console.log('✅ Message sent confirmation:', data.message);
+        handleMessageSent(data.message);
+        break;
+      case 'error':
+        console.error('❌ WebSocket error received in useChat:', data.error || data.message);
+        setLastError(data.error || data.message);
+        setOperationStatus(null); // Clear any pending operation
+        // Also reject pending room creation if exists
+        if (window._pendingRoomCreation) {
+          clearTimeout(window._pendingRoomCreation.timeout);
+          window._pendingRoomCreation.reject(new Error(data.error || data.message));
+          delete window._pendingRoomCreation;
+        }
+        break;
+      default:
+        // Do not log here, as useOnlineStatus will handle its own messages
+        // console.log('❓ Unknown message type in useChat:', data.type, data);
+        break;
+    }
+  }, [currentUser, handleNewMessage, markMessageAsRead, activeRoom, showDesktopNotification, playNotificationSound]);
+
+  useEffect(() => {
+    if (lastMessageFromOnlineStatus) {
+      console.log('🔔 useChat received message from useOnlineStatus:', lastMessageFromOnlineStatus);
+      handleWebSocketMessage(lastMessageFromOnlineStatus);
+    }  }, [lastMessageFromOnlineStatus, handleWebSocketMessage]);
+
+  const handleTypingIndicator = (data) => {
+    const { user_id, user_name, room_id, is_typing } = data;
+    
+    setTypingUsers(prev => {
+      const roomTyping = prev[room_id] || {};
+      
+      if (is_typing) {
+        roomTyping[user_id] = user_name;
+        
+        // Clear existing timeout
+        if (typingTimeouts.current[`${room_id}_${user_id}`]) {
+          clearTimeout(typingTimeouts.current[`${room_id}_${user_id}`]);
+        }
+        
+        // Set timeout to remove typing indicator
+        typingTimeouts.current[`${room_id}_${user_id}`] = setTimeout(() => {
+          setTypingUsers(prevTyping => {
+            const newRoomTyping = { ...prevTyping[room_id] };
+            delete newRoomTyping[user_id];
+            return {
+              ...prevTyping,
+              [room_id]: newRoomTyping
+            };
+          });
+        }, 3000);
+      } else {
+        delete roomTyping[user_id];
+        if (typingTimeouts.current[`${room_id}_${user_id}`]) {
+          clearTimeout(typingTimeouts.current[`${room_id}_${user_id}`]);
+          delete typingTimeouts.current[`${room_id}_${user_id}`];
+        }
+      }
+      
+      return {
+        ...prev,
+        [room_id]: roomTyping
+      };
+    });
+  };
+  const handleReadReceipt = (data) => {
+    const { message_id } = data;
+    
+    setChatRooms(prev => {
+      const updated = { ...prev };
+      
+      // Find and update the message
+      Object.keys(updated).forEach(roomId => {
+        const room = updated[roomId];
+        if (room.messages) {
+          const messageIndex = room.messages.findIndex(msg => msg.id === message_id);
+          if (messageIndex !== -1) {
+            updated[roomId] = {
+              ...room,
+              messages: room.messages.map(msg => 
+                msg.id === message_id ? { ...msg, is_read: true } : msg
+              )
+            };
+          }
+        }
+      });
+      
+      return updated;
+    });
+  };
+
+  const handleChatHistory = (data) => {
+    const { room_id, messages } = data;
+    
+    console.log('📚 Loading chat history for room:', room_id, 'Messages:', messages.length);
+    
+    setChatRooms(prev => ({
+      ...prev,
+      [room_id]: {
+        ...prev[room_id],
+        messages: messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+      }
+    }));
+    
+    setIsLoading(false);  };
+
+  // Add these function definitions before they are used
+  const handleChatRoomCreated = (data) => {
+    // Log the full payload for debugging
+    console.log('🏠 DEBUG: chat_room_created payload received:', data);
+    
+    // Extract room data - server sends room_id instead of id
+    const room = {
+      id: data.room_id,
+      name: data.name,
+      participants: data.participants,
+      room_type: data.chat_type
+    };
+    
+    console.log('🏠 Room ID:', room?.id, 'Type:', typeof room?.id);
+    console.log('🏠 Room participants:', room?.participants);
+    
+    if (!room || !room.id) {
+      console.error('❌ Invalid room data received in chat_room_created:', data);
+      if (window._pendingRoomCreation) {
+        clearTimeout(window._pendingRoomCreation.timeout);
+        window._pendingRoomCreation.reject(new Error('Invalid room data received from server'));
+        delete window._pendingRoomCreation;
+      }
+      return;
+    }
+    
+    setChatRooms(prev => ({
+      ...prev,
+      [room.id]: {
+        ...room,
+        messages: []
+      }
+    }));
+    
+    // Set this as the active room and load its history
+    console.log('🎯 Setting new room as active:', room.id);
+    setActiveRoom(room.id);
+    
+    // Don't immediately load chat history to avoid the error
+    // loadChatHistory(room.id);
+    
+    // Try to match pending room creation by participants
+    if (window._pendingRoomCreation) {
+      const pending = window._pendingRoomCreation;
+      console.log('🔍 Matching room creation:', {
+        pendingParticipants: pending.participants,
+        roomParticipants: room.participants
+      });
+      
+      // Compare sorted participant IDs as strings
+      const roomParticipantIds = (room.participants || []).map(p => p.id || p).sort((a, b) => a - b).map(String);
+      const pendingParticipantIds = (pending.participants || []).map(String).sort();
+      const isMatch = JSON.stringify(roomParticipantIds) === JSON.stringify(pendingParticipantIds);
+      
+      console.log('🔍 Participant match check:', {
+        roomParticipantIds,
+        pendingParticipantIds,
+        isMatch
+      });
+      
+      if (isMatch) {
+        console.log('✅ Room creation matched, resolving promise with room ID:', room.id);
+        clearTimeout(pending.timeout);
+        pending.resolve(room.id);
+        delete window._pendingRoomCreation;
+      } else {
+        console.warn('⚠️ Received chat_room_created for a different room than expected or no pending creation.', { 
+          expected: pendingParticipantIds, 
+          actual: roomParticipantIds 
+        });
+      }
+    } else {
+      console.warn('⚠️ No pending room creation found when room was created');
+    }
+  };
+
+  const handleMessageSent = (message) => {
+    // This confirms the message was processed by the backend.
+    // The message should already be in local state if optimistic updates are used,
+    // or this can be used to add/update it.
+    console.log('✅ Message successfully sent and processed by backend:', message);
+    // Optionally, update message state here if not doing optimistic updates
+    // For example, marking a message as 'sent' or updating its ID if it was provisional.
+  };
+
+  // When creating a chat room, store the sorted participants array for matching
+  const createChatRoom = useCallback(async (userId) => {
+    console.log('>>> useChat createChatRoom - START'); // Log start
+    console.log('>>> useChat createChatRoom - currentUser:', JSON.stringify(currentUser));
+    console.log('>>> useChat createChatRoom - userId:', userId);
+
+    if (!currentUser || !currentUser.id) {
+      console.error('❌ Current user or currentUser.id is not available for creating chat room. currentUser:', currentUser);
+      return Promise.reject(new Error('Current user not available.'));
+    }
+    if (userId === undefined || userId === null) { // More explicit check for userId
+        console.error('❌ Target userId is not available (undefined or null) for creating chat room. userId:', userId);
+        return Promise.reject(new Error('Target user ID not available.'));
+    }
+
+    if (!isConnected || !sendMessage) {
+      console.error('❌ WebSocket not connected, cannot create chat room.');
+      return Promise.reject(new Error('WebSocket not connected.'));
+    }
+
+    // Ensure IDs are numbers if possible, or handle nulls appropriately if backend expects them.
+    // For now, assume backend handles non-numeric or null IDs if they are part of a valid list.
+    const currentUserId = currentUser.id;
+    const targetUserId = userId;
+
+    const participantsArray = [currentUserId, targetUserId].sort((a, b) => {
+      // Handle null/undefined robustly for sorting, though they should be caught by checks above.
+      if (a === null || a === undefined) return 1; // Push nulls/undefined to the end
+      if (b === null || b === undefined) return -1;
+      return a - b;
+    });
+
+    console.log('>>> useChat createChatRoom - currentUserId:', currentUserId, 'targetUserId:', targetUserId);
+    console.log('>>> useChat createChatRoom - Constructed participantsArray:', JSON.stringify(participantsArray));
+
+    const existingRoomId = Object.keys(chatRooms).find(roomId => {
+      const room = chatRooms[roomId];
+      if (room.participants && room.participants.length === 2) {
+        const roomParticipantIds = room.participants.map(p => p.id || p).sort((a,b) => a - b);
+        // Ensure comparison is consistent, e.g. both are numbers or strings
+        return String(roomParticipantIds[0]) === String(participantsArray[0]) && String(roomParticipantIds[1]) === String(participantsArray[1]);
+      }
+      return false;
+    });
+
+    if (existingRoomId) {
+      console.log('🚪 Existing room found:', existingRoomId, 'with participants:', chatRooms[existingRoomId].participants);
+      setActiveRoom(existingRoomId);
+      return Promise.resolve(existingRoomId);
+    }
+
+    console.log('⏳ Creating chat room with participantsArray:', JSON.stringify(participantsArray));
+    setOperationStatus('creating_room');
+    
+    const messagePayload = {
+      type: 'create_chat_room',
+      participants: participantsArray,
+    };
+    console.log('>>> useChat createChatRoom - messagePayload to be sent:', JSON.stringify(messagePayload));
+
+    sendMessage(messagePayload);
+    return new Promise((resolve, reject) => {
+      const newRoomIdentifier = participantsArray.join('_'); // Define identifier here
+      window._pendingRoomCreation = {
+        resolve,
+        reject,
+        participants: participantsArray, // Store for matching
+        identifier: newRoomIdentifier, // Store identifier for timeout check
+        timeout: setTimeout(() => {
+          console.error('❌ Chat room creation timed out.');
+          setOperationStatus(null);
+          if (window._pendingRoomCreation && window._pendingRoomCreation.identifier === newRoomIdentifier) {
+            window._pendingRoomCreation.reject('Chat room creation timed out.');
+            delete window._pendingRoomCreation;          }
+        }, 60000) // 60 seconds timeout
+      };
+    });
+  }, [currentUser, isConnected, sendMessage, chatRooms]);
+
+  const sendChatMessage = useCallback((roomId, content) => {
+    if (!currentUser || !currentUser.id) {
+      console.error('❌ Current user not available for sending message.');
+      return;
+    }
+    if (!isConnected || !sendMessage) {
+      console.error('❌ WebSocket not connected, cannot send message.');
+      return;
+    }
+    if (!roomId || !content.trim()) {
+      console.warn('⚠️ Cannot send empty message or message without room ID.');
+      return;
+    }    const messagePayload = {
+      type: 'send_message',
+      room_id: roomId,
+      message: content.trim(),
+      sender_id: currentUser.id,
+      // recipient_id can be determined by the backend from the room participants
+    };
+
+    console.log('📤 Sending chat message:', messagePayload);
+    const success = sendMessage(messagePayload);    if (success) {
+      console.log('✅ Message sent successfully via WebSocket');
+      // Don't add to local state - wait for backend confirmation
+    } else {
+      console.error('❌ Failed to send chat message via WebSocket.');
+      // Handle send failure (e.g., show error to user)
+    }
+  }, [currentUser, isConnected, sendMessage]);
+
+  const sendTypingIndicator = useCallback((roomId, isTyping) => {
+    if (!currentUser || !currentUser.id) return;
+    if (!isConnected || !sendMessage) return;
+
+    sendMessage({
+      type: 'typing_indicator',
+      room_id: roomId,
+      user_id: currentUser.id,
+      user_name: currentUser.username || 'User',
+      is_typing: isTyping
+    });  }, [currentUser, isConnected, sendMessage]);
+
+  const loadChatHistory = useCallback((roomId) => {
+    if (!isConnected || !sendMessage) {
+      console.warn('⚠️ WebSocket not connected, cannot load chat history.');
+      return;
+    }
+    console.log('⏳ Loading chat history for room:', roomId);
+    setIsLoading(true);
+    sendMessage({
+      type: 'get_chat_history',
+      room_id: roomId
+    });  }, [isConnected, sendMessage]);
+
+  // Effect to load chat history when active room changes
+  useEffect(() => {
+    if (activeRoom) {
+      console.log('🔄 Active room changed to:', activeRoom, '. Loading history...');
+      loadChatHistory(activeRoom);
+    } else {
+      console.log('🔄 Active room is null. Not loading history.');
+    }
+  }, [activeRoom, loadChatHistory]);
+  // Test function to simulate receiving a message (for debugging badge system)
+  const simulateIncomingMessage = useCallback((fromUserId, content = "Test message") => {
+    if (!currentUser?.id) {
+      console.log('❌ Cannot simulate message: currentUser not loaded');
+      return;
+    }
+    
+    const testMessage = {
+      id: Date.now(), // Use timestamp as simple ID
+      room_id: `room_${Math.min(currentUser.id, fromUserId)}_${Math.max(currentUser.id, fromUserId)}`,
+      sender_id: fromUserId,
+      content: content,
+      timestamp: new Date().toISOString()
+    };
+    
+    console.log('🧪 [TEST] Simulating incoming message:', testMessage);
+    handleNewMessage(testMessage);
+  }, [currentUser, handleNewMessage]);
+  
+  // Clear unread count when activeRoom changes (user opens a chat)
+  useEffect(() => {
+    if (activeRoom && currentUser) {
+      // Find the other user in this room and clear their unread count
+      const room = chatRooms[activeRoom];
+      if (room && room.messages && room.messages.length > 0) {
+        // Get the other user ID from the room messages
+        const otherUserIds = [...new Set(room.messages
+          .map(msg => msg.sender_id)
+          .filter(id => id !== currentUser.id)
+        )];
+        
+        // Clear unread count for all other users in this room
+        otherUserIds.forEach(userId => {
+          setUnreadCounts(prev => ({
+            ...prev,
+            [userId]: 0
+          }));
+        });
+      }
+    }
+  }, [activeRoom, currentUser, chatRooms]);
+  // Clear unread count when opening a chat with a specific user
+  const clearUnreadCount = useCallback((userId) => {
+    console.log('🔔 [DEBUG] Clearing unread count for user:', userId, 'previous count:', unreadCounts[userId] || 0);
+    setUnreadCounts(prev => {
+      const newCounts = {
+        ...prev,
+        [userId]: 0
+      };
+      console.log('🔔 [DEBUG] Cleared unread counts:', newCounts);
+      return newCounts;
+    });
+  }, [unreadCounts]);
+  // Get unread count for a specific user
+  const getUnreadCount = useCallback((userId) => {
+    const count = unreadCounts[userId] || 0;
+    console.log('🔔 [DEBUG] getUnreadCount called for user:', userId, 'returning:', count, 'from unreadCounts:', unreadCounts);
+    return count;
+  }, [unreadCounts]);
+
+  // Get total unread count across all users
+  const getTotalUnreadCount = useCallback(() => {
+    const total = Object.values(unreadCounts).reduce((total, count) => total + count, 0);
+    console.log('🔔 [DEBUG] getTotalUnreadCount called, returning:', total, 'from unreadCounts:', unreadCounts);
+    return total;
+  }, [unreadCounts]);  // Cleanup typing timeouts on unmount
+  useEffect(() => {
+    const timeoutsRef = typingTimeouts.current;
+    return () => {
+      Object.values(timeoutsRef).forEach(clearTimeout);
+    };
+  }, []);
+  return {
+    chatRooms,
+    activeRoom,
+    setActiveRoom,
+    typingUsers,
+    isLoading,
+    lastError, // Expose lastError
+    operationStatus, // Expose operationStatus
+    unreadCounts,
+    clearUnreadCount,    getUnreadCount,
+    getTotalUnreadCount,
+    createChatRoom,
+    sendChatMessage,
+    sendTypingIndicator,
+    markMessageAsRead,
+    loadChatHistory,
+    simulateIncomingMessage, // Test function for badge debugging
+    isConnected, // Expose connection status for UI updates
+    chatSystemLoading // Expose chat system loading status
+  };
+};
+
+export default useChat;

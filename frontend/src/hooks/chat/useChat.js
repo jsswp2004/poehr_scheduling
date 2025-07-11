@@ -7,10 +7,10 @@
  * - Better organization and maintainability
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useChatData } from './chat/useChatData';
-import { useChatTyping } from './chat/useChatTyping';
-import { useChatNotifications } from './chat/useChatNotifications';
-import { initializeChatWithRetry } from '../utils/chat/chatUtils';
+import { useChatData } from './useChatData';
+import { useChatTyping } from './useChatTyping';
+import { useChatNotifications } from './useChatNotifications';
+import { initializeChatWithRetry } from '../../utils/chat/chatUtils';
 
 export const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus) => {
   // Initialization state
@@ -195,5 +195,3 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     getTypingUsersForRoom: chatTyping.getTypingUsersForRoom,
   };
 };
-
-export default useChat;
