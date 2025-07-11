@@ -22,10 +22,10 @@ import { CreateProfileContainer } from '../components/create-profile';
  * - CreateProfileContainer: Main container with form layout
  */
 function CreateProfilePage() {
-    // All business logic handled by hook
-    const createProfileLogic = useCreateProfile();
+  // All business logic handled by hook
+  const createProfileLogic = useCreateProfile();
 
-    return <CreateProfileContainer {...createProfileLogic} />;
+  return <CreateProfileContainer {...createProfileLogic} />;
 }
 
 export default CreateProfilePage;

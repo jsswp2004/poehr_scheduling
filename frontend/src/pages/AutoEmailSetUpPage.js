@@ -24,36 +24,36 @@ import { EmailSettingsPanel, EmailLogsPanel } from '../components/auto-email';
  * - EmailLogsPanel: Right panel with email logs table
  */
 function AutoEmailSetUpPage() {
-    // Email settings management
-    const emailSettings = useEmailSettings();
+  // Email settings management
+  const emailSettings = useEmailSettings();
 
-    // Email execution and statistics
-    const emailExecution = useEmailExecution();
+  // Email execution and statistics
+  const emailExecution = useEmailExecution();
 
-    return (
-        <Box
-            sx={{
-                boxShadow: 2,
-                borderRadius: 2,
-                bgcolor: 'background.paper',
-                p: 3,
-                height: '100%',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-            }}
-        >
-            <Box sx={{ display: 'flex', gap: 3, height: '100%' }}>
-                {/* Left Panel - Email Settings */}
-                <EmailSettingsPanel
-                    emailSettings={emailSettings}
-                    emailExecution={emailExecution}
-                />
+  return (
+    <Box
+      sx={{
+        boxShadow: 2,
+        borderRadius: 2,
+        bgcolor: 'background.paper',
+        p: 3,
+        height: '100%',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+      }}
+    >
+      <Box sx={{ display: 'flex', gap: 3, height: '100%' }}>
+        {/* Left Panel - Email Settings */}
+        <EmailSettingsPanel
+          emailSettings={emailSettings}
+          emailExecution={emailExecution}
+        />
 
-                {/* Right Panel - Email Logs */}
-                <EmailLogsPanel />
-            </Box>
-        </Box>
-    );
+        {/* Right Panel - Email Logs */}
+        <EmailLogsPanel />
+      </Box>
+    </Box>
+  );
 }
 
 export default AutoEmailSetUpPage;

@@ -23,10 +23,10 @@ import { LoginContainer } from '../components/login';
  * - LoginContainer: Main page layout and form container
  */
 function LoginPage() {
-    // All authentication logic handled by hook
-    const loginLogic = useLogin();
+  // All authentication logic handled by hook
+  const loginLogic = useLogin();
 
-    return <LoginContainer {...loginLogic} />;
+  return <LoginContainer {...loginLogic} />;
 }
 
 export default LoginPage;

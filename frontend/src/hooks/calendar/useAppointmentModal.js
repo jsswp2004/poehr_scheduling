@@ -1,0 +1,153 @@
+/**
+ * Custom hook for managing calendar appointment modals
+ */
+import { useState, useCallback } from "react";
+import { toast } from "react-toastify";
+import { calendarApi } from "../../utils/calendar/calendarApi";
+import { isPastAppointment } from "../../utils/calendar/dateUtils";
+
+export const useAppointmentModal = (onUpdate, token) => {
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [isPast, setIsPast] = useState(false);
+
+  // Form data
+  const [modalFormData, setModalFormData] = useState({
+    title: "New Clinic Visit",
+    description: "",
+    duration_minutes: 30,
+    recurrence: "none",
+    appointment_datetime: "",
+    provider: null,
+  });
+
+  // Selected data
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+
+  // Reset form to initial state
+  const resetForm = useCallback(() => {
+    setModalFormData({
+      title: "New Clinic Visit",
+      description: "",
+      duration_minutes: 30,
+      recurrence: "none",
+      appointment_datetime: "",
+      provider: null,
+    });
+    setSelectedDoctor(null);
+    setIsEditing(false);
+    setEditingId(null);
+    setIsPast(false);
+  }, []);
+
+  // Open modal for new appointment
+  const openNewAppointmentModal = useCallback((start, end) => {
+    resetForm();
+    setModalFormData(prev => ({
+      ...prev,
+      appointment_datetime: start.toISOString().slice(0, 16),
+    }));
+    setShowModal(true);
+  }, [resetForm]);
+
+  // Open modal for editing existing appointment
+  const openEditAppointmentModal = useCallback((event) => {
+    const appointmentData = event.resource?.data;
+    if (!appointmentData) return;
+
+    const isPastAppt = isPastAppointment(appointmentData.appointment_datetime);
+    setIsPast(isPastAppt);
+    setIsEditing(true);
+    setEditingId(appointmentData.id);
+    
+    setModalFormData({
+      title: appointmentData.title || "New Clinic Visit",
+      description: appointmentData.description || "",
+      duration_minutes: appointmentData.duration_minutes || 30,
+      recurrence: appointmentData.recurrence || "none",
+      appointment_datetime: appointmentData.appointment_datetime?.slice(0, 16) || "",
+      provider: appointmentData.provider || null,
+    });
+
+    setShowModal(true);
+  }, []);
+
+  // Close modal and reset
+  const closeModal = useCallback(() => {
+    setShowModal(false);
+    resetForm();
+  }, [resetForm]);
+
+  // Handle form submission
+  const handleSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    
+    if (!token) {
+      toast.error("Authentication required");
+      return;
+    }
+
+    try {
+      const appointmentData = {
+        ...modalFormData,
+        appointment_datetime: new Date(modalFormData.appointment_datetime).toISOString(),
+      };
+
+      if (isEditing && editingId) {
+        await calendarApi.updateAppointment(token, editingId, appointmentData);
+        toast.success("Appointment updated successfully!");
+      } else {
+        await calendarApi.createAppointment(token, appointmentData);
+        toast.success("Appointment created successfully!");
+      }
+
+      closeModal();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      console.error("Error saving appointment:", error);
+      const errorMessage = error.response?.data?.detail || "Failed to save appointment";
+      toast.error(errorMessage);
+    }
+  }, [modalFormData, isEditing, editingId, token, closeModal, onUpdate]);
+
+  // Handle appointment deletion
+  const handleDelete = useCallback(async () => {
+    if (!editingId || !token) return;
+
+    if (!window.confirm("Are you sure you want to delete this appointment?")) {
+      return;
+    }
+
+    try {
+      await calendarApi.deleteAppointment(token, editingId);
+      toast.success("Appointment deleted successfully!");
+      closeModal();
+      if (onUpdate) onUpdate();
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+      toast.error("Failed to delete appointment");
+    }
+  }, [editingId, token, closeModal, onUpdate]);
+
+  return {
+    // Modal state
+    showModal,
+    isEditing,
+    isPast,
+    
+    // Form data
+    modalFormData,
+    setModalFormData,
+    selectedDoctor,
+    setSelectedDoctor,
+    
+    // Actions
+    openNewAppointmentModal,
+    openEditAppointmentModal,
+    closeModal,
+    handleSubmit,
+    handleDelete,
+  };
+};
