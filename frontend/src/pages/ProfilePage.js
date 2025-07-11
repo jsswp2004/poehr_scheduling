@@ -23,10 +23,10 @@ import { ProfilePageContainer } from '../components/profile-page';
  * - ProfilePageContainer: Main UI container with all profile sections
  */
 function ProfilePage() {
-    // All business logic handled by consolidated hook
-    const profilePageLogic = useProfilePageLogic();
+  // All business logic handled by consolidated hook
+  const profilePageLogic = useProfilePageLogic();
 
-    return <ProfilePageContainer {...profilePageLogic} />;
+  return <ProfilePageContainer {...profilePageLogic} />;
 }
 
 export default ProfilePage;

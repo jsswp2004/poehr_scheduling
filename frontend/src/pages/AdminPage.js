@@ -22,10 +22,10 @@ import { AdminContainer } from '../components/admin';
  * - AdminContainer: Main page layout and navigation grid
  */
 function AdminPage() {
-    // All admin logic handled by hook
-    const adminLogic = useAdminPage();
+  // All admin logic handled by hook
+  const adminLogic = useAdminPage();
 
-    return <AdminContainer {...adminLogic} />;
+  return <AdminContainer {...adminLogic} />;
 }
 
 export default AdminPage;

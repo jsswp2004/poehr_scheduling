@@ -23,10 +23,10 @@ import { ToastTestContainer } from '../components/toast-test';
  * - ToastTestContainer: Main page layout with test sections
  */
 function ToastTestPage() {
-    // All toast testing logic handled by hook
-    const { toastTestSections } = useToastTest();
+  // All toast testing logic handled by hook
+  const { toastTestSections } = useToastTest();
 
-    return <ToastTestContainer toastTestSections={toastTestSections} />;
+  return <ToastTestContainer toastTestSections={toastTestSections} />;
 }
 
 export default ToastTestPage;
