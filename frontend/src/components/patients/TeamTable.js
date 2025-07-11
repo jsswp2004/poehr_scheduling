@@ -1,0 +1,226 @@
+import React from 'react';
+import {
+    Box,
+    Typography,
+    TextField,
+    Paper,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    IconButton,
+    Tooltip,
+    Pagination,
+    CircularProgress,
+} from '@mui/material';
+import {
+    Visibility as VisibilityIcon,
+} from '@mui/icons-material';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+    faCommentDots,
+    faEnvelope,
+} from '@fortawesome/free-solid-svg-icons';
+import { useNavigate } from 'react-router-dom';
+import OnlineIndicator from '../OnlineIndicator';
+
+function TeamTable({
+    team,
+    loadingTeam,
+    teamSearch,
+    setTeamSearch,
+    teamPage,
+    setTeamPage,
+    teamTotalPages,
+    onOpenChat,
+    getUserOnlineStatus,
+    getTotalUnreadCount,
+}) {
+    const navigate = useNavigate();
+
+    if (loadingTeam) {
+        return (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+                <CircularProgress />
+                <Typography sx={{ mt: 2 }}>Loading team members...</Typography>
+            </Box>
+        );
+    }
+
+    return (
+        <Box>
+            {/* Search Control */}
+            <Box sx={{ mb: 3 }}>
+                <TextField
+                    label="Search team members..."
+                    value={teamSearch}
+                    onChange={(e) => setTeamSearch(e.target.value)}
+                    variant="outlined"
+                    size="small"
+                    sx={{ minWidth: 300 }}
+                />
+            </Box>
+
+            {/* Team Table */}
+            <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
+                <Table stickyHeader>
+                    <TableHead>
+                        <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Role</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                                Actions
+                            </TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {team.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
+                                    No team members found
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            team.map((member) => {
+                                const unreadCount = getTotalUnreadCount ? getTotalUnreadCount(member.id) : 0;
+                                const isOnline = getUserOnlineStatus(member.id)?.is_online || false;
+
+                                return (
+                                    <TableRow
+                                        key={member.id}
+                                        sx={{
+                                            '&:hover': { bgcolor: '#f5f5f5' },
+                                            cursor: 'pointer',
+                                        }}
+                                    >
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <OnlineIndicator isOnline={isOnline} size={8} />
+                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                    {member.full_name}
+                                                </Typography>
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
+                                                {member.role || 'N/A'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2">
+                                                {member.email || 'N/A'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        color: isOnline ? 'success.main' : 'grey.500',
+                                                        fontWeight: 500,
+                                                    }}
+                                                >
+                                                    {isOnline ? 'Online' : 'Offline'}
+                                                </Typography>
+                                                {unreadCount > 0 && (
+                                                    <Box
+                                                        sx={{
+                                                            backgroundColor: '#ff4444',
+                                                            color: 'white',
+                                                            borderRadius: '50%',
+                                                            width: 18,
+                                                            height: 18,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontSize: '10px',
+                                                            fontWeight: 'bold',
+                                                        }}
+                                                    >
+                                                        {unreadCount > 9 ? '9+' : unreadCount}
+                                                    </Box>
+                                                )}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell sx={{ textAlign: 'center' }}>
+                                            <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                                                <Tooltip title="View Profile">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => navigate(`/profile?user=${member.id}`)}
+                                                        sx={{ color: 'primary.main' }}
+                                                    >
+                                                        <VisibilityIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+
+                                                <Tooltip title={`Send Message${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => onOpenChat(member)}
+                                                        sx={{
+                                                            color: unreadCount > 0 ? '#ff4444' : 'info.main',
+                                                            position: 'relative',
+                                                        }}
+                                                    >
+                                                        <FontAwesomeIcon icon={faCommentDots} />
+                                                        {unreadCount > 0 && (
+                                                            <Box
+                                                                sx={{
+                                                                    position: 'absolute',
+                                                                    top: -2,
+                                                                    right: -2,
+                                                                    width: 12,
+                                                                    height: 12,
+                                                                    backgroundColor: '#ff4444',
+                                                                    borderRadius: '50%',
+                                                                    border: '1px solid white',
+                                                                }}
+                                                            />
+                                                        )}
+                                                    </IconButton>
+                                                </Tooltip>
+
+                                                <Tooltip title="Send Email">
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => {
+                                                            window.location.href = `mailto:${member.email}`;
+                                                        }}
+                                                        sx={{ color: 'success.main' }}
+                                                    >
+                                                        <FontAwesomeIcon icon={faEnvelope} />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            </Box>
+                                        </TableCell>
+                                    </TableRow>
+                                );
+                            })
+                        )}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
+            {/* Pagination */}
+            {teamTotalPages > 1 && (
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                    <Pagination
+                        count={teamTotalPages}
+                        page={teamPage}
+                        onChange={(e, newPage) => setTeamPage(newPage)}
+                        color="primary"
+                        showFirstButton
+                        showLastButton
+                    />
+                </Box>
+            )}
+        </Box>
+    );
+}
+
+export default TeamTable;
