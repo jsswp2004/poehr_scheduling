@@ -8,13 +8,13 @@
  */
 import React from 'react';
 import { Box, Paper, Typography } from '@mui/material';
-import { useAppointmentFormData } from '../../hooks/appointment-form/useAppointmentFormData';
-import { useAppointmentDoctors } from '../../hooks/appointment-form/useAppointmentDoctors';
-import { useAppointmentFormExternal } from '../../hooks/appointment-form/useAppointmentFormExternal';
-import { useAppointmentFormSubmission } from '../../hooks/appointment-form/useAppointmentFormSubmission';
-import { AppointmentFormFields } from './AppointmentFormFields';
-import { AvailableSlotsPanel } from './AvailableSlotsPanel';
-import { AppointmentFormActions } from './AppointmentFormActions';
+import { useAppointmentFormData } from '../hooks/appointment-form/useAppointmentFormData';
+import { useAppointmentDoctors } from '../hooks/appointment-form/useAppointmentDoctors';
+import { useAppointmentFormExternal } from '../hooks/appointment-form/useAppointmentFormExternal';
+import { useAppointmentFormSubmission } from '../hooks/appointment-form/useAppointmentFormSubmission';
+import { AppointmentFormFields } from './appointment-form/AppointmentFormFields';
+import { AvailableSlotsPanel } from './appointment-form/AvailableSlotsPanel';
+import { AppointmentFormActions } from './appointment-form/AppointmentFormActions';
 
 function CreateAppointmentForm({
   onSuccess,
