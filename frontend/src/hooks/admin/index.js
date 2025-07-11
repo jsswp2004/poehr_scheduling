@@ -1,0 +1,1 @@
+export { useAdminPage } from './useAdminPage';
