@@ -14,19 +14,15 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Box, CircularProgress, Typography } from "@mui/material";
 
 // Components
-import BackButton from "../BackButton";
-import {
-  CustomToolbar,
-  AppointmentModal,
-  AvailabilityModal,
-} from "./calendar";
+import BackButton from "./BackButton";
+import CustomToolbar from "./calendar/CustomToolbar";
+import AppointmentModal from "./calendar/AppointmentModal";
+import AvailabilityModal from "./calendar/AvailabilityModal";
 
 // Hooks
-import {
-  useCalendarData,
-  useAppointmentModal,
-  useAvailabilityModal,
-} from "../../hooks/calendar";
+import { useCalendarData } from "../hooks/calendar/useCalendarData";
+import { useAppointmentModal } from "../hooks/calendar/useAppointmentModal";
+import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
 
 const localizer = momentLocalizer(moment);
 
@@ -125,7 +121,7 @@ function CalendarView({ onUpdate }) {
   return (
     <Box>
       <BackButton />
-      
+
       <Box sx={{ height: "calc(100vh - 200px)", mt: 2 }}>
         <Calendar
           localizer={localizer}
