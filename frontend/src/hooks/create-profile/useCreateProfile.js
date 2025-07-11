@@ -96,7 +96,7 @@ export const useCreateProfile = () => {
         }
 
         try {
-            await axios.post(`${API_BASE_URL}/auth/register/`, formPayload, {
+            await axios.post(`${API_BASE_URL}/api/auth/register/`, formPayload, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
             toast.success('Registration successful! Please login.');
