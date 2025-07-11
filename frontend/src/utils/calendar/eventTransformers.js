@@ -4,74 +4,73 @@
 
 // Transform appointment data to calendar events
 export const transformAppointmentsToEvents = (appointments) => {
-  return appointments.map((appt) => ({
-    id: `appt-${appt.id}`,
-    title: `${appt.patient_name || "Unknown Patient"} - ${
-      appt.title || "Untitled Appointment"
-    }`,
-    start: new Date(appt.appointment_datetime),
-    end: new Date(
-      new Date(appt.appointment_datetime).getTime() +
-        (appt.duration_minutes || 30) * 60 * 1000
-    ),
-    resource: {
-      type: "appointment",
-      data: appt,
-    },
-  }));
+    return appointments.map((appt) => ({
+        id: `appt-${appt.id}`,
+        title: `${appt.patient_name || "Unknown Patient"} - ${appt.title || "Untitled Appointment"
+            }`,
+        start: new Date(appt.appointment_datetime),
+        end: new Date(
+            new Date(appt.appointment_datetime).getTime() +
+            (appt.duration_minutes || 30) * 60 * 1000
+        ),
+        resource: {
+            type: "appointment",
+            data: appt,
+        },
+    }));
 };
 
 // Transform availability data to calendar events
 export const transformAvailabilityToEvents = (availability) => {
-  return availability.map((avail) => ({
-    id: `avail-${avail.id}`,
-    title: `Available - ${avail.provider_name || "Unknown Provider"}`,
-    start: new Date(avail.start_datetime),
-    end: new Date(avail.end_datetime),
-    resource: {
-      type: "availability",
-      data: avail,
-    },
-  }));
+    return availability.map((avail) => ({
+        id: `avail-${avail.id}`,
+        title: `Available - ${avail.provider_name || "Unknown Provider"}`,
+        start: new Date(avail.start_datetime),
+        end: new Date(avail.end_datetime),
+        resource: {
+            type: "availability",
+            data: avail,
+        },
+    }));
 };
 
 // Transform clinic events to calendar events
 export const transformClinicEvents = (clinicEvents) => {
-  return clinicEvents.map((event) => ({
-    id: `clinic-${event.id}`,
-    title: event.title || "Clinic Event",
-    start: new Date(event.start_datetime),
-    end: new Date(event.end_datetime),
-    resource: {
-      type: "clinic_event",
-      data: event,
-    },
-  }));
+    return clinicEvents.map((event) => ({
+        id: `clinic-${event.id}`,
+        title: event.title || "Clinic Event",
+        start: new Date(event.start_datetime),
+        end: new Date(event.end_datetime),
+        resource: {
+            type: "clinic_event",
+            data: event,
+        },
+    }));
 };
 
 // Transform holidays to calendar events
 export const transformHolidays = (holidays) => {
-  return holidays.map((holiday) => ({
-    id: `holiday-${holiday.id}`,
-    title: `Holiday: ${holiday.name}`,
-    start: new Date(holiday.date),
-    end: new Date(holiday.date),
-    allDay: true,
-    resource: {
-      type: "holiday",
-      data: holiday,
-    },
-  }));
+    return holidays.map((holiday) => ({
+        id: `holiday-${holiday.id}`,
+        title: `Holiday: ${holiday.name}`,
+        start: new Date(holiday.date),
+        end: new Date(holiday.date),
+        allDay: true,
+        resource: {
+            type: "holiday",
+            data: holiday,
+        },
+    }));
 };
 
 // Filter events based on search query
 export const filterEventsBySearch = (events, searchQuery) => {
-  if (!searchQuery) return events;
-  
-  const query = searchQuery.toLowerCase();
-  return events.filter((event) =>
-    event.title.toLowerCase().includes(query) ||
-    event.resource?.data?.patient_name?.toLowerCase().includes(query) ||
-    event.resource?.data?.provider_name?.toLowerCase().includes(query)
-  );
+    if (!searchQuery) return events;
+
+    const query = searchQuery.toLowerCase();
+    return events.filter((event) =>
+        event.title.toLowerCase().includes(query) ||
+        event.resource?.data?.patient_name?.toLowerCase().includes(query) ||
+        event.resource?.data?.provider_name?.toLowerCase().includes(query)
+    );
 };
