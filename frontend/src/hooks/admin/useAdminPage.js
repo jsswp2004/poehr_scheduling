@@ -1,0 +1,105 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+
+/**
+ * Custom hook for managing admin page functionality
+ * Handles role verification and navigation logic
+ */
+export const useAdminPage = () => {
+    const navigate = useNavigate();
+    const [userRole, setUserRole] = useState('');
+    const [loading, setLoading] = useState(true);
+
+    // Admin navigation items configuration
+    const adminNavItems = [
+        {
+            id: 'calendar',
+            label: 'Calendar Dashboard',
+            icon: 'FaCalendarCheck',
+            path: '/patients',
+            color: 'primary',
+            requiredRoles: ['admin', 'system_admin', 'registrar']
+        },
+        {
+            id: 'settings',
+            label: 'Settings',
+            icon: 'FaTools',
+            path: '/settings',
+            color: 'success',
+            requiredRoles: ['admin', 'system_admin']
+        },
+        {
+            id: 'profile',
+            label: 'Profile',
+            icon: 'FaUserCog',
+            path: '/profile',
+            color: 'secondary',
+            requiredRoles: ['admin', 'system_admin']
+        },
+        {
+            id: 'search',
+            label: 'Appointment Search',
+            icon: 'FaSearch',
+            path: '/admin-user-search',
+            color: 'info',
+            requiredRoles: ['admin', 'system_admin', 'registrar']
+        },
+        {
+            id: 'messages',
+            label: 'Messages',
+            icon: 'FaEnvelope',
+            path: '/messages',
+            color: 'warning',
+            requiredRoles: ['admin', 'system_admin', 'registrar']
+        }
+    ];
+
+    // Role check and authentication
+    useEffect(() => {
+        const checkUserRole = () => {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                navigate('/login');
+                return;
+            }
+
+            try {
+                const decoded = jwtDecode(token);
+                const role = decoded.role || '';
+
+                if (role !== 'admin' && role !== 'system_admin' && role !== 'registrar') {
+                    navigate('/');
+                    return;
+                }
+
+                setUserRole(role);
+            } catch (err) {
+                navigate('/login');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        checkUserRole();
+    }, [navigate]);
+
+    // Filter navigation items based on user role
+    const getVisibleNavItems = () => {
+        return adminNavItems.filter(item =>
+            item.requiredRoles.includes(userRole)
+        );
+    };
+
+    // Handle navigation to different admin sections
+    const handleNavigate = (path) => {
+        navigate(path);
+    };
+
+    return {
+        userRole,
+        loading,
+        visibleNavItems: getVisibleNavItems(),
+        handleNavigate,
+    };
+};

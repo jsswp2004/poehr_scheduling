@@ -15,7 +15,7 @@ import {
     PatientInformationForm,
 } from '../components/patient-detail';
 
-function PatientDetailPageRefactored() {
+function PatientDetailPage() {
     const { id } = useParams();
 
     // Custom hooks
@@ -169,4 +169,4 @@ function PatientDetailPageRefactored() {
     );
 }
 
-export default PatientDetailPageRefactored;
+export default PatientDetailPage;

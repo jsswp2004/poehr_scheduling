@@ -37,7 +37,7 @@ import { useAuth } from '../hooks/useAuth';
 // Utils
 import { getValidToken, clearAuthData } from '../utils/auth';
 
-function PatientsPageRefactored() {
+function PatientsPage() {
     const navigate = useNavigate();
 
     // Main tab state
@@ -489,4 +489,4 @@ function PatientsPageRefactored() {
     );
 }
 
-export default PatientsPageRefactored;
+export default PatientsPage;

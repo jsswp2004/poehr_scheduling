@@ -1,0 +1,2765 @@
+import axios from "axios";
+import { useEffect, useState } from "react";
+import {
+  Box,
+  Stack,
+  Typography,
+  Button,
+  TextField,
+  IconButton,
+  Tooltip,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Select as MUISelect,
+  Alert,
+  CircularProgress,
+  Tabs,
+  Tab,
+  Pagination,
+  Checkbox,
+  Grid,
+  List,
+  ListItem,
+  ListItemText,
+} from "@mui/material";
+import TodayIcon from "@mui/icons-material/Today";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import CloseIcon from "@mui/icons-material/Close";
+import { saveAs } from "file-saver";
+import Papa from "papaparse";
+import { useNavigate } from "react-router-dom";
+import CalendarView from "../components/CalendarView";
+import BackButton from "../components/BackButton";
+import OnlineIndicator from "../components/OnlineIndicator";
+import ChatModal from "../components/ChatModal";
+import useOnlineStatus from "../hooks/useOnlineStatus";
+import useChat from "../hooks/useChat";
+import { jwtDecode } from "jwt-decode";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faDownload,
+  faEye,
+  faCommentDots,
+  faEnvelope,
+  faTrash,
+  faPrint,
+  faFileCsv,
+  faFilePdf,
+  faSms,
+  faTag,
+  faEdit,
+  faPaperPlane,
+} from "@fortawesome/free-solid-svg-icons";
+import RegisterPage from "./RegisterPage";
+import { getValidToken, clearAuthData } from "../utils/auth";
+
+function PatientsPage() {
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [emailForm, setEmailForm] = useState({
+    subject: "Message from your provider",
+    message: "",
+  });
+
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [team, setTeam] = useState([]);
+  const [loadingTeam, setLoadingTeam] = useState(true);
+  const [teamSearch, setTeamSearch] = useState("");
+  const [teamPage, setTeamPage] = useState(1);
+  const [teamTotalSize, setTeamTotalSize] = useState(0);
+  const [provider, setProvider] = useState("");
+
+  const {
+    getUserOnlineStatus,
+    isConnected: onlineStatusConnected,
+    websocketConnection,
+    sendMessage,
+    lastMessage: lastMessageFromOnlineStatus,
+  } = useOnlineStatus();
+
+  console.log(
+    "🔍 PatientsPage - websocketConnection from useOnlineStatus:",
+    websocketConnection
+  );
+  console.log(
+    "📨 PatientsPage - lastMessageFromOnlineStatus:",
+    lastMessageFromOnlineStatus
+  );
+
+  const [chatModalOpen, setChatModalOpen] = useState(false);
+  const [selectedChatUser, setSelectedChatUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("access_token");
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const user = {
+          id: decoded.user_id,
+          username: decoded.username,
+          first_name: decoded.first_name || "",
+          last_name: decoded.last_name || "",
+        };
+        setCurrentUser(user);
+      } catch (error) {
+        console.error("❌ Error decoding token:", error);
+      }
+    } else {
+      console.error("❌ No token found in localStorage");
+    }
+  }, []);
+
+  const chat = useChat(
+    currentUser,
+    websocketConnection,
+    sendMessage,
+    lastMessageFromOnlineStatus
+  );
+
+  // Extract chatSystemLoading from the chat hook
+  const { chatSystemLoading } = chat;
+
+  // ✅ Debug online status
+  useEffect(() => {
+    console.log("🔍 Current online users state:", {
+      getUserOnlineStatus,
+      isConnected: onlineStatusConnected,
+    });
+    if (team.length > 0) {
+      console.log("👥 Team members and their online status:");
+      team.forEach((member) => {
+        const status = getUserOnlineStatus(member.id);
+        console.log(`👤 ${member.full_name} (ID: ${member.id}):`, status);
+      });
+    }
+  }, [team, getUserOnlineStatus, onlineStatusConnected]);
+  // ✅ Additional debug - check initial state
+  useEffect(() => {
+    console.log(
+      "🚀 PatientsPage initialized, WebSocket connected:",
+      onlineStatusConnected
+    );
+  }, [onlineStatusConnected]);
+  // ✅ Toast notifications for new chat messages
+  useEffect(() => {
+    if (
+      lastMessageFromOnlineStatus &&
+      lastMessageFromOnlineStatus.type === "new_message"
+    ) {
+      const message = lastMessageFromOnlineStatus.message;
+
+      // Show toast if message is from another user and chat modal is not open
+      if (message && message.sender_id !== currentUser?.id && !chatModalOpen) {
+        toast.info(
+          `💬 ${message.sender_name}: ${message.content.length > 50
+            ? message.content.substring(0, 50) + "..."
+            : message.content
+          }`,
+          {
+            position: "top-right",
+            autoClose: 4000,
+            hideProgressBar: false,
+            closeOnClick: true,
+            pauseOnHover: true,
+            draggable: true,
+          }
+        );
+      }
+    }
+  }, [lastMessageFromOnlineStatus, currentUser, chatModalOpen]);
+
+  const [tab, setTab] = useState("patients");
+  const [page, setPage] = useState(1);
+  const [totalSize, setTotalSize] = useState(0);
+  const [reportStartDate, setReportStartDate] = useState(null);
+  const [reportEndDate, setReportEndDate] = useState(null);
+  const [reportProvider, setReportProvider] = useState("all");
+  const [providers, setProviders] = useState([]);
+  const [todaysAppointments, setTodaysAppointments] = useState([]);
+
+  // Appointments table state
+  const [appointmentsQuery, setAppointmentsQuery] = useState("");
+  const [appointmentsResults, setAppointmentsResults] = useState([]);
+  const [appointmentsPage, setAppointmentsPage] = useState(1);
+  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const navigate = useNavigate();
+  const rowsPerPage = 10;
+  const totalPages = Math.ceil(totalSize / rowsPerPage); // Use backend totalSize instead of patients.length
+  const teamTotalPages = Math.ceil(teamTotalSize / rowsPerPage);
+
+  const analyticsReports = [
+    "Upcoming Appointments Report",
+    "Past Appointments Report",
+    "Provider Schedule Report",
+    "Appointment Status Report",
+    "New Patient Registrations",
+    "Blocked Time Slots",
+    "Appointment Recurrence Report",
+    "Appointment Duration Summary",
+  ];
+  const advancedAnalyticsReports = [
+    "Appointment Volume Trends",
+    "No-Show & Cancellation Rate",
+    "Provider Utilization Report",
+    "Patient Visit Frequency",
+    "New vs. Returning Patients",
+    "Appointment Lead Time Analysis",
+    "Patient Demographic Breakdown",
+    "Blocked vs. Booked Time Comparison",
+  ];
+  const [token, setToken] = useState(null);
+  const [userRole, setUserRole] = useState(null);
+
+  // Organization state for reports
+  const [organizationData, setOrganizationData] = useState(null);
+  const [organizationLogo, setOrganizationLogo] = useState(null);
+
+  // Analytics sub-tab state
+  const [analyticsTab, setAnalyticsTab] = useState("standard");
+
+  // Appointments sub-tab state
+  const [appointmentsTab, setAppointmentsTab] = useState("today");
+
+  // Initialize token and role validation
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const validToken = await getValidToken();
+        if (!validToken) {
+          console.error("No valid token available");
+          clearAuthData();
+          navigate("/login");
+          return;
+        }
+
+        setToken(validToken);
+
+        // Validate user role
+        const decoded = jwtDecode(validToken);
+        const role = decoded.role || "";
+        setUserRole(role);
+
+        if (
+          role !== "admin" &&
+          role !== "system_admin" &&
+          role !== "doctor" &&
+          role !== "registrar" &&
+          role !== "receptionist"
+        ) {
+          navigate("/");
+        }
+
+        // Fetch organization data after successful token validation
+        await fetchOrganizationData();
+      } catch (err) {
+        console.error("Authentication initialization failed:", err);
+        clearAuthData();
+        navigate("/login");
+      }
+    };
+
+    initializeAuth();
+  }, [navigate]);
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const validToken = await getValidToken();
+      if (!validToken) {
+        console.error("No valid token for fetching patients");
+        clearAuthData();
+        navigate("/login");
+        return;
+      }
+
+      const res = await axios.get("http://127.0.0.1:8000/api/users/patients/", {
+        headers: { Authorization: `Bearer ${validToken}` },
+        params: {
+          search,
+          provider,
+          page,
+          page_size: rowsPerPage, // Use rowsPerPage instead of sizePerPage for consistency
+        },
+      });
+
+      const patientsWithFullName = res.data.results.map((p) => ({
+        ...p,
+        full_name: `${p.first_name} ${p.last_name}`,
+      }));
+      setPatients(patientsWithFullName);
+      setTotalSize(res.data.count);
+    } catch (err) {
+      console.error("Failed to fetch patients:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const fetchTeam = async (pageParam = teamPage, searchParam = teamSearch) => {
+    setLoadingTeam(true);
+    try {
+      const validToken = await getValidToken();
+      if (!validToken) {
+        console.error("No valid token for fetching team");
+        clearAuthData();
+        navigate("/login");
+        return;
+      }
+
+      const res = await axios.get("http://127.0.0.1:8000/api/users/team/", {
+        headers: { Authorization: `Bearer ${validToken}` },
+        params: {
+          search: searchParam,
+          page: pageParam,
+          page_size: rowsPerPage,
+        },
+      });
+
+      const teamWithFullName = res.data.results.map((u) => ({
+        ...u,
+        full_name: `${u.first_name} ${u.last_name}`,
+      }));
+      setTeam(teamWithFullName);
+      setTeamTotalSize(res.data.count);
+    } catch (err) {
+      console.error("Failed to fetch team:", err);
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
+  const fetchProviders = async () => {
+    try {
+      const res = await axios.get("http://127.0.0.1:8000/api/users/doctors/", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setProviders(res.data);
+    } catch (err) {
+      console.error("Failed to fetch providers:", err);
+    }
+  };
+
+  // Fetch all appointments and filter client-side for main appointments table
+  const fetchAppointments = async (searchText = "") => {
+    try {
+      const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const lowerQuery = searchText.trim().toLowerCase();
+
+      if (!lowerQuery) {
+        setAppointmentsResults(res.data);
+        return;
+      }
+
+      const filtered = res.data.filter((appt) => {
+        const patientName =
+          appt.patient_name ||
+          (appt.patient
+            ? `${appt.patient.first_name} ${appt.patient.last_name}`
+            : "");
+        const providerName =
+          appt.provider_name ||
+          (appt.provider
+            ? `Dr. ${appt.provider.first_name || ""} ${appt.provider.last_name || ""
+              }`.trim()
+            : "");
+        let dateTimeFormats = [];
+        if (appt.appointment_datetime) {
+          const dateObj = new Date(appt.appointment_datetime);
+          dateTimeFormats.push(dateObj.toLocaleString());
+          dateTimeFormats.push(dateObj.toLocaleDateString());
+          dateTimeFormats.push(dateObj.toLocaleTimeString());
+          dateTimeFormats.push(dateObj.toISOString().slice(0, 10));
+          dateTimeFormats.push(
+            `${dateObj.getMonth() + 1}/${dateObj.getDate()}`
+          );
+        }
+        const dateTimeStr = dateTimeFormats.join(" ");
+        const description = appt.description || "";
+        const duration = appt.duration_minutes
+          ? appt.duration_minutes.toString()
+          : "";
+        const status = appt.status || "";
+        const clinic = appt.title || "";
+        const id = appt.id ? appt.id.toString() : "";
+        const combined = `
+          ${patientName} 
+          ${providerName} 
+          ${dateTimeStr} 
+          ${description} 
+          ${duration} 
+          ${status}
+          ${clinic}
+          ${id}
+        `.toLowerCase();
+
+        return combined.includes(lowerQuery);
+      });
+
+      setAppointmentsResults(filtered);
+    } catch (err) {
+      setAppointmentsResults([]);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === "patients") {
+      fetchPatients();
+    } else if (tab === "team") {
+      fetchTeam();
+    } else if (tab === "analytics") {
+      fetchProviders();
+    } else if (tab === "appointments") {
+      fetchProviders();
+      // fetchAppointments is now handled by the dedicated useEffect below
+    }
+    // eslint-disable-next-line
+  }, [page, rowsPerPage, teamPage, tab]);
+
+  // Fetch today's appointments for the summary panel
+  useEffect(() => {
+    const fetchTodaysAppointments = async () => {
+      if (tab !== "appointments") return;
+
+      try {
+        const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const filtered = res.data.filter((appt) => {
+          if (!appt.appointment_datetime) return false;
+          const apptDate = new Date(appt.appointment_datetime);
+          return apptDate >= today && apptDate < tomorrow;
+        });
+
+        setTodaysAppointments(filtered);
+      } catch (err) {
+        console.error("Failed to fetch today's appointments:", err);
+        setTodaysAppointments([]);
+      }
+    };
+
+    fetchTodaysAppointments();
+  }, [token, tab]);
+
+  // Handle search changes for patients
+  useEffect(() => {
+    if (tab === "patients") {
+      fetchPatients();
+    }
+    // eslint-disable-next-line
+  }, [search, provider]);
+
+  // Handle search changes for appointments
+  useEffect(() => {
+    if (tab === "appointments" && token) {
+      fetchAppointments(appointmentsQuery);
+    }
+    // eslint-disable-next-line
+  }, [appointmentsQuery, tab, token]);
+
+  const handleSendText = async (patient) => {
+    const phone = patient.phone_number;
+    const message = `Hello ${patient.first_name}, this is a reminder from your provider.`;
+
+    if (!phone) {
+      toast.warning(`No phone number available for ${patient.first_name}`);
+      return;
+    }
+
+    try {
+      await axios.post(
+        "http://127.0.0.1:8000/api/sms/send-sms/",
+        { phone, message },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      toast.success(`Text sent to ${patient.first_name}`);
+    } catch (err) {
+      console.error("SMS failed:", err);
+      toast.error("Failed to send SMS");
+    }
+  };
+  const handleOpenEmailModal = (patient) => {
+    setSelectedPatient(patient);
+
+    // Get current user's name from token
+    let userName = "your provider";
+    if (token) {
+      try {
+        const decoded = jwtDecode(token);
+        const firstName = decoded.first_name || "";
+        const lastName = decoded.last_name || "";
+        if (firstName || lastName) {
+          userName = `${firstName} ${lastName}`.trim();
+        }
+      } catch (err) {
+        console.error("Failed to decode token for user name:", err);
+      }
+    }
+
+    setEmailForm({ subject: `Message from ${userName}`, message: "" });
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = async () => {
+    try {
+      await axios.post(
+        "http://127.0.0.1:8000/api/messages/send-email/",
+        {
+          email: selectedPatient.email,
+          subject: emailForm.subject,
+          message: emailForm.message,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      toast.success("Email sent successfully!");
+      setShowEmailModal(false);
+      setEmailForm({ subject: "Message from your provider", message: "" });
+    } catch (err) {
+      console.error("Email failed:", err);
+      toast.error("Failed to send email");
+    }
+  };
+
+  // Handle appointment status updates (arrived/no_show)
+  const handleStatusUpdate = async (appointmentId, field, value) => {
+    try {
+      const updateData = {};
+
+      // Implement mutual exclusion logic
+      if (field === "arrived" && value) {
+        updateData.arrived = true;
+        updateData.no_show = false;
+      } else if (field === "no_show" && value) {
+        updateData.arrived = false;
+        updateData.no_show = true;
+      } else {
+        // If unchecking, just set that field to false
+        updateData[field] = false;
+      }
+
+      await axios.patch(
+        `http://127.0.0.1:8000/api/appointments/${appointmentId}/status/`,
+        updateData,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Update the local state to reflect the changes
+      setTodaysAppointments((prev) =>
+        prev.map((appt) =>
+          appt.id === appointmentId ? { ...appt, ...updateData } : appt
+        )
+      );
+
+      toast.success(`Appointment status updated successfully`);
+    } catch (err) {
+      console.error("Failed to update appointment status:", err);
+      toast.error("Failed to update appointment status");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this patient?"
+    );
+    if (!confirmDelete) return;
+
+    try {
+      await axios.delete(`http://127.0.0.1:8000/api/users/patients/${id}/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("Patient deleted!");
+      setPage(1);
+      setTimeout(() => {
+        fetchPatients();
+      }, 300);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      toast.error("Failed to delete patient.");
+    }
+  };
+  const exportCSV = () => {
+    const csv = Papa.unparse(
+      patients.map((p) => ({
+        Name: `${p.first_name} ${p.last_name}`,
+        Email: p.email,
+        Provider: p.provider_name || "",
+      }))
+    );
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "patients.csv");
+  };
+
+  // Helper function to fetch report data from backend
+  const fetchReportData = async (reportType) => {
+    try {
+      const params = new URLSearchParams({
+        report_type: reportType,
+      });
+
+      if (reportStartDate) {
+        params.append(
+          "start_date",
+          reportStartDate.toISOString().split("T")[0]
+        );
+      }
+      if (reportEndDate) {
+        params.append("end_date", reportEndDate.toISOString().split("T")[0]);
+      }
+      if (reportProvider && reportProvider !== "all") {
+        params.append("provider_id", reportProvider);
+      }
+      const response = await axios.get(
+        `http://127.0.0.1:8000/api/analytics/reports/?${params}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      return response.data.data;
+    } catch (error) {
+      console.error("Failed to fetch report data:", error);
+      toast.error("Failed to fetch report data");
+      return null;
+    }
+  };
+
+  // Helper function to generate printable table HTML
+  const generatePrintableTable = (reportType, data) => {
+    if (!data || data.length === 0)
+      return "<p>No data available for this report.</p>";
+
+    if (
+      reportType === "Upcoming Appointments Report" ||
+      reportType === "Past Appointments Report"
+    ) {
+      return `
+        <table>
+          <thead>
+            <tr><th>Patient Name</th><th>Provider</th><th>Title</th><th>Date & Time</th><th>Duration</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            ${data
+          .map(
+            (item) =>
+              `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.datetime}</td><td>${item.duration} min</td><td>${item.status}</td></tr>`
+          )
+          .join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    if (reportType === "Provider Schedule Report") {
+      let html = "";
+      Object.entries(data).forEach(([provider, appointments]) => {
+        html += `
+          <h3>${provider}</h3>
+          <table>
+            <thead>
+              <tr><th>Patient</th><th>Title</th><th>Date & Time</th><th>Duration</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              ${appointments
+            .map(
+              (apt) =>
+                `<tr><td>${apt.patient_name}</td><td>${apt.title}</td><td>${apt.datetime}</td><td>${apt.duration} min</td><td>${apt.status}</td></tr>`
+            )
+            .join("")}
+            </tbody>
+          </table>
+        `;
+      });
+      return html;
+    }
+
+    if (reportType === "Appointment Status Report") {
+      return `
+        <table>
+          <thead>
+            <tr><th>Status</th><th>Count</th><th>Percentage</th></tr>
+          </thead>
+          <tbody>
+            ${data.summary
+          .map(
+            (item) =>
+              `<tr><td>${item.status}</td><td>${item.count}</td><td>${item.percentage}%</td></tr>`
+          )
+          .join("")}
+          </tbody>
+        </table>
+        <p><strong>Total Appointments: ${data.total}</strong></p>
+      `;
+    }
+
+    if (reportType === "New Patient Registrations") {
+      return `
+        <table>
+          <thead>
+            <tr><th>Patient Name</th><th>Email</th><th>Registration Date</th><th>Appointment Count</th></tr>
+          </thead>
+          <tbody>
+            ${data
+          .map(
+            (item) =>
+              `<tr><td>${item.name}</td><td>${item.email}</td><td>${item.registration_date}</td><td>${item.appointment_count}</td></tr>`
+          )
+          .join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    if (reportType === "Blocked Time Slots") {
+      return `
+        <table>
+          <thead>
+            <tr><th>Doctor</th><th>Start Time</th><th>End Time</th><th>Duration (hours)</th></tr>
+          </thead>
+          <tbody>
+            ${data
+          .map(
+            (item) =>
+              `<tr><td>${item.doctor_name}</td><td>${item.start_time}</td><td>${item.end_time}</td><td>${item.duration_hours}</td></tr>`
+          )
+          .join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    if (reportType === "Appointment Recurrence Report") {
+      return `
+        <table>
+          <thead>
+            <tr><th>Patient</th><th>Provider</th><th>Title</th><th>Recurrence</th><th>Start Date</th><th>End Date</th></tr>
+          </thead>
+          <tbody>
+            ${data
+          .map(
+            (item) =>
+              `<tr><td>${item.patient_name}</td><td>${item.provider_name}</td><td>${item.title}</td><td>${item.recurrence}</td><td>${item.start_date}</td><td>${item.end_date}</td></tr>`
+          )
+          .join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    if (reportType === "Appointment Duration Summary") {
+      const stats = data.statistics;
+      return `
+        <h3>Statistics Summary</h3>
+        <table>
+          <thead>
+            <tr><th>Metric</th><th>Value</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Average Duration</td><td>${stats.average_duration
+        } minutes</td></tr>
+            <tr><td>Total Duration</td><td>${stats.total_duration_hours
+        } hours</td></tr>
+            <tr><td>Min Duration</td><td>${stats.min_duration} minutes</td></tr>
+            <tr><td>Max Duration</td><td>${stats.max_duration} minutes</td></tr>
+            <tr><td>Total Appointments</td><td>${stats.total_appointments
+        }</td></tr>
+          </tbody>
+        </table>
+        
+        <h3>Duration Distribution</h3>
+        <table>
+          <thead>
+            <tr><th>Duration Range</th><th>Count</th></tr>
+          </thead>
+          <tbody>
+            ${Object.entries(data.distribution)
+          .map(
+            ([range, count]) =>
+              `<tr><td>${range}</td><td>${count}</td></tr>`
+          )
+          .join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    return "<p>Report type not supported for printing.</p>";
+  };
+  const handlePrintReport = async (report) => {
+    try {
+      console.log(
+        "[DEBUG] Printing report. organizationLogo:",
+        organizationLogo
+      );
+      console.log("[DEBUG] organizationData:", organizationData);
+
+      const reportData = await fetchReportData(report);
+      if (reportData) {
+        // Create a printable version
+        const printWindow = window.open("", "_blank");
+
+        // Create the logo section
+        const logoSection = organizationLogo
+          ? `<div style="display: flex; align-items: center; margin-bottom: 10px;">
+              <img src="${organizationLogo}" alt="Organization Logo" style="height: 60px; margin-right: 15px;" onerror="console.error('Logo failed to load: ${organizationLogo}')" />
+              <h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"
+          }</h2>
+            </div>`
+          : `<h2 style="color: #1976d2; margin: 0;">${organizationData?.name || "Healthcare Organization"
+          }</h2>`;
+
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>${report}</title>
+              <style>
+                body { font-family: Arial, sans-serif; margin: 20px; }
+                .header { margin-bottom: 30px; border-bottom: 2px solid #1976d2; padding-bottom: 20px; }
+                .header h2 { color: #1976d2; margin: 0; }
+                h1 { color: #1976d2; margin-bottom: 15px; font-size: 20px; font-weight: 600; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f5f5f5; font-weight: bold; }
+                tr:nth-child(even) { background-color: #f9f9f9; }
+                .filters { margin-bottom: 20px; font-size: 14px; color: #666; }
+                .generated-date { text-align: right; color: #666; font-size: 12px; margin-top: 20px; }
+                @media print { .no-print { display: none; } }
+              </style>
+            </head>
+            <body>
+              <div class="header">
+                ${logoSection}
+              </div>
+              <h1>${report}</h1>
+              <div class="filters">
+                ${reportStartDate
+            ? `Start Date: ${reportStartDate.toLocaleDateString()} `
+            : ""
+          }
+                ${reportEndDate
+            ? `End Date: ${reportEndDate.toLocaleDateString()} `
+            : ""
+          }
+                ${reportProvider !== "all"
+            ? `Provider: ${providers.find((p) => p.id === reportProvider)
+              ?.first_name || "All"
+            }`
+            : "Provider: All"
+          }
+              </div>
+              ${generatePrintableTable(report, reportData)}
+              <div class="generated-date">
+                Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+              </div>
+              <script>window.print(); window.onafterprint = () => window.close();</script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+    } catch (error) {
+      console.error("Print failed:", error);
+      toast.error("Failed to generate printable report");
+    }
+  };
+  const handleExportCsvReport = async (report) => {
+    try {
+      const reportData = await fetchReportData(report);
+      if (reportData) {
+        const response = await axios.post(
+          "http://127.0.0.1:8000/api/analytics/export/",
+          {
+            format: "csv",
+            report_type: report,
+            data: reportData,
+            organization: organizationData,
+            filters: {
+              start_date: reportStartDate?.toISOString(),
+              end_date: reportEndDate?.toISOString(),
+              provider: reportProvider,
+              provider_name:
+                reportProvider !== "all"
+                  ? providers.find((p) => p.id === reportProvider)?.first_name
+                  : "All",
+            },
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: "blob",
+          }
+        );
+
+        const blob = new Blob([response.data], { type: "text/csv" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${report.replace(/ /g, "_").toLowerCase()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast.success("CSV report downloaded successfully");
+      }
+    } catch (error) {
+      console.error("CSV export failed:", error);
+      toast.error("Failed to export CSV report");
+    }
+  };
+  const handleExportPdfReport = async (report) => {
+    try {
+      const reportData = await fetchReportData(report);
+      if (reportData) {
+        const response = await axios.post(
+          "http://127.0.0.1:8000/api/analytics/export/",
+          {
+            format: "pdf",
+            report_type: report,
+            data: reportData,
+            organization: organizationData,
+            organization_logo: organizationLogo,
+            filters: {
+              start_date: reportStartDate?.toISOString(),
+              end_date: reportEndDate?.toISOString(),
+              provider: reportProvider,
+              provider_name:
+                reportProvider !== "all"
+                  ? providers.find((p) => p.id === reportProvider)?.first_name
+                  : "All",
+            },
+          },
+          {
+            headers: { Authorization: `Bearer ${token}` },
+            responseType: "blob",
+          }
+        );
+
+        const blob = new Blob([response.data], { type: "application/pdf" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${report.replace(/ /g, "_").toLowerCase()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast.success("PDF report downloaded successfully");
+      }
+    } catch (error) {
+      console.error("PDF export failed:", error);
+      toast.error("Failed to export PDF report");
+    }
+  };
+
+  // --- Helper Functions for Summary Panel ---
+  const getUserFirstName = () => {
+    try {
+      if (!token) return "";
+      const decoded = jwtDecode(token);
+      return decoded.first_name || decoded.username || "";
+    } catch {
+      return "";
+    }
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  // --- Render Table for Patient List ---
+  const renderPatientTable = () => (
+    <>
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <TableContainer>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                  <TableCell sx={{ fontWeight: "bold", width: 200 }}>
+                    Patient Name
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 220 }}>
+                    Email
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 160 }}>
+                    Provider
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 160 }}>
+                    Last Appointment
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: "bold", width: 180 }}
+                  >
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {patients.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      align="center"
+                      sx={{ color: "text.secondary", py: 3 }}
+                    >
+                      No patients found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  patients.map((patient) => (
+                    <TableRow
+                      key={patient.id}
+                      hover
+                      sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+                    >
+                      <TableCell>{patient.full_name}</TableCell>
+                      <TableCell>{patient.email}</TableCell>
+                      <TableCell>
+                        {patient.provider_name ? (
+                          `Dr. ${patient.provider_name}`
+                        ) : (
+                          <span style={{ color: "#888" }}>None</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {patient.last_appointment_date
+                          ? new Date(
+                            patient.last_appointment_date
+                          ).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                          : "—"}
+                      </TableCell>
+                      <TableCell align="center">
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "row",
+                            justifyContent: "center",
+                            gap: 1,
+                          }}
+                        >
+                          <Tooltip title="View patient profile" placement="top">
+                            <IconButton
+                              variant="contained"
+                              size="small"
+                              color="primary"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
+                                mr: 1,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              onClick={() =>
+                                navigate(`/patients/${patient.user_id}`)
+                              }
+                            >
+                              <FontAwesomeIcon icon={faEye} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Send SMS" placement="top">
+                            <IconButton
+                              variant="contained"
+                              size="small"
+                              color="warning"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
+                                mr: 1,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              onClick={() => handleSendText(patient)}
+                            >
+                              <FontAwesomeIcon icon={faCommentDots} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Send email" placement="top">
+                            <IconButton
+                              variant="outlined"
+                              size="small"
+                              color="info"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
+                                mr: 1,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              onClick={() => handleOpenEmailModal(patient)}
+                            >
+                              <FontAwesomeIcon icon={faEnvelope} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete patient" placement="top">
+                            <IconButton
+                              variant="outlined"
+                              size="small"
+                              color="error"
+                              sx={{
+                                width: 36,
+                                height: 36,
+                                minWidth: 0,
+                                padding: 0,
+
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              onClick={() => handleDelete(patient.user_id)}
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            py={2}
+          >
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              sx={{ mx: 1 }}
+            >
+              Prev
+            </Button>
+            <span>
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setPage(page + 1)}
+              disabled={page === totalPages}
+              sx={{ mx: 1 }}
+            >
+              Next
+            </Button>
+          </Box>
+        </>
+      )}
+    </>
+  );
+  const renderTeamTable = () => (
+    <>
+      {loadingTeam ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <>
+          <TableContainer>
+            <Table size="small" stickyHeader>
+              <TableHead>
+                <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                  <TableCell sx={{ fontWeight: "bold", width: 180 }}>
+                    Name
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 200 }}>
+                    Email
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 140 }}>
+                    Phone
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 120 }}>
+                    Role
+                  </TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 100 }}>
+                    Status
+                  </TableCell>{" "}
+                  {/* Added Status Column */}
+                  <TableCell sx={{ fontWeight: "bold", width: 180 }}>
+                    Organization
+                  </TableCell>
+                  <TableCell
+                    align="center"
+                    sx={{ fontWeight: "bold", width: 140 }}
+                  >
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {team.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      align="center"
+                      sx={{ color: "text.secondary", py: 3 }}
+                    >
+                      {" "}
+                      {/* Updated colSpan */}
+                      No team members found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  team.map((member) => {
+                    const onlineStatus = getUserOnlineStatus(member.id);
+                    console.log(
+                      `Rendering OnlineIndicator for ${member.full_name} (ID: ${member.id}):`,
+                      onlineStatus
+                    );
+                    return (
+                      <TableRow
+                        key={member.id}
+                        hover
+                        sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+                      >
+                        <TableCell>{member.full_name}</TableCell>
+                        <TableCell>{member.email}</TableCell>
+                        <TableCell>{member.phone_number || "N/A"}</TableCell>
+                        <TableCell>{member.role}</TableCell>
+                        <TableCell>
+                          <OnlineIndicator
+                            isOnline={onlineStatus.isOnline}
+                            lastSeen={onlineStatus.lastSeen}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {member.organization_name || "N/A"}
+                        </TableCell>
+                        <TableCell align="center">
+                          {" "}
+                          <Tooltip
+                            title={
+                              chatSystemLoading
+                                ? "Chat system initializing..."
+                                : !onlineStatusConnected
+                                  ? "Chat unavailable - no connection"
+                                  : !currentUser
+                                    ? "Chat unavailable - user not loaded"
+                                    : "Start Chat"
+                            }
+                            placement="top"
+                          >
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              sx={{
+                                opacity:
+                                  !onlineStatusConnected || !currentUser
+                                    ? 0.5
+                                    : 1,
+                                cursor:
+                                  !onlineStatusConnected || !currentUser
+                                    ? "not-allowed"
+                                    : "pointer",
+                              }}
+                              onClick={async () => {
+                                console.log(
+                                  "🎯 Chat button clicked for team member:",
+                                  member
+                                );
+                                console.log("🔍 Current state:", {
+                                  currentUser,
+                                  onlineStatusConnected,
+                                  websocketConnection:
+                                    websocketConnection?.readyState,
+                                  chatActiveRoom: chat.activeRoom,
+                                });
+
+                                if (chatSystemLoading) {
+                                  toast.info(
+                                    "Chat system is still initializing. Please wait a moment."
+                                  );
+                                  return;
+                                }
+                                if (!onlineStatusConnected) {
+                                  toast.error(
+                                    "Chat is not available. WebSocket connection is not established."
+                                  );
+                                  return;
+                                }
+
+                                if (!currentUser) {
+                                  toast.error(
+                                    "Cannot start chat. User information is not loaded."
+                                  );
+                                  return;
+                                }
+
+                                if (!member || !member.id) {
+                                  toast.error(
+                                    "Cannot start chat. Team member information is invalid."
+                                  );
+                                  return;
+                                }
+
+                                try {
+                                  setSelectedChatUser(member);
+                                  console.log(
+                                    "🚀 Starting chat room creation..."
+                                  );
+
+                                  const roomId = await chat.createChatRoom(
+                                    member.id
+                                  );
+                                  console.log(
+                                    "✅ Chat room created with ID:",
+                                    roomId
+                                  );
+                                  if (roomId) {
+                                    console.log("🎉 Opening chat modal...");
+                                    // Clear unread count for this user when opening chat
+                                    if (chat.clearUnreadCount) {
+                                      chat.clearUnreadCount(member.id);
+                                    }
+                                    setChatModalOpen(true);
+                                  } else {
+                                    throw new Error(
+                                      "Chat room creation returned null/undefined room ID"
+                                    );
+                                  }
+                                } catch (error) {
+                                  console.error(
+                                    "❌ Failed to create chat room:",
+                                    error
+                                  );
+                                  toast.error("Failed to create chat room");
+                                  setSelectedChatUser(null);
+                                  setChatModalOpen(false);
+                                }
+                              }}
+                              disabled={
+                                !onlineStatusConnected ||
+                                !currentUser ||
+                                chatSystemLoading
+                              }
+                            >
+                              {/* Red dot indicator for unread messages */}
+                              <Box sx={{ position: "relative" }}>
+                                <FontAwesomeIcon icon={faCommentDots} />
+                                {(() => {
+                                  const hasUnread = chat.getUnreadCount
+                                    ? chat.getUnreadCount(member.id) > 0
+                                    : false;
+                                  console.log(
+                                    "🔔 [DEBUG] Red dot for member:",
+                                    member.full_name,
+                                    "ID:",
+                                    member.id,
+                                    "hasUnread:",
+                                    hasUnread
+                                  );
+                                  return hasUnread ? (
+                                    <Box
+                                      sx={{
+                                        position: "absolute",
+                                        top: -4,
+                                        right: -4,
+                                        width: 12,
+                                        height: 12,
+                                        backgroundColor: "#ff4444",
+                                        borderRadius: "50%",
+                                        border: "2px solid white",
+                                        zIndex: 1,
+                                      }}
+                                    />
+                                  ) : null;
+                                })()}
+                              </Box>
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip
+                            title={
+                              !member.phone_number
+                                ? "No phone number available"
+                                : "Send SMS"
+                            }
+                            placement="top"
+                          >
+                            <IconButton
+                              size="small"
+                              color="secondary"
+                              sx={{
+                                opacity: !member.phone_number ? 0.5 : 1,
+                                cursor: !member.phone_number
+                                  ? "not-allowed"
+                                  : "pointer",
+                                mr: 1,
+                              }}
+                              onClick={() => {
+                                if (!member.phone_number) {
+                                  toast.warning(
+                                    `No phone number available for ${member.first_name}`
+                                  );
+                                  return;
+                                }
+                                handleSendText(member);
+                              }}
+                              disabled={!member.phone_number}
+                            >
+                              <FontAwesomeIcon icon={faSms} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Send email" placement="top">
+                            <IconButton
+                              size="small"
+                              color="info"
+                              sx={{ mr: 1 }}
+                              onClick={() => handleOpenEmailModal(member)}
+                            >
+                              <FontAwesomeIcon icon={faEnvelope} />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            py={2}
+          >
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setTeamPage(teamPage - 1)}
+              disabled={teamPage === 1}
+              sx={{ mx: 1 }}
+            >
+              Prev
+            </Button>
+            <span>
+              Page {teamPage} of {teamTotalPages}
+            </span>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setTeamPage(teamPage + 1)}
+              disabled={teamPage === teamTotalPages}
+              sx={{ mx: 1 }}
+            >
+              Next{" "}
+            </Button>
+          </Box>
+        </>
+      )}
+    </>
+  );
+  const renderAnalyticsTable = () => {
+    console.log("[DEBUG] Rendering analytics table:");
+    console.log("[DEBUG] organizationData:", organizationData);
+    console.log("[DEBUG] organizationLogo:", organizationLogo);
+
+    return (
+      <>
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={2}
+          sx={{ mb: 2 }}
+        >
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="Start Date"
+              value={reportStartDate}
+              onChange={(newVal) => setReportStartDate(newVal)}
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
+            />
+          </LocalizationProvider>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="End Date"
+              value={reportEndDate}
+              onChange={(newVal) => setReportEndDate(newVal)}
+              slotProps={{ textField: { size: "small", fullWidth: true } }}
+            />
+          </LocalizationProvider>
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="report-provider-label">Provider</InputLabel>
+            <MUISelect
+              labelId="report-provider-label"
+              value={reportProvider}
+              label="Provider"
+              onChange={(e) => setReportProvider(e.target.value)}
+            >
+              <MenuItem value="all">All</MenuItem>
+              {providers.map((p) => (
+                <MenuItem
+                  key={p.id}
+                  value={p.id}
+                >{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
+              ))}
+            </MUISelect>
+          </FormControl>
+        </Stack>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+              <TableCell sx={{ fontWeight: "bold", width: 250 }}>
+                Reports
+              </TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 400 }}>
+                Description
+              </TableCell>
+              <TableCell sx={{ fontWeight: "bold", width: 240 }}>
+                Actions
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {analyticsReports.map((r, idx) => {
+              // Define descriptions for each report
+              const reportDescriptions = {
+                "Upcoming Appointments Report":
+                  "Shows all scheduled appointments from today onwards, including patient details, providers, and appointment times.",
+                "Past Appointments Report":
+                  "Displays historical appointment data with completion status, no-shows, and cancellations for analysis.",
+                "Provider Schedule Report":
+                  "Comprehensive view of each provider's schedule, workload distribution, and appointment patterns.",
+                "Appointment Status Report":
+                  "Statistical breakdown of appointment statuses including completed, cancelled, no-shows, and pending appointments.",
+                "New Patient Registrations":
+                  "Track new patient registrations over a specified time period with registration trends and demographics.",
+                "Blocked Time Slots":
+                  "Reports on blocked or unavailable time slots for providers, including maintenance and personal time.",
+                "Appointment Recurrence Report":
+                  "Analysis of recurring appointments, frequency patterns, and patient follow-up schedules.",
+                "Appointment Duration Summary":
+                  "Statistical analysis of appointment durations including averages, patterns, and provider efficiency metrics.",
+              };
+
+              return (
+                <TableRow
+                  key={idx}
+                  sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+                >
+                  <TableCell>{r}</TableCell>
+                  <TableCell
+                    sx={{ fontSize: "0.875rem", color: "text.secondary" }}
+                  >
+                    {reportDescriptions[r] ||
+                      "Detailed analytics report for healthcare management."}
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title="Print">
+                        <IconButton
+                          color="primary"
+                          onClick={() => handlePrintReport(r)}
+                          sx={{ width: 36, height: 36 }}
+                        >
+                          <FontAwesomeIcon icon={faPrint} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Export CSV">
+                        <IconButton
+                          color="success"
+                          onClick={() => handleExportCsvReport(r)}
+                          sx={{ width: 36, height: 36 }}
+                        >
+                          <FontAwesomeIcon icon={faFileCsv} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Export PDF">
+                        <IconButton
+                          color="secondary"
+                          onClick={() => handleExportPdfReport(r)}
+                          sx={{ width: 36, height: 36 }}
+                        >
+                          <FontAwesomeIcon icon={faFilePdf} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </>
+    );
+  };
+  const renderAdvancedAnalytics = () => (
+    <>
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="Start Date"
+            value={reportStartDate}
+            onChange={(newVal) => setReportStartDate(newVal)}
+            slotProps={{ textField: { size: "small", fullWidth: true } }}
+          />
+        </LocalizationProvider>
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <DatePicker
+            label="End Date"
+            value={reportEndDate}
+            onChange={(newVal) => setReportEndDate(newVal)}
+            slotProps={{ textField: { size: "small", fullWidth: true } }}
+          />
+        </LocalizationProvider>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id="advanced-report-provider-label">Provider</InputLabel>
+          <MUISelect
+            labelId="advanced-report-provider-label"
+            value={reportProvider}
+            label="Provider"
+            onChange={(e) => setReportProvider(e.target.value)}
+          >
+            <MenuItem value="all">All</MenuItem>
+            {providers.map((p) => (
+              <MenuItem
+                key={p.id}
+                value={p.id}
+              >{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
+            ))}
+          </MUISelect>
+        </FormControl>
+      </Stack>
+      <Table size="small" stickyHeader>
+        <TableHead>
+          <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+            <TableCell sx={{ fontWeight: "bold", width: 250 }}>
+              Advanced Reports
+            </TableCell>
+            <TableCell sx={{ fontWeight: "bold", width: 400 }}>
+              Description
+            </TableCell>
+            <TableCell sx={{ fontWeight: "bold", width: 240 }}>
+              Actions
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {advancedAnalyticsReports.map((r, idx) => {
+            // Define descriptions for each advanced report
+            const advancedReportDescriptions = {
+              "Appointment Volume Trends":
+                "Analyze appointment booking patterns over time, showing peak hours, seasonal trends, and volume fluctuations to optimize scheduling.",
+              "No-Show & Cancellation Rate":
+                "Track and analyze patient no-show rates and cancellation patterns to identify trends and improve appointment management strategies.",
+              "Provider Utilization Report":
+                "Comprehensive analysis of provider efficiency, workload distribution, and availability utilization across different time periods.",
+              "Patient Visit Frequency":
+                "Monitor patient visit patterns, frequency of appointments, and follow-up compliance to enhance patient care coordination.",
+              "New vs. Returning Patients":
+                "Compare new patient acquisition with returning patient retention rates, including demographic breakdowns and growth metrics.",
+              "Appointment Lead Time Analysis":
+                "Analyze the time between appointment booking and actual visit dates to optimize scheduling availability and patient satisfaction.",
+              "Patient Demographic Breakdown":
+                "Detailed demographic analysis including age groups, geographic distribution, and patient population statistics for strategic planning.",
+              "Blocked vs. Booked Time Comparison":
+                "Compare blocked time slots with actual booked appointments to optimize provider schedules and maximize clinic efficiency.",
+            };
+
+            return (
+              <TableRow
+                key={idx}
+                sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}
+              >
+                <TableCell>{r}</TableCell>
+                <TableCell
+                  sx={{ fontSize: "0.875rem", color: "text.secondary" }}
+                >
+                  {advancedReportDescriptions[r] ||
+                    "Advanced analytics report for healthcare insights and optimization."}
+                </TableCell>
+                <TableCell>
+                  <Stack direction="row" spacing={1}>
+                    <Tooltip title="Print">
+                      <IconButton
+                        color="primary"
+                        onClick={() => handlePrintReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faPrint} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Export CSV">
+                      <IconButton
+                        color="success"
+                        onClick={() => handleExportCsvReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faFileCsv} />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Export PDF">
+                      <IconButton
+                        color="secondary"
+                        onClick={() => handleExportPdfReport(r)}
+                        sx={{ width: 36, height: 36 }}
+                      >
+                        <FontAwesomeIcon icon={faFilePdf} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </>
+  );
+
+  const handleStartChat = async (userToChatWith) => {
+    if (!currentUser) {
+      toast.error("Current user not identified. Cannot start chat.");
+      console.error("[PatientsPage] handleStartChat: currentUser is null");
+      return;
+    }
+    if (!userToChatWith || !userToChatWith.id) {
+      toast.error("Invalid user selected for chat.");
+      console.error(
+        "[PatientsPage] handleStartChat: userToChatWith is invalid",
+        userToChatWith
+      );
+      return;
+    }
+    if (currentUser.id === userToChatWith.id) {
+      toast.info("You cannot chat with yourself.");
+      return;
+    }
+
+    console.log(
+      `[PatientsPage] handleStartChat: Attempting to chat with ${userToChatWith.full_name} (ID: ${userToChatWith.id})`
+    );
+    setSelectedChatUser(userToChatWith);
+
+    try {
+      const roomId = await chat.createChatRoom(userToChatWith.id);
+      if (roomId) {
+        console.log(
+          `[PatientsPage] handleStartChat: Room ${roomId} ready for user ${userToChatWith.id}. Modal should open via useEffect.`
+        );
+        // The useEffect below will handle opening the modal.      } else {
+        console.error(
+          `[PatientsPage] handleStartChat: Failed to create/join chat room with ${userToChatWith.full_name}.`
+        );
+        toast.error(`Could not open chat with ${userToChatWith.full_name}.`);
+        setSelectedChatUser(null);
+      }
+    } catch (error) {
+      console.error(
+        `[PatientsPage] handleStartChat: Error starting chat with ${userToChatWith.id}:`,
+        error,
+        error?.message,
+        error?.stack
+      );
+      if (typeof error === "object" && error !== null) {
+        toast.info("Chat is loading...");
+      } else {
+        toast.info("Chat is loading...");
+      }
+      setSelectedChatUser(null);
+      setChatModalOpen(false);
+    }
+  };
+  // Effect to open chat modal when activeRoom changes and is valid
+  useEffect(() => {
+    console.log(
+      "[PatientsPage] useEffect: chat.activeRoom:",
+      chat.activeRoom,
+      "selectedChatUser:",
+      selectedChatUser,
+      "chatModalOpen:",
+      chatModalOpen
+    );
+    console.log(
+      "[PatientsPage] useEffect: chat.chatRooms:",
+      Object.keys(chat.chatRooms || {})
+    );
+
+    if (chat.activeRoom && selectedChatUser && !chatModalOpen) {
+      // Check if the active room in chat hook corresponds to the selected user's potential room
+      console.log(
+        `[PatientsPage] useEffect: chat.activeRoom (${chat.activeRoom}) and selectedChatUser (${selectedChatUser.full_name}) are set. Opening chat modal.`
+      );
+      setChatModalOpen(true);
+    } else if (!chat.activeRoom && chatModalOpen) {
+      // If activeRoom becomes null (e.g., chat ended or error), consider closing the modal.
+      console.log(
+        "[PatientsPage] useEffect: chat.activeRoom is null. Considering closing chat modal."
+      );
+      // setChatModalOpen(false); // This could be too aggressive. Modal close is handled by its own button.
+    }
+
+    // Debug additional conditions
+    if (chat.activeRoom && !selectedChatUser) {
+      console.log(
+        "[PatientsPage] useEffect: activeRoom exists but no selectedChatUser"
+      );
+    }
+    if (selectedChatUser && !chat.activeRoom) {
+      console.log(
+        "[PatientsPage] useEffect: selectedChatUser exists but no activeRoom"
+      );
+    }
+  }, [chat.activeRoom, selectedChatUser, chatModalOpen, chat.chatRooms]);
+
+  // Fetch organization data including logo
+  const fetchOrganizationData = async () => {
+    console.log("[DEBUG] fetchOrganizationData called");
+    try {
+      const validToken = await getValidToken();
+      if (!validToken) {
+        console.error("No valid token for fetching organization data");
+        return;
+      }
+
+      // Decode token to get user info
+      const decoded = jwtDecode(validToken);
+      const userId = decoded.user_id;
+      console.log("[DEBUG] Decoded user ID:", userId);
+
+      if (userId) {
+        // Fetch current user details which includes organization logo and name
+        const res = await axios.get(
+          `http://127.0.0.1:8000/api/users/${userId}/`,
+          {
+            headers: { Authorization: `Bearer ${validToken}` },
+          }
+        );
+
+        console.log("[DEBUG] User data fetched:", res.data);
+
+        // Extract organization data from user response
+        const orgData = {
+          id: res.data.organization,
+          name: res.data.organization_name,
+          logo: res.data.organization_logo,
+        };
+
+        console.log("[DEBUG] Extracted organization data:", orgData);
+        setOrganizationData(orgData);
+        console.log("[DEBUG] Organization data state updated");
+
+        // Set logo URL if available
+        if (res.data.organization_logo) {
+          console.log(
+            "[DEBUG] Setting organization logo:",
+            res.data.organization_logo
+          );
+          // Convert relative URL to full URL
+          const logoUrl = res.data.organization_logo.startsWith("/")
+            ? `http://127.0.0.1:8000${res.data.organization_logo}`
+            : res.data.organization_logo;
+          console.log("[DEBUG] Full logo URL:", logoUrl);
+          setOrganizationLogo(logoUrl);
+          console.log("[DEBUG] Organization logo state updated");
+        } else {
+          console.log("[DEBUG] No logo found in user data");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch organization data:", err);
+      // Try to get organization info from token as fallback
+      try {
+        const validToken = await getValidToken();
+        const decoded = jwtDecode(validToken);
+        const fallbackOrg = {
+          id: decoded.organization_id || decoded.organization,
+          name: decoded.organization_name || "Healthcare Organization",
+          logo: null,
+        };
+        setOrganizationData(fallbackOrg);
+      } catch (tokenErr) {
+        console.error("Failed to get organization from token:", tokenErr);
+      }
+    }
+  };
+
+  // Note: fetchOrganizationData is called in initializeAuth after authentication
+  // No need for separate useEffect here
+
+  // Debug effect to track organization state changes
+  useEffect(() => {
+    console.log("[DEBUG] Organization data changed:", organizationData);
+  }, [organizationData]);
+
+  useEffect(() => {
+    console.log("[DEBUG] Organization logo changed:", organizationLogo);
+  }, [organizationLogo]);
+
+  return (
+    <div style={{ textAlign: "left", width: "100%" }}>
+      <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <Box
+          sx={{
+            mt: 0,
+            boxShadow: 2,
+            borderRadius: 2,
+            bgcolor: "background.paper",
+            p: 3,
+            height: "100%",
+          }}
+        >
+          {/* Chat system loading indicator */}
+          {chatSystemLoading && (
+            <Box
+              sx={{
+                position: "fixed",
+                top: 10,
+                right: 10,
+                background: "#007bff",
+                color: "white",
+                padding: "8px 12px",
+                borderRadius: "4px",
+                fontSize: "12px",
+                zIndex: 1000,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+              }}
+            >
+              <CircularProgress size={16} sx={{ color: "white" }} />
+              Initializing chat system...
+            </Box>
+          )}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              mb: 2,
+              borderRadius: 2,
+              bgcolor: "#f5faff",
+              boxShadow: 1,
+              minHeight: 48,
+              p: 1,
+            }}
+          >
+            {" "}
+            <Box sx={{ flex: 1 }}>
+              {tab === "appointments" ? (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  {" "}
+                  <Typography
+                    variant="h5"
+                    sx={{ color: "#1976d2", fontWeight: "bold" }}
+                  >
+                    {getGreeting()}, {getUserFirstName()}!
+                  </Typography>{" "}
+                  <Typography variant="h6" sx={{ color: "#1976d2" }}>
+                    Today's Appointments:
+                  </Typography>
+                  <Typography variant="h6" sx={{ color: "text.secondary" }}>
+                    {todaysAppointments.length > 0
+                      ? `${todaysAppointments.length} appointment${todaysAppointments.length === 1 ? "" : "s"
+                      } scheduled`
+                      : "No appointments scheduled for today"}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography
+                  variant="h5"
+                  sx={{ color: "#1976d2", fontWeight: "bold", mb: 0.5 }}
+                >
+                  {getGreeting()}, {getUserFirstName()}!
+                </Typography>
+              )}
+            </Box>
+            <Box sx={{ ml: 1 }}>
+              <BackButton />{" "}
+            </Box>
+          </Box>
+          <Tabs
+            value={tab}
+            onChange={(e, newVal) => setTab(newVal)}
+            sx={{
+              mb: 3,
+              minHeight: 40,
+              "& .MuiTabs-indicator": {
+                height: 4,
+                borderRadius: 2,
+                bgcolor: "primary.main",
+              },
+              "& .MuiTab-root": {
+                fontWeight: 500,
+                fontSize: "1rem",
+                color: "primary.main",
+                minHeight: 40,
+                textTransform: "none",
+                borderRadius: 2,
+                mx: 0.5,
+                transition: "background 0.2s",
+                "&.Mui-selected": {
+                  bgcolor: "primary.light",
+                  color: "primary.dark",
+                  boxShadow: 2,
+                },
+                "&:hover": {
+                  bgcolor: "primary.lighter",
+                  color: "primary.dark",
+                },
+              },
+            }}
+          >
+            <Tab label="Patients" value="patients" />
+            <Tab
+              label={
+                <Box
+                  sx={{
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  Team
+                  {(() => {
+                    const hasUnread = chat.getTotalUnreadCount
+                      ? chat.getTotalUnreadCount() > 0
+                      : false;
+                    console.log(
+                      "🔔 [DEBUG] Team tab red dot hasUnread:",
+                      hasUnread
+                    );
+                    return hasUnread ? (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: -8,
+                          right: -12,
+                          width: 8,
+                          height: 8,
+                          backgroundColor: "#ff4444",
+                          borderRadius: "50%",
+                          border: "1px solid white",
+                          zIndex: 1,
+                        }}
+                      />
+                    ) : null;
+                  })()}
+                </Box>
+              }
+              value="team"
+            />
+            <Tab label="Appointments" value="appointments" />
+            <Tab label="Analytics" value="analytics" />
+            {userRole === "admin" ||
+              userRole === "system_admin" ||
+              userRole === "registrar" ? (
+              <Tab label="Register" value="register" />
+            ) : null}
+          </Tabs>
+          {tab === "patients" && (
+            <>
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                sx={{ mb: 2 }}
+              >
+                <TextField
+                  label="Search Patients"
+                  variant="outlined"
+                  size="small"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  sx={{ flexGrow: 1, bgcolor: "#fff" }}
+                />
+                <FormControl
+                  size="small"
+                  sx={{ minWidth: 180, bgcolor: "#fff" }}
+                >
+                  <InputLabel id="provider-select-label">Provider</InputLabel>
+                  <MUISelect
+                    labelId="provider-select-label"
+                    value={provider}
+                    label="Provider"
+                    onChange={(e) => setProvider(e.target.value)}
+                  >
+                    <MenuItem value="">All</MenuItem>
+                    {providers.map((p) => (
+                      <MenuItem
+                        key={p.id}
+                        value={p.id}
+                      >{`Dr. ${p.first_name} ${p.last_name}`}</MenuItem>
+                    ))}
+                  </MUISelect>
+                </FormControl>
+                <Button
+                  variant="contained"
+                  startIcon={<FontAwesomeIcon icon={faDownload} />}
+                  onClick={exportCSV}
+                  sx={{ bgcolor: "#4caf50", "&:hover": { bgcolor: "#388e3c" } }}
+                >
+                  Export CSV
+                </Button>
+              </Stack>
+              {renderPatientTable()}
+            </>
+          )}{" "}
+          {tab === "team" && (
+            <Box>
+              <Stack direction="row" spacing={2} sx={{ mb: 2, width: "100%" }}>
+                <TextField
+                  label="Search Team Members"
+                  variant="outlined"
+                  size="small"
+                  value={teamSearch}
+                  onChange={(e) => {
+                    setTeamSearch(e.target.value);
+                    fetchTeam(1, e.target.value); // Reset to page 1 on new search
+                  }}
+                  sx={{ flexGrow: 1, bgcolor: "#fff" }}
+                />
+              </Stack>
+
+              {renderTeamTable()}
+            </Box>
+          )}{" "}
+          {tab === "appointments" && (
+            <Box>
+              {/* Search Section */}
+              <Stack
+                direction={{ xs: "column", sm: "row" }}
+                spacing={2}
+                sx={{ mb: 2 }}
+              >
+                <TextField
+                  label="Search Appointments (Patient, Provider, Date, Status, etc.)"
+                  variant="outlined"
+                  size="small"
+                  value={appointmentsQuery}
+                  onChange={(e) => setAppointmentsQuery(e.target.value)}
+                  sx={{ flexGrow: 1, bgcolor: "#fff" }}
+                />
+              </Stack>
+
+              {/* Appointments Sub-tabs */}
+              <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+                <Tabs
+                  value={appointmentsTab}
+                  onChange={(e, newVal) => setAppointmentsTab(newVal)}
+                  sx={{
+                    minHeight: 36,
+                    "& .MuiTabs-indicator": {
+                      height: 2,
+                      borderRadius: 1,
+                      bgcolor: "primary.main",
+                    },
+                    "& .MuiTab-root": {
+                      fontWeight: 500,
+                      fontSize: "0.9rem",
+                      color: "text.secondary",
+                      minHeight: 36,
+                      textTransform: "none",
+                      px: 3,
+                      "&.Mui-selected": {
+                        color: "primary.main",
+                        fontWeight: 600,
+                      },
+                      "&:hover": {
+                        color: "primary.main",
+                      },
+                    },
+                  }}
+                >
+                  <Tab label="Today's Appointments" value="today" />
+                  <Tab label="Calendar View" value="calendar" />
+                </Tabs>
+              </Box>
+
+              {/* Appointments Content */}
+              <Box sx={{ minHeight: "60vh", maxHeight: "70vh", overflowY: "auto" }}>
+                {appointmentsTab === "today" && (
+                  <Box>
+                    {/* Today's Appointments Table */}
+                    {(() => {
+                      // Filter today's appointments based on search query
+                      const lowerQuery = appointmentsQuery.trim().toLowerCase();
+                      const filteredTodaysAppointments = !lowerQuery
+                        ? todaysAppointments
+                        : todaysAppointments.filter((appt) => {
+                          const patientName = appt.patient_name || "";
+                          const providerName = appt.provider_name || "";
+                          const status = appt.status || "";
+                          const description = appt.description || "";
+                          const id = appt.id ? appt.id.toString() : "";
+                          const combined = `${patientName} ${providerName} ${status} ${description} ${id}`.toLowerCase();
+                          return combined.includes(lowerQuery);
+                        });
+
+                      console.log("[DEBUG] Appointments search - query:", appointmentsQuery);
+                      console.log("[DEBUG] Today's appointments total:", todaysAppointments.length);
+                      console.log("[DEBUG] Filtered today's appointments:", filteredTodaysAppointments.length);
+
+                      return filteredTodaysAppointments.length > 0 ? (
+                        <Box sx={{ mb: 3 }}>
+                          <Typography
+                            variant="h6"
+                            gutterBottom
+                            sx={{ color: "#1976d2" }}
+                          >
+                            Today's Appointments Details
+                          </Typography>
+                          <TableContainer
+                            component={Paper}
+                            sx={{
+                              maxHeight: 300,
+                              boxShadow: 1,
+                              border: "1px solid #e0e0e0",
+                            }}
+                          >
+                            <Table size="small" stickyHeader>
+                              <TableHead>
+                                <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Time
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Patient
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Provider
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Status
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    Arrived
+                                  </TableCell>
+                                  <TableCell sx={{ fontWeight: "bold" }}>
+                                    No Show
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {filteredTodaysAppointments.map((appt) => (
+                                  <TableRow
+                                    key={appt.id}
+                                    hover
+                                    sx={{
+                                      "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" },
+                                    }}
+                                  >
+                                    <TableCell>
+                                      {new Date(
+                                        appt.appointment_datetime
+                                      ).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </TableCell>
+                                    <TableCell>{appt.patient_name}</TableCell>
+                                    <TableCell>{appt.provider_name}</TableCell>
+                                    <TableCell>{appt.status}</TableCell>
+                                    <TableCell>
+                                      <Checkbox
+                                        size="small"
+                                        checked={!!appt.arrived}
+                                        onChange={(e) =>
+                                          handleStatusUpdate(
+                                            appt.id,
+                                            "arrived",
+                                            e.target.checked
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <Checkbox
+                                        size="small"
+                                        checked={!!appt.no_show}
+                                        onChange={(e) =>
+                                          handleStatusUpdate(
+                                            appt.id,
+                                            "no_show",
+                                            e.target.checked
+                                          )
+                                        }
+                                      />
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        </Box>
+                      ) : (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            py: 3,
+                            textAlign: "center",
+                          }}
+                        >
+                          <Typography
+                            variant="h6"
+                            sx={{ color: "text.secondary", mb: 1 }}
+                          >
+                            {appointmentsQuery.trim()
+                              ? `No appointments found matching "${appointmentsQuery}"`
+                              : "No appointments scheduled for today"
+                            }
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                            {appointmentsQuery.trim()
+                              ? "Try adjusting your search terms"
+                              : "Check the Calendar View for upcoming appointments"
+                            }
+                          </Typography>
+                        </Box>
+                      );
+                    })()}
+                  </Box>
+                )}
+
+                {appointmentsTab === "calendar" && (
+                  <Box>
+                    <CalendarView
+                      appointments={appointmentsResults}
+                      providers={providers}
+                      token={token}
+                      fetchAppointments={() => fetchAppointments(appointmentsQuery)}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          )}{" "}
+          {tab === "analytics" && (
+            <Box>
+              {/* Analytics Sub-tabs */}
+              <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+                <Tabs
+                  value={analyticsTab}
+                  onChange={(e, newVal) => setAnalyticsTab(newVal)}
+                  sx={{
+                    minHeight: 36,
+                    "& .MuiTabs-indicator": {
+                      height: 2,
+                      borderRadius: 1,
+                      bgcolor: "primary.main",
+                    },
+                    "& .MuiTab-root": {
+                      fontWeight: 500,
+                      fontSize: "0.9rem",
+                      color: "text.secondary",
+                      minHeight: 36,
+                      textTransform: "none",
+                      px: 3,
+                      "&.Mui-selected": {
+                        color: "primary.main",
+                        fontWeight: 600,
+                      },
+                      "&:hover": {
+                        color: "primary.main",
+                      },
+                    },
+                  }}
+                >
+                  <Tab label="Standard Reports" value="standard" />
+                  <Tab label="Advanced Analytics" value="advanced" />
+                </Tabs>
+              </Box>
+
+              {/* Analytics Content */}
+              <Box
+                sx={{ minHeight: "60vh", maxHeight: "70vh", overflowY: "auto" }}
+              >
+                {analyticsTab === "standard" && renderAnalyticsTable()}
+                {analyticsTab === "advanced" && renderAdvancedAnalytics()}
+              </Box>
+            </Box>
+          )}
+          {tab === "register" && <RegisterPage adminMode={true} />}
+          {/* Email Modal */}
+          <Dialog
+            open={showEmailModal}
+            onClose={() => setShowEmailModal(false)}
+            fullWidth
+            maxWidth="md"
+            PaperProps={{
+              sx: {
+                borderRadius: 3,
+                boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+              },
+            }}
+          >
+            <DialogTitle
+              sx={{
+                bgcolor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                color: "white",
+                py: 3,
+                px: 3,
+                position: "relative",
+                borderRadius: "12px 12px 0 0",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Box
+                  sx={{
+                    bgcolor: "rgba(255,255,255,0.2)",
+                    borderRadius: "50%",
+                    p: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <FontAwesomeIcon
+                    icon={faEnvelope}
+                    style={{ fontSize: "20px" }}
+                  />
+                </Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Compose Email
+                  </Typography>
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    Send a message to {selectedPatient?.first_name}{" "}
+                    {selectedPatient?.last_name}
+                  </Typography>
+                </Box>
+              </Box>
+              <IconButton
+                onClick={() => setShowEmailModal(false)}
+                sx={{
+                  position: "absolute",
+                  right: 12,
+                  top: 12,
+                  color: "white",
+                  "&:hover": {
+                    bgcolor: "rgba(255,255,255,0.1)",
+                  },
+                }}
+              >
+                <CloseIcon />
+              </IconButton>
+            </DialogTitle>
+
+            <DialogContent sx={{ p: 0 }}>
+              {/* Recipient Info Bar */}
+              <Box
+                sx={{
+                  bgcolor: "#f8f9fa",
+                  px: 3,
+                  py: 2,
+                  borderBottom: "1px solid #e9ecef",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    bgcolor: "#e3f2fd",
+                    borderRadius: "50%",
+                    width: 40,
+                    height: 40,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{ color: "#1976d2", fontWeight: 600 }}
+                  >
+                    {selectedPatient?.first_name?.charAt(0)}
+                    {selectedPatient?.last_name?.charAt(0)}
+                  </Typography>
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ fontWeight: 600, color: "#2e3440" }}
+                  >
+                    {selectedPatient?.first_name} {selectedPatient?.last_name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: "#6c757d" }}>
+                    {selectedPatient?.email}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Email Form */}
+              <Box sx={{ p: 3 }}>
+                <TextField
+                  label="Subject"
+                  fullWidth
+                  value={emailForm.subject}
+                  onChange={(e) =>
+                    setEmailForm({ ...emailForm, subject: e.target.value })
+                  }
+                  variant="outlined"
+                  sx={{
+                    mb: 3,
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      "&:hover fieldset": {
+                        borderColor: "#667eea",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#667eea",
+                      },
+                    },
+                    "& .MuiInputLabel-root.Mui-focused": {
+                      color: "#667eea",
+                    },
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{ mr: 1, display: "flex", alignItems: "center" }}
+                      >
+                        <FontAwesomeIcon
+                          icon={faTag}
+                          style={{
+                            fontSize: "16px",
+                            color: "#6c757d",
+                          }}
+                        />
+                      </Box>
+                    ),
+                  }}
+                />
+
+                <TextField
+                  label="Message"
+                  fullWidth
+                  multiline
+                  rows={8}
+                  value={emailForm.message}
+                  onChange={(e) =>
+                    setEmailForm({ ...emailForm, message: e.target.value })
+                  }
+                  variant="outlined"
+                  placeholder="Type your message here..."
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      borderRadius: 2,
+                      "&:hover fieldset": {
+                        borderColor: "#667eea",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: "#667eea",
+                      },
+                    },
+                    "& .MuiInputLabel-root.Mui-focused": {
+                      color: "#667eea",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      fontSize: "16px",
+                      lineHeight: 1.6,
+                    },
+                  }}
+                  InputProps={{
+                    startAdornment: (
+                      <Box
+                        sx={{
+                          mr: 1,
+                          display: "flex",
+                          alignItems: "flex-start",
+                          pt: 1,
+                        }}
+                      >
+                        <FontAwesomeIcon
+                          icon={faEdit}
+                          style={{
+                            fontSize: "16px",
+                            color: "#6c757d",
+                          }}
+                        />
+                      </Box>
+                    ),
+                  }}
+                />
+
+                {/* Character count */}
+                <Box
+                  sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}
+                >
+                  <Typography variant="caption" sx={{ color: "#6c757d" }}>
+                    {emailForm.message.length} characters
+                  </Typography>
+                </Box>
+              </Box>
+            </DialogContent>
+
+            <DialogActions
+              sx={{
+                p: 3,
+                bgcolor: "#f8f9fa",
+                borderTop: "1px solid #e9ecef",
+                gap: 2,
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ color: "#6c757d", fontStyle: "italic" }}
+              >
+                This email will be sent from your organization's email system
+              </Typography>
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <Button
+                  onClick={() => setShowEmailModal(false)}
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 2,
+                    px: 3,
+                    py: 1,
+                    borderColor: "#6c757d",
+                    color: "#6c757d",
+                    "&:hover": {
+                      borderColor: "#495057",
+                      color: "#495057",
+                    },
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSendEmail}
+                  variant="contained"
+                  disabled={
+                    !emailForm.subject.trim() || !emailForm.message.trim()
+                  }
+                  sx={{
+                    borderRadius: 2,
+                    px: 4,
+                    py: 1,
+                    background:
+                      "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    "&:hover": {
+                      background:
+                        "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
+                    },
+                    "&:disabled": {
+                      background: "#e9ecef",
+                      color: "#6c757d",
+                    },
+                  }}
+                  startIcon={<FontAwesomeIcon icon={faPaperPlane} />}
+                >
+                  Send Email
+                </Button>
+              </Box>
+            </DialogActions>
+          </Dialog>
+          {/* Chat Modal */}
+          {selectedChatUser && currentUser && (
+            <ChatModal
+              open={chatModalOpen && !!chat.activeRoom}
+              fallbackOpen={chatModalOpen && !!chat.activeRoom}
+              onClose={() => {
+                console.log("[PatientsPage] Closing chat modal.");
+                setChatModalOpen(false);
+                if (
+                  chat.activeRoom &&
+                  currentUser &&
+                  chat.sendTypingIndicator
+                ) {
+                  chat.sendTypingIndicator(chat.activeRoom, false);
+                }
+                if (chat.setActiveRoom) chat.setActiveRoom(null);
+                setSelectedChatUser(null);
+              }}
+              chatPartner={selectedChatUser}
+              currentUser={currentUser}
+              messages={
+                chat.activeRoom && chat.chatRooms[chat.activeRoom]
+                  ? chat.chatRooms[chat.activeRoom].messages
+                  : []
+              }
+              onSendMessage={(content) => {
+                if (chat.activeRoom && chat.sendChatMessage) {
+                  chat.sendChatMessage(chat.activeRoom, content);
+                }
+              }}
+              typingUsers={
+                chat.activeRoom && chat.typingUsers[chat.activeRoom]
+                  ? Object.values(chat.typingUsers[chat.activeRoom])
+                  : []
+              }
+              onSendTypingIndicator={(isTyping) => {
+                if (
+                  chat.activeRoom &&
+                  currentUser &&
+                  chat.sendTypingIndicator
+                ) {
+                  chat.sendTypingIndicator(chat.activeRoom, isTyping);
+                }
+              }}
+              isLoading={
+                chat.isLoading || chat.operationStatus === "creating_room"
+              }
+              connectionStatus={
+                onlineStatusConnected ? "connected" : "disconnected"
+              }
+              operationStatus={chat.operationStatus}
+              chatError={chat.lastError}
+              onRetryConnection={() => {
+                // Retry connection logic if needed
+                console.log("Retrying chat connection...");
+              }}
+            />
+          )}
+        </Box>
+      </LocalizationProvider>
+    </div>
+  );
+}
+
+export default PatientsPage;
