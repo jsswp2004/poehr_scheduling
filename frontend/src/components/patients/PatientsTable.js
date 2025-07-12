@@ -66,6 +66,7 @@ function PatientsTable({
                     mb: 3,
                     flexWrap: 'wrap',
                     alignItems: 'center',
+                    justifyContent: 'space-between',
                 }}
             >
                 <SearchField
@@ -84,11 +85,15 @@ function PatientsTable({
                         onChange={(e) => setProvider(e.target.value)}
                     >
                         <MenuItem value="">All Providers</MenuItem>
-                        {providers.map((p) => (
-                            <MenuItem key={p.id} value={p.id}>
-                                Dr. {p.first_name} {p.last_name}
-                            </MenuItem>
-                        ))}
+                        {providers && providers.length > 0 ? (
+                            providers.map((p) => (
+                                <MenuItem key={p.id} value={p.id}>
+                                    Dr. {p.first_name} {p.last_name}
+                                </MenuItem>
+                            ))
+                        ) : (
+                            <MenuItem disabled>No providers available</MenuItem>
+                        )}
                     </MUISelect>
                 </FormControl>
             </Box>

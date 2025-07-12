@@ -166,7 +166,8 @@ function PatientsPage() {
     useEffect(() => {
         if (!token) return;
 
-        if (tab === 'patients') {
+        if (tab === 'patients' && token) {
+            analytics.fetchProviders(token);
             patients.fetchPatients();
         } else if (tab === 'team') {
             team.fetchTeam();
