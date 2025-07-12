@@ -43,31 +43,6 @@ const RegistrationForm = ({
                 Quick Register
             </Typography>
 
-            {/* Patient Type Selection (non-admin mode) */}
-            {!adminMode && (formData.role === 'none' || formData.role === 'patient') && (
-                <Box sx={{ mb: 2 }}>
-                    <FormControl component="fieldset">
-                        <FormLabel>Are you registering as a patient?</FormLabel>
-                        <RadioGroup row value={isPatient ? 'yes' : 'no'}>
-                            <FormControlLabel
-                                value="yes"
-                                control={<Radio />}
-                                label="Yes"
-                                onChange={() => onPatientTypeChange(true)}
-                                checked={isPatient}
-                            />
-                            <FormControlLabel
-                                value="no"
-                                control={<Radio />}
-                                label="No"
-                                onChange={() => onPatientTypeChange(false)}
-                                checked={!isPatient}
-                            />
-                        </RadioGroup>
-                    </FormControl>
-                </Box>
-            )}
-
             <form onSubmit={onSubmit}>
                 <Stack spacing={2}>
                     {/* Organization Field (conditional) */}

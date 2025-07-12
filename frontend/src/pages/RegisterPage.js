@@ -55,15 +55,10 @@ function RegisterPage({ adminMode = false }) {
         if (result) {
             toast.success('Registration successful!');
 
-            // If in admin mode, fetch and display the created patient
-            if (adminMode) {
-                const patient = await patientManagement.fetchRegisteredPatient(registration.formData.username);
-                if (patient) {
-                    registration.resetForm();
-                }
-            } else {
-                // For non-admin mode, navigate to login
-                navigate('/login');
+            // Fetch and display the created patient for both admin and non-admin modes
+            const patient = await patientManagement.fetchRegisteredPatient(registration.formData.username);
+            if (patient) {
+                registration.resetForm();
             }
         } else if (registration.error) {
             toast.error(registration.error);
