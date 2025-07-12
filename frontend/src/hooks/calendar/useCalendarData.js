@@ -21,6 +21,7 @@ export const useCalendarData = () => {
     const [clinicEvents, setClinicEvents] = useState([]);
     const [holidays, setHolidays] = useState([]);
     const [availabilityEvents, setAvailabilityEvents] = useState([]);
+    const [environmentSettings, setEnvironmentSettings] = useState(null);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
@@ -46,7 +47,7 @@ export const useCalendarData = () => {
 
         setLoading(true);
         try {
-            const [appointmentsData, availabilityData, doctorsData, clinicEventsData, holidaysData] =
+            const [appointmentsData, availabilityData, doctorsData, clinicEventsData, holidaysData, environmentSettingsData] =
                 await Promise.all([
                     calendarApi.fetchAppointments(token).catch(err => {
                         console.error("Failed to fetch appointments:", err);
@@ -67,6 +68,10 @@ export const useCalendarData = () => {
                     calendarApi.fetchHolidays(token).catch(err => {
                         console.error("Failed to fetch holidays:", err);
                         return [];
+                    }),
+                    calendarApi.fetchEnvironmentSettings(token).catch(err => {
+                        console.error("Failed to fetch environment settings:", err);
+                        return null;
                     }),
                 ]);
 
@@ -89,6 +94,7 @@ export const useCalendarData = () => {
             setDoctors(doctorsData);
             setClinicEvents(clinicEventsData);
             setHolidays(holidaysData);
+            setEnvironmentSettings(environmentSettingsData);
         } catch (error) {
             console.error("Error fetching calendar data:", error);
             toast.error("Failed to load calendar data");
@@ -112,6 +118,7 @@ export const useCalendarData = () => {
         clinicEvents,
         holidays,
         availabilityEvents,
+        environmentSettings,
 
         // State
         currentDate,
