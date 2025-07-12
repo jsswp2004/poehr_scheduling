@@ -303,9 +303,6 @@ function EnvironmentProfilePage() {
 
       {tabKey === "organization" && (
         <Box sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Organization Management
-          </Typography>
           <OrganizationManagement />
         </Box>
       )}
