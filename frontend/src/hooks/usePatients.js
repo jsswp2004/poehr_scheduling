@@ -4,23 +4,6 @@ import { toast } from 'react-toastify';
 import { jwtDecode } from 'jwt-decode';
 import { getValidToken, clearAuthData } from '../utils/auth';
 
-// Debounce hook
-const useDebounce = (value, delay) => {
-    const [debouncedValue, setDebouncedValue] = useState(value);
-
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedValue(value);
-        }, delay);
-
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [value, delay]);
-
-    return debouncedValue;
-};
-
 export const usePatients = (navigate) => {
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -34,9 +17,6 @@ export const usePatients = (navigate) => {
         subject: 'Message from your provider',
         message: '',
     });
-
-    // Debounce search input
-    const debouncedSearch = useDebounce(search, 500);
 
     // Memoize state setters to prevent unnecessary re-renders
     const memoizedSetSearch = useCallback((value) => {
@@ -68,7 +48,7 @@ export const usePatients = (navigate) => {
             const res = await axios.get('http://127.0.0.1:8000/api/users/patients/', {
                 headers: { Authorization: `Bearer ${validToken}` },
                 params: {
-                    search: debouncedSearch,
+                    search,
                     provider,
                     page,
                     page_size: rowsPerPage,
@@ -87,7 +67,7 @@ export const usePatients = (navigate) => {
         } finally {
             setLoading(false);
         }
-    }, [debouncedSearch, provider, page, navigate]);
+    }, [search, provider, page, navigate]);
 
     const handleSendText = async (patient, token) => {
         const phone = patient.phone_number;
@@ -176,17 +156,16 @@ export const usePatients = (navigate) => {
         }
     };
 
-    // Auto-fetch patients when debounced search changes
+    // Auto-fetch patients when search changes
     useEffect(() => {
         fetchPatients();
-    }, [debouncedSearch, provider, page]);
+    }, [search, provider, page]);
 
     return {
         patients,
         loading,
         search,
         setSearch: memoizedSetSearch,
-        debouncedSearch,
         provider,
         setProvider: memoizedSetProvider,
         page,
