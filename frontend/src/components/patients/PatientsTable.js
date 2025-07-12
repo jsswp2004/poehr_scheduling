@@ -25,12 +25,10 @@ import {
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faCommentDots,
     faEnvelope,
     faSms,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import OnlineIndicator from '../OnlineIndicator';
 
 function PatientsTable({
     patients,
@@ -45,9 +43,7 @@ function PatientsTable({
     totalPages,
     onSendText,
     onOpenEmailModal,
-    onOpenChat,
     onDelete,
-    getUserOnlineStatus,
 }) {
     const navigate = useNavigate();
 
@@ -106,7 +102,6 @@ function PatientsTable({
                             <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                                 Actions
                             </TableCell>
@@ -115,7 +110,7 @@ function PatientsTable({
                     <TableBody>
                         {patients.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
+                                <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
                                     No patients found
                                 </TableCell>
                             </TableRow>
@@ -129,15 +124,9 @@ function PatientsTable({
                                     }}
                                 >
                                     <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <OnlineIndicator
-                                                isOnline={getUserOnlineStatus(patient.id)?.is_online || false}
-                                                size={8}
-                                            />
-                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                {patient.full_name}
-                                            </Typography>
-                                        </Box>
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                            {patient.full_name}
+                                        </Typography>
                                     </TableCell>
                                     <TableCell>
                                         <Typography variant="body2">
@@ -154,36 +143,15 @@ function PatientsTable({
                                             {patient.provider_name || 'Not assigned'}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                color: patient.is_active ? 'success.main' : 'error.main',
-                                                fontWeight: 500,
-                                            }}
-                                        >
-                                            {patient.is_active ? 'Active' : 'Inactive'}
-                                        </Typography>
-                                    </TableCell>
                                     <TableCell sx={{ textAlign: 'center' }}>
                                         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                                             <Tooltip title="View Details">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => navigate(`/patient/${patient.id}`)}
+                                                    onClick={() => navigate(`/patients/${patient.user_id}`)}
                                                     sx={{ color: 'primary.main' }}
                                                 >
                                                     <VisibilityIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
-
-                                            <Tooltip title="Send Message">
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => onOpenChat(patient)}
-                                                    sx={{ color: 'info.main' }}
-                                                >
-                                                    <FontAwesomeIcon icon={faCommentDots} />
                                                 </IconButton>
                                             </Tooltip>
 

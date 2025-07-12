@@ -25,11 +25,11 @@ function CreateAppointmentForm({
   editMode = false
 }) {
   // External data (events, holidays, blocked days)
-  const { 
-    clinicEvents, 
-    blockedDays, 
-    holidays, 
-    loading: externalDataLoading 
+  const {
+    clinicEvents,
+    blockedDays,
+    holidays,
+    loading: externalDataLoading
   } = useAppointmentFormExternal(localStorage.getItem('access_token'));
 
   // Form data management
@@ -57,21 +57,21 @@ function CreateAppointmentForm({
 
   // Form submission handling
   const { isSubmitting, handleSubmit } = useAppointmentFormSubmission(
-    token, 
-    editMode, 
-    appointmentToEdit, 
+    token,
+    editMode,
+    appointmentToEdit,
     onSuccess
   );
 
   const onFormSubmit = (e) => {
     handleSubmit(
-      e, 
-      formData, 
-      validateForm, 
-      preparePayload, 
-      selectedDoctor, 
-      blockedDays, 
-      holidays, 
+      e,
+      formData,
+      validateForm,
+      preparePayload,
+      selectedDoctor,
+      blockedDays,
+      holidays,
       providerBlocks
     );
   };
@@ -98,7 +98,7 @@ function CreateAppointmentForm({
       {/* Left: Form */}
       <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>
         <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-          {editMode ? 'Edit Appointment' : 'Create Appointment'} 
+          {editMode ? 'Edit Appointment' : 'Create Appointment'}
           {patientName && <span style={{ color: '#1976d2' }}> for {patientName}</span>}
         </Typography>
 

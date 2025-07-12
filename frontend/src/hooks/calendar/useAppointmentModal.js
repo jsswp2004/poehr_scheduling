@@ -75,12 +75,12 @@ export const useAppointmentModal = (onUpdate, token) => {
         if (appointmentData.appointment_datetime) {
             console.log('=== MODAL EDIT DATETIME CONVERSION ===');
             console.log('Original datetime from backend:', appointmentData.appointment_datetime);
-            
+
             // Parse the timezone-aware datetime and convert to local time
             const appointmentDate = new Date(appointmentData.appointment_datetime);
             console.log('Parsed as Date object:', appointmentDate);
             console.log('Local time representation:', appointmentDate.toString());
-            
+
             // Format as local datetime-local input value
             const year = appointmentDate.getFullYear();
             const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
@@ -88,7 +88,7 @@ export const useAppointmentModal = (onUpdate, token) => {
             const hours = String(appointmentDate.getHours()).padStart(2, '0');
             const minutes = String(appointmentDate.getMinutes()).padStart(2, '0');
             localDatetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
-            
+
             console.log('Converted to local datetime input format:', localDatetimeString);
             console.log('=====================================');
         }

@@ -16,7 +16,7 @@ export const useOrganizations = (userRole, getAuthToken) => {
             if (userRole === 'system_admin') {
                 const token = getAuthToken();
                 try {
-                    const res = await axios.get(`${API_BASE_URL}/api/organizations/`, {
+                    const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
                         headers: { Authorization: `Bearer ${token}` },
                     });
                     setOrganizations(res.data);

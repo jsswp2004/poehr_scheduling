@@ -5,23 +5,27 @@ This directory contains custom React hooks for managing appointment form functio
 ## Hooks
 
 ### `useAppointmentFormData`
+
 - Manages form data state and validation
 - Handles form field changes
 - Prepares payload for API submission
 - Initializes form data for editing mode
 
 ### `useAppointmentDoctors`
+
 - Manages doctor selection and availability
 - Fetches available time slots
 - Handles provider availability blocking
 - Manages slot selection
 
 ### `useAppointmentFormExternal`
+
 - Fetches external data (clinic events, holidays, blocked days)
 - Provides loading states
 - Handles API errors
 
 ### `useAppointmentFormSubmission`
+
 - Handles form submission logic
 - Manages create/update operations
 - Provides submission loading states
@@ -30,12 +34,12 @@ This directory contains custom React hooks for managing appointment form functio
 ## Usage
 
 ```javascript
-import { 
+import {
   useAppointmentFormData,
   useAppointmentDoctors,
   useAppointmentFormExternal,
-  useAppointmentFormSubmission
-} from './hooks/appointment-form';
+  useAppointmentFormSubmission,
+} from "./hooks/appointment-form";
 
 // Use in your component
 const MyComponent = () => {

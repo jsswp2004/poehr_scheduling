@@ -25,44 +25,44 @@ import { FinalCTASection } from '../components/landing-page/FinalCTASection';
 
 // Main landing page component for POWER IT healthcare scheduling software
 export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
-  // Use navigation hook for all navigation actions
-  const { 
-    handlePricingClick, 
-    handleSecurityClick, 
-    handleContactClick 
-  } = useLandingPageNavigation();
+    // Use navigation hook for all navigation actions
+    const {
+        handlePricingClick,
+        handleSecurityClick,
+        handleContactClick
+    } = useLandingPageNavigation();
 
-  return (
-    <div className={"landing-page-v-1-desktop-1920-px " + className}>
-      {/* Navigation Header */}
-      <Header />
+    return (
+        <div className={"landing-page-v-1-desktop-1920-px " + className}>
+            {/* Navigation Header */}
+            <Header />
 
-      {/* Hero Section - Main value proposition */}
-      <HeroSection onTrialClick={handlePricingClick} />
+            {/* Hero Section - Main value proposition */}
+            <HeroSection onTrialClick={handlePricingClick} />
 
-      {/* Product Features - POWER Scheduling & POWER together */}
-      <ProductFeaturesSection onGetStartedClick={handlePricingClick} />
+            {/* Product Features - POWER Scheduling & POWER together */}
+            <ProductFeaturesSection onGetStartedClick={handlePricingClick} />
 
-      {/* Cross-Platform Section - Multi-device availability */}
-      <CrossPlatformSection onTryPowerClick={handlePricingClick} />
+            {/* Cross-Platform Section - Multi-device availability */}
+            <CrossPlatformSection onTryPowerClick={handlePricingClick} />
 
-      {/* Data Security Section - HIPAA compliance and privacy */}
-      <DataSecuritySection onReadMoreClick={handleSecurityClick} />
+            {/* Data Security Section - HIPAA compliance and privacy */}
+            <DataSecuritySection onReadMoreClick={handleSecurityClick} />
 
-      {/* Pricing Section - Three-tier pricing plans */}
-      <PricingSection 
-        onPricingClick={handlePricingClick}
-        onContactClick={handleContactClick}
-      />
+            {/* Pricing Section - Three-tier pricing plans */}
+            <PricingSection
+                onPricingClick={handlePricingClick}
+                onContactClick={handleContactClick}
+            />
 
-      {/* Final CTA Section - Try POWER today */}
-      <FinalCTASection 
-        onTryPowerClick={handlePricingClick}
-        onContactSalesClick={handlePricingClick}
-      />
+            {/* Final CTA Section - Try POWER today */}
+            <FinalCTASection
+                onTryPowerClick={handlePricingClick}
+                onContactSalesClick={handlePricingClick}
+            />
 
-      {/* Footer - Company info and navigation */}
-      <Footer pricingLink="/pricing" featuresLink="/features" />
-    </div>
-  );
+            {/* Footer - Company info and navigation */}
+            <Footer pricingLink="/pricing" featuresLink="/features" />
+        </div>
+    );
 };

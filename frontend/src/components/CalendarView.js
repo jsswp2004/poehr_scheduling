@@ -26,7 +26,7 @@ import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
 
 const localizer = momentLocalizer(moment);
 
-function CalendarView({ onUpdate }) {
+function CalendarView({ onUpdate, showBackButton = true }) {
   // Custom hooks for data and functionality
   const {
     events,
@@ -120,9 +120,9 @@ function CalendarView({ onUpdate }) {
 
   return (
     <Box>
-      <BackButton />
+      {showBackButton && <BackButton />}
 
-      <Box sx={{ height: "calc(100vh - 200px)", mt: 2 }}>
+      <Box sx={{ height: "calc(100vh - 200px)", mt: showBackButton ? 2 : 0 }}>
         <Calendar
           localizer={localizer}
           events={events}

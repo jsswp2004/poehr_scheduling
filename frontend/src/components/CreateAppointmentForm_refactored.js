@@ -17,120 +17,120 @@ import { AvailableSlotsPanel } from './AvailableSlotsPanel';
 import { AppointmentFormActions } from './AppointmentFormActions';
 
 function CreateAppointmentForm({
-  onSuccess,
-  defaultProviderId = null,
-  patientName = '',
-  patientId = null,
-  appointmentToEdit = null,
-  editMode = false
+    onSuccess,
+    defaultProviderId = null,
+    patientName = '',
+    patientId = null,
+    appointmentToEdit = null,
+    editMode = false
 }) {
-  // External data (events, holidays, blocked days)
-  const { 
-    clinicEvents, 
-    blockedDays, 
-    holidays, 
-    loading: externalDataLoading 
-  } = useAppointmentFormExternal(localStorage.getItem('access_token'));
+    // External data (events, holidays, blocked days)
+    const {
+        clinicEvents,
+        blockedDays,
+        holidays,
+        loading: externalDataLoading
+    } = useAppointmentFormExternal(localStorage.getItem('access_token'));
 
-  // Form data management
-  const {
-    formData,
-    selectedClinicEvent,
-    token,
-    userRole,
-    handleChange,
-    handleClinicEventChange,
-    validateForm,
-    preparePayload,
-  } = useAppointmentFormData(appointmentToEdit, editMode, patientId, clinicEvents);
+    // Form data management
+    const {
+        formData,
+        selectedClinicEvent,
+        token,
+        userRole,
+        handleChange,
+        handleClinicEventChange,
+        validateForm,
+        preparePayload,
+    } = useAppointmentFormData(appointmentToEdit, editMode, patientId, clinicEvents);
 
-  // Doctors and availability management
-  const {
-    doctors,
-    selectedDoctor,
-    availableSlots,
-    providerBlocks,
-    selectedSlot,
-    handleDoctorChange,
-    handleSlotSelection,
-  } = useAppointmentDoctors(token, defaultProviderId, appointmentToEdit);
+    // Doctors and availability management
+    const {
+        doctors,
+        selectedDoctor,
+        availableSlots,
+        providerBlocks,
+        selectedSlot,
+        handleDoctorChange,
+        handleSlotSelection,
+    } = useAppointmentDoctors(token, defaultProviderId, appointmentToEdit);
 
-  // Form submission handling
-  const { isSubmitting, handleSubmit } = useAppointmentFormSubmission(
-    token, 
-    editMode, 
-    appointmentToEdit, 
-    onSuccess
-  );
-
-  const onFormSubmit = (e) => {
-    handleSubmit(
-      e, 
-      formData, 
-      validateForm, 
-      preparePayload, 
-      selectedDoctor, 
-      blockedDays, 
-      holidays, 
-      providerBlocks
+    // Form submission handling
+    const { isSubmitting, handleSubmit } = useAppointmentFormSubmission(
+        token,
+        editMode,
+        appointmentToEdit,
+        onSuccess
     );
-  };
 
-  const onSlotSelect = (slot, formattedSlot) => {
-    handleSlotSelection(slot, formattedSlot, (updater) => {
-      if (typeof updater === 'function') {
-        const newData = updater(formData);
-        handleChange({ target: { name: 'appointment_datetime', value: newData.appointment_datetime } });
-      }
-    });
-  };
+    const onFormSubmit = (e) => {
+        handleSubmit(
+            e,
+            formData,
+            validateForm,
+            preparePayload,
+            selectedDoctor,
+            blockedDays,
+            holidays,
+            providerBlocks
+        );
+    };
 
-  if (externalDataLoading) {
+    const onSlotSelect = (slot, formattedSlot) => {
+        handleSlotSelection(slot, formattedSlot, (updater) => {
+            if (typeof updater === 'function') {
+                const newData = updater(formData);
+                handleChange({ target: { name: 'appointment_datetime', value: newData.appointment_datetime } });
+            }
+        });
+    };
+
+    if (externalDataLoading) {
+        return (
+            <Box sx={{ p: 3 }}>
+                <Typography>Loading form data...</Typography>
+            </Box>
+        );
+    }
+
     return (
-      <Box sx={{ p: 3 }}>
-        <Typography>Loading form data...</Typography>
-      </Box>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mt: 2 }}>
+            {/* Left: Form */}
+            <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>
+                <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+                    {editMode ? 'Edit Appointment' : 'Create Appointment'}
+                    {patientName && <span style={{ color: '#1976d2' }}> for {patientName}</span>}
+                </Typography>
+
+                <form onSubmit={onFormSubmit}>
+                    <AppointmentFormFields
+                        formData={formData}
+                        handleChange={handleChange}
+                        clinicEvents={clinicEvents}
+                        selectedClinicEvent={selectedClinicEvent}
+                        handleClinicEventChange={handleClinicEventChange}
+                        doctors={doctors}
+                        selectedDoctor={selectedDoctor}
+                        handleDoctorChange={handleDoctorChange}
+                        editMode={editMode}
+                    />
+
+                    <AppointmentFormActions
+                        editMode={editMode}
+                        isSubmitting={isSubmitting}
+                        onCancel={() => onSuccess?.()}
+                    />
+                </form>
+            </Paper>
+
+            {/* Right: Available Slots */}
+            <AvailableSlotsPanel
+                availableSlots={availableSlots}
+                selectedSlot={selectedSlot}
+                onSlotSelect={onSlotSelect}
+            />
+        </Box>
     );
-  }
-
-  return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mt: 2 }}>
-      {/* Left: Form */}
-      <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>
-        <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-          {editMode ? 'Edit Appointment' : 'Create Appointment'} 
-          {patientName && <span style={{ color: '#1976d2' }}> for {patientName}</span>}
-        </Typography>
-
-        <form onSubmit={onFormSubmit}>
-          <AppointmentFormFields
-            formData={formData}
-            handleChange={handleChange}
-            clinicEvents={clinicEvents}
-            selectedClinicEvent={selectedClinicEvent}
-            handleClinicEventChange={handleClinicEventChange}
-            doctors={doctors}
-            selectedDoctor={selectedDoctor}
-            handleDoctorChange={handleDoctorChange}
-            editMode={editMode}
-          />
-
-          <AppointmentFormActions
-            editMode={editMode}
-            isSubmitting={isSubmitting}
-            onCancel={() => onSuccess?.()}
-          />
-        </form>
-      </Paper>
-
-      {/* Right: Available Slots */}
-      <AvailableSlotsPanel
-        availableSlots={availableSlots}
-        selectedSlot={selectedSlot}
-        onSlotSelect={onSlotSelect}
-      />
-    </Box>
-  );
 }
 
 export default CreateAppointmentForm;

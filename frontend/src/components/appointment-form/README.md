@@ -5,18 +5,21 @@ This directory contains modular React components for building appointment forms.
 ## Components
 
 ### `AppointmentFormFields`
+
 - Main form fields component
 - Handles clinic events, date/time, duration, recurrence
 - Doctor selection and status fields
 - Responsive design with Material-UI
 
 ### `AvailableSlotsPanel`
+
 - Displays available appointment slots
 - Interactive slot selection
 - Handles empty states
 - Shows formatted times
 
 ### `AppointmentFormActions`
+
 - Form action buttons (submit, cancel)
 - Loading states with spinners
 - Disabled states during submission
@@ -24,11 +27,11 @@ This directory contains modular React components for building appointment forms.
 ## Usage
 
 ```javascript
-import { 
+import {
   AppointmentFormFields,
   AvailableSlotsPanel,
-  AppointmentFormActions
-} from './components/appointment-form';
+  AppointmentFormActions,
+} from "./components/appointment-form";
 
 const MyForm = () => (
   <form>

@@ -1,0 +1,24 @@
+# Add this service to your docker-compose.yml
+frontend:
+  image: node:18-alpine
+  working_dir: /app
+  volumes:
+    - ./frontend:/app
+  ports:
+    - "3000:3000"
+  command: >
+    sh -c "npm install && npm start"
+  environment:
+    - REACT_APP_API_URL=http://localhost:8000
+    - REACT_APP_WS_URL=ws://localhost:9001
+
+# Service for running frontend tests
+frontend-test:
+  image: node:18-alpine
+  working_dir: /app
+  volumes:
+    - ./frontend:/app
+  command: >
+    sh -c "npm install && npm run test:ci"
+  environment:
+    - CI=true

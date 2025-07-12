@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useCallback, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
 
@@ -17,6 +17,21 @@ import {
 
 function PatientDetailPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
+
+    // Redirect to patients list if no ID is provided
+    useEffect(() => {
+        if (!id || id === 'undefined') {
+            console.log('❌ No patient ID provided, redirecting to patients list');
+            navigate('/patients', { replace: true });
+            return;
+        }
+    }, [id, navigate]);
+
+    // Don't render anything if no ID is provided
+    if (!id || id === 'undefined') {
+        return null;
+    }
 
     // Custom hooks
     const {
