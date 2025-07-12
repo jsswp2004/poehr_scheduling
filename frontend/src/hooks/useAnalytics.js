@@ -97,7 +97,7 @@ export const useAnalytics = () => {
 
             if (res.data && res.data.data) {
                 let csvData = res.data.data;
-                
+
                 // Handle different data structures
                 if (Array.isArray(csvData)) {
                     // Direct array data
@@ -127,7 +127,7 @@ export const useAnalytics = () => {
                                 });
                             }
                         });
-                        
+
                         if (flatData.length > 0) {
                             const csv = Papa.unparse(flatData);
                             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
