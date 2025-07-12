@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
@@ -35,7 +35,7 @@ export const useAnalytics = () => {
         'Blocked vs. Booked Time Comparison',
     ];
 
-    const fetchProviders = async (token) => {
+    const fetchProviders = useCallback(async (token) => {
         try {
             const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
                 headers: { Authorization: `Bearer ${token}` },
@@ -45,14 +45,17 @@ export const useAnalytics = () => {
             console.error('Failed to fetch providers:', err);
             toast.error('Failed to fetch providers');
         }
-    };
+    }, []);
 
-    const fetchOrganizationData = async () => {
+    const fetchOrganizationData = useCallback(async () => {
         try {
             const token = localStorage.getItem('token') || localStorage.getItem('access_token');
-            if (!token) return;
+            if (!token) {
+                console.log('No token available for fetching organization data');
+                return;
+            }
 
-            const res = await axios.get('http://127.0.0.1:8000/api/organizations/info/', {
+            const res = await axios.get('http://127.0.0.1:8000/api/users/organizations/', {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -71,7 +74,7 @@ export const useAnalytics = () => {
         } catch (err) {
             console.error('Failed to fetch organization data:', err);
         }
-    };
+    }, []);
 
     const downloadCSVReport = async (reportName, token) => {
         try {

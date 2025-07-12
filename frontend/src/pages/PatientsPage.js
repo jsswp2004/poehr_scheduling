@@ -133,7 +133,7 @@ function PatientsPage() {
         };
 
         initializeAuth();
-    }, [navigate, analytics]);
+    }, [navigate]);  // Removed analytics from dependencies
 
     // Toast notifications for new chat messages
     useEffect(() => {
@@ -407,9 +407,7 @@ function PatientsPage() {
                         totalPages={patients.totalPages}
                         onSendText={handleSendText}
                         onOpenEmailModal={handleOpenEmailModal}
-                        onOpenChat={handleOpenChat}
                         onDelete={handleDeletePatient}
-                        getUserOnlineStatus={getUserOnlineStatus}
                     />
                 )}
 

@@ -19,6 +19,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye } from '@fortawesome/free-solid-svg-icons';
 import CalendarView from '../CalendarView';
+import BackButton from '../BackButton';
 
 function AppointmentsSection({
     appointmentsTab,
@@ -178,22 +179,35 @@ function AppointmentsSection({
             {/* Calendar View */}
             {appointmentsTab === 'calendar' && (
                 <Box>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                        Calendar View
-                    </Typography>
-                    <CalendarView />
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mb: 2
+                    }}>
+                        <Typography variant="h6" sx={{ color: 'primary.main' }}>
+                            Calendar View
+                        </Typography>
+                        <BackButton />
+                    </Box>
+                    <CalendarView showBackButton={false} />
                 </Box>
             )}
 
             {/* All Appointments */}
             {appointmentsTab === 'all' && (
                 <Box>
-                    <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
-                        All Appointments
-                    </Typography>
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        mb: 3
+                    }}>
+                        <Typography variant="h6" sx={{ color: 'primary.main' }}>
+                            All Appointments
+                        </Typography>
 
-                    {/* Search */}
-                    <Box sx={{ mb: 3 }}>
+                        {/* Search */}
                         <TextField
                             label="Search appointments..."
                             value={appointmentsQuery}

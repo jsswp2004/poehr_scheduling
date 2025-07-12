@@ -31,7 +31,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
         null, // connectToOnlineStatus function
         websocketConnection
       );
-      
+
       if (success) {
         console.log('✅ Chat system initialized successfully');
       } else {
@@ -51,15 +51,15 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     if (!currentUser) return;
 
     // Determine room key
-    const otherUserId = message.sender_id === currentUser.user_id 
-      ? message.receiver_id 
+    const otherUserId = message.sender_id === currentUser.user_id
+      ? message.receiver_id
       : message.sender_id;
-    
+
     const roomKey = `room_${Math.min(currentUser.user_id, otherUserId)}_${Math.max(currentUser.user_id, otherUserId)}`;
-    
+
     // Add message to room
     chatData.addMessageToRoom(roomKey, message);
-    
+
     // Update unread count if not the sender
     if (message.sender_id !== currentUser.user_id) {
       chatData.updateUnreadCount(message.sender_id);
@@ -154,8 +154,8 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   useEffect(() => {
     if (lastMessageFromOnlineStatus) {
       try {
-        const messageData = typeof lastMessageFromOnlineStatus === 'string' 
-          ? JSON.parse(lastMessageFromOnlineStatus) 
+        const messageData = typeof lastMessageFromOnlineStatus === 'string'
+          ? JSON.parse(lastMessageFromOnlineStatus)
           : lastMessageFromOnlineStatus;
 
         if (messageData.type === 'chat_message') {

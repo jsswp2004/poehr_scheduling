@@ -71,7 +71,7 @@ function EnvironmentProfilePage() {
       if (userRole === "system_admin") {
         const token = localStorage.getItem("access_token");
         try {
-          const res = await axios.get("http://127.0.0.1:8000/api/organizations/", {
+          const res = await axios.get("http://127.0.0.1:8000/api/users/organizations/", {
             headers: { Authorization: `Bearer ${token}` },
           });
           setOrganizations(res.data);

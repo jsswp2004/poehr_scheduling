@@ -12,10 +12,10 @@ import Navbar from './components/Navbar';
 import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
-import AdminPage from './pages/AdminPage'; 
-import ProfilePage from './pages/ProfilePage'; 
+import AdminPage from './pages/AdminPage';
+import ProfilePage from './pages/ProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
-import MaintenancePage from './pages/MaintenancePage'; 
+import MaintenancePage from './pages/MaintenancePage';
 import CreateProfilePage from './pages/CreateProfilePage';
 import SettingsPage from './pages/SettingsPage';
 import { autoMigrate } from './utils/tokenMigration';
@@ -100,18 +100,18 @@ function AppContent() {
     } else {
       body.classList.remove('bg-gray-100');
     }
-  }, [location.pathname]);  return (
-    <>      {showNavbar && <Navbar />}      <ToastContainer 
-        position="top-center"
-        autoClose={2000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
+  }, [location.pathname]); return (
+    <>      {showNavbar && <Navbar />}      <ToastContainer
+      position="top-center"
+      autoClose={2000}
+      hideProgressBar={false}
+      newestOnTop={false}
+      closeOnClick
+      rtl={false}
+      pauseOnFocusLoss
+      draggable
+      pauseOnHover
+    />
       <ToastDebugButton />
       <Routes>        <Route path="/" element={<LandingPage />} />
         <Route path="/solutions" element={<SolutionsPage />} />

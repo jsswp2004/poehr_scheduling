@@ -40,19 +40,27 @@ export const usePatientDetail = (patientId) => {
 
     // Fetch patient data
     useEffect(() => {
-        if (!patientId || !token) return;
+        if (!patientId || patientId === 'undefined' || !token) {
+            console.log('❌ Skipping API call - patientId or token missing/invalid');
+            setLoading(false);
+            setPatient(null);
+            setFormData({});
+            return;
+        }
 
+        console.log('🚀 Making API call for patient:', patientId);
         setLoading(true);
         axios
             .get(`http://127.0.0.1:8000/api/users/patients/by-user/${patientId}/`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => {
+                console.log('✅ Patient data fetched successfully:', res.data);
                 setPatient(res.data);
                 setFormData(res.data);
             })
             .catch((err) => {
-                console.error('Error fetching patient:', err);
+                console.error('❌ Error fetching patient:', err);
                 toast.error('Failed to load patient details');
             })
             .finally(() => {

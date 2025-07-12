@@ -1,8 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { jwtDecode } from 'jwt-decode';
 import { getValidToken, clearAuthData } from '../utils/auth';
+
+// Debounce hook
+const useDebounce = (value, delay) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+};
 
 export const usePatients = (navigate) => {
     const [patients, setPatients] = useState([]);
@@ -18,10 +35,13 @@ export const usePatients = (navigate) => {
         message: '',
     });
 
+    // Debounce search input
+    const debouncedSearch = useDebounce(search, 500);
+
     const rowsPerPage = 10;
     const totalPages = Math.ceil(totalSize / rowsPerPage);
 
-    const fetchPatients = async () => {
+    const fetchPatients = useCallback(async () => {
         setLoading(true);
         try {
             const validToken = await getValidToken();
@@ -35,7 +55,7 @@ export const usePatients = (navigate) => {
             const res = await axios.get('http://127.0.0.1:8000/api/users/patients/', {
                 headers: { Authorization: `Bearer ${validToken}` },
                 params: {
-                    search,
+                    search: debouncedSearch,
                     provider,
                     page,
                     page_size: rowsPerPage,
@@ -54,7 +74,7 @@ export const usePatients = (navigate) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [debouncedSearch, provider, page, navigate]);
 
     const handleSendText = async (patient, token) => {
         const phone = patient.phone_number;
@@ -143,11 +163,17 @@ export const usePatients = (navigate) => {
         }
     };
 
+    // Auto-fetch patients when debounced search changes
+    useEffect(() => {
+        fetchPatients();
+    }, [fetchPatients]);
+
     return {
         patients,
         loading,
         search,
         setSearch,
+        debouncedSearch,
         provider,
         setProvider,
         page,
