@@ -53,10 +53,42 @@ export const useScheduleForm = (
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!selectedDoctor || !formData.start_time || !formData.end_time) return;
+
+        // Validation with user feedback
+        if (!selectedDoctor) {
+            toast.error('Please select a clinician before saving.');
+            return;
+        }
+
+        if (!formData.start_time) {
+            toast.error('Please enter a start time.');
+            return;
+        }
+
+        if (!formData.end_time) {
+            toast.error('Please enter an end time.');
+            return;
+        }
 
         const startDate = new Date(formData.start_time);
-        if ([0, 6].includes(startDate.getDay()) || isHoliday(formData.start_time)) return;
+        const endDate = new Date(formData.end_time);
+
+        // Check if end time is after start time
+        if (endDate <= startDate) {
+            toast.error('End time must be after start time.');
+            return;
+        }
+
+        // Check for weekends and holidays with user feedback
+        if ([0, 6].includes(startDate.getDay())) {
+            toast.error('Cannot schedule on weekends (Saturday/Sunday).');
+            return;
+        }
+
+        if (isHoliday(formData.start_time)) {
+            toast.error('Cannot schedule on holidays.');
+            return;
+        }
 
         const payload = {
             doctor: selectedDoctor.value,
