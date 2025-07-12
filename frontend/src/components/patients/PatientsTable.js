@@ -210,4 +210,4 @@ function PatientsTable({
     );
 }
 
-export default PatientsTable;
+export default React.memo(PatientsTable);
