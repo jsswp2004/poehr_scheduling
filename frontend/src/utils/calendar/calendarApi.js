@@ -51,6 +51,13 @@ export const calendarApi = {
         return response.data;
     },
 
+    // Fetch environment settings (blocked days)
+    fetchEnvironmentSettings: async (token) => {
+        const api = createApiInstance(token);
+        const response = await api.get("/settings/environment/");
+        return response.data;
+    },
+
     // Create appointment
     createAppointment: async (token, appointmentData) => {
         // Debug logging for timezone issue
