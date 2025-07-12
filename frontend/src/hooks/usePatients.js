@@ -38,6 +38,19 @@ export const usePatients = (navigate) => {
     // Debounce search input
     const debouncedSearch = useDebounce(search, 500);
 
+    // Memoize state setters to prevent unnecessary re-renders
+    const memoizedSetSearch = useCallback((value) => {
+        setSearch(value);
+    }, []);
+
+    const memoizedSetProvider = useCallback((value) => {
+        setProvider(value);
+    }, []);
+
+    const memoizedSetPage = useCallback((value) => {
+        setPage(value);
+    }, []);
+
     const rowsPerPage = 10;
     const totalPages = Math.ceil(totalSize / rowsPerPage);
 
@@ -166,18 +179,18 @@ export const usePatients = (navigate) => {
     // Auto-fetch patients when debounced search changes
     useEffect(() => {
         fetchPatients();
-    }, [fetchPatients]);
+    }, [debouncedSearch, provider, page]);
 
     return {
         patients,
         loading,
         search,
-        setSearch,
+        setSearch: memoizedSetSearch,
         debouncedSearch,
         provider,
-        setProvider,
+        setProvider: memoizedSetProvider,
         page,
-        setPage,
+        setPage: memoizedSetPage,
         totalSize,
         totalPages,
         rowsPerPage,
