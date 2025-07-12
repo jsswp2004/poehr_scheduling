@@ -1,22 +1,25 @@
 # 🧪 POWER IT Healthcare - Test Suite
 
-## 📁 Directory Structure
+## 🐳 **Docker Environment Setup**
 
-### `/unit/` - Unit Tests
+This project runs in Docker. For frontend React tests:
 
-- **Purpose**: Test individual components, functions, and models in isolation
-- **Run with**: `python manage.py test` (Django) or `npm test` (React)
-- **Examples**: Model validation, form validation, utility functions
+- **In Docker**: Node.js not available in main container
+- **Recommended**: Run frontend tests locally on Windows
+- **Alternative**: Use separate Node.js container (see TESTING_SETUP_COMPLETE.md)
 
-### `/integration/` - Integration Tests
+### **Quick Start for Docker:**
 
-- **Purpose**: Test complete user flows and external service integration
-- **Run with**: `python -m pytest tests/integration/`
-- **Examples**: SMS flow, badge system, pricing enrollment
+```bash
+# Backend tests (in Docker container)
+python manage.py test
+python -m pytest tests/
 
-### `/api/` - API Tests
+# Frontend tests (exit Docker, run locally)
+exit
+cd frontend && npm test
+```
 
-- **Purpose**: Test REST API endpoints, authentication, and data flow
 - **Run with**: `python -m pytest tests/api/`
 - **Examples**: User API, organization API, enrollment API
 

@@ -71,20 +71,12 @@ function CalendarView({ onUpdate, showBackButton = true }) {
 
   // Day prop getter for blocked days styling
   const dayPropGetter = useCallback((date) => {
-    // Debug logging for blocked days
-    console.log('DayPropGetter called for date:', date.toDateString());
-    console.log('Day of week:', date.getDay()); // 0 = Sunday, 6 = Saturday
-    console.log('Environment settings:', environmentSettings);
-    console.log('Holidays data:', holidays);
-    console.log('Clinic events data:', clinicEvents);
-    
     // Check if this day is in the organization's blocked days
     const isOrganizationBlockedDay = environmentSettings?.blocked_days?.includes(date.getDay()) || false;
-    
+
     // Check if this date is a holiday
     const isHoliday = holidays.some(holiday => {
       const holidayDate = new Date(holiday.date);
-      console.log('Comparing holiday date:', holidayDate.toDateString(), 'with:', date.toDateString());
       return holidayDate.toDateString() === date.toDateString();
     });
 
@@ -92,16 +84,13 @@ function CalendarView({ onUpdate, showBackButton = true }) {
     const hasBlockingClinicEvent = clinicEvents.some(event => {
       const eventStart = new Date(event.start_datetime);
       const eventEnd = new Date(event.end_datetime);
-      
+
       // Check if the clinic event spans the entire day or is marked as a blocking event
-      const isAllDay = event.all_day || 
+      const isAllDay = event.all_day ||
         (eventEnd.getTime() - eventStart.getTime()) >= (24 * 60 * 60 * 1000 - 60000); // Nearly full day
-      
-      console.log('Comparing clinic event:', eventStart.toDateString(), 'with:', date.toDateString(), 'isAllDay:', isAllDay);
+
       return isAllDay && eventStart.toDateString() === date.toDateString();
     });
-
-    console.log('Date', date.toDateString(), 'isOrganizationBlockedDay:', isOrganizationBlockedDay, 'isHoliday:', isHoliday, 'hasBlockingClinicEvent:', hasBlockingClinicEvent);
     // Apply pink background for blocked days (organization blocked days, holidays, or clinic events)
     if (isOrganizationBlockedDay || isHoliday || hasBlockingClinicEvent) {
       return {
@@ -110,7 +99,7 @@ function CalendarView({ onUpdate, showBackButton = true }) {
         },
       };
     }
-    
+
     return {};
   }, [holidays, clinicEvents, environmentSettings]);
 
