@@ -2,7 +2,6 @@ import React from 'react';
 import {
     Box,
     Typography,
-    TextField,
     FormControl,
     InputLabel,
     Select as MUISelect,
@@ -29,6 +28,7 @@ import {
     faSms,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
+import SearchField from './SearchField';
 
 function PatientsTable({
     patients,
@@ -68,10 +68,10 @@ function PatientsTable({
                     alignItems: 'center',
                 }}
             >
-                <TextField
+                <SearchField
                     label="Search patients..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onSearchChange={setSearch}
+                    initialValue={search}
                     variant="outlined"
                     size="small"
                     sx={{ minWidth: 250 }}
