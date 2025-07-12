@@ -101,7 +101,8 @@ function TeamTable({
                         ) : (
                             team.map((member) => {
                                 const unreadCount = getTotalUnreadCount ? getTotalUnreadCount(member.id) : 0;
-                                const isOnline = getUserOnlineStatus(member.id)?.is_online || false;
+                                const onlineStatus = getUserOnlineStatus(member.id);
+                                const isOnline = onlineStatus?.isOnline || false;
 
                                 return (
                                     <TableRow
@@ -111,13 +112,13 @@ function TeamTable({
                                             cursor: 'pointer',
                                         }}
                                     >                        <TableCell>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <StatusDot isOnline={isOnline} size={8} />
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                    {member.full_name}
-                                </Typography>
-                            </Box>
-                        </TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <StatusDot isOnline={isOnline} size={12} />
+                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                    {member.full_name}
+                                                </Typography>
+                                            </Box>
+                                        </TableCell>
                                         <TableCell>
                                             <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
                                                 {member.role || 'N/A'}
