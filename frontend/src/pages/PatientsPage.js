@@ -229,6 +229,17 @@ function PatientsPage() {
         patients.handleDelete(patientId, token);
     };
 
+    // Team handlers (similar to patients)
+    const handleTeamSendText = (teamMember) => {
+        // Use the same SMS logic as patients since team members are also users
+        patients.handleSendText(teamMember, token);
+    };
+
+    const handleTeamOpenEmailModal = (teamMember) => {
+        // Use the same email modal logic as patients
+        patients.handleOpenEmailModal(teamMember, token);
+    };
+
     // Appointment handlers
     const handleStatusUpdate = (appointmentId, field, value) => {
         appointments.handleStatusUpdate(appointmentId, field, value, token);
@@ -424,6 +435,8 @@ function PatientsPage() {
                         onOpenChat={handleOpenChat}
                         getUserOnlineStatus={getUserOnlineStatus}
                         getTotalUnreadCount={chat.getTotalUnreadCount}
+                        onSendText={handleTeamSendText}
+                        onOpenEmailModal={handleTeamOpenEmailModal}
                     />
                 )}
 

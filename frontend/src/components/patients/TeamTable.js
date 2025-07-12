@@ -15,16 +15,26 @@ import {
     Pagination,
     CircularProgress,
 } from '@mui/material';
-import {
-    Visibility as VisibilityIcon,
-} from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
     faCommentDots,
     faEnvelope,
+    faSms,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
-import OnlineIndicator from '../OnlineIndicator';
+
+// Simple status dot component
+const StatusDot = ({ isOnline, size = 8 }) => (
+    <Box
+        sx={{
+            width: size,
+            height: size,
+            borderRadius: '50%',
+            backgroundColor: isOnline ? '#4caf50' : '#757575',
+            flexShrink: 0,
+        }}
+    />
+);
 
 function TeamTable({
     team,
@@ -37,6 +47,8 @@ function TeamTable({
     onOpenChat,
     getUserOnlineStatus,
     getTotalUnreadCount,
+    onSendText,
+    onOpenEmailModal,
 }) {
     const navigate = useNavigate();
 
@@ -98,15 +110,14 @@ function TeamTable({
                                             '&:hover': { bgcolor: '#f5f5f5' },
                                             cursor: 'pointer',
                                         }}
-                                    >
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <OnlineIndicator isOnline={isOnline} size={8} />
-                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                    {member.full_name}
-                                                </Typography>
-                                            </Box>
-                                        </TableCell>
+                                    >                        <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <StatusDot isOnline={isOnline} size={8} />
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                    {member.full_name}
+                                </Typography>
+                            </Box>
+                        </TableCell>
                                         <TableCell>
                                             <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
                                                 {member.role || 'N/A'}
@@ -160,13 +171,13 @@ function TeamTable({
                                         </TableCell>
                                         <TableCell sx={{ textAlign: 'center' }}>
                                             <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                                                <Tooltip title="View Profile">
+                                                <Tooltip title="Send SMS">
                                                     <IconButton
                                                         size="small"
-                                                        onClick={() => navigate(`/profile?user=${member.id}`)}
+                                                        onClick={() => onSendText(member)}
                                                         sx={{ color: 'primary.main' }}
                                                     >
-                                                        <VisibilityIcon fontSize="small" />
+                                                        <FontAwesomeIcon icon={faSms} />
                                                     </IconButton>
                                                 </Tooltip>
 
@@ -200,9 +211,7 @@ function TeamTable({
                                                 <Tooltip title="Send Email">
                                                     <IconButton
                                                         size="small"
-                                                        onClick={() => {
-                                                            window.location.href = `mailto:${member.email}`;
-                                                        }}
+                                                        onClick={() => onOpenEmailModal(member)}
                                                         sx={{ color: 'success.main' }}
                                                     >
                                                         <FontAwesomeIcon icon={faEnvelope} />
