@@ -14,8 +14,13 @@ export const useScheduleForm = (
     const getTodayAt = (hour, minute = 0) => {
         const date = new Date();
         date.setHours(hour, minute, 0, 0);
-        date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-        return date.toISOString().slice(0, 16);
+        // Format as local datetime-local input value without UTC conversion
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
     const [formData, setFormData] = useState({
@@ -55,8 +60,9 @@ export const useScheduleForm = (
 
         const payload = {
             doctor: selectedDoctor.value,
-            start_time: new Date(formData.start_time).toISOString(),
-            end_time: new Date(formData.end_time).toISOString(),
+            // Keep times as-is for timezone-aware Django backend
+            start_time: formData.start_time,
+            end_time: formData.end_time,
             is_blocked: formData.is_blocked,
             recurrence: formData.recurrence,
             recurrence_end_date: formData.recurrence_end_date || null,
@@ -106,8 +112,13 @@ export const useScheduleForm = (
     const populateEditForm = (schedule, doctors) => {
         const toLocalDatetimeInputValue = (isoString) => {
             const local = new Date(isoString);
-            local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
-            return local.toISOString().slice(0, 16);
+            // Format as local datetime-local input value without UTC conversion
+            const year = local.getFullYear();
+            const month = String(local.getMonth() + 1).padStart(2, '0');
+            const day = String(local.getDate()).padStart(2, '0');
+            const hours = String(local.getHours()).padStart(2, '0');
+            const minutes = String(local.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day}T${hours}:${minutes}`;
         };
 
         setEditingId(schedule.id);

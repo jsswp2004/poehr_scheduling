@@ -1,5 +1,8 @@
 from rest_framework import serializers
 from .models import Appointment, Availability, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -12,6 +15,22 @@ class AppointmentSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'provider': {'required': True},
         }
+
+    def to_internal_value(self, data):
+        # Debug logging for timezone issue
+        logger.info("=== APPOINTMENT SERIALIZER DEBUG ===")
+        logger.info(f"Raw incoming data: {data}")
+        logger.info(f"appointment_datetime in raw data: {data.get('appointment_datetime')}")
+        logger.info(f"Type of appointment_datetime: {type(data.get('appointment_datetime'))}")
+        
+        result = super().to_internal_value(data)
+        
+        logger.info(f"Processed internal value: {result}")
+        logger.info(f"appointment_datetime after processing: {result.get('appointment_datetime')}")
+        logger.info(f"Type after processing: {type(result.get('appointment_datetime'))}")
+        logger.info("=====================================")
+        
+        return result
 
     def validate(self, data):
         # Validate recurrence and recurrence_end_date

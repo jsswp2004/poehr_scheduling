@@ -53,15 +53,40 @@ export const calendarApi = {
 
     // Create appointment
     createAppointment: async (token, appointmentData) => {
+        // Debug logging for timezone issue
+        console.log('=== CALENDAR API CREATING APPOINTMENT ===');
+        console.log('appointmentData being sent:', JSON.stringify(appointmentData, null, 2));
+        console.log('appointment_datetime in data:', appointmentData.appointment_datetime);
+        console.log('typeof appointment_datetime:', typeof appointmentData.appointment_datetime);
+        console.log('=========================================');
+
         const api = createApiInstance(token);
         const response = await api.post("/appointments/", appointmentData);
+
+        console.log('=== CALENDAR APPOINTMENT CREATED RESPONSE ===');
+        console.log('Response data:', response.data);
+        console.log('=============================================');
+
         return response.data;
     },
 
     // Update appointment
     updateAppointment: async (token, appointmentId, appointmentData) => {
+        // Debug logging for timezone issue
+        console.log('=== CALENDAR API UPDATING APPOINTMENT ===');
+        console.log('appointmentId:', appointmentId);
+        console.log('appointmentData being sent:', JSON.stringify(appointmentData, null, 2));
+        console.log('appointment_datetime in data:', appointmentData.appointment_datetime);
+        console.log('typeof appointment_datetime:', typeof appointmentData.appointment_datetime);
+        console.log('=========================================');
+
         const api = createApiInstance(token);
         const response = await api.put(`/appointments/${appointmentId}/`, appointmentData);
+
+        console.log('=== CALENDAR APPOINTMENT UPDATED RESPONSE ===');
+        console.log('Response data:', response.data);
+        console.log('=============================================');
+
         return response.data;
     },
 
