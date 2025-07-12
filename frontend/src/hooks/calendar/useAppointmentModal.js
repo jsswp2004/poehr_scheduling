@@ -100,6 +100,7 @@ export const useAppointmentModal = (onUpdate, token) => {
             recurrence: appointmentData.recurrence || "none",
             appointment_datetime: localDatetimeString,
             provider: appointmentData.provider || null,
+            patient: appointmentData.patient || null, // Include patient ID for updates
         });
 
         setShowModal(true);
@@ -121,10 +122,16 @@ export const useAppointmentModal = (onUpdate, token) => {
         }
 
         try {
+            // Fix appointment_datetime format - add seconds if missing
+            let appointmentDateTime = modalFormData.appointment_datetime;
+            if (appointmentDateTime && !appointmentDateTime.includes(':00', appointmentDateTime.length - 3)) {
+                appointmentDateTime = appointmentDateTime + ':00';
+            }
+
             const appointmentData = {
                 ...modalFormData,
-                // Keep appointment_datetime as-is for timezone-aware Django backend
-                appointment_datetime: modalFormData.appointment_datetime,
+                // Ensure appointment_datetime has proper format with seconds
+                appointment_datetime: appointmentDateTime,
             };
 
             if (isEditing && editingId) {
