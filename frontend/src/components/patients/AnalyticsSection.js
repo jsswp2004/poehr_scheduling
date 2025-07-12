@@ -54,33 +54,6 @@ function AnalyticsSection({
     return (
         <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Box>
-                {/* Organization Header */}
-                {organizationData && (
-                    <Paper sx={{ p: 3, mb: 3, textAlign: 'center' }}>
-                        {organizationLogo && (
-                            <Box sx={{ mb: 2 }}>
-                                <img
-                                    src={organizationLogo}
-                                    alt="Organization Logo"
-                                    style={{
-                                        maxHeight: 60,
-                                        maxWidth: 200,
-                                        objectFit: 'contain',
-                                    }}
-                                />
-                            </Box>
-                        )}
-                        <Typography variant="h5" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
-                            {organizationData.name}
-                        </Typography>
-                        {organizationData.address && (
-                            <Typography variant="body2" color="text.secondary">
-                                {organizationData.address}
-                            </Typography>
-                        )}
-                    </Paper>
-                )}
-
                 {/* Analytics Sub-tabs */}
                 <Tabs
                     value={analyticsTab}
