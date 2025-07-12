@@ -45,9 +45,17 @@ export const useAppointmentModal = (onUpdate, token) => {
     // Open modal for new appointment
     const openNewAppointmentModal = useCallback((start, end) => {
         resetForm();
+        // Format as local datetime-local input value without UTC conversion
+        const year = start.getFullYear();
+        const month = String(start.getMonth() + 1).padStart(2, '0');
+        const day = String(start.getDate()).padStart(2, '0');
+        const hours = String(start.getHours()).padStart(2, '0');
+        const minutes = String(start.getMinutes()).padStart(2, '0');
+        const localDatetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+
         setModalFormData(prev => ({
             ...prev,
-            appointment_datetime: start.toISOString().slice(0, 16),
+            appointment_datetime: localDatetimeString,
         }));
         setShowModal(true);
     }, [resetForm]);
@@ -62,12 +70,35 @@ export const useAppointmentModal = (onUpdate, token) => {
         setIsEditing(true);
         setEditingId(appointmentData.id);
 
+        // Convert timezone-aware datetime to local datetime for editing
+        let localDatetimeString = "";
+        if (appointmentData.appointment_datetime) {
+            console.log('=== MODAL EDIT DATETIME CONVERSION ===');
+            console.log('Original datetime from backend:', appointmentData.appointment_datetime);
+            
+            // Parse the timezone-aware datetime and convert to local time
+            const appointmentDate = new Date(appointmentData.appointment_datetime);
+            console.log('Parsed as Date object:', appointmentDate);
+            console.log('Local time representation:', appointmentDate.toString());
+            
+            // Format as local datetime-local input value
+            const year = appointmentDate.getFullYear();
+            const month = String(appointmentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(appointmentDate.getDate()).padStart(2, '0');
+            const hours = String(appointmentDate.getHours()).padStart(2, '0');
+            const minutes = String(appointmentDate.getMinutes()).padStart(2, '0');
+            localDatetimeString = `${year}-${month}-${day}T${hours}:${minutes}`;
+            
+            console.log('Converted to local datetime input format:', localDatetimeString);
+            console.log('=====================================');
+        }
+
         setModalFormData({
             title: appointmentData.title || "New Clinic Visit",
             description: appointmentData.description || "",
             duration_minutes: appointmentData.duration_minutes || 30,
             recurrence: appointmentData.recurrence || "none",
-            appointment_datetime: appointmentData.appointment_datetime?.slice(0, 16) || "",
+            appointment_datetime: localDatetimeString,
             provider: appointmentData.provider || null,
         });
 
@@ -92,7 +123,8 @@ export const useAppointmentModal = (onUpdate, token) => {
         try {
             const appointmentData = {
                 ...modalFormData,
-                appointment_datetime: new Date(modalFormData.appointment_datetime).toISOString(),
+                // Keep appointment_datetime as-is for timezone-aware Django backend
+                appointment_datetime: modalFormData.appointment_datetime,
             };
 
             if (isEditing && editingId) {
