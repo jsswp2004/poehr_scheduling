@@ -71,6 +71,8 @@ function TeamTable({
                             <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Role</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                                 Actions
@@ -80,7 +82,7 @@ function TeamTable({
                     <TableBody>
                         {team.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
+                                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
                                     No team members found
                                 </TableCell>
                             </TableRow>
@@ -113,6 +115,16 @@ function TeamTable({
                                         <TableCell>
                                             <Typography variant="body2">
                                                 {member.email || 'N/A'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2">
+                                                {member.phone_number || 'N/A'}
+                                            </Typography>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Typography variant="body2">
+                                                {member.organization_name || 'No Organization'}
                                             </Typography>
                                         </TableCell>
                                         <TableCell>
