@@ -27,6 +27,7 @@ const ProfileForm = ({
     profileLoading,
     isSystemAdmin,
     availableRoles,
+    currentUser,
     fileInputRef,
     onProfileChange,
     onEditToggle,
@@ -36,6 +37,8 @@ const ProfileForm = ({
 }) => {
     return (
         <Box sx={{ marginBottom: 4 }}>
+
+
             {/* Header with Edit Controls */}
             <Stack
                 direction="row"
@@ -175,8 +178,10 @@ const ProfileForm = ({
 
                 {/* Roles Selection (System Admin only) */}
                 {isSystemAdmin && (
-                    <FormControl fullWidth disabled={!editingProfile}>
-                        <InputLabel>Roles</InputLabel>
+                    <Box>
+                        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
+                            Roles
+                        </Typography>
                         <CreatableSelect
                             isMulti
                             value={availableRoles.filter((role) =>
@@ -192,13 +197,74 @@ const ProfileForm = ({
                             isDisabled={!editingProfile}
                             placeholder="Select user roles..."
                             styles={{
-                                control: (base) => ({
+                                control: (base, state) => ({
                                     ...base,
                                     minHeight: 56, // Match MUI TextField height
+                                    backgroundColor: '#ffffff', // Solid white background
+                                    border: state.isFocused ? '2px solid #1976d2' : '1px solid #c4c4c4',
+                                    borderRadius: 4,
+                                    boxShadow: state.isFocused ? '0 0 0 1px #1976d2' : 'none',
+                                    '&:hover': {
+                                        borderColor: state.isFocused ? '#1976d2' : '#000',
+                                    },
+                                }),
+                                valueContainer: (base) => ({
+                                    ...base,
+                                    backgroundColor: '#ffffff', // Ensure value container has white background
+                                }),
+                                input: (base) => ({
+                                    ...base,
+                                    color: '#000', // Black text for input
+                                }),
+                                singleValue: (base) => ({
+                                    ...base,
+                                    color: '#000', // Black text for single values
+                                }),
+                                placeholder: (base) => ({
+                                    ...base,
+                                    color: '#999',
+                                    backgroundColor: 'transparent',
+                                }),
+                                menu: (base) => ({
+                                    ...base,
+                                    backgroundColor: '#ffffff', // White background for dropdown menu
+                                    border: '1px solid #c4c4c4',
+                                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+                                    zIndex: 9999,
+                                }),
+                                option: (base, state) => ({
+                                    ...base,
+                                    backgroundColor: state.isSelected
+                                        ? '#1976d2'
+                                        : state.isFocused
+                                            ? '#e3f2fd'
+                                            : '#ffffff',
+                                    color: state.isSelected ? '#ffffff' : '#000',
+                                    '&:hover': {
+                                        backgroundColor: state.isSelected ? '#1976d2' : '#e3f2fd',
+                                    },
+                                }),
+                                multiValue: (base) => ({
+                                    ...base,
+                                    backgroundColor: '#e3f2fd',
+                                }),
+                                multiValueLabel: (base) => ({
+                                    ...base,
+                                    color: '#1976d2',
+                                    backgroundColor: 'transparent',
+                                }),
+                                multiValueRemove: (base) => ({
+                                    ...base,
+                                    color: '#1976d2',
+                                    backgroundColor: 'transparent',
+                                    '&:hover': {
+                                        backgroundColor: '#1976d2',
+                                        color: 'white',
+                                    },
                                 }),
                             }}
                         />
-                    </FormControl>
+                    </Box>
                 )}
 
                 {/* Organization (Read-only) */}

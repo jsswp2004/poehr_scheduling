@@ -6,18 +6,18 @@ import PaymentMethodForm from '../PaymentMethodForm';
  * Step 3 of enrollment - Payment method information
  */
 const PaymentInfoStep = React.forwardRef(({
-    onPaymentMethodReady,
-    loading,
-    error
+  onPaymentMethodReady,
+  loading,
+  error
 }, ref) => {
-    return (
-        <PaymentMethodForm
-            ref={ref}
-            onPaymentMethodReady={onPaymentMethodReady}
-            loading={loading}
-            error={error}
-        />
-    );
+  return (
+    <PaymentMethodForm
+      ref={ref}
+      onPaymentMethodReady={onPaymentMethodReady}
+      loading={loading}
+      error={error}
+    />
+  );
 });
 
 PaymentInfoStep.displayName = 'PaymentInfoStep';

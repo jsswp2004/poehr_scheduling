@@ -41,8 +41,13 @@ export const useProfile = () => {
 
         setProfileLoading(true);
         try {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                throw new Error('No authentication token found');
+            }
+
             const response = await axios.put(
-                apiEndpoints.updateProfile(profile.id),
+                apiEndpoints.userUpdate(profile.id),
                 {
                     first_name: profile.first_name,
                     last_name: profile.last_name,
@@ -51,7 +56,7 @@ export const useProfile = () => {
                     roles: profile.roles,
                     is_active: profile.is_active,
                 },
-                { headers: getAuthHeaders() }
+                { headers: getAuthHeaders(token) }
             );
 
             setProfile(prev => ({ ...prev, ...response.data }));
@@ -71,14 +76,19 @@ export const useProfile = () => {
     const uploadProfilePicture = useCallback(async (file) => {
         if (!profile.id) return;
 
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+
         const formData = new FormData();
         formData.append("profile_picture", file);
 
         try {
             const response = await axios.put(
-                apiEndpoints.updateProfile(profile.id),
+                apiEndpoints.userUpdate(profile.id),
                 formData,
-                { headers: getAuthHeadersForUpload() }
+                { headers: getAuthHeadersForUpload(token) }
             );
 
             setProfile(prev => ({ ...prev, profile_picture: response.data.profile_picture }));
@@ -92,10 +102,15 @@ export const useProfile = () => {
     const deleteUser = useCallback(async () => {
         if (!profile.id) return;
 
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+
         try {
             await axios.delete(
-                apiEndpoints.deleteUser(profile.id),
-                { headers: getAuthHeaders() }
+                apiEndpoints.userDelete(profile.id),
+                { headers: getAuthHeaders(token) }
             );
         } catch (error) {
             console.error("Error deleting user:", error);
