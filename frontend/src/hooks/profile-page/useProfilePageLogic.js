@@ -4,7 +4,7 @@ import { toast } from '../../components/SimpleToast';
 import { USER_ROLES } from '../../config/constants';
 import { useAuth } from '../useAuth';
 import { useProfile } from '../useProfile';
-import { useSearch } from '../useSearch';
+import { useProfileSearch } from '../useProfileSearch';
 import { usePasswordChange } from '../usePasswordChange';
 
 /**
@@ -24,7 +24,6 @@ export const useProfilePageLogic = () => {
         setProfile,
         setEditingProfile,
         updateProfile,
-        uploadProfilePicture,
         deleteUser,
     } = useProfile();
     const {
@@ -32,24 +31,30 @@ export const useProfilePageLogic = () => {
         userSearchResults,
         searchLoading,
         showSearchResults,
+        currentPage,
+        totalPages,
+        totalResults,
         setSearchTerm,
         setShowSearchResults,
         searchUsers,
         selectUser,
-    } = useSearch();
+        handlePageChange,
+    } = useProfileSearch();
     const {
-        showPasswordChange,
+        showPasswordForm: showPasswordChange,
         passwordData,
-        passwordLoading,
-        setShowPasswordChange,
+        setShowPasswordForm: setShowPasswordChange,
         updatePasswordData,
-        changePassword,
+        handlePasswordChange: changePassword,
     } = usePasswordChange();
 
     // Available roles for system admin
     const availableRoles = [
         { value: USER_ROLES.ADMIN, label: "Admin" },
-        { value: USER_ROLES.THERAPIST, label: "Therapist" },
+        { value: USER_ROLES.SYSTEM_ADMIN, label: "System Admin" },
+        { value: USER_ROLES.DOCTOR, label: "Doctor" },
+        { value: USER_ROLES.REGISTRAR, label: "Registrar" },
+        { value: USER_ROLES.RECEPTIONIST, label: "Receptionist" },
         { value: USER_ROLES.PATIENT, label: "Patient" },
     ];
 
@@ -64,15 +69,50 @@ export const useProfilePageLogic = () => {
         }
     };
 
+    const uploadProfilePicture = async (file) => {
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            throw new Error('No authentication token found');
+        }
+
+        const formData = new FormData();
+        formData.append('profile_picture', file);
+
+        const response = await fetch(`http://127.0.0.1:8000/api/users/${profile.id}/`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                // Don't set Content-Type for FormData - let browser set it
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        const updatedUser = await response.json();
+
+        // Update the profile state with the new profile picture
+        setProfile(prevProfile => ({
+            ...prevProfile,
+            profile_picture: updatedUser.profile_picture
+        }));
+
+        return updatedUser;
+    };
+
     const handleFileUpload = async (event) => {
         const file = event.target.files[0];
         if (file) {
             try {
+                console.log('📁 Uploading file:', file.name, 'for user:', profile.id);
                 await uploadProfilePicture(file);
                 toast.success("Profile picture updated successfully!");
             } catch (error) {
                 console.error("Error uploading profile picture:", error);
-                toast.error("Failed to upload profile picture");
+                toast.error(`Failed to upload profile picture: ${error.message}`);
             }
         }
     };
@@ -106,14 +146,50 @@ export const useProfilePageLogic = () => {
     };
 
     const handleSearchChange = (value) => {
+        console.log('🔍 Search change:', { value, isSystemAdmin, currentUser });
         setSearchTerm(value);
+        // Don't automatically search on change, wait for search button click
+    };
+
+    const handleSearchSubmit = () => {
+        console.log('🔍 Search submit:', { searchTerm, isSystemAdmin });
         setShowSearchResults(true);
-        searchUsers(value);
+        searchUsers(searchTerm, 1); // Always start from page 1 on new search
     };
 
     const handleSelectUser = (user) => {
         selectUser(user);
         setShowSearchResults(false);
+        // Update profile to show selected user's information
+        setProfile({
+            id: user.id,
+            first_name: user.first_name || "",
+            last_name: user.last_name || "",
+            email: user.email || "",
+            username: user.username || "",
+            roles: user.roles || [],
+            profile_picture: user.profile_picture || "",
+            organization: user.organization || "",
+            is_active: user.is_active !== undefined ? user.is_active : true,
+        });
+    };
+
+    const handleResetToCurrentUser = () => {
+        if (currentUser) {
+            setProfile({
+                id: currentUser.id,
+                first_name: currentUser.first_name || "",
+                last_name: currentUser.last_name || "",
+                email: currentUser.email || "",
+                username: currentUser.username || "",
+                roles: currentUser.roles || [],
+                profile_picture: currentUser.profile_picture || "",
+                organization: currentUser.organization || "",
+                is_active: currentUser.is_active !== undefined ? currentUser.is_active : true,
+            });
+            setSearchTerm("");
+            setShowSearchResults(false);
+        }
     };
 
     const handleProfileCancel = () => {
@@ -135,9 +211,12 @@ export const useProfilePageLogic = () => {
         userSearchResults,
         searchLoading,
         showSearchResults,
+        currentPage,
+        totalPages,
+        totalResults,
         showPasswordChange,
         passwordData,
-        passwordLoading,
+        passwordLoading: false, // No loading state in password change
         availableRoles,
         fileInputRef,
 
@@ -145,6 +224,8 @@ export const useProfilePageLogic = () => {
         setProfile,
         setEditingProfile,
         setShowPasswordChange,
+        setSearchTerm,
+        setShowSearchResults,
         updatePasswordData,
 
         // Handlers
@@ -153,9 +234,12 @@ export const useProfilePageLogic = () => {
         handleDeleteUser,
         handlePasswordSubmit,
         handleSearchChange,
+        handleSearchSubmit,
         handleSelectUser,
         handleProfileCancel,
         handlePasswordCancel,
+        handleResetToCurrentUser,
+        handlePageChange,
 
         // Search functions
         searchUsers

@@ -15,11 +15,21 @@ export const useAuth = () => {
         if (token) {
             try {
                 const decoded = jwtDecode(token);
-                setCurrentUser({
+                console.log('🔑 JWT decoded:', { role: decoded.role, roles: decoded.roles, user_id: decoded.user_id });
+                const currentUserData = {
                     id: decoded.user_id,
                     role: decoded.role,
-                    // Add other decoded fields as needed
-                });
+                    username: decoded.username || '',
+                    first_name: decoded.first_name || '',
+                    last_name: decoded.last_name || '',
+                    email: decoded.email || '',
+                    organization: decoded.organization || '',
+                    profile_picture: decoded.profile_picture || '',
+                    is_active: decoded.is_active !== undefined ? decoded.is_active : true,
+                    roles: decoded.roles || [decoded.role], // Handle both single role and roles array
+                };
+                console.log('🔑 Setting currentUser:', currentUserData);
+                setCurrentUser(currentUserData);
             } catch (error) {
                 console.error('Failed to decode token:', error);
                 // Invalid token, remove it
@@ -46,11 +56,24 @@ export const useAuth = () => {
         updateToken(null);
     };
 
+    const isSystemAdmin = currentUser?.role === 'system_admin' ||
+        currentUser?.role === 'admin' ||
+        (currentUser?.roles && (currentUser.roles.includes('system_admin') || currentUser.roles.includes('admin')));
+
+    // Debug logging for auth
+    console.log('🔍 useAuth debug:', {
+        currentUser: currentUser,
+        role: currentUser?.role,
+        roles: currentUser?.roles,
+        isSystemAdmin
+    });
+
     return {
         token,
         currentUser,
         updateToken,
         logout,
         isAuthenticated: !!token,
+        isSystemAdmin,
     };
 };
