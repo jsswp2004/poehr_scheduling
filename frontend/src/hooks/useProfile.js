@@ -1,131 +1,172 @@
-import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { apiEndpoints, getAuthHeaders, getAuthHeadersForUpload } from '../config/api';
-import { notifyProfileUpdated } from '../utils/events';
-import { useAuth } from './useAuth';
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import {
+  apiEndpoints,
+  getAuthHeaders,
+  getAuthHeadersForUpload,
+} from "../config/api";
+import { notifyProfileUpdated } from "../utils/events";
+import { useAuth } from "./useAuth";
 
 /**
  * Custom hook for profile management
  */
 export const useProfile = () => {
-    const { currentUser } = useAuth();
+  const { currentUser } = useAuth();
 
-    const [profile, setProfile] = useState({
-        id: "",
-        first_name: "",
-        last_name: "",
-        email: "",
-        username: "",
-        roles: [],
-        profile_picture: "",
-        organization: "",
-        is_active: true,
-    });
+  const [profile, setProfile] = useState({
+    id: "",
+    first_name: "",
+    last_name: "",
+    email: "",
+    username: "",
+    roles: [],
+    profile_picture: "",
+    organization: "",
+    is_active: true,
+  });
 
-    const [editingProfile, setEditingProfile] = useState(false);
-    const [profileLoading, setProfileLoading] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
 
-    // Initialize profile with current user data
-    useEffect(() => {
-        if (currentUser) {
-            setProfile(prev => ({
-                ...prev,
-                ...currentUser,
-            }));
-        }
-    }, [currentUser]);
+  // Fetch current user's complete profile data
+  const fetchCurrentUserProfile = useCallback(async () => {
+    if (!currentUser?.id) return;
 
-    // Update profile
-    const updateProfile = useCallback(async () => {
-        if (!profile.id) return;
+    console.log("🔄 Fetching fresh profile data for user:", currentUser.id);
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        console.log("❌ No access token found");
+        return;
+      }
 
-        setProfileLoading(true);
-        try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                throw new Error('No authentication token found');
-            }
+      const response = await axios.get(apiEndpoints.user(currentUser.id), {
+        headers: getAuthHeaders(token),
+      });
 
-            const response = await axios.put(
-                apiEndpoints.userUpdate(profile.id),
-                {
-                    first_name: profile.first_name,
-                    last_name: profile.last_name,
-                    email: profile.email,
-                    username: profile.username,
-                    roles: profile.roles,
-                    is_active: profile.is_active,
-                },
-                { headers: getAuthHeaders(token) }
-            );
+      console.log("✅ Fresh profile data received:", response.data);
+      // Update profile with fresh data from API
+      setProfile((prevProfile) => ({
+        ...prevProfile,
+        ...response.data,
+      }));
+    } catch (error) {
+      console.error("❌ Error fetching current user profile:", error);
+    }
+  }, [currentUser?.id]);
 
-            setProfile(prev => ({ ...prev, ...response.data }));
-            setEditingProfile(false);
+  // Initialize profile with current user data
+  useEffect(() => {
+    if (currentUser) {
+      console.log("🔄 Initializing profile with currentUser:", currentUser);
+      setProfile((prev) => ({
+        ...prev,
+        ...currentUser,
+      }));
 
-            // Notify other components
-            notifyProfileUpdated(response.data);
-        } catch (error) {
-            console.error("Error updating profile:", error);
-            throw error;
-        } finally {
-            setProfileLoading(false);
-        }
-    }, [profile]);
+      // Fetch fresh profile data to ensure we have the latest profile picture
+      fetchCurrentUserProfile();
+    }
+  }, [currentUser, fetchCurrentUserProfile]);
 
-    // Upload profile picture
-    const uploadProfilePicture = useCallback(async (file) => {
-        if (!profile.id) return;
+  // Update profile
+  const updateProfile = useCallback(async () => {
+    if (!profile.id) return;
 
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            throw new Error('No authentication token found');
-        }
+    setProfileLoading(true);
+    try {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
 
-        const formData = new FormData();
-        formData.append("profile_picture", file);
+      const response = await axios.put(
+        apiEndpoints.userUpdate(profile.id),
+        {
+          first_name: profile.first_name,
+          last_name: profile.last_name,
+          email: profile.email,
+          username: profile.username,
+          roles: profile.roles,
+          is_active: profile.is_active,
+        },
+        { headers: getAuthHeaders(token) }
+      );
 
-        try {
-            const response = await axios.put(
-                apiEndpoints.userUpdate(profile.id),
-                formData,
-                { headers: getAuthHeadersForUpload(token) }
-            );
+      setProfile((prev) => ({ ...prev, ...response.data }));
+      setEditingProfile(false);
 
-            setProfile(prev => ({ ...prev, profile_picture: response.data.profile_picture }));
-        } catch (error) {
-            console.error("Error uploading profile picture:", error);
-            throw error;
-        }
-    }, [profile.id]);
+      // Notify other components
+      notifyProfileUpdated(response.data);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      throw error;
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [profile]);
 
-    // Delete user
-    const deleteUser = useCallback(async () => {
-        if (!profile.id) return;
+  // Upload profile picture
+  const uploadProfilePicture = useCallback(
+    async (file) => {
+      if (!profile.id) return;
 
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            throw new Error('No authentication token found');
-        }
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
 
-        try {
-            await axios.delete(
-                apiEndpoints.userDelete(profile.id),
-                { headers: getAuthHeaders(token) }
-            );
-        } catch (error) {
-            console.error("Error deleting user:", error);
-            throw error;
-        }
-    }, [profile.id]);
+      const formData = new FormData();
+      formData.append("profile_picture", file);
 
-    return {
-        profile,
-        setProfile,
-        editingProfile,
-        setEditingProfile,
-        profileLoading,
-        updateProfile,
-        uploadProfilePicture,
-        deleteUser,
-    };
+      try {
+        const response = await axios.put(
+          apiEndpoints.userUpdate(profile.id),
+          formData,
+          { headers: getAuthHeadersForUpload(token) }
+        );
+
+        setProfile((prev) => ({
+          ...prev,
+          profile_picture: response.data.profile_picture,
+        }));
+      } catch (error) {
+        console.error("Error uploading profile picture:", error);
+        throw error;
+      }
+    },
+    [profile.id]
+  );
+
+  // Delete user
+  const deleteUser = useCallback(async () => {
+    if (!profile.id) return;
+
+    const token = localStorage.getItem("access_token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    try {
+      await axios.delete(apiEndpoints.userDelete(profile.id), {
+        headers: getAuthHeaders(token),
+      });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
+  }, [profile.id]);
+
+  return {
+    profile,
+    setProfile,
+    editingProfile,
+    setEditingProfile,
+    profileLoading,
+    fetchCurrentUserProfile,
+    updateProfile,
+    uploadProfilePicture,
+    deleteUser,
+  };
 };
