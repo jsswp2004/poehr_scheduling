@@ -17,6 +17,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CreatableSelect from 'react-select/creatable';
+import { apiEndpoints } from '../../config/api';
 
 /**
  * Profile form component for editing user information
@@ -85,7 +86,7 @@ const ProfileForm = ({
             {/* Profile Picture Section */}
             <Box sx={{ display: "flex", alignItems: "center", marginBottom: 3 }}>
                 <Avatar
-                    src={profile.profile_picture}
+                    src={profile.profile_picture ? `http://127.0.0.1:8000${profile.profile_picture}` : undefined}
                     sx={{
                         width: 80,
                         height: 80,
