@@ -30,7 +30,10 @@ export const useAuth = () => {
                     is_active: decoded.is_active !== undefined ? decoded.is_active : true,
                     roles: decoded.roles || [decoded.role], // Handle both single role and roles array
                 };
+                console.log('🔑 JWT decoded full data:', decoded);
                 console.log('🔑 Setting currentUser:', currentUserData);
+                console.log('📧 JWT email:', decoded.email);
+                console.log('📱 JWT phone_number:', decoded.phone_number);
                 setCurrentUser(currentUserData);
             } catch (error) {
                 console.error('Failed to decode token:', error);

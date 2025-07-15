@@ -37,6 +37,11 @@ const UserInfoPanel = ({
   onTempPhoneChange,
   onTempSmsConsentChange,
 }) => {
+  // Debug logging
+  console.log('👤 UserInfoPanel currentUser:', currentUser);
+  console.log('📧 Email:', currentUser?.email);
+  console.log('📱 Phone:', currentUser?.phone_number);
+
   if (!currentUser) {
     return (
       <Paper elevation={2} sx={{ padding: 3 }}>
@@ -80,6 +85,7 @@ const UserInfoPanel = ({
               fullWidth
               disabled
               variant="outlined"
+              helperText={`Debug: email value is "${currentUser.email || "EMPTY"}"`}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -95,7 +101,7 @@ const UserInfoPanel = ({
                 fullWidth
                 disabled={!phoneEditing}
                 variant="outlined"
-                helperText={phoneEditing ? "Enter your phone number" : ""}
+                helperText={phoneEditing ? "Enter your phone number" : `Debug: phone value is "${currentUser.phone_number || "EMPTY"}"`}
               />
               <Box sx={{ mt: 1 }}>
                 {phoneEditing ? (
