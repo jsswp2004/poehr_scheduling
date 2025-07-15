@@ -24,6 +24,7 @@ const ScheduleOverview = ({
                     tableRef={availabilityTableRef}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    sx={{ flex: 1, minWidth: '500px' }}
                 />
 
                 {/* Blocked Section */}
@@ -34,6 +35,7 @@ const ScheduleOverview = ({
                     tableRef={blockedTableRef}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    sx={{ flex: 1, minWidth: '500px' }}
                 />
             </Box>
         </Box>
