@@ -48,6 +48,8 @@ export const useProfile = () => {
             });
 
             console.log("✅ Fresh profile data received:", response.data);
+            console.log("📧 Profile email:", response.data.email);
+            console.log("📱 Profile phone_number:", response.data.phone_number);
             // Update profile with fresh data from API
             setProfile((prevProfile) => ({
                 ...prevProfile,
