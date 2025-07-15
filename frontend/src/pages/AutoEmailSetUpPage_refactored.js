@@ -26,10 +26,9 @@ import { EmailSettingsPanel, EmailLogsPanel } from '../components/auto-email';
 function AutoEmailSetUpPage() {
     // Email settings management
     const emailSettings = useEmailSettings();
-    const { getAuthToken } = emailSettings;
 
     // Email execution and statistics
-    const emailExecution = useEmailExecution(getAuthToken);
+    const emailExecution = useEmailExecution();
 
     return (
         <Box

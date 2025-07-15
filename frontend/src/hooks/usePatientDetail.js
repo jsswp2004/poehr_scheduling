@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from '../components/SimpleToast';
+import { apiEndpoints } from '../config/api';
 
 export const usePatientDetail = (patientId) => {
     const navigate = useNavigate();
@@ -174,10 +175,11 @@ export const usePatientDetail = (patientId) => {
 
         try {
             await axios.post(
-                'http://127.0.0.1:8000/api/admin/reset-user-password/',
+                apiEndpoints.adminChangePassword,
                 {
-                    user_id: patient.user_id,
+                    target_user_id: patient.user_id,
                     new_password: tempPassword,
+                    confirm_password: tempPassword,
                     admin_password: adminPassword,
                 },
                 {

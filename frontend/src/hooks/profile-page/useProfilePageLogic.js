@@ -23,7 +23,6 @@ export const useProfilePageLogic = () => {
         profileLoading,
         setProfile,
         setEditingProfile,
-        fetchCurrentUserProfile,
         updateProfile,
         deleteUser,
     } = useProfile();
@@ -190,9 +189,6 @@ export const useProfilePageLogic = () => {
             });
             setSearchTerm("");
             setShowSearchResults(false);
-
-            // Fetch fresh profile data to ensure we have the latest profile picture
-            fetchCurrentUserProfile();
         }
     };
 
