@@ -65,14 +65,22 @@ export const useAppointments = () => {
     }, []);
 
     // Create appointment
-    const createAppointment = useCallback(async () => {
+    const createAppointment = useCallback(async (currentUserId) => {
         try {
             setLoading(true);
             const token = getToken();
-            console.log('💾 Creating appointment with data:', formData);
+
+            // Prepare the appointment data with required fields
+            const appointmentData = {
+                ...formData,
+                patient: currentUserId, // Add the current user's ID as patient
+                provider: formData.provider, // This should be just the provider ID
+            };
+
+            console.log('💾 Creating appointment with data:', appointmentData);
             const response = await axios.post(
                 apiEndpoints.appointments,
-                formData,
+                appointmentData,
                 { headers: getAuthHeaders(token) }
             );
 
