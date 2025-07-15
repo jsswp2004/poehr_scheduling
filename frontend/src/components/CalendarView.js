@@ -7,7 +7,7 @@
  * - Utilities extracted for reusability
  * - Better separation of concerns
  */
-import React, { useCallback } from "react";
+import React, { useCallback, memo, useState, useRef, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -26,7 +26,11 @@ import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
 
 const localizer = momentLocalizer(moment);
 
-function CalendarView({ onUpdate, showBackButton = true }) {
+const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = true }) {
+  // Local search state that updates immediately for responsive typing
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
+  const searchTimeoutRef = useRef(null);
+
   // Custom hooks for data and functionality
   const {
     events,
@@ -46,6 +50,11 @@ function CalendarView({ onUpdate, showBackButton = true }) {
     token,
     refetchData,
   } = useCalendarData();
+
+  // Sync local search with the debounced search from the hook
+  useEffect(() => {
+    setLocalSearchQuery(searchQuery);
+  }, [searchQuery]);
 
   const appointmentModal = useAppointmentModal(onUpdate || refetchData, token);
   const availabilityModal = useAvailabilityModal(availabilityEvents);
@@ -119,7 +128,19 @@ function CalendarView({ onUpdate, showBackButton = true }) {
 
   const handleSearchChange = useCallback(
     (e) => {
-      setSearchQuery(e.target.value);
+      const value = e.target.value;
+      // Update local state immediately for responsive typing
+      setLocalSearchQuery(value);
+
+      // Clear existing timeout
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+
+      // Set new timeout to update the actual search query (which triggers filtering)
+      searchTimeoutRef.current = setTimeout(() => {
+        setSearchQuery(value);
+      }, 300);
     },
     [setSearchQuery]
   );
@@ -136,6 +157,18 @@ function CalendarView({ onUpdate, showBackButton = true }) {
       });
     },
     [doctors, appointmentModal]
+  );
+
+  // Memoize the toolbar component to prevent re-creation on every render
+  const toolbarComponent = useCallback(
+    (props) => (
+      <CustomToolbar
+        {...props}
+        searchQuery={localSearchQuery}
+        onSearchChange={handleSearchChange}
+      />
+    ),
+    [localSearchQuery, handleSearchChange]
   );
 
   // Loading state
@@ -180,13 +213,7 @@ function CalendarView({ onUpdate, showBackButton = true }) {
           views={["month", "week", "work_week", "day", "agenda"]}
           dayPropGetter={dayPropGetter}
           components={{
-            toolbar: (props) => (
-              <CustomToolbar
-                {...props}
-                searchQuery={searchQuery}
-                onSearchChange={handleSearchChange}
-              />
-            ),
+            toolbar: toolbarComponent,
           }}
           eventPropGetter={(event) => {
             let backgroundColor = "#3174ad";
@@ -244,6 +271,6 @@ function CalendarView({ onUpdate, showBackButton = true }) {
       </Box>
     </Box>
   );
-}
+});
 
 export default CalendarView;

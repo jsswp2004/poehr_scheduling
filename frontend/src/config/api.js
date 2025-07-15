@@ -40,8 +40,12 @@ export const apiEndpoints = {
     availableSlots: (doctorId, date) => `${API_BASE_URL}/api/doctors/${doctorId}/available-dates/`,
 
     // Authentication endpoints
-    changePassword: `${API_BASE_URL}/api/users/change-password/`,
+    changePassword: `${API_BASE_URL}/api/auth/change-password/`,
     adminChangePassword: `${API_BASE_URL}/api/users/admin-change-password/`,
+
+    // Communication endpoints
+    sendEmail: `${API_BASE_URL}/api/auth/send-email/`,
+    sendSMS: `${API_BASE_URL}/api/auth/send-sms/`,
 
     // Media endpoints
     profilePicture: (id) => `${API_BASE_URL}/api/users/${id}/`,

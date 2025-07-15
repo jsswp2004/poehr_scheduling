@@ -35,11 +35,9 @@ export const useProfile = () => {
     const fetchCurrentUserProfile = useCallback(async () => {
         if (!currentUser?.id) return;
 
-        console.log("🔄 Fetching fresh profile data for user:", currentUser.id);
         try {
             const token = localStorage.getItem("access_token");
             if (!token) {
-                console.log("❌ No access token found");
                 return;
             }
 
@@ -47,9 +45,6 @@ export const useProfile = () => {
                 headers: getAuthHeaders(token),
             });
 
-            console.log("✅ Fresh profile data received:", response.data);
-            console.log("📧 Profile email:", response.data.email);
-            console.log("📱 Profile phone_number:", response.data.phone_number);
             // Update profile with fresh data from API
             setProfile((prevProfile) => ({
                 ...prevProfile,
@@ -63,7 +58,6 @@ export const useProfile = () => {
     // Initialize profile with current user data
     useEffect(() => {
         if (currentUser) {
-            console.log("🔄 Initializing profile with currentUser:", currentUser);
             setProfile((prev) => ({
                 ...prev,
                 ...currentUser,
@@ -127,8 +121,6 @@ export const useProfile = () => {
             const updateData = {
                 [fieldName]: fieldValue,
             };
-
-            console.log('🔄 Updating profile field:', { fieldName, fieldValue, updateData, userId: currentUser.id });
 
             const response = await axios.patch(
                 apiEndpoints.userUpdate(currentUser.id),

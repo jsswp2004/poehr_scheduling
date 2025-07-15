@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 export const useAnnouncementTabs = () => {
     const [activeTab, setActiveTab] = useState(0);
-    const [editingTab, setEditingTab] = useState(null);
+    const [editingTab, setEditingTab] = useState(0); // Initialize to 0 instead of null
 
     const handleTabChange = (event, newValue) => {
         setActiveTab(newValue);

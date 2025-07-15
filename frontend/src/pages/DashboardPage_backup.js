@@ -11,26 +11,30 @@ import {
   TextField,
   Button,
   IconButton,
-  FormControl,
-  InputLabel,
+  FormCo  if (!currentUser || !userWithProfile) {
+    return <LoadingSpinner message="Loading dashboard..." />;
+  }
+
+  return (utLabel,
   Select,
   MenuItem,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import axios from "axios";
-import { apiEndpoints, getAuthHeaders } from "../config/api";
 import CalendarView from "../components/CalendarView";
-import CommunicationPanel from "../components/dashboard/CommunicationPanel";
-import UserInfoPanel from "../components/dashboard/UserInfoPanel";
 import AnnouncementDisplay from "../components/AnnouncementDisplay";
-import LoadingSpinner from "../components/common/LoadingSpinner";
-import BackButton from "../components/BackButton";
 import { useAuth } from "../hooks/useAuth";
-import { useProfile } from "../hooks/useProfile";
 import { useAppointments } from "../hooks/useAppointments";
 import { useCommunication } from "../hooks/useCommunication";
 import { useDoctors } from "../hooks/useDoctors";
+import { useProfile } from "../hooks/useProfile";
+import {
+  AppointmentForm,
+  AppointmentsList,
+  CommunicationPanel,
+  UserInfoPanel,
+} from "../components/dashboard";
+import LoadingSpinner from "../components/common/LoadingSpinner";
 
 function DashboardPage() {
   const [tab, setTab] = useState("myinfo");
@@ -80,12 +84,6 @@ function DashboardPage() {
   const [smsConsentEditing, setSmsConsentEditing] = useState(false);
   const [tempPhoneNumber, setTempPhoneNumber] = useState("");
   const [tempSmsConsent, setTempSmsConsent] = useState(false);
-  const [passwordChanging, setPasswordChanging] = useState(false);
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: "",
-  });
 
   // Handlers
   const handleDoctorChange = (doctor) => {
@@ -176,74 +174,6 @@ function DashboardPage() {
     setSmsConsentEditing(false);
   };
 
-  // Password change handlers
-  const handlePasswordEdit = () => {
-    setPasswordForm({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-    setPasswordChanging(true);
-  };
-
-  const handlePasswordCancel = () => {
-    setPasswordForm({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
-    setPasswordChanging(false);
-  };
-
-  const handlePasswordSave = async () => {
-    try {
-      // Use axios and the API configuration like other hooks
-      const token = localStorage.getItem("authToken");
-      const response = await axios.post(
-        apiEndpoints.changePassword,
-        {
-          current_password: passwordForm.currentPassword,
-          new_password: passwordForm.newPassword,
-          confirm_password: passwordForm.confirmPassword,
-        },
-        {
-          headers: getAuthHeaders(token),
-        }
-      );
-
-      // Success
-      setPasswordChanging(false);
-      setPasswordForm({
-        currentPassword: "",
-        newPassword: "",
-        confirmPassword: "",
-      });
-      alert("Password changed successfully!");
-      console.log("Password changed successfully:", response.data.detail);
-    } catch (error) {
-      console.error("Error changing password:", error);
-
-      // Handle error response
-      let errorMessage = "Failed to change password";
-      if (error.response?.data?.detail) {
-        errorMessage = error.response.data.detail;
-      } else if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      alert(`Error changing password: ${errorMessage}`);
-    }
-  };
-
-  const handlePasswordFormChange = (field, value) => {
-    setPasswordForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
   // Create a merged user object with complete profile data
   const userWithProfile = currentUser
     ? {
@@ -255,6 +185,14 @@ function DashboardPage() {
   if (!currentUser || !userWithProfile) {
     return <LoadingSpinner message="Loading dashboard..." />;
   }
+
+  // Debug: Check user data and doctors
+  console.log("👤 DashboardPage currentUser:", currentUser);
+  console.log("� DashboardPage profile:", profile);
+  console.log("👤 DashboardPage userWithProfile:", userWithProfile);
+  console.log("📧 DashboardPage email:", userWithProfile?.email);
+  console.log("📱 DashboardPage phone:", userWithProfile?.phone_number);
+  console.log("🩺 Doctors data:", doctors, "Length:", doctors?.length);
 
   return (
     <Box sx={{ mt: 0, p: 3, maxWidth: "100%", mx: "auto" }}>
@@ -270,17 +208,9 @@ function DashboardPage() {
             overflow: "auto",
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              mb: 0,
-            }}
-          >
-            <Typography variant="h5">Patient Portal</Typography>
-            <BackButton />
-          </Box>
+          <Typography variant="h5" sx={{ mb: 0 }}>
+            Patient Portal
+          </Typography>
           <Tabs
             value={tab}
             onChange={(_, val) => setTab(val)}
@@ -310,12 +240,6 @@ function DashboardPage() {
               onSmsConsentSave={handleSmsConsentSave}
               onTempPhoneChange={setTempPhoneNumber}
               onTempSmsConsentChange={setTempSmsConsent}
-              passwordChanging={passwordChanging}
-              onPasswordEdit={handlePasswordEdit}
-              onPasswordCancel={handlePasswordCancel}
-              onPasswordSave={handlePasswordSave}
-              passwordForm={passwordForm}
-              onPasswordFormChange={handlePasswordFormChange}
             />
           )}
 
@@ -602,7 +526,6 @@ function DashboardPage() {
                 appointments={appointments}
                 refreshFlag={refreshFlag}
                 onAppointmentClick={handleEditAppointment}
-                showBackButton={false}
               />
             </Box>
           )}

@@ -53,10 +53,19 @@ export const useCommunication = () => {
 
         try {
             setEmailSending(true);
+            const token = localStorage.getItem('authToken');
+
+            // Transform data to match Django backend expectations
+            const emailData = {
+                email: emailForm.to, // Backend expects 'email', not 'to'
+                subject: emailForm.subject,
+                message: emailForm.message,
+            };
+
             await axios.post(
                 apiEndpoints.sendEmail,
-                emailForm,
-                { headers: getAuthHeaders() }
+                emailData,
+                { headers: getAuthHeaders(token) }
             );
 
             setMessageSent(true);
@@ -76,7 +85,15 @@ export const useCommunication = () => {
             setTimeout(() => setMessageSent(false), 3000);
         } catch (error) {
             console.error('Error sending email:', error);
-            toast.error('Failed to send email');
+            let errorMessage = 'Failed to send email';
+            if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
+            } else if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            toast.error(errorMessage);
         } finally {
             setEmailSending(false);
         }
@@ -91,10 +108,12 @@ export const useCommunication = () => {
 
         try {
             setSmsSending(true);
+            const token = localStorage.getItem('authToken');
+
             await axios.post(
                 apiEndpoints.sendSMS,
                 smsForm,
-                { headers: getAuthHeaders() }
+                { headers: getAuthHeaders(token) }
             );
 
             setSMSSent(true);
@@ -110,7 +129,15 @@ export const useCommunication = () => {
             setTimeout(() => setSMSSent(false), 3000);
         } catch (error) {
             console.error('Error sending SMS:', error);
-            toast.error('Failed to send SMS');
+            let errorMessage = 'Failed to send SMS';
+            if (error.response?.data?.error) {
+                errorMessage = error.response.data.error;
+            } else if (error.response?.data?.detail) {
+                errorMessage = error.response.data.detail;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            toast.error(errorMessage);
         } finally {
             setSmsSending(false);
         }
