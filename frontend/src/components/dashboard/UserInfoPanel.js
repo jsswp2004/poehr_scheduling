@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Stack,
@@ -12,12 +12,14 @@ import {
   IconButton,
   Divider,
   Grid,
+  Alert,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import PhoneIcon from "@mui/icons-material/Phone";
 import EmailIcon from "@mui/icons-material/Email";
+import LockIcon from "@mui/icons-material/Lock";
 
 /**
  * User information panel component
@@ -36,12 +38,13 @@ const UserInfoPanel = ({
   onSmsConsentSave,
   onTempPhoneChange,
   onTempSmsConsentChange,
+  passwordChanging,
+  onPasswordEdit,
+  onPasswordCancel,
+  onPasswordSave,
+  passwordForm,
+  onPasswordFormChange,
 }) => {
-  // Debug logging
-  console.log('👤 UserInfoPanel currentUser:', currentUser);
-  console.log('📧 Email:', currentUser?.email);
-  console.log('📱 Phone:', currentUser?.phone_number);
-
   if (!currentUser) {
     return (
       <Paper elevation={2} sx={{ padding: 3 }}>
@@ -85,7 +88,6 @@ const UserInfoPanel = ({
               fullWidth
               disabled
               variant="outlined"
-              helperText={`Debug: email value is "${currentUser.email || "EMPTY"}"`}
             />
           </Grid>
           <Grid item xs={12} sm={6}>
@@ -101,7 +103,7 @@ const UserInfoPanel = ({
                 fullWidth
                 disabled={!phoneEditing}
                 variant="outlined"
-                helperText={phoneEditing ? "Enter your phone number" : `Debug: phone value is "${currentUser.phone_number || "EMPTY"}"`}
+                helperText={phoneEditing ? "Enter your phone number" : ""}
               />
               <Box sx={{ mt: 1 }}>
                 {phoneEditing ? (
@@ -192,6 +194,87 @@ const UserInfoPanel = ({
               )}
             </Box>
           </Box>
+        </Paper>
+      )}
+
+      {/* Password Change Section for Patients */}
+      {currentUser.role === "patient" && (
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Change Password
+          </Typography>
+
+          <Alert severity="info" sx={{ mb: 2 }}>
+            Please change your password after you log in with your temporary password
+          </Alert>
+
+          {passwordChanging ? (
+            <Stack spacing={2}>
+              <TextField
+                label="Current Password"
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={(e) => onPasswordFormChange('currentPassword', e.target.value)}
+                fullWidth
+                required
+              />
+              <TextField
+                label="New Password"
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={(e) => onPasswordFormChange('newPassword', e.target.value)}
+                fullWidth
+                required
+                helperText="Password must be at least 8 characters"
+              />
+              <TextField
+                label="Confirm New Password"
+                type="password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => onPasswordFormChange('confirmPassword', e.target.value)}
+                fullWidth
+                required
+                error={passwordForm.newPassword !== passwordForm.confirmPassword && passwordForm.confirmPassword !== ''}
+                helperText={
+                  passwordForm.newPassword !== passwordForm.confirmPassword && passwordForm.confirmPassword !== ''
+                    ? "Passwords do not match"
+                    : ""
+                }
+              />
+              <Stack direction="row" spacing={1}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={onPasswordSave}
+                  disabled={
+                    !passwordForm.currentPassword ||
+                    !passwordForm.newPassword ||
+                    !passwordForm.confirmPassword ||
+                    passwordForm.newPassword !== passwordForm.confirmPassword ||
+                    passwordForm.newPassword.length < 8
+                  }
+                >
+                  Change Password
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={onPasswordCancel}
+                >
+                  Cancel
+                </Button>
+              </Stack>
+            </Stack>
+          ) : (
+            <Button
+              size="small"
+              startIcon={<LockIcon />}
+              onClick={onPasswordEdit}
+              variant="outlined"
+            >
+              Change My Password
+            </Button>
+          )}
         </Paper>
       )}
     </Stack>

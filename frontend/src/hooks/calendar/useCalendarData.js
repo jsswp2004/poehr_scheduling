@@ -1,7 +1,7 @@
 /**
  * Custom hook for managing calendar data
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
 import { calendarApi } from "../../utils/calendar/calendarApi";
@@ -16,7 +16,7 @@ import { getDefaultView } from "../../utils/calendar/dateUtils";
 
 export const useCalendarData = () => {
     // State
-    const [events, setEvents] = useState([]);
+    const [allEvents, setAllEvents] = useState([]); // Store all events separately
     const [doctors, setDoctors] = useState([]);
     const [clinicEvents, setClinicEvents] = useState([]);
     const [holidays, setHolidays] = useState([]);
@@ -24,6 +24,7 @@ export const useCalendarData = () => {
     const [environmentSettings, setEnvironmentSettings] = useState(null);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [searchQuery, setSearchQuery] = useState("");
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
 
     // User and authentication
@@ -40,6 +41,15 @@ export const useCalendarData = () => {
     }
 
     const [currentView, setCurrentView] = useState(getDefaultView(userRole));
+
+    // Debounce search query to improve performance
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 500); // Increased to 500ms debounce for better performance
+
+        return () => clearTimeout(timer);
+    }, [searchQuery]);
 
     // Fetch all calendar data
     const fetchAllData = useCallback(async () => {
@@ -89,7 +99,7 @@ export const useCalendarData = () => {
                 ...holidayEvents,
             ];
 
-            setEvents(allEvents);
+            setAllEvents(allEvents); // Store all events
             setAvailabilityEvents(availEvents);
             setDoctors(doctorsData);
             setClinicEvents(clinicEventsData);
@@ -108,8 +118,10 @@ export const useCalendarData = () => {
         fetchAllData();
     }, [fetchAllData]);
 
-    // Filter events based on search
-    const filteredEvents = filterEventsBySearch(events, searchQuery);
+    // Memoized filtered events to prevent unnecessary re-calculations
+    const filteredEvents = useMemo(() => {
+        return filterEventsBySearch(allEvents, debouncedSearchQuery);
+    }, [allEvents, debouncedSearchQuery]);
 
     return {
         // Data

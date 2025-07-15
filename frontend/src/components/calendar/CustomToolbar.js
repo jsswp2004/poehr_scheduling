@@ -1,7 +1,7 @@
 /**
  * CustomToolbar component for the calendar
  */
-import React, { useState } from "react";
+import React, { useState, useCallback, memo } from "react";
 import {
     TextField,
     IconButton,
@@ -11,7 +11,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
-const CustomToolbar = ({
+const CustomToolbar = memo(function CustomToolbar({
     date,
     label,
     onNavigate,
@@ -20,8 +20,13 @@ const CustomToolbar = ({
     onView,
     searchQuery,
     onSearchChange,
-}) => {
+}) {
     const [showPicker, setShowPicker] = useState(false);
+
+    // Memoize the clear search handler
+    const handleClearSearch = useCallback(() => {
+        onSearchChange({ target: { value: "" } });
+    }, [onSearchChange]);
 
     return (
         <div className="rbc-toolbar d-flex align-items-center justify-content-between mb-2">
@@ -51,7 +56,7 @@ const CustomToolbar = ({
                         endAdornment: searchQuery && (
                             <IconButton
                                 size="small"
-                                onClick={() => onSearchChange({ target: { value: "" } })}
+                                onClick={handleClearSearch}
                                 sx={{
                                     position: "absolute",
                                     right: 0,
@@ -125,8 +130,8 @@ const CustomToolbar = ({
                             key={viewName}
                             type="button"
                             className={`btn btn-sm ${view === viewName
-                                    ? "btn-primary"
-                                    : "btn-outline-secondary"
+                                ? "btn-primary"
+                                : "btn-outline-secondary"
                                 }`}
                             onClick={() => onView(viewName)}
                         >
@@ -137,6 +142,6 @@ const CustomToolbar = ({
             </div>
         </div>
     );
-};
+});
 
 export default CustomToolbar;
