@@ -87,18 +87,10 @@ const ProfileForm = ({
             <Box sx={{ display: "flex", alignItems: "center", marginBottom: 3 }}>
                 <Avatar
                     src={(() => {
-                        let imageUrl = undefined;
-                        if (profile.profile_picture) {
-                            // Check if it's already a full URL or a relative path
-                            if (profile.profile_picture.startsWith('http')) {
-                                imageUrl = profile.profile_picture;
-                            } else {
-                                imageUrl = `http://127.0.0.1:8000${profile.profile_picture}`;
-                            }
-                        }
+                        const imageUrl = profile.profile_picture ? `http://127.0.0.1:8000${profile.profile_picture}` : undefined;
                         console.log('🖼️ Profile Picture Debug:', {
-                            original: profile.profile_picture,
-                            processed: imageUrl,
+                            profilePicture: profile.profile_picture,
+                            imageUrl: imageUrl,
                             firstName: profile.first_name,
                             lastName: profile.last_name,
                             profileId: profile.id

@@ -31,6 +31,14 @@ export const apiEndpoints = {
     // Organization endpoints
     organizations: `${API_BASE_URL}/api/users/organizations/`,
 
+    // Doctor endpoints
+    doctors: `${API_BASE_URL}/api/users/doctors/`,
+
+    // Appointment endpoints
+    appointments: `${API_BASE_URL}/api/appointments/`,
+    appointment: (id) => `${API_BASE_URL}/api/appointments/${id}/`,
+    availableSlots: (doctorId, date) => `${API_BASE_URL}/api/doctors/${doctorId}/available-dates/`,
+
     // Authentication endpoints
     changePassword: `${API_BASE_URL}/api/users/change-password/`,
     adminChangePassword: `${API_BASE_URL}/api/users/admin-change-password/`,

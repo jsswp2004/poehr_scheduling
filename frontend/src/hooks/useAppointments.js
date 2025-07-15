@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { apiEndpoints, getAuthHeaders } from '../config/api';
 import { toast } from '../components/SimpleToast';
+import { STORAGE_KEYS } from '../config/constants';
 
 /**
  * Custom hook for appointment management
@@ -23,12 +24,16 @@ export const useAppointments = () => {
         provider: null,
     });
 
+    // Helper to get token
+    const getToken = () => localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+
     // Load appointments
     const loadAppointments = useCallback(async () => {
         try {
             setLoading(true);
+            const token = getToken();
             const response = await axios.get(apiEndpoints.appointments, {
-                headers: getAuthHeaders(),
+                headers: getAuthHeaders(token),
             });
             setAppointments(response.data);
         } catch (error) {
@@ -44,13 +49,17 @@ export const useAppointments = () => {
         if (!providerId || !date) return;
 
         try {
+            const token = getToken();
+            console.log('🔍 Loading available slots for provider:', providerId, 'date:', date);
             const response = await axios.get(
                 apiEndpoints.availableSlots(providerId, date),
-                { headers: getAuthHeaders() }
+                { headers: getAuthHeaders(token) }
             );
+            console.log('📅 Available slots response:', response.data);
             setAvailableSlots(response.data);
         } catch (error) {
             console.error('Error loading available slots:', error);
+            console.error('Error details:', error.response?.data);
             toast.error('Failed to load available slots');
         }
     }, []);
@@ -59,10 +68,12 @@ export const useAppointments = () => {
     const createAppointment = useCallback(async () => {
         try {
             setLoading(true);
+            const token = getToken();
+            console.log('💾 Creating appointment with data:', formData);
             const response = await axios.post(
                 apiEndpoints.appointments,
                 formData,
-                { headers: getAuthHeaders() }
+                { headers: getAuthHeaders(token) }
             );
 
             setAppointments(prev => [...prev, response.data]);
@@ -79,6 +90,7 @@ export const useAppointments = () => {
             return response.data;
         } catch (error) {
             console.error('Error creating appointment:', error);
+            console.error('Error details:', error.response?.data);
             toast.error('Failed to create appointment');
             throw error;
         } finally {
@@ -90,10 +102,11 @@ export const useAppointments = () => {
     const updateAppointment = useCallback(async (id, data) => {
         try {
             setLoading(true);
+            const token = getToken();
             const response = await axios.put(
                 apiEndpoints.appointment(id),
                 data,
-                { headers: getAuthHeaders() }
+                { headers: getAuthHeaders(token) }
             );
 
             setAppointments(prev =>
@@ -107,6 +120,7 @@ export const useAppointments = () => {
             return response.data;
         } catch (error) {
             console.error('Error updating appointment:', error);
+            console.error('Error details:', error.response?.data);
             toast.error('Failed to update appointment');
             throw error;
         } finally {
@@ -117,8 +131,9 @@ export const useAppointments = () => {
     // Delete appointment
     const deleteAppointment = useCallback(async (id) => {
         try {
+            const token = getToken();
             await axios.delete(apiEndpoints.appointment(id), {
-                headers: getAuthHeaders(),
+                headers: getAuthHeaders(token),
             });
 
             setAppointments(prev => prev.filter(apt => apt.id !== id));

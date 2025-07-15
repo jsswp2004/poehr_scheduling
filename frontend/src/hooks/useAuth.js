@@ -25,6 +25,8 @@ export const useAuth = () => {
                     email: decoded.email || '',
                     organization: decoded.organization || '',
                     profile_picture: decoded.profile_picture || '',
+                    phone_number: decoded.phone_number || '',
+                    sms_consent: decoded.sms_consent || false,
                     is_active: decoded.is_active !== undefined ? decoded.is_active : true,
                     roles: decoded.roles || [decoded.role], // Handle both single role and roles array
                 };
@@ -41,6 +43,22 @@ export const useAuth = () => {
             setCurrentUser(null);
         }
     }, [token]);
+
+    // Listen for profile updates
+    useEffect(() => {
+        const handleProfileUpdated = (event) => {
+            console.log('🔄 Profile updated event received:', event.detail);
+            if (event.detail && currentUser) {
+                setCurrentUser(prev => ({
+                    ...prev,
+                    ...event.detail
+                }));
+            }
+        };
+
+        window.addEventListener('profile-updated', handleProfileUpdated);
+        return () => window.removeEventListener('profile-updated', handleProfileUpdated);
+    }, [currentUser]);
 
     const updateToken = (newToken) => {
         if (newToken) {
