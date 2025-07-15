@@ -116,7 +116,7 @@ function DashboardPage() {
             if (editMode && editingId) {
                 await updateAppointment(editingId, formData);
             } else {
-                await createAppointment();
+                await createAppointment(currentUser.id);
             }
             setRefreshFlag(!refreshFlag); // Trigger calendar refresh
         } catch (error) {
@@ -328,6 +328,7 @@ function DashboardPage() {
                                                         updateFormData("appointment_datetime", "");
                                                         updateFormData("duration_minutes", 30);
                                                         selectDoctor(null);
+                                                        setSelectedSlot(null);
                                                         cancelEditing();
                                                     }}
                                                 >
