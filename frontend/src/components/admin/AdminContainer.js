@@ -30,7 +30,7 @@ const AdminContainer = ({ userRole, loading, visibleNavItems, handleNavigate }) 
     }
 
     return (
-        <Box sx={{ width: '100%', maxWidth: 720, mx: 'auto', mt: 8 }}>
+        <Box sx={{ width: '100%', maxWidth: '1400px', mx: 'auto', mt: 8 }}>
             <Card elevation={6} sx={{ textAlign: 'center', borderRadius: 3 }}>
                 <CardContent>
                     <Typography variant="h4" sx={{ mb: 3, fontWeight: 'bold' }}>

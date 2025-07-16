@@ -26,7 +26,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import CalendarView from '../CalendarView';
-import BackButton from '../BackButton';
 
 function AppointmentsSection({
     appointmentsTab,
@@ -190,17 +189,6 @@ function AppointmentsSection({
             {/* Calendar View */}
             {appointmentsTab === 'calendar' && (
                 <Box>
-                    <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        mb: 2
-                    }}>
-                        <Typography variant="h6" sx={{ color: 'primary.main' }}>
-                            Calendar View
-                        </Typography>
-                        <BackButton />
-                    </Box>
                     <CalendarView showBackButton={false} />
                 </Box>
             )}
