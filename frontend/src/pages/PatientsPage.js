@@ -272,8 +272,11 @@ function PatientsPage() {
                     boxShadow: 2,
                     borderRadius: 2,
                     bgcolor: 'background.paper',
-                    p: 3,
-                    height: '100%',
+                    p: 2,
+                    height: 'calc(100vh - 140px)', // Account for header and margins
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden',
                 }}
             >
                 {/* Chat system loading indicator */}
@@ -300,7 +303,7 @@ function PatientsPage() {
                 )}
 
                 {/* Main Navigation Tabs */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, bgcolor:'#f5faff' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, bgcolor: '#f5faff', flexShrink: 0 }}>
                     <Tabs
                         value={tab}
                         onChange={(e, newVal) => setTab(newVal)}
@@ -371,78 +374,80 @@ function PatientsPage() {
                 </Box>
 
                 {/* Tab Content */}
-                {tab === 'patients' && (
-                    <PatientsTable
-                        patients={patients.patients}
-                        loading={patients.loading}
-                        search={patients.search}
-                        setSearch={patients.setSearch}
-                        provider={patients.provider}
-                        setProvider={patients.setProvider}
-                        providers={analytics.providers}
-                        page={patients.page}
-                        setPage={patients.setPage}
-                        totalPages={patients.totalPages}
-                        onSendText={handleSendText}
-                        onOpenEmailModal={handleOpenEmailModal}
-                        onDelete={handleDeletePatient}
-                    />
-                )}
+                <Box sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+                    {tab === 'patients' && (
+                        <PatientsTable
+                            patients={patients.patients}
+                            loading={patients.loading}
+                            search={patients.search}
+                            setSearch={patients.setSearch}
+                            provider={patients.provider}
+                            setProvider={patients.setProvider}
+                            providers={analytics.providers}
+                            page={patients.page}
+                            setPage={patients.setPage}
+                            totalPages={patients.totalPages}
+                            onSendText={handleSendText}
+                            onOpenEmailModal={handleOpenEmailModal}
+                            onDelete={handleDeletePatient}
+                        />
+                    )}
 
-                {tab === 'team' && (
-                    <TeamTable
-                        team={team.team}
-                        loadingTeam={team.loadingTeam}
-                        teamSearch={team.teamSearch}
-                        setTeamSearch={team.setTeamSearch}
-                        teamPage={team.teamPage}
-                        setTeamPage={team.setTeamPage}
-                        teamTotalPages={team.teamTotalPages}
-                        onOpenChat={handleOpenChat}
-                        getUserOnlineStatus={getUserOnlineStatus}
-                        getTotalUnreadCount={chat.getTotalUnreadCount}
-                        onSendText={handleTeamSendText}
-                        onOpenEmailModal={handleTeamOpenEmailModal}
-                    />
-                )}
+                    {tab === 'team' && (
+                        <TeamTable
+                            team={team.team}
+                            loadingTeam={team.loadingTeam}
+                            teamSearch={team.teamSearch}
+                            setTeamSearch={team.setTeamSearch}
+                            teamPage={team.teamPage}
+                            setTeamPage={team.setTeamPage}
+                            teamTotalPages={team.teamTotalPages}
+                            onOpenChat={handleOpenChat}
+                            getUserOnlineStatus={getUserOnlineStatus}
+                            getTotalUnreadCount={chat.getTotalUnreadCount}
+                            onSendText={handleTeamSendText}
+                            onOpenEmailModal={handleTeamOpenEmailModal}
+                        />
+                    )}
 
-                {tab === 'appointments' && (
-                    <AppointmentsSection
-                        appointmentsTab={appointments.appointmentsTab}
-                        setAppointmentsTab={appointments.setAppointmentsTab}
-                        appointmentsQuery={appointments.appointmentsQuery}
-                        setAppointmentsQuery={appointments.setAppointmentsQuery}
-                        todaysAppointments={appointments.todaysAppointments}
-                        appointmentsResults={appointments.appointmentsResults}
-                        onStatusUpdate={handleStatusUpdate}
-                        onViewDetails={handleViewAppointmentDetails}
-                    />
-                )}
+                    {tab === 'appointments' && (
+                        <AppointmentsSection
+                            appointmentsTab={appointments.appointmentsTab}
+                            setAppointmentsTab={appointments.setAppointmentsTab}
+                            appointmentsQuery={appointments.appointmentsQuery}
+                            setAppointmentsQuery={appointments.setAppointmentsQuery}
+                            todaysAppointments={appointments.todaysAppointments}
+                            appointmentsResults={appointments.appointmentsResults}
+                            onStatusUpdate={handleStatusUpdate}
+                            onViewDetails={handleViewAppointmentDetails}
+                        />
+                    )}
 
-                {tab === 'analytics' && (
-                    <AnalyticsSection
-                        analyticsTab={analytics.analyticsTab}
-                        setAnalyticsTab={analytics.setAnalyticsTab}
-                        reportStartDate={analytics.reportStartDate}
-                        setReportStartDate={analytics.setReportStartDate}
-                        reportEndDate={analytics.reportEndDate}
-                        setReportEndDate={analytics.setReportEndDate}
-                        reportProvider={analytics.reportProvider}
-                        setReportProvider={analytics.setReportProvider}
-                        providers={analytics.providers}
-                        analyticsReports={analytics.analyticsReports}
-                        advancedAnalyticsReports={analytics.advancedAnalyticsReports}
-                        onDownloadReport={handleDownloadReport}
-                        organizationData={analytics.organizationData}
-                        organizationLogo={analytics.organizationLogo}
-                    />
-                )}
+                    {tab === 'analytics' && (
+                        <AnalyticsSection
+                            analyticsTab={analytics.analyticsTab}
+                            setAnalyticsTab={analytics.setAnalyticsTab}
+                            reportStartDate={analytics.reportStartDate}
+                            setReportStartDate={analytics.setReportStartDate}
+                            reportEndDate={analytics.reportEndDate}
+                            setReportEndDate={analytics.setReportEndDate}
+                            reportProvider={analytics.reportProvider}
+                            setReportProvider={analytics.setReportProvider}
+                            providers={analytics.providers}
+                            analyticsReports={analytics.analyticsReports}
+                            advancedAnalyticsReports={analytics.advancedAnalyticsReports}
+                            onDownloadReport={handleDownloadReport}
+                            organizationData={analytics.organizationData}
+                            organizationLogo={analytics.organizationLogo}
+                        />
+                    )}
 
-                {tab === 'register' && (
-                    <Box sx={{ mt: 2 }}>
-                        <RegisterPage />
-                    </Box>
-                )}
+                    {tab === 'register' && (
+                        <Box sx={{ mt: 1 }}>
+                            <RegisterPage />
+                        </Box>
+                    )}
+                </Box>
 
                 {/* Email Modal */}
                 <EmailModal
