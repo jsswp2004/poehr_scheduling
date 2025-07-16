@@ -9,14 +9,18 @@ function SettingsPage() {
   const [tab, setTab] = useState("maintenance");
 
   return (
-    <div style={{ textAlign: "left", width: "100%" }}>
+    <div style={{ textAlign: "left", width: "100%", height: "100vh", overflow: "hidden" }}>
       <Box
         sx={{
           mt: 0,
           boxShadow: 2,
           borderRadius: 2,
           bgcolor: "background.paper",
-          p: 3,
+          p: 2,
+          height: "calc(100vh - 140px)", // Account for header and margins
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         <Box
@@ -78,7 +82,9 @@ function SettingsPage() {
               boxShadow: 2,
               borderRadius: "0 0 8px 8px",
               bgcolor: "background.paper",
-              p: 3,
+              p: 2,
+              flex: 1,
+              overflow: "auto",
             }}
           >
             <MaintenancePage />
@@ -90,7 +96,9 @@ function SettingsPage() {
               boxShadow: 2,
               borderRadius: "0 0 8px 8px",
               bgcolor: "background.paper",
-              p: 3,
+              p: 2,
+              flex: 1,
+              overflow: "auto",
             }}
           >
             {/*<Typography variant="h6" sx={{ mb: 2 }}>Environment Profile</Typography>*/}
@@ -103,10 +111,12 @@ function SettingsPage() {
               boxShadow: 2,
               borderRadius: "0 0 8px 8px",
               bgcolor: "background.paper",
-              p: 3,
+              p: 2,
+              flex: 1,
+              overflow: "auto",
             }}
           >
-            {}
+            { }
             <UploadTab />
           </Box>
         )}

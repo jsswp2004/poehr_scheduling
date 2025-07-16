@@ -23,6 +23,7 @@ import ProfileForm from "../../components/profile/ProfileForm";
 import PasswordForm from "../../components/profile/PasswordForm";
 import DangerZone from "../../components/profile/DangerZone";
 import LoadingSpinner from "../../components/common/LoadingSpinner";
+import { nextDay } from "date-fns";
 
 /**
  * ProfilePageContainer Component
@@ -117,7 +118,7 @@ const ProfilePageContainer = ({
         </Stack>
 
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3 }}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3, backgroundColor: '#f5faff' }}>
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
@@ -410,10 +411,10 @@ const ProfilePageContainer = ({
                                 result.role === "Doctor"
                                   ? "#2e7d32"
                                   : result.role === "Admin"
-                                  ? "#d32f2f"
-                                  : result.role === "system_admin"
-                                  ? "#7b1fa2"
-                                  : "#757575",
+                                    ? "#d32f2f"
+                                    : result.role === "system_admin"
+                                      ? "#7b1fa2"
+                                      : "#757575",
                             }}
                           >
                             {result.role}

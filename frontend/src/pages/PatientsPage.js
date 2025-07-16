@@ -300,7 +300,7 @@ function PatientsPage() {
                 )}
 
                 {/* Main Navigation Tabs */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, bgcolor:'#f5faff' }}>
                     <Tabs
                         value={tab}
                         onChange={(e, newVal) => setTab(newVal)}
