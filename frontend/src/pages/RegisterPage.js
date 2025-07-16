@@ -86,7 +86,7 @@ function RegisterPage({ adminMode = false }) {
     };
 
     return (
-        <Box sx={{ mt: 0, maxWidth: '100vw', px: 2 }}>
+        <Box sx={{ mt: 0, width: '100%', px: 2, overflow: 'hidden' }}>
             <Paper
                 elevation={4}
                 sx={{
@@ -94,45 +94,52 @@ function RegisterPage({ adminMode = false }) {
                     minHeight: '70vh',
                     maxHeight: '75vh',
                     overflowY: 'auto',
-                    p: 3,
+                    overflowX: 'hidden',
+                    p: 2,
                     display: 'flex',
-                    gap: 3,
+                    gap: 2,
+                    width: '100%',
+                    boxSizing: 'border-box',
                 }}
             >
                 {/* Left Pane - Registration Form */}
-                <RegistrationForm
-                    adminMode={adminMode}
-                    formData={registration.formData}
-                    isPatient={registration.isPatient}
-                    hasProvider={registration.hasProvider}
-                    doctorOptions={registrationData.doctorOptions}
-                    loading={registration.loading}
-                    isLoggedIn={utils.isLoggedIn()}
-                    onFormChange={registration.handleFormChange}
-                    onPatientTypeChange={registration.handlePatientTypeChange}
-                    onProviderSelectionChange={registration.handleProviderSelectionChange}
-                    onDoctorSelection={registration.handleDoctorSelection}
-                    onSubmit={handleRegistrationSubmit}
-                    formatPhoneNumber={utils.formatPhoneNumber}
-                    getContactValidationMessage={utils.getContactValidationMessage}
-                />
+                <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
+                    <RegistrationForm
+                        adminMode={adminMode}
+                        formData={registration.formData}
+                        isPatient={registration.isPatient}
+                        hasProvider={registration.hasProvider}
+                        doctorOptions={registrationData.doctorOptions}
+                        loading={registration.loading}
+                        isLoggedIn={utils.isLoggedIn()}
+                        onFormChange={registration.handleFormChange}
+                        onPatientTypeChange={registration.handlePatientTypeChange}
+                        onProviderSelectionChange={registration.handleProviderSelectionChange}
+                        onDoctorSelection={registration.handleDoctorSelection}
+                        onSubmit={handleRegistrationSubmit}
+                        formatPhoneNumber={utils.formatPhoneNumber}
+                        getContactValidationMessage={utils.getContactValidationMessage}
+                    />
+                </Box>
 
                 {/* Right Pane - Patient Information Display */}
-                <PatientInfoPanel
-                    registeredPatient={patientManagement.registeredPatient}
-                    patientEditData={patientManagement.patientEditData}
-                    editMode={patientManagement.editMode}
-                    doctors={registrationData.doctors}
-                    organizations={registrationData.organizations}
-                    loading={patientManagement.loading}
-                    onEditStart={patientManagement.startEdit}
-                    onEditSave={handlePatientSave}
-                    onEditCancel={patientManagement.cancelEdit}
-                    onDelete={() => patientManagement.setDeleteDialogOpen(true)}
-                    onPatientEditChange={patientManagement.handlePatientEditChange}
-                    onPhoneChange={patientManagement.handlePhoneChange}
-                    formatPhoneNumber={utils.formatPhoneNumber}
-                />
+                <Box sx={{ flex: '1 1 50%', minWidth: 0 }}>
+                    <PatientInfoPanel
+                        registeredPatient={patientManagement.registeredPatient}
+                        patientEditData={patientManagement.patientEditData}
+                        editMode={patientManagement.editMode}
+                        doctors={registrationData.doctors}
+                        organizations={registrationData.organizations}
+                        loading={patientManagement.loading}
+                        onEditStart={patientManagement.startEdit}
+                        onEditSave={handlePatientSave}
+                        onEditCancel={patientManagement.cancelEdit}
+                        onDelete={() => patientManagement.setDeleteDialogOpen(true)}
+                        onPatientEditChange={patientManagement.handlePatientEditChange}
+                        onPhoneChange={patientManagement.handlePhoneChange}
+                        formatPhoneNumber={utils.formatPhoneNumber}
+                    />
+                </Box>
             </Paper>
 
             {/* Delete Confirmation Dialog */}
