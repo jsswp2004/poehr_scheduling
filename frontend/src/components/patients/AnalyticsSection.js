@@ -543,7 +543,7 @@ function AnalyticsSection({
                                 <tr>
                                     ${headers.map(header => {
                 let value = record[header] || 'N/A';
-
+                
                 // Format date/time fields
                 if (header.toLowerCase().includes('date') || header.toLowerCase().includes('time')) {
                     if (value && value !== 'N/A' && typeof value === 'string' && value.includes('T')) {
@@ -563,7 +563,7 @@ function AnalyticsSection({
                         }
                     }
                 }
-
+                
                 // Add status badge styling for status fields
                 if (header.toLowerCase().includes('status') || header.toLowerCase().includes('frequency')) {
                     value = `<span class="status-badge status-${(value.toString().toLowerCase().replace(/\s+/g, '-'))}">${value}</span>`;
