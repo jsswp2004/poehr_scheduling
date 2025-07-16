@@ -16,6 +16,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import useForceUpdate from '../utils/useForceUpdate';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import ChatIcon from '@mui/icons-material/Chat';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 
@@ -46,30 +47,30 @@ function Navbar() {
       const userId = decoded.user_id;
       const firstName = decoded.first_name || decoded.username || '';
       setUsername(firstName);
-      setRole(decoded.role || '');      axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
+      setRole(decoded.role || ''); axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      .then(res => {
-        // Get organization logo directly from the organization data
-        const orgLogo = res.data.organization_logo;
-        if (orgLogo) {
-          // The organization_logo field from UserSerializer already includes the full URL
-          setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `http://127.0.0.1:8000${orgLogo}`);
-        } else {
-          setLogoUrl(null);
-        }
-        setOrganizationName(res.data.organization_name || '');
-        // Fix: Only set profilePic if the value is not empty/null and is a valid string
-        if (res.data.profile_picture && typeof res.data.profile_picture === 'string' && res.data.profile_picture.trim() !== '') {
-          setProfilePic(res.data.profile_picture.startsWith('http') ? res.data.profile_picture : `http://127.0.0.1:8000${res.data.profile_picture}`);
-        } else {
-          setProfilePic(null);
-        }
-      })
-      .catch(err => {
-        console.error('Failed to load organization logo:', err);
-        setLogoUrl(null); // Reset logo on error
-      });
+        .then(res => {
+          // Get organization logo directly from the organization data
+          const orgLogo = res.data.organization_logo;
+          if (orgLogo) {
+            // The organization_logo field from UserSerializer already includes the full URL
+            setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `http://127.0.0.1:8000${orgLogo}`);
+          } else {
+            setLogoUrl(null);
+          }
+          setOrganizationName(res.data.organization_name || '');
+          // Fix: Only set profilePic if the value is not empty/null and is a valid string
+          if (res.data.profile_picture && typeof res.data.profile_picture === 'string' && res.data.profile_picture.trim() !== '') {
+            setProfilePic(res.data.profile_picture.startsWith('http') ? res.data.profile_picture : `http://127.0.0.1:8000${res.data.profile_picture}`);
+          } else {
+            setProfilePic(null);
+          }
+        })
+        .catch(err => {
+          console.error('Failed to load organization logo:', err);
+          setLogoUrl(null); // Reset logo on error
+        });
     } catch (err) {
       console.error('Failed to decode JWT:', err);
       setLogoUrl(null); // Reset logo on error
@@ -93,48 +94,48 @@ function Navbar() {
 
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('profile-updated', handleProfileUpdate);
-    
+
     // Force a refresh when the component mounts and periodically
     const interval = setInterval(() => {
       fetchUserData();
     }, 30000); // Refresh every 30 seconds to catch any changes
-    
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('profile-updated', handleProfileUpdate);
       clearInterval(interval);
     };
-  }, [isAuthenticated]);  const handleLogoClick = (e) => {
+  }, [isAuthenticated]); const handleLogoClick = (e) => {
     e.preventDefault(); // Prevent default link behavior
-    
+
     // Show confirmation toast instead of browser alert
     toast.warning(
       <div>
         <p><strong>Are you sure you want to log out?</strong></p>
         <div style={{ marginTop: '10px' }}>
-          <button 
-            onClick={() => performLogout()} 
-            style={{ 
-              marginRight: '10px', 
-              padding: '5px 15px', 
-              backgroundColor: '#d32f2f', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
+          <button
+            onClick={() => performLogout()}
+            style={{
+              marginRight: '10px',
+              padding: '5px 15px',
+              backgroundColor: '#d32f2f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
             }}
           >
             Yes, Log Out
           </button>
-          <button 
-            onClick={() => toast.dismiss()} 
-            style={{ 
-              padding: '5px 15px', 
-              backgroundColor: '#757575', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
+          <button
+            onClick={() => toast.dismiss()}
+            style={{
+              padding: '5px 15px',
+              backgroundColor: '#757575',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
             }}
           >
             Cancel
@@ -148,54 +149,54 @@ function Navbar() {
   const performLogout = () => {
     // Dismiss any open toasts
     toast.dismiss();
-    
+
     // Clear all authentication data
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     sessionStorage.clear(); // Clear all session storage to remove any redirect traces
-    
+
     // Clear user data
     setUsername('');
     setRole('');
     setLogoUrl(null);
     setOrganizationName('');
-    
+
     toast.success('Logged out successfully! 👋');
-    
+
     // Navigate to solutions page and replace history to prevent back button issues
     navigate('/solutions', { replace: true });
-    
+
     // Clear browser history to ensure no traces
     window.history.replaceState(null, null, '/solutions');
-  };  const handleLogout = () => {
+  }; const handleLogout = () => {
     // Show confirmation toast instead of browser alert
     toast.warning(
       <div>
         <p><strong>Are you sure you want to log out?</strong></p>
         <div style={{ marginTop: '10px' }}>
-          <button 
-            onClick={() => performLogout()} 
-            style={{ 
-              marginRight: '10px', 
-              padding: '5px 15px', 
-              backgroundColor: '#d32f2f', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
+          <button
+            onClick={() => performLogout()}
+            style={{
+              marginRight: '10px',
+              padding: '5px 15px',
+              backgroundColor: '#d32f2f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
             }}
           >
             Yes, Log Out
           </button>
-          <button 
-            onClick={() => toast.dismiss()} 
-            style={{ 
-              padding: '5px 15px', 
-              backgroundColor: '#757575', 
-              color: 'white', 
-              border: 'none', 
-              borderRadius: '4px', 
-              cursor: 'pointer' 
+          <button
+            onClick={() => toast.dismiss()}
+            style={{
+              padding: '5px 15px',
+              backgroundColor: '#757575',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
             }}
           >
             Cancel
@@ -208,6 +209,14 @@ function Navbar() {
 
   const isSystemAdmin = role === 'system_admin';
 
+  // Add greeting function
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget);
   };
@@ -217,42 +226,56 @@ function Navbar() {
 
   return (
     <AppBar position="fixed" color="primary" sx={{ zIndex: 1201 }}>
-      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>        <Box 
-          sx={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer' }} 
-          onClick={handleLogoClick}
-        >
-          <Avatar
-            src={logoUrl || logo}
-            alt="Logo"
-            sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
-            variant="rounded"
-          />          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
-            {location.pathname === '/communicator' ? 'POWER Communicator' : 
-             location.pathname === '/dashboard' ? 'POWER Portal' : 'POWER Scheduler'}
+      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>        <Box
+        sx={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer' }}
+        onClick={handleLogoClick}
+      >
+        <Avatar
+          src={logoUrl || logo}
+          alt="Logo"
+          sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
+          variant="rounded"
+        />          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+          {location.pathname === '/communicator' ? 'POWER Communicator' :
+            location.pathname === '/dashboard' ? 'POWER Portal' : 'POWER Scheduler'}
+        </Typography>
+        {organizationName && (
+          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
+            {organizationName}
           </Typography>
-          {organizationName && (
-            <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
-              {organizationName}
-            </Typography>
-          )}
-        </Box>
+        )}
+      </Box>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isAuthenticated && (
-            <>              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on communicator or dashboard page */}
-              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') && 
-               location.pathname !== '/communicator' && 
-               location.pathname !== '/dashboard' && (
-                <Tooltip title="Management Portal">
+            <>
+              {/* Communicator Icon Link - for all authenticated users except patients and not on communicator or dashboard page */}
+              {role !== 'patient' && location.pathname !== '/communicator' && location.pathname !== '/dashboard' && (
+                <Tooltip title="POWER Communicator">
                   <IconButton
                     color="inherit"
                     sx={{ mr: 1 }}
-                    onClick={() => navigate('/admin/')}
-                    aria-label="Admin Panel"
+                    onClick={() => navigate('/communicator')}
+                    aria-label="Communicator"
                   >
-                    <AdminPanelSettingsIcon sx={{ color: 'white' }} />
+                    <ChatIcon sx={{ color: 'white' }} />
                   </IconButton>
                 </Tooltip>
               )}
+
+              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on dashboard page */}
+              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') &&
+                location.pathname !== '/dashboard' && (
+                  <Tooltip title="Management Portal">
+                    <IconButton
+                      color="inherit"
+                      sx={{ mr: 1 }}
+                      onClick={() => navigate('/admin/')}
+                      aria-label="Admin Panel"
+                    >
+                      <AdminPanelSettingsIcon sx={{ color: 'white' }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
               <Button
                 color="inherit"
                 sx={{
@@ -266,7 +289,7 @@ function Navbar() {
                   '& .MuiAvatar-root': { bgcolor: 'primary.light', color: 'primary.contrastText' },
                   '& .navbar-username': { color: 'white' },
                 }}
-                startIcon={
+                endIcon={
                   <Avatar
                     sx={{ width: 28, height: 28, bgcolor: 'primary.light', color: 'primary.contrastText' }}
                     src={profilePic || undefined}
@@ -277,7 +300,7 @@ function Navbar() {
                 disableRipple
                 disabled
               >
-                <span className="navbar-username">{username}</span>
+                <span className="navbar-username">{getGreeting()}, {username}</span>
                 {isSystemAdmin && (
                   <Box component="span" sx={{
                     background: 'white',
@@ -294,7 +317,7 @@ function Navbar() {
                     System Admin
                   </Box>
                 )}
-              </Button>              
+              </Button>
               <IconButton
                 onClick={handleLogout}
                 color="inherit"

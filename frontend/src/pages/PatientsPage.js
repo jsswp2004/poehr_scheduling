@@ -299,110 +299,76 @@ function PatientsPage() {
                     </Box>
                 )}
 
-                {/* Header */}
-                <Box
-                    sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        mb: 2,
-                        borderRadius: 2,
-                        bgcolor: '#f5faff',
-                        boxShadow: 1,
-                        minHeight: 48,
-                        p: 1,
-                    }}
-                >
-                    <Box sx={{ flex: 1 }}>
-                        {tab === 'appointments' ? (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                                <Typography
-                                    variant="h5"
-                                    sx={{ color: '#1976d2', fontWeight: 'bold' }}
-                                >
-                                    {getGreeting()}, {getUserFirstName()}!
-                                </Typography>
-                                <Typography variant="h6" sx={{ color: '#1976d2' }}>
-                                    Today's Appointments: {appointments.todaysAppointments.length}
-                                </Typography>
-                            </Box>
-                        ) : (
-                            <Typography
-                                variant="h5"
-                                sx={{ color: '#1976d2', fontWeight: 'bold' }}
-                            >
-                                {getGreeting()}, {getUserFirstName()}!
-                            </Typography>
-                        )}
-                    </Box>
-                </Box>
-
                 {/* Main Navigation Tabs */}
-                <Tabs
-                    value={tab}
-                    onChange={(e, newVal) => setTab(newVal)}
-                    sx={{
-                        mb: 3,
-                        minHeight: 40,
-                        '& .MuiTabs-indicator': {
-                            height: 4,
-                            borderRadius: 2,
-                            bgcolor: 'primary.main',
-                        },
-                        '& .MuiTab-root': {
-                            fontWeight: 500,
-                            fontSize: '1rem',
-                            color: 'primary.main',
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <Tabs
+                        value={tab}
+                        onChange={(e, newVal) => setTab(newVal)}
+                        sx={{
+                            flex: 1,
                             minHeight: 40,
-                            textTransform: 'none',
-                            borderRadius: 2,
-                            mx: 0.5,
-                            transition: 'background 0.2s',
-                            '&.Mui-selected': {
-                                bgcolor: 'primary.light',
-                                color: 'primary.dark',
-                                boxShadow: 2,
+                            '& .MuiTabs-indicator': {
+                                height: 4,
+                                borderRadius: 2,
+                                bgcolor: 'primary.main',
                             },
-                            '&:hover': {
-                                bgcolor: 'primary.lighter',
-                                color: 'primary.dark',
+                            '& .MuiTab-root': {
+                                fontWeight: 500,
+                                fontSize: '1rem',
+                                color: 'primary.main',
+                                minHeight: 40,
+                                textTransform: 'none',
+                                borderRadius: 2,
+                                mx: 0.5,
+                                transition: 'background 0.2s',
+                                '&.Mui-selected': {
+                                    bgcolor: 'primary.light',
+                                    color: 'primary.dark',
+                                    boxShadow: 2,
+                                },
+                                '&:hover': {
+                                    bgcolor: 'primary.lighter',
+                                    color: 'primary.dark',
+                                },
                             },
-                        },
-                    }}
-                >
-                    <Tab label="Patients" value="patients" />
+                        }}
+                    >
+                        <Tab label="Patients" value="patients" />
 
-                    <Tab
-                        label={
-                            <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                Team
-                                {(() => {
-                                    const hasUnread = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() > 0 : false;
-                                    return hasUnread ? (
-                                        <Box
-                                            sx={{
-                                                position: 'absolute',
-                                                top: -8,
-                                                right: -12,
-                                                width: 8,
-                                                height: 8,
-                                                backgroundColor: '#ff4444',
-                                                borderRadius: '50%',
-                                            }}
-                                        />
-                                    ) : null;
-                                })()}
-                            </Box>
-                        }
-                        value="team"
-                    />
+                        <Tab
+                            label={
+                                <Box sx={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    Team
+                                    {(() => {
+                                        const hasUnread = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() > 0 : false;
+                                        return hasUnread ? (
+                                            <Box
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: -8,
+                                                    right: -12,
+                                                    width: 8,
+                                                    height: 8,
+                                                    backgroundColor: '#ff4444',
+                                                    borderRadius: '50%',
+                                                }}
+                                            />
+                                        ) : null;
+                                    })()}
+                                </Box>
+                            }
+                            value="team"
+                        />
 
-                    <Tab label="Appointments" value="appointments" />
-                    <Tab label="Analytics" value="analytics" />
+                        <Tab label="Appointments" value="appointments" />
+                        <Tab label="Analytics" value="analytics" />
 
-                    {(userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') && (
-                        <Tab label="Register" value="register" />
-                    )}
-                </Tabs>
+                        {(userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') && (
+                            <Tab label="Register" value="register" />
+                        )}
+                    </Tabs>
+                    <BackButton />
+                </Box>
 
                 {/* Tab Content */}
                 {tab === 'patients' && (
