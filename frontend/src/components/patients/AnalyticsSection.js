@@ -506,20 +506,7 @@ function AnalyticsSection({
     };
 
     const generateReportContent = (reportType, reportData) => {
-        // Generate summary section
-        let summaryContent = `
-            <div class="summary-section">
-                <h3>Summary Statistics</h3>
-                <div class="stats-grid">
-                    ${Object.entries(reportData.summary || {}).map(([key, value]) => `
-                        <div class="stat-item">
-                            <span class="stat-label">${key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).replace(/_/g, ' ')}:</span>
-                            <span class="stat-value">${value || 'N/A'}</span>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
+        // Skip summary section for standard reports - only show detailed records
 
         // Generate records section if data exists
         let recordsContent = '';
@@ -543,7 +530,7 @@ function AnalyticsSection({
                                 <tr>
                                     ${headers.map(header => {
                 let value = record[header] || 'N/A';
-                
+
                 // Format date/time fields
                 if (header.toLowerCase().includes('date') || header.toLowerCase().includes('time')) {
                     if (value && value !== 'N/A' && typeof value === 'string' && value.includes('T')) {
@@ -563,7 +550,7 @@ function AnalyticsSection({
                         }
                     }
                 }
-                
+
                 // Add status badge styling for status fields
                 if (header.toLowerCase().includes('status') || header.toLowerCase().includes('frequency')) {
                     value = `<span class="status-badge status-${(value.toString().toLowerCase().replace(/\s+/g, '-'))}">${value}</span>`;
@@ -578,7 +565,7 @@ function AnalyticsSection({
             `;
         }
 
-        return summaryContent + recordsContent;
+        return recordsContent;
     };
 
     const handleDeleteReport = (report) => {
@@ -779,17 +766,17 @@ function AnalyticsSection({
                     </Grid>
                 )}
 
-                {/* Advanced Analytics - Keep original layout */}
+                {/* Advanced Analytics - Two Panel Layout */}
                 {analyticsTab === "advanced" && (
-                    <Box>
-                        {/* Report Filters for Advanced Analytics */}
-                        <Paper sx={{ p: 3, mb: 3 }}>
-                            <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
-                                Report Filters
-                            </Typography>
+                    <Grid container spacing={3}>
+                        {/* Left Panel - Report Filters */}
+                        <Grid item xs={12} md={4}>
+                            <Paper sx={{ p: 3, height: "fit-content" }}>
+                                <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
+                                    Report Filters
+                                </Typography>
 
-                            <Grid container spacing={3}>
-                                <Grid item xs={12} md={4}>
+                                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                                     <DatePicker
                                         label="Start Date"
                                         value={reportStartDate}
@@ -801,9 +788,7 @@ function AnalyticsSection({
                                             },
                                         }}
                                     />
-                                </Grid>
 
-                                <Grid item xs={12} md={4}>
                                     <DatePicker
                                         label="End Date"
                                         value={reportEndDate}
@@ -815,9 +800,7 @@ function AnalyticsSection({
                                             },
                                         }}
                                     />
-                                </Grid>
 
-                                <Grid item xs={12} md={4}>
                                     <FormControl size="small" fullWidth>
                                         <InputLabel>Provider</InputLabel>
                                         <MUISelect
@@ -833,63 +816,119 @@ function AnalyticsSection({
                                             ))}
                                         </MUISelect>
                                     </FormControl>
-                                </Grid>
-                            </Grid>
+                                </Box>
 
-                            {/* Filter Summary */}
-                            <Box sx={{ mt: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                    Current Filters:
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Date Range: {formatDate(reportStartDate)} -{" "}
-                                    {formatDate(reportEndDate)}
-                                </Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    Provider: {getProviderName()}
-                                </Typography>
-                            </Box>
-                        </Paper>
+                                {/* Filter Summary */}
+                                <Box sx={{ mt: 3, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+                                        Current Filters:
+                                    </Typography>
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mb: 0.5 }}
+                                    >
+                                        Date Range: {formatDate(reportStartDate)} -{" "}
+                                        {formatDate(reportEndDate)}
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Provider: {getProviderName()}
+                                    </Typography>
+                                </Box>
+                            </Paper>
+                        </Grid>
 
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
-                                Advanced Analytics
-                            </Typography>
+                        {/* Right Panel - Advanced Analytics Table */}
+                        <Grid item xs={12} md={8}>
+                            <Paper sx={{ p: 3 }}>
+                                <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
+                                    Advanced Analytics
+                                </Typography>
 
-                            <Grid container spacing={2}>
-                                {advancedAnalyticsReports.map((report) => (
-                                    <Grid item xs={12} sm={6} md={4} key={report}>
-                                        <Paper
-                                            sx={{
-                                                p: 2,
-                                                textAlign: "center",
-                                                cursor: "pointer",
-                                                transition: "all 0.2s",
-                                                "&:hover": {
-                                                    bgcolor: "warning.light",
-                                                    transform: "translateY(-2px)",
-                                                    boxShadow: 3,
-                                                },
-                                            }}
-                                            onClick={() => onDownloadReport(report)}
-                                        >
-                                            <FontAwesomeIcon
-                                                icon={faDownload}
-                                                style={{
-                                                    fontSize: "24px",
-                                                    color: "#ed6c02",
-                                                    marginBottom: "8px",
-                                                }}
-                                            />
-                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                {report}
-                                            </Typography>
-                                        </Paper>
-                                    </Grid>
-                                ))}
-                            </Grid>
-                        </Paper>
-                    </Box>
+                                <TableContainer>
+                                    <Table>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell sx={{ fontWeight: "bold" }}>
+                                                    Report Name
+                                                </TableCell>
+                                                <TableCell sx={{ fontWeight: "bold" }}>
+                                                    Actions
+                                                </TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            {advancedAnalyticsReports.map((report) => (
+                                                <TableRow
+                                                    key={report}
+                                                    sx={{
+                                                        "&:nth-of-type(odd)": {
+                                                            backgroundColor: "#f9f9f9",
+                                                        },
+                                                        "&:hover": {
+                                                            backgroundColor: "#f0f7ff",
+                                                        },
+                                                    }}
+                                                >
+                                                    <TableCell>
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{ fontWeight: 500 }}
+                                                        >
+                                                            {report}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Box sx={{ display: "flex", gap: 1 }}>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => onDownloadReport(report)}
+                                                                sx={{
+                                                                    color: "#1976d2",
+                                                                    "&:hover": {
+                                                                        backgroundColor: "#e3f2fd",
+                                                                    },
+                                                                }}
+                                                                title="Download"
+                                                            >
+                                                                <FontAwesomeIcon icon={faDownload} size="sm" />
+                                                            </IconButton>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handlePrintReport(report)}
+                                                                sx={{
+                                                                    color: "#2e7d32",
+                                                                    "&:hover": {
+                                                                        backgroundColor: "#e8f5e8",
+                                                                    },
+                                                                }}
+                                                                title="Print"
+                                                            >
+                                                                <FontAwesomeIcon icon={faPrint} size="sm" />
+                                                            </IconButton>
+                                                            <IconButton
+                                                                size="small"
+                                                                onClick={() => handleDeleteReport(report)}
+                                                                sx={{
+                                                                    color: "#d32f2f",
+                                                                    "&:hover": {
+                                                                        backgroundColor: "#ffebee",
+                                                                    },
+                                                                }}
+                                                                title="Delete"
+                                                            >
+                                                                <FontAwesomeIcon icon={faTrash} size="sm" />
+                                                            </IconButton>
+                                                        </Box>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </TableContainer>
+                            </Paper>
+                        </Grid>
+                    </Grid>
                 )}
             </Box>
         </LocalizationProvider>
