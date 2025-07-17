@@ -37,7 +37,6 @@ import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
 import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
-import ToastDebugButton from './components/ToastDebugButton';
 import WebSocketTest from './components/WebSocketTest';
 import ChatTestPage from './pages/ChatTestPage';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
@@ -112,7 +111,6 @@ function AppContent() {
       draggable
       pauseOnHover
     />
-      <ToastDebugButton />
       <Routes>        <Route path="/" element={<LandingPage />} />
         <Route path="/solutions" element={<SolutionsPage />} />
         <Route path="/pricing" element={<PricingPage />} />
