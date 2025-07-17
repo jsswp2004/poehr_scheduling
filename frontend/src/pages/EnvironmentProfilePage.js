@@ -161,6 +161,7 @@ function EnvironmentProfilePage() {
       sx={{
         mt: 0,
         bgcolor: "background.paper",
+        height: "calc(100vh - 220px)", // Adjust for header height
       }}
     >
       <Tabs

@@ -303,7 +303,7 @@ function ProfilePage() {
     );
 
   return (
-    <Box sx={{ mt: 4, px: 3, width: "100%" }}>
+    <Box sx={{ mt: 4, px: 3, width: "100%", height: "calc(100vh - 240px)" }}>
       <Paper
         elevation={3}
         sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: "100%" }}
@@ -1128,8 +1128,8 @@ function ProfilePage() {
                     />
                     <TextField
                       label={`New Password${isAdminChangingOtherUser
-                          ? ` for ${user.first_name}`
-                          : ""
+                        ? ` for ${user.first_name}`
+                        : ""
                         }`}
                       type="password"
                       name="new_password"

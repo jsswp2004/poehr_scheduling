@@ -3,11 +3,12 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload, faUpload } from '@fortawesome/free-solid-svg-icons';
 import {
   Table, TableHead, TableRow, TableCell, TableBody,
-  Button, Stack, Alert, TextField, IconButton, Tooltip
+  Button, Stack, Alert, TextField, IconButton, Tooltip, Box
 } from '@mui/material';
 import axios from 'axios';
 
-function UploadTab() {  const [file, setFile] = useState(null);
+function UploadTab() {
+  const [file, setFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const [providerFile, setProviderFile] = useState(null);
   const [providerUploadStatus, setProviderUploadStatus] = useState('');
@@ -159,7 +160,11 @@ function UploadTab() {  const [file, setFile] = useState(null);
   };
 
   return (
-    <>
+    <Box
+      sx={{
+        height: "calc(100vh - 240px)", // Adjust for header height
+      }}
+    >
       <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
         <TableHead>
           <TableRow sx={{ bgcolor: '#e3f2fd' }}>
@@ -266,7 +271,7 @@ function UploadTab() {  const [file, setFile] = useState(null);
                     <FontAwesomeIcon icon={faUpload} />
                   </IconButton>
                 </Tooltip>
-              </Stack>            
+              </Stack>
             </TableCell>
           </TableRow>
         </TableBody>
@@ -290,7 +295,7 @@ function UploadTab() {  const [file, setFile] = useState(null);
           {patientUploadStatus}
         </Alert>
       )}
-    </>
+    </Box>
   );
 }
 
