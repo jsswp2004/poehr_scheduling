@@ -145,10 +145,9 @@ function PatientsPage() {
 
       if (message && message.sender_id !== currentUser?.id && !chatModalOpen) {
         toast.info(
-          `💬 ${message.sender_name}: ${
-            message.content.length > 50
-              ? message.content.substring(0, 50) + "..."
-              : message.content
+          `💬 ${message.sender_name}: ${message.content.length > 50
+            ? message.content.substring(0, 50) + "..."
+            : message.content
           }`,
           {
             position: "top-right",
@@ -401,8 +400,8 @@ function PatientsPage() {
             {(userRole === "admin" ||
               userRole === "system_admin" ||
               userRole === "registrar") && (
-              <Tab label="Register" value="register" />
-            )}
+                <Tab label="Register" value="register" />
+              )}
           </Tabs>
           <BackButton />
         </Box>

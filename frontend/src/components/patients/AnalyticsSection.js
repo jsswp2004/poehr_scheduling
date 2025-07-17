@@ -606,7 +606,11 @@ function AnalyticsSection({
                     <Grid container spacing={3}>
                         {/* Left Panel - Report Filters */}
                         <Grid item xs={12} md={4}>
-                            <Paper sx={{ p: 3, height: "fit-content" }}>
+                            <Paper sx={{
+                                p: 3,
+                                height: "calc(80vh - 200px)",
+                                overflowY: "auto",
+                            }}>
                                 <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
                                     Report Filters
                                 </Typography>
@@ -675,7 +679,11 @@ function AnalyticsSection({
 
                         {/* Right Panel - Standard Reports Table */}
                         <Grid item xs={12} md={8}>
-                            <Paper sx={{ p: 3 }}>
+                            <Paper sx={{
+                                p: 3,
+                                height: "calc(80vh - 200px)",
+                                overflowY: "auto",
+                            }}>
                                 <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
                                     Standard Reports
                                 </Typography>
@@ -771,7 +779,11 @@ function AnalyticsSection({
                     <Grid container spacing={3}>
                         {/* Left Panel - Report Filters */}
                         <Grid item xs={12} md={4}>
-                            <Paper sx={{ p: 3, height: "fit-content" }}>
+                            <Paper sx={{
+                                p: 3,
+                                height: "calc(80vh - 200px)",
+                                overflowY: "auto",
+                            }}>
                                 <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
                                     Report Filters
                                 </Typography>
@@ -840,7 +852,11 @@ function AnalyticsSection({
 
                         {/* Right Panel - Advanced Analytics Table */}
                         <Grid item xs={12} md={8}>
-                            <Paper sx={{ p: 3 }}>
+                            <Paper sx={{
+                                p: 3,
+                                height: "calc(80vh - 200px)",
+                                overflowY: "auto",
+                            }}>
                                 <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
                                     Advanced Analytics
                                 </Typography>
