@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
-  Paper,
   Tabs,
   Tab,
   CircularProgress,
@@ -290,7 +289,7 @@ function PatientsPage() {
           borderRadius: 2,
           bgcolor: "background.paper",
           p: 2,
-          height: "calc(120vh - 140px)", // Account for header and margins
+          height: "calc(100vh - 140px)", // Fixed: Changed from 120vh to 100vh
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
