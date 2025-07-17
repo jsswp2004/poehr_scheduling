@@ -89,24 +89,10 @@ class UserDetailView(RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
     lookup_field = 'pk'
     lookup_url_kwarg = 'pk'
-    
     def patch(self, request, *args, **kwargs):
         print("PATCH data:", request.data)
         print("FILES:", request.FILES)
         return super().patch(request, *args, **kwargs)
-    
-    def put(self, request, *args, **kwargs):
-        print("🔄 PUT request received for user update")
-        print("PUT data:", request.data)
-        print("User ID:", kwargs.get('pk'))
-        print("Current user:", request.user.id if request.user else None)
-        try:
-            response = super().put(request, *args, **kwargs)
-            print("✅ PUT successful")
-            return response
-        except Exception as e:
-            print("❌ PUT failed:", str(e))
-            raise
 
 class PatientUpdateView(RetrieveUpdateAPIView):
     queryset = Patient.objects.select_related('user')

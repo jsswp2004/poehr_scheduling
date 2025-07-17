@@ -71,7 +71,7 @@ function EnvironmentProfilePage() {
       if (userRole === "system_admin") {
         const token = localStorage.getItem("access_token");
         try {
-          const res = await axios.get("http://127.0.0.1:8000/api/users/organizations/", {
+          const res = await axios.get("http://127.0.0.1:8000/api/organizations/", {
             headers: { Authorization: `Bearer ${token}` },
           });
           setOrganizations(res.data);
@@ -303,6 +303,9 @@ function EnvironmentProfilePage() {
 
       {tabKey === "organization" && (
         <Box sx={{ p: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Organization Management
+          </Typography>
           <OrganizationManagement />
         </Box>
       )}
