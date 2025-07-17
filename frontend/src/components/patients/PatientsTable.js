@@ -64,6 +64,7 @@ function PatientsTable({
                     display: 'flex',
                     gap: 2,
                     mb: 3,
+                    mt: 2,
                     flexWrap: 'wrap',
                     alignItems: 'center',
                     justifyContent: 'space-between',

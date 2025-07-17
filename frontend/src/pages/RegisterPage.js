@@ -33,7 +33,6 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import { getValidToken, clearAuthData } from "../utils/authUtils";
 
 function RegisterPage({ adminMode = false }) {
-  const [isPatient, setIsPatient] = useState(adminMode ? true : true);
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
   const [doctors, setDoctors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -149,7 +148,6 @@ function RegisterPage({ adminMode = false }) {
     e.preventDefault();
 
     if (
-      isPatient &&
       hasProvider === "no" &&
       (!formData.email || !formData.phone_number)
     ) {
@@ -159,7 +157,7 @@ function RegisterPage({ adminMode = false }) {
 
     const payload = {
       ...formData,
-      role: isPatient ? "patient" : formData.role || "none",
+      role: "patient",
       provider: formData.assigned_doctor,
     };
 
@@ -298,211 +296,198 @@ function RegisterPage({ adminMode = false }) {
     )}`;
   };
   return (
-    <Box sx={{ mt: 0, maxWidth: "100vw", px: 2 }}>
+    <Box sx={{ mt: 0, width: '100%', px: 2, py: 1 }}>
       <Paper
-        elevation={4}
+        elevation={2}
         sx={{
           borderRadius: 3,
-          minHeight: "70vh",
-          maxHeight: "75vh",
+          border: '1px solid #e0e0e0',
+          minHeight: "60vh",
+          maxHeight: "calc(100vh - 200px)",
           overflowY: "auto",
-          p: 3,
+          overflowX: "hidden",
+          p: 2,
           display: "flex",
-          gap: 3,
+          gap: 2,
+          width: '100%',
+          boxSizing: 'border-box',
+          backgroundColor: '#fff',
         }}
       >
-        {/* Left Pane - Registration Form (30%) */}
-        <Box sx={{ flex: "0 0 30%", pr: 2 }}>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 2 }}>
+        {/* Left Pane - Registration Form */}
+        <Box sx={{
+          flex: '1 1 35%',
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%'
+        }}>
+          <Typography variant="h5" fontWeight={700} sx={{ mb: 2, flexShrink: 0 }}>
             Quick Register
           </Typography>
-          {!adminMode &&
-            (formData.role === "none" || formData.role === "patient") && (
-              <Box sx={{ mb: 2 }}>
-                <FormControl component="fieldset">
-                  <FormLabel>Are you registering as a patient?</FormLabel>
-                  <RadioGroup row value={isPatient ? "yes" : "no"}>
-                    <FormControlLabel
-                      value="yes"
-                      control={<Radio />}
-                      label="Yes"
-                      onChange={() => {
-                        setIsPatient(true);
-                        setFormData({ ...formData, role: "patient" });
-                      }}
-                      checked={isPatient}
+
+          <Box sx={{
+            flex: 1,
+            overflowY: 'auto',
+            pr: 1,
+            minHeight: 0
+          }}>
+            <form onSubmit={handleSubmit}>
+              <Stack spacing={2}>
+                {/* Only show organization field if not in adminMode, not logged in, and role is none/patient */}
+                {!adminMode &&
+                  !localStorage.getItem("access_token") &&
+                  (formData.role === "none" || formData.role === "patient") && (
+                    <TextField
+                      label="Organization Name"
+                      name="organization_name"
+                      value={formData.organization_name || ""}
+                      onChange={handleChange}
+                      required
+                      fullWidth
+                      size="small"
                     />
-                    <FormControlLabel
-                      value="no"
-                      control={<Radio />}
-                      label="No"
-                      onChange={() => {
-                        setIsPatient(false);
-                        setFormData({ ...formData, role: "" });
-                      }}
-                      checked={!isPatient}
-                    />
-                  </RadioGroup>
-                </FormControl>
-              </Box>
-            )}
+                  )}
+                <TextField
+                  label="First Name"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  required
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="Last Name"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  required
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="Username"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleChange}
+                  required
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required={hasProvider === "no"}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="Phone Number"
+                  name="phone_number"
+                  value={formData.phone_number}
+                  onChange={handleChange}
+                  required={hasProvider === "no"}
+                  fullWidth
+                  size="small"
+                  placeholder="e.g. (555) 123-4567"
+                />
+                <TextField
+                  label="Password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  fullWidth
+                  size="small"
+                />
 
-          <form onSubmit={handleSubmit}>
-            <Stack spacing={2}>
-              {/* Only show organization field if not in adminMode, not logged in, and role is none/patient */}
-              {!adminMode &&
-                !localStorage.getItem("access_token") &&
-                (formData.role === "none" || formData.role === "patient") && (
-                  <TextField
-                    label="Organization Name"
-                    name="organization_name"
-                    value={formData.organization_name || ""}
-                    onChange={handleChange}
-                    required
-                    fullWidth
-                    size="small"
-                  />
-                )}
-              <TextField
-                label="First Name"
-                name="first_name"
-                value={formData.first_name}
-                onChange={handleChange}
-                required
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Last Name"
-                name="last_name"
-                value={formData.last_name}
-                onChange={handleChange}
-                required
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Username"
-                name="username"
-                value={formData.username}
-                onChange={handleChange}
-                required
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                required={isPatient && hasProvider === "no"}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="Phone Number"
-                name="phone_number"
-                value={formData.phone_number}
-                onChange={handleChange}
-                required={isPatient && hasProvider === "no"}
-                fullWidth
-                size="small"
-                placeholder="e.g. (555) 123-4567"
-              />
-              <TextField
-                label="Password"
-                name="password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                fullWidth
-                size="small"
-              />
-
-              {/* Provider question - HIDDEN in adminMode */}
-              {!adminMode && isPatient && (
-                <Box>
-                  <FormControl component="fieldset">
-                    <FormLabel>
-                      Do you know/have a Primary Care Provider?
-                    </FormLabel>
-                    <RadioGroup row value={hasProvider}>
-                      <FormControlLabel
-                        value="yes"
-                        control={<Radio />}
-                        label="Yes"
-                        onChange={() => setHasProvider("yes")}
-                        checked={hasProvider === "yes"}
-                      />
-                      <FormControlLabel
-                        value="no"
-                        control={<Radio />}
-                        label="No"
-                        onChange={() => setHasProvider("no")}
-                        checked={hasProvider === "no"}
-                      />
-                    </RadioGroup>
-                  </FormControl>
-                </Box>
-              )}
-
-              {isPatient && hasProvider === "yes" && (
-                <Box>
-                  <FormLabel>Select Doctor</FormLabel>
-                  <Select
-                    options={doctors.map((doc) => ({
-                      value: doc.id,
-                      label: `Dr. ${doc.first_name} ${doc.last_name}`,
-                    }))}
-                    placeholder="Search or select doctor..."
-                    onChange={(selected) =>
-                      setFormData({
-                        ...formData,
-                        assigned_doctor: selected?.value || "",
-                      })
-                    }
-                    isClearable
-                    styles={{
-                      control: (base) => ({ ...base, minHeight: 40 }),
-                      menu: (base) => ({ ...base, zIndex: 9999 }),
-                    }}
-                  />
-                </Box>
-              )}
-
-              {!localStorage.getItem("access_token") &&
-                isPatient &&
-                hasProvider === "no" && (
+                {/* Provider question - HIDDEN in adminMode */}
+                {!adminMode && (
                   <Box>
-                    {formData.email === "" || formData.phone_number === "" ? (
-                      <Alert severity="error">
-                        Please provide us with your contact details.
-                      </Alert>
-                    ) : (
-                      <Alert severity="info" sx={{ fontWeight: 700 }}>
-                        A representative will reach out to you shortly after
-                        registration. Thank you!
-                      </Alert>
-                    )}
+                    <FormControl component="fieldset">
+                      <FormLabel>
+                        Do you know/have a Primary Care Provider?
+                      </FormLabel>
+                      <RadioGroup row value={hasProvider}>
+                        <FormControlLabel
+                          value="yes"
+                          control={<Radio />}
+                          label="Yes"
+                          onChange={() => setHasProvider("yes")}
+                          checked={hasProvider === "yes"}
+                        />
+                        <FormControlLabel
+                          value="no"
+                          control={<Radio />}
+                          label="No"
+                          onChange={() => setHasProvider("no")}
+                          checked={hasProvider === "no"}
+                        />
+                      </RadioGroup>
+                    </FormControl>
                   </Box>
                 )}
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                size="large"
-                sx={{ mt: 2 }}
-                fullWidth
-              >
-                Register
-              </Button>
-            </Stack>
-          </form>
+
+                {hasProvider === "yes" && (
+                  <Box>
+                    <FormLabel>Select Doctor</FormLabel>
+                    <Select
+                      options={doctors.map((doc) => ({
+                        value: doc.id,
+                        label: `Dr. ${doc.first_name} ${doc.last_name}`,
+                      }))}
+                      placeholder="Search or select doctor..."
+                      onChange={(selected) =>
+                        setFormData({
+                          ...formData,
+                          assigned_doctor: selected?.value || "",
+                        })
+                      }
+                      isClearable
+                      styles={{
+                        control: (base) => ({ ...base, minHeight: 40 }),
+                        menu: (base) => ({ ...base, zIndex: 9999 }),
+                      }}
+                    />
+                  </Box>
+                )}
+
+                {!localStorage.getItem("access_token") &&
+                  hasProvider === "no" && (
+                    <Box>
+                      {formData.email === "" || formData.phone_number === "" ? (
+                        <Alert severity="error">
+                          Please provide us with your contact details.
+                        </Alert>
+                      ) : (
+                        <Alert severity="info" sx={{ fontWeight: 700 }}>
+                          A representative will reach out to you shortly after
+                          registration. Thank you!
+                        </Alert>
+                      )}
+                    </Box>
+                  )}
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  sx={{ mt: 2, mb: 2 }}
+                  fullWidth
+                >
+                  Register
+                </Button>
+              </Stack>
+            </form>
+          </Box>
         </Box>
-        {/* Right Pane - Patient Information Display (70%) */}
-        <Box sx={{ flex: "0 0 70%", pl: 2, borderLeft: "1px solid #e0e0e0" }}>
+        {/* Right Pane - Patient Information Display */}
+        <Box sx={{ flex: '1 1 65%', minWidth: 0, pl: 2 }}>
           <Box
             sx={{
               display: "flex",

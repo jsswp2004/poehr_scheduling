@@ -71,7 +71,7 @@ function TeamTable({
                     onChange={(e) => setTeamSearch(e.target.value)}
                     variant="outlined"
                     size="small"
-                    sx={{ minWidth: 300 }}
+                    sx={{ minWidth: 300, mt: 2 }}
                 />
             </Box>
 
