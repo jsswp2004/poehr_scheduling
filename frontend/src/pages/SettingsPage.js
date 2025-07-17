@@ -15,7 +15,15 @@ function SettingsPage() {
 
   return (
     <div style={{ textAlign: 'left', width: '100%' }}>
-      <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }}>
+      <Box sx={{
+        mt: 0,
+        boxShadow: 2,
+        borderRadius: 2,
+        bgcolor: 'background.paper',
+        p: 3,
+
+
+      }}>
         <Box
           sx={{
             display: 'flex',
