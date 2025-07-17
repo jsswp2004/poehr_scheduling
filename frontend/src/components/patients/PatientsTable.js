@@ -57,7 +57,7 @@ function PatientsTable({
     }
 
     return (
-        <Box>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Search and Filter Controls */}
             <Box
                 sx={{
@@ -67,6 +67,7 @@ function PatientsTable({
                     flexWrap: 'wrap',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    flexShrink: 0,
                 }}
             >
                 <SearchField
@@ -99,7 +100,7 @@ function PatientsTable({
             </Box>
 
             {/* Patients Table */}
-            <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
+            <TableContainer component={Paper} sx={{ flex: 1, minHeight: 0 }}>
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#e3f2fd' }}>
@@ -200,7 +201,7 @@ function PatientsTable({
 
             {/* Pagination */}
             {totalPages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, flexShrink: 0 }}>
                     <Pagination
                         count={totalPages}
                         page={page}
