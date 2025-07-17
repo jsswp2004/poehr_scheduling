@@ -37,7 +37,7 @@ const PatientInfoPanel = ({
 }) => {
     if (!registeredPatient) {
         return (
-            <Box sx={{ flex: '0 0 70%', pl: 2 }}>
+            <Box sx={{ flex: '0 0 70%', pl: 2, borderLeft: '1px solid #e0e0e0' }}>
                 <Typography
                     variant="h5"
                     fontWeight={700}
@@ -69,7 +69,7 @@ const PatientInfoPanel = ({
     }
 
     return (
-        <Box sx={{ flex: '0 0 70%', pl: 2 }}>
+        <Box sx={{ flex: '0 0 70%', pl: 2, borderLeft: '1px solid #e0e0e0' }}>
             <Box
                 sx={{
                     display: 'flex',
