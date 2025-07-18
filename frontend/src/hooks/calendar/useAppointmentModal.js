@@ -22,6 +22,7 @@ export const useAppointmentModal = (onUpdate, token) => {
         recurrence_end_date: "",
         appointment_datetime: "",
         provider: null,
+        patient: null, // Add patient field
         patient_name: null,
     });
 
@@ -38,6 +39,7 @@ export const useAppointmentModal = (onUpdate, token) => {
             recurrence_end_date: "",
             appointment_datetime: "",
             provider: null,
+            patient: null, // Add patient field
             patient_name: null,
         });
         setSelectedDoctor(null);
@@ -136,6 +138,27 @@ export const useAppointmentModal = (onUpdate, token) => {
         }
 
         try {
+            // Validate required fields
+            if (!modalFormData.title?.trim()) {
+                toast.error("Appointment title is required");
+                return;
+            }
+
+            if (!modalFormData.provider) {
+                toast.error("Provider is required");
+                return;
+            }
+
+            if (!modalFormData.patient) {
+                toast.error("Patient is required. Please search and select a patient.");
+                return;
+            }
+
+            if (!modalFormData.appointment_datetime) {
+                toast.error("Appointment date and time is required");
+                return;
+            }
+
             // Fix appointment_datetime format - add seconds if missing
             let appointmentDateTime = modalFormData.appointment_datetime;
             if (appointmentDateTime && !appointmentDateTime.includes(':00', appointmentDateTime.length - 3)) {

@@ -1,7 +1,7 @@
 /**
  * AppointmentModal component for creating and editing appointments
  */
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
     Dialog,
     DialogTitle,
@@ -15,7 +15,12 @@ import {
     Select as MUISelect,
     Alert,
     Stack,
+    Box,
+    Autocomplete,
+    Typography,
 } from "@mui/material";
+import { PersonAdd } from "@mui/icons-material";
+import PatientRegistrationModal from "./RegisterModal";
 
 const AppointmentModal = ({
     open,
@@ -29,11 +34,75 @@ const AppointmentModal = ({
     onDoctorChange,
     onSubmit,
     onDelete,
+    patients = [], // Add patients prop
 }) => {
+    const [selectedPatient, setSelectedPatient] = useState(null);
+    const [patientSearchValue, setPatientSearchValue] = useState("");
+    const [showRegistrationModal, setShowRegistrationModal] = useState(false);
+
+    // Initialize patient search when editing
+    useEffect(() => {
+        if (isEditing && formData.patient_name) {
+            setPatientSearchValue(formData.patient_name);
+        }
+    }, [isEditing, formData.patient_name]);
+
+    const handlePatientSelect = (event, newValue) => {
+        setSelectedPatient(newValue);
+        if (newValue) {
+            onFormChange({
+                ...formData,
+                patient: newValue.user_id, // Use user_id instead of id for the CustomUser reference
+                patient_name: `${newValue.first_name} ${newValue.last_name}`
+            });
+        } else {
+            onFormChange({
+                ...formData,
+                patient: null,
+                patient_name: ""
+            });
+        }
+    };
+
+    const handleCreateNewPatient = () => {
+        setShowRegistrationModal(true);
+    };
+
+    const handlePatientCreated = (newPatient) => {
+        if (newPatient) {
+            // Select the newly created patient
+            setSelectedPatient(newPatient);
+            onFormChange({
+                ...formData,
+                patient: newPatient.user_id,
+                patient_name: `${newPatient.first_name} ${newPatient.last_name}`
+            });
+            setPatientSearchValue(`${newPatient.first_name} ${newPatient.last_name}`);
+        }
+        // Refresh the patients list if there's a way to do it
+        // This would require the patients hook to be passed down or have a refresh method
+    };
     return (
         <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
             <DialogTitle>
-                {isEditing ? "Edit Appointment" : "Create New Appointment"}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6" component="div">
+                        {isEditing ? "Edit Appointment" : "Create New Appointment"}
+                    </Typography>
+                    {/* Show Create New Patient button only when creating new appointments */}
+                    {!isEditing && (
+                        <Button
+                            variant="outlined"
+                            startIcon={<PersonAdd />}
+                            onClick={handleCreateNewPatient}
+                            size="small"
+                            sx={{ whiteSpace: 'nowrap' }}
+                            disabled={isPast}
+                        >
+                            Create New Patient
+                        </Button>
+                    )}
+                </Box>
             </DialogTitle>
 
             <DialogContent>
@@ -44,6 +113,46 @@ const AppointmentModal = ({
                 )}
 
                 <Stack spacing={2} sx={{ mt: 1 }}>
+                    {/* Patient Search Field - Only show in create mode or if no patient name in edit mode */}
+                    {(!isEditing || !formData.patient_name) && (
+                        <Autocomplete
+                            options={patients}
+                            getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
+                            value={selectedPatient}
+                            onChange={handlePatientSelect}
+                            inputValue={patientSearchValue}
+                            onInputChange={(event, newInputValue) => {
+                                setPatientSearchValue(newInputValue);
+                            }}
+                            renderInput={(params) => (
+                                <TextField
+                                    {...params}
+                                    label="Search Patient"
+                                    placeholder="Start typing to search for a patient..."
+                                    fullWidth
+                                    variant="outlined"
+                                    disabled={isPast}
+                                />
+                            )}
+                            renderOption={(props, option) => {
+                                const { key, ...otherProps } = props;
+                                return (
+                                    <Box component="li" key={key} {...otherProps}>
+                                        <div>
+                                            <Typography variant="body1">
+                                                {option.first_name} {option.last_name}
+                                            </Typography>
+                                            <Typography variant="body2" color="text.secondary">
+                                                {option.email} | {option.phone}
+                                            </Typography>
+                                        </div>
+                                    </Box>
+                                );
+                            }}
+                            noOptionsText="No patients found"
+                        />
+                    )}
+
                     {/* Patient Name Display - Only show in edit mode when patient name exists */}
                     {isEditing && formData.patient_name && (
                         <TextField
@@ -64,6 +173,7 @@ const AppointmentModal = ({
                         />
                     )}
 
+                    {/* Appointment Title */}
                     <TextField
                         autoFocus
                         label="Appointment Title"
@@ -168,6 +278,13 @@ const AppointmentModal = ({
                     </Button>
                 )}
             </DialogActions>
+
+            {/* Patient Registration Modal */}
+            <PatientRegistrationModal
+                open={showRegistrationModal}
+                onClose={() => setShowRegistrationModal(false)}
+                onPatientCreated={handlePatientCreated}
+            />
         </Dialog>
     );
 };

@@ -14,6 +14,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Box, CircularProgress, Typography, Avatar, Tooltip } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUserMd, faStethoscope, faCalendarAlt } from "@fortawesome/free-solid-svg-icons";
+import { useNavigate } from "react-router-dom";
 
 // Components
 import BackButton from "./BackButton";
@@ -26,10 +27,13 @@ import AvailableProvidersModal from "./calendar/AvailableProvidersModal";
 import { useCalendarData } from "../hooks/calendar/useCalendarData";
 import { useAppointmentModal } from "../hooks/calendar/useAppointmentModal";
 import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
+import { usePatients } from "../hooks/usePatients";
 
 const localizer = momentLocalizer(moment);
 
 const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = true }) {
+  const navigate = useNavigate();
+
   // Local search state that updates immediately for responsive typing
   const [localSearchQuery, setLocalSearchQuery] = useState("");
   const searchTimeoutRef = useRef(null);
@@ -58,6 +62,9 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
     token,
     refetchData,
   } = useCalendarData();
+
+  // Patients hook for patient search in appointment modal
+  const { patients } = usePatients(navigate);
 
   // Custom date header component to show provider icons
   const CustomDateHeader = useCallback(({ date, label }) => {
@@ -381,6 +388,7 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
           onDoctorChange={handleDoctorChange}
           onSubmit={appointmentModal.handleSubmit}
           onDelete={appointmentModal.handleDelete}
+          patients={patients}
         />
 
         {/* Availability Modal */}
