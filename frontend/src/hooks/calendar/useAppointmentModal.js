@@ -65,6 +65,14 @@ export const useAppointmentModal = (onUpdate, token) => {
         const appointmentData = event.resource?.data;
         if (!appointmentData) return;
 
+        console.log('=== OPENING EDIT MODAL ===');
+        console.log('Full event object:', event);
+        console.log('Event resource:', event.resource);
+        console.log('Appointment data:', appointmentData);
+        console.log('Patient data in appointment:', appointmentData.patient);
+        console.log('Provider data in appointment:', appointmentData.provider);
+        console.log('========================');
+
         const isPastAppt = isPastAppointment(appointmentData.appointment_datetime);
         setIsPast(isPastAppt);
         setIsEditing(true);
@@ -134,6 +142,28 @@ export const useAppointmentModal = (onUpdate, token) => {
                 appointment_datetime: appointmentDateTime,
             };
 
+            // Handle recurrence_end_date based on recurrence type
+            if (appointmentData.recurrence === 'none') {
+                // Remove recurrence_end_date when recurrence is none
+                delete appointmentData.recurrence_end_date;
+            } else {
+                // For recurring appointments, ensure recurrence_end_date is present
+                if (!appointmentData.recurrence_end_date) {
+                    toast.error("Recurrence end date is required for recurring appointments");
+                    return;
+                }
+            }
+
+            console.log('=== APPOINTMENT MODAL DEBUG ===');
+            console.log('Is editing:', isEditing);
+            console.log('Editing ID:', editingId);
+            console.log('Full appointment data being sent:', JSON.stringify(appointmentData, null, 2));
+            console.log('Patient in data:', appointmentData.patient);
+            console.log('Provider in data:', appointmentData.provider);
+            console.log('Recurrence:', appointmentData.recurrence);
+            console.log('Recurrence end date:', appointmentData.recurrence_end_date);
+            console.log('==============================');
+
             if (isEditing && editingId) {
                 await calendarApi.updateAppointment(token, editingId, appointmentData);
                 toast.success("Appointment updated successfully!");
@@ -146,7 +176,13 @@ export const useAppointmentModal = (onUpdate, token) => {
             if (onUpdate) onUpdate();
         } catch (error) {
             console.error("Error saving appointment:", error);
-            const errorMessage = error.response?.data?.detail || "Failed to save appointment";
+            console.error("Error response data:", error.response?.data);
+            console.error("Error response status:", error.response?.status);
+            console.error("Error response headers:", error.response?.headers);
+            const errorMessage = error.response?.data?.detail ||
+                error.response?.data?.message ||
+                JSON.stringify(error.response?.data) ||
+                "Failed to save appointment";
             toast.error(errorMessage);
         }
     }, [modalFormData, isEditing, editingId, token, closeModal, onUpdate]);
