@@ -303,10 +303,10 @@ function ProfilePage() {
     );
 
   return (
-    <Box sx={{ mt: 4, px: 3, width: "100%", height: "calc(100vh - 240px)" }}>
+    <Box sx={{ mt: 4, px: 3, width: "100%" }}>
       <Paper
         elevation={3}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: "100%" }}
+        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: "100%", height: "calc(100vh - 120px)" }}
       >
         {" "}
         {/* Top Action Bar */}
