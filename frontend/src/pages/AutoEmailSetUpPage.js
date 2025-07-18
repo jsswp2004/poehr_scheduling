@@ -138,7 +138,7 @@ function AutoEmailSetUpPage() {
         bgcolor: "background.paper",
         p: 3,
         height: "100%",
-        maxHeight: "90vh", 
+        maxHeight: "90vh",
         overflowY: "auto", // Enable scrolling if content overflows
       }}
     >

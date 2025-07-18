@@ -34,7 +34,7 @@ function MessagesPage() {
         height: "100%",
         p: 3,
         bgcolor: "background.paper",
-        boxShadow: 2,
+        //boxShadow: 2,
         borderRadius: 2,
       }}
     >
@@ -45,7 +45,7 @@ function MessagesPage() {
           mb: -1,
           borderRadius: 2,
           bgcolor: "#f5faff",
-          boxShadow: 1,
+          //boxShadow: 1,
           minHeight: 48,
           p: 0,
         }}
