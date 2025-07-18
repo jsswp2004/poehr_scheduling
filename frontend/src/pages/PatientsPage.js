@@ -225,6 +225,10 @@ function PatientsPage() {
   };
 
   const handleSendEmail = () => {
+    console.log('=== EMAIL HANDLER DEBUG ===');
+    console.log('Token from state:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
+    console.log('Current user:', currentUser);
+    console.log('========================');
     patients.handleSendEmail(token);
   };
 

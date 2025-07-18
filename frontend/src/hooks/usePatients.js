@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { toast } from 'react-toastify';
-import { jwtDecode } from 'jwt-decode';
 import { getValidToken, clearAuthData } from '../utils/auth';
+import { jwtDecode } from 'jwt-decode';
+import { toast } from 'react-toastify';
 
 export const usePatients = (navigate) => {
     const [patients, setPatients] = useState([]);
@@ -92,6 +92,12 @@ export const usePatients = (navigate) => {
     };
 
     const handleOpenEmailModal = (patient, token) => {
+        console.log('=== OPEN EMAIL MODAL DEBUG ===');
+        console.log('Patient:', patient);
+        console.log('Patient email:', patient.email);
+        console.log('Patient user email:', patient.user?.email);
+        console.log('==============================');
+
         setSelectedPatient(patient);
 
         // Get current user's name from token
@@ -115,15 +121,39 @@ export const usePatients = (navigate) => {
 
     const handleSendEmail = async (token) => {
         try {
+            console.log('=== EMAIL SEND DEBUG ===');
+            console.log('Token passed:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
+            console.log('Selected patient:', selectedPatient);
+            console.log('Email form:', emailForm);
+
+            // Get a fresh token to ensure it's not expired
+            const freshToken = await getValidToken();
+            if (!freshToken) {
+                toast.error('Authentication token not found. Please log in again.');
+                return;
+            }
+
+            console.log('Fresh token:', freshToken ? freshToken.substring(0, 20) + '...' : 'NO FRESH TOKEN');
+            console.log('=======================');
+
+            // Determine the email address to use
+            const emailAddress = selectedPatient.email || selectedPatient.user?.email;
+            if (!emailAddress) {
+                toast.error('No email address found for this patient');
+                return;
+            }
+
+            console.log('Email address to use:', emailAddress);
+
             await axios.post(
                 'http://127.0.0.1:8000/api/messages/send-email/',
                 {
-                    email: selectedPatient.email,
+                    email: emailAddress,
                     subject: emailForm.subject,
                     message: emailForm.message,
                 },
                 {
-                    headers: { Authorization: `Bearer ${token}` },
+                    headers: { Authorization: `Bearer ${freshToken}` },
                 }
             );
             toast.success('Email sent successfully!');
@@ -131,7 +161,19 @@ export const usePatients = (navigate) => {
             setEmailForm({ subject: 'Message from your provider', message: '' });
         } catch (err) {
             console.error('Email failed:', err);
-            toast.error('Failed to send email');
+            console.error('Error response:', err.response?.data);
+            console.error('Error status:', err.response?.status);
+            console.error('Error headers:', err.response?.headers);
+
+            if (err.response?.status === 401) {
+                toast.error('Authentication failed. Please log in again.');
+                clearAuthData();
+                navigate('/login');
+            } else if (err.response?.status === 400) {
+                toast.error(err.response.data?.error || 'Invalid email data');
+            } else {
+                toast.error('Failed to send email: ' + (err.response?.data?.error || err.message));
+            }
         }
     };
 

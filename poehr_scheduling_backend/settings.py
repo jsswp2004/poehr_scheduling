@@ -159,14 +159,14 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Email settings
 # For development, use console backend to avoid SMTP authentication issues
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # Uncomment for production
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Re-enabled SMTP with updated credentials
+EMAIL_HOST = 'mail.privateemail.com'  # Private email server
+EMAIL_PORT = 465
+EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or 'noreply@example.com'
+DEFAULT_FROM_EMAIL = 'info@powerhealthcareit.com'  # Updated from EMAIL_HOST_USER
 ADMIN_EMAIL = 'jsswp2004@outlook.com'  # 👈 where the notification goes
 
 # ✅ Twilio settings
