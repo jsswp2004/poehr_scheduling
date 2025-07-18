@@ -305,7 +305,7 @@ function ProfilePage() {
   return (
     <Box sx={{ mt: 4, px: 3, width: "100%" }}>
       <Paper
-        elevation={3}
+        elevation={0}
         sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: "100%", height: "calc(100vh - 120px)" }}
       >
         {" "}
@@ -905,7 +905,6 @@ function ProfilePage() {
               disabled={!isEditing}
               variant="outlined"
               placeholder="(123) 456-7890"
-              key={`phone-${formData.phone_number}`}
               InputProps={{
                 readOnly: !isEditing,
                 sx: !isEditing
