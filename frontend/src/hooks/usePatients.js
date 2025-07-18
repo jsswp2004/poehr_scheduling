@@ -92,12 +92,6 @@ export const usePatients = (navigate) => {
     };
 
     const handleOpenEmailModal = (patient, token) => {
-        console.log('=== OPEN EMAIL MODAL DEBUG ===');
-        console.log('Patient:', patient);
-        console.log('Patient email:', patient.email);
-        console.log('Patient user email:', patient.user?.email);
-        console.log('==============================');
-
         setSelectedPatient(patient);
 
         // Get current user's name from token
@@ -121,11 +115,6 @@ export const usePatients = (navigate) => {
 
     const handleSendEmail = async (token) => {
         try {
-            console.log('=== EMAIL SEND DEBUG ===');
-            console.log('Token passed:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
-            console.log('Selected patient:', selectedPatient);
-            console.log('Email form:', emailForm);
-
             // Get a fresh token to ensure it's not expired
             const freshToken = await getValidToken();
             if (!freshToken) {
@@ -133,17 +122,12 @@ export const usePatients = (navigate) => {
                 return;
             }
 
-            console.log('Fresh token:', freshToken ? freshToken.substring(0, 20) + '...' : 'NO FRESH TOKEN');
-            console.log('=======================');
-
             // Determine the email address to use
             const emailAddress = selectedPatient.email || selectedPatient.user?.email;
             if (!emailAddress) {
                 toast.error('No email address found for this patient');
                 return;
             }
-
-            console.log('Email address to use:', emailAddress);
 
             await axios.post(
                 'http://127.0.0.1:8000/api/messages/send-email/',
@@ -161,9 +145,6 @@ export const usePatients = (navigate) => {
             setEmailForm({ subject: 'Message from your provider', message: '' });
         } catch (err) {
             console.error('Email failed:', err);
-            console.error('Error response:', err.response?.data);
-            console.error('Error status:', err.response?.status);
-            console.error('Error headers:', err.response?.headers);
 
             if (err.response?.status === 401) {
                 toast.error('Authentication failed. Please log in again.');

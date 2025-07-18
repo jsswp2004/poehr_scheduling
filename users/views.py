@@ -57,11 +57,8 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Allow admin, system_admin, and registrar to create organizations"""
         user = self.request.user
-        print(f"🔍 Organization creation attempt by user: {user.username} (role: {user.role})")
-        print(f"🔍 Request data: {self.request.data}")
         
         if user.role not in ['admin', 'system_admin', 'registrar']:
-            print(f"❌ Permission denied for role: {user.role}")
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to create organizations.")
         
@@ -90,8 +87,6 @@ class UserDetailView(RetrieveUpdateAPIView):
     lookup_field = 'pk'
     lookup_url_kwarg = 'pk'
     def patch(self, request, *args, **kwargs):
-        print("PATCH data:", request.data)
-        print("FILES:", request.FILES)
         return super().patch(request, *args, **kwargs)
 
 class PatientUpdateView(RetrieveUpdateAPIView):
@@ -102,9 +97,6 @@ class PatientUpdateView(RetrieveUpdateAPIView):
     lookup_url_kwarg = 'user_id'
     
     def update(self, request, *args, **kwargs):
-        # Print the incoming data to debug
-        print("Patient Update Data:", request.data)
-        print("Provider ID in request:", request.data.get('provider_id'))
         return super().update(request, *args, **kwargs)
 
 class PatientDetailView(RetrieveAPIView):
