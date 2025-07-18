@@ -44,6 +44,26 @@ const AppointmentModal = ({
                 )}
 
                 <Stack spacing={2} sx={{ mt: 1 }}>
+                    {/* Patient Name Display - Only show in edit mode when patient name exists */}
+                    {isEditing && formData.patient_name && (
+                        <TextField
+                            label="Patient Name"
+                            value={formData.patient_name}
+                            fullWidth
+                            variant="outlined"
+                            disabled={true}
+                            sx={{
+                                '& .MuiInputBase-input.Mui-disabled': {
+                                    WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
+                                    backgroundColor: '#f5f5f5',
+                                },
+                                '& .MuiInputLabel-root.Mui-disabled': {
+                                    color: 'rgba(0, 0, 0, 0.6)',
+                                },
+                            }}
+                        />
+                    )}
+
                     <TextField
                         autoFocus
                         label="Appointment Title"
@@ -117,6 +137,21 @@ const AppointmentModal = ({
                             <MenuItem value="monthly">Monthly</MenuItem>
                         </MUISelect>
                     </FormControl>
+
+                    {/* Recurrence End Date - Only show when recurrence is not "none" */}
+                    {formData.recurrence && formData.recurrence !== "none" && (
+                        <TextField
+                            label="Recurrence End Date"
+                            type="date"
+                            value={formData.recurrence_end_date || ""}
+                            onChange={(e) => onFormChange({ ...formData, recurrence_end_date: e.target.value })}
+                            fullWidth
+                            variant="outlined"
+                            InputLabelProps={{ shrink: true }}
+                            disabled={isPast}
+                            helperText="Select when this recurring appointment should end"
+                        />
+                    )}
                 </Stack>
             </DialogContent>
 

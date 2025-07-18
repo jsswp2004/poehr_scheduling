@@ -91,16 +91,15 @@ export const useCalendarData = () => {
             const clinicEventsTransformed = transformClinicEvents(clinicEventsData);
             const holidayEvents = transformHolidays(holidaysData);
 
-            // Combine all events
+            // Combine all events (excluding availability events for calendar display)
             const allEvents = [
                 ...appointmentEvents,
-                ...availEvents,
                 ...clinicEventsTransformed,
                 ...holidayEvents,
             ];
 
-            setAllEvents(allEvents); // Store all events
-            setAvailabilityEvents(availEvents);
+            setAllEvents(allEvents); // Store all events without availability
+            setAvailabilityEvents(availEvents); // Store availability events separately
             setDoctors(doctorsData);
             setClinicEvents(clinicEventsData);
             setHolidays(holidaysData);
