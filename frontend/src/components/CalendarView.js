@@ -11,13 +11,16 @@ import React, { useCallback, memo, useState, useRef, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Box, CircularProgress, Typography } from "@mui/material";
+import { Box, CircularProgress, Typography, Avatar, Tooltip } from "@mui/material";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUserMd, faStethoscope, faCalendarAlt } from "@fortawesome/free-solid-svg-icons";
 
 // Components
 import BackButton from "./BackButton";
 import CustomToolbar from "./calendar/CustomToolbar";
 import AppointmentModal from "./calendar/AppointmentModal";
 import AvailabilityModal from "./calendar/AvailabilityModal";
+import AvailableProvidersModal from "./calendar/AvailableProvidersModal";
 
 // Hooks
 import { useCalendarData } from "../hooks/calendar/useCalendarData";
@@ -30,6 +33,12 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
   // Local search state that updates immediately for responsive typing
   const [localSearchQuery, setLocalSearchQuery] = useState("");
   const searchTimeoutRef = useRef(null);
+
+  // State for available providers modal
+  const [showProvidersModal, setShowProvidersModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDateProviders, setSelectedDateProviders] = useState([]);
+  const [preventSlotSelection, setPreventSlotSelection] = useState(false);
 
   // Custom hooks for data and functionality
   const {
@@ -46,10 +55,102 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
     searchQuery,
     setSearchQuery,
     loading,
-    userRole,
     token,
     refetchData,
   } = useCalendarData();
+
+  // Custom date header component to show provider icons
+  const CustomDateHeader = useCallback(({ date, label }) => {
+    // Get availability events for this date from the separate availability events
+    const dayAvailability = availabilityEvents.filter(avail => {
+      const eventDate = new Date(avail.start);
+      return eventDate.toDateString() === date.toDateString();
+    });
+
+    // Get unique providers available on this date with their time slots
+    const availableProviders = dayAvailability.reduce((acc, avail) => {
+      const data = avail.resource?.data;
+      const providerName = data?.doctor_name || 'Unknown Provider';
+
+      // Find existing provider or create new one
+      let provider = acc.find(p => p.name === providerName);
+      if (!provider) {
+        provider = {
+          name: providerName,
+          timeSlots: []
+        };
+        acc.push(provider);
+      }
+
+      // Add time slot
+      provider.timeSlots.push({
+        start_time: data?.start_time || avail.start,
+        end_time: data?.end_time || avail.end
+      });
+
+      return acc;
+    }, []);
+
+    const handleProviderIconClick = (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      e.nativeEvent.stopImmediatePropagation();
+      setPreventSlotSelection(true);
+      // Reset the flag after a short delay to allow normal slot selection later
+      setTimeout(() => setPreventSlotSelection(false), 100);
+      setSelectedDate(date);
+      setSelectedDateProviders(availableProviders);
+      setShowProvidersModal(true);
+    };
+
+    return (
+      <div style={{ position: 'relative', height: '100%', padding: '2px' }}>
+        {/* Show single doctor icon if there are available providers on this date */}
+        {availableProviders.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '2px',
+              left: '2px',
+              display: 'flex',
+              gap: '2px',
+              zIndex: 1000, // Much higher z-index to ensure it's above everything
+              pointerEvents: 'auto', // Ensure pointer events work
+            }}
+            onMouseDown={handleProviderIconClick}
+            onTouchStart={handleProviderIconClick}
+          >
+            <Tooltip title={`${availableProviders.length} provider(s) available - Click to see details`} arrow>
+              <Box
+                sx={{
+                  width: '12px',
+                  height: '12px',
+                  backgroundColor: '#28a745',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '8px',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  border: '1px solid #fff',
+                  cursor: 'pointer',
+                  pointerEvents: 'none', // Disable pointer events on the box itself
+                  '&:hover': {
+                    backgroundColor: '#218838',
+                    transform: 'scale(1.1)',
+                  },
+                }}
+              >
+                <FontAwesomeIcon icon={faUserMd} style={{ fontSize: '7px' }} />
+              </Box>
+            </Tooltip>
+          </div>
+        )}
+        <span>{label}</span>
+      </div>
+    );
+  }, [availabilityEvents]);
 
   // Sync local search with the debounced search from the hook
   useEffect(() => {
@@ -62,9 +163,13 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
   // Calendar event handlers
   const handleSelectSlot = useCallback(
     ({ start, end }) => {
+      if (preventSlotSelection) {
+        setPreventSlotSelection(false);
+        return;
+      }
       appointmentModal.openNewAppointmentModal(start, end);
     },
-    [appointmentModal]
+    [appointmentModal, preventSlotSelection]
   );
 
   const handleSelectEvent = useCallback(
@@ -85,7 +190,7 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
 
     // Check if this date is a holiday
     const isHoliday = holidays.some(holiday => {
-      const holidayDate = new Date(holiday.date);
+      const holidayDate = new Date(holiday.date + 'T00:00:00');
       return holidayDate.toDateString() === date.toDateString();
     });
 
@@ -192,7 +297,16 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
     <Box>
       {showBackButton && <BackButton />}
 
-      <Box sx={{ height: "calc(100vh - 200px)", mt: showBackButton ? 2 : 0 }}>
+      <Box sx={{
+        height: "calc(100vh - 200px)",
+        mt: showBackButton ? 2 : 0,
+        '& .rbc-date-cell': {
+          position: 'relative',
+        },
+        '& .rbc-month-view .rbc-date-cell': {
+          minHeight: '40px',
+        }
+      }}>
         <Calendar
           localizer={localizer}
           events={events}
@@ -214,6 +328,9 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
           dayPropGetter={dayPropGetter}
           components={{
             toolbar: toolbarComponent,
+            month: {
+              dateHeader: CustomDateHeader,
+            },
           }}
           eventPropGetter={(event) => {
             let backgroundColor = "#3174ad";
@@ -234,6 +351,10 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
               case "holiday":
                 backgroundColor = "#dc3545";
                 borderColor = "#dc3545";
+                break;
+              default:
+                backgroundColor = "#3174ad";
+                borderColor = "#3174ad";
                 break;
             }
 
@@ -267,6 +388,14 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
           open={availabilityModal.showAvailabilityModal}
           onClose={availabilityModal.closeAvailabilityModal}
           selectedDateAvailability={availabilityModal.selectedDateAvailability}
+        />
+
+        {/* Available Providers Modal */}
+        <AvailableProvidersModal
+          open={showProvidersModal}
+          onClose={() => setShowProvidersModal(false)}
+          selectedDate={selectedDate}
+          availableProviders={selectedDateProviders}
         />
       </Box>
     </Box>

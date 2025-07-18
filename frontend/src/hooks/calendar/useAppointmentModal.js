@@ -19,8 +19,10 @@ export const useAppointmentModal = (onUpdate, token) => {
         description: "",
         duration_minutes: 30,
         recurrence: "none",
+        recurrence_end_date: "",
         appointment_datetime: "",
         provider: null,
+        patient_name: null,
     });
 
     // Selected data
@@ -33,8 +35,10 @@ export const useAppointmentModal = (onUpdate, token) => {
             description: "",
             duration_minutes: 30,
             recurrence: "none",
+            recurrence_end_date: "",
             appointment_datetime: "",
             provider: null,
+            patient_name: null,
         });
         setSelectedDoctor(null);
         setIsEditing(false);
@@ -106,9 +110,11 @@ export const useAppointmentModal = (onUpdate, token) => {
             description: appointmentData.description || "",
             duration_minutes: appointmentData.duration_minutes || 30,
             recurrence: appointmentData.recurrence || "none",
+            recurrence_end_date: appointmentData.recurrence_end_date || "",
             appointment_datetime: localDatetimeString,
             provider: appointmentData.provider || null,
             patient: appointmentData.patient || null, // Include patient ID for updates
+            patient_name: appointmentData.patient_name || null, // Include patient name for display
         });
 
         setShowModal(true);
