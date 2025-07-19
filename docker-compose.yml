@@ -28,11 +28,18 @@ services:
     depends_on:
       - db
       - redis
-    env_file:
-      - .env
     environment:
+      - DEBUG=1
       - DB_HOST=db
+      - DB_NAME=poehr_db
+      - DB_USER=jsswp2004
+      - DB_PASSWORD=krat25Miko!
+      - DB_PORT=5432
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TIME_ZONE=UTC
+      - EMAIL_HOST_USER=jsswp199427@gmail.com
+      - EMAIL_HOST_PASSWORD=krat13Miko!
     volumes:
       - .:/code
       - /code/node_modules
@@ -44,11 +51,18 @@ services:
     depends_on:
       - db
       - redis
-    env_file:
-      - .env
     environment:
+      - DEBUG=1
       - DB_HOST=db
+      - DB_NAME=poehr_db
+      - DB_USER=jsswp2004
+      - DB_PASSWORD=krat25Miko!
+      - DB_PORT=5432
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TIME_ZONE=UTC
+      - EMAIL_HOST_USER=jsswp199427@gmail.com
+      - EMAIL_HOST_PASSWORD=krat13Miko!
     volumes:
       - .:/code
     command: python start_websocket_server_9001.py

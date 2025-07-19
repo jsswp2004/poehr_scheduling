@@ -24,9 +24,9 @@ export const transformAppointmentsToEvents = (appointments) => {
 export const transformAvailabilityToEvents = (availability) => {
     return availability.map((avail) => ({
         id: `avail-${avail.id}`,
-        title: `Available - ${avail.doctor_name || "Unknown Provider"}`,
-        start: new Date(avail.start_time),
-        end: new Date(avail.end_time),
+        title: `Available - ${avail.provider_name || "Unknown Provider"}`,
+        start: new Date(avail.start_datetime),
+        end: new Date(avail.end_datetime),
         resource: {
             type: "availability",
             data: avail,
@@ -50,22 +50,17 @@ export const transformClinicEvents = (clinicEvents) => {
 
 // Transform holidays to calendar events
 export const transformHolidays = (holidays) => {
-    return holidays.map((holiday) => {
-        // Create a proper local date to avoid timezone issues
-        const localDate = new Date(holiday.date + 'T00:00:00');
-
-        return {
-            id: `holiday-${holiday.id}`,
-            title: `Holiday: ${holiday.name}`,
-            start: localDate,
-            end: localDate,
-            allDay: true,
-            resource: {
-                type: "holiday",
-                data: holiday,
-            },
-        };
-    });
+    return holidays.map((holiday) => ({
+        id: `holiday-${holiday.id}`,
+        title: `Holiday: ${holiday.name}`,
+        start: new Date(holiday.date),
+        end: new Date(holiday.date),
+        allDay: true,
+        resource: {
+            type: "holiday",
+            data: holiday,
+        },
+    }));
 };
 
 // Filter events based on search query
@@ -76,7 +71,6 @@ export const filterEventsBySearch = (events, searchQuery) => {
     return events.filter((event) =>
         event.title.toLowerCase().includes(query) ||
         event.resource?.data?.patient_name?.toLowerCase().includes(query) ||
-        event.resource?.data?.provider_name?.toLowerCase().includes(query) ||
-        event.resource?.data?.doctor_name?.toLowerCase().includes(query)
+        event.resource?.data?.provider_name?.toLowerCase().includes(query)
     );
 };

@@ -81,8 +81,8 @@ function AppointmentsSection({
                     },
                 }}
             >
-                <Tab label="Calendar View" value="calendar" />
                 <Tab label="Today's Appointments" value="today" />
+                <Tab label="Calendar View" value="calendar" />
                 <Tab label="All Appointments" value="all" />
             </Tabs>
 

@@ -32,7 +32,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { getValidToken, clearAuthData } from "../utils/authUtils";
 
-function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = false }) {
+function RegisterPage({ adminMode = false }) {
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
   const [doctors, setDoctors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -156,19 +156,10 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
     }
 
     const payload = {
-      username: formData.username,
-      email: formData.email,
-      password: formData.password,
-      first_name: formData.first_name,
-      last_name: formData.last_name,
-      phone_number: formData.phone_number,
+      ...formData,
       role: "patient",
+      provider: formData.assigned_doctor,
     };
-
-    // Only add provider if it's set
-    if (formData.assigned_doctor) {
-      payload.provider = formData.assigned_doctor;
-    }
 
     try {
       // Get valid token if user is logged in
@@ -203,53 +194,33 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
             patientResponse.data.results.length > 0
           ) {
             const newPatient = patientResponse.data.results[0];
-
             setRegisteredPatient(newPatient);
             setPatientEditData(newPatient);
 
-            // If in modal mode and callback is provided, call it with the new patient data
-            if (modalMode && onPatientRegistered) {
-              onPatientRegistered(newPatient);
-              // Don't return early - let the patient info display in the modal
-            } else {
-              // Clear the registration form (only in normal admin mode)
-              setFormData({
-                username: "",
-                email: "",
-                password: "",
-                first_name: "",
-                last_name: "",
-                role: adminMode ? "patient" : "patient",
-                assigned_doctor: "",
-                phone_number: "",
-                organization_name: "",
-              });
-              setHasProvider(null);
-            }
+            // Clear the registration form
+            setFormData({
+              username: "",
+              email: "",
+              password: "",
+              first_name: "",
+              last_name: "",
+              role: adminMode ? "patient" : "patient",
+              assigned_doctor: "",
+              phone_number: "",
+              organization_name: "",
+            });
+            setHasProvider(null);
           }
         } catch (fetchError) {
           console.error("Failed to fetch registered patient:", fetchError);
         }
-      } else if (!adminMode) {
-        // Only navigate to login for non-admin mode
+      } else {
+        // For non-admin mode, navigate to login
         navigate("/login");
       }
     } catch (error) {
       console.error("Registration error:", error);
-
-      // Log detailed error information
-      if (error.response) {
-        console.error("Error response data:", error.response.data);
-        console.error("Error response status:", error.response.status);
-        console.error("Error response headers:", error.response.headers);
-      }
-
-      // Show more specific error message
-      const errorMessage = error.response?.data?.detail ||
-        error.response?.data?.message ||
-        "Registration failed. Please try again.";
-
-      toast.error(errorMessage);
+      toast.error("Registration failed. Please try again.");
     }
   };
 
@@ -378,14 +349,13 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
                     />
                   )}
                 <TextField
+                  label="First Name"
                   name="first_name"
                   value={formData.first_name}
                   onChange={handleChange}
                   required
                   fullWidth
                   size="small"
-                  placeholder="First Name"
-                  sx={{ mt: 3 }}
                 />
                 <TextField
                   label="Last Name"
@@ -418,15 +388,8 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
                 <TextField
                   label="Phone Number"
                   name="phone_number"
-                  value={formatPhoneNumber(formData.phone_number || "")}
-                  onChange={(e) => {
-                    // Strip all non-digits to store raw phone number
-                    const raw = e.target.value.replace(/\D/g, "");
-                    setFormData((prev) => ({
-                      ...prev,
-                      phone_number: raw,
-                    }));
-                  }}
+                  value={formData.phone_number}
+                  onChange={handleChange}
                   required={hasProvider === "no"}
                   fullWidth
                   size="small"

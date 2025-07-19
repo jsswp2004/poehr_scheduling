@@ -57,8 +57,11 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         """Allow admin, system_admin, and registrar to create organizations"""
         user = self.request.user
+        print(f"🔍 Organization creation attempt by user: {user.username} (role: {user.role})")
+        print(f"🔍 Request data: {self.request.data}")
         
         if user.role not in ['admin', 'system_admin', 'registrar']:
+            print(f"❌ Permission denied for role: {user.role}")
             from rest_framework.exceptions import PermissionDenied
             raise PermissionDenied("You do not have permission to create organizations.")
         
@@ -87,6 +90,8 @@ class UserDetailView(RetrieveUpdateAPIView):
     lookup_field = 'pk'
     lookup_url_kwarg = 'pk'
     def patch(self, request, *args, **kwargs):
+        print("PATCH data:", request.data)
+        print("FILES:", request.FILES)
         return super().patch(request, *args, **kwargs)
 
 class PatientUpdateView(RetrieveUpdateAPIView):
@@ -97,6 +102,9 @@ class PatientUpdateView(RetrieveUpdateAPIView):
     lookup_url_kwarg = 'user_id'
     
     def update(self, request, *args, **kwargs):
+        # Print the incoming data to debug
+        print("Patient Update Data:", request.data)
+        print("Provider ID in request:", request.data.get('provider_id'))
         return super().update(request, *args, **kwargs)
 
 class PatientDetailView(RetrieveAPIView):
@@ -124,6 +132,8 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     
     def create(self, request, *args, **kwargs):
+        print("📥 Incoming registration payload:", request.data)
+
         data = request.data
         
         # Extract Stripe-related data from the request
@@ -131,18 +141,24 @@ class RegisterView(generics.CreateAPIView):
         subscription_tier = data.get('subscription_tier', 'basic')
         is_enrollment = data.get('is_enrollment', False)  # Check if this is service enrollment
         
+        print(f"💳 Payment method ID: {payment_method_id}")
+        print(f"📋 Subscription tier: {subscription_tier}")
+        print(f"🎯 Is enrollment: {is_enrollment}")
+        
         # If the user is authenticated, use their organization
         if request.user.is_authenticated:
             # User is logged in, use their organization
             organization = request.user.organization
+            print(f"📂 Using authenticated user's organization: {organization}")
         else:
             # User is not logged in, use the organization_name from the form or default
             org_name = data.get('organization_name') or "Default Organization"
             organization, _ = Organization.objects.get_or_create(name=org_name)
+            print(f"📂 Using organization from form: {organization}")
         
-        # Validate the serializer first (without Stripe fields and organization_name)
+        # Validate the serializer first (without Stripe fields)
         serializer_data = {k: v for k, v in data.items() 
-                          if k not in ['payment_method_id', 'subscription_tier', 'is_enrollment', 'organization_name']}
+                          if k not in ['payment_method_id', 'subscription_tier', 'is_enrollment']}
         serializer = self.get_serializer(data=serializer_data)
         
         # Debug validation errors in detail
@@ -154,7 +170,6 @@ class RegisterView(generics.CreateAPIView):
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
-            # User created successfully
               # Only create Stripe customer for service enrollment, not patient registration
             if is_enrollment:                # Initialize Stripe service
                 stripe_service = StripeService()
@@ -191,9 +206,12 @@ class RegisterView(generics.CreateAPIView):
                 
                 # Update user with Stripe information (user data is already updated in create_trial_subscription)
                 # No need to manually set these fields as they're set in the method
+                
+                print("✅ User created successfully with trial subscription:", user.username, user.email)
+                print(f"📅 Trial period: {user.trial_start_date} to {user.trial_end_date}")
             else:
                 # For patient registration, no Stripe integration needed
-                pass
+                print("✅ Patient registered successfully:", user.username, user.email)
             
             # Save the user (with or without Stripe data)
             user.save()

@@ -154,7 +154,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 message,
                 settings.DEFAULT_FROM_EMAIL,
                 admin_emails,
-                fail_silently=True  # Changed to True to prevent SMTP errors from breaking appointment creation
+                fail_silently=False
             )        # Handle recurrence logic
         try:
             recurrence = appointment.recurrence
