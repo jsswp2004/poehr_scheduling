@@ -19,10 +19,10 @@ const RegisterModal = ({ open, onClose, onPatientCreated }) => {
     };
 
     return (
-        <Dialog 
-            open={open} 
-            onClose={handleClose} 
-            maxWidth="md" 
+        <Dialog
+            open={open}
+            onClose={handleClose}
+            maxWidth="md"
             fullWidth
             PaperProps={{
                 sx: {
@@ -47,11 +47,11 @@ const RegisterModal = ({ open, onClose, onPatientCreated }) => {
                     </IconButton>
                 </Box>
             </DialogTitle>
-            
-            <DialogContent 
-                dividers 
-                sx={{ 
-                    p: 2, 
+
+            <DialogContent
+                dividers
+                sx={{
+                    p: 2,
                     overflow: 'auto',
                     '& .MuiPaper-root': {
                         boxShadow: 'none',
@@ -59,8 +59,8 @@ const RegisterModal = ({ open, onClose, onPatientCreated }) => {
                     }
                 }}
             >
-                <RegisterPage 
-                    adminMode={true} 
+                <RegisterPage
+                    adminMode={true}
                     onPatientRegistered={onPatientCreated}
                     modalMode={true}
                 />
