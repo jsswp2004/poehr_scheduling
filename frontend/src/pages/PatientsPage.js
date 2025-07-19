@@ -477,7 +477,7 @@ function PatientsPage() {
 
           {tab === "register" && (
             <Box sx={{ mt: 1 }}>
-              <RegisterPage />
+              <RegisterPage adminMode={true} />
             </Box>
           )}
         </Box>

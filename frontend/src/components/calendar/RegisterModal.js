@@ -22,12 +22,13 @@ const RegisterModal = ({ open, onClose, onPatientCreated }) => {
         <Dialog
             open={open}
             onClose={handleClose}
-            maxWidth="md"
+            maxWidth="lg"
             fullWidth
             PaperProps={{
                 sx: {
                     height: '90vh',
                     maxHeight: '90vh',
+                    minWidth: '800px'
                 }
             }}
         >
