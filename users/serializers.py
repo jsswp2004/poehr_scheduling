@@ -158,7 +158,7 @@ class UserSerializer(serializers.ModelSerializer):
                     ),
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=admin_emails,
-                    fail_silently=False,
+                    fail_silently=True,  # Don't fail registration if email fails
                 )
 
         return user

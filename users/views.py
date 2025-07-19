@@ -148,9 +148,9 @@ class RegisterView(generics.CreateAPIView):
             organization, _ = Organization.objects.get_or_create(name=org_name)
             print(f"📂 Using organization from form: {organization}")
         
-        # Validate the serializer first (without Stripe fields)
+        # Validate the serializer first (without Stripe fields and organization_name)
         serializer_data = {k: v for k, v in data.items() 
-                          if k not in ['payment_method_id', 'subscription_tier', 'is_enrollment']}
+                          if k not in ['payment_method_id', 'subscription_tier', 'is_enrollment', 'organization_name']}
         serializer = self.get_serializer(data=serializer_data)
         
         # Debug validation errors in detail
