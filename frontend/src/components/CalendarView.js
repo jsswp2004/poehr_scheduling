@@ -28,6 +28,7 @@ import { useCalendarData } from "../hooks/calendar/useCalendarData";
 import { useAppointmentModal } from "../hooks/calendar/useAppointmentModal";
 import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
 import { usePatients } from "../hooks/usePatients";
+import { useClinicEvents } from "../hooks/useClinicEvents";
 
 const localizer = momentLocalizer(moment);
 
@@ -65,6 +66,9 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
 
   // Patients hook for patient search in appointment modal
   const { patients } = usePatients(navigate);
+
+  // Clinic events hook for appointment title dropdown
+  const { clinicEvents: eventTypes } = useClinicEvents();
 
   // Custom date header component to show provider icons
   const CustomDateHeader = useCallback(({ date, label }) => {
@@ -389,6 +393,7 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
           onSubmit={appointmentModal.handleSubmit}
           onDelete={appointmentModal.handleDelete}
           patients={patients}
+          eventTypes={eventTypes}
         />
 
         {/* Availability Modal */}

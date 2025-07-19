@@ -35,6 +35,7 @@ const AppointmentModal = ({
     onSubmit,
     onDelete,
     patients = [], // Add patients prop
+    eventTypes = [], // Add eventTypes prop
 }) => {
     const [selectedPatient, setSelectedPatient] = useState(null);
     const [patientSearchValue, setPatientSearchValue] = useState("");
@@ -143,7 +144,7 @@ const AppointmentModal = ({
                                                 {option.first_name} {option.last_name}
                                             </Typography>
                                             <Typography variant="body2" color="text.secondary">
-                                                {option.email} | {option.phone}
+                                                {option.email} | {option.phone_number}
                                             </Typography>
                                         </div>
                                     </Box>
@@ -173,16 +174,26 @@ const AppointmentModal = ({
                         />
                     )}
 
-                    {/* Appointment Title */}
-                    <TextField
-                        autoFocus
-                        label="Appointment Title"
-                        value={formData.title}
-                        onChange={(e) => onFormChange({ ...formData, title: e.target.value })}
-                        fullWidth
-                        variant="outlined"
-                        disabled={isPast}
-                    />
+                    {/* Appointment Type */}
+                    <FormControl fullWidth variant="outlined" disabled={isPast}>
+                        <InputLabel id="appointment-type-label">Appointment Type</InputLabel>
+                        <MUISelect
+                            labelId="appointment-type-label"
+                            id="appointment-type-select"
+                            value={formData.title || ""}
+                            onChange={(e) => onFormChange({ ...formData, title: e.target.value })}
+                            label="Appointment Type"
+                        >
+                            <MenuItem value="">
+                                <em>Select an appointment type</em>
+                            </MenuItem>
+                            {eventTypes.map((eventType) => (
+                                <MenuItem key={eventType.id} value={eventType.name}>
+                                    {eventType.name}
+                                </MenuItem>
+                            ))}
+                        </MUISelect>
+                    </FormControl>
 
                     <TextField
                         label="Description"

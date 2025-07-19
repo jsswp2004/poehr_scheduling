@@ -108,6 +108,7 @@ class UserSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             first_name=validated_data.get('first_name', ''),
             last_name=validated_data.get('last_name', ''),
+            phone_number=validated_data.get('phone_number', ''),
             role=role,  # blank string if non-patient
             organization=organization,
             organization_type=organization_type
@@ -127,23 +128,20 @@ class UserSerializer(serializers.ModelSerializer):
                     user.provider = CustomUser.objects.get(id=provider)
                 except CustomUser.DoesNotExist:
                     pass
-            user.save()            # Create patient profile if not already existing
-            if not Patient.objects.filter(user=user).exists():
-                try:
-                    Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
-                except IntegrityError as e:
-                    from django.db import connection
-                    # If we hit a duplicate ID error, try to fix the sequence and retry once
-                    if 'duplicate key value violates unique constraint' in str(e):
-                        with connection.cursor() as cursor:
-                            cursor.execute("SELECT MAX(id) FROM users_patient")
-                            max_id = cursor.fetchone()[0] or 0
-                            cursor.execute(f"SELECT setval('users_patient_id_seq', {max_id + 1}, true)")
-                        # Try again with the fixed sequence
-                        Patient.objects.create(user=user, phone_number=validated_data.get('phone_number', ''))
-                    else:
-                        # Re-raise if it's not a duplicate key issue
-                        raise            # ✉️ Notify organization and system admins
+            user.save()
+            
+            # Create or update patient profile
+            patient, created = Patient.objects.get_or_create(
+                user=user,
+                defaults={'phone_number': user.phone_number or ''}
+            )
+            
+            if not created and patient.phone_number != user.phone_number:
+                # Update existing patient record with current phone number
+                patient.phone_number = user.phone_number or ''
+                patient.save()
+                
+            # ✉️ Notify organization and system admins
             admin_emails = get_admin_emails(organization=user.organization)
             if admin_emails:
                 org_name = user.organization.name if user.organization else 'Unknown Organization'

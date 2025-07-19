@@ -124,8 +124,6 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
     
     def create(self, request, *args, **kwargs):
-        print("📥 Incoming registration payload:", request.data)
-
         data = request.data
         
         # Extract Stripe-related data from the request
@@ -133,20 +131,14 @@ class RegisterView(generics.CreateAPIView):
         subscription_tier = data.get('subscription_tier', 'basic')
         is_enrollment = data.get('is_enrollment', False)  # Check if this is service enrollment
         
-        print(f"💳 Payment method ID: {payment_method_id}")
-        print(f"📋 Subscription tier: {subscription_tier}")
-        print(f"🎯 Is enrollment: {is_enrollment}")
-        
         # If the user is authenticated, use their organization
         if request.user.is_authenticated:
             # User is logged in, use their organization
             organization = request.user.organization
-            print(f"📂 Using authenticated user's organization: {organization}")
         else:
             # User is not logged in, use the organization_name from the form or default
             org_name = data.get('organization_name') or "Default Organization"
             organization, _ = Organization.objects.get_or_create(name=org_name)
-            print(f"📂 Using organization from form: {organization}")
         
         # Validate the serializer first (without Stripe fields and organization_name)
         serializer_data = {k: v for k, v in data.items() 
@@ -162,6 +154,7 @@ class RegisterView(generics.CreateAPIView):
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
+            # User created successfully
               # Only create Stripe customer for service enrollment, not patient registration
             if is_enrollment:                # Initialize Stripe service
                 stripe_service = StripeService()
@@ -198,12 +191,9 @@ class RegisterView(generics.CreateAPIView):
                 
                 # Update user with Stripe information (user data is already updated in create_trial_subscription)
                 # No need to manually set these fields as they're set in the method
-                
-                print("✅ User created successfully with trial subscription:", user.username, user.email)
-                print(f"📅 Trial period: {user.trial_start_date} to {user.trial_end_date}")
             else:
                 # For patient registration, no Stripe integration needed
-                print("✅ Patient registered successfully:", user.username, user.email)
+                pass
             
             # Save the user (with or without Stripe data)
             user.save()
