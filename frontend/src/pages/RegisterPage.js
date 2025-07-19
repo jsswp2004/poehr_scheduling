@@ -230,8 +230,8 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         } catch (fetchError) {
           console.error("Failed to fetch registered patient:", fetchError);
         }
-      } else {
-        // For non-admin mode, navigate to login
+      } else if (!adminMode) {
+        // Only navigate to login for non-admin mode
         navigate("/login");
       }
     } catch (error) {
@@ -378,13 +378,14 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
                     />
                   )}
                 <TextField
-                  label="First Name"
                   name="first_name"
                   value={formData.first_name}
                   onChange={handleChange}
                   required
                   fullWidth
                   size="small"
+                  placeholder="First Name"
+                  sx={{ mt: 3 }}
                 />
                 <TextField
                   label="Last Name"
