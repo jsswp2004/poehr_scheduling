@@ -2,8 +2,34 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods
+
+@require_http_methods(["GET"])
+def api_root(request):
+    """API root endpoint providing information about available endpoints"""
+    return JsonResponse({
+        "message": "Welcome to POEHR Healthcare Scheduling API",
+        "version": "1.0",
+        "status": "running",
+        "endpoints": {
+            "admin": "/admin/",
+            "auth": "/api/auth/",
+            "users": "/api/users/",
+            "appointments": "/api/",
+            "password_reset": "/api/password-reset/",
+            "sms": "/api/sms/",
+            "messages": "/api/messages/",
+            "communicator": "/api/communicator/"
+        },
+        "documentation": "Contact your administrator for API documentation"
+    })
 
 urlpatterns = [
+    path('', api_root, name='api_root'),  # Root endpoint
     path('admin/', admin.site.urls),
 
     # Auth-specific routes (register/login)

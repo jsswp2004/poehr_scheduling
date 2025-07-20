@@ -1,0 +1,98 @@
+{
+  "family": "poehr-healthcare-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "2048",
+  "memory": "4096",
+  "executionRoleArn": "arn:aws:iam::570486163789:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "570486163789.dkr.ecr.us-east-1.amazonaws.com/poehr-healthcare-backend:latest",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "DEBUG",
+          "value": "0"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "DB_USER",
+          "value": "power_admin"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "power-healthcare-db"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "power-healthcare-db.cngi86qkmxl5.us-east-2.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "REDIS_HOST",
+          "value": "power-redis.serverless.use2.cache.amazonaws.com"
+        },
+        {
+          "name": "REDIS_PORT",
+          "value": "6379"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:570486163789:secret:poehr/django-secret-key-QnHnPB"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:570486163789:secret:poehr/db-password-0KlPaZ"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/poehr-healthcare",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "backend"
+        }
+      }
+    },
+    {
+      "name": "frontend",
+      "image": "570486163789.dkr.ecr.us-east-1.amazonaws.com/poehr-healthcare-frontend:latest",
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "REACT_APP_API_URL",
+          "value": "http://localhost:8000"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/poehr-healthcare",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "frontend"
+        }
+      }
+    }
+  ]
+}

@@ -19,7 +19,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback-secret-key-if-missing')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153', '44.213.129.122', '*']
 
 # Application definition
 INSTALLED_APPS = [

@@ -1,9 +1,11 @@
 # 🏥 POEHR Healthcare Scheduling - AWS Deployment Guide
 
 ## 🎯 Overview
+
 This guide will help you deploy your healthcare scheduling application to AWS with HIPAA compliance, high availability, and enterprise security.
 
 ## 📋 Prerequisites
+
 - AWS Account with admin access
 - AWS CLI installed and configured
 - Docker installed locally
@@ -33,12 +35,14 @@ This guide will help you deploy your healthcare scheduling application to AWS wi
 ## 🚀 Phase 1: Initial AWS Setup
 
 ### Step 1: Configure AWS CLI
+
 ```bash
 aws configure
 # Enter your AWS Access Key ID, Secret Key, Region (us-east-1), and output format (json)
 ```
 
 ### Step 2: Create IAM Roles and Policies
+
 ```bash
 # Create execution role for ECS
 aws iam create-role --role-name ecsTaskExecutionRole \
@@ -50,6 +54,7 @@ aws iam create-role --role-name ecsTaskRole \
 ```
 
 ### Step 3: Set Up VPC and Security
+
 ```bash
 # Create VPC for healthcare application
 aws ec2 create-vpc --cidr-block 10.0.0.0/16 --tag-specifications \
@@ -59,6 +64,7 @@ aws ec2 create-vpc --cidr-block 10.0.0.0/16 --tag-specifications \
 ## 🗄️ Phase 2: Database Setup (AWS RDS)
 
 ### Step 1: Create RDS PostgreSQL Instance
+
 ```bash
 aws rds create-db-instance \
   --db-instance-identifier poehr-healthcare-db \
@@ -76,6 +82,7 @@ aws rds create-db-instance \
 ```
 
 ### Step 2: Create ElastiCache Redis Cluster
+
 ```bash
 aws elasticache create-cache-cluster \
   --cache-cluster-id poehr-redis \
@@ -88,11 +95,12 @@ aws elasticache create-cache-cluster \
 ## 📦 Phase 3: Container Registry Setup
 
 ### Step 1: Create ECR Repositories
+
 ```bash
 # Backend repository
 aws ecr create-repository --repository-name poehr-healthcare-backend
 
-# Frontend repository  
+# Frontend repository
 aws ecr create-repository --repository-name poehr-healthcare-frontend
 
 # Get login token
@@ -100,6 +108,7 @@ aws ecr get-login-password --region us-east-1 | docker login --username AWS --pa
 ```
 
 ### Step 2: Build and Push Images
+
 ```bash
 # Build backend image
 docker build -t poehr-healthcare-backend .
@@ -119,16 +128,19 @@ docker push YOUR_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/poehr-healthcare-fro
 ## 🚢 Phase 4: ECS Deployment
 
 ### Step 1: Create ECS Cluster
+
 ```bash
 aws ecs create-cluster --cluster-name poehr-healthcare-cluster --capacity-providers FARGATE
 ```
 
 ### Step 2: Register Task Definition
+
 ```bash
 aws ecs register-task-definition --cli-input-json file://ecs-task-definition.json
 ```
 
 ### Step 3: Create ECS Service
+
 ```bash
 aws ecs create-service \
   --cluster poehr-healthcare-cluster \
@@ -142,6 +154,7 @@ aws ecs create-service \
 ## 🔐 Phase 5: Security & Secrets
 
 ### Step 1: Store Secrets in AWS Secrets Manager
+
 ```bash
 # Django secret key
 aws secretsmanager create-secret --name "poehr/django-secret-key" \
@@ -160,6 +173,7 @@ aws secretsmanager create-secret --name "poehr/db-host" \
 ```
 
 ### Step 2: Configure SSL Certificate (AWS Certificate Manager)
+
 ```bash
 aws acm request-certificate \
   --domain-name your-domain.com \
@@ -170,6 +184,7 @@ aws acm request-certificate \
 ## 🌐 Phase 6: Load Balancer & CDN
 
 ### Step 1: Create Application Load Balancer
+
 ```bash
 aws elbv2 create-load-balancer \
   --name poehr-healthcare-alb \
@@ -178,6 +193,7 @@ aws elbv2 create-load-balancer \
 ```
 
 ### Step 2: Configure CloudFront Distribution
+
 ```bash
 aws cloudfront create-distribution --distribution-config file://cloudfront-config.json
 ```
@@ -185,11 +201,13 @@ aws cloudfront create-distribution --distribution-config file://cloudfront-confi
 ## 🔍 Phase 7: Monitoring & Logging
 
 ### Step 1: Create CloudWatch Log Groups
+
 ```bash
 aws logs create-log-group --log-group-name /ecs/poehr-healthcare
 ```
 
 ### Step 2: Set Up Health Checks and Alarms
+
 ```bash
 aws cloudwatch put-metric-alarm \
   --alarm-name "poehr-high-cpu" \
@@ -205,6 +223,7 @@ aws cloudwatch put-metric-alarm \
 ## 🏥 Phase 8: HIPAA Compliance Setup
 
 ### Security Checklist:
+
 - ✅ **Encryption at Rest**: RDS encrypted, S3 encrypted
 - ✅ **Encryption in Transit**: ALB with SSL/TLS
 - ✅ **Access Logging**: CloudTrail enabled
@@ -214,8 +233,9 @@ aws cloudwatch put-metric-alarm \
 - ✅ **Backup & Recovery**: RDS automated backups
 
 ### Required AWS Services for HIPAA:
+
 - **AWS CloudTrail**: Audit logging
-- **AWS Config**: Compliance monitoring  
+- **AWS Config**: Compliance monitoring
 - **AWS GuardDuty**: Threat detection
 - **AWS Shield**: DDoS protection
 - **AWS WAF**: Web application firewall
@@ -223,21 +243,24 @@ aws cloudwatch put-metric-alarm \
 ## 🎛️ Environment Variables Setup
 
 Update your `.env.production` file with actual AWS values:
+
 ```bash
 # Get RDS endpoint
 aws rds describe-db-instances --db-instance-identifier poehr-healthcare-db
 
-# Get ElastiCache endpoint  
+# Get ElastiCache endpoint
 aws elasticache describe-cache-clusters --cache-cluster-id poehr-redis
 ```
 
 ## 🧪 Phase 9: Testing & Validation
 
 ### Health Check Endpoints:
+
 - Backend: `https://api.your-domain.com/api/health/`
 - Frontend: `https://your-domain.com/`
 
 ### Load Testing:
+
 ```bash
 # Use AWS Load Testing solution
 aws cloudformation create-stack --stack-name load-testing \
@@ -246,15 +269,15 @@ aws cloudformation create-stack --stack-name load-testing \
 
 ## 💰 Cost Estimation (Monthly)
 
-| Service | Instance Type | Estimated Cost |
-|---------|---------------|----------------|
-| ECS Fargate | 2 vCPUs, 4GB RAM | $60 |
-| RDS PostgreSQL | db.t3.micro | $15 |
-| ElastiCache Redis | cache.t3.micro | $12 |
-| Application Load Balancer | - | $18 |
-| CloudFront CDN | 50GB transfer | $5 |
-| S3 Storage | 100GB | $3 |
-| **Total** | | **~$113/month** |
+| Service                   | Instance Type    | Estimated Cost  |
+| ------------------------- | ---------------- | --------------- |
+| ECS Fargate               | 2 vCPUs, 4GB RAM | $60             |
+| RDS PostgreSQL            | db.t3.micro      | $15             |
+| ElastiCache Redis         | cache.t3.micro   | $12             |
+| Application Load Balancer | -                | $18             |
+| CloudFront CDN            | 50GB transfer    | $5              |
+| S3 Storage                | 100GB            | $3              |
+| **Total**                 |                  | **~$113/month** |
 
 ## 🚨 Important Notes
 
@@ -267,6 +290,7 @@ aws cloudformation create-stack --stack-name load-testing \
 ## 🔄 Deployment Commands
 
 Use the included deployment script:
+
 ```bash
 chmod +x deploy-aws.sh
 ./deploy-aws.sh
@@ -275,14 +299,16 @@ chmod +x deploy-aws.sh
 ## 📞 Support
 
 For AWS support with HIPAA compliance:
+
 - AWS Enterprise Support Plan recommended
 - AWS Professional Services for healthcare implementations
 
 ---
 
 ## Next Steps:
+
 1. Review and customize configuration files
-2. Set up AWS CLI and credentials  
+2. Set up AWS CLI and credentials
 3. Run the deployment script
 4. Configure domain and SSL
 5. Set up monitoring and alerting

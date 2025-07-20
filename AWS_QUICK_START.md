@@ -3,17 +3,20 @@
 ## Quick Start Commands
 
 ### 1. Set up AWS CLI and credentials
+
 ```bash
 aws configure
 ```
 
 ### 2. Make scripts executable
+
 ```bash
 chmod +x deploy-aws.sh
 chmod +x setup-aws-secrets.sh
 ```
 
 ### 3. Set up secrets in AWS Secrets Manager
+
 ```bash
 ./setup-aws-secrets.sh
 ```
@@ -21,6 +24,7 @@ chmod +x setup-aws-secrets.sh
 ### 4. Create AWS infrastructure manually (one-time setup)
 
 #### Create VPC and networking
+
 ```bash
 # Create VPC
 VPC_ID=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query 'Vpc.VpcId' --output text)
@@ -36,6 +40,7 @@ aws ec2 attach-internet-gateway --vpc-id $VPC_ID --internet-gateway-id $IGW_ID
 ```
 
 #### Create RDS PostgreSQL Database
+
 ```bash
 aws rds create-db-instance \
   --db-instance-identifier poehr-healthcare-db \
@@ -52,6 +57,7 @@ aws rds create-db-instance \
 ```
 
 #### Create ElastiCache Redis
+
 ```bash
 aws elasticache create-cache-cluster \
   --cache-cluster-id poehr-redis \
@@ -61,6 +67,7 @@ aws elasticache create-cache-cluster \
 ```
 
 ### 5. Deploy the application
+
 ```bash
 ./deploy-aws.sh
 ```
@@ -68,11 +75,13 @@ aws elasticache create-cache-cluster \
 ## Important Notes
 
 1. **Replace placeholders** in configuration files:
+
    - Update `YOUR_ACCOUNT_ID` with your AWS Account ID
    - Update domain names in nginx configuration
    - Update subnet and security group IDs
 
 2. **Update secrets** with actual values:
+
    - Database endpoints after RDS creation
    - Redis endpoints after ElastiCache creation
 

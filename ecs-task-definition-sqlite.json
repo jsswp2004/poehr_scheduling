@@ -1,0 +1,99 @@
+{
+  "family": "poehr-healthcare-task",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::570486163789:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "570486163789.dkr.ecr.us-east-1.amazonaws.com/poehr-healthcare-backend:latest",
+      "command": [
+        "/bin/bash",
+        "-c",
+        "echo 'Starting Django server with SQLite...' && python manage.py migrate && python manage.py runserver 0.0.0.0:8000 --insecure"
+      ],
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "DEBUG",
+          "value": "1"
+        },
+        {
+          "name": "AWS_DEFAULT_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "DATABASE_URL",
+          "value": "sqlite:///db.sqlite3"
+        },
+        {
+          "name": "USE_SQLITE",
+          "value": "true"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:570486163789:secret:poehr/django-secret-key-K5VIyZ"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/poehr-healthcare",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "backend"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/admin/ || exit 1"
+        ],
+        "interval": 60,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 120
+      }
+    },
+    {
+      "name": "frontend",
+      "image": "570486163789.dkr.ecr.us-east-1.amazonaws.com/poehr-healthcare-frontend:latest",
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": false,
+      "environment": [
+        {
+          "name": "REACT_APP_API_URL",
+          "value": "http://localhost:8000"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/poehr-healthcare",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "frontend"
+        }
+      },
+      "dependsOn": [
+        {
+          "containerName": "backend",
+          "condition": "HEALTHY"
+        }
+      ]
+    }
+  ]
+}
