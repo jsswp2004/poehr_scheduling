@@ -9,11 +9,7 @@
     {
       "name": "backend",
       "image": "570486163789.dkr.ecr.us-east-1.amazonaws.com/poehr-healthcare-backend:latest",
-      "command": [
-        "/bin/bash",
-        "-c",
-        "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
-      ],
+      "command": ["/bin/bash", "/app/start-django.sh"],
       "portMappings": [
         {
           "containerPort": 8000,
