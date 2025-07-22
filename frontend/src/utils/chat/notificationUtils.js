@@ -43,7 +43,7 @@ export const playNotificationSound = (messageId = null) => {
         }
         soundPlayedForMessages.add(messageId);
         console.log('🔊 Playing sound for message:', messageId);
-        
+
         // Clean up old message IDs to prevent memory leaks (keep only last 100)
         if (soundPlayedForMessages.size > 100) {
             const entries = Array.from(soundPlayedForMessages);

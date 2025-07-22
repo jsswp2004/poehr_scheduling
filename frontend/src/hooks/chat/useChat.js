@@ -34,7 +34,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
             );
 
             if (success) {
-                console.log('✅ Chat system initialized successfully');
+                // Chat system initialized successfully
             } else {
                 console.error('❌ Chat system initialization failed');
                 chatData.setLastError('Failed to initialize chat system');
@@ -103,7 +103,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
                 });
             }
 
-            console.log('✅ Message sent successfully');
         } catch (error) {
             console.error('❌ Failed to send message:', error);
             chatData.setLastError('Failed to send message');

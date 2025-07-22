@@ -49,7 +49,6 @@ const useOnlineStatus = () => {
 
       case 'online_users_list':
         // Update the entire online users list
-        console.log('🟢 Received online_users_list:', data.users);
         const usersMap = {};
         data.users.forEach(user => {
           usersMap[user.id] = {
@@ -106,9 +105,6 @@ const useOnlineStatus = () => {
   useEffect(() => {
     setIsConnected(wsConnected);
   }, [wsConnected]);
-
-  console.log('🟢 useOnlineStatus socket:', socket);
-  console.log('📨 useOnlineStatus lastMessage:', lastMessage); // Log the last message
 
   return {
     onlineUsers,

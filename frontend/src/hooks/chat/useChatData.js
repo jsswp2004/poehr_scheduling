@@ -22,22 +22,18 @@ export const useChatData = (currentUser) => {
 
     // Get or create chat room
     const getOrCreateRoom = useCallback((targetUser) => {
-        console.log('🔍 getOrCreateRoom called with:', {
-            currentUser: currentUser ? `${currentUser.first_name} ${currentUser.last_name} (ID: ${currentUser.user_id})` : 'null',
-            targetUser: targetUser ? `${targetUser.first_name || 'No first_name'} ${targetUser.last_name || 'No last_name'} (ID: ${targetUser.user_id})` : 'null'
-        });
+        const currentUserId = currentUser?.user_id || currentUser?.id;
+        const targetUserId = targetUser?.user_id || targetUser?.id;
 
-        if (!currentUser || !targetUser) {
-            console.error('❌ getOrCreateRoom: Missing user data', { currentUser, targetUser });
+        if (!currentUser || !targetUser || !currentUserId || !targetUserId) {
+            console.error('❌ getOrCreateRoom: Missing user data', { currentUser, targetUser, currentUserId, targetUserId });
             return null;
         }
 
-        const roomKey = createRoomKey(currentUser.user_id, targetUser.user_id);
-        console.log('🔑 Generated room key:', roomKey);
+        const roomKey = createRoomKey(currentUserId, targetUserId);
 
         // Check if room already exists using ref (current state)
         if (chatRoomsRef.current[roomKey]) {
-            console.log('✅ Room already exists:', chatRoomsRef.current[roomKey]);
             return chatRoomsRef.current[roomKey];
         }
 
@@ -60,13 +56,39 @@ export const useChatData = (currentUser) => {
         return newRoom;
     }, [currentUser]);
 
-    // Add message to room (with deduplication)
+    // Add message to room (with deduplication and auto-room creation)
     const addMessageToRoom = useCallback((roomKey, message) => {
         setChatRooms(prev => {
-            const room = prev[roomKey];
-            if (!room) return prev;
+            let room = prev[roomKey];
 
-            // Check if message already exists to prevent duplicates
+            // If room doesn't exist, create it automatically
+            if (!room) {
+                // Extract participant information from message and current user
+                const currentUserId = currentUser?.user_id || currentUser?.id;
+                const otherUserId = message.sender_id === currentUserId ? message.receiver_id : message.sender_id;
+
+                if (!currentUserId || !otherUserId) {
+                    console.error('❌ Cannot create room - missing user IDs:', { currentUserId, otherUserId, message });
+                    return prev;
+                }
+
+                // Create a minimal room structure
+                // We'll need to get the full user object later when the chat modal opens
+                room = {
+                    id: roomKey,
+                    participants: [
+                        currentUser,
+                        {
+                            id: otherUserId,
+                            user_id: otherUserId,
+                            first_name: message.sender_name?.split(' ')[0] || 'Unknown',
+                            last_name: message.sender_name?.split(' ').slice(1).join(' ') || 'User'
+                        }
+                    ],
+                    messages: [],
+                    lastActivity: new Date().toISOString(),
+                };
+            }            // Check if message already exists to prevent duplicates
             const messageExists = room.messages.some(existingMessage =>
                 existingMessage.id === message.id ||
                 (existingMessage.content === message.content &&
@@ -75,11 +97,9 @@ export const useChatData = (currentUser) => {
             );
 
             if (messageExists) {
-                console.log('⚠️ Duplicate message detected, skipping:', message.id);
                 return prev;
             }
 
-            console.log('✅ Adding new message to room:', roomKey, message.id);
             const updatedMessages = [...room.messages, message];
             const sortedMessages = sortMessagesByTimestamp(updatedMessages);
 
@@ -92,7 +112,7 @@ export const useChatData = (currentUser) => {
                 }
             };
         });
-    }, []);
+    }, [currentUser]);
 
     // Update unread count
     const updateUnreadCount = useCallback((userId, increment = true) => {
@@ -109,17 +129,50 @@ export const useChatData = (currentUser) => {
         const room = chatRoomsRef.current[roomKey];
         if (!room) return;
 
+        const currentUserId = currentUser?.user_id || currentUser?.id;
         // Reset unread count for the other participant
-        const otherParticipant = room.participants.find(p => p.user_id !== currentUser?.user_id);
+        const otherParticipant = room.participants.find(p => {
+            const participantId = p.user_id || p.id;
+            return participantId !== currentUserId;
+        });
         if (otherParticipant) {
-            updateUnreadCount(otherParticipant.user_id, false);
+            const otherParticipantId = otherParticipant.user_id || otherParticipant.id;
+            updateUnreadCount(otherParticipantId, false);
         }
     }, [currentUser, updateUnreadCount]);
 
-    // Get room messages
+    // Get room messages with duplicate room consolidation
     const getRoomMessages = useCallback((roomKey) => {
-        // This is safe because we're not modifying state, just reading
-        return chatRooms[roomKey]?.messages || [];
+        let messages = chatRooms[roomKey]?.messages || [];
+
+        // Check for potential duplicate rooms with different key formats
+        // This handles legacy messages that might have been stored with different room key logic
+        if (roomKey.startsWith('room_')) {
+            const [, id1, id2] = roomKey.split('_');
+            const alternateRoomKey = `room_${id2}_${id1}`;
+
+            if (alternateRoomKey !== roomKey && chatRooms[alternateRoomKey]) {
+                // Merge messages from both rooms
+                const alternateMessages = chatRooms[alternateRoomKey].messages || [];
+                const allMessages = [...messages, ...alternateMessages];
+
+                // Remove duplicates and sort by timestamp
+                const uniqueMessages = allMessages.filter((message, index, array) =>
+                    array.findIndex(m =>
+                        m.id === message.id ||
+                        (m.content === message.content &&
+                            m.sender_id === message.sender_id &&
+                            Math.abs(new Date(m.timestamp) - new Date(message.timestamp)) < 5000)
+                    ) === index
+                );
+
+                messages = sortMessagesByTimestamp(uniqueMessages);
+
+
+            }
+        }
+
+        return messages;
     }, [chatRooms]);
 
     // Get sorted rooms by last activity
