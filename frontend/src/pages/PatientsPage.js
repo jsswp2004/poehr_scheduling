@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -83,6 +83,7 @@ function PatientsPage() {
         const decoded = jwtDecode(token);
         const user = {
           id: decoded.user_id,
+          user_id: decoded.user_id, // Add this for chat system compatibility
           username: decoded.username,
           first_name: decoded.first_name || "",
           last_name: decoded.last_name || "",
@@ -210,6 +211,12 @@ function PatientsPage() {
 
   // Chat handlers
   const handleOpenChat = (user) => {
+    console.log('🎭 Opening chat modal with user:', user);
+
+    // First start the chat session to initialize the room
+    handleStartChat(user);
+
+    // Then open the modal UI
     setSelectedChatUser(user);
     setChatModalOpen(true);
   };
@@ -262,6 +269,39 @@ function PatientsPage() {
   const handleDownloadReport = (reportName) => {
     analytics.downloadCSVReport(reportName, token);
   };
+
+  // Memoized chat handlers to prevent infinite loops
+  const handleStartChat = useCallback((targetUser) => {
+    console.log('🚨 handleStartChat called with:', targetUser);
+    if (chat.startChatWithUser) {
+      // Transform targetUser to ensure it has user_id property for chat system compatibility
+      const chatTargetUser = {
+        ...targetUser,
+        user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
+      };
+      console.log('🔧 Transformed targetUser for chat:', { original: targetUser, transformed: chatTargetUser });
+      console.log('🆔 Key properties check:', {
+        originalId: targetUser.id,
+        originalUserId: targetUser.user_id,
+        transformedUserId: chatTargetUser.user_id
+      });
+
+      // Pass the transformed targetUser object to useChat
+      chat.startChatWithUser(chatTargetUser);
+    }
+  }, [chat.startChatWithUser]); const handleSendChatMessage = useCallback((targetUser, content) => {
+    if (chat.sendMessage) {
+      // Transform targetUser to ensure it has user_id property for chat system compatibility
+      const chatTargetUser = {
+        ...targetUser,
+        user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
+      };
+      console.log('💬 Transformed targetUser for message send:', { original: targetUser, transformed: chatTargetUser });
+
+      // Pass the transformed targetUser object to useChat
+      chat.sendMessage(chatTargetUser, content);
+    }
+  }, [chat.sendMessage]);
 
   if (!token || !currentUser) {
     return (
@@ -496,9 +536,23 @@ function PatientsPage() {
         <ChatModal
           open={chatModalOpen}
           onClose={handleCloseChat}
-          selectedUser={selectedChatUser}
           currentUser={currentUser}
-          chat={chat}
+          teamMembers={team.team}
+          onSendMessage={handleSendChatMessage}
+          onStartChat={handleStartChat}
+          getRoomMessages={chat.getRoomMessages}
+          getTypingUsersForRoom={chat.getTypingUsersForRoom}
+          isLoading={chat.isLoading}
+          connectionStatus={onlineStatusConnected ? 'connected' : 'disconnected'}
+          operationStatus={chat.operationStatus}
+          chatError={chat.lastError}
+          onRetryConnection={() => window.location.reload()}
+          getUserOnlineStatus={getUserOnlineStatus}
+          getUnreadCount={(userId) => chat.getUnreadCountForUser ? chat.getUnreadCountForUser(userId) : 0}
+          onDeleteOfflineMessage={(user) => {
+            // TODO: Implement delete offline messages functionality
+            console.log('Delete offline messages for user:', user);
+          }}
         />
       </Box>
     </LocalizationProvider>

@@ -10,11 +10,13 @@ const useOnlineStatus = () => {
       onOpen: () => {
         console.log('✅ Connected to presence WebSocket');
         setIsConnected(true);
-        
-        // Request initial online users list
-        sendMessage({
-          type: 'get_online_users'
-        });
+
+        // Request initial online users list with a small delay to ensure connection is fully established
+        setTimeout(() => {
+          sendMessage({
+            type: 'get_online_users'
+          });
+        }, 100);
       },
       onClose: () => {
         console.log('🔌 Disconnected from presence WebSocket');
@@ -44,7 +46,7 @@ const useOnlineStatus = () => {
           }
         }));
         break;
-        
+
       case 'online_users_list':
         // Update the entire online users list
         console.log('🟢 Received online_users_list:', data.users);
@@ -58,11 +60,11 @@ const useOnlineStatus = () => {
         });
         setOnlineUsers(usersMap);
         break;
-        
+
       case 'heartbeat_response':
         // Handle heartbeat response if needed
         break;
-        
+
       default:
         console.log('🔄 Received unknown message type in useOnlineStatus:', data.type, data);
     }

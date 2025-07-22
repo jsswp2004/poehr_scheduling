@@ -2,6 +2,9 @@
  * Chat notification utilities
  */
 
+// Track message IDs that have already played a notification sound
+const soundPlayedForMessages = new Set();
+
 // Request notification permission
 export const requestNotificationPermission = async () => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -30,8 +33,25 @@ export const showDesktopNotification = (message) => {
     }
 };
 
-// Play notification sound
-export const playNotificationSound = () => {
+// Play notification sound (with deduplication)
+export const playNotificationSound = (messageId = null) => {
+    // If messageId provided, check if we've already played sound for this message
+    if (messageId) {
+        if (soundPlayedForMessages.has(messageId)) {
+            console.log('🔇 Sound already played for message:', messageId);
+            return;
+        }
+        soundPlayedForMessages.add(messageId);
+        console.log('🔊 Playing sound for message:', messageId);
+        
+        // Clean up old message IDs to prevent memory leaks (keep only last 100)
+        if (soundPlayedForMessages.size > 100) {
+            const entries = Array.from(soundPlayedForMessages);
+            soundPlayedForMessages.clear();
+            entries.slice(-50).forEach(id => soundPlayedForMessages.add(id));
+        }
+    }
+
     try {
         // Create a simple notification sound using Web Audio API
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();

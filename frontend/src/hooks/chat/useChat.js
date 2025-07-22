@@ -11,6 +11,7 @@ import { useChatData } from './useChatData';
 import { useChatTyping } from './useChatTyping';
 import { useChatNotifications } from './useChatNotifications';
 import { initializeChatWithRetry } from '../../utils/chat/chatUtils';
+import { generateUniqueMessageId } from '../../utils/chat/idUtils';
 
 export const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus) => {
     // Initialization state
@@ -81,9 +82,9 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
                 throw new Error('Could not create chat room');
             }
 
-            // Create message object
+            // Create message object with unique ID
             const message = {
-                id: Date.now(), // Temporary ID
+                id: generateUniqueMessageId(), // Unique ID using utility function
                 sender_id: currentUser.user_id,
                 receiver_id: targetUser.user_id,
                 sender_name: `${currentUser.first_name} ${currentUser.last_name}`,
