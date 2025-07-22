@@ -182,7 +182,7 @@ const ChatModal = ({
 
   const getProfilePictureUrl = (user) => {
     if (!user?.profile_picture) return undefined;
-    
+
     return user.profile_picture.startsWith("http")
       ? user.profile_picture
       : `http://127.0.0.1:8000${user.profile_picture}`;
