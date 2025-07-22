@@ -211,8 +211,6 @@ function PatientsPage() {
 
   // Chat handlers
   const handleOpenChat = (user) => {
-    console.log('🎭 Opening chat modal with user:', user);
-
     // First start the chat session to initialize the room
     handleStartChat(user);
 
@@ -265,6 +263,31 @@ function PatientsPage() {
     appointments.setDetailsOpen(true);
   };
 
+  // Handle appointment status updates from dropdown
+  const handleAppointmentStatusUpdate = useCallback(async (appointmentId, newStatus) => {
+    try {
+      const response = await fetch(`http://127.0.0.1:8000/api/appointments/${appointmentId}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (response.ok) {
+        // Refresh today's appointments to reflect the change
+        appointments.fetchTodaysAppointments(token);
+        toast.success(`Appointment status updated to ${newStatus}`);
+      } else {
+        toast.error('Failed to update appointment status');
+      }
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      toast.error('Error updating appointment status');
+    }
+  }, [token, appointments]);
+
   // Analytics handlers
   const handleDownloadReport = (reportName) => {
     analytics.downloadCSVReport(reportName, token);
@@ -272,19 +295,12 @@ function PatientsPage() {
 
   // Memoized chat handlers to prevent infinite loops
   const handleStartChat = useCallback((targetUser) => {
-    console.log('🚨 handleStartChat called with:', targetUser);
     if (chat.startChatWithUser) {
       // Transform targetUser to ensure it has user_id property for chat system compatibility
       const chatTargetUser = {
         ...targetUser,
         user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
       };
-      console.log('🔧 Transformed targetUser for chat:', { original: targetUser, transformed: chatTargetUser });
-      console.log('🆔 Key properties check:', {
-        originalId: targetUser.id,
-        originalUserId: targetUser.user_id,
-        transformedUserId: chatTargetUser.user_id
-      });
 
       // Pass the transformed targetUser object to useChat
       chat.startChatWithUser(chatTargetUser);
@@ -492,6 +508,7 @@ function PatientsPage() {
               appointmentsResults={appointments.appointmentsResults}
               onStatusUpdate={handleStatusUpdate}
               onViewDetails={handleViewAppointmentDetails}
+              onAppointmentStatusUpdate={handleAppointmentStatusUpdate}
             />
           )}
 
