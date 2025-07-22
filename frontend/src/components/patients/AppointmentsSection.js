@@ -21,11 +21,40 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Select,
+    MenuItem,
+    FormControl,
+    Chip,
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import CalendarView from '../CalendarView';
+
+// Appointment status options from the backend
+const APPOINTMENT_STATUS_OPTIONS = [
+    { value: 'scheduled', label: 'Scheduled' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'cancelled', label: 'Cancelled' },
+    { value: 'no_show', label: 'No Show' },
+    { value: 'rescheduled', label: 'Rescheduled' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'in_progress', label: 'In Progress' },
+];
+
+// Helper function to get status color
+const getStatusColor = (status) => {
+    switch (status) {
+        case 'completed': return 'success';
+        case 'cancelled': return 'error';
+        case 'no_show': return 'error';
+        case 'rescheduled': return 'warning';
+        case 'pending': return 'info';
+        case 'in_progress': return 'primary';
+        case 'scheduled':
+        default: return 'default';
+    }
+};
 
 function AppointmentsSection({
     appointmentsTab,
@@ -36,6 +65,7 @@ function AppointmentsSection({
     appointmentsResults,
     onStatusUpdate,
     onViewDetails,
+    onAppointmentStatusUpdate, // New prop for handling appointment status changes
     loading = false,
 }) {
     const [selectedAppointment, setSelectedAppointment] = useState(null);
@@ -115,7 +145,7 @@ function AppointmentsSection({
                                             No Show
                                         </TableCell>
                                         <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
-                                            Actions
+                                            Status
                                         </TableCell>
                                     </TableRow>
                                 </TableHead>
@@ -169,13 +199,48 @@ function AppointmentsSection({
                                                 />
                                             </TableCell>
                                             <TableCell sx={{ textAlign: 'center' }}>
-                                                <Button
-                                                    size="small"
-                                                    onClick={() => onViewDetails(appointment)}
-                                                    sx={{ minWidth: 'auto', p: 0.5 }}
-                                                >
-                                                    <FontAwesomeIcon icon={faEye} />
-                                                </Button>
+                                                <FormControl size="small" sx={{ minWidth: 120 }}>
+                                                    <Select
+                                                        value={appointment.status || 'scheduled'}
+                                                        onChange={(e) => {
+                                                            if (onAppointmentStatusUpdate) {
+                                                                onAppointmentStatusUpdate(appointment.id, e.target.value);
+                                                            }
+                                                        }}
+                                                        displayEmpty
+                                                        renderValue={(selected) => {
+                                                            const option = APPOINTMENT_STATUS_OPTIONS.find(opt => opt.value === selected);
+                                                            return (
+                                                                <Chip
+                                                                    label={option?.label || 'Scheduled'}
+                                                                    color={getStatusColor(selected)}
+                                                                    size="small"
+                                                                    variant="filled"
+                                                                />
+                                                            );
+                                                        }}
+                                                        sx={{
+                                                            height: 32,
+                                                            fontSize: '0.875rem',
+                                                            '& .MuiSelect-select': {
+                                                                padding: '4px 8px',
+                                                                display: 'flex',
+                                                                alignItems: 'center'
+                                                            }
+                                                        }}
+                                                    >
+                                                        {APPOINTMENT_STATUS_OPTIONS.map((option) => (
+                                                            <MenuItem key={option.value} value={option.value}>
+                                                                <Chip
+                                                                    label={option.label}
+                                                                    color={getStatusColor(option.value)}
+                                                                    size="small"
+                                                                    variant="outlined"
+                                                                />
+                                                            </MenuItem>
+                                                        ))}
+                                                    </Select>
+                                                </FormControl>
                                             </TableCell>
                                         </TableRow>
                                     ))}

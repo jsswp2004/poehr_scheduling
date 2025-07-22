@@ -111,7 +111,8 @@ function TeamTable({
                                             '&:hover': { bgcolor: '#f5f5f5' },
                                             cursor: 'pointer',
                                         }}
-                                    >                        <TableCell>
+                                    >
+                                        <TableCell>
                                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                                 <StatusDot isOnline={isOnline} size={12} />
                                                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
