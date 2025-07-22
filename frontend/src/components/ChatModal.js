@@ -32,6 +32,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import ChatConnectionStatus from './ChatConnectionStatus';
 import { generateSafeKey } from '../utils/chat/idUtils';
+import { createRoomKey } from '../utils/chat/chatUtils';
 
 const ChatModal = ({
   open,
@@ -58,21 +59,6 @@ const ChatModal = ({
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Create room key helper
-  const createRoomKey = (user1, user2) => {
-    if (!user1 || !user2) return '';
-    const id1 = typeof user1 === 'object' ? (user1.id || user1.user_id) : user1;
-    const id2 = typeof user2 === 'object' ? (user2.id || user2.user_id) : user2;
-    if (!id1 || !id2) {
-      console.warn('⚠️ Invalid user(s) for room key:', user1, user2);
-      return '';
-    }
-    const users = [id1, id2].sort((a, b) => a - b);
-    const roomKey = `room_${users[0]}_${users[1]}`;
-    console.log('🔑 Creating room key:', roomKey, `(user1: ${id1}, user2: ${id2})`);
-    return roomKey;
-  };
-
   // Get filtered users based on search
   const filteredUsers = teamMembers.filter(user => {
     if (user.id === currentUser?.id) return false; // Don't show current user
@@ -83,16 +69,10 @@ const ChatModal = ({
   });
 
   // Get messages for selected user
-  const messages = selectedUser && getRoomMessages ?
-    getRoomMessages(createRoomKey(currentUser, selectedUser)) : [];
-
-  // Debug logging for messages
-  useEffect(() => {
-    if (selectedUser) {
-      const roomKey = createRoomKey(currentUser, selectedUser);
-      console.log('💬 Messages for room:', roomKey, '-> count:', messages.length, messages);
-    }
-  }, [messages, selectedUser, currentUser]);
+  const messages = selectedUser && getRoomMessages ? (() => {
+    const roomKey = createRoomKey(currentUser, selectedUser);
+    return getRoomMessages(roomKey);
+  })() : [];
 
   // Get typing users for selected user
   const typingUsers = selectedUser && getTypingUsersForRoom ?
@@ -126,9 +106,6 @@ const ChatModal = ({
   const handleSendMessage = () => {
     if (messageText && messageText.trim() && selectedUser) {
       const recipientId = selectedUser.id || selectedUser.user_id;
-      console.log('📤 ChatModal handleSendMessage:', messageText.trim());
-      console.log('📤 Sending to user ID:', recipientId);
-      console.log('📤 Current user ID:', currentUser?.id || currentUser?.user_id);
       try {
         // Pass the selectedUser object instead of just recipientId to match useChat expectation
         onSendMessage(selectedUser, messageText.trim());
@@ -137,9 +114,6 @@ const ChatModal = ({
       } catch (error) {
         console.error('❌ Error in handleSendMessage:', error);
       }
-    } else {
-      console.warn('⚠️ Attempted to send empty message or no user selected');
-      console.warn('MessageText:', messageText, 'SelectedUser:', selectedUser);
     }
   };
 
@@ -206,17 +180,21 @@ const ChatModal = ({
     return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Unknown User';
   };
 
+  const getProfilePictureUrl = (user) => {
+    if (!user?.profile_picture) return undefined;
+    
+    return user.profile_picture.startsWith("http")
+      ? user.profile_picture
+      : `http://127.0.0.1:8000${user.profile_picture}`;
+  };
+
   const isUserOnline = (user) => {
     const userId = user?.id || user?.user_id || user;
-    console.log('🔍 isUserOnline called for userId:', userId);
     if (!getUserOnlineStatus) {
-      console.warn('⚠️ getUserOnlineStatus function not provided to ChatModal');
       return false;
     }
     const status = getUserOnlineStatus(userId);
-    console.log('🔍 Online status result:', status);
     if (typeof status === 'object') {
-      console.log('🔍 Object status check:', status, '-> isOnline:', status.isOnline);
       return status.isOnline;
     }
     return !!status;
@@ -259,7 +237,7 @@ const ChatModal = ({
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6">Team Chat</Typography>
-          <ChatConnectionStatus status={connectionStatus} />
+          <ChatConnectionStatus connectionStatus={connectionStatus} />
         </Box>
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
@@ -324,11 +302,9 @@ const ChatModal = ({
                       key={user.id}
                       selected={isSelected}
                       onClick={() => {
-                        const userId = user.id || user.user_id;
                         setSelectedUser(user);
                         if (onStartChat) {
-                          console.log('🚪 Starting chat with user, will join room');
-                          onStartChat(userId);
+                          onStartChat(user);
                         }
                       }}
                       sx={{
@@ -353,13 +329,14 @@ const ChatModal = ({
                           }
                         >
                           <Avatar
+                            src={getProfilePictureUrl(user)}
                             sx={{
                               width: 40,
                               height: 40,
-                              bgcolor: isOnline ? 'primary.main' : 'grey.400'
+                              bgcolor: user?.profile_picture ? 'transparent' : (isOnline ? 'primary.main' : 'grey.400')
                             }}
                           >
-                            {getInitials(user)}
+                            {!user?.profile_picture && getInitials(user)}
                           </Avatar>
                         </Badge>
                       </ListItemAvatar>
@@ -431,13 +408,14 @@ const ChatModal = ({
                     }
                   >
                     <Avatar
+                      src={getProfilePictureUrl(selectedUser)}
                       sx={{
                         width: 40,
                         height: 40,
-                        bgcolor: 'primary.main'
+                        bgcolor: selectedUser?.profile_picture ? 'transparent' : 'primary.main'
                       }}
                     >
-                      {getInitials(selectedUser)}
+                      {!selectedUser?.profile_picture && getInitials(selectedUser)}
                     </Avatar>
                   </Badge>
                   <Box>
@@ -503,14 +481,15 @@ const ChatModal = ({
                             {!isOwnMessage(message) && (
                               <ListItemAvatar sx={{ minWidth: 'auto', mr: 1 }}>
                                 <Avatar
+                                  src={getProfilePictureUrl(selectedUser)}
                                   sx={{
                                     width: 32,
                                     height: 32,
-                                    bgcolor: 'secondary.main',
+                                    bgcolor: selectedUser?.profile_picture ? 'transparent' : 'secondary.main',
                                     fontSize: '0.875rem'
                                   }}
                                 >
-                                  {getInitials(selectedUser)}
+                                  {!selectedUser?.profile_picture && getInitials(selectedUser)}
                                 </Avatar>
                               </ListItemAvatar>
                             )}

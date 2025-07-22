@@ -6,34 +6,27 @@
 export const initializeChatWithRetry = async (chat, connectToOnlineStatus, websocketConnection, maxRetries = 3) => {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            console.log(`🔄 Chat initialization attempt ${attempt}/${maxRetries}`);
-
             // Initialize chat socket connection
             if (chat && chat.initialize) {
-                console.log('🔌 Connecting chat socket...');
                 await chat.initialize();
             }
 
             // Initialize online status connection
             if (connectToOnlineStatus) {
-                console.log('🟢 Connecting online status...');
                 await connectToOnlineStatus();
             }
 
             // Initialize websocket connection
             if (websocketConnection && websocketConnection.connect) {
-                console.log('🔗 Connecting websocket...');
                 await websocketConnection.connect();
             }
 
-            console.log('✅ Chat system initialization completed successfully');
             return true;
         } catch (error) {
             console.error(`❌ Chat initialization attempt ${attempt} failed:`, error);
 
             if (attempt < maxRetries) {
                 const delay = Math.pow(2, attempt) * 1000; // Exponential backoff
-                console.log(`⏳ Retrying in ${delay}ms...`);
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
                 console.error('❌ All chat initialization attempts failed');
@@ -45,9 +38,26 @@ export const initializeChatWithRetry = async (chat, connectToOnlineStatus, webso
 };
 
 // Create room key for consistent room identification
-export const createRoomKey = (currentUserId, targetUserId) => {
-    const users = [currentUserId, targetUserId].sort((a, b) => a - b);
-    return `room_${users[0]}_${users[1]}`;
+export const createRoomKey = (user1, user2) => {
+    if (!user1 || !user2) {
+        console.warn('⚠️ Invalid user(s) for room key:', user1, user2);
+        return '';
+    }
+
+    // Extract user IDs - handle both objects and direct IDs
+    const id1 = typeof user1 === 'object' ? (user1.user_id || user1.id) : user1;
+    const id2 = typeof user2 === 'object' ? (user2.user_id || user2.id) : user2;
+
+    if (!id1 || !id2) {
+        console.warn('⚠️ Could not extract user IDs:', { user1, user2, id1, id2 });
+        return '';
+    }
+
+    // Sort by numeric value to ensure consistent room keys
+    const users = [id1, id2].sort((a, b) => Number(a) - Number(b));
+    const roomKey = `room_${users[0]}_${users[1]}`;
+
+    return roomKey;
 };
 
 // Format timestamp for display

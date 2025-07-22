@@ -54,6 +54,9 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             success = await self.set_user_online(True)
             print(f"SUCCESS: Set online result: {success}")
             
+            # Automatically join user to all their existing chat room groups
+            await self.join_existing_chat_rooms()
+            
             # Broadcast user's online status to all connected clients
             await self.broadcast_user_status()
         else:
@@ -199,6 +202,28 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"ERROR: Error updating last seen for user {self.user.id}: {e}")
             return False
+
+    async def join_existing_chat_rooms(self):
+        """Automatically join user to all their existing chat room groups when they come online"""
+        try:
+            room_ids = await self.get_user_chat_room_ids()
+            for room_id in room_ids:
+                await self.join_chat_room(room_id)
+                print(f"🏠 Auto-joined user {self.user.id} to chat room {room_id}")
+        except Exception as e:
+            print(f"ERROR: Failed to join existing chat rooms for user {self.user.id}: {e}")
+
+    @database_sync_to_async
+    def get_user_chat_room_ids(self):
+        """Get all chat room IDs that the user is a participant in"""
+        try:
+            # Get all rooms where the user is a participant
+            rooms = ChatRoom.objects.filter(participants=self.user)
+            return [room.id for room in rooms]
+        except Exception as e:
+            print(f"ERROR: Failed to get chat room IDs for user {self.user.id}: {e}")
+            return []
+    
     
     @database_sync_to_async
     def get_online_users(self):

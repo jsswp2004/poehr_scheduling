@@ -296,7 +296,6 @@ function PatientsPage() {
         ...targetUser,
         user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
       };
-      console.log('💬 Transformed targetUser for message send:', { original: targetUser, transformed: chatTargetUser });
 
       // Pass the transformed targetUser object to useChat
       chat.sendMessage(chatTargetUser, content);
@@ -477,7 +476,7 @@ function PatientsPage() {
               teamTotalPages={team.teamTotalPages}
               onOpenChat={handleOpenChat}
               getUserOnlineStatus={getUserOnlineStatus}
-              getTotalUnreadCount={chat.getTotalUnreadCount}
+              getUnreadCountForUser={chat.getUnreadCountForUser}
               onSendText={handleTeamSendText}
               onOpenEmailModal={handleTeamOpenEmailModal}
             />

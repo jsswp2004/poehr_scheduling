@@ -46,7 +46,7 @@ function TeamTable({
     teamTotalPages,
     onOpenChat,
     getUserOnlineStatus,
-    getTotalUnreadCount,
+    getUnreadCountForUser,
     onSendText,
     onOpenEmailModal,
 }) {
@@ -100,7 +100,7 @@ function TeamTable({
                             </TableRow>
                         ) : (
                             team.map((member) => {
-                                const unreadCount = getTotalUnreadCount ? getTotalUnreadCount(member.id) : 0;
+                                const unreadCount = getUnreadCountForUser ? getUnreadCountForUser(member.id) : 0;
                                 const onlineStatus = getUserOnlineStatus(member.id);
                                 const isOnline = onlineStatus?.isOnline || false;
 
