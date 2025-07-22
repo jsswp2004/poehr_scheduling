@@ -59,9 +59,27 @@ const ChatModal = ({
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  // Get filtered users based on search
+  // Define helper functions first (before they're used in filteredUsers)
+  const isUserOnline = (user) => {
+    const userId = user?.id || user?.user_id || user;
+    if (!getUserOnlineStatus) {
+      return false;
+    }
+    const status = getUserOnlineStatus(userId);
+    if (typeof status === 'object') {
+      return status.isOnline;
+    }
+    return !!status;
+  };
+
+  // Get filtered users based on search and online status
   const filteredUsers = teamMembers.filter(user => {
     if (user.id === currentUser?.id) return false; // Don't show current user
+
+    // Only show online users
+    const isOnline = isUserOnline(user);
+    if (!isOnline) return false;
+
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
     const searchTerm = userSearch.toLowerCase();
     return fullName.toLowerCase().includes(searchTerm) ||
@@ -186,18 +204,6 @@ const ChatModal = ({
     return user.profile_picture.startsWith("http")
       ? user.profile_picture
       : `http://127.0.0.1:8000${user.profile_picture}`;
-  };
-
-  const isUserOnline = (user) => {
-    const userId = user?.id || user?.user_id || user;
-    if (!getUserOnlineStatus) {
-      return false;
-    }
-    const status = getUserOnlineStatus(userId);
-    if (typeof status === 'object') {
-      return status.isOnline;
-    }
-    return !!status;
   };
 
   const getUserUnreadCount = (user) => {
