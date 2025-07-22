@@ -130,6 +130,10 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 print("Handling get_chat_history")
                 await self.handle_get_chat_history(data)
             
+            elif message_type == 'join_room':
+                print("Handling join_room")
+                await self.handle_join_room(data)
+            
             # Add a specific log before create_chat_room handler
             elif message_type == 'create_chat_room':
                 print(f"DEBUG_CHAT_RECEIVE: Routing to handle_create_chat_room for data: {data}")
@@ -252,23 +256,59 @@ class PresenceConsumer(AsyncWebsocketConsumer):
     async def join_chat_room(self, room_id):
         """Join a chat room group"""
         room_group = f"chat_room_{room_id}"
-        await self.channel_layer.group_add(
-            room_group,
-            self.channel_name
-        )
-        print(f"User {self.user} joined group {room_group}")
+        
+        # Track joined rooms to prevent duplicate group memberships
+        if not hasattr(self, 'joined_rooms'):
+            self.joined_rooms = set()
+            
+        if room_id not in self.joined_rooms:
+            await self.channel_layer.group_add(
+                room_group,
+                self.channel_name
+            )
+            self.joined_rooms.add(room_id)
+            print(f"[WS DEBUG] User {self.user} (ID: {getattr(self.user, 'id', None)}) joined group {room_group} (channel: {self.channel_name})")
+        else:
+            print(f"[WS DEBUG] User {self.user} (ID: {getattr(self.user, 'id', None)}) already in group {room_group}")
 
     async def leave_chat_room(self, room_id):
         """Leave a chat room group"""
         room_group = f"chat_room_{room_id}"
-        await self.channel_layer.group_discard(
-            room_group,
-            self.channel_name
-        )
-        print(f"User {self.user.id} left chat room group: {room_group}")
+        
+        if hasattr(self, 'joined_rooms') and room_id in self.joined_rooms:
+            await self.channel_layer.group_discard(
+                room_group,
+                self.channel_name
+            )
+            self.joined_rooms.discard(room_id)
+            print(f"User {self.user.id} left chat room group: {room_group}")
+        else:
+            print(f"User {self.user.id} was not in chat room group: {room_group}")
+
+    async def get_or_create_chatroom_for_users(self, user1_id, user2_id):
+        """
+        Get or create a ChatRoom between two users and return the numeric ChatRoom ID.
+        Much simpler than string-based room keys.
+        """
+        try:
+            print(f"DEBUG_ROOM: Getting/creating ChatRoom for users {user1_id} and {user2_id}")
+            
+            participant_ids = [user1_id, user2_id]
+            room = await self._get_or_create_direct_chat_room(participant_ids)
+            
+            if room:
+                print(f"DEBUG_ROOM: Found/created ChatRoom ID: {room.id}")
+                return room.id
+            else:
+                print(f"ERROR: Failed to get/create ChatRoom for users {participant_ids}")
+                return None
+                
+        except Exception as e:
+            print(f"ERROR: Exception in get_or_create_chatroom_for_users: {e}")
+            return None
 
     async def handle_send_message(self, data):
-        """Handle sending a chat message"""
+        """Handle sending a chat message using numeric user IDs"""
         print(f"MESSAGE: Received send_message request: {data}")
         
         if self.is_test_user:
@@ -276,15 +316,16 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             return
             
         try:
-            room_id = data.get('room_id')
-            message_text = data.get('message', '').strip()
+            # New simplified approach: expect sender_id and recipient_id directly
+            sender_id = data.get('sender_id') or self.user.id  # Use current user as sender if not provided
             recipient_id = data.get('recipient_id')
+            message_text = data.get('message', '').strip()
             
-            print(f"Message details: room_id={room_id}, text='{message_text[:50]}...', recipient={recipient_id}")
+            print(f"Message details: sender={sender_id}, recipient={recipient_id}, text='{message_text[:50]}...'")
             
-            if not room_id:
-                print("ERROR: No room_id provided")
-                await self.send_error('Room ID is required')
+            if not recipient_id:
+                print("ERROR: No recipient_id provided")
+                await self.send_error('Recipient ID is required')
                 return
                 
             if not message_text:
@@ -292,13 +333,15 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 await self.send_error('Message cannot be empty')
                 return
             
-            # Verify room exists
-            room_exists = await self.verify_room_exists(room_id)
-            if not room_exists:
-                print(f"ERROR: Room {room_id} does not exist")
-                await self.send_error(f'Chat room {room_id} does not exist')
+            # Get or create ChatRoom using the numeric user IDs directly
+            room_id = await self.get_or_create_chatroom_for_users(sender_id, recipient_id)
+            if not room_id:
+                print(f"ERROR: Could not create/find ChatRoom for users {sender_id} and {recipient_id}")
+                await self.send_error('Failed to create chat room')
                 return
                 
+            print(f"DEBUG_ROOM: Using ChatRoom ID {room_id}")
+            
             # Ensure user is in the chat room group
             await self.join_chat_room(room_id)
             
@@ -313,6 +356,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 # Send confirmation to sender
                 await self.send(text_data=json.dumps({
                     'type': 'message_sent',
+                    'room_id': room_id,  # Send back the numeric room ID
                     'message': message_data
                 }))
                 print(f"SUCCESS: Message sent and broadcasted successfully")
@@ -389,6 +433,51 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(f"ERROR: Error getting chat history: {e}")
             await self.send_error('Failed to load chat history')
+
+    async def handle_join_room(self, data):
+        """Handle joining a chat room using numeric room ID or user IDs"""
+        try:
+            # Support both room_id (numeric) and user IDs for flexibility
+            room_id = data.get('room_id')
+            recipient_id = data.get('recipient_id')
+            
+            if room_id:
+                # Direct room ID provided
+                print(f"DEBUG_ROOM: Joining room by ID: {room_id}")
+            elif recipient_id:
+                # Get/create room from user IDs
+                sender_id = self.user.id
+                room_id = await self.get_or_create_chatroom_for_users(sender_id, recipient_id)
+                print(f"DEBUG_ROOM: Created/found room ID {room_id} for users {sender_id} and {recipient_id}")
+            else:
+                await self.send_error('Room ID or recipient ID required')
+                return
+                
+            if not room_id:
+                print(f"ERROR: Could not resolve room")
+                await self.send_error('Failed to resolve chat room')
+                return
+                
+            # Verify user is participant
+            is_participant = await self.verify_user_is_participant(room_id)
+            if not is_participant:
+                await self.send_error('You are not a participant in this chat room')
+                return
+                
+            # Join the chat room group
+            await self.join_chat_room(room_id)
+            
+            print(f"SUCCESS: User {self.user.id} joined room {room_id}")
+            
+            await self.send(text_data=json.dumps({
+                'type': 'room_joined',
+                'room_id': room_id,  # Send back the numeric room ID
+                'message': f'Successfully joined chat room {room_id}'
+            }))
+            
+        except Exception as e:
+            print(f"ERROR: Error joining room: {e}")
+            await self.send_error('Failed to join chat room')
 
     async def handle_create_chat_room(self, event):
         print("Handling create_chat_room") # Existing log
@@ -528,10 +617,14 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             if not room_id:
                 print("ERROR: No room_id in message_data for broadcasting")
                 return
-                
-            # Send to all participants in the chat room
             room_group_name = f"chat_room_{room_id}"
-            
+            print(f"[WS DEBUG] Broadcasting message to group {room_group_name} (room_id={room_id})")
+            # List all channels in the group (debug only; may not be available in all backends)
+            if hasattr(self.channel_layer, 'groups'):
+                group_channels = self.channel_layer.groups.get(room_group_name, set())
+                print(f"[WS DEBUG] Channels in group {room_group_name}: {group_channels}")
+            else:
+                print(f"[WS DEBUG] Cannot list channels in group {room_group_name} (backend limitation)")
             await self.channel_layer.group_send(
                 room_group_name,
                 {
@@ -539,8 +632,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                     'message': message_data
                 }
             )
-            print(f"SUCCESS: Message broadcasted to group {room_group_name}")
-            
+            print(f"[WS DEBUG] SUCCESS: Message broadcasted to group {room_group_name}")
         except Exception as e:
             print(f"ERROR: Failed to broadcast message: {e}")
             import traceback
@@ -611,5 +703,14 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         try:
             ChatRoom.objects.get(id=room_id)
             return True
+        except ChatRoom.DoesNotExist:
+            return False
+    
+    @database_sync_to_async
+    def verify_user_is_participant(self, room_id):
+        """Verify that the current user is a participant in the chat room"""
+        try:
+            room = ChatRoom.objects.get(id=room_id)
+            return room.participants.filter(id=self.user.id).exists()
         except ChatRoom.DoesNotExist:
             return False

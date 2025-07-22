@@ -35,7 +35,7 @@ export const useTeam = (navigate) => {
 
             const teamWithFullName = res.data.results.map((u) => ({
                 ...u,
-                full_name: `${u.first_name} ${u.last_name}`,
+                full_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Unknown User',
             }));
             setTeam(teamWithFullName);
             setTeamTotalSize(res.data.count);

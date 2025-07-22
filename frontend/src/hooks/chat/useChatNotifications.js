@@ -22,9 +22,9 @@ export const useChatNotifications = (currentUser) => {
         // Show desktop notification
         showDesktopNotification(message);
 
-        // Play sound if window is not focused
+        // Play sound if window is not focused (with message ID for deduplication)
         if (document.hidden) {
-            playNotificationSound();
+            playNotificationSound(message.id);
         }
     }, [currentUser]);
 

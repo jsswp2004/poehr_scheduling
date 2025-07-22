@@ -11,6 +11,7 @@ import { useChatData } from './chat/useChatData';
 import { useChatTyping } from './chat/useChatTyping';
 import { useChatNotifications } from './chat/useChatNotifications';
 import { initializeChatWithRetry } from '../utils/chat/chatUtils';
+import { generateUniqueMessageId } from '../utils/chat/idUtils';
 
 export const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus) => {
   // Initialization state
@@ -44,11 +45,21 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     } finally {
       setChatSystemLoading(false);
     }
-  }, [websocketConnection, chatData]);
+  }, [websocketConnection, chatData.setLastError]);
 
   // Handle incoming messages
   const handleIncomingMessage = useCallback((message) => {
-    if (!currentUser) return;
+    console.log('📥 handleIncomingMessage called:', message);
+
+    if (!currentUser) {
+      console.warn('⚠️ No current user, ignoring message');
+      return;
+    }
+
+    console.log('👤 Current user:', {
+      id: currentUser.user_id,
+      name: `${currentUser.first_name} ${currentUser.last_name}`
+    });
 
     // Determine room key
     const otherUserId = message.sender_id === currentUser.user_id
@@ -57,33 +68,62 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
     const roomKey = `room_${Math.min(currentUser.user_id, otherUserId)}_${Math.max(currentUser.user_id, otherUserId)}`;
 
+    console.log('🔑 Generated room key:', roomKey, {
+      senderIsCurrentUser: message.sender_id === currentUser.user_id,
+      otherUserId,
+      currentUserId: currentUser.user_id
+    });
+
     // Add message to room
+    console.log('➕ Adding message to room...');
     chatData.addMessageToRoom(roomKey, message);
 
     // Update unread count if not the sender
     if (message.sender_id !== currentUser.user_id) {
+      console.log('🔔 Updating unread count for sender:', message.sender_id);
       chatData.updateUnreadCount(message.sender_id);
       chatNotifications.handleNewMessageNotification(message);
+    } else {
+      console.log('ℹ️ Message from current user, not updating unread count');
     }
   }, [currentUser, chatData, chatNotifications]);
 
   // Send message
   const handleSendMessage = useCallback(async (targetUser, content) => {
-    if (!currentUser || !targetUser || !content.trim()) return;
+    console.log('🚀 useChat handleSendMessage called (SIMPLIFIED NUMERIC APPROACH):', {
+      currentUser: currentUser ? `${currentUser.first_name} ${currentUser.last_name} (ID: ${currentUser.user_id})` : 'null',
+      targetUser: targetUser ? `${targetUser.first_name} ${targetUser.last_name} (ID: ${targetUser.user_id})` : 'null',
+      content: content
+    });
+
+    if (!currentUser || !targetUser || !content.trim()) {
+      console.warn('⚠️ Missing required data for sending message');
+      return;
+    }
 
     setOperationStatus('sending');
     chatData.setLastError(null);
 
     try {
       // Create or get room
+      console.log('🏠 About to call getOrCreateRoom with:', {
+        currentUser: currentUser ? `${currentUser.first_name} ${currentUser.last_name} (ID: ${currentUser.user_id})` : 'null',
+        targetUser: targetUser ? `${targetUser.first_name || 'No first_name'} ${targetUser.last_name || 'No last_name'} (ID: ${targetUser.user_id})` : 'null'
+      });
+
       const room = chatData.getOrCreateRoom(targetUser);
+      console.log('🏠 getOrCreateRoom returned:', room);
+
       if (!room) {
+        console.error('❌ Room creation failed - getOrCreateRoom returned null');
         throw new Error('Could not create chat room');
       }
 
-      // Create message object
+      console.log('📂 Using room:', room);
+
+      // Create message object with unique ID
       const message = {
-        id: Date.now(), // Temporary ID
+        id: generateUniqueMessageId(), // Unique ID using utility function
         sender_id: currentUser.user_id,
         receiver_id: targetUser.user_id,
         sender_name: `${currentUser.first_name} ${currentUser.last_name}`,
@@ -91,18 +131,40 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
         timestamp: new Date().toISOString(),
       };
 
+      console.log('💬 Created message object:', message);
+
       // Add to local state immediately for optimistic updates
       chatData.addMessageToRoom(room.id, message);
+      console.log('📝 Added message to local room:', room.id);
 
-      // Send via websocket if available
+      // Send via websocket with SIMPLE NUMERIC IDs
       if (sendMessage) {
-        await sendMessage({
-          type: 'chat_message',
-          ...message,
-        });
+        const wsMessage = {
+          type: 'send_message',
+          sender_id: currentUser.user_id,    // Use numeric user ID
+          recipient_id: targetUser.user_id,  // Use numeric user ID  
+          message: content.trim(),
+        };
+
+        console.log('🌐 Sending SIMPLIFIED WebSocket message:', wsMessage);
+
+        try {
+          const sent = sendMessage(wsMessage);
+          if (sent) {
+            console.log('✅ WebSocket message sent successfully');
+          } else {
+            console.warn('⚠️ WebSocket message failed to send');
+            throw new Error('WebSocket not connected');
+          }
+        } catch (wsError) {
+          console.error('❌ WebSocket send error:', wsError);
+          throw wsError;
+        }
+      } else {
+        console.warn('⚠️ No sendMessage function available - messages will not be sent over WebSocket');
       }
 
-      console.log('✅ Message sent successfully');
+      console.log('✅ handleSendMessage completed successfully');
     } catch (error) {
       console.error('❌ Failed to send message:', error);
       chatData.setLastError('Failed to send message');
@@ -119,8 +181,18 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     if (room) {
       chatData.setActiveRoom(room.id);
       chatData.markRoomAsRead(room.id);
+
+      // Join the room using SIMPLE NUMERIC recipient_id
+      if (sendMessage) {
+        const joinMessage = {
+          type: 'join_room',
+          recipient_id: targetUser.user_id,  // Use numeric user ID directly
+        };
+        console.log('🚪 Joining room with SIMPLIFIED approach:', joinMessage);
+        sendMessage(joinMessage);
+      }
     }
-  }, [currentUser, chatData]);
+  }, [currentUser, chatData, sendMessage]);
 
   // Handle typing events
   const handleTyping = useCallback((isTyping, targetUserId) => {
@@ -153,22 +225,33 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Handle WebSocket messages
   useEffect(() => {
     if (lastMessageFromOnlineStatus) {
+      console.log('📨 useChat received WebSocket message:', lastMessageFromOnlineStatus);
+
       try {
         const messageData = typeof lastMessageFromOnlineStatus === 'string'
           ? JSON.parse(lastMessageFromOnlineStatus)
           : lastMessageFromOnlineStatus;
 
-        if (messageData.type === 'chat_message') {
-          handleIncomingMessage(messageData);
+        console.log('📋 Parsed message data:', messageData);
+
+        if (messageData.type === 'chat_message' || messageData.type === 'new_message') {
+          console.log('💬 Processing chat message...');
+          // Handle both 'chat_message' and 'new_message' types
+          const actualMessage = messageData.message || messageData;
+          console.log('📨 Actual message to process:', actualMessage);
+          handleIncomingMessage(actualMessage);
         } else if (messageData.type === 'typing_indicator') {
+          console.log('⌨️ Processing typing indicator...');
           if (messageData.is_typing) {
             chatTyping.handleTypingStart(messageData.user_id, messageData.user_name);
           } else {
             chatTyping.handleTypingStop(messageData.user_id);
           }
+        } else {
+          console.log('ℹ️ Ignoring message type:', messageData.type);
         }
       } catch (error) {
-        console.error('Error processing websocket message:', error);
+        console.error('❌ Error processing websocket message:', error);
       }
     }
   }, [lastMessageFromOnlineStatus, handleIncomingMessage, chatTyping]);
@@ -193,6 +276,12 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     getRoomMessages: chatData.getRoomMessages,
     getSortedRooms: chatData.getSortedRooms,
     getTypingUsersForRoom: chatTyping.getTypingUsersForRoom,
+    getTotalUnreadCount: () => {
+      return Object.values(chatData.unreadCounts).reduce((total, count) => total + count, 0);
+    },
+    getUnreadCountForUser: (userId) => {
+      return chatData.unreadCounts[userId] || 0;
+    }
   };
 };
 

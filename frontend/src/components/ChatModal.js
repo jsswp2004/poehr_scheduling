@@ -3,7 +3,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions,
   Box,
   TextField,
   Button,
@@ -13,90 +12,134 @@ import {
   ListItem,
   ListItemAvatar,
   ListItemText,
+  ListItemButton,
   IconButton,
   Chip,
   InputAdornment,
   CircularProgress,
   Divider,
-  Alert
+  Alert,
+  Paper,
+  Badge
 } from '@mui/material';
 import {
   Send as SendIcon,
   Close as CloseIcon,
-  EmojiEmotions as EmojiIcon,
-  AttachFile as AttachIcon
+  Search as SearchIcon,
+  Delete as DeleteIcon,
+  Circle as CircleIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import ChatConnectionStatus from './ChatConnectionStatus';
+import { generateSafeKey } from '../utils/chat/idUtils';
 
-const ChatModal = ({ 
-  open, 
-  fallbackOpen = false, // fallback prop
-  onClose, 
-  chatPartner, 
+const ChatModal = ({
+  open,
+  onClose,
   currentUser,
+  teamMembers = [], // List of all team members
   onSendMessage,
-  messages = [],
-  typingUsers = [],
+  onStartChat,
+  getRoomMessages,
+  getTypingUsersForRoom,
   isLoading = false,
-  connectionStatus = 'disconnected',
+  connectionStatus = 'connected',
   operationStatus = null,
   chatError = null,
-  onRetryConnection = null
+  onRetryConnection = null,
+  getUserOnlineStatus,
+  getUnreadCount = () => 0,
+  onDeleteOfflineMessage = null
 }) => {
   const [messageText, setMessageText] = useState('');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [userSearch, setUserSearch] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  // Create room key helper
+  const createRoomKey = (user1, user2) => {
+    if (!user1 || !user2) return '';
+    const id1 = typeof user1 === 'object' ? (user1.id || user1.user_id) : user1;
+    const id2 = typeof user2 === 'object' ? (user2.id || user2.user_id) : user2;
+    if (!id1 || !id2) {
+      console.warn('⚠️ Invalid user(s) for room key:', user1, user2);
+      return '';
+    }
+    const users = [id1, id2].sort((a, b) => a - b);
+    const roomKey = `room_${users[0]}_${users[1]}`;
+    console.log('🔑 Creating room key:', roomKey, `(user1: ${id1}, user2: ${id2})`);
+    return roomKey;
+  };
+
+  // Get filtered users based on search
+  const filteredUsers = teamMembers.filter(user => {
+    if (user.id === currentUser?.id) return false; // Don't show current user
+    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+    const searchTerm = userSearch.toLowerCase();
+    return fullName.toLowerCase().includes(searchTerm) ||
+      (user.username || '').toLowerCase().includes(searchTerm);
+  });
+
+  // Get messages for selected user
+  const messages = selectedUser && getRoomMessages ?
+    getRoomMessages(createRoomKey(currentUser, selectedUser)) : [];
+
+  // Debug logging for messages
+  useEffect(() => {
+    if (selectedUser) {
+      const roomKey = createRoomKey(currentUser, selectedUser);
+      console.log('💬 Messages for room:', roomKey, '-> count:', messages.length, messages);
+    }
+  }, [messages, selectedUser, currentUser]);
+
+  // Get typing users for selected user
+  const typingUsers = selectedUser && getTypingUsersForRoom ?
+    getTypingUsersForRoom(createRoomKey(currentUser, selectedUser)) : [];
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Debug logging
+  // Reset message input when user changes
   useEffect(() => {
-    console.log('🔍 ChatModal - Messages updated:', messages.length, messages);
-  }, [messages]);
+    setMessageText('');
+    handleStopTyping();
+  }, [selectedUser]);
 
+
+  // Clear search when modal closes
   useEffect(() => {
-    console.log('🔍 ChatModal - Props:', {
-      open,
-      chatPartner: chatPartner?.name || chatPartner?.full_name,
-      currentUser: currentUser?.username,
-      messagesCount: messages.length,
-      typingUsersCount: typingUsers.length,
-      isLoading
-    });
-  }, [open, chatPartner, currentUser, messages.length, typingUsers.length, isLoading]);
-
-  // Debug logging
-  console.log('🎭 ChatModal render:', { 
-    open, 
-    fallbackOpen, 
-    chatPartner: chatPartner?.full_name || chatPartner?.username,
-    currentUser: currentUser?.username,
-    messagesCount: messages.length,
-    isLoading,
-    connectionStatus,
-    operationStatus,
-    chatError
-  });
+    if (!open) {
+      setUserSearch('');
+      setSelectedUser(null);
+      setMessageText('');
+    }
+  }, [open]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
   const handleSendMessage = () => {
-    if (messageText.trim()) {
+    if (messageText && messageText.trim() && selectedUser) {
+      const recipientId = selectedUser.id || selectedUser.user_id;
       console.log('📤 ChatModal handleSendMessage:', messageText.trim());
+      console.log('📤 Sending to user ID:', recipientId);
+      console.log('📤 Current user ID:', currentUser?.id || currentUser?.user_id);
       try {
-        onSendMessage(messageText.trim());
+        // Pass the selectedUser object instead of just recipientId to match useChat expectation
+        onSendMessage(selectedUser, messageText.trim());
         setMessageText('');
         handleStopTyping();
       } catch (error) {
         console.error('❌ Error in handleSendMessage:', error);
       }
     } else {
-      console.warn('⚠️ Attempted to send empty message');
+      console.warn('⚠️ Attempted to send empty message or no user selected');
+      console.warn('MessageText:', messageText, 'SelectedUser:', selectedUser);
     }
   };
 
@@ -109,18 +152,18 @@ const ChatModal = ({
 
   const handleInputChange = (e) => {
     setMessageText(e.target.value);
-    
+
     // Handle typing indicators
     if (!isTyping) {
       setIsTyping(true);
       // Emit typing start event here
     }
-    
+
     // Clear existing timeout
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
-    
+
     // Set timeout to stop typing
     typingTimeoutRef.current = setTimeout(handleStopTyping, 2000);
   };
@@ -148,8 +191,9 @@ const ChatModal = ({
     return message.sender_id === currentUser?.id;
   };
 
-  const getInitials = (name) => {
-    if (!name) return 'U';
+  const getInitials = (user) => {
+    if (!user) return 'U';
+    const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'U';
     return name
       .split(' ')
       .map(part => part[0])
@@ -158,30 +202,50 @@ const ChatModal = ({
       .slice(0, 2);
   };
 
-  // Use fallbackOpen if open is false but fallbackOpen is true
-  const effectiveOpen = open || fallbackOpen;
+  const getUserDisplayName = (user) => {
+    return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Unknown User';
+  };
+
+  const isUserOnline = (user) => {
+    const userId = user?.id || user?.user_id || user;
+    console.log('🔍 isUserOnline called for userId:', userId);
+    if (!getUserOnlineStatus) {
+      console.warn('⚠️ getUserOnlineStatus function not provided to ChatModal');
+      return false;
+    }
+    const status = getUserOnlineStatus(userId);
+    console.log('🔍 Online status result:', status);
+    if (typeof status === 'object') {
+      console.log('🔍 Object status check:', status, '-> isOnline:', status.isOnline);
+      return status.isOnline;
+    }
+    return !!status;
+  };
+
+  const getUserUnreadCount = (user) => {
+    return getUnreadCount ? getUnreadCount(user.id) : 0;
+  };
+
+  const handleDeleteOfflineMessages = () => {
+    if (selectedUser && onDeleteOfflineMessage) {
+      onDeleteOfflineMessage(selectedUser);
+    }
+  };
 
   return (
     <Dialog
-      open={effectiveOpen}
+      open={open}
       onClose={onClose}
-      maxWidth="sm"
+      maxWidth="lg"
       fullWidth
       PaperProps={{
         sx: {
-          height: '600px',
+          height: '80vh',
           display: 'flex',
           flexDirection: 'column'
         }
       }}
     >
-      {/* Show error if chat history failed to load */}
-      {chatError && (
-        <Alert severity="error" sx={{ m: 2 }}>
-          {typeof chatError === 'string' ? chatError : 'Failed to load chat history.'}
-        </Alert>
-      )}
-      
       {/* Header */}
       <DialogTitle
         sx={{
@@ -192,255 +256,387 @@ const ChatModal = ({
           borderBottom: '1px solid',
           borderColor: 'divider'
         }}
-      >        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>          <Avatar
-            sx={{
-              width: 40,
-              height: 40,
-              bgcolor: 'primary.main'
-            }}
-          >
-            {getInitials(chatPartner?.full_name || chatPartner?.name || `${chatPartner?.first_name} ${chatPartner?.last_name}`)}
-          </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" sx={{ mb: 0 }}>
-              {chatPartner?.full_name || chatPartner?.name || `${chatPartner?.first_name} ${chatPartner?.last_name}` || 'Unknown User'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {chatPartner?.role || 'Team Member'}
-            </Typography>
-          </Box>
-          <ChatConnectionStatus 
-            connectionStatus={connectionStatus}
-            operationStatus={operationStatus}
-            chatError={chatError}
-            onRetry={onRetryConnection}
-            compact={true}
-          />
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h6">Team Chat</Typography>
+          <ChatConnectionStatus status={connectionStatus} />
         </Box>
         <IconButton onClick={onClose} size="small">
           <CloseIcon />
         </IconButton>
-      </DialogTitle>      {/* Messages Area */}
-      <DialogContent
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          p: 0,
-          overflow: 'hidden'
-        }}
-      >
-        {/* Error Alert */}
-        {chatError && connectionStatus !== 'connected' && (
-          <Alert 
-            severity="error" 
-            sx={{ m: 1 }}
-            action={
-              onRetryConnection && (
-                <Button color="inherit" size="small" onClick={onRetryConnection}>
-                  Retry
-                </Button>
-              )
-            }
-          >
-            {chatError}
-          </Alert>
-        )}
-        
-        {isLoading ? (
-          <Box
+      </DialogTitle>
+
+      {/* Error Alert */}
+      {chatError && (
+        <Alert severity="error" sx={{ m: 2 }}>
+          {typeof chatError === 'string' ? chatError : 'Chat system error occurred.'}
+        </Alert>
+      )}
+
+      {/* Main Content */}
+      <DialogContent sx={{ p: 0, flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', width: '100%', height: '100%' }}>
+          {/* Left Pane - Users List */}
+          <Paper
             sx={{
+              width: '300px',
+              borderRadius: 0,
+              borderRight: '1px solid',
+              borderColor: 'divider',
               display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              flex: 1,
-              flexDirection: 'column',
-              gap: 2
+              flexDirection: 'column'
             }}
           >
-            <CircularProgress />
-            <Typography variant="body2" color="text.secondary">
-              {operationStatus === 'loading_history' ? 'Loading chat history...' : 'Loading...'}
-            </Typography>
-          </Box>
-        ) : (
-          <List
-            sx={{
-              flex: 1,
-              overflow: 'auto',
-              p: 1
-            }}
-          >            {messages.length === 0 ? (
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  height: '100%',
-                  flexDirection: 'column',
-                  gap: 2
+            {/* Search */}
+            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+              <TextField
+                fullWidth
+                size="small"
+                placeholder="Search team members..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
                 }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  No messages yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Start a conversation with {chatPartner?.full_name || chatPartner?.name || 'this user'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Messages: {messages.length} | Active: {!!chatPartner}
-                </Typography>
-              </Box>
-            ) : (
-              messages.map((message, index) => (
-                <ListItem
-                  key={message.id}
-                  sx={{
-                    display: 'flex',
-                    flexDirection: isOwnMessage(message) ? 'row-reverse' : 'row',
-                    alignItems: 'flex-start',
-                    gap: 1,
-                    py: 0.5
-                  }}
-                >
-                  {!isOwnMessage(message) && (
-                    <ListItemAvatar sx={{ minWidth: 'auto', mr: 1 }}>
-                      <Avatar
-                        sx={{
-                          width: 32,
-                          height: 32,
-                          bgcolor: 'secondary.main',
-                          fontSize: '0.875rem'
-                        }}
-                      >
-                        {getInitials(message.sender_name)}
-                      </Avatar>
-                    </ListItemAvatar>
-                  )}
-                  
-                  <Box
-                    sx={{
-                      maxWidth: '70%',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: isOwnMessage(message) ? 'flex-end' : 'flex-start'
-                    }}
-                  >
-                    <Box
+              />
+            </Box>
+
+            {/* Users List */}
+            <List sx={{ flex: 1, overflow: 'auto', p: 0 }}>
+              {filteredUsers.length === 0 ? (
+                <Box sx={{ p: 3, textAlign: 'center' }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {userSearch ? 'No users found' : 'No team members available'}
+                  </Typography>
+                </Box>
+              ) : (
+                filteredUsers.map((user) => {
+                  const isOnline = isUserOnline(user);
+                  const unreadCount = getUserUnreadCount(user);
+                  const isSelected = selectedUser?.id === user.id;
+
+                  return (
+                    <ListItemButton
+                      key={user.id}
+                      selected={isSelected}
+                      onClick={() => {
+                        const userId = user.id || user.user_id;
+                        setSelectedUser(user);
+                        if (onStartChat) {
+                          console.log('🚪 Starting chat with user, will join room');
+                          onStartChat(userId);
+                        }
+                      }}
                       sx={{
-                        bgcolor: isOwnMessage(message) ? 'primary.main' : 'grey.100',
-                        color: isOwnMessage(message) ? 'primary.contrastText' : 'text.primary',
                         px: 2,
                         py: 1,
-                        borderRadius: 2,
-                        borderTopLeftRadius: isOwnMessage(message) ? 2 : 0.5,
-                        borderTopRightRadius: isOwnMessage(message) ? 0.5 : 2,
-                        mb: 0.5
+                        borderBottom: '1px solid',
+                        borderColor: 'divider'
                       }}
-                    >                      <Typography variant="body2">
-                        {message.content || message.message || 'No content'}
-                      </Typography>
-                    </Box>
-                    
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ px: 1 }}
                     >
-                      {getMessageTime(message.timestamp)}
-                      {message.is_read && isOwnMessage(message) && (
-                        <Chip
-                          label="Read"
-                          size="small"
-                          sx={{ ml: 1, height: '16px', fontSize: '0.6rem' }}
-                        />
-                      )}
-                    </Typography>
-                  </Box>
-                </ListItem>
-              ))
-            )}
-            
-            {/* Typing Indicators */}
-            {typingUsers.length > 0 && (
-              <ListItem>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {[1, 2, 3].map((dot) => (
-                      <Box
-                        key={dot}
+                      <ListItemAvatar>
+                        <Badge
+                          overlap="circular"
+                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                          badgeContent={
+                            <CircleIcon
+                              sx={{
+                                width: 12,
+                                height: 12,
+                                color: isOnline ? '#4caf50' : '#bdbdbd'
+                              }}
+                            />
+                          }
+                        >
+                          <Avatar
+                            sx={{
+                              width: 40,
+                              height: 40,
+                              bgcolor: isOnline ? 'primary.main' : 'grey.400'
+                            }}
+                          >
+                            {getInitials(user)}
+                          </Avatar>
+                        </Badge>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={getUserDisplayName(user)}
+                        secondary={isOnline ? 'Online' : 'Offline'}
                         sx={{
-                          width: 4,
-                          height: 4,
-                          bgcolor: 'text.secondary',
-                          borderRadius: '50%',
-                          animation: 'pulse 1.5s infinite',
-                          animationDelay: `${dot * 0.2}s`
+                          '& .MuiListItemText-primary': {
+                            fontWeight: unreadCount > 0 ? 'bold' : 'normal'
+                          }
                         }}
                       />
-                    ))}
+                      {unreadCount > 0 && (
+                        <Chip
+                          label={unreadCount}
+                          size="small"
+                          color="error"
+                          sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+                        />
+                      )}
+                    </ListItemButton>
+                  );
+                })
+              )}
+            </List>
+          </Paper>
+
+          {/* Right Pane - Chat */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {!selectedUser ? (
+              <Box
+                sx={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  gap: 2,
+                  color: 'text.secondary'
+                }}
+              >
+                <Typography variant="h6">Select a team member to start chatting</Typography>
+                <Typography variant="body2">Choose someone from the list on the left</Typography>
+              </Box>
+            ) : (
+              <>
+                {/* Chat Header */}
+                <Box
+                  sx={{
+                    p: 2,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2
+                  }}
+                >
+                  <Badge
+                    overlap="circular"
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                    badgeContent={
+                      <CircleIcon
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          color: isUserOnline(selectedUser) ? '#4caf50' : '#bdbdbd'
+                        }}
+                      />
+                    }
+                  >
+                    <Avatar
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        bgcolor: 'primary.main'
+                      }}
+                    >
+                      {getInitials(selectedUser)}
+                    </Avatar>
+                  </Badge>
+                  <Box>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                      {getUserDisplayName(selectedUser)}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {isUserOnline(selectedUser) ? 'Online' : 'Offline'}
+                    </Typography>
                   </Box>
                 </Box>
-              </ListItem>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </List>
-        )}
-      </DialogContent>
 
-      {/* Message Input */}
-      <DialogActions
-        sx={{
-          p: 2,
-          borderTop: '1px solid',
-          borderColor: 'divider'
-        }}
-      >        <TextField
-          fullWidth
-          multiline
-          maxRows={3}
-          placeholder={connectionStatus === 'connected' ? "Type a message..." : "Connecting..."}
-          value={messageText}
-          onChange={handleInputChange}
-          onKeyPress={handleKeyPress}
-          disabled={connectionStatus !== 'connected' || operationStatus === 'sending_message'}
-          InputProps={{
-            endAdornment: (
-              <InputAdornment position="end">
-                <Box sx={{ display: 'flex', gap: 0.5 }}>
-                  <IconButton size="small" disabled>
-                    <EmojiIcon />
-                  </IconButton>
-                  <IconButton size="small" disabled>
-                    <AttachIcon />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={handleSendMessage}
-                    disabled={!messageText.trim() || connectionStatus !== 'connected' || operationStatus === 'sending_message'}
-                    color="primary"
-                  >
-                    {operationStatus === 'sending_message' ? (
-                      <CircularProgress size={20} />
-                    ) : (
-                      <SendIcon />
-                    )}
-                  </IconButton>
+                {/* Messages Area */}
+                <Box sx={{ flex: 1, overflow: 'auto', p: 1 }}>
+                  {isLoading ? (
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        flex: 1,
+                        flexDirection: 'column',
+                        gap: 2
+                      }}
+                    >
+                      <CircularProgress />
+                      <Typography variant="body2" color="text.secondary">
+                        {operationStatus === 'loading_history' ? 'Loading chat history...' : 'Loading...'}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List sx={{ flex: 1, p: 0 }}>
+                      {messages.length === 0 ? (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            height: '200px',
+                            flexDirection: 'column',
+                            gap: 2
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary">
+                            No messages yet
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Start a conversation with {getUserDisplayName(selectedUser)}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        messages.map((message, index) => (
+                          <ListItem
+                            key={generateSafeKey(message, index, 'chat-msg')}
+                            sx={{
+                              display: 'flex',
+                              flexDirection: isOwnMessage(message) ? 'row-reverse' : 'row',
+                              alignItems: 'flex-start',
+                              gap: 1,
+                              py: 0.5
+                            }}
+                          >
+                            {!isOwnMessage(message) && (
+                              <ListItemAvatar sx={{ minWidth: 'auto', mr: 1 }}>
+                                <Avatar
+                                  sx={{
+                                    width: 32,
+                                    height: 32,
+                                    bgcolor: 'secondary.main',
+                                    fontSize: '0.875rem'
+                                  }}
+                                >
+                                  {getInitials(selectedUser)}
+                                </Avatar>
+                              </ListItemAvatar>
+                            )}
+
+                            <Box
+                              sx={{
+                                maxWidth: '70%',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: isOwnMessage(message) ? 'flex-end' : 'flex-start'
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  bgcolor: isOwnMessage(message) ? 'primary.main' : 'grey.100',
+                                  color: isOwnMessage(message) ? 'primary.contrastText' : 'text.primary',
+                                  px: 2,
+                                  py: 1,
+                                  borderRadius: 2,
+                                  borderTopLeftRadius: isOwnMessage(message) ? 2 : 0.5,
+                                  borderTopRightRadius: isOwnMessage(message) ? 0.5 : 2,
+                                  mb: 0.5
+                                }}
+                              >
+                                <Typography variant="body2">
+                                  {message.content || message.message || 'No content'}
+                                </Typography>
+                              </Box>
+
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ px: 1 }}
+                              >
+                                {getMessageTime(message.timestamp)}
+                              </Typography>
+                            </Box>
+                          </ListItem>
+                        ))
+                      )}
+                      <div ref={messagesEndRef} />
+                    </List>
+                  )}
+
+                  {/* Typing indicator */}
+                  {typingUsers.length > 0 && (
+                    <Box sx={{ p: 2 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {typingUsers.map(u => u.name).join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
-              </InputAdornment>
-            )
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 3
-            }
-          }}
-        />
-      </DialogActions>
+
+                {/* Message Input Area */}
+                <Box
+                  sx={{
+                    p: 2,
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2
+                  }}
+                >
+                  <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      maxRows={3}
+                      size="small"
+                      placeholder={
+                        isUserOnline(selectedUser)
+                          ? `Message ${getUserDisplayName(selectedUser)}...`
+                          : `${getUserDisplayName(selectedUser)} is offline. Message will be delivered when they come online.`
+                      }
+                      value={messageText}
+                      onChange={handleInputChange}
+                      onKeyPress={handleKeyPress}
+                      disabled={connectionStatus !== 'connected'}
+                    />
+                    <IconButton
+                      onClick={handleSendMessage}
+                      disabled={!messageText || !messageText.trim() || connectionStatus !== 'connected' || operationStatus === 'sending_message'}
+                      color="primary"
+                      sx={{ mb: 0.5 }}
+                    >
+                      {operationStatus === 'sending_message' ? (
+                        <CircularProgress size={20} />
+                      ) : (
+                        <SendIcon />
+                      )}
+                    </IconButton>
+                  </Box>
+
+                  {/* Offline user actions */}
+                  {!isUserOnline(selectedUser) && messages.length > 0 && (
+                    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        onClick={handleDeleteOfflineMessages}
+                      >
+                        Delete Messages
+                      </Button>
+                    </Box>
+                  )}
+
+                  {connectionStatus !== 'connected' && (
+                    <Alert severity="warning" sx={{ mt: 1 }}>
+                      Connection lost. Messages will be sent when connection is restored.
+                      {onRetryConnection && (
+                        <Button size="small" onClick={onRetryConnection} sx={{ ml: 1 }}>
+                          Retry
+                        </Button>
+                      )}
+                    </Alert>
+                  )}
+                </Box>
+              </>
+            )}
+          </Box>
+        </Box>
+      </DialogContent>
     </Dialog>
   );
 };

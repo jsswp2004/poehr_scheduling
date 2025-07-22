@@ -20,6 +20,7 @@ export const useCreateProfile = () => {
         password: '',
         first_name: '',
         last_name: '',
+        phone_number: '',
         role: '',
         profile_picture: null,
         organization: '',
@@ -33,6 +34,7 @@ export const useCreateProfile = () => {
         { value: 'doctor', label: 'Doctor' },
         { value: 'admin', label: 'Admin' },
         { value: 'registrar', label: 'Registrar' },
+        { value: 'system_admin', label: 'System Admin' },
     ];
 
     // Form field configuration
@@ -41,6 +43,7 @@ export const useCreateProfile = () => {
         { name: 'last_name', label: 'Last Name', type: 'text' },
         { name: 'username', label: 'Username', type: 'text' },
         { name: 'email', label: 'Email', type: 'email' },
+        { name: 'phone_number', label: 'Phone Number', type: 'tel' },
         { name: 'password', label: 'Password', type: 'password' },
     ];
 
@@ -53,18 +56,9 @@ export const useCreateProfile = () => {
             const headers = { Authorization: `Bearer ${token}` };
 
             try {
-                // Load organizations
-                const orgsResponse = await axios.get(`${API_BASE_URL}/users/organizations/`, { headers });
+                // Load organizations only
+                const orgsResponse = await axios.get(`${API_BASE_URL}/api/users/organizations/`, { headers });
                 setOrganizations(orgsResponse.data);
-
-                // Load current user's organization as default
-                const userResponse = await axios.get(`${API_BASE_URL}/users/me/`, { headers });
-                if (userResponse.data?.organization) {
-                    setFormData(prev => ({
-                        ...prev,
-                        organization: userResponse.data.organization
-                    }));
-                }
             } catch (error) {
                 console.error('Failed to load data:', error);
                 toast.error('Failed to load organizations');
@@ -83,6 +77,11 @@ export const useCreateProfile = () => {
         }));
     };
 
+    // Add organization to the list
+    const addOrganization = (newOrg) => {
+        setOrganizations((prev) => [...prev, newOrg]);
+    };
+
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -90,9 +89,19 @@ export const useCreateProfile = () => {
 
         const formPayload = new FormData();
         for (const key in formData) {
-            if (formData[key]) {
+            if (formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
                 formPayload.append(key, formData[key]);
             }
+        }
+
+        // Debug: Log form data being sent
+        console.log('Form data being sent:', formData);
+        console.log('Organization selected:', formData.organization);
+
+        // Debug: Also log what's in the FormData
+        console.log('FormData entries:');
+        for (let pair of formPayload.entries()) {
+            console.log(pair[0] + ': ' + pair[1]);
         }
 
         try {
@@ -117,5 +126,6 @@ export const useCreateProfile = () => {
         formFields,
         handleChange,
         handleSubmit,
+        addOrganization,
     };
 };

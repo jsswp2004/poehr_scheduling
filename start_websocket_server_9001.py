@@ -7,6 +7,7 @@ import sys
 import django
 
 if __name__ == '__main__':
+    print("DEBUG: Running UPDATED version of start_websocket_server_9001.py - NO EMOJI")
     # Set the Django settings module
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'poehr_scheduling_backend.settings')
     
@@ -15,9 +16,9 @@ if __name__ == '__main__':
     
     # Import and start Daphne
     from daphne.cli import CommandLineInterface
-    print("🚀 Starting Django with WebSocket support...")
-    print("📡 WebSocket endpoint: ws://localhost:9001/ws/presence/")
-    print("🌐 HTTP endpoint: http://localhost:9001/")
+    print("Starting Django with WebSocket support...")
+    print("WebSocket endpoint: ws://localhost:9001/ws/presence/")
+    print("HTTP endpoint: http://localhost:9001/")
     print("")
       # Start Daphne with our ASGI application
     cli = CommandLineInterface()

@@ -7,6 +7,7 @@ import sys
 import django
 
 if __name__ == '__main__':
+    print("DEBUG: Running UPDATED version of start_websocket_server.py - NO EMOJI")
     # Set the Django settings module
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'poehr_scheduling_backend.settings')
     
