@@ -74,3 +74,7 @@ websockets==15.0.1
 yarl==1.20.0
 zope.interface==7.2
 dj-database-url==2.2.0
+google-cloud-secret-manager==2.20.2
+google-cloud-sql-connector==1.11.0
+psycopg2-binary==2.9.9
+gunicorn==21.2.0

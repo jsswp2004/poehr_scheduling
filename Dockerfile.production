@@ -1,0 +1,38 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings_production
+
+WORKDIR /code
+
+# Install system dependencies including Cloud SQL Proxy
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+        build-essential \
+        libpq-dev \
+        curl \
+        wget \
+    && curl -o cloud_sql_proxy https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
+    && chmod +x cloud_sql_proxy \
+    && mv cloud_sql_proxy /usr/local/bin/ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt /code/
+RUN pip install --no-cache-dir -r requirements.txt gunicorn google-cloud-secret-manager
+
+# Copy project
+COPY . /code/
+
+# Create staticfiles directory
+RUN mkdir -p /code/staticfiles
+
+# Collect static files (this might fail in build, so we make it optional)
+RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || echo "Static files collection failed, will run at runtime"
+
+EXPOSE 8080
+
+# Use gunicorn for production
+CMD exec gunicorn --bind :8080 --workers 1 --threads 8 --timeout 0 poehr_scheduling_backend.wsgi:application
