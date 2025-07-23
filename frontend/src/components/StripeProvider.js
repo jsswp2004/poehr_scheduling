@@ -6,7 +6,7 @@ import { Elements } from '@stripe/react-stripe-js';
 const stripePublishableKey = process.env.REACT_APP_STRIPE_PUBLISHABLE_KEY;
 
 // Temporarily disable Stripe to avoid loading errors
-const STRIPE_TEMPORARILY_DISABLED = true;
+const STRIPE_TEMPORARILY_DISABLED = false;
 
 console.log('🔧 Stripe configuration:', {
   temporarilyDisabled: STRIPE_TEMPORARILY_DISABLED,

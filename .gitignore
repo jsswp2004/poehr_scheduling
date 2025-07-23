@@ -3,7 +3,14 @@ env/
 venv/
 *.pyc
 __pycache__/
+# Environment variables - Never commit actual .env files
 .env
+.env.local
+*.env
+!.env.example
+!.env.template
+!.env.development
+!.env.production
 
 # Django
 db.sqlite3
