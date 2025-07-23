@@ -10,6 +10,8 @@ class ContactSerializer(serializers.ModelSerializer):
 
 
 class MessageLogSerializer(serializers.ModelSerializer):
+    organization_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = MessageLog
         fields = [
@@ -22,5 +24,15 @@ class MessageLogSerializer(serializers.ModelSerializer):
             "status",
             "provider_id",
             "created_at",
+            "organization_name",
         ]
-        read_only_fields = ["id", "user", "created_at"]
+        read_only_fields = ["id", "user", "created_at", "organization_name"]
+    
+    def get_organization_name(self, obj):
+        """Return the organization name of the user who sent the message"""
+        if obj.user and obj.user.organization:
+            return obj.user.organization.name
+        elif obj.user is None:
+            return "System"  # For system-generated messages
+        else:
+            return "No Organization"  # For users without organization

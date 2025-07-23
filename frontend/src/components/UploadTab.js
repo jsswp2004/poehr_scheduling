@@ -3,7 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload, faUpload } from '@fortawesome/free-solid-svg-icons';
 import {
   Table, TableHead, TableRow, TableCell, TableBody,
-  Button, Stack, Alert, TextField, IconButton, Tooltip, Box
+  Button, Stack, Alert, TextField, IconButton, Tooltip, Box, Typography
 } from '@mui/material';
 import axios from 'axios';
 
@@ -169,6 +169,7 @@ function UploadTab() {
         <TableHead>
           <TableRow sx={{ bgcolor: '#e3f2fd' }}>
             <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Items</TableCell>
+            <TableCell sx={{ fontWeight: 'bold', width: 400 }}>Description</TableCell>
             <TableCell sx={{ fontWeight: 'bold', width: 300 }}>Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -176,6 +177,17 @@ function UploadTab() {
           {/* Clinic Events */}
           <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
             <TableCell>Clinic Events</TableCell>
+            <TableCell>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Upload your organization's scheduled events, appointments, and clinic sessions.
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1, fontStyle: 'italic', color: 'text.secondary' }}>
+                <strong>Examples:</strong> Regular appointments, group sessions, special events, recurring meetings
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                <strong>Instructions:</strong> 1. Download the template 2. Fill in event details (date, time, type, provider) 3. Upload the completed CSV file
+              </Typography>
+            </TableCell>
             <TableCell>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Tooltip title="Download Template">
@@ -203,6 +215,17 @@ function UploadTab() {
           <TableRow sx={{ '&:nth-of-type(even)': { bgcolor: '#f8fafd' } }}>
             <TableCell>Providers / Staff</TableCell>
             <TableCell>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Add your healthcare providers and staff members to the system.
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1, fontStyle: 'italic', color: 'text.secondary' }}>
+                <strong>Examples:</strong> Doctors, nurses, therapists, administrative staff, specialists
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                <strong>Instructions:</strong> 1. Download the template 2. Enter staff details (name, role, specialization, contact info) 3. Upload the completed CSV file
+              </Typography>
+            </TableCell>
+            <TableCell>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Tooltip title="Download Template">
                   <IconButton color="primary" onClick={handleProviderDownload} sx={{ width: 40, height: 40 }}>
@@ -226,6 +249,17 @@ function UploadTab() {
           </TableRow>          {/* Availability */}
           <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
             <TableCell>Availability</TableCell>
+            <TableCell>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Set up provider schedules and available time slots for appointments.
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1, fontStyle: 'italic', color: 'text.secondary' }}>
+                <strong>Examples:</strong> Working hours, break times, blocked periods, recurring schedules
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                <strong>Instructions:</strong> 1. Download the template 2. Define time slots and availability patterns 3. Upload the completed CSV file
+              </Typography>
+            </TableCell>
             <TableCell>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Tooltip title="Download Template">
@@ -252,6 +286,17 @@ function UploadTab() {
           {/* Patients */}
           <TableRow sx={{ '&:nth-of-type(even)': { bgcolor: '#f8fafd' } }}>
             <TableCell>Patients</TableCell>
+            <TableCell>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Import patient records and contact information into your organization.
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1, fontStyle: 'italic', color: 'text.secondary' }}>
+                <strong>Examples:</strong> Patient demographics, contact details, medical record numbers
+              </Typography>
+              <Typography variant="body2" sx={{ color: 'primary.main' }}>
+                <strong>Instructions:</strong> 1. Download the template 2. Enter patient information (ensure HIPAA compliance) 3. Upload the completed CSV file
+              </Typography>
+            </TableCell>
             <TableCell>
               <Stack direction="row" spacing={2} alignItems="center">
                 <Tooltip title="Download Template">

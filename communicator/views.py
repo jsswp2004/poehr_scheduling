@@ -15,10 +15,18 @@ class MessageLogFilter(django_filters.FilterSet):
     message_type = django_filters.CharFilter(field_name='message_type')
     created_at__gte = django_filters.DateFilter(field_name='created_at', lookup_expr='gte')
     created_at__lte = django_filters.DateFilter(field_name='created_at', lookup_expr='lte')
+    organization = django_filters.NumberFilter(method='filter_by_organization')
+    
+    def filter_by_organization(self, queryset, name, value):
+        """Filter messages by organization ID through user relationship"""
+        from django.db.models import Q
+        return queryset.filter(
+            Q(user__organization_id=value) | Q(user__isnull=True)
+        )
     
     class Meta:
         model = MessageLog
-        fields = ['message_type', 'created_at__gte', 'created_at__lte']
+        fields = ['message_type', 'created_at__gte', 'created_at__lte', 'organization']
 
 
 class ContactViewSet(viewsets.ModelViewSet):
@@ -88,9 +96,24 @@ class MessageLogViewSet(viewsets.ModelViewSet):
     filterset_class = MessageLogFilter
 
     def get_queryset(self):
-        # Include both user-specific emails and system-generated emails (user=None)
-        # This allows admin users to see patient reminder emails and other system emails
+        """
+        Filter message logs based on user role:
+        - system_admin: sees all messages
+        - admin/registrar: sees only messages from their organization
+        - others: sees their own messages only
+        """
         from django.db.models import Q
-        return MessageLog.objects.filter(
-            Q(user=self.request.user) | Q(user__isnull=True)
-        ).order_by('-created_at')
+        
+        user = self.request.user
+        
+        if user.role == 'system_admin':
+            # System admins see everything
+            return MessageLog.objects.all().order_by('-created_at')
+        elif user.role in ['admin', 'registrar'] and user.organization:
+            # Admins and registrars see only org messages (no system messages)
+            return MessageLog.objects.filter(
+                user__organization=user.organization
+            ).order_by('-created_at')
+        else:
+            # Regular users see only their own messages
+            return MessageLog.objects.filter(user=user).order_by('-created_at')
