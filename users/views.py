@@ -132,6 +132,15 @@ class RegisterView(generics.CreateAPIView):
         subscription_tier = data.get('subscription_tier', 'basic')
         is_enrollment = data.get('is_enrollment', False)  # Check if this is service enrollment
         
+        # Debug: Show what enrollment data was received
+        if is_enrollment:
+            print(f"📝 Enrollment data received:")
+            print(f"   - Organization Name: '{data.get('organization_name')}'")
+            print(f"   - Organization Type: '{data.get('organization_type')}'")
+            print(f"   - User Name: '{data.get('first_name')} {data.get('last_name')}'")
+            print(f"   - Email: '{data.get('email')}'")
+            print(f"   - Is Enrollment: {is_enrollment}")
+        
         # Store plain password for welcome email before it gets hashed
         plain_password = data.get('password', '') if is_enrollment else ''
         
@@ -142,7 +151,13 @@ class RegisterView(generics.CreateAPIView):
         else:
             # User is not logged in, use the organization_name from the form or default
             org_name = data.get('organization_name') or "Default Organization"
-            organization, _ = Organization.objects.get_or_create(name=org_name)
+            org_type = data.get('organization_type', 'personal')
+            print(f"🏢 Creating/getting organization: '{org_name}' (type: {org_type})")
+            organization, created = Organization.objects.get_or_create(name=org_name)
+            if created:
+                print(f"✅ Created new organization: {organization.name}")
+            else:
+                print(f"♻️ Using existing organization: {organization.name}")
         
         # Validate the serializer first (without Stripe fields and organization_name)
         serializer_data = {k: v for k, v in data.items() 
@@ -158,6 +173,11 @@ class RegisterView(generics.CreateAPIView):
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
+            
+            # Set role to 'admin' for service enrollment
+            if is_enrollment:
+                user.role = 'admin'
+            
             # User created successfully
               # Only create Stripe customer for service enrollment, not patient registration
             if is_enrollment:                # Initialize Stripe service
@@ -294,7 +314,7 @@ This is an automated notification from POWER Scheduling.
                                 to_email=admin_email,
                                 subject=admin_subject,
                                 message=admin_message.strip(),
-                                user=None  # System notification, not user-specific
+                                user=user  # Associate with enrolling user's organization
                             )
                         
                         print(f"✅ Admin notification sent to {len(admin_emails)} admin(s)")

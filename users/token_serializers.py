@@ -9,6 +9,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['first_name'] = user.first_name
         token['last_name'] = user.last_name
         token['role'] = user.role
+        token['organization_id'] = user.organization.id if user.organization else None
         return token
 
     def validate(self, attrs):

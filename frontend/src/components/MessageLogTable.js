@@ -28,16 +28,24 @@ function MessageLogTable({ type }) {
   const [appliedEnd, setAppliedEnd] = useState("");
   const [page, setPage] = useState(1);
   const [isSystemAdmin, setIsSystemAdmin] = useState(false);
+  const [userRole, setUserRole] = useState("");
+  const [userOrgId, setUserOrgId] = useState(null);
   const rowsPerPage = 15;
   const fetchLogs = async () => {
     try {
       const token = localStorage.getItem("access_token");
       let url = `http://127.0.0.1:8000/api/communicator/logs/?message_type=${type}`;
+
+      // Add date filters if applied
       if (appliedStart) url += `&created_at__gte=${appliedStart}`;
       if (appliedEnd) url += `&created_at__lte=${appliedEnd}`;
 
+      // Backend now handles organization filtering automatically based on user role
+      // No need to manually add organization parameter
+
       // Debug: Log the URL being called
       console.log("Fetching logs with URL:", url);
+      console.log("User role:", userRole, "Organization ID:", userOrgId, "Is System Admin:", isSystemAdmin);
 
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -54,15 +62,26 @@ function MessageLogTable({ type }) {
   }, [type, appliedStart, appliedEnd]);
 
   useEffect(() => {
-    // Check user role on component mount
+    // Check user role and organization on component mount
     const token = localStorage.getItem("access_token");
     if (token) {
       try {
         const decoded = jwtDecode(token);
-        setIsSystemAdmin(decoded.role === "system_admin");
+        const role = decoded.role;
+        const orgId = decoded.organization_id;
+
+        console.log("🔍 FULL TOKEN DECODED:", decoded);
+        console.log("Decoded token - Role:", role, "Organization ID:", orgId);
+        console.log("Available token fields:", Object.keys(decoded));
+
+        setUserRole(role);
+        setUserOrgId(orgId);
+        setIsSystemAdmin(role === "system_admin");
       } catch (err) {
         console.error("Error decoding token:", err);
         setIsSystemAdmin(false);
+        setUserRole("");
+        setUserOrgId(null);
       }
     }
   }, []);
@@ -120,11 +139,16 @@ function MessageLogTable({ type }) {
       year: "numeric",
     });
     const logType = type === "sms" ? "SMS" : "Email";
+    const orgSuffix = !isSystemAdmin && (userRole === 'admin' || userRole === 'registrar')
+      ? " (Organization Messages)"
+      : isSystemAdmin
+        ? " (All Organizations)"
+        : "";
 
     let printContent = `
       <html>
         <head>
-          <title>${logType} Logs Report</title>
+          <title>${logType} Logs Report${orgSuffix}</title>
           <style>
             body { font-family: Arial, sans-serif; margin: 20px; }
             h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
@@ -136,22 +160,27 @@ function MessageLogTable({ type }) {
           </style>
         </head>
         <body>
-          <h1>${logType} Logs Report</h1>
+          <h1>${logType} Logs Report${orgSuffix}</h1>
           <div class="summary">
             <p><strong>Generated on:</strong> ${new Date().toLocaleString()}</p>
             <p><strong>Total records:</strong> ${filtered.length}</p>
-            ${
-              appliedStart || appliedEnd
-                ? `<p><strong>Date range:</strong> ${
-                    appliedStart || "All"
-                  } to ${appliedEnd || "All"}</p>`
-                : ""
-            }
+            <p><strong>Scope:</strong> ${isSystemAdmin
+        ? "All Organizations"
+        : (userRole === 'admin' || userRole === 'registrar')
+          ? "Current Organization Only"
+          : "User Messages"
+      }</p>
+            ${appliedStart || appliedEnd
+        ? `<p><strong>Date range:</strong> ${appliedStart || "All"
+        } to ${appliedEnd || "All"}</p>`
+        : ""
+      }
           </div>
           <table>
             <thead>
               <tr>
                 <th>Recipient</th>
+                <th>Organization</th>
                 ${type === "email" ? "<th>Subject</th>" : ""}
                 <th>Body</th>
                 <th>Date</th>
@@ -164,6 +193,7 @@ function MessageLogTable({ type }) {
       printContent += `
         <tr>
           <td>${log.recipient}</td>
+          <td>${log.organization_name || 'Unknown'}</td>
           ${type === "email" ? `<td>${log.subject || ""}</td>` : ""}
           <td>${log.body}</td>
           <td>${new Date(log.created_at).toLocaleString()}</td>
@@ -186,17 +216,23 @@ function MessageLogTable({ type }) {
   const handleDownloadCSV = () => {
     const logType = type === "sms" ? "SMS" : "Email";
     const currentDate = new Date().toISOString().split("T")[0];
+    const orgSuffix = !isSystemAdmin && (userRole === 'admin' || userRole === 'registrar')
+      ? "_Organization"
+      : isSystemAdmin
+        ? "_AllOrgs"
+        : "";
 
     // Prepare CSV headers
     const headers =
       type === "email"
-        ? ["Recipient", "Subject", "Body", "Date"]
-        : ["Recipient", "Body", "Date"];
+        ? ["Recipient", "Organization", "Subject", "Body", "Date"]
+        : ["Recipient", "Organization", "Body", "Date"];
 
     // Prepare CSV data
     const csvData = filtered.map((log) => {
       const row = [
         `"${log.recipient.replace(/"/g, '""')}"`,
+        `"${(log.organization_name || 'Unknown').replace(/"/g, '""')}"`,
         ...(type === "email"
           ? [`"${(log.subject || "").replace(/"/g, '""')}"`]
           : []),
@@ -216,7 +252,7 @@ function MessageLogTable({ type }) {
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob);
       link.setAttribute("href", url);
-      link.setAttribute("download", `${logType}_Logs_${currentDate}.csv`);
+      link.setAttribute("download", `${logType}_Logs${orgSuffix}_${currentDate}.csv`);
       link.style.visibility = "hidden";
       document.body.appendChild(link);
       link.click();
@@ -229,6 +265,16 @@ function MessageLogTable({ type }) {
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
         <Typography variant="h6" sx={{ minWidth: "fit-content" }}>
           {type === "sms" ? "SMS Logs" : "Email Logs"}
+          {!isSystemAdmin && (userRole === 'admin' || userRole === 'registrar') && (
+            <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontWeight: 'normal' }}>
+              (Organization Messages Only)
+            </Typography>
+          )}
+          {isSystemAdmin && (
+            <Typography variant="caption" sx={{ display: 'block', color: 'primary.main', fontWeight: 'normal' }}>
+              (All Organizations)
+            </Typography>
+          )}
         </Typography>
         <TextField
           label="Search"
@@ -305,6 +351,7 @@ function MessageLogTable({ type }) {
         <TableHead>
           <TableRow sx={{ bgcolor: "#f5f5f5" }}>
             <TableCell>Recipient</TableCell>
+            <TableCell>Organization</TableCell>
             {type === "email" && <TableCell>Subject</TableCell>}
             <TableCell>Body</TableCell>
             <TableCell>Date</TableCell>
@@ -315,6 +362,18 @@ function MessageLogTable({ type }) {
           {paginatedLogs.map((log) => (
             <TableRow key={log.id} hover>
               <TableCell>{log.recipient}</TableCell>
+              <TableCell>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: log.organization_name === 'System' ? 'primary.main' : 'text.primary',
+                    fontWeight: log.organization_name === 'System' ? 500 : 400,
+                    fontStyle: log.organization_name === 'System' ? 'italic' : 'normal'
+                  }}
+                >
+                  {log.organization_name || 'Unknown'}
+                </Typography>
+              </TableCell>
               {type === "email" && <TableCell>{log.subject}</TableCell>}
               <TableCell>{log.body}</TableCell>
               <TableCell>{new Date(log.created_at).toLocaleString()}</TableCell>
@@ -337,11 +396,11 @@ function MessageLogTable({ type }) {
                 colSpan={
                   type === "email"
                     ? isSystemAdmin
-                      ? 5
-                      : 4
+                      ? 6  // Recipient, Organization, Subject, Body, Date, Actions
+                      : 5  // Recipient, Organization, Subject, Body, Date
                     : isSystemAdmin
-                    ? 4
-                    : 3
+                      ? 5  // Recipient, Organization, Body, Date, Actions
+                      : 4  // Recipient, Organization, Body, Date
                 }
                 align="center"
               >
