@@ -1,0 +1,51 @@
+steps:
+  # Build the container image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-f",
+        "Dockerfile.production",
+        "-t",
+        "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA",
+        ".",
+      ]
+
+  # Push the image to Container Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA"]
+
+  # Deploy to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "poehr-scheduling"
+      - "--image"
+      - "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA"
+      - "--region"
+      - "us-central1"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+      - "--add-cloudsql-instances"
+      - "$PROJECT_ID:us-central1:poehr-db-instance"
+      - "--set-env-vars"
+      - "GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
+      - "--memory"
+      - "1Gi"
+      - "--cpu"
+      - "1"
+      - "--max-instances"
+      - "10"
+      - "--min-instances"
+      - "0"
+      - "--port"
+      - "8080"
+
+images:
+  - "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
