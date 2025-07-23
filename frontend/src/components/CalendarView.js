@@ -1,6 +1,6 @@
 /**
  * Refactored CalendarView component
- * 
+ *
  * This is a much more maintainable version of the original 1438-line CalendarView.js
  * - Business logic extracted into custom hooks
  * - UI components modularized
@@ -11,9 +11,19 @@ import React, { useCallback, memo, useState, useRef, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Box, CircularProgress, Typography, Avatar, Tooltip } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  Typography,
+  Avatar,
+  Tooltip,
+} from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faUserMd, faStethoscope, faCalendarAlt } from "@fortawesome/free-solid-svg-icons";
+import {
+  faUserMd,
+  faStethoscope,
+  faCalendarAlt,
+} from "@fortawesome/free-solid-svg-icons";
 import { useNavigate } from "react-router-dom";
 
 // Components
@@ -32,12 +42,11 @@ import { useClinicEvents } from "../hooks/useClinicEvents";
 
 const localizer = momentLocalizer(moment);
 
-const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = true }) {
+const CalendarView = memo(function CalendarView({
+  onUpdate,
+  showBackButton = true,
+}) {
   const navigate = useNavigate();
-
-  // Local search state that updates immediately for responsive typing
-  const [localSearchQuery, setLocalSearchQuery] = useState("");
-  const searchTimeoutRef = useRef(null);
 
   // State for available providers modal
   const [showProvidersModal, setShowProvidersModal] = useState(false);
@@ -71,102 +80,108 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
   const { clinicEvents: eventTypes } = useClinicEvents();
 
   // Custom date header component to show provider icons
-  const CustomDateHeader = useCallback(({ date, label }) => {
-    // Get availability events for this date from the separate availability events
-    const dayAvailability = availabilityEvents.filter(avail => {
-      const eventDate = new Date(avail.start);
-      return eventDate.toDateString() === date.toDateString();
-    });
-
-    // Get unique providers available on this date with their time slots
-    const availableProviders = dayAvailability.reduce((acc, avail) => {
-      const data = avail.resource?.data;
-      const providerName = data?.doctor_name || 'Unknown Provider';
-
-      // Find existing provider or create new one
-      let provider = acc.find(p => p.name === providerName);
-      if (!provider) {
-        provider = {
-          name: providerName,
-          timeSlots: []
-        };
-        acc.push(provider);
-      }
-
-      // Add time slot
-      provider.timeSlots.push({
-        start_time: data?.start_time || avail.start,
-        end_time: data?.end_time || avail.end
+  const CustomDateHeader = useCallback(
+    ({ date, label }) => {
+      // Get availability events for this date from the separate availability events
+      const dayAvailability = availabilityEvents.filter((avail) => {
+        const eventDate = new Date(avail.start);
+        return eventDate.toDateString() === date.toDateString();
       });
 
-      return acc;
-    }, []);
+      // Get unique providers available on this date with their time slots
+      const availableProviders = dayAvailability.reduce((acc, avail) => {
+        const data = avail.resource?.data;
+        const providerName = data?.doctor_name || "Unknown Provider";
 
-    const handleProviderIconClick = (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      e.nativeEvent.stopImmediatePropagation();
-      setPreventSlotSelection(true);
-      // Reset the flag after a short delay to allow normal slot selection later
-      setTimeout(() => setPreventSlotSelection(false), 100);
-      setSelectedDate(date);
-      setSelectedDateProviders(availableProviders);
-      setShowProvidersModal(true);
-    };
+        // Find existing provider or create new one
+        let provider = acc.find((p) => p.name === providerName);
+        if (!provider) {
+          provider = {
+            name: providerName,
+            timeSlots: [],
+          };
+          acc.push(provider);
+        }
 
-    return (
-      <div style={{ position: 'relative', height: '100%', padding: '2px' }}>
-        {/* Show single doctor icon if there are available providers on this date */}
-        {availableProviders.length > 0 && (
-          <div
-            style={{
-              position: 'absolute',
-              top: '2px',
-              left: '2px',
-              display: 'flex',
-              gap: '2px',
-              zIndex: 1000, // Much higher z-index to ensure it's above everything
-              pointerEvents: 'auto', // Ensure pointer events work
-            }}
-            onMouseDown={handleProviderIconClick}
-            onTouchStart={handleProviderIconClick}
-          >
-            <Tooltip title={`${availableProviders.length} provider(s) available - Click to see details`} arrow>
-              <Box
-                sx={{
-                  width: '12px',
-                  height: '12px',
-                  backgroundColor: '#28a745',
-                  borderRadius: '50%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '8px',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  border: '1px solid #fff',
-                  cursor: 'pointer',
-                  pointerEvents: 'none', // Disable pointer events on the box itself
-                  '&:hover': {
-                    backgroundColor: '#218838',
-                    transform: 'scale(1.1)',
-                  },
-                }}
+        // Add time slot
+        provider.timeSlots.push({
+          start_time: data?.start_time || avail.start,
+          end_time: data?.end_time || avail.end,
+        });
+
+        return acc;
+      }, []);
+
+      const handleProviderIconClick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        e.nativeEvent.stopImmediatePropagation();
+        setPreventSlotSelection(true);
+        // Reset the flag after a short delay to allow normal slot selection later
+        setTimeout(() => setPreventSlotSelection(false), 100);
+        setSelectedDate(date);
+        setSelectedDateProviders(availableProviders);
+        setShowProvidersModal(true);
+      };
+
+      return (
+        <div style={{ position: "relative", height: "100%", padding: "2px" }}>
+          {/* Show single doctor icon if there are available providers on this date */}
+          {availableProviders.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "2px",
+                left: "2px",
+                display: "flex",
+                gap: "2px",
+                zIndex: 1000, // Much higher z-index to ensure it's above everything
+                pointerEvents: "auto", // Ensure pointer events work
+              }}
+              onMouseDown={handleProviderIconClick}
+              onTouchStart={handleProviderIconClick}
+            >
+              <Tooltip
+                title={`${availableProviders.length} provider(s) available - Click to see details`}
+                arrow
               >
-                <FontAwesomeIcon icon={faUserMd} style={{ fontSize: '7px' }} />
-              </Box>
-            </Tooltip>
-          </div>
-        )}
-        <span>{label}</span>
-      </div>
-    );
-  }, [availabilityEvents]);
+                <Box
+                  sx={{
+                    width: "12px",
+                    height: "12px",
+                    backgroundColor: "#28a745",
+                    borderRadius: "50%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "8px",
+                    color: "white",
+                    fontWeight: "bold",
+                    border: "1px solid #fff",
+                    cursor: "pointer",
+                    pointerEvents: "none", // Disable pointer events on the box itself
+                    "&:hover": {
+                      backgroundColor: "#218838",
+                      transform: "scale(1.1)",
+                    },
+                  }}
+                >
+                  <FontAwesomeIcon
+                    icon={faUserMd}
+                    style={{ fontSize: "7px" }}
+                  />
+                </Box>
+              </Tooltip>
+            </div>
+          )}
+          <span>{label}</span>
+        </div>
+      );
+    },
+    [availabilityEvents]
+  );
 
-  // Sync local search with the debounced search from the hook
-  useEffect(() => {
-    setLocalSearchQuery(searchQuery);
-  }, [searchQuery]);
+
 
   const appointmentModal = useAppointmentModal(onUpdate || refetchData, token);
   const availabilityModal = useAvailabilityModal(availabilityEvents);
@@ -195,38 +210,44 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
   );
 
   // Day prop getter for blocked days styling
-  const dayPropGetter = useCallback((date) => {
-    // Check if this day is in the organization's blocked days
-    const isOrganizationBlockedDay = environmentSettings?.blocked_days?.includes(date.getDay()) || false;
+  const dayPropGetter = useCallback(
+    (date) => {
+      // Check if this day is in the organization's blocked days
+      const isOrganizationBlockedDay =
+        environmentSettings?.blocked_days?.includes(date.getDay()) || false;
 
-    // Check if this date is a holiday
-    const isHoliday = holidays.some(holiday => {
-      const holidayDate = new Date(holiday.date + 'T00:00:00');
-      return holidayDate.toDateString() === date.toDateString();
-    });
+      // Check if this date is a holiday
+      const isHoliday = holidays.some((holiday) => {
+        const holidayDate = new Date(holiday.date + "T00:00:00");
+        return holidayDate.toDateString() === date.toDateString();
+      });
 
-    // Check if this date has a clinic event that blocks the entire day
-    const hasBlockingClinicEvent = clinicEvents.some(event => {
-      const eventStart = new Date(event.start_datetime);
-      const eventEnd = new Date(event.end_datetime);
+      // Check if this date has a clinic event that blocks the entire day
+      const hasBlockingClinicEvent = clinicEvents.some((event) => {
+        const eventStart = new Date(event.start_datetime);
+        const eventEnd = new Date(event.end_datetime);
 
-      // Check if the clinic event spans the entire day or is marked as a blocking event
-      const isAllDay = event.all_day ||
-        (eventEnd.getTime() - eventStart.getTime()) >= (24 * 60 * 60 * 1000 - 60000); // Nearly full day
+        // Check if the clinic event spans the entire day or is marked as a blocking event
+        const isAllDay =
+          event.all_day ||
+          eventEnd.getTime() - eventStart.getTime() >=
+          24 * 60 * 60 * 1000 - 60000; // Nearly full day
 
-      return isAllDay && eventStart.toDateString() === date.toDateString();
-    });
-    // Apply pink background for blocked days (organization blocked days, holidays, or clinic events)
-    if (isOrganizationBlockedDay || isHoliday || hasBlockingClinicEvent) {
-      return {
-        style: {
-          backgroundColor: '#fce4ec', // Light pink background for blocked days
-        },
-      };
-    }
+        return isAllDay && eventStart.toDateString() === date.toDateString();
+      });
+      // Apply pink background for blocked days (organization blocked days, holidays, or clinic events)
+      if (isOrganizationBlockedDay || isHoliday || hasBlockingClinicEvent) {
+        return {
+          style: {
+            backgroundColor: "#fce4ec", // Light pink background for blocked days
+          },
+        };
+      }
 
-    return {};
-  }, [holidays, clinicEvents, environmentSettings]);
+      return {};
+    },
+    [holidays, clinicEvents, environmentSettings]
+  );
 
   const handleNavigate = useCallback(
     (newDate) => {
@@ -243,20 +264,8 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
   );
 
   const handleSearchChange = useCallback(
-    (e) => {
-      const value = e.target.value;
-      // Update local state immediately for responsive typing
-      setLocalSearchQuery(value);
-
-      // Clear existing timeout
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-
-      // Set new timeout to update the actual search query (which triggers filtering)
-      searchTimeoutRef.current = setTimeout(() => {
-        setSearchQuery(value);
-      }, 300);
+    (value) => {
+      setSearchQuery(value);
     },
     [setSearchQuery]
   );
@@ -280,11 +289,11 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
     (props) => (
       <CustomToolbar
         {...props}
-        searchQuery={localSearchQuery}
+        searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
       />
     ),
-    [localSearchQuery, handleSearchChange]
+    [searchQuery, handleSearchChange]
   );
 
   // Loading state
@@ -308,16 +317,18 @@ const CalendarView = memo(function CalendarView({ onUpdate, showBackButton = tru
     <Box>
       {showBackButton && <BackButton />}
 
-      <Box sx={{
-        height: "calc(100vh - 200px)",
-        mt: showBackButton ? 2 : 0,
-        '& .rbc-date-cell': {
-          position: 'relative',
-        },
-        '& .rbc-month-view .rbc-date-cell': {
-          minHeight: '40px',
-        }
-      }}>
+      <Box
+        sx={{
+          height: "calc(100vh - 200px)",
+          mt: showBackButton ? 2 : 0,
+          "& .rbc-date-cell": {
+            position: "relative",
+          },
+          "& .rbc-month-view .rbc-date-cell": {
+            minHeight: "40px",
+          },
+        }}
+      >
         <Calendar
           localizer={localizer}
           events={events}

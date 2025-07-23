@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Box,
     Typography,
@@ -52,6 +52,40 @@ function TeamTable({
 }) {
     const navigate = useNavigate();
 
+    // Local state for responsive search input
+    const [localSearchValue, setLocalSearchValue] = useState(teamSearch || '');
+    const searchTimeoutRef = useRef(null);
+
+    // Sync local search with external teamSearch when it changes
+    useEffect(() => {
+        setLocalSearchValue(teamSearch || '');
+    }, [teamSearch]);
+
+    // Handle local search input changes with debouncing
+    const handleSearchInputChange = useCallback((e) => {
+        const value = e.target.value;
+        setLocalSearchValue(value);
+
+        // Clear existing timeout
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+
+        // Debounce the external search update
+        searchTimeoutRef.current = setTimeout(() => {
+            setTeamSearch(value);
+        }, 300);
+    }, [setTeamSearch]);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (searchTimeoutRef.current) {
+                clearTimeout(searchTimeoutRef.current);
+            }
+        };
+    }, []);
+
     if (loadingTeam) {
         return (
             <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -67,8 +101,8 @@ function TeamTable({
             <Box sx={{ mb: 3 }}>
                 <TextField
                     label="Search team members..."
-                    value={teamSearch}
-                    onChange={(e) => setTeamSearch(e.target.value)}
+                    value={localSearchValue}
+                    onChange={handleSearchInputChange}
                     variant="outlined"
                     size="small"
                     sx={{ minWidth: 300, mt: 2 }}
