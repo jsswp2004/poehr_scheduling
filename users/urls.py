@@ -17,6 +17,7 @@ from .views import (
     send_sms_email,    send_patient_email,
     send_contact_email,  # Add the new contact email function
     send_contact_sms,  # Add the new contact SMS function
+    send_trial_reminders,  # Add trial reminders function
     PatientDeleteView,
     OrganizationViewSet,  # ✅
     DownloadProvidersCSVTemplate,
@@ -54,6 +55,7 @@ urlpatterns = [
     path('providers/upload-csv/', UploadProvidersCSV.as_view(), name='providers-upload-csv'),
     path('patients/download-template/', DownloadPatientsCSVTemplate.as_view(), name='patients-download-template'),
     path('patients/upload-csv/', UploadPatientsCSV.as_view(), name='patients-upload-csv'),
+    path('trial-reminders/', send_trial_reminders, name='send-trial-reminders'),  # Trial reminders endpoint
     path('team/', get_team_members, name='team-list'),
 ]
 

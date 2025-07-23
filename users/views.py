@@ -17,13 +17,14 @@ import logging
 from django.db import transaction
 
 from .models import CustomUser, Patient
-from .serializers import UserSerializer, PatientSerializer, OrganizationSerializer
+from .serializers import UserSerializer, PatientSerializer, OrganizationSerializer, get_admin_emails
 from .stripe_service import StripeService
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
 from .models import Organization
 from rest_framework import permissions
 from appointments.permissions import IsAdminOrSystemAdmin
+from communicator.utils import send_email
 
 logger = logging.getLogger(__name__)
 
@@ -131,6 +132,9 @@ class RegisterView(generics.CreateAPIView):
         subscription_tier = data.get('subscription_tier', 'basic')
         is_enrollment = data.get('is_enrollment', False)  # Check if this is service enrollment
         
+        # Store plain password for welcome email before it gets hashed
+        plain_password = data.get('password', '') if is_enrollment else ''
+        
         # If the user is authenticated, use their organization
         if request.user.is_authenticated:
             # User is logged in, use their organization
@@ -199,6 +203,107 @@ class RegisterView(generics.CreateAPIView):
             user.save()
             
             if is_enrollment:
+                # Send welcome email to new enrollee
+                try:
+                    # Format trial end date
+                    trial_end_formatted = user.trial_end_date.strftime('%B %d, %Y') if user.trial_end_date else 'N/A'
+                    
+                    # Create welcome email content
+                    subject = f"🎉 Welcome to POWER Scheduling - Your {user.subscription_tier.title()} Plan is Ready!"
+                    message = f"""
+Welcome to POWER Scheduling, {user.first_name}!
+
+Your account has been successfully created and your 7-day free trial has started.
+
+📋 Account Details:
+• Organization: {user.organization.name}
+• Username: {user.username}
+• Password: {plain_password}
+• Email: {user.email}
+• Subscription Plan: {user.subscription_tier.title()}
+
+⏰ Trial Information:
+Your free trial ends on {trial_end_formatted}. After the trial period, your subscription will automatically continue with monthly billing.
+
+🚀 Getting Started:
+1. Log in to your account at: http://127.0.0.1:3000/login
+2. Complete your organization setup
+3. Start scheduling appointments and managing patients
+
+📞 Need Help?
+If you have any questions or need assistance, feel free to reach out to our support team.
+
+Thank you for choosing POWER Scheduling!
+
+Best regards,
+The POWER Scheduling Team
+                    """
+                    
+                    send_email(
+                        to_email=user.email,
+                        subject=subject,
+                        message=message.strip(),
+                        user=user
+                    )
+                    
+                except Exception as email_error:
+                    # Log email error but don't fail the registration
+                    logger.error(f"Failed to send welcome email to {user.email}: {str(email_error)}")
+                    print(f"⚠️ Welcome email failed for {user.email}: {str(email_error)}")
+                
+                # Send admin notification email for new enrollment
+                try:
+                    admin_emails = get_admin_emails()  # Get system admins (no specific organization)
+                    
+                    if admin_emails:
+                        admin_subject = f"🚀 New Organization Enrollment - {user.organization.name}"
+                        admin_message = f"""
+New Organization Enrollment Alert
+
+A new organization has successfully enrolled in POWER Scheduling!
+
+🏢 Organization Details:
+• Name: {user.organization.name}
+• Type: {user.organization_type.title()}
+• Subscription Plan: {user.subscription_tier.title()}
+
+👤 Admin Contact:
+• Name: {user.first_name} {user.last_name}
+• Email: {user.email}
+• Username: {user.username}
+• Phone: {user.phone_number or 'Not provided'}
+
+💳 Subscription Details:
+• Plan: {user.subscription_tier.title()}
+• Status: {user.subscription_status}
+• Trial End Date: {trial_end_formatted}
+• Stripe Customer ID: {getattr(user, 'stripe_customer_id', 'N/A')}
+
+📅 Enrollment Date: {user.date_joined.strftime('%B %d, %Y at %I:%M %p')}
+
+🔗 Quick Actions:
+• View organization in admin panel
+• Monitor trial usage and conversion
+• Provide onboarding support if needed
+
+This is an automated notification from POWER Scheduling.
+                        """
+                        
+                        for admin_email in admin_emails:
+                            send_email(
+                                to_email=admin_email,
+                                subject=admin_subject,
+                                message=admin_message.strip(),
+                                user=None  # System notification, not user-specific
+                            )
+                        
+                        print(f"✅ Admin notification sent to {len(admin_emails)} admin(s)")
+                    
+                except Exception as admin_email_error:
+                    # Log admin email error but don't fail the registration
+                    logger.error(f"Failed to send admin notification for enrollment {user.email}: {str(admin_email_error)}")
+                    print(f"⚠️ Admin notification failed for enrollment {user.email}: {str(admin_email_error)}")
+                
                 return Response({
                     "message": "User created successfully with 7-day free trial",
                     "user_id": user.id,
@@ -386,6 +491,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.utils import timezone
+from datetime import timedelta
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -843,6 +950,136 @@ def admin_change_password(request):
     except CustomUser.DoesNotExist:
         print(f"❌ Target user with ID {target_user_id} not found")
         return Response({'detail': 'Target user not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])  # Only system administrators can trigger this
+def send_trial_reminders(request):
+    """
+    Manually trigger trial reminder emails
+    Admin endpoint to send trial reminders for users whose trials are expiring soon
+    """
+    try:
+        days_before = request.data.get('days_before', 3)
+        dry_run = request.data.get('dry_run', False)
+        
+        # Calculate the target date (X days from now)
+        target_date = timezone.now().date() + timedelta(days=days_before)
+        
+        # Find users with trials expiring on the target date
+        expiring_users = CustomUser.objects.filter(
+            trial_end_date=target_date,
+            subscription_status='trial',
+            role__in=['admin', 'system_admin']  # Only organization admins get trial reminders
+        ).exclude(email='')
+        
+        if not expiring_users.exists():
+            return Response({
+                'message': f'No users found with trials expiring in {days_before} days',
+                'sent_count': 0,
+                'target_date': target_date.strftime('%Y-%m-%d')
+            }, status=200)
+        
+        sent_count = 0
+        errors = []
+        
+        for user in expiring_users:
+            try:
+                if not dry_run:
+                    send_trial_reminder_email(user, days_before)
+                sent_count += 1
+                
+            except Exception as e:
+                errors.append({
+                    'user_email': user.email,
+                    'organization': user.organization.name if user.organization else 'Unknown',
+                    'error': str(e)
+                })
+                logger.error(f"Trial reminder email failed for {user.email}: {str(e)}")
+        
+        action = "Would send" if dry_run else "Sent"
+        return Response({
+            'message': f'{action} {sent_count} trial reminder emails',
+            'sent_count': sent_count,
+            'target_date': target_date.strftime('%Y-%m-%d'),
+            'days_before': days_before,
+            'dry_run': dry_run,
+            'errors': errors
+        }, status=200)
+        
+    except Exception as e:
+        return Response({
+            'error': f'Failed to send trial reminders: {str(e)}'
+        }, status=500)
+
+def send_trial_reminder_email(user, days_before):
+    """Helper function to send trial reminder email"""
+    
+    # Format trial end date
+    trial_end_formatted = user.trial_end_date.strftime('%B %d, %Y')
+    
+    # Determine urgency level for subject
+    if days_before <= 1:
+        urgency = "⏰ URGENT: "
+        urgency_text = "tomorrow" if days_before == 1 else "today"
+    elif days_before <= 3:
+        urgency = "⚠️ REMINDER: "
+        urgency_text = f"in {days_before} days"
+    else:
+        urgency = "📅 NOTICE: "
+        urgency_text = f"in {days_before} days"
+    
+    subject = f"{urgency}Your POWER Scheduling trial expires {urgency_text}"
+    
+    message = f"""
+Hello {user.first_name},
+
+Your POWER Scheduling free trial is expiring {urgency_text} on {trial_end_formatted}.
+
+🏢 Organization: {user.organization.name}
+📊 Current Plan: {user.subscription_tier.title()}
+📅 Trial End Date: {trial_end_formatted}
+
+🚀 Don't lose access to your scheduling system!
+
+To continue using POWER Scheduling without interruption:
+
+1. 💳 Update your payment method (if needed)
+2. 📋 Review your subscription settings
+3. 🔄 Your subscription will automatically continue after the trial
+
+🔗 Manage your subscription:
+• Log in at: http://127.0.0.1:3000/login
+• Go to Account Settings > Subscription
+• Update payment methods and billing preferences
+
+💬 What happens next:
+• If payment method is valid: Automatic conversion to paid subscription
+• If payment fails: Account will be suspended until payment is resolved
+• All your data and settings will be preserved
+
+📞 Need assistance?
+Our support team is here to help with:
+• Payment and billing questions
+• Plan upgrades or changes
+• Technical support
+
+Contact us if you have any questions or need help with your subscription.
+
+Thank you for choosing POWER Scheduling!
+
+Best regards,
+The POWER Scheduling Team
+
+---
+This is an automated reminder. You're receiving this because your trial is expiring soon.
+    """
+    
+    send_email(
+        to_email=user.email,
+        subject=subject,
+        message=message.strip(),
+        user=user
+    )
 
 class PatientMobileView(RetrieveUpdateDestroyAPIView):
     """
