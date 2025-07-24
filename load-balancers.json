@@ -1,0 +1,12 @@
+[
+  {
+    "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:570486163789:targetgroup/poehr-backend-tg/94d98aca56e33b59",
+    "containerName": "backend",
+    "containerPort": 8000
+  },
+  {
+    "targetGroupArn": "arn:aws:elasticloadbalancing:us-east-1:570486163789:targetgroup/poehr-frontend-tg/fbe087ed64517527",
+    "containerName": "frontend",
+    "containerPort": 80
+  }
+]

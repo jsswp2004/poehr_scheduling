@@ -19,7 +19,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback-secret-key-if-missing')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153', '44.213.129.122', '*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153', '44.213.129.122', '3.84.233.65', '64.225.56.32', '3.239.164.127', '3.210.200.213', '13.218.27.105', 'poehr-healthcare-alb-2098682478.us-east-1.elb.amazonaws.com', '*']
 
 # Application definition
 INSTALLED_APPS = [

@@ -17,6 +17,12 @@
         }
       ],
       "essential": true,
+      "dependsOn": [
+        {
+          "containerName": "redis",
+          "condition": "START"
+        }
+      ],
       "environment": [
         {
           "name": "DEBUG",
@@ -33,6 +39,10 @@
         {
           "name": "REDIS_PORT",
           "value": "6379"
+        },
+        {
+          "name": "REDIS_HOST",
+          "value": "localhost"
         }
       ],
       "secrets": [
@@ -55,10 +65,6 @@
         {
           "name": "DB_NAME",
           "valueFrom": "arn:aws:secretsmanager:us-east-1:570486163789:secret:poehr/db-name-WCtJwM"
-        },
-        {
-          "name": "REDIS_HOST",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:570486163789:secret:poehr/redis-host-7PflFS"
         }
       ],
       "logConfiguration": {
@@ -67,6 +73,25 @@
           "awslogs-group": "/ecs/poehr-healthcare",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "backend"
+        }
+      }
+    },
+    {
+      "name": "redis",
+      "image": "redis:7-alpine",
+      "portMappings": [
+        {
+          "containerPort": 6379,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/poehr-healthcare",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "redis"
         }
       }
     },
