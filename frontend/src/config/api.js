@@ -10,8 +10,8 @@ const getBaseUrl = () => {
 
     // Default based on environment
     if (process.env.NODE_ENV === 'production') {
-        // Production URL - using Application Load Balancer
-        return 'http://poehr-healthcare-alb-2098682478.us-east-1.elb.amazonaws.com:8000';
+        // Production URL - update this to your production server IP
+        return 'http://64.225.56.32:8000';
     } else {
         // Development URL
         return 'http://127.0.0.1:8000';
