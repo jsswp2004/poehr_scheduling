@@ -1,0 +1,46 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: poehr-migrate-core
+  namespace: 'poehr-364520'
+spec:
+  template:
+    spec:
+      parallelism: 1
+      completions: 1
+      backoffLimit: 1
+      template:
+        spec:
+          containers:
+          - image: gcr.io/poehr-364520/poehr-scheduling
+            name: migrate
+            command: ["/bin/bash", "-c"]
+            args: ["python manage.py migrate --settings=poehr_scheduling_backend.settings_core"]
+            env:
+            - name: DB_ENGINE
+              value: "django.db.backends.postgresql"
+            - name: DB_NAME
+              value: "poehr_db"
+            - name: DB_USER
+              value: "postgres"
+            - name: DB_PASSWORD
+              value: "W@rmst@r23!"
+            - name: DB_HOST
+              value: "/cloudsql/poehr-364520:us-central1:poehr-db-instance"
+            - name: DB_PORT
+              value: "5432"
+            resources:
+              limits:
+                cpu: 1000m
+                memory: 512Mi
+            volumeMounts:
+            - name: cloudsql
+              mountPath: /cloudsql
+              readOnly: true
+          volumes:
+          - name: cloudsql
+            csi:
+              driver: gcp-compute-persistent-disk-csi-driver
+              volumeAttributes:
+                instance-id: poehr-364520:us-central1:poehr-db-instance
+          restartPolicy: Never

@@ -29,12 +29,15 @@ gcloud auth login
 gcloud auth application-default login
 ```
 
-### 1.3 Create a new GCP project
+### 1.3 Set your GCP project
 
 ```bash
-# Replace 'poehr-scheduling' with your preferred project ID
-gcloud projects create poehr-scheduling-prod --name="POEHR Scheduling"
-gcloud config set project poehr-scheduling-prod
+# You already have a project! Let's use your existing POWER project
+gcloud config set project poehr-364520
+
+# Or if you want to create a new project specifically for this:
+# gcloud projects create poehr-scheduling-prod --name="POEHR Scheduling"
+# gcloud config set project poehr-scheduling-prod
 ```
 
 ### 1.4 Enable required APIs
@@ -60,7 +63,7 @@ gcloud sql instances create poehr-db-instance \
     --database-version=POSTGRES_15 \
     --tier=db-f1-micro \
     --region=us-central1 \
-    --root-password=your-secure-password \
+    --root-password=krat25Miko! \
     --storage-auto-increase \
     --backup-start-time=02:00
 ```
@@ -76,7 +79,7 @@ gcloud sql databases create poehr_db --instance=poehr-db-instance
 ```bash
 gcloud sql users create jsswp2004 \
     --instance=poehr-db-instance \
-    --password=your-secure-password
+    --password=krat25Miko!
 ```
 
 ## Step 3: Redis Setup (Memorystore)
