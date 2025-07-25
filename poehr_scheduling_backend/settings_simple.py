@@ -8,12 +8,12 @@ import os
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'temp-secret-key-for-migrations-only'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost').split(',')
 
 # Application definition - only essential Django apps for migrations
 INSTALLED_APPS = [
@@ -27,14 +27,15 @@ INSTALLED_APPS = [
 ]
 
 # Database - using Cloud SQL via Unix socket
+project_id = os.environ.get('GOOGLE_CLOUD_PROJECT')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'poehr_db',
-        'USER': 'jsswp2004',
-        'PASSWORD': 'krat25Miko!',
-        'HOST': '/cloudsql/poehr-364520:us-central1:poehr-db-instance',
-        'PORT': '',
+        'NAME': os.environ.get('DB_NAME', 'poehr_db'),
+        'USER': os.environ.get('DB_USER', 'jsswp2004'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),  # Must be set in env
+        'HOST': f"/cloudsql/{project_id}:us-central1:poehr-db-instance" if project_id else os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 

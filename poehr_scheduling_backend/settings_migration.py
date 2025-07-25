@@ -3,25 +3,25 @@ import os
 
 # Migration-specific settings with fallbacks
 DEBUG = False
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost').split(',')
 
 # Get project ID from environment
-project_id = os.environ.get('GOOGLE_CLOUD_PROJECT', 'poehr-364520')
+project_id = os.environ.get('GOOGLE_CLOUD_PROJECT')
 
 # Simple database configuration for migrations
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'poehr_db',
-        'USER': 'jsswp2004',
-        'PASSWORD': 'krat25Miko!',  # Use the password directly for migrations
-        'HOST': f'/cloudsql/{project_id}:us-central1:poehr-db-instance',
-        'PORT': '5432',
+        'NAME': os.environ.get('DB_NAME', 'poehr_db'),
+        'USER': os.environ.get('DB_USER', 'jsswp2004'),
+        'PASSWORD': os.environ.get('DB_PASSWORD'),  # Must be set in env
+        'HOST': f"/cloudsql/{project_id}:us-central1:poehr-db-instance" if project_id else os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 
 # Minimal settings for migration
-SECRET_KEY = 'migration-temporary-key-12345'
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
 
 # Disable problematic apps during migration if needed
 INSTALLED_APPS = [app for app in INSTALLED_APPS if app not in [
