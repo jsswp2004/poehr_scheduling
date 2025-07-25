@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-PROJECT_ID="poehr-scheduling-prod"
+PROJECT_ID="poehr-364520"
 REGION="us-central1"
 DB_INSTANCE="poehr-db-instance"
 REDIS_INSTANCE="poehr-redis"
@@ -55,24 +55,44 @@ enable_apis() {
 # Function to create Cloud SQL instance
 create_database() {
     echo -e "${YELLOW}🗄️ Setting up Cloud SQL PostgreSQL instance...${NC}"
-    
+
     # Check if instance already exists
     if gcloud sql instances describe $DB_INSTANCE &> /dev/null; then
         echo -e "${YELLOW}⚠️ Database instance $DB_INSTANCE already exists${NC}"
     else
+        # Generate passwords
+        DB_ROOT_PASSWORD="$(openssl rand -base64 32)"
+        DATABASE_PASSWORD="$(openssl rand -base64 32)"
+
+        # Create Cloud SQL instance with root password
         gcloud sql instances create $DB_INSTANCE \
             --database-version=POSTGRES_15 \
             --tier=db-f1-micro \
             --region=$REGION \
-            --root-password="$(openssl rand -base64 32)" \
+            --root-password="$DB_ROOT_PASSWORD" \
             --storage-auto-increase \
             --backup-start-time=02:00
-        
+
         gcloud sql databases create poehr_db --instance=$DB_INSTANCE
         gcloud sql users create jsswp2004 \
             --instance=$DB_INSTANCE \
-            --password="$(openssl rand -base64 32)"
-        
+            --password="$DATABASE_PASSWORD"
+
+        # Store passwords in Secret Manager if not already present
+        for SECRET_NAME in DB_ROOT_PASSWORD DATABASE_PASSWORD; do
+            if gcloud secrets describe $SECRET_NAME --project $PROJECT_ID &> /dev/null; then
+                echo -e "${YELLOW}⚠️ Secret $SECRET_NAME already exists in Secret Manager. Not overwriting.${NC}"
+            else
+                gcloud secrets create $SECRET_NAME --replication-policy=automatic --project $PROJECT_ID
+                if [ "$SECRET_NAME" = "DB_ROOT_PASSWORD" ]; then
+                    echo -n "$DB_ROOT_PASSWORD" | gcloud secrets versions add $SECRET_NAME --data-file=- --project $PROJECT_ID
+                else
+                    echo -n "$DATABASE_PASSWORD" | gcloud secrets versions add $SECRET_NAME --data-file=- --project $PROJECT_ID
+                fi
+                echo -e "${GREEN}✅ Secret $SECRET_NAME created in Secret Manager${NC}"
+            fi
+        done
+
         echo -e "${GREEN}✅ Cloud SQL instance created${NC}"
     fi
 }
@@ -108,21 +128,22 @@ deploy_websocket() {
     echo -e "${YELLOW}🔌 Deploying WebSocket service...${NC}"
     
     # Build WebSocket image
-    docker build -f Dockerfile.websocket -t gcr.io/$PROJECT_ID/poehr-websocket .
-    docker push gcr.io/$PROJECT_ID/poehr-websocket
-    
+    docker build -f Dockerfile.websocket -t gcr.io/$PROJECT_ID/poehr-websocket:latest .
+    docker push gcr.io/$PROJECT_ID/poehr-websocket:latest
+
     # Deploy WebSocket service
     gcloud run deploy $WEBSOCKET_SERVICE \
-        --image gcr.io/$PROJECT_ID/poehr-websocket \
+        --image gcr.io/$PROJECT_ID/poehr-websocket:latest \
         --region $REGION \
         --platform managed \
         --allow-unauthenticated \
         --add-cloudsql-instances $PROJECT_ID:$REGION:$DB_INSTANCE \
-        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
+            DJANGO_ALLOWED_HOSTS=powerhealthcareit.com,www.powerhealthcareit.com \
         --port 9001 \
         --memory 512Mi \
         --cpu 1
-    
+
     echo -e "${GREEN}✅ WebSocket service deployed${NC}"
 }
 
@@ -135,7 +156,8 @@ run_migrations() {
         --image gcr.io/$PROJECT_ID/poehr-scheduling \
         --region $REGION \
         --add-cloudsql-instances $PROJECT_ID:$REGION:$DB_INSTANCE \
-        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
+            DJANGO_ALLOWED_HOSTS=powerhealthcareit.com,www.powerhealthcareit.com \
         --task-timeout 3600 \
         --command python,manage.py,migrate
     

@@ -10,31 +10,31 @@ spec:
       template:
         spec:
           containers:
-          - name: migrate
-            image: gcr.io/poehr-364520/poehr-scheduling
-            command:
-            - python
-            args:
-            - manage.py
-            - migrate
-            env:
-            - name: DJANGO_SETTINGS_MODULE
-              value: poehr_scheduling_backend.settings_core
-            - name: DB_ENGINE
-              value: django.db.backends.postgresql
-            - name: DB_NAME
-              value: poehr_scheduling_db
-            - name: DB_USER
-              value: poehr_user
-            - name: DB_PASSWORD
-              value: Poehr1357!
-            - name: DB_HOST
-              value: /cloudsql/poehr-364520:us-central1:poehr-db-instance
-            - name: DB_PORT
-              value: "5432"
-            resources:
-              limits:
-                cpu: 1000m
-                memory: 512Mi
+            - name: migrate
+              image: gcr.io/poehr-364520/poehr-scheduling
+              command:
+                - python
+              args:
+                - manage.py
+                - migrate
+              env:
+                - name: DJANGO_SETTINGS_MODULE
+                  value: poehr_scheduling_backend.settings_core
+                - name: DB_ENGINE
+                  value: django.db.backends.postgresql
+                - name: DB_NAME
+                  value: poehr_scheduling_db
+                - name: DB_USER
+                  value: poehr_user
+                - name: DB_PASSWORD
+                  value: Poehr1357!
+                - name: DB_HOST
+                  value: /cloudsql/poehr-364520:us-central1:poehr-db-instance
+                - name: DB_PORT
+                  value: "5432"
+              resources:
+                limits:
+                  cpu: 1000m
+                  memory: 512Mi
           maxRetries: 3
           timeoutSeconds: 900

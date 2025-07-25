@@ -4,7 +4,30 @@ from google.cloud import secretmanager
 
 # Production settings
 DEBUG = False
-ALLOWED_HOSTS = ['*']  # Configure with your actual domain later
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '.run.app',  # Allow all Cloud Run domains
+    'poehr-scheduling-mjf5efdj3a-uc.a.run.app',  # Specific Cloud Run URL
+    '*.us-central1.run.app',  # Allow all us-central1 run.app domains
+] + os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',') if os.environ.get('DJANGO_ALLOWED_HOSTS') else []
+
+# Templates for serving React frontend
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [os.path.join(BASE_DIR, 'static', 'frontend')],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
 
 # Secret Manager client
 try:
@@ -29,11 +52,11 @@ except Exception as e:
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'poehr_db',
-        'USER': 'jsswp2004',
+        'NAME': os.environ.get('DB_NAME', 'poehr_db'),
+        'USER': os.environ.get('DB_USER', 'jsswp2004'),
         'PASSWORD': get_secret('DATABASE_PASSWORD'),
-        'HOST': f'/cloudsql/{project_id}:us-central1:poehr-db-instance',
-        'PORT': '5432',
+        'HOST': f"/cloudsql/{project_id}:us-central1:poehr-db-instance" if project_id else os.environ.get('DB_HOST'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
 

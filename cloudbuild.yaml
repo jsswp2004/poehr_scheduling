@@ -7,13 +7,13 @@ steps:
         "-f",
         "Dockerfile.production",
         "-t",
-        "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA",
+        "gcr.io/$PROJECT_ID/poehr-scheduling:latest",
         ".",
       ]
 
   # Push the image to Container Registry
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA"]
+    args: ["push", "gcr.io/$PROJECT_ID/poehr-scheduling:latest"]
 
   # Deploy to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
@@ -23,7 +23,7 @@ steps:
       - "deploy"
       - "poehr-scheduling"
       - "--image"
-      - "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA"
+      - "gcr.io/$PROJECT_ID/poehr-scheduling:latest"
       - "--region"
       - "us-central1"
       - "--platform"
@@ -32,7 +32,7 @@ steps:
       - "--add-cloudsql-instances"
       - "$PROJECT_ID:us-central1:poehr-db-instance"
       - "--set-env-vars"
-      - "GOOGLE_CLOUD_PROJECT=$PROJECT_ID"
+      - "GOOGLE_CLOUD_PROJECT=$PROJECT_ID,DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings_production,DEBUG=False"
       - "--memory"
       - "1Gi"
       - "--cpu"
@@ -45,7 +45,7 @@ steps:
       - "8080"
 
 images:
-  - "gcr.io/$PROJECT_ID/poehr-scheduling:$COMMIT_SHA"
+  - "gcr.io/$PROJECT_ID/poehr-scheduling:latest"
 
 options:
   logging: CLOUD_LOGGING_ONLY

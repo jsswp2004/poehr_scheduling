@@ -1,0 +1,15 @@
+# Exclude node_modules, build artifacts, and SQL backups from Cloud Build context
+node_modules/
+frontend/node_modules/
+frontend/build/
+*.sql
+*.bak
+*.log
+nohup.out
+data/
+.DS_Store
+.env
+.env.*
+*.pyc
+__pycache__/
+.vscode/
