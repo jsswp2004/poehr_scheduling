@@ -42,10 +42,21 @@ COPY --from=frontend-build /frontend/build /code/static/frontend/
 # Create staticfiles directory
 RUN mkdir -p /code/staticfiles
 
-# Collect static files (this might fail in build, so we make it optional)
-RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || echo "Static files collection failed, will run at runtime"
+# Set a build-time SECRET_KEY for static collection
+ENV DJANGO_SECRET_KEY='temporary-build-time-key-do-not-use-in-production'
+
+# Try to collect static files, but don't fail the build if it doesn't work
+RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || \
+    echo "Warning: Static files collection failed during build. Will retry at runtime."
+
+# Remove the build-time SECRET_KEY
+ENV DJANGO_SECRET_KEY=
+
+# Copy startup script
+COPY startup.sh /code/
+RUN chmod +x /code/startup.sh
 
 EXPOSE 8080
 
-# Use gunicorn for production
-CMD exec gunicorn --bind :8080 --workers 1 --threads 8 --timeout 0 poehr_scheduling_backend.wsgi:application
+# Use the startup script to handle runtime initialization
+CMD ["/code/startup.sh"]

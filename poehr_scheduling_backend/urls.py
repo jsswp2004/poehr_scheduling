@@ -4,7 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.views.static import serve
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 import os
 
@@ -12,8 +12,19 @@ def favicon_view(request):
     # Redirect to the static favicon
     return redirect('/static/frontend/favicon.ico')
 
+def health_check(request):
+    """Health check endpoint for Cloud Run"""
+    return JsonResponse({
+        'status': 'healthy',
+        'service': 'poehr-scheduling',
+        'version': '1.0.0'
+    })
+
 urlpatterns = [
     path('admin/', admin.site.urls),
+    
+    # Health check endpoint
+    path('health/', health_check, name='health_check'),
     
     # Favicon handler
     path('favicon.ico', favicon_view, name='favicon'),
@@ -27,26 +38,32 @@ urlpatterns = [
     # Profile & user-specific endpoints
     path('api/users/', include('users.urls')),      # Keep all user routes under /api/users/
 
-    # Appointments
+    # API routes
     path('api/', include('appointments.urls')),
-    # path('api/auth/', include('django_rest_passwordreset.urls', namespace='password_reset')),
-
     path('api/sms/', include('users.urls')),  # or sms.urls
     path('api/messages/', include('users.urls')),
     path('api/communicator/', include('communicator.urls')),
 
-    # Serve React static files
-    re_path(r'^static/frontend/(?P<path>.*)$', serve, {
-        'document_root': os.path.join(settings.BASE_DIR, 'static', 'frontend'),
-    }),
-    
-    # Catch-all: serve React app for any non-API routes
-    re_path(r'^(?!api/).*$', TemplateView.as_view(template_name='index.html'), name='landing_page'),
-
-
 ] 
-# + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-# Serve media during development
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Debug: Let's temporarily disable catch-all to test static files
+# urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+# urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Manually add static file serving for production
+urlpatterns += [
+    # Serve static files manually
+    re_path(r'^static/(?P<path>.*)$', serve, {
+        'document_root': settings.STATIC_ROOT,
+    }),
+    # Serve media files manually  
+    re_path(r'^media/(?P<path>.*)$', serve, {
+        'document_root': settings.MEDIA_ROOT,
+    }),
+]
+
+# Add the catch-all pattern LAST (so it doesn't interfere with static files)
+urlpatterns += [
+    # Catch-all: serve React app for any remaining routes
+    re_path(r'.*$', TemplateView.as_view(template_name='index.html'), name='landing_page'),
+]
