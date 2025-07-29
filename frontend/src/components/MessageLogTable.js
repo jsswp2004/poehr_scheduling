@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '../config/api';
 import {
   Paper,
   Typography,
@@ -34,7 +35,7 @@ function MessageLogTable({ type }) {
   const fetchLogs = async () => {
     try {
       const token = localStorage.getItem("access_token");
-      let url = `http://127.0.0.1:8000/api/communicator/logs/?message_type=${type}`;
+      let url = `${API_BASE_URL}/api/communicator/logs/?message_type=${type}`;
 
       // Add date filters if applied
       if (appliedStart) url += `&created_at__gte=${appliedStart}`;
@@ -89,7 +90,7 @@ function MessageLogTable({ type }) {
   const handleDelete = async (id) => {
     try {
       const token = localStorage.getItem("access_token");
-      await axios.delete(`http://127.0.0.1:8000/api/communicator/logs/${id}/`, {
+      await axios.delete(`${API_BASE_URL}/api/communicator/logs/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       fetchLogs();

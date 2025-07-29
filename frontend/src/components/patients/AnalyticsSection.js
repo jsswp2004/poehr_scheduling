@@ -1,4 +1,5 @@
 import React from "react";
+import { API_BASE_URL } from '../../config/api';
 import {
     Box,
     Typography,
@@ -85,7 +86,7 @@ function AnalyticsSection({
             }
 
             // Use the working backend endpoint (same as download functionality)
-            const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://127.0.0.1:8000';
+            const backendUrl = process.env.REACT_APP_BACKEND_URL || API_BASE_URL;
             const endpoint = `${backendUrl}/api/analytics/reports/?${params.toString()}`;
 
             const response = await fetch(endpoint, {

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../../config/api';
 import {
     Box,
     Typography,
@@ -383,7 +384,7 @@ function AppointmentsSection({
                                                                     try {
                                                                         const token = localStorage.getItem("access_token");
                                                                         await fetch(
-                                                                            `http://127.0.0.1:8000/api/appointments/${appointment.id}/`,
+                                                                            `${API_BASE_URL}/api/appointments/${appointment.id}/`,
                                                                             {
                                                                                 method: 'DELETE',
                                                                                 headers: {

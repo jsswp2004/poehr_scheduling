@@ -1,4 +1,5 @@
 import React from 'react';
+import { API_BASE_URL } from '../../config/api';
 import {
     Box,
     Stack,
@@ -87,7 +88,7 @@ const ProfileForm = ({
             <Box sx={{ display: "flex", alignItems: "center", marginBottom: 3 }}>
                 <Avatar
                     src={(() => {
-                        const imageUrl = profile.profile_picture ? `http://127.0.0.1:8000${profile.profile_picture}` : undefined;
+                        const imageUrl = profile.profile_picture ? `${API_BASE_URL}${profile.profile_picture}` : undefined;
                         console.log('🖼️ Profile Picture Debug:', {
                             profilePicture: profile.profile_picture,
                             imageUrl: imageUrl,
