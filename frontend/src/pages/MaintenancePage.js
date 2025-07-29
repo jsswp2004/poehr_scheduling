@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '../config/api';
 import {
   Box,
   Stack,
@@ -72,7 +73,7 @@ function MaintenancePage() {
     const fetchDoctors = async () => {
       try {
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/users/doctors/",
+          `${API_BASE_URL}/api/users/doctors/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -88,7 +89,7 @@ function MaintenancePage() {
   useEffect(() => {
     const fetchHolidays = async () => {
       try {
-        const res = await axios.get("http://127.0.0.1:8000/api/holidays/", {
+        const res = await axios.get(`${API_BASE_URL}/api/holidays/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setHolidays(res.data.filter((h) => h.is_recognized));
@@ -100,7 +101,7 @@ function MaintenancePage() {
     if (!selectedDoctor || isFetchingRef.current) return;
     try {
       isFetchingRef.current = true;
-      const res = await axios.get("http://127.0.0.1:8000/api/availability/", {
+      const res = await axios.get(`${API_BASE_URL}/api/availability/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const doctorSchedules = res.data.filter(
@@ -178,13 +179,13 @@ function MaintenancePage() {
     try {
       if (editingId) {
         await axios.put(
-          `http://127.0.0.1:8000/api/availability/${editingId}/`,
+          `${API_BASE_URL}/api/availability/${editingId}/`,
           payload,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         toast.success("Schedule updated!");
       } else {
-        await axios.post("http://127.0.0.1:8000/api/availability/", payload, {
+        await axios.post(`${API_BASE_URL}/api/availability/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success("Schedule saved!");
@@ -225,7 +226,7 @@ function MaintenancePage() {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this schedule?")) return;
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/availability/${id}/`, {
+      await axios.delete(`${API_BASE_URL}/api/availability/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Deleted.");
