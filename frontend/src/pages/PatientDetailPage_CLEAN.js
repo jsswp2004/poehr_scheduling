@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
 import {
     Box,
@@ -55,7 +56,7 @@ function PatientDetailPage() {
     // Fetch patient data
     useEffect(() => {
         axios
-            .get(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/`, {
+            .get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => {
@@ -68,7 +69,7 @@ function PatientDetailPage() {
     // Fetch doctors for dropdown
     useEffect(() => {
         axios
-            .get('http://127.0.0.1:8000/api/users/doctors/', {
+            .get(`${API_BASE_URL}/api/users/doctors/`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => setDoctors(res.data))
@@ -78,7 +79,7 @@ function PatientDetailPage() {
     // Fetch organizations for dropdown
     useEffect(() => {
         axios
-            .get('http://127.0.0.1:8000/api/users/organizations/', {
+            .get(`${API_BASE_URL}/api/users/organizations/`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => setOrganizations(res.data))
@@ -113,7 +114,7 @@ function PatientDetailPage() {
         try {
             // First, send the email with the temporary password
             await axios.post(
-                'http://127.0.0.1:8000/api/users/send-email/',
+                `${API_BASE_URL}/api/users/send-email/`,
                 {
                     email: patient.email,
                     subject: 'Password Reset - POWER Healthcare IT Systems',
@@ -126,7 +127,7 @@ function PatientDetailPage() {
 
             // Then change the password in the system
             await axios.post(
-                'http://127.0.0.1:8000/api/users/admin-change-password/',
+                `${API_BASE_URL}/api/users/admin-change-password/`,
                 {
                     target_user_id: patient.user_id || patient.id,
                     admin_password: adminPassword,
@@ -157,7 +158,7 @@ function PatientDetailPage() {
 
                 try {
                     await axios.post(
-                        'http://127.0.0.1:8000/api/users/admin-change-password/',
+                        `${API_BASE_URL}/api/users/admin-change-password/`,
                         {
                             target_user_id: patient.user_id || patient.id,
                             admin_password: adminPassword,
@@ -277,7 +278,7 @@ function PatientDetailPage() {
         }
 
         try {
-            await axios.put(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`, dataToSend, {
+            await axios.put(`${API_BASE_URL}/api/users/patients/by-user/${id}/edit/`, dataToSend, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             toast.success('Patient updated successfully! 🎉');
@@ -460,7 +461,7 @@ function PatientDetailPage() {
             {patient.profile_picture && (
                 <div className="mb-3 text-center">
                     <img
-                        src={patient.profile_picture.startsWith('http') ? patient.profile_picture : `http://127.0.0.1:8000${patient.profile_picture}`}
+                        src={patient.profile_picture.startsWith('http') ? patient.profile_picture : `${API_BASE_URL}${patient.profile_picture}`}
                         alt="Profile"
                         style={{ width: 120, height: 120, borderRadius: '50%', objectFit: 'cover', border: '2px solid #ccc' }}
                     />
@@ -499,7 +500,7 @@ function PatientDetailPage() {
                                     formDataPic.append('profile_picture', file);
                                     try {
                                         const res = await axios.patch(
-                                            `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id}/`,
+                                            `${API_BASE_URL}/api/users/${patient.user_id || patient.id}/`,
                                             formDataPic,
                                             {
                                                 headers: {
