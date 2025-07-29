@@ -37,6 +37,12 @@ if [ -n "$K_SERVICE" ]; then
         echo "ℹ️  Cache table creation skipped (might already exist)"
     }
     
+    # Fix availability table if missing
+    echo "📋 Checking availability table..."
+    python fix_availability_table.py || {
+        echo "⚠️  Availability table check/fix failed, but continuing..."
+    }
+    
 else
     echo "🏠 Running in local development environment"
 fi
