@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { API_BASE_URL } from '../config/api';
 import {
     Box,
     Paper,
@@ -78,7 +79,7 @@ function OrganizationManagement() {
     const getLogoUrl = (logoPath) => {
         if (!logoPath) return null;
         if (logoPath.startsWith('http')) return logoPath;
-        return `http://127.0.0.1:8000${logoPath}`;
+        return `${API_BASE_URL}${logoPath}`;
     };
 
     useEffect(() => {
@@ -113,7 +114,7 @@ function OrganizationManagement() {
             if (!token) return;
 
             const decodedToken = jwtDecode(token);
-            const response = await axios.get(`http://127.0.0.1:8000/api/users/${decodedToken.user_id}/`, {
+            const response = await axios.get(`${API_BASE_URL}/api/users/${decodedToken.user_id}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setCurrentUser(response.data);
@@ -128,7 +129,7 @@ function OrganizationManagement() {
             const token = localStorage.getItem('access_token');
             if (!token || !currentUser?.organization) return;
 
-            const response = await axios.get(`http://127.0.0.1:8000/api/users/organizations/${currentUser.organization}/`, {
+            const response = await axios.get(`${API_BASE_URL}/api/users/organizations/${currentUser.organization}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -146,7 +147,7 @@ function OrganizationManagement() {
             const token = localStorage.getItem('access_token');
             if (!token) return;
 
-            const response = await axios.get('http://127.0.0.1:8000/api/users/organizations/', {
+            const response = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -212,7 +213,7 @@ function OrganizationManagement() {
                 formData.append('logo', createFormData.logo);
             }
 
-            await axios.post('http://127.0.0.1:8000/api/users/organizations/', formData, {
+            await axios.post(`${API_BASE_URL}/api/users/organizations/`, formData, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'multipart/form-data'
@@ -249,7 +250,7 @@ function OrganizationManagement() {
             logo: null
         });
         setEditFormErrors({});
-        setPreviewEditLogo(organization.logo ? `http://127.0.0.1:8000${organization.logo}` : null);
+        setPreviewEditLogo(organization.logo ? `${API_BASE_URL}${organization.logo}` : null);
         setEditDialogOpen(true);
     };
 
@@ -307,7 +308,7 @@ function OrganizationManagement() {
             }
 
             await axios.patch(
-                `http://127.0.0.1:8000/api/users/organizations/${editingOrganization.id}/`,
+                `${API_BASE_URL}/api/users/organizations/${editingOrganization.id}/`,
                 formData,
                 {
                     headers: {
@@ -356,7 +357,7 @@ function OrganizationManagement() {
         try {
             const token = localStorage.getItem('access_token');
 
-            await axios.delete(`http://127.0.0.1:8000/api/users/organizations/${organizationToDelete.id}/`, {
+            await axios.delete(`${API_BASE_URL}/api/users/organizations/${organizationToDelete.id}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
