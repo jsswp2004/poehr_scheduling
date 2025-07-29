@@ -31,10 +31,11 @@ import { usePatients } from "../hooks/usePatients";
 import { useTeam } from "../hooks/useTeam";
 import { usePatientsAppointments } from "../hooks/usePatientsAppointments";
 import { useAnalytics } from "../hooks/useAnalytics";
-import { useAuth } from "../hooks/useAuth";
+// import { useAuth } from "../hooks/useAuth"; // Commented out since not used
 
 // Utils
 import { getValidToken, clearAuthData } from "../utils/auth";
+import { API_BASE_URL } from "../config/api";
 
 function PatientsPage() {
   const navigate = useNavigate();
@@ -55,10 +56,10 @@ function PatientsPage() {
   } = useOnlineStatus();
 
   const [chatModalOpen, setChatModalOpen] = useState(false);
-  const [selectedChatUser, setSelectedChatUser] = useState(null);
+  const [selectedChatUser, setSelectedChatUser] = useState(null); // eslint-disable-line no-unused-vars
 
   // Authentication
-  const { isSystemAdmin } = useAuth();
+  // const { isSystemAdmin } = useAuth(); // Commented out since not used
 
   // Custom hooks for each section
   const patients = usePatients(navigate);
@@ -134,7 +135,8 @@ function PatientsPage() {
     };
 
     initializeAuth();
-  }, [navigate]); // Removed analytics from dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]); // analytics.fetchOrganizationData is stable
 
   // Toast notifications for new chat messages
   useEffect(() => {
@@ -179,6 +181,7 @@ function PatientsPage() {
       appointments.fetchTodaysAppointments(token);
       appointments.fetchAppointments(appointments.appointmentsQuery, token);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     tab,
     token,
@@ -187,6 +190,7 @@ function PatientsPage() {
     patients.provider,
     team.teamPage,
     team.teamSearch,
+    appointments.appointmentsQuery,
   ]);
 
   // Handle appointments search
@@ -194,20 +198,21 @@ function PatientsPage() {
     if (tab === "appointments" && token) {
       appointments.fetchAppointments(appointments.appointmentsQuery, token);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appointments.appointmentsQuery, tab, token]);
 
-  // Utility functions
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
-  };
+  // Utility functions (commented out since not used)
+  // const getGreeting = () => {
+  //   const hour = new Date().getHours();
+  //   if (hour < 12) return "Good Morning";
+  //   if (hour < 18) return "Good Afternoon";
+  //   return "Good Evening";
+  // };
 
-  const getUserFirstName = () => {
-    if (!currentUser) return "User";
-    return currentUser.first_name || currentUser.username || "User";
-  };
+  // const getUserFirstName = () => {
+  //   if (!currentUser) return "User";
+  //   return currentUser.first_name || currentUser.username || "User";
+  // };
 
   // Chat handlers
   const handleOpenChat = (user) => {
@@ -266,7 +271,7 @@ function PatientsPage() {
   // Handle appointment status updates from dropdown
   const handleAppointmentStatusUpdate = useCallback(async (appointmentId, newStatus) => {
     try {
-      const response = await fetch(`http://127.0.0.1:8000/api/appointments/${appointmentId}/`, {
+      const response = await fetch(`${API_BASE_URL}/api/appointments/${appointmentId}/`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -295,7 +300,7 @@ function PatientsPage() {
 
   // Memoized chat handlers to prevent infinite loops
   const handleStartChat = useCallback((targetUser) => {
-    if (chat.startChatWithUser) {
+    if (chat && chat.startChatWithUser) {
       // Transform targetUser to ensure it has user_id property for chat system compatibility
       const chatTargetUser = {
         ...targetUser,
@@ -305,8 +310,10 @@ function PatientsPage() {
       // Pass the transformed targetUser object to useChat
       chat.startChatWithUser(chatTargetUser);
     }
-  }, [chat.startChatWithUser]); const handleSendChatMessage = useCallback((targetUser, content) => {
-    if (chat.sendMessage) {
+  }, [chat]);
+
+  const handleSendChatMessage = useCallback((targetUser, content) => {
+    if (chat && chat.sendMessage) {
       // Transform targetUser to ensure it has user_id property for chat system compatibility
       const chatTargetUser = {
         ...targetUser,
@@ -316,7 +323,7 @@ function PatientsPage() {
       // Pass the transformed targetUser object to useChat
       chat.sendMessage(chatTargetUser, content);
     }
-  }, [chat.sendMessage]);
+  }, [chat]);
 
   if (!token || !currentUser) {
     return (

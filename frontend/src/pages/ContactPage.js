@@ -4,6 +4,7 @@ import Footer from '../components/Footer';
 import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config/api';
 
 export const ContactPage = ({ className }) => {
   // State for email modal
@@ -61,13 +62,13 @@ export const ContactPage = ({ className }) => {
   // Validate form
   const validateForm = () => {
     const errors = {};
-    
+
     if (!formData.from.trim()) {
       errors.from = 'Email address is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.from)) {
       errors.from = 'Please enter a valid email address';
     }
-    
+
     if (!formData.telephone.trim()) {
       errors.telephone = 'Phone number is required';
     }
@@ -79,11 +80,11 @@ export const ContactPage = ({ className }) => {
   // Validate SMS form
   const validateSmsForm = () => {
     const errors = {};
-    
+
     if (!smsFormData.phone_from.trim()) {
       errors.phone_from = 'Your phone number is required';
     }
-    
+
     if (!smsFormData.message.trim()) {
       errors.message = 'Message is required';
     }
@@ -93,7 +94,7 @@ export const ContactPage = ({ className }) => {
   };  // Handle email send
   const handleSendEmail = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -105,7 +106,7 @@ export const ContactPage = ({ className }) => {
       const subject = formData.subject || 'Contact Form Inquiry';
       const message = `From: ${formData.from}\nPhone: ${formData.telephone}\n\nMessage:\n${formData.message}`;      // Send email directly through the API using the public contact endpoint
       await axios.post(
-        'http://127.0.0.1:8000/api/messages/contact-email/',
+        `${API_BASE_URL}/api/messages/contact-email/`,
         {
           email: formData.to,
           subject: subject,
@@ -115,7 +116,7 @@ export const ContactPage = ({ className }) => {
       );
 
       toast.success('Email sent successfully! We\'ll get back to you soon.');
-      
+
       // Close modal and reset form
       setIsModalOpen(false);
       setFormData({
@@ -138,7 +139,7 @@ export const ContactPage = ({ className }) => {
   // Handle SMS send
   const handleSendSms = async (e) => {
     e.preventDefault();
-    
+
     if (!validateSmsForm()) {
       return;
     }
@@ -148,7 +149,7 @@ export const ContactPage = ({ className }) => {
     try {
       // Send SMS through the API using the public contact SMS endpoint
       await axios.post(
-        'http://127.0.0.1:8000/api/messages/contact-sms/',
+        `${API_BASE_URL}/api/messages/contact-sms/`,
         {
           phone_to: smsFormData.phone_to,
           phone_from: smsFormData.phone_from,
@@ -158,7 +159,7 @@ export const ContactPage = ({ className }) => {
       );
 
       toast.success('SMS sent successfully! We\'ll get back to you soon.');
-      
+
       // Close modal and reset form
       setIsSmsModalOpen(false);
       setSmsFormData({
@@ -194,12 +195,12 @@ export const ContactPage = ({ className }) => {
         <h1 className="page-title">Contact Us</h1>
         <p className="page-subtitle">We'd love to hear from you. </p>
         <p className="page-subtitle">Reach out to our team using the information below.</p>
-      <p className="page-subtitle">Click on the phone or email button to send us a message.</p></div>
-      <div className="contact-section">        
+        <p className="page-subtitle">Click on the phone or email button to send us a message.</p></div>
+      <div className="contact-section">
         <div className="contact-grid">
           <div className="contact-card non-interactive" style={{ cursor: 'default' }}>
             <div className="contact-title">Address</div>
-            <div className="contact-details">16192 Coastal Highway<br/>Lewes, Delaware 19958 <br/>Sussex County</div>
+            <div className="contact-details">16192 Coastal Highway<br />Lewes, Delaware 19958 <br />Sussex County</div>
           </div>          <div className="contact-card" onClick={() => setIsSmsModalOpen(true)} style={{ cursor: 'pointer' }}>
             <div className="contact-title">Phone</div>
             <div className="contact-details">(301) 880-6015</div>
@@ -207,7 +208,7 @@ export const ContactPage = ({ className }) => {
           <div className="contact-card" onClick={() => setIsModalOpen(true)} style={{ cursor: 'pointer' }}>
             <div className="contact-title">Email</div>
             <div className="contact-details">info@powerhealthcareit.com  </div>
-          </div>        
+          </div>
         </div>
       </div>
 
@@ -297,7 +298,7 @@ export const ContactPage = ({ className }) => {
               </div>
             </form>
           </div>
-        </div>      )}
+        </div>)}
 
       {/* SMS Modal */}
       {isSmsModalOpen && (

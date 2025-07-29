@@ -2,14 +2,15 @@
  * Appointment form API utilities
  */
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/api';
 
-const API_BASE_URL = 'http://127.0.0.1:8000/api';
+const API_ENDPOINTS_BASE = `${API_BASE_URL}/api`;
 
 /**
  * Fetch doctors list
  */
 export const fetchDoctors = async (token) => {
-    const response = await axios.get(`${API_BASE_URL}/users/doctors/`, {
+    const response = await axios.get(`${API_ENDPOINTS_BASE}/users/doctors/`, {
         headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -19,7 +20,7 @@ export const fetchDoctors = async (token) => {
  * Fetch clinic events
  */
 export const fetchClinicEvents = async (token) => {
-    const response = await axios.get(`${API_BASE_URL}/clinic-events/`, {
+    const response = await axios.get(`${API_ENDPOINTS_BASE}/clinic-events/`, {
         headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -29,7 +30,7 @@ export const fetchClinicEvents = async (token) => {
  * Fetch blocked days from environment settings
  */
 export const fetchBlockedDays = async (token) => {
-    const response = await axios.get(`${API_BASE_URL}/settings/environment/`, {
+    const response = await axios.get(`${API_ENDPOINTS_BASE}/settings/environment/`, {
         headers: { Authorization: `Bearer ${token}` }
     });
     return response.data.blocked_days || [];
@@ -39,7 +40,7 @@ export const fetchBlockedDays = async (token) => {
  * Fetch holidays
  */
 export const fetchHolidays = async (token) => {
-    const response = await axios.get(`${API_BASE_URL}/holidays/`, {
+    const response = await axios.get(`${API_ENDPOINTS_BASE}/holidays/`, {
         headers: { Authorization: `Bearer ${token}` }
     });
     return response.data.filter(h => h.is_recognized);
@@ -49,7 +50,7 @@ export const fetchHolidays = async (token) => {
  * Fetch available dates for a doctor
  */
 export const fetchDoctorAvailableDates = async (doctorId, token) => {
-    const response = await axios.get(`${API_BASE_URL}/doctors/${doctorId}/available-dates/`, {
+    const response = await axios.get(`${API_ENDPOINTS_BASE}/doctors/${doctorId}/available-dates/`, {
         headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -59,7 +60,7 @@ export const fetchDoctorAvailableDates = async (doctorId, token) => {
  * Fetch provider availability blocks
  */
 export const fetchProviderAvailability = async (doctorId, token) => {
-    const response = await axios.get(`${API_BASE_URL}/availability/?doctor=${doctorId}`, {
+    const response = await axios.get(`${API_ENDPOINTS_BASE}/availability/?doctor=${doctorId}`, {
         headers: { Authorization: `Bearer ${token}` }
     });
     return response.data;
@@ -76,7 +77,7 @@ export const createAppointment = async (payload, token) => {
     console.log('typeof appointment_datetime:', typeof payload.appointment_datetime);
     console.log('=====================================');
 
-    const response = await axios.post(`${API_BASE_URL}/appointments/`, payload, {
+    const response = await axios.post(`${API_ENDPOINTS_BASE}/appointments/`, payload, {
         headers: { Authorization: `Bearer ${token}` }
     });
 
@@ -99,7 +100,7 @@ export const updateAppointment = async (appointmentId, payload, token) => {
     console.log('typeof appointment_datetime:', typeof payload.appointment_datetime);
     console.log('=====================================');
 
-    const response = await axios.put(`${API_BASE_URL}/appointments/${appointmentId}/`, payload, {
+    const response = await axios.put(`${API_ENDPOINTS_BASE}/appointments/${appointmentId}/`, payload, {
         headers: { Authorization: `Bearer ${token}` }
     });
 

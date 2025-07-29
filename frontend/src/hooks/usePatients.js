@@ -3,6 +3,7 @@ import axios from 'axios';
 import { getValidToken, clearAuthData } from '../utils/auth';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config/api';
 
 export const usePatients = (navigate) => {
     const [patients, setPatients] = useState([]);
@@ -45,7 +46,7 @@ export const usePatients = (navigate) => {
                 return;
             }
 
-            const res = await axios.get('http://127.0.0.1:8000/api/users/patients/', {
+            const res = await axios.get(`${API_BASE_URL}/api/users/patients/`, {
                 headers: { Authorization: `Bearer ${validToken}` },
                 params: {
                     search,
@@ -55,15 +56,33 @@ export const usePatients = (navigate) => {
                 },
             });
 
+            // Add debugging and better error handling
+            console.log('API Response:', res.data);
+
+            // Check if response has expected structure
+            if (!res.data || !res.data.results) {
+                console.error('Unexpected API response structure:', res.data);
+                toast.error('Received unexpected data format from server');
+                return;
+            }
+
             const patientsWithFullName = res.data.results.map((p) => ({
                 ...p,
                 full_name: `${p.first_name} ${p.last_name}`,
             }));
             setPatients(patientsWithFullName);
-            setTotalSize(res.data.count);
+            setTotalSize(res.data.count || 0);
         } catch (err) {
-            console.error('Failed to fetch patients:', err);
-            toast.error('Failed to fetch patients');
+            console.error('❌ Failed to fetch patients:', err);
+            console.error('❌ Error details:', {
+                message: err.message,
+                status: err.response?.status,
+                statusText: err.response?.statusText,
+                data: err.response?.data,
+                url: err.config?.url,
+                headers: err.response?.headers
+            });
+            toast.error(`Failed to fetch patients: ${err.response?.status || 'Network Error'}`);
         } finally {
             setLoading(false);
         }
@@ -80,7 +99,7 @@ export const usePatients = (navigate) => {
 
         try {
             await axios.post(
-                'http://127.0.0.1:8000/api/sms/send-sms/',
+                `${API_BASE_URL}/api/sms/send-sms/`,
                 { phone, message },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -130,7 +149,7 @@ export const usePatients = (navigate) => {
             }
 
             await axios.post(
-                'http://127.0.0.1:8000/api/messages/send-email/',
+                `${API_BASE_URL}/api/messages/send-email/`,
                 {
                     email: emailAddress,
                     subject: emailForm.subject,
@@ -165,7 +184,7 @@ export const usePatients = (navigate) => {
         if (!confirmDelete) return;
 
         try {
-            await axios.delete(`http://127.0.0.1:8000/api/users/patients/${id}/`, {
+            await axios.delete(`${API_BASE_URL}/api/users/patients/${id}/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             toast.success('Patient deleted!');

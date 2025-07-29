@@ -19,6 +19,18 @@ if [ -n "$K_SERVICE" ]; then
         echo "⚠️  Database migrations failed, but continuing..."
     }
     
+    # Fix ClinicEvent table if needed
+    echo "🔧 Checking ClinicEvent table..."
+    python fix_clinicevent_table.py || {
+        echo "⚠️  ClinicEvent table check/fix failed, but continuing..."
+    }
+    
+    # Fix appointment form 500 errors
+    echo "🩺 Fixing appointment form endpoints..."
+    python fix_appointment_500_errors.py || {
+        echo "⚠️  Appointment form fixes failed, but continuing..."
+    }
+    
     # Create cache table (if using database cache)
     echo "🔄 Creating cache table..."
     python manage.py createcachetable --settings=poehr_scheduling_backend.settings_production || {

@@ -31,6 +31,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { getValidToken, clearAuthData } from "../utils/authUtils";
+import { API_BASE_URL } from "../config/api";
 
 function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = false }) {
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
@@ -67,7 +68,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         }
 
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/users/doctors/",
+          `${API_BASE_URL}/api/users/doctors/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -86,7 +87,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         }
 
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/users/organizations/",
+          `${API_BASE_URL}/api/users/organizations/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -108,7 +109,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
 
         // Get current user's info
         const response = await axios.get(
-          "http://127.0.0.1:8000/api/users/me/",
+          `${API_BASE_URL}/api/users/me/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -147,6 +148,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Client-side validation
     if (
       hasProvider === "no" &&
       (!formData.email || !formData.phone_number)
@@ -155,12 +157,30 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       return;
     }
 
+    // Username validation
+    if (!formData.username || formData.username.length < 3) {
+      toast.error("Username must be at least 3 characters long.");
+      return;
+    }
+
+    // Email validation
+    if (!formData.email || !/\S+@\S+\.\S+/.test(formData.email)) {
+      toast.error("Please enter a valid email address.");
+      return;
+    }
+
+    // Password validation
+    if (!formData.password || formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters long.");
+      return;
+    }
+
     const payload = {
-      username: formData.username,
-      email: formData.email,
+      username: formData.username.trim(),
+      email: formData.email.trim().toLowerCase(),
       password: formData.password,
-      first_name: formData.first_name,
-      last_name: formData.last_name,
+      first_name: formData.first_name.trim(),
+      last_name: formData.last_name.trim(),
       phone_number: formData.phone_number,
       role: "patient",
     };
@@ -178,7 +198,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         : {};
 
       const response = await axios.post(
-        "http://127.0.0.1:8000/api/auth/register/",
+        `${API_BASE_URL}/api/auth/register/`,
         payload,
         config
       );
@@ -191,7 +211,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         try {
           // Use the same valid token for fetching patient data
           const patientResponse = await axios.get(
-            `http://127.0.0.1:8000/api/users/patients/`,
+            `${API_BASE_URL}/api/users/patients/`,
             {
               headers: { Authorization: `Bearer ${token}` },
               params: { search: formData.username },
@@ -244,12 +264,52 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         console.error("Error response headers:", error.response.headers);
       }
 
-      // Show more specific error message
-      const errorMessage = error.response?.data?.detail ||
-        error.response?.data?.message ||
-        "Registration failed. Please try again.";
+      // Handle specific validation errors
+      if (error.response?.data) {
+        const errorData = error.response.data;
 
-      toast.error(errorMessage);
+        // Handle field-specific errors
+        if (typeof errorData === 'object') {
+          const errorMessages = [];
+
+          // Check for specific field errors
+          Object.keys(errorData).forEach(field => {
+            const fieldErrors = errorData[field];
+            if (Array.isArray(fieldErrors)) {
+              fieldErrors.forEach(err => {
+                if (field === 'username') {
+                  errorMessages.push(`Username: ${err}`);
+                } else if (field === 'email') {
+                  errorMessages.push(`Email: ${err}`);
+                } else if (field === 'password') {
+                  errorMessages.push(`Password: ${err}`);
+                } else if (field === 'phone_number') {
+                  errorMessages.push(`Phone: ${err}`);
+                } else {
+                  errorMessages.push(`${field}: ${err}`);
+                }
+              });
+            } else if (typeof fieldErrors === 'string') {
+              errorMessages.push(`${field}: ${fieldErrors}`);
+            }
+          });
+
+          if (errorMessages.length > 0) {
+            errorMessages.forEach(msg => toast.error(msg));
+            return;
+          }
+        }
+
+        // Fallback to generic error message
+        const errorMessage = errorData.detail ||
+          errorData.message ||
+          errorData.error ||
+          "Registration failed. Please try again.";
+
+        toast.error(errorMessage);
+      } else {
+        toast.error("Registration failed. Please check your connection and try again.");
+      }
     }
   };
 
@@ -272,7 +332,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       };
 
       await axios.put(
-        `http://127.0.0.1:8000/api/users/patients/by-user/${registeredPatient.user_id}/edit/`,
+        `${API_BASE_URL}/api/users/patients/by-user/${registeredPatient.user_id}/edit/`,
         updateData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -301,7 +361,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       }
 
       await axios.delete(
-        `http://127.0.0.1:8000/api/users/patients/${registeredPatient.id}/`,
+        `${API_BASE_URL}/api/users/patients/${registeredPatient.id}/`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

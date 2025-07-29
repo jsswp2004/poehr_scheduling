@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from '../components/SimpleToast';
@@ -52,7 +53,7 @@ export const usePatientDetail = (patientId) => {
         console.log('🚀 Making API call for patient:', patientId);
         setLoading(true);
         axios
-            .get(`http://127.0.0.1:8000/api/users/patients/by-user/${patientId}/`, {
+            .get(`${API_BASE_URL}/api/users/patients/by-user/${patientId}/`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => {
@@ -91,7 +92,7 @@ export const usePatientDetail = (patientId) => {
         setSaving(true);
         try {
             const res = await axios.patch(
-                `http://127.0.0.1:8000/api/users/patients/${patient.id}/`,
+                `${API_BASE_URL}/api/users/patients/${patient.id}/`,
                 formData,
                 {
                     headers: { Authorization: `Bearer ${token}` },
@@ -119,7 +120,7 @@ export const usePatientDetail = (patientId) => {
 
         try {
             const res = await axios.patch(
-                `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id}/`,
+                `${API_BASE_URL}/api/users/${patient.user_id || patient.id}/`,
                 formDataPic,
                 {
                     headers: {

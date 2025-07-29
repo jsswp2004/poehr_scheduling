@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { getValidToken, clearAuthData } from '../utils/auth';
+import { API_BASE_URL } from '../config/api';
 
 export const useTeam = (navigate) => {
     const [team, setTeam] = useState([]);
@@ -24,7 +25,7 @@ export const useTeam = (navigate) => {
                 return;
             }
 
-            const res = await axios.get('http://127.0.0.1:8000/api/users/team/', {
+            const res = await axios.get(`${API_BASE_URL}/api/users/team/`, {
                 headers: { Authorization: `Bearer ${validToken}` },
                 params: {
                     search: searchParam,

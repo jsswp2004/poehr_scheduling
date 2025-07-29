@@ -29,6 +29,7 @@ import { toast } from "../components/SimpleToast";
 import { useNavigate } from "react-router-dom";
 import CreatableSelect from "react-select/creatable";
 import { notifyProfileUpdated } from "../utils/events";
+import { API_BASE_URL } from "../config/api";
 
 function ProfilePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,7 +68,7 @@ function ProfilePage() {
     const decoded = jwtDecode(token);
     const userId = decoded.user_id;
     axios
-      .get(`http://127.0.0.1:8000/api/users/${userId}/`, {
+      .get(`${API_BASE_URL}/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {
@@ -98,7 +99,7 @@ function ProfilePage() {
 
     // Fetch organizations for dropdown
     axios
-      .get("http://127.0.0.1:8000/api/users/organizations/", {
+      .get(`${API_BASE_URL}/api/users/organizations/`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setOrganizations(res.data))
@@ -119,7 +120,7 @@ function ProfilePage() {
           ? user.organization.id
           : user.organization;
       const res = await axios.get(
-        `http://127.0.0.1:8000/api/users/search/?q=${searchQuery}`,
+        `${API_BASE_URL}/api/users/search/?q=${searchQuery}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -165,7 +166,7 @@ function ProfilePage() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/users/${id}/`, {
+      await axios.delete(`${API_BASE_URL}/api/users/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("User deleted!");
@@ -185,7 +186,7 @@ function ProfilePage() {
   const handleSave = async () => {
     try {
       const response = await axios.patch(
-        `http://127.0.0.1:8000/api/users/${user.id}/`,
+        `${API_BASE_URL}/api/users/${user.id}/`,
         formData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -224,7 +225,7 @@ function ProfilePage() {
         };
 
         await axios.post(
-          "http://127.0.0.1:8000/api/users/admin-change-password/",
+          `${API_BASE_URL}/api/users/admin-change-password/`,
           adminPasswordData,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -233,7 +234,7 @@ function ProfilePage() {
       } else {
         // Use regular password change endpoint
         await axios.post(
-          "http://127.0.0.1:8000/api/users/change-password/",
+          `${API_BASE_URL}/api/users/change-password/`,
           passwordData,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -263,7 +264,7 @@ function ProfilePage() {
 
     try {
       const res = await axios.patch(
-        `http://127.0.0.1:8000/api/users/${user.id}/`,
+        `${API_BASE_URL}/api/users/${user.id}/`,
         uploadFormData,
         {
           headers: {
@@ -645,7 +646,7 @@ function ProfilePage() {
                   user.profile_picture
                     ? user.profile_picture.startsWith("http")
                       ? user.profile_picture
-                      : `http://127.0.0.1:8000${user.profile_picture}`
+                      : `${API_BASE_URL}${user.profile_picture}`
                     : undefined
                 }
                 alt="Profile"
@@ -720,7 +721,7 @@ function ProfilePage() {
                     if (option && option.__isNew__) {
                       axios
                         .post(
-                          "http://127.0.0.1:8000/api/users/organizations/",
+                          `${API_BASE_URL}/api/users/organizations/`,
                           { name: option.label },
                           {
                             headers: { Authorization: `Bearer ${token}` },

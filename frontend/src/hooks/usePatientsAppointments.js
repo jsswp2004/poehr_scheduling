@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config/api';
 
 export const usePatientsAppointments = () => {
     const [appointmentsQuery, setAppointmentsQuery] = useState('');
@@ -14,7 +15,7 @@ export const usePatientsAppointments = () => {
     // Fetch all appointments and filter client-side for main appointments table
     const fetchAppointments = async (searchText = '', token) => {
         try {
-            const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+            const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const lowerQuery = searchText.trim().toLowerCase();
@@ -79,7 +80,7 @@ export const usePatientsAppointments = () => {
     // Fetch today's appointments for the summary panel
     const fetchTodaysAppointments = async (token) => {
         try {
-            const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+            const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -119,7 +120,7 @@ export const usePatientsAppointments = () => {
             }
 
             await axios.patch(
-                `http://127.0.0.1:8000/api/appointments/${appointmentId}/status/`,
+                `${API_BASE_URL}/api/appointments/${appointmentId}/status/`,
                 updateData,
                 { headers: { Authorization: `Bearer ${token}` } }
             );

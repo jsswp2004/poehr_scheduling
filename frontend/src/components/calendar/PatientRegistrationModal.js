@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { Close, PersonAdd } from "@mui/icons-material";
 import axios from "axios";
+import { API_BASE_URL } from "../../config/api";
 import { toast } from "react-toastify";
 import { getValidToken } from "../../utils/authUtils";
 
@@ -59,7 +60,7 @@ const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
                 return;
             }
 
-            const res = await axios.get("http://127.0.0.1:8000/api/users/doctors/", {
+            const res = await axios.get("`${API_BASE_URL}/api/users/doctors/", {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setDoctors(res.data);
@@ -74,7 +75,7 @@ const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
             const token = await getValidToken();
             if (!token) return;
 
-            const response = await axios.get("http://127.0.0.1:8000/api/users/me/", {
+            const response = await axios.get("`${API_BASE_URL}/api/users/me/", {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const userData = response.data;
@@ -122,7 +123,7 @@ const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
             }
 
             const response = await axios.post(
-                "http://127.0.0.1:8000/api/auth/register/",
+                "`${API_BASE_URL}/api/auth/register/",
                 payload,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -133,7 +134,7 @@ const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
             // Fetch the newly created patient data
             try {
                 const patientResponse = await axios.get(
-                    `http://127.0.0.1:8000/api/users/patients/`,
+                    `${API_BASE_URL}/api/users/patients/`,
                     {
                         headers: { Authorization: `Bearer ${token}` },
                         params: { search: formData.username },

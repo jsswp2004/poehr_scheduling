@@ -49,6 +49,12 @@ ENV DJANGO_SECRET_KEY='temporary-build-time-key-do-not-use-in-production'
 RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || \
     echo "Warning: Static files collection failed during build. Will retry at runtime."
 
+# Create a script to run migrations and create superuser
+RUN echo '#!/bin/bash\n\
+python manage.py migrate --noinput\n\
+python manage.py create_admin\n\
+exec "$@"' > /code/init.sh && chmod +x /code/init.sh
+
 # Remove the build-time SECRET_KEY
 ENV DJANGO_SECRET_KEY=
 
