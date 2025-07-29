@@ -20,6 +20,7 @@ import {
   MenuItem,
 } from "@mui/material";
 import axios from "axios";
+import { API_BASE_URL } from '../config/api';
 import HolidaysTab from "./HolidaysPage";
 import OrganizationManagement from "../components/OrganizationManagement";
 import { useNavigate } from "react-router-dom";
@@ -71,7 +72,7 @@ function EnvironmentProfilePage() {
       if (userRole === "system_admin") {
         const token = localStorage.getItem("access_token");
         try {
-          const res = await axios.get("http://127.0.0.1:8000/api/organizations/", {
+          const res = await axios.get(`${API_BASE_URL}/api/organizations/`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           setOrganizations(res.data);
@@ -82,7 +83,7 @@ function EnvironmentProfilePage() {
           console.error("Failed to fetch organizations:", err);
           // Try alternative endpoint
           try {
-            const res = await axios.get("http://127.0.0.1:8000/api/users/organizations/", {
+            const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
               headers: { Authorization: `Bearer ${token}` },
             });
             setOrganizations(res.data);
@@ -108,7 +109,7 @@ function EnvironmentProfilePage() {
           params.organization_id = selectedOrganization;
         }
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/settings/environment/",
+          `${API_BASE_URL}/api/settings/environment/`,
           {
             headers: { Authorization: `Bearer ${token}` },
             params,
@@ -144,7 +145,7 @@ function EnvironmentProfilePage() {
         payload.organization_id = selectedOrganization;
       }
       await axios.post(
-        "http://127.0.0.1:8000/api/settings/environment/",
+        `${API_BASE_URL}/api/settings/environment/`,
         payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
