@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import StripeProvider from '../components/StripeProvider';
 import SubscriptionTierSelector from '../components/SubscriptionTierSelector';
 import PaymentMethodForm from '../components/PaymentMethodForm';
-import { 
-  Container, 
-  Paper, 
-  Typography, 
-  TextField, 
-  Button, 
-  Stack, 
-  MenuItem, 
-  Alert, 
+import {
+  Container,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Stack,
+  MenuItem,
+  Alert,
   Box,
   Stepper,
   Step,
@@ -26,11 +27,11 @@ function EnrollmentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const paymentFormRef = useRef();
-  
+
   // Get parameters from URL
   const urlPlan = searchParams.get('plan'); // 'personal', 'clinic', 'group'
   const urlTier = searchParams.get('tier'); // 'basic', 'premium', 'enterprise'
-  
+
   // Map URL parameters to form values
   const getInitialOrgType = () => {
     if (urlPlan) {
@@ -43,7 +44,7 @@ function EnrollmentPage() {
     }
     return 'personal';
   };
-  
+
   const getInitialTier = () => {
     if (urlTier) {
       switch (urlTier.toLowerCase()) {
@@ -64,11 +65,11 @@ function EnrollmentPage() {
     }
     return 'premium';
   };
-  
+
   // Multi-step form state
   const [currentStep, setCurrentStep] = useState(0);
   const steps = ['Account Details', 'Choose Plan', 'Payment Info', 'Confirmation'];
-  
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -80,7 +81,7 @@ function EnrollmentPage() {
     organization_type: getInitialOrgType(),
     subscription_tier: getInitialTier(),
   });
-  
+
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [paymentMethodReady, setPaymentMethodReady] = useState(false);
@@ -114,7 +115,7 @@ function EnrollmentPage() {
     e.preventDefault();
     setIsSubmitting(true);
     setStatus({ type: '', message: '' });
-    
+
     try {
       // Step 1: Create payment method if we're on the payment step
       let paymentMethodId = null;
@@ -128,22 +129,22 @@ function EnrollmentPage() {
         is_enrollment: true  // Flag to indicate this is service enrollment, not patient registration
       };
 
-      const response = await axios.post('http://127.0.0.1:8000/api/auth/register/', registrationData);
-      
-      setStatus({ 
-        type: 'success', 
-        message: `Enrollment successful! Your ${formData.subscription_tier} plan trial has started. Redirecting to login...` 
+      const response = await axios.post(`${API_BASE_URL}/api/auth/register/`, registrationData);
+
+      setStatus({
+        type: 'success',
+        message: `Enrollment successful! Your ${formData.subscription_tier} plan trial has started. Redirecting to login...`
       });
-      
+
       // Redirect to login after showing success message
       setTimeout(() => {
         navigate('/login');
       }, 3000);
-      
+
     } catch (err) {
       console.error('Enrollment failed:', err);
       let errorMessage = 'Enrollment failed. Please try again.';
-      
+
       // Extract specific error messages from the response
       if (err.response?.data) {
         const errors = err.response.data;
@@ -156,12 +157,13 @@ function EnrollmentPage() {
           errorMessage = `Enrollment failed: ${errors}`;
         }
       }
-      
+
       setStatus({ type: 'error', message: errorMessage });
-      
+
     } finally {
       setIsSubmitting(false);
-    }  };
+    }
+  };
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -189,54 +191,54 @@ function EnrollmentPage() {
               <MenuItem value="clinic">Clinic</MenuItem>
               <MenuItem value="group">Group</MenuItem>
             </TextField>
-            <TextField 
-              label="First Name" 
-              name="first_name" 
-              value={formData.first_name} 
-              onChange={handleChange} 
-              required 
-              size="small" 
+            <TextField
+              label="First Name"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleChange}
+              required
+              size="small"
             />
-            <TextField 
-              label="Last Name" 
-              name="last_name" 
-              value={formData.last_name} 
-              onChange={handleChange} 
-              required 
-              size="small" 
+            <TextField
+              label="Last Name"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleChange}
+              required
+              size="small"
             />
-            <TextField 
-              label="Username" 
-              name="username" 
-              value={formData.username} 
-              onChange={handleChange} 
-              required 
-              size="small" 
+            <TextField
+              label="Username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              required
+              size="small"
             />
-            <TextField 
-              label="Email" 
-              type="email" 
-              name="email" 
-              value={formData.email} 
-              onChange={handleChange} 
-              required 
-              size="small" 
+            <TextField
+              label="Email"
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              required
+              size="small"
             />
-            <TextField 
-              label="Phone Number" 
-              name="phone_number" 
-              value={formData.phone_number} 
-              onChange={handleChange} 
-              size="small" 
+            <TextField
+              label="Phone Number"
+              name="phone_number"
+              value={formData.phone_number}
+              onChange={handleChange}
+              size="small"
             />
-            <TextField 
-              label="Password" 
-              type="password" 
-              name="password" 
-              value={formData.password} 
-              onChange={handleChange} 
-              required 
-              size="small" 
+            <TextField
+              label="Password"
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              size="small"
             />
           </Stack>
         );
@@ -266,19 +268,19 @@ function EnrollmentPage() {
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               Review Your Information
             </Typography>
-            
+
             <Stack spacing={2}>
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">Organization</Typography>
                 <Typography>{formData.organization_name} ({formData.organization_type})</Typography>
               </Box>
-              
+
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">Account</Typography>
                 <Typography>{formData.first_name} {formData.last_name}</Typography>
                 <Typography variant="body2" color="text.secondary">{formData.email}</Typography>
               </Box>
-              
+
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">Selected Plan</Typography>
                 <Typography>{formData.subscription_tier.charAt(0).toUpperCase() + formData.subscription_tier.slice(1)} Plan</Typography>
@@ -296,8 +298,8 @@ function EnrollmentPage() {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return formData.organization_name && formData.first_name && formData.last_name && 
-               formData.username && formData.email && formData.password;
+        return formData.organization_name && formData.first_name && formData.last_name &&
+          formData.username && formData.email && formData.password;
       case 1:
         return formData.subscription_tier;
       case 2:
@@ -331,9 +333,9 @@ function EnrollmentPage() {
             {/* Status Alert */}
             {status.message && (
               <Box sx={{ mb: 3 }}>
-                <Alert 
-                  severity={status.type} 
-                  sx={{ 
+                <Alert
+                  severity={status.type}
+                  sx={{
                     borderRadius: 1,
                     '& .MuiAlert-message': {
                       fontWeight: 500
