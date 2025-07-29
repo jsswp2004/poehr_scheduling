@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import { 
   getAccessToken, 
   getRefreshToken, 
@@ -28,7 +29,7 @@ export const getValidToken = async () => {
     // Token is expired, try to refresh
     if (refreshToken) {
       try {
-        const response = await axios.post('http://127.0.0.1:8000/api/auth/token/refresh/', {
+        const response = await axios.post('${API_BASE_URL}/api/auth/token/refresh/', {
           refresh: refreshToken
         });
 

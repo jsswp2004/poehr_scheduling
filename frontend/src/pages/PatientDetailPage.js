@@ -18,6 +18,7 @@ import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import { toast } from "../components/SimpleToast";
+import { API_BASE_URL } from "../config/api";
 
 // PRODUCTION-READY ADDRESS AUTOCOMPLETE WITH GOOGLE PLACES API + COST OPTIMIZATION
 const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
@@ -492,7 +493,7 @@ function PatientDetailPage() {
   // Fetch patient data
   useEffect(() => {
     axios
-      .get(`http://127.0.0.1:8000/api/users/patients/by-user/${id}/`, {
+      .get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => {
@@ -505,7 +506,7 @@ function PatientDetailPage() {
   // Fetch doctors for dropdown
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:8000/api/users/doctors/", {
+      .get(`${API_BASE_URL}/api/users/doctors/`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setDoctors(res.data))
@@ -515,7 +516,7 @@ function PatientDetailPage() {
   // Fetch organizations for dropdown
   useEffect(() => {
     axios
-      .get("http://127.0.0.1:8000/api/users/organizations/", {
+      .get(`${API_BASE_URL}/api/users/organizations/`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       .then((res) => setOrganizations(res.data))
@@ -550,7 +551,7 @@ function PatientDetailPage() {
     try {
       // First, send the email with the temporary password
       await axios.post(
-        "http://127.0.0.1:8000/api/users/send-email/",
+        `${API_BASE_URL}/api/users/send-email/`,
         {
           email: patient.email,
           subject: "Password Reset - POWER Healthcare IT Systems",
@@ -563,7 +564,7 @@ function PatientDetailPage() {
 
       // Then change the password in the system
       await axios.post(
-        "http://127.0.0.1:8000/api/users/admin-change-password/",
+        `${API_BASE_URL}/api/users/admin-change-password/`,
         {
           target_user_id: patient.user_id || patient.id,
           admin_password: adminPassword,
@@ -595,7 +596,7 @@ function PatientDetailPage() {
 
         try {
           await axios.post(
-            "http://127.0.0.1:8000/api/users/admin-change-password/",
+            `${API_BASE_URL}/api/users/admin-change-password/`,
             {
               target_user_id: patient.user_id || patient.id,
               admin_password: adminPassword,
@@ -743,7 +744,7 @@ function PatientDetailPage() {
 
     try {
       await axios.put(
-        `http://127.0.0.1:8000/api/users/patients/by-user/${id}/edit/`,
+        `${API_BASE_URL}/api/users/patients/by-user/${id}/edit/`,
         dataToSend,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -868,7 +869,7 @@ function PatientDetailPage() {
             src={
               patient.profile_picture.startsWith("http")
                 ? patient.profile_picture
-                : `http://127.0.0.1:8000${patient.profile_picture}`
+                : `${API_BASE_URL}${patient.profile_picture}`
             }
             alt="Profile"
             style={{
@@ -918,7 +919,7 @@ function PatientDetailPage() {
                   formDataPic.append("profile_picture", file);
                   try {
                     const res = await axios.patch(
-                      `http://127.0.0.1:8000/api/users/${patient.user_id || patient.id
+                      `${API_BASE_URL}/api/users/${patient.user_id || patient.id
                       }/`,
                       formDataPic,
                       {

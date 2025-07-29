@@ -55,12 +55,16 @@ elif SECRET_KEY == 'temporary-fallback-key-for-build-only':
     sys.exit(1)
 
 # Database configuration for Cloud SQL
+# Temporarily use hardcoded password for testing
+db_password = "krat25Miko!" if os.environ.get('K_SERVICE') else get_secret('DATABASE_PASSWORD', default='')
+print(f"DEBUG: Using password for database connection (length: {len(db_password)})")
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'poehr_db'),
         'USER': os.environ.get('DB_USER', 'jsswp2004'),
-        'PASSWORD': get_secret('DATABASE_PASSWORD', default=''),
+        'PASSWORD': db_password,
         'HOST': f"/cloudsql/{PROJECT_ID}:us-central1:poehr-db-instance" if os.environ.get('K_SERVICE') else os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
     }
@@ -109,6 +113,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False  # Explicitly disable SSL since we're using TLS
 EMAIL_HOST_USER = get_secret('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = get_secret('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
@@ -186,3 +191,6 @@ if 'corsheaders' in INSTALLED_APPS:
 import logging
 logger = logging.getLogger(__name__)
 logger.info(f"Settings loaded. Running in {'Cloud Run' if os.environ.get('K_SERVICE') else 'Local'} environment")
+
+# For connecting to Cloud SQL instance directly (uncomment to use)
+# gcloud sql connect poehr-db-instance --user=jsswp2004 --database=poehr_db

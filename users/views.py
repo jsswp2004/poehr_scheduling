@@ -365,49 +365,68 @@ def get_patients(request):
     - If registrar/admin: all patients in their org
     - If system_admin: all patients (all orgs)
     Supports search and provider filtering.    """
-    user = request.user
-
-    if user.role not in ['doctor', 'registrar', 'admin', 'system_admin']:
-        return Response({'detail': 'Access denied'}, status=403)
-
-    if user.role == 'doctor':
-        patients = Patient.objects.filter(user__provider=user)
-    elif user.role == 'system_admin':
-        patients = Patient.objects.all()
-    else:
-        # registrar or admin
-        patients = Patient.objects.filter(user__organization=user.organization)
-
-    search = request.GET.get('search')
-    provider_id = request.GET.get('provider')
-
-    if search:
-        patients = patients.filter(
-            Q(user__first_name__icontains=search) |
-            Q(user__last_name__icontains=search) |
-            Q(user__email__icontains=search) |
-            Q(user__provider__first_name__icontains=search) |
-            Q(user__provider__last_name__icontains=search)
-        )
-    
-    if provider_id:
-        patients = patients.filter(user__provider_id=provider_id)
-
-    # Get page size from frontend parameter, default to 10
-    page_size = request.GET.get('page_size', 10)
     try:
-        page_size = int(page_size)
-        # Limit page size to prevent excessive requests
-        page_size = min(page_size, 100)
-    except (ValueError, TypeError):
-        page_size = 10
+        user = request.user
+        logger.info(f"🔍 get_patients called by user: {user.username} (role: {user.role})")
 
-    paginator = PageNumberPagination()
-    paginator.page_size = page_size
-    result_page = paginator.paginate_queryset(patients.order_by('user__last_name'), request)
-    serializer = PatientSerializer(result_page, many=True)
+        if user.role not in ['doctor', 'registrar', 'admin', 'system_admin']:
+            logger.warning(f"❌ Access denied for user {user.username} with role {user.role}")
+            return Response({'detail': 'Access denied'}, status=403)
 
-    return paginator.get_paginated_response(serializer.data)
+        if user.role == 'doctor':
+            patients = Patient.objects.select_related('user', 'user__provider', 'organization').filter(user__provider=user)
+        elif user.role == 'system_admin':
+            patients = Patient.objects.select_related('user', 'user__provider', 'organization').all()
+        else:
+            # registrar or admin
+            patients = Patient.objects.select_related('user', 'user__provider', 'organization').filter(user__organization=user.organization)
+
+        logger.info(f"📊 Initial patient count: {patients.count()}")
+
+        search = request.GET.get('search')
+        provider_id = request.GET.get('provider')
+
+        if search:
+            logger.info(f"🔍 Applying search filter: {search}")
+            patients = patients.filter(
+                Q(user__first_name__icontains=search) |
+                Q(user__last_name__icontains=search) |
+                Q(user__email__icontains=search) |
+                Q(user__provider__first_name__icontains=search) |
+                Q(user__provider__last_name__icontains=search)
+            )
+        
+        if provider_id:
+            logger.info(f"🔍 Applying provider filter: {provider_id}")
+            patients = patients.filter(user__provider_id=provider_id)
+
+        logger.info(f"📊 Filtered patient count: {patients.count()}")
+
+        # Get page size from frontend parameter, default to 10
+        page_size = request.GET.get('page_size', 10)
+        try:
+            page_size = int(page_size)
+            # Limit page size to prevent excessive requests
+            page_size = min(page_size, 100)
+        except (ValueError, TypeError):
+            page_size = 10
+
+        logger.info(f"📄 Page size: {page_size}")
+
+        paginator = PageNumberPagination()
+        paginator.page_size = page_size
+        result_page = paginator.paginate_queryset(patients.order_by('user__last_name'), request)
+        
+        logger.info(f"📄 Paginated result count: {len(result_page) if result_page else 0}")
+        
+        serializer = PatientSerializer(result_page, many=True)
+        logger.info(f"✅ Serialization completed successfully")
+
+        return paginator.get_paginated_response(serializer.data)
+        
+    except Exception as e:
+        logger.error(f"❌ Error in get_patients: {str(e)}", exc_info=True)
+        return Response({'detail': f'Internal server error: {str(e)}'}, status=500)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])

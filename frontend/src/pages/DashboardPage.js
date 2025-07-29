@@ -3,6 +3,7 @@ import { jwtDecode } from "jwt-decode";
 import Select from "react-select";
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 import CalendarView from "../components/CalendarView";
 import AnnouncementDisplay from "../components/AnnouncementDisplay";
 import { toast } from "react-toastify";
@@ -106,7 +107,7 @@ function DashboardPage() {
     const fetchDoctors = async () => {
       try {
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/users/doctors/",
+          `${API_BASE_URL}/api/users/doctors/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -120,7 +121,7 @@ function DashboardPage() {
     const fetchAppointments = async () => {
       try {
         const response = await axios.get(
-          "http://127.0.0.1:8000/api/appointments/",
+          `${API_BASE_URL}/api/appointments/`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -156,7 +157,7 @@ function DashboardPage() {
     if (!token) return;
     const fetchUserAndProvider = async () => {
       try {
-        const res = await axios.get("http://127.0.0.1:8000/api/users/me/", {
+        const res = await axios.get(`${API_BASE_URL}/api/users/me/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const user = res.data;
@@ -170,7 +171,7 @@ function DashboardPage() {
         setUserInfoLoading(false);
         if (user.provider) {
           const provRes = await axios.get(
-            `http://127.0.0.1:8000/api/users/${user.provider}/`,
+            `${API_BASE_URL}/api/users/${user.provider}/`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }
@@ -202,7 +203,7 @@ function DashboardPage() {
   const handlePhoneNumberSave = async () => {
     try {
       const response = await axios.patch(
-        "http://127.0.0.1:8000/api/users/me/",
+        `${API_BASE_URL}/api/users/me/`,
         { phone_number: tempPhoneNumber },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -230,7 +231,7 @@ function DashboardPage() {
       }
 
       const response = await axios.patch(
-        "http://127.0.0.1:8000/api/users/me/",
+        `${API_BASE_URL}/api/users/me/`,
         updateData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -261,7 +262,7 @@ function DashboardPage() {
 
     try {
       const res = await axios.get(
-        `http://127.0.0.1:8000/api/doctors/${doctorId}/available-dates/`,
+        `${API_BASE_URL}/api/doctors/${doctorId}/available-dates/`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -312,7 +313,7 @@ function DashboardPage() {
       return;
 
     try {
-      await axios.delete(`http://127.0.0.1:8000/api/appointments/${id}/`, {
+      await axios.delete(`${API_BASE_URL}/api/appointments/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       toast.success("Appointment deleted!");
@@ -336,7 +337,7 @@ function DashboardPage() {
     try {
       if (editMode && editingId) {
         await axios.put(
-          `http://127.0.0.1:8000/api/appointments/${editingId}/`,
+          `${API_BASE_URL}/api/appointments/${editingId}/`,
           payload,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -344,14 +345,14 @@ function DashboardPage() {
         );
         toast.success("Appointment updated!");
       } else {
-        await axios.post("http://127.0.0.1:8000/api/appointments/", payload, {
+        await axios.post(`${API_BASE_URL}/api/appointments/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         toast.success("Appointment created!");
       }
 
       const refreshed = await axios.get(
-        "http://127.0.0.1:8000/api/appointments/",
+        `${API_BASE_URL}/api/appointments/`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -394,7 +395,7 @@ function DashboardPage() {
       form.append("subject", emailForm.subject);
       form.append("message", emailForm.message);
       emailForm.attachments.forEach((f) => form.append("attachments", f));
-      await axios.post("http://127.0.0.1:8000/api/messages/send-email/", form, {
+      await axios.post(`${API_BASE_URL}/api/messages/send-email/`, form, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -427,7 +428,7 @@ function DashboardPage() {
   const handleSendSMS = async () => {
     try {
       await axios.post(
-        "http://127.0.0.1:8000/api/messages/send-sms/",
+        `${API_BASE_URL}/api/messages/send-sms/`,
         {
           phone: smsForm.phone,
           message: smsForm.message,

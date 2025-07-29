@@ -18,6 +18,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
+import { API_BASE_URL } from "../config/api";
 import Pagination from "@mui/material/Pagination";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -69,7 +70,7 @@ function AppointmentsPage() {
   // Fetch all appointments and filter client-side
   const fetchAppointments = async (searchText = "") => {
     try {
-      const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+      const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const lowerQuery = searchText.trim().toLowerCase();
@@ -134,7 +135,7 @@ function AppointmentsPage() {
   useEffect(() => {
     const fetchTodaysAppointments = async () => {
       try {
-        const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+        const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -233,7 +234,7 @@ function AppointmentsPage() {
       }
 
       await axios.patch(
-        `http://127.0.0.1:8000/api/appointments/${appointmentId}/status/`,
+        `${API_BASE_URL}/api/appointments/${appointmentId}/status/`,
         updateData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -241,7 +242,7 @@ function AppointmentsPage() {
       );
 
       // Refresh today's appointments to reflect the change
-      const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+      const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -676,7 +677,7 @@ function AppointmentsPage() {
                                 ) {
                                   try {
                                     await axios.delete(
-                                      `http://127.0.0.1:8000/api/appointments/${appt.id}/`,
+                                      `${API_BASE_URL}/api/appointments/${appt.id}/`,
                                       {
                                         headers: {
                                           Authorization: `Bearer ${token}`,
@@ -692,7 +693,7 @@ function AppointmentsPage() {
                                     tomorrow.setDate(tomorrow.getDate() + 1);
 
                                     const res = await axios.get(
-                                      `http://127.0.0.1:8000/api/appointments/`,
+                                      `${API_BASE_URL}/api/appointments/`,
                                       {
                                         headers: {
                                           Authorization: `Bearer ${token}`,

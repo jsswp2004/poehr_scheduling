@@ -177,7 +177,8 @@ class PatientSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email')
     first_name = serializers.CharField(source='user.first_name')
     last_name = serializers.CharField(source='user.last_name')
-    provider = serializers.IntegerField(source='user.provider.id', read_only=True, allow_null=True)    # Add writable field for provider
+    provider = serializers.SerializerMethodField()  # Change to SerializerMethodField for safety
+    # Add writable field for provider
     provider_id = serializers.IntegerField(write_only=True, required=False, allow_null=True) 
     provider_name = serializers.SerializerMethodField()
     last_appointment_date = serializers.SerializerMethodField()
@@ -207,8 +208,19 @@ class PatientSerializer(serializers.ModelSerializer):
         }
 
     def get_last_appointment_date(self, obj):
-        latest = Appointment.objects.filter(patient=obj.user).order_by('-appointment_datetime').first()
-        return latest.appointment_datetime if latest else None
+        try:
+            from appointments.models import Appointment
+            latest = Appointment.objects.filter(patient=obj.user).order_by('-appointment_datetime').first()
+            return latest.appointment_datetime if latest else None
+        except Exception as e:
+            # Handle case where appointments table doesn't exist or other DB issues
+            return None
+
+    def get_provider(self, obj):
+        """Safely get provider ID, handling None values"""
+        if obj.user.provider:
+            return obj.user.provider.id
+        return None
 
     def get_provider_name(self, obj):
         if obj.user.provider:

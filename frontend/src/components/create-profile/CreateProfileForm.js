@@ -17,6 +17,7 @@ import {
 import CreatableSelect from "react-select/creatable";
 import axios from "axios";
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../../config/api';
 
 /**
  * CreateProfileForm Component
@@ -40,7 +41,7 @@ const CreateProfileForm = ({
         if (option && option.__isNew__) {
             axios
                 .post(
-                    "http://127.0.0.1:8000/api/users/organizations/",
+                    `${API_BASE_URL}/api/users/organizations/`,
                     { name: option.label },
                     {
                         headers: { Authorization: `Bearer ${token}` },

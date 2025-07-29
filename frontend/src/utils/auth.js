@@ -1,14 +1,13 @@
 import axios from 'axios';
-import { 
-  getAccessToken, 
-  getRefreshToken, 
-  storeTokens, 
-  clearTokens, 
-  isTokenExpired, 
-  isTokenExpiringSoon 
+import { API_BASE_URL } from '../config/api';
+import {
+  getAccessToken,
+  getRefreshToken,
+  storeTokens,
+  clearTokens,
+  isTokenExpired,
+  isTokenExpiringSoon
 } from './tokenManager';
-
-const API_BASE_URL = 'http://127.0.0.1:8000';
 
 /**
  * Refresh the access token using the refresh token
@@ -16,7 +15,7 @@ const API_BASE_URL = 'http://127.0.0.1:8000';
  */
 export const refreshAccessToken = async () => {
   const refreshToken = getRefreshToken();
-  
+
   if (!refreshToken) {
     console.error('No refresh token available');
     return null;
@@ -28,22 +27,22 @@ export const refreshAccessToken = async () => {
     });
 
     const { access, refresh: newRefresh } = response.data;
-    
+
     // Update stored tokens using centralized manager
     storeTokens(access, newRefresh || refreshToken);
-    
+
     // Update axios default header
     axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-    
+
     console.log('Token refreshed successfully');
     return access;
   } catch (error) {
     console.error('Token refresh failed:', error);
-    
+
     // If refresh fails, clear all tokens and redirect to login
     clearTokens();
     delete axios.defaults.headers.common['Authorization'];
-    
+
     return null;
   }
 };
@@ -54,7 +53,7 @@ export const refreshAccessToken = async () => {
  */
 export const getValidToken = async () => {
   let token = getAccessToken();
-  
+
   if (!token) {
     console.error('No access token found');
     return null;

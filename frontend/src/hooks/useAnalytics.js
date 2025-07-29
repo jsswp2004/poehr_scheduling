@@ -3,6 +3,7 @@ import axios from 'axios';
 import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../config/api';
 
 export const useAnalytics = () => {
     const [reportStartDate, setReportStartDate] = useState(null);
@@ -37,7 +38,7 @@ export const useAnalytics = () => {
 
     const fetchProviders = useCallback(async (token) => {
         try {
-            const res = await axios.get('http://127.0.0.1:8000/api/users/doctors/', {
+            const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setProviders(res.data);
@@ -55,7 +56,7 @@ export const useAnalytics = () => {
                 return;
             }
 
-            const res = await axios.get('http://127.0.0.1:8000/api/users/organizations/', {
+            const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -67,7 +68,7 @@ export const useAnalytics = () => {
                 if (org.logo) {
                     const logoUrl = org.logo.startsWith('http')
                         ? org.logo
-                        : `http://127.0.0.1:8000${org.logo}`;
+                        : `${API_BASE_URL}${org.logo}`;
                     setOrganizationLogo(logoUrl);
                 }
             }
@@ -90,7 +91,7 @@ export const useAnalytics = () => {
             if (reportEndDate) params.end_date = reportEndDate.toISOString().split('T')[0];
             if (reportProvider && reportProvider !== 'all') params.provider_id = reportProvider;
 
-            const res = await axios.get('http://127.0.0.1:8000/api/analytics/reports/', {
+            const res = await axios.get(`${API_BASE_URL}/api/analytics/reports/`, {
                 headers: { Authorization: `Bearer ${token}` },
                 params,
             });

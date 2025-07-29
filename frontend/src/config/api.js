@@ -10,15 +10,33 @@ const getBaseUrl = () => {
 
     // Default based on environment
     if (process.env.NODE_ENV === 'production') {
-        // Production URL - update this to your production server IP
-        return 'http://64.225.56.32:8000';
+        // Production URL - use the same domain as the frontend (relative URL)
+        return '';  // Empty string means use same domain and protocol
     } else {
-        // Development URL
-        return 'http://127.0.0.1:8000';
+        // Development URL - default to localhost:8000
+        return 'http://localhost:8000';
     }
 };
 
 export const API_BASE_URL = getBaseUrl();
+
+// WebSocket URL configuration
+const getWebSocketUrl = () => {
+    if (process.env.REACT_APP_WS_URL) {
+        return process.env.REACT_APP_WS_URL;
+    }
+
+    if (process.env.NODE_ENV === 'production') {
+        // Production WebSocket URL - use same domain but wss protocol
+        const baseUrl = window.location.origin.replace('https:', 'wss:').replace('http:', 'ws:');
+        return baseUrl;
+    } else {
+        // Development WebSocket URL
+        return `ws://localhost:9001`;
+    }
+};
+
+export const WS_BASE_URL = getWebSocketUrl();
 
 // API Endpoints - centralized endpoint definitions
 export const apiEndpoints = {
@@ -49,7 +67,7 @@ export const apiEndpoints = {
 
     // Media endpoints
     profilePicture: (id) => `${API_BASE_URL}/api/users/${id}/`,
-    mediaUrl: (path) => path?.startsWith('http') ? path : `${API_BASE_URL}${path}`,
+    mediaUrl: (path) => path?.startsWith(`http`) ? path : `${API_BASE_URL}${path}`,
 };
 
 // Common headers for API requests

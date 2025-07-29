@@ -4,6 +4,7 @@ import logo from '../assets/POWER_Logo.png';
 import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -47,7 +48,9 @@ function Navbar() {
       const userId = decoded.user_id;
       const firstName = decoded.first_name || decoded.username || '';
       setUsername(firstName);
-      setRole(decoded.role || ''); axios.get(`http://127.0.0.1:8000/api/users/${userId}/`, {
+      setRole(decoded.role || '');
+
+      axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => {
@@ -55,14 +58,14 @@ function Navbar() {
           const orgLogo = res.data.organization_logo;
           if (orgLogo) {
             // The organization_logo field from UserSerializer already includes the full URL
-            setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `http://127.0.0.1:8000${orgLogo}`);
+            setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `${API_BASE_URL}${orgLogo}`);
           } else {
             setLogoUrl(null);
           }
           setOrganizationName(res.data.organization_name || '');
           // Fix: Only set profilePic if the value is not empty/null and is a valid string
           if (res.data.profile_picture && typeof res.data.profile_picture === 'string' && res.data.profile_picture.trim() !== '') {
-            setProfilePic(res.data.profile_picture.startsWith('http') ? res.data.profile_picture : `http://127.0.0.1:8000${res.data.profile_picture}`);
+            setProfilePic(res.data.profile_picture.startsWith('http') ? res.data.profile_picture : `${API_BASE_URL}${res.data.profile_picture}`);
           } else {
             setProfilePic(null);
           }

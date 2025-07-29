@@ -30,6 +30,7 @@ import {
   Circle as CircleIcon
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import { API_BASE_URL } from '../config/api';
 import ChatConnectionStatus from './ChatConnectionStatus';
 import { generateSafeKey } from '../utils/chat/idUtils';
 import { createRoomKey } from '../utils/chat/chatUtils';
@@ -203,7 +204,7 @@ const ChatModal = ({
 
     return user.profile_picture.startsWith("http")
       ? user.profile_picture
-      : `http://127.0.0.1:8000${user.profile_picture}`;
+      : `${API_BASE_URL}${user.profile_picture}`;
   };
 
   const getUserUnreadCount = (user) => {

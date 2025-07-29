@@ -6,6 +6,7 @@ import {
   Button, Stack, Alert, TextField, IconButton, Tooltip, Box, Typography
 } from '@mui/material';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 function UploadTab() {
   const [file, setFile] = useState(null);
@@ -33,7 +34,7 @@ function UploadTab() {
 
   const handleDownload = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/upload/clinic-events/template/', {
+      const response = await axios.get(`${API_BASE_URL}/api/upload/clinic-events/template/`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
@@ -50,7 +51,7 @@ function UploadTab() {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      await axios.post('http://127.0.0.1:8000/api/upload/clinic-events/', formData, {
+      await axios.post(`${API_BASE_URL}/api/upload/clinic-events/`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -58,14 +59,16 @@ function UploadTab() {
       });
       setUploadStatus('✅ Upload successful.');
     } catch (err) {
-      console.error(err);
-      setUploadStatus('❌ Upload failed.');
+      console.error('Upload error details:', err);
+      console.error('Error response:', err.response?.data);
+      console.error('Error status:', err.response?.status);
+      setUploadStatus(`❌ Upload failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
     }
   };
 
   const handleProviderDownload = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/users/providers/download-template/', {
+      const response = await axios.get(`${API_BASE_URL}/api/users/providers/download-template/`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
@@ -82,7 +85,7 @@ function UploadTab() {
     const formData = new FormData();
     formData.append('file', providerFile);
     try {
-      await axios.post('http://127.0.0.1:8000/api/users/providers/upload-csv/', formData, {
+      await axios.post(`${API_BASE_URL}/api/users/providers/upload-csv/`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -90,14 +93,15 @@ function UploadTab() {
       });
       setProviderUploadStatus('✅ Upload successful.');
     } catch (err) {
-      console.error(err);
-      setProviderUploadStatus('❌ Upload failed.');
+      console.error('Provider upload error:', err);
+      console.error('Error response:', err.response?.data);
+      setProviderUploadStatus(`❌ Upload failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
     }
   };
 
   const handleAvailabilityDownload = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/availability/download-template/', {
+      const response = await axios.get(`${API_BASE_URL}/api/availability/download-template/`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
@@ -114,7 +118,7 @@ function UploadTab() {
     const formData = new FormData();
     formData.append('file', availabilityFile);
     try {
-      await axios.post('http://127.0.0.1:8000/api/availability/upload-csv/', formData, {
+      await axios.post(`${API_BASE_URL}/api/availability/upload-csv/`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -122,14 +126,15 @@ function UploadTab() {
       });
       setAvailabilityUploadStatus('✅ Upload successful.');
     } catch (err) {
-      console.error(err);
-      setAvailabilityUploadStatus('❌ Upload failed.');
+      console.error('Availability upload error:', err);
+      console.error('Error response:', err.response?.data);
+      setAvailabilityUploadStatus(`❌ Upload failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
     }
   };
 
   const handlePatientDownload = async () => {
     try {
-      const response = await axios.get('http://127.0.0.1:8000/api/users/patients/download-template/', {
+      const response = await axios.get(`${API_BASE_URL}/api/users/patients/download-template/`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
@@ -146,7 +151,7 @@ function UploadTab() {
     const formData = new FormData();
     formData.append('file', patientFile);
     try {
-      await axios.post('http://127.0.0.1:8000/api/users/patients/upload-csv/', formData, {
+      await axios.post(`${API_BASE_URL}/api/users/patients/upload-csv/`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -154,8 +159,9 @@ function UploadTab() {
       });
       setPatientUploadStatus('✅ Upload successful.');
     } catch (err) {
-      console.error(err);
-      setPatientUploadStatus('❌ Upload failed.');
+      console.error('Patient upload error:', err);
+      console.error('Error response:', err.response?.data);
+      setPatientUploadStatus(`❌ Upload failed: ${err.response?.data?.error || err.response?.data?.message || err.message}`);
     }
   };
 
