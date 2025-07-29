@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import { Container, Paper, Typography, CircularProgress, Box } from '@mui/material';
 import BackButton from '../components/BackButton';
 import CreateAppointmentForm from '../components/CreateAppointmentForm';
@@ -17,7 +18,7 @@ function EditAppointmentPage() {
     const fetchAppointment = async () => {
       setLoading(true);
       try {
-        const res = await axios.get(`http://127.0.0.1:8000/api/appointments/${id}/`, {
+        const res = await axios.get(`${API_BASE_URL}/api/appointments/${id}/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setAppointment(res.data);

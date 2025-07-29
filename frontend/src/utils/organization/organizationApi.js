@@ -2,8 +2,9 @@
  * Organization API service functions
  */
 import axios from 'axios';
+import { API_BASE_URL } from '../../config/api';
 
-const BASE_URL = 'http://127.0.0.1:8000/api';
+const BASE_URL = `${API_BASE_URL}/api`;
 
 // Create API instance with auth token
 const createApiInstance = (token) => {

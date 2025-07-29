@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '../config/api';
 import {
   TextField,
   Box,
@@ -55,7 +56,7 @@ function AdminUserSearchPage() {
 
   const fetchAppointments = async (searchText = "") => {
     try {
-      const res = await axios.get(`http://127.0.0.1:8000/api/appointments/`, {
+      const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const lowerQuery = searchText.trim().toLowerCase();
@@ -237,7 +238,7 @@ function AdminUserSearchPage() {
                             ) {
                               try {
                                 await axios.delete(
-                                  `http://127.0.0.1:8000/api/appointments/${appt.id}/`,
+                                  `${API_BASE_URL}/api/appointments/${appt.id}/`,
                                   {
                                     headers: {
                                       Authorization: `Bearer ${token}`,

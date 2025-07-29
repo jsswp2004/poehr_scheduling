@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '../config/api';
 import {
   Box,
   Typography,
@@ -33,7 +34,7 @@ function AutoSMSSetUpPage() {
       try {
         const token = localStorage.getItem("access_token");
         const res = await axios.get(
-          "http://127.0.0.1:8000/api/settings/environment/",
+          `${API_BASE_URL}/api/settings/environment/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -70,7 +71,7 @@ function AutoSMSSetUpPage() {
       const endDate = lastDay.toISOString().split("T")[0];
 
       const res = await axios.get(
-        `http://127.0.0.1:8000/api/communicator/logs/?message_type=sms&created_at__gte=${startDate}&created_at__lte=${endDate}`,
+        `${API_BASE_URL}/api/communicator/logs/?message_type=sms&created_at__gte=${startDate}&created_at__lte=${endDate}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -96,7 +97,7 @@ function AutoSMSSetUpPage() {
       const formattedDate = startDate.toISOString().split("T")[0];
 
       await axios.post(
-        "http://127.0.0.1:8000/api/settings/environment/",
+        `${API_BASE_URL}/api/settings/environment/`,
         {
           auto_message_frequency: frequency,
           auto_message_day_of_week: dayOfWeek,
@@ -116,7 +117,7 @@ function AutoSMSSetUpPage() {
     try {
       const token = localStorage.getItem("access_token");
       await axios.post(
-        "http://127.0.0.1:8000/api/run-patient-sms-reminders-now/",
+        `${API_BASE_URL}/api/run-patient-sms-reminders-now/`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

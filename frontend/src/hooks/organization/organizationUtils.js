@@ -1,6 +1,7 @@
 /**
  * Utility functions for organization-related operations
  */
+import { API_BASE_URL } from '../../config/api';
 
 /**
  * Utility function to construct logo URL
@@ -17,7 +18,7 @@ export const getLogoUrl = (logoPath) => {
         return logoPath;
     }
 
-    const constructedUrl = `http://127.0.0.1:8000/media/${logoPath}`;
+    const constructedUrl = `${API_BASE_URL}/media/${logoPath}`;
     console.log('Constructed media URL:', constructedUrl);
     return constructedUrl;
 };
