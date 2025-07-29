@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box, Typography } from '@mui/material';
+import { API_BASE_URL } from '../../config/api';
 import BackButton from '../BackButton';
 
 function PatientHeader({ patient }) {
@@ -25,7 +26,7 @@ function PatientHeader({ patient }) {
                         src={
                             patient.profile_picture.startsWith('http')
                                 ? patient.profile_picture
-                                : `http://127.0.0.1:8000${patient.profile_picture}`
+                                : `${API_BASE_URL}${patient.profile_picture}`
                         }
                         alt="Profile"
                         style={{

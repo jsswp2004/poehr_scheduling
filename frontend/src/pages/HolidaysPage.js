@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from '../config/api';
 import {
   Box,
   Stack,
@@ -79,7 +80,7 @@ function HolidaysTab() {
     try {
       const token = localStorage.getItem("access_token");
       const res = await axios.get(
-        `http://127.0.0.1:8000/api/holidays/?t=${Date.now()}`,
+        `${API_BASE_URL}/api/holidays/?t=${Date.now()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -116,7 +117,7 @@ function HolidaysTab() {
         holidayList.map((h) =>
           buffered[h.id] !== h.is_recognized
             ? axios.patch(
-              `http://127.0.0.1:8000/api/holidays/${h.id}/`,
+              `${API_BASE_URL}/api/holidays/${h.id}/`,
               { is_recognized: buffered[h.id] },
               { headers: { Authorization: `Bearer ${token}` } }
             )
@@ -142,7 +143,7 @@ function HolidaysTab() {
       try {
         const token = localStorage.getItem("access_token");
         await axios.patch(
-          `http://127.0.0.1:8000/api/holidays/${id}/`,
+          `${API_BASE_URL}/api/holidays/${id}/`,
           {
             suppressed: true,
           },
@@ -168,7 +169,7 @@ function HolidaysTab() {
     setStatus("");
     try {
       const token = localStorage.getItem("access_token");
-      await axios.get(`http://127.0.0.1:8000/api/holidays/?year=${yearInput}`, {
+      await axios.get(`${API_BASE_URL}/api/holidays/?year=${yearInput}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       setStatus(`Holidays for ${yearInput} loaded!`);
@@ -226,7 +227,7 @@ function HolidaysTab() {
       };
       if (editingHoliday) {
         await axios.patch(
-          `http://127.0.0.1:8000/api/holidays/${editingHoliday.id}/`,
+          `${API_BASE_URL}/api/holidays/${editingHoliday.id}/`,
           payload,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -234,7 +235,7 @@ function HolidaysTab() {
         );
         setStatus("Holiday updated!");
       } else {
-        await axios.post(`http://127.0.0.1:8000/api/holidays/`, payload, {
+        await axios.post(`${API_BASE_URL}/api/holidays/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setStatus("Holiday added!");

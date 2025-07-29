@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 import { Container, Paper, Typography, TextField, Button, Alert } from '@mui/material';
 import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +16,7 @@ function ForgotPasswordPage() {
 
     try {
       // Adjust this URL to match your backend endpoint
-      await axios.post('http://127.0.0.1:8000/api/password-reset/', { email });
+      await axios.post(`${API_BASE_URL}/api/password-reset/`, { email });
 
       setSubmitted(true);
       toast.success('If this email is registered, a reset link has been sent.');
