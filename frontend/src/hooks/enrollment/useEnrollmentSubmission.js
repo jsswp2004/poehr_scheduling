@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../../config/api';
 
 /**
  * Custom hook for managing enrollment submission and API interaction
@@ -30,7 +31,7 @@ export const useEnrollmentSubmission = () => {
                 is_enrollment: true  // Flag to indicate this is service enrollment, not patient registration
             };
 
-            const response = await axios.post('http://127.0.0.1:8000/api/auth/register/', registrationData);
+            const response = await axios.post(`${API_BASE_URL}/api/auth/register/`, registrationData);
 
             setStatus({
                 type: 'success',

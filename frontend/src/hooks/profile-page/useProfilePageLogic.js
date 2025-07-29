@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../../components/SimpleToast';
 import { USER_ROLES } from '../../config/constants';
+import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../useAuth';
 import { useProfile } from '../useProfile';
 import { useProfileSearch } from '../useProfileSearch';
@@ -78,7 +79,7 @@ export const useProfilePageLogic = () => {
         const formData = new FormData();
         formData.append('profile_picture', file);
 
-        const response = await fetch(`http://127.0.0.1:8000/api/users/${profile.id}/`, {
+        const response = await fetch(`${API_BASE_URL}/api/users/${profile.id}/`, {
             method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,

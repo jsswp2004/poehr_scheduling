@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../../config/api';
 
 /**
  * Custom hook for handling contact form submissions
@@ -19,7 +20,7 @@ export const useContactSubmission = () => {
 
             // Send email directly through the API using the public contact endpoint
             await axios.post(
-                'http://127.0.0.1:8000/api/messages/contact-email/',
+                `${API_BASE_URL}/api/messages/contact-email/`,
                 {
                     email: formData.to,
                     subject: subject,
@@ -45,7 +46,7 @@ export const useContactSubmission = () => {
         try {
             // Send SMS through the API using the public contact SMS endpoint
             await axios.post(
-                'http://127.0.0.1:8000/api/messages/contact-sms/',
+                `${API_BASE_URL}/api/messages/contact-sms/`,
                 {
                     phone_to: smsFormData.phone_to,
                     phone_from: smsFormData.phone_from,

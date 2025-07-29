@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../../config/api';
 
 /**
  * Custom hook for managing organization data
@@ -20,7 +21,7 @@ export const useOrganizationData = (currentUser, canSearch) => {
             }
 
             const response = await axios.get(
-                `http://127.0.0.1:8000/api/users/organizations/${currentUser.organization}/`,
+                `${API_BASE_URL}/api/users/organizations/${currentUser.organization}/`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
@@ -38,7 +39,7 @@ export const useOrganizationData = (currentUser, canSearch) => {
             const token = localStorage.getItem('access_token');
             if (!token) return;
 
-            const response = await axios.get(`http://127.0.0.1:8000/api/users/organizations/`, {
+            const response = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
