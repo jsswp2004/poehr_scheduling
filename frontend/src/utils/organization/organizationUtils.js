@@ -1,12 +1,13 @@
 /**
  * Organization utility functions
  */
+import { API_BASE_URL } from '../../config/api';
 
 // Helper function to properly construct logo URLs
 export const getLogoUrl = (logoPath) => {
     if (!logoPath) return null;
     if (logoPath.startsWith('http')) return logoPath;
-    return `http://127.0.0.1:8000${logoPath}`;
+    return `${API_BASE_URL}${logoPath}`;
 };
 
 // Validate organization form data

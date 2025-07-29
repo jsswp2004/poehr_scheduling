@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
 export const usePatientDetailData = () => {
     const [doctors, setDoctors] = useState([]);
@@ -13,7 +14,7 @@ export const usePatientDetailData = () => {
         if (!token) return;
 
         axios
-            .get('http://127.0.0.1:8000/api/users/doctors/', {
+            .get(`${API_BASE_URL}/api/users/doctors/`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => setDoctors(res.data))
@@ -28,7 +29,7 @@ export const usePatientDetailData = () => {
         if (!token) return;
 
         axios
-            .get('http://127.0.0.1:8000/api/users/organizations/', {
+            .get(`${API_BASE_URL}/api/users/organizations/`, {
                 headers: { Authorization: `Bearer ${token}` },
             })
             .then((res) => setOrganizations(res.data))
