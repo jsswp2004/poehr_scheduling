@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../../config/api';
 
 /**
  * Custom hook for managing organization form and CRUD operations
@@ -56,7 +57,7 @@ export const useOrganizationForm = (
 
             const organizationId = editingOrganization ? editingOrganization.id : userOrganization.id;
             const response = await axios.put(
-                `http://127.0.0.1:8000/api/users/organizations/${organizationId}/`,
+                `${API_BASE_URL}/api/users/organizations/${organizationId}/`,
                 formDataToSend,
                 {
                     headers: {
@@ -130,7 +131,7 @@ export const useOrganizationForm = (
     const handleDeleteOrganization = async (orgId) => {
         try {
             const token = localStorage.getItem('access_token');
-            await axios.delete(`http://127.0.0.1:8000/api/users/organizations/${orgId}/`, {
+            await axios.delete(`${API_BASE_URL}/api/users/organizations/${orgId}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
+import { API_BASE_URL } from '../../config/api';
 
 /**
  * Custom hook for handling user authentication and permissions
@@ -24,7 +25,7 @@ export const useAuth = () => {
             }
 
             const decodedToken = jwtDecode(token);
-            const response = await axios.get(`http://127.0.0.1:8000/api/users/${decodedToken.user_id}/`, {
+            const response = await axios.get(`${API_BASE_URL}/api/users/${decodedToken.user_id}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
