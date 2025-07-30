@@ -40,7 +40,10 @@ if [ -n "$K_SERVICE" ]; then
     # Fix availability table if missing
     echo "📋 Checking availability table..."
     python fix_availability_table.py || {
-        echo "⚠️  Availability table check/fix failed, but continuing..."
+        echo "⚠️  Availability table check/fix failed, trying direct creation..."
+        python create_availability_table_direct.py || {
+            echo "⚠️  Direct table creation failed, but continuing..."
+        }
     }
     
 else
