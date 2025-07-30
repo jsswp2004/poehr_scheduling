@@ -43,27 +43,20 @@ urlpatterns = [
     path('api/sms/', include('users.urls')),  # or sms.urls
     path('api/messages/', include('users.urls')),
     path('api/communicator/', include('communicator.urls')),
+]
 
-] 
-
-# Debug: Let's temporarily disable catch-all to test static files
-# urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-# urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-# Manually add static file serving for production
+# Serve static files manually for production
 urlpatterns += [
-    # Serve static files manually
     re_path(r'^static/(?P<path>.*)$', serve, {
         'document_root': settings.STATIC_ROOT,
     }),
-    # Serve media files manually  
     re_path(r'^media/(?P<path>.*)$', serve, {
         'document_root': settings.MEDIA_ROOT,
     }),
 ]
 
-# Add the catch-all pattern LAST (so it doesn't interfere with static files)
+# Catch-all pattern for frontend routes (must be LAST)
 urlpatterns += [
-    # Catch-all: serve React app for any remaining routes
-    re_path(r'.*$', TemplateView.as_view(template_name='index.html'), name='landing_page'),
+    re_path(r'^$', TemplateView.as_view(template_name='index.html'), name='home'),
+    re_path(r'^(?!api/|admin/|health/|static/|media/).*$', TemplateView.as_view(template_name='index.html'), name='frontend_routes'),
 ]
