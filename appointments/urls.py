@@ -10,7 +10,7 @@ router.register(r'availability', AvailabilityViewSet, basename='availability')
 router.register(r'holidays', HolidayViewSet)
 router.register(r'auto-email', AutoEmailViewSet, basename='autoemail')
 
-urlpatterns = [
+urlpatterns = router.urls + [
     # ⬇️ custom endpoint for doctor availability
     path('doctors/<int:doctor_id>/available-dates/', doctor_available_slots, name='doctor-available-dates'),
     path('appointments/<int:appointment_id>/status/', update_appointment_status, name='update-appointment-status'),
@@ -23,4 +23,4 @@ urlpatterns = [
     path('run-patient-reminders-now/', RunPatientRemindersNowView.as_view(), name='run-patient-reminders-now'),
     path('analytics/reports/', AnalyticsReportView.as_view(), name='analytics-reports'),
     path('analytics/export/', ExportReportView.as_view(), name='export-reports'),
-]+ router.urls
+]
