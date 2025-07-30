@@ -176,6 +176,11 @@ function MaintenancePage() {
       block_type: formData.is_blocked ? formData.block_type : null, // NEW
     };
 
+    // Debug logging to see what's being sent
+    console.log("Form Data:", formData);
+    console.log("Payload being sent:", payload);
+    console.log("is_blocked value:", formData.is_blocked, typeof formData.is_blocked);
+
     try {
       if (editingId) {
         await axios.put(

@@ -72,7 +72,8 @@ function EnvironmentProfilePage() {
       if (userRole === "system_admin") {
         const token = localStorage.getItem("access_token");
         try {
-          const res = await axios.get(`${API_BASE_URL}/api/organizations/`, {
+          // Try the correct endpoint first: /api/users/organizations/
+          const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           setOrganizations(res.data);
@@ -81,18 +82,10 @@ function EnvironmentProfilePage() {
           }
         } catch (err) {
           console.error("Failed to fetch organizations:", err);
-          // Try alternative endpoint
-          try {
-            const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            setOrganizations(res.data);
-            if (res.data.length > 0) {
-              setSelectedOrganization(res.data[0].id);
-            }
-          } catch (err2) {
-            console.error("Alternative endpoint also failed:", err2);
-          }
+          // If that fails, the organizations might not exist yet
+          // Create a default organization notification
+          setOrganizations([]);
+          console.log("No organizations found. System admin should create organizations first.");
         }
       }
     };
@@ -108,6 +101,11 @@ function EnvironmentProfilePage() {
         if (userRole === "system_admin" && selectedOrganization) {
           params.organization_id = selectedOrganization;
         }
+
+        console.log("Fetching settings with params:", params);
+        console.log("User role:", userRole);
+        console.log("Selected organization:", selectedOrganization);
+
         const res = await axios.get(
           `${API_BASE_URL}/api/settings/environment/`,
           {
@@ -115,15 +113,29 @@ function EnvironmentProfilePage() {
             params,
           }
         );
+
+        console.log("Settings response:", res.data);
         setBlockedDays(res.data.blocked_days || []);
+        setStatus(""); // Clear any previous error status
       } catch (err) {
+        console.error("Failed to load settings error:", err);
+        console.error("Error response:", err.response?.data);
+        console.error("Error status:", err.response?.status);
         setStatus("Failed to load settings.");
-        console.error(err);
       }
       setLoading(false);
     }
+
+    console.log("Checking if should fetch settings:");
+    console.log("userRole:", userRole);
+    console.log("selectedOrganization:", selectedOrganization);
+    console.log("Condition userRole && (userRole !== 'system_admin' || selectedOrganization):", userRole && (userRole !== "system_admin" || selectedOrganization));
+
     if (userRole && (userRole !== "system_admin" || selectedOrganization)) {
+      console.log("Fetching settings...");
       fetchSettings();
+    } else {
+      console.log("Not fetching settings - condition not met");
     }
   }, [userRole, selectedOrganization]);
 
