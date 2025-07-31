@@ -51,9 +51,11 @@ export const useAppointmentDoctors = (token, defaultProviderId, appointmentToEdi
                     // Automatically fetch available slots for the preselected doctor
                     try {
                         const slots = await fetchDoctorAvailableDates(selected.value, token);
-                        setAvailableSlots(slots);
+                        // Ensure slots is always an array
+                        setAvailableSlots(Array.isArray(slots) ? slots : []);
                     } catch (error) {
                         console.error('Failed to fetch available slots:', error);
+                        setAvailableSlots([]); // Set empty array on error
                     }
                 }
             } catch (error) {
@@ -89,14 +91,16 @@ export const useAppointmentDoctors = (token, defaultProviderId, appointmentToEdi
     // Handle doctor selection and fetch slots
     const handleDoctorChange = async (selected) => {
         setSelectedDoctor(selected);
-        setAvailableSlots([]);
+        setAvailableSlots([]); // Always ensure it's an array
 
         if (selected) {
             try {
                 const slots = await fetchDoctorAvailableDates(selected.value, token);
-                setAvailableSlots(slots);
+                // Ensure slots is always an array
+                setAvailableSlots(Array.isArray(slots) ? slots : []);
             } catch (error) {
                 console.error("Failed to fetch available slots:", error);
+                setAvailableSlots([]); // Set empty array on error
                 toast.error("Failed to fetch available slots");
             }
         }

@@ -138,8 +138,8 @@ deploy_websocket() {
         --platform managed \
         --allow-unauthenticated \
         --add-cloudsql-instances $PROJECT_ID:$REGION:$DB_INSTANCE \
-        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
-            DJANGO_ALLOWED_HOSTS=powerhealthcareit.com,www.powerhealthcareit.com \
+        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+        --set-env-vars DJANGO_ALLOWED_HOSTS=powerhealthcareit.com \
         --port 9001 \
         --memory 512Mi \
         --cpu 1
@@ -156,8 +156,8 @@ run_migrations() {
         --image gcr.io/$PROJECT_ID/poehr-scheduling \
         --region $REGION \
         --add-cloudsql-instances $PROJECT_ID:$REGION:$DB_INSTANCE \
-        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID,\
-            DJANGO_ALLOWED_HOSTS=powerhealthcareit.com,www.powerhealthcareit.com \
+        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
+        --set-env-vars DJANGO_ALLOWED_HOSTS=powerhealthcareit.com \
         --task-timeout 3600 \
         --command python,manage.py,migrate
     
