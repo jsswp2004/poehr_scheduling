@@ -31,6 +31,9 @@ from rest_framework.permissions import IsAdminUser
 
 from .models import Appointment
 
+# Import User model properly
+User = apps.get_model(settings.AUTH_USER_MODEL)
+
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -99,7 +102,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         provider = None
         if provider_id:
             try:
-                User = apps.get_model(settings.AUTH_USER_MODEL)
                 provider = User.objects.get(id=provider_id)
                 organization = provider.organization
             except User.DoesNotExist:
@@ -112,7 +114,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             patient_id = self.request.data.get('patient')
             if patient_id:
                 try:
-                    User = apps.get_model(settings.AUTH_USER_MODEL)
                     patient = User.objects.get(id=patient_id)
                 except User.DoesNotExist:
                     raise ValueError("Patient not found.")
@@ -235,7 +236,6 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         provider = None
         if provider_id:
             try:
-                User = apps.get_model(settings.AUTH_USER_MODEL)
                 provider = User.objects.get(id=provider_id)
                 organization = provider.organization
             except User.DoesNotExist:
@@ -398,9 +398,29 @@ class EnvironmentSettingView(APIView):
                         status=status.HTTP_404_NOT_FOUND
                     )
         
-        # Fallback to user's own organization
+        # Fallback to user's organization
         if not target_organization:
             target_organization = request.user.organization
+            
+        # If still no organization, create a default one for the user
+        if not target_organization:
+            from users.models import Organization
+            
+            # Create a default organization
+            default_org, created = Organization.objects.get_or_create(
+                name="Default Organization",
+                defaults={
+                    'address': '123 Main St',
+                    'city': 'Default City', 
+                    'state': 'CA',
+                    'zipcode': '12345'
+                }
+            )
+            
+            # Assign user to the default organization
+            request.user.organization = default_org
+            request.user.save()
+            target_organization = default_org
             
         if not target_organization:
             return Response(
@@ -414,6 +434,34 @@ class EnvironmentSettingView(APIView):
             defaults={'blocked_days': [0, 6]}  # Default: weekends blocked
         )
         env_serializer = EnvironmentSettingSerializer(env_obj)
+        
+        # Get auto email settings for the target organization
+        auto_email_obj = None
+        if target_organization:
+            auto_email_obj = AutoEmail.objects.filter(organization=target_organization).first()
+        
+        # If no organization-specific settings, try to get global settings
+        if not auto_email_obj:
+            auto_email_obj = AutoEmail.objects.filter(organization__isnull=True).first()
+        
+        # If no settings at all, create default settings
+        if not auto_email_obj:
+            auto_email_obj = AutoEmail.objects.create(
+                organization=target_organization,
+                auto_message_frequency='weekly',
+                auto_message_day_of_week=1,  # Monday
+                auto_message_start_date=timezone.now().date() + timedelta(days=1)
+            )
+        
+        auto_email_serializer = AutoEmailSerializer(auto_email_obj)
+        
+        # Combine the response
+        response_data = {
+            **env_serializer.data,
+            **auto_email_serializer.data
+        }
+        
+        return Response(response_data)
         
         # Get auto email settings for the target organization
         auto_email_obj = None

@@ -19,6 +19,27 @@ if [ -n "$K_SERVICE" ]; then
         echo "⚠️  Database migrations failed, but continuing..."
     }
     
+    # Run comprehensive database fix
+    echo "🔧 [CLOUDRUN] BEGIN comprehensive_db_fix.py..."
+    python comprehensive_db_fix.py || {
+        echo "⚠️  Comprehensive database fix failed, but continuing..."
+    }
+    echo "🔧 [CLOUDRUN] END comprehensive_db_fix.py."
+    
+    # Create appointments table
+    echo "🔧 [CLOUDRUN] BEGIN create_appointments_table.py..."
+    python create_appointments_table.py || {
+        echo "⚠️  Appointments table creation failed, but continuing..."
+    }
+    echo "🔧 [CLOUDRUN] END create_appointments_table.py."
+    
+    # Debug API issue
+    echo "🔍 [CLOUDRUN] BEGIN debug_api_issue.py..."
+    python debug_api_issue.py || {
+        echo "⚠️  API debug failed, but continuing..."
+    }
+    echo "🔍 [CLOUDRUN] END debug_api_issue.py."
+    
     # Fix ClinicEvent table if needed
     echo "🔧 Checking ClinicEvent table..."
     python fix_clinicevent_table.py || {
@@ -28,7 +49,49 @@ if [ -n "$K_SERVICE" ]; then
     # Fix appointment form 500 errors
     echo "🩺 Fixing appointment form endpoints..."
     python fix_appointment_500_errors.py || {
-        echo "⚠️  Appointment form fixes failed, but continuing..."
+        echo "⚠️  Appointment form fix failed, but continuing..."
+    }
+    
+    # Fix holidays table
+    echo "🎄 Fixing holidays table..."
+    python fix_holidays_table.py || {
+        echo "⚠️  Holidays table fix failed, but continuing..."
+    }
+    
+    # Fix environment setting table
+    echo "⚙️  Fixing environment setting table..."
+    python fix_environmentsetting_table.py || {
+        echo "⚠️  Environment setting table fix failed, but continuing..."
+    }
+    
+    # Fix auto email table
+    echo "📧 Fixing auto email table..."
+    python fix_autoemail_table.py || {
+        echo "⚠️  Auto email table fix failed, but continuing..."
+    }
+    
+    # Fix availability table
+    echo "📅 Fixing availability table..."
+    python fix_availability_table.py || {
+        echo "⚠️  Availability table fix failed, but continuing..."
+    }
+    
+    # Test available dates endpoint
+    echo "🧪 Testing available dates endpoint..."
+    python test_available_dates.py || {
+        echo "⚠️  Available dates test failed, but continuing..."
+    }
+    
+    # Fix environment page API errors
+    echo "🌍 Fixing environment page endpoints..."
+    python fix_environment_page_errors.py || {
+        echo "⚠️  Environment page fix failed, but continuing..."
+    }
+    
+    # Fix EnvironmentSetting table structure
+    echo "🔧 Fixing EnvironmentSetting table structure..."
+    python fix_environment_setting_table.py || {
+        echo "⚠️  EnvironmentSetting table fix failed, but continuing..."
     }
     
     # Create cache table (if using database cache)
