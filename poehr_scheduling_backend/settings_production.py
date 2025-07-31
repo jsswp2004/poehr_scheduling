@@ -109,14 +109,14 @@ if os.path.exists(os.path.join(BASE_DIR, 'static')):
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Email configuration
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False  # Explicitly disable SSL since we're using TLS
+# Email configuration - Updated to use private email server
+EMAIL_HOST = 'mail.privateemail.com'
+EMAIL_PORT = 465
+EMAIL_USE_TLS = False  # Disable TLS for SSL
+EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
 EMAIL_HOST_USER = get_secret('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = get_secret('EMAIL_HOST_PASSWORD', default='')
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+DEFAULT_FROM_EMAIL = 'info@powerhealthcareit.com'
 
 # Twilio configuration
 TWILIO_ACCOUNT_SID = get_secret('TWILIO_ACCOUNT_SID', default='')
