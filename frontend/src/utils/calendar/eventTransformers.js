@@ -26,7 +26,7 @@ export const transformAvailabilityToEvents = (availability) => {
         // Determine the appropriate title and styling based on blocked status
         const isBlocked = avail.is_blocked;
         const doctorName = avail.doctor_name || "Unknown Provider";
-        
+
         let title;
         if (isBlocked) {
             const blockType = avail.block_type || "Blocked";

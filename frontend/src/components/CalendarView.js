@@ -83,12 +83,14 @@ const CalendarView = memo(function CalendarView({
   const CustomDateHeader = useCallback(
     ({ date, label }) => {
       // Get availability events for this date from the separate availability events
+      // ONLY include NON-BLOCKED availability events for the provider icon
       const dayAvailability = availabilityEvents.filter((avail) => {
         const eventDate = new Date(avail.start);
-        return eventDate.toDateString() === date.toDateString();
+        const isBlocked = avail.resource?.data?.isBlocked;
+        return eventDate.toDateString() === date.toDateString() && !isBlocked;
       });
 
-      // Get unique providers available on this date with their time slots
+      // Get unique providers available (not blocked) on this date with their time slots
       const availableProviders = dayAvailability.reduce((acc, avail) => {
         const data = avail.resource?.data;
         const providerName = data?.doctor_name || "Unknown Provider";
