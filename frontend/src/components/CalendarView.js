@@ -363,8 +363,14 @@ const CalendarView = memo(function CalendarView({
                 backgroundColor = "#3174ad";
                 break;
               case "availability":
-                backgroundColor = "#28a745";
-                borderColor = "#28a745";
+                // Check if the availability is blocked or available
+                if (event.resource?.data?.isBlocked) {
+                  backgroundColor = "#dc3545"; // Red for blocked
+                  borderColor = "#dc3545";
+                } else {
+                  backgroundColor = "#28a745"; // Green for available
+                  borderColor = "#28a745";
+                }
                 break;
               case "clinic_event":
                 backgroundColor = "#ffc107";

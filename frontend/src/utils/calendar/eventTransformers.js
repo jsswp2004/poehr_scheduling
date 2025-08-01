@@ -22,16 +22,33 @@ export const transformAppointmentsToEvents = (appointments) => {
 
 // Transform availability data to calendar events
 export const transformAvailabilityToEvents = (availability) => {
-    return availability.map((avail) => ({
-        id: `avail-${avail.id}`,
-        title: `Available - ${avail.doctor_name || "Unknown Provider"}`,
-        start: new Date(avail.start_time),
-        end: new Date(avail.end_time),
-        resource: {
-            type: "availability",
-            data: avail,
-        },
-    }));
+    return availability.map((avail) => {
+        // Determine the appropriate title and styling based on blocked status
+        const isBlocked = avail.is_blocked;
+        const doctorName = avail.doctor_name || "Unknown Provider";
+        
+        let title;
+        if (isBlocked) {
+            const blockType = avail.block_type || "Blocked";
+            title = `🚫 ${blockType} - ${doctorName}`;
+        } else {
+            title = `✅ Available - ${doctorName}`;
+        }
+
+        return {
+            id: `avail-${avail.id}`,
+            title: title,
+            start: new Date(avail.start_time),
+            end: new Date(avail.end_time),
+            resource: {
+                type: "availability",
+                data: {
+                    ...avail,
+                    isBlocked: isBlocked,
+                },
+            },
+        };
+    });
 };
 
 // Transform clinic events to calendar events

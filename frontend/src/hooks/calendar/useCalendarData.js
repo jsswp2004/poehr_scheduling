@@ -91,9 +91,15 @@ export const useCalendarData = () => {
             const clinicEventsTransformed = transformClinicEvents(clinicEventsData);
             const holidayEvents = transformHolidays(holidaysData);
 
-            // Combine all events (excluding availability events for calendar display)
+            // Filter availability events - only show BLOCKED events on calendar, keep all for modal
+            const blockedAvailabilityEvents = availEvents.filter(event => 
+                event.resource?.data?.isBlocked === true
+            );
+
+            // Combine all events (include blocked availability events for calendar display)
             const allEvents = [
                 ...appointmentEvents,
+                ...blockedAvailabilityEvents, // Show blocked availability on calendar
                 ...clinicEventsTransformed,
                 ...holidayEvents,
             ];
