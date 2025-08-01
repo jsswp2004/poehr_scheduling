@@ -44,7 +44,8 @@ export const transformAvailabilityToEvents = (availability) => {
                 type: "availability",
                 data: {
                     ...avail,
-                    isBlocked: isBlocked,
+                    isBlocked: isBlocked, // Camel case for consistency
+                    is_blocked: isBlocked, // Keep original field name too
                 },
             },
         };
