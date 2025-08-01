@@ -39,6 +39,7 @@ import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import WebSocketTest from './components/WebSocketTest';
 import ChatTestPage from './pages/ChatTestPage';
+import DebugAvailability from './components/DebugAvailability';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
 
 function AppContent() {
@@ -138,6 +139,7 @@ function AppContent() {
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />        <Route path="/toast-test" element={<ToastTestPage />} />
         <Route path="/websocket-test" element={<WebSocketTest />} />
         <Route path="/chat-test" element={<ChatTestPage />} />
+        <Route path="/debug-availability" element={<PrivateRoute><DebugAvailability /></PrivateRoute>} />
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
       </Routes>
     </>
