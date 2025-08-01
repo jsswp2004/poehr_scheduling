@@ -92,9 +92,10 @@ export const useCalendarData = () => {
             const holidayEvents = transformHolidays(holidaysData);
 
             // Filter availability events - only show BLOCKED events on calendar, keep all for modal
-            const blockedAvailabilityEvents = availEvents.filter(event =>
-                event.resource?.data?.isBlocked === true
-            );
+            const blockedAvailabilityEvents = availEvents.filter(event => {
+                const isBlocked = event.resource?.data?.isBlocked || event.resource?.data?.is_blocked;
+                return isBlocked === true;
+            });
 
             // Combine all events (include blocked availability events for calendar display)
             const allEvents = [

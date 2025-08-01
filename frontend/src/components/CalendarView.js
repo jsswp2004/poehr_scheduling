@@ -86,7 +86,8 @@ const CalendarView = memo(function CalendarView({
       // ONLY include NON-BLOCKED availability events for the provider icon
       const dayAvailability = availabilityEvents.filter((avail) => {
         const eventDate = new Date(avail.start);
-        const isBlocked = avail.resource?.data?.isBlocked;
+        // Check both possible field names for blocked status
+        const isBlocked = avail.resource?.data?.isBlocked || avail.resource?.data?.is_blocked;
         return eventDate.toDateString() === date.toDateString() && !isBlocked;
       });
 
@@ -365,8 +366,9 @@ const CalendarView = memo(function CalendarView({
                 backgroundColor = "#3174ad";
                 break;
               case "availability":
-                // Check if the availability is blocked or available
-                if (event.resource?.data?.isBlocked) {
+                // Check if the availability is blocked or available (check both field names)
+                const isBlocked = event.resource?.data?.isBlocked || event.resource?.data?.is_blocked;
+                if (isBlocked) {
                   backgroundColor = "#dc3545"; // Red for blocked
                   borderColor = "#dc3545";
                 } else {
