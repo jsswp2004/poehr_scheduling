@@ -53,8 +53,12 @@ export const useCalendarData = () => {
 
     // Fetch all calendar data
     const fetchAllData = useCallback(async () => {
-        if (!token) return;
+        if (!token) {
+            console.log('❌ useCalendarData: No token found');
+            return;
+        }
 
+        console.log('🚀 useCalendarData: Fetching calendar data...');
         setLoading(true);
         try {
             const [appointmentsData, availabilityData, doctorsData, clinicEventsData, holidaysData, environmentSettingsData] =
@@ -126,6 +130,7 @@ export const useCalendarData = () => {
 
     // Initial data load
     useEffect(() => {
+        console.log('🔄 useCalendarData: Starting data fetch...');
         fetchAllData();
     }, [fetchAllData]);
 
