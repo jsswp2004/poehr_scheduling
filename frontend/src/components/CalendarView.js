@@ -48,7 +48,6 @@ const CalendarView = memo(function CalendarView({
 }) {
   console.log('🏗️ CalendarView: Component rendering...');
   console.warn('🚨 DEBUG: CalendarView component is definitely loading!');
-  alert('CalendarView is loading - check console for debug info');
   const navigate = useNavigate();
 
   // State for available providers modal
