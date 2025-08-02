@@ -1,0 +1,58 @@
+FROM node:18-alpine as frontend-build
+
+# Build React frontend
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci --only=production
+COPY frontend/ ./
+RUN npm run build
+
+# Python backend stage
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings_production
+
+WORKDIR /code
+
+# Install system dependencies including Cloud SQL Proxy
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+        build-essential \
+        libpq-dev \
+        curl \
+        wget \
+    && curl -o cloud_sql_proxy https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
+    && chmod +x cloud_sql_proxy \
+    && mv cloud_sql_proxy /usr/local/bin/ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt /code/
+RUN pip install --no-cache-dir -r requirements.txt gunicorn google-cloud-secret-manager
+
+# Copy project
+COPY . /code/
+
+# Copy built frontend from previous stage
+COPY --from=frontend-build /frontend/build /code/static/frontend/
+
+# Create staticfiles directory
+RUN mkdir -p /code/staticfiles
+
+# Set a build-time SECRET_KEY for static collection
+ENV DJANGO_SECRET_KEY='temporary-build-time-key-do-not-use-in-production'
+
+# Try to collect static files, but don't fail the build if it doesn't work
+RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || \
+    echo "Warning: Static files collection failed during build. Will retry at runtime."
+
+# Remove the build-time SECRET_KEY
+ENV DJANGO_SECRET_KEY=
+
+EXPOSE 8080
+
+# Use a simpler startup command that should work reliably
+CMD ["sh", "-c", "python manage.py migrate --settings=poehr_scheduling_backend.settings_production; python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || true; gunicorn --bind 0.0.0.0:8080 --workers 1 --threads 8 --timeout 0 --preload --access-logfile - --error-logfile - --log-level info poehr_scheduling_backend.wsgi:application"]
