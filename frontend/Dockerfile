@@ -1,20 +1,16 @@
-# Use Node.js official image
-FROM node:18-alpine
+# Use official nginx image to serve static files
+FROM nginx:alpine
 
-# Set working directory
-WORKDIR /app
+# Remove default nginx static assets
+RUN rm -rf /usr/share/nginx/html/*
 
-# Copy package.json and package-lock.json
-COPY package*.json ./
+# Copy build output from React app
+COPY build /usr/share/nginx/html
 
-# Install dependencies
-RUN npm install
+# Copy custom nginx config for SPA routing
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy the rest of the application
-COPY . .
+# Expose port 80
+EXPOSE 80
 
-# Expose port 3000
-EXPOSE 3000
-
-# Start the development server
-CMD ["npm", "start"]
+CMD ["nginx", "-g", "daemon off;"]

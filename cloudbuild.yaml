@@ -7,13 +7,17 @@ steps:
         "-f",
         "Dockerfile.production",
         "-t",
-        "gcr.io/$PROJECT_ID/poehr-scheduling:latest",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/poehr-scheduling/poehr-scheduling:latest",
         ".",
       ]
 
-  # Push the image to Container Registry
+  # Push the image to Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "gcr.io/$PROJECT_ID/poehr-scheduling:latest"]
+    args:
+      [
+        "push",
+        "us-central1-docker.pkg.dev/$PROJECT_ID/poehr-scheduling/poehr-scheduling:latest",
+      ]
 
   # Deploy to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
@@ -23,7 +27,7 @@ steps:
       - "deploy"
       - "poehr-scheduling"
       - "--image"
-      - "gcr.io/$PROJECT_ID/poehr-scheduling:latest"
+      - "us-central1-docker.pkg.dev/$PROJECT_ID/poehr-scheduling/poehr-scheduling:latest"
       - "--region"
       - "us-central1"
       - "--platform"
@@ -45,7 +49,7 @@ steps:
       - "8080"
 
 images:
-  - "gcr.io/$PROJECT_ID/poehr-scheduling:latest"
+  - "us-central1-docker.pkg.dev/$PROJECT_ID/poehr-scheduling/poehr-scheduling:latest"
 
 options:
   logging: CLOUD_LOGGING_ONLY
