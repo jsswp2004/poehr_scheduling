@@ -5,7 +5,10 @@
 const getBaseUrl = () => {
     // Check if we have a custom API URL from environment variables
     if (process.env.REACT_APP_API_URL) {
-        return process.env.REACT_APP_API_URL;
+        let url = process.env.REACT_APP_API_URL;
+        // Note: Using the URL as specified in environment variable
+        // TODO: Configure backend to support HTTPS for better security
+        return url;
     }
 
     // Default based on environment

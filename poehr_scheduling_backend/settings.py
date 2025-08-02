@@ -19,7 +19,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback-secret-key-if-missing')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153', 'poehr-scheduling-750584621883.us-central1.run.app', 'poehr-frontend-750584621883.us-central1.run.app', 'poehr-scheduling-mjf5efdj3a-uc.a.run.app', 'poehr-frontend-mjf5efdj3a-uc.a.run.app']
 
 # Application definition
 INSTALLED_APPS = [
