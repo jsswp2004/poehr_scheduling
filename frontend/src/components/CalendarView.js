@@ -88,6 +88,17 @@ const CalendarView = memo(function CalendarView({
         const eventDate = new Date(avail.start);
         // Check both possible field names for blocked status
         const isBlocked = avail.resource?.data?.isBlocked || avail.resource?.data?.is_blocked;
+        
+        // Debug logging for August 29, 2025 (the date from console)
+        if (eventDate.toDateString().includes('Aug 29')) {
+          console.log('Aug 29 availability check:', {
+            title: avail.title,
+            isBlocked: isBlocked,
+            resource_data: avail.resource?.data,
+            originalAvail: avail
+          });
+        }
+        
         return eventDate.toDateString() === date.toDateString() && !isBlocked;
       });
 
