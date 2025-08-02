@@ -97,6 +97,11 @@ export const useCalendarData = () => {
                 return isBlocked === true;
             });
 
+            // Debug: Log what blocked events we found
+            console.log('Blocked availability events for calendar:', blockedAvailabilityEvents);
+            console.log('All availability events count:', availEvents.length);
+            console.log('Blocked availability events count:', blockedAvailabilityEvents.length);
+
             // Combine all events (include blocked availability events for calendar display)
             const allEvents = [
                 ...appointmentEvents,
