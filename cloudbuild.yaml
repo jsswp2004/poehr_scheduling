@@ -47,6 +47,9 @@ steps:
       - "0"
       - "--port"
       - "8080"
+      - "--timeout"
+      - "3600"
+      - "--session-affinity"
 
 images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/poehr-scheduling/poehr-scheduling:latest"
