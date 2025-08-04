@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Connection Test</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 50px auto; 
+            padding: 20px; 
+        }
+        .test-section { 
+            border: 1px solid #ddd; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #log { 
+            background: #f8f9fa; 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            height: 300px; 
+            overflow-y: auto; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-connected { background-color: #28a745; }
+        .status-disconnected { background-color: #dc3545; }
+        .status-connecting { background-color: #ffc107; }
+    </style>
+</head>
+<body>
+    <h1>🔌 WebSocket Connection Test</h1>
+    <p>This page tests WebSocket connectivity to your POEHR Scheduling application.</p>
+    
+    <div class="test-section">
+        <h2>🔐 Authentication</h2>
+        <p>Enter your JWT token to test authenticated WebSocket connections:</p>
+        <input type="text" id="tokenInput" placeholder="Paste your JWT token here..." style="width: 100%; padding: 8px; margin: 10px 0;">
+        <button onclick="setToken()">Set Token</button>
+        <button onclick="getTokenFromStorage()">Get from localStorage</button>
+        <p id="tokenStatus" class="warning">No token set</p>
+    </div>
+
+    <div class="test-section">
+        <h2>📡 Connection Status</h2>
+        <p>
+            <span id="statusIndicator" class="status-indicator status-disconnected"></span>
+            <span id="connectionStatus">Disconnected</span>
+        </p>
+        <button id="connectBtn" onclick="connectWebSocket()">Connect</button>
+        <button id="disconnectBtn" onclick="disconnectWebSocket()" disabled>Disconnect</button>
+        <button onclick="sendHeartbeat()" id="heartbeatBtn" disabled>Send Heartbeat</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Connection Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        let token = null;
+
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const colorClass = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            logElement.innerHTML += `<span class="${colorClass}">[${timestamp}] ${message}</span>\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateConnectionStatus(status, isConnected = false) {
+            const statusElement = document.getElementById('connectionStatus');
+            const indicatorElement = document.getElementById('statusIndicator');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const heartbeatBtn = document.getElementById('heartbeatBtn');
+
+            statusElement.textContent = status;
+            
+            if (isConnected) {
+                indicatorElement.className = 'status-indicator status-connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                heartbeatBtn.disabled = false;
+            } else if (status === 'Connecting...') {
+                indicatorElement.className = 'status-indicator status-connecting';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                heartbeatBtn.disabled = true;
+            } else {
+                indicatorElement.className = 'status-indicator status-disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                heartbeatBtn.disabled = true;
+            }
+        }
+
+        function setToken() {
+            const tokenInput = document.getElementById('tokenInput');
+            token = tokenInput.value.trim();
+            
+            if (token) {
+                document.getElementById('tokenStatus').innerHTML = '<span class="success">✅ Token set</span>';
+                log('Token set successfully', 'success');
+            } else {
+                document.getElementById('tokenStatus').innerHTML = '<span class="error">❌ No token provided</span>';
+                log('No token provided', 'error');
+            }
+        }
+
+        function getTokenFromStorage() {
+            const storedToken = localStorage.getItem('token') || localStorage.getItem('access_token');
+            
+            if (storedToken) {
+                token = storedToken;
+                document.getElementById('tokenInput').value = storedToken;
+                document.getElementById('tokenStatus').innerHTML = '<span class="success">✅ Token retrieved from storage</span>';
+                log('Token retrieved from localStorage', 'success');
+            } else {
+                document.getElementById('tokenStatus').innerHTML = '<span class="error">❌ No token found in storage</span>';
+                log('No token found in localStorage', 'error');
+            }
+        }
+
+        function connectWebSocket() {
+            if (!token) {
+                log('❌ No token set. Please set a token first.', 'error');
+                return;
+            }
+
+            // Determine WebSocket URL
+            const isProduction = window.location.hostname.includes('run.app');
+            const baseUrl = isProduction 
+                ? `wss://${window.location.host}` 
+                : 'wss://poehr-scheduling-mjf5efdj3a-uc.a.run.app';
+            
+            const wsUrl = `${baseUrl}/ws/presence/?token=${token}`;
+            
+            log(`🔌 Connecting to: ${wsUrl}`, 'info');
+            updateConnectionStatus('Connecting...');
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function() {
+                    log('✅ WebSocket connected successfully!', 'success');
+                    updateConnectionStatus('Connected', true);
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📨 Received: ${JSON.stringify(data, null, 2)}`, 'success');
+                    } catch (e) {
+                        log(`📨 Received (raw): ${event.data}`, 'info');
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    log(`❌ WebSocket error: ${error}`, 'error');
+                    updateConnectionStatus('Error');
+                };
+
+                ws.onclose = function(event) {
+                    log(`🔌 WebSocket closed: Code ${event.code} - ${event.reason || 'No reason provided'}`, 'warning');
+                    updateConnectionStatus('Disconnected');
+                };
+
+            } catch (error) {
+                log(`❌ Failed to create WebSocket: ${error.message}`, 'error');
+                updateConnectionStatus('Error');
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+                log('🔌 WebSocket connection closed by user', 'info');
+            }
+        }
+
+        function sendHeartbeat() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = { type: 'heartbeat', timestamp: Date.now() };
+                ws.send(JSON.stringify(message));
+                log(`📤 Sent heartbeat: ${JSON.stringify(message)}`, 'info');
+            } else {
+                log('❌ WebSocket not connected', 'error');
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Initialize
+        window.onload = function() {
+            log('🚀 WebSocket Test Page Loaded', 'info');
+            log('💡 Environment: ' + (window.location.hostname.includes('run.app') ? 'Production' : 'Local/Testing'), 'info');
+            getTokenFromStorage(); // Try to get token automatically
+        };
+    </script>
+</body>
+</html>
