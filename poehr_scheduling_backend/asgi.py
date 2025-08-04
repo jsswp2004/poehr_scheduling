@@ -27,9 +27,19 @@ try:
     django.setup()
     logger.info("✅ Django setup complete")
     
+    # Test channels import
+    logger.info("📦 Testing channels import...")
+    from channels.routing import ProtocolTypeRouter, URLRouter
+    from users.middleware import JWTAuthMiddlewareStack
+    import users.routing
+    logger.info("✅ Channels imports successful")
+    
     # Get Django ASGI application
     django_asgi_app = get_asgi_application()
     logger.info("✅ Django ASGI application created")
+    
+    # Test websocket patterns
+    logger.info(f"📋 WebSocket URL patterns: {users.routing.websocket_urlpatterns}")
     
     # Create protocol router
     application = ProtocolTypeRouter({
@@ -40,10 +50,19 @@ try:
             )
         ),
     })
-    logger.info("✅ ASGI Protocol Router configured")
+    logger.info("✅ ASGI Protocol Router configured with WebSocket support")
     
+except ImportError as e:
+    logger.error(f"❌ Import error in ASGI setup: {e}")
+    logger.error("📦 Channels or related modules not available")
+    # Fallback to basic Django ASGI app if channels setup fails
+    django.setup()
+    application = get_asgi_application()
+    logger.warning("⚠️  Falling back to basic Django ASGI (no WebSocket support)")
 except Exception as e:
     logger.error(f"❌ ASGI setup failed: {e}")
+    import traceback
+    logger.error(f"📋 Full traceback: {traceback.format_exc()}")
     # Fallback to basic Django ASGI app if channels setup fails
     django.setup()
     application = get_asgi_application()

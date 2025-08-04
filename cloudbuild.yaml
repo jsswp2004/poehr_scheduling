@@ -50,6 +50,7 @@ steps:
       - "--timeout"
       - "3600"
       - "--session-affinity"
+      - "--no-use-http2"
 
 images:
   - "us-central1-docker.pkg.dev/$PROJECT_ID/poehr-scheduling/poehr-scheduling:latest"
