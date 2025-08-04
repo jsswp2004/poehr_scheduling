@@ -6,7 +6,14 @@ console.log('Token found:', !!token);
 console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'None');
 
 if (token) {
-    const wsUrl = `ws://localhost:9001/ws/presence/?token=${token}`;
+    // Determine WebSocket URL based on environment  
+    const isProduction = window.location.hostname.includes('run.app');
+    const baseWsUrl = isProduction 
+        ? `wss://${window.location.host}` 
+        : 'ws://localhost:8080';  // Updated to unified port 8080
+    
+    const wsUrl = `${baseWsUrl}/ws/presence/?token=${token}`;
+    console.log('Environment:', isProduction ? 'Production' : 'Development');
     console.log('Attempting to connect to:', wsUrl);
     
     const ws = new WebSocket(wsUrl);

@@ -15,9 +15,18 @@ async function testWebSocketConnections() {
   
   console.log('✅ Auth token found:', token.substring(0, 20) + '...');
   
+  // Determine WebSocket URL based on environment
+  const isProduction = window.location.hostname.includes('run.app');
+  const baseWsUrl = isProduction 
+    ? `wss://${window.location.host}` 
+    : 'ws://localhost:8080';  // Updated to use port 8080
+  
+  console.log('🌍 Environment:', isProduction ? 'Production' : 'Development');
+  console.log('🔗 Base WebSocket URL:', baseWsUrl);
+  
   // Test 1: Presence WebSocket
   console.log('\n📋 Test 1: Presence WebSocket Connection');
-  const presenceWsUrl = `ws://localhost:8000/ws/presence/?token=${token}`;
+  const presenceWsUrl = `${baseWsUrl}/ws/presence/?token=${token}`;
   console.log('🔌 Connecting to:', presenceWsUrl);
   
   const presenceWs = new WebSocket(presenceWsUrl);
@@ -56,7 +65,7 @@ async function testWebSocketConnections() {
   // Test 2: Chat WebSocket (after a short delay)
   setTimeout(() => {
     console.log('\n📋 Test 2: Chat WebSocket Connection');
-    const chatWsUrl = `ws://localhost:8000/ws/chat/?token=${token}`;
+    const chatWsUrl = `${baseWsUrl}/ws/chat/?token=${token}`;
     console.log('🔌 Connecting to:', chatWsUrl);
     
     const chatWs = new WebSocket(chatWsUrl);
