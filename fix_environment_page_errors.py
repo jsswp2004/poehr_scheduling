@@ -23,7 +23,7 @@ django.setup()
 from django.db import connection, transaction
 from django.core.management.color import make_style
 from appointments.models import Holiday, Availability, EnvironmentSetting
-from users.models import Organization, User
+from users.models import Organization, CustomUser
 
 style = make_style()
 
