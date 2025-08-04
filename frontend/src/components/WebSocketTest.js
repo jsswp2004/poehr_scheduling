@@ -2,8 +2,15 @@ import React, { useEffect } from 'react';
 import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
 import useWebSocket from '../hooks/useWebSocket';
 
-const WebSocketTest = () => {  const { isConnected, lastMessage, error, sendMessage } = useWebSocket(
-    'ws://localhost:8004/ws/presence/',
+const WebSocketTest = () => {
+  // Determine WebSocket URL based on environment
+  const isProduction = window.location.hostname.includes('run.app');
+  const wsUrl = isProduction 
+    ? `wss://${window.location.host}/ws/presence/`
+    : 'ws://localhost:8080/ws/presence/';  // Updated to unified port 8080
+  
+  const { isConnected, lastMessage, error, sendMessage } = useWebSocket(
+    wsUrl,
     {
       onOpen: () => console.log('🔗 WebSocket connection opened'),
       onMessage: (data) => console.log('📨 Message received:', data),

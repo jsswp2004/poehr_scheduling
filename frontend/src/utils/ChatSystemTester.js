@@ -58,8 +58,14 @@ class ChatSystemTester {
   async testWebSocketConnection() {
     this.log('🔌 Testing WebSocket connection...');
     
-    // Check if WebSocket URL is correct
-    const wsUrl = 'ws://localhost:8001/ws/presence/';
+    // Determine WebSocket URL based on environment
+    const isProduction = window.location.hostname.includes('run.app');
+    const baseWsUrl = isProduction 
+      ? `wss://${window.location.host}` 
+      : 'ws://localhost:8080';  // Updated to unified port 8080
+    
+    const wsUrl = `${baseWsUrl}/ws/presence/`;
+    this.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
     this.log(`Attempting connection to: ${wsUrl}`);
     
     try {
