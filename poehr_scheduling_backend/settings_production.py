@@ -70,8 +70,8 @@ DATABASES = {
     }
 }
 
-# Redis configuration for Memorystore
-REDIS_HOST = get_secret('REDIS_HOST', default=os.environ.get('REDIS_HOST', 'localhost'))
+# Redis configuration for Memorystore with PRIVATE_SERVICE_ACCESS
+REDIS_HOST = '10.77.0.3'  # New Redis instance with PRIVATE_SERVICE_ACCESS
 
 # Security settings (SECRET_KEY already defined above)
 # Only enforce HTTPS in actual Cloud Run environment
@@ -164,20 +164,37 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-    },
-}
-
-# Channel layers for WebSocket (using Redis)
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [(REDIS_HOST, 6379)],
+        'channels': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'channels_redis': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'users.consumers': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
         },
     },
 }
 
-# Celery Configuration (if you're using it)
+# Channel layers for WebSocket - using Redis with PRIVATE_SERVICE_ACCESS
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('10.77.0.3', 6379)],
+            "capacity": 1500,
+            "expiry": 60,
+        },
+    },
+}
+
+# Celery Configuration using new Redis instance
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:6379/0'
 CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:6379/0'
 

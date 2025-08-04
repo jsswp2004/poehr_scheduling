@@ -77,3 +77,4 @@ dj-database-url==2.2.0
 google-cloud-secret-manager==2.20.2
 cloud-sql-python-connector==1.18.3
 gunicorn==21.2.0
+uvicorn[standard]==0.24.0

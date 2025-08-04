@@ -113,15 +113,17 @@ else
     echo "🏠 Running in local development environment"
 fi
 
-# Start the application
-echo "🌟 Starting gunicorn server..."
-exec gunicorn \
-    --bind :${PORT:-8080} \
-    --workers 1 \
-    --threads 8 \
-    --timeout 0 \
-    --preload \
-    --access-logfile - \
-    --error-logfile - \
+# Start the application with Uvicorn ASGI server for WebSocket support
+echo "🌟 Starting Uvicorn ASGI server..."
+echo "📊 Environment variables:"
+echo "  PORT: ${PORT}"
+echo "  DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}"
+echo "  K_SERVICE: ${K_SERVICE}"
+
+echo "🚀 Starting Uvicorn..."
+exec uvicorn \
+    --host 0.0.0.0 \
+    --port ${PORT:-8080} \
     --log-level info \
-    poehr_scheduling_backend.wsgi:application
+    --access-log \
+    poehr_scheduling_backend.asgi:application
