@@ -2,9 +2,8 @@ import React, { useEffect } from 'react';
 import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
 import useWebSocket from '../hooks/useWebSocket';
 
-const WebSocketTest = () => {
-  const { isConnected, lastMessage, error, sendMessage } = useWebSocket(
-    'wss://poehr-scheduling-mjf5efdj3a-uc.a.run.app/ws/presence/',
+const WebSocketTest = () => {  const { isConnected, lastMessage, error, sendMessage } = useWebSocket(
+    'ws://localhost:8004/ws/presence/',
     {
       onOpen: () => console.log('🔗 WebSocket connection opened'),
       onMessage: (data) => console.log('📨 Message received:', data),
@@ -31,12 +30,12 @@ const WebSocketTest = () => {
         <Typography variant="h5" component="h2" gutterBottom>
           WebSocket Connection Test
         </Typography>
-
+        
         <Box sx={{ mb: 2 }}>
           <Typography variant="body1" component="span">
-            Status:
+            Status: 
           </Typography>
-          <Chip
+          <Chip 
             label={isConnected ? 'Connected' : 'Disconnected'}
             color={isConnected ? 'success' : 'error'}
             sx={{ ml: 1 }}
@@ -56,9 +55,9 @@ const WebSocketTest = () => {
             <Typography variant="body2" component="div">
               <strong>Last Message:</strong>
             </Typography>
-            <Box component="pre" sx={{
-              backgroundColor: '#f5f5f5',
-              padding: 1,
+            <Box component="pre" sx={{ 
+              backgroundColor: '#f5f5f5', 
+              padding: 1, 
               borderRadius: 1,
               fontSize: '0.8rem',
               overflow: 'auto'
