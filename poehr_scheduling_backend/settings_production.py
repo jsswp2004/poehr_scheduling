@@ -177,6 +177,9 @@ CHANNEL_LAYERS = {
     },
 }
 
+# ASGI Application
+ASGI_APPLICATION = 'poehr_scheduling_backend.asgi.application'
+
 # Celery Configuration (if you're using it)
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:6379/0'
 CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:6379/0'

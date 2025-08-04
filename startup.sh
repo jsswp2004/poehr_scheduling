@@ -126,8 +126,26 @@ python -c "
 try:
     from poehr_scheduling_backend.asgi import application
     print('✅ ASGI application imported successfully')
+    
+    # Test if it's a ProtocolTypeRouter
+    from channels.routing import ProtocolTypeRouter
+    if isinstance(application, ProtocolTypeRouter):
+        print('✅ ProtocolTypeRouter detected - WebSocket support enabled')
+        protocols = list(application.application_mapping.keys())
+        print(f'   Supported protocols: {protocols}')
+    else:
+        print('⚠️  Basic ASGI application - WebSocket support may be limited')
+        print(f'   Type: {type(application)}')
+        
+except ImportError as e:
+    print(f'❌ Import error: {e}')
+    print('🔍 Running dependency verification...')
+    exec(open('verify_websocket_deps.py').read())
+    exit(1)
 except Exception as e:
     print(f'❌ ASGI import failed: {e}')
+    import traceback
+    traceback.print_exc()
     exit(1)
 " || {
     echo "❌ ASGI application import failed, exiting..."
