@@ -11,6 +11,9 @@ import os
 import django
 import logging
 from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from users.middleware import JWTAuthMiddlewareStack
+import users.routing
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -28,11 +31,6 @@ try:
     django_asgi_app = get_asgi_application()
     logger.info("✅ Django ASGI application created")
     
-    # Import WebSocket routing after Django setup to avoid "Apps aren't loaded yet" error
-    from channels.routing import ProtocolTypeRouter, URLRouter
-    from users.middleware import JWTAuthMiddlewareStack
-    import users.routing
-    
     # Create protocol router
     application = ProtocolTypeRouter({
         "http": django_asgi_app,
@@ -42,7 +40,7 @@ try:
             )
         ),
     })
-    logger.info("✅ ASGI Protocol Router configured with WebSocket support")
+    logger.info("✅ ASGI Protocol Router configured")
     
 except Exception as e:
     logger.error(f"❌ ASGI setup failed: {e}")

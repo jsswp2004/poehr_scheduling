@@ -70,8 +70,8 @@ DATABASES = {
     }
 }
 
-# Redis configuration for Memorystore with PRIVATE_SERVICE_ACCESS
-REDIS_HOST = '10.77.0.3'  # New Redis instance with PRIVATE_SERVICE_ACCESS
+# Redis configuration for Memorystore
+REDIS_HOST = get_secret('REDIS_HOST', default=os.environ.get('REDIS_HOST', 'localhost'))
 
 # Security settings (SECRET_KEY already defined above)
 # Only enforce HTTPS in actual Cloud Run environment
@@ -89,7 +89,7 @@ X_FRAME_OPTIONS = 'DENY'
 # CSRF settings for Cloud Run
 CSRF_TRUSTED_ORIGINS = [
     'https://*.run.app',
-    'https://poehr-scheduling-750584621883.us-central1.run.app',
+    'https://poehr-scheduling-mjf5efdj3a-uc.a.run.app',
 ]
 
 # Static files configuration
@@ -164,44 +164,27 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-        'channels': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'channels_redis': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
-        'users.consumers': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
     },
 }
 
-# Channel layers for WebSocket - using Redis with PRIVATE_SERVICE_ACCESS
+# Channel layers for WebSocket (using Redis)
 CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [('10.77.0.3', 6379)],
-            "capacity": 1500,
-            "expiry": 60,
+            "hosts": [(REDIS_HOST, 6379)],
         },
     },
 }
 
-# Celery Configuration using new Redis instance
+# Celery Configuration (if you're using it)
 CELERY_BROKER_URL = f'redis://{REDIS_HOST}:6379/0'
 CELERY_RESULT_BACKEND = f'redis://{REDIS_HOST}:6379/0'
 
 # CORS settings (if needed for API access)
 if 'corsheaders' in INSTALLED_APPS:
     CORS_ALLOWED_ORIGINS = [
-        "https://poehr-scheduling-750584621883.us-central1.run.app",
+        "https://poehr-scheduling-mjf5efdj3a-uc.a.run.app",
     ] + [f"https://{host}" for host in ALLOWED_HOSTS if host not in ['localhost', '127.0.0.1']]
 
 # Add a startup message to help with debugging

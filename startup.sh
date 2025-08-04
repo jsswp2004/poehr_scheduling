@@ -120,6 +120,20 @@ echo "  PORT: ${PORT}"
 echo "  DJANGO_SETTINGS_MODULE: ${DJANGO_SETTINGS_MODULE}"
 echo "  K_SERVICE: ${K_SERVICE}"
 
+# Test if we can import the ASGI application
+echo "🧪 Testing ASGI application import..."
+python -c "
+try:
+    from poehr_scheduling_backend.asgi import application
+    print('✅ ASGI application imported successfully')
+except Exception as e:
+    print(f'❌ ASGI import failed: {e}')
+    exit(1)
+" || {
+    echo "❌ ASGI application import failed, exiting..."
+    exit 1
+}
+
 echo "🚀 Starting Uvicorn..."
 exec uvicorn \
     --host 0.0.0.0 \
