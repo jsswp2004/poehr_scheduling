@@ -31,10 +31,16 @@ RUN apt-get update \
 
 # Install Python dependencies
 COPY requirements.txt /code/
-RUN pip install --no-cache-dir -r requirements.txt gunicorn google-cloud-secret-manager
+RUN pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir gunicorn google-cloud-secret-manager \
+    && pip install --no-cache-dir uvicorn[standard] \
+    && pip list | grep -E "(channels|uvicorn|redis)" || echo "WARNING: WebSocket dependencies not found"
 
 # Copy project
 COPY . /code/
+
+# Verify WebSocket dependencies are installed
+RUN python verify_websocket_deps.py || echo "⚠️ WebSocket dependency verification failed"
 
 # Copy built frontend from previous stage
 COPY --from=frontend-build /frontend/build /code/static/frontend/
