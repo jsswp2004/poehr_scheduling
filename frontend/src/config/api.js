@@ -30,9 +30,9 @@ const getWebSocketUrl = () => {
     }
 
     if (process.env.NODE_ENV === 'production') {
-        // Production WebSocket URL - use same domain but wss protocol
-        const baseUrl = window.location.origin.replace('https:', 'wss:').replace('http:', 'ws:');
-        return baseUrl;
+        // Production WebSocket URL - use same domain but wss protocol, proxy through /ws/
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        return `${protocol}//${window.location.host}`;
     } else {
         // Development WebSocket URL
         return `ws://localhost:9001`;

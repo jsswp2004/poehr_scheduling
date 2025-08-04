@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import useWebSocket from './useWebSocket';
+import { WS_BASE_URL } from '../config/api';
 
 const useOnlineStatus = () => {
   const [onlineUsers, setOnlineUsers] = useState({});
   const [isConnected, setIsConnected] = useState(false);  // WebSocket connection for presence updates
   const { isConnected: wsConnected, sendMessage, socket, lastMessage } = useWebSocket( // Added lastMessage
-    'ws://localhost:9001/ws/presence/',
+    `${WS_BASE_URL}/ws/presence/`,
     {
       onOpen: () => {
         console.log('✅ Connected to presence WebSocket');
