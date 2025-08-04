@@ -17,7 +17,6 @@ REGION="us-central1"
 DB_INSTANCE="poehr-db-instance"
 REDIS_INSTANCE="poehr-redis"
 SERVICE_NAME="poehr-scheduling"
-WEBSOCKET_SERVICE="poehr-websocket"
 
 echo -e "${GREEN}🚀 Starting Google Cloud Platform deployment for POEHR Scheduling${NC}"
 
@@ -123,28 +122,11 @@ build_and_deploy() {
     echo -e "${GREEN}✅ Application deployed to Cloud Run${NC}"
 }
 
-# Function to deploy WebSocket service
+# Function to deploy WebSocket service - REMOVED
+# WebSocket functionality is now handled by the main service via Uvicorn
 deploy_websocket() {
-    echo -e "${YELLOW}🔌 Deploying WebSocket service...${NC}"
-    
-    # Build WebSocket image
-    docker build -f Dockerfile.websocket -t gcr.io/$PROJECT_ID/poehr-websocket:latest .
-    docker push gcr.io/$PROJECT_ID/poehr-websocket:latest
-
-    # Deploy WebSocket service
-    gcloud run deploy $WEBSOCKET_SERVICE \
-        --image gcr.io/$PROJECT_ID/poehr-websocket:latest \
-        --region $REGION \
-        --platform managed \
-        --allow-unauthenticated \
-        --add-cloudsql-instances $PROJECT_ID:$REGION:$DB_INSTANCE \
-        --set-env-vars GOOGLE_CLOUD_PROJECT=$PROJECT_ID \
-        --set-env-vars DJANGO_ALLOWED_HOSTS=powerhealthcareit.com \
-        --port 9001 \
-        --memory 512Mi \
-        --cpu 1
-
-    echo -e "${GREEN}✅ WebSocket service deployed${NC}"
+    echo -e "${YELLOW}🔌 WebSocket support is integrated in main service (Uvicorn)${NC}"
+    echo -e "${GREEN}✅ No separate WebSocket service needed${NC}"
 }
 
 # Function to run database migrations
@@ -168,13 +150,12 @@ run_migrations() {
 
 # Function to display service URLs
 show_urls() {
-    echo -e "${GREEN}🌐 Deployment completed! Your services are available at:${NC}"
+    echo -e "${GREEN}🌐 Deployment completed! Your service is available at:${NC}"
     
     MAIN_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION --format="value(status.url)")
-    WEBSOCKET_URL=$(gcloud run services describe $WEBSOCKET_SERVICE --region=$REGION --format="value(status.url)")
     
     echo -e "${GREEN}📱 Main Application: $MAIN_URL${NC}"
-    echo -e "${GREEN}🔌 WebSocket Service: $WEBSOCKET_URL${NC}"
+    echo -e "${GREEN}🔌 WebSocket Endpoint: $MAIN_URL/ws/presence/${NC}"
 }
 
 # Main execution
