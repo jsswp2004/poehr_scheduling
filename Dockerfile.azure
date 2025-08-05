@@ -1,0 +1,71 @@
+FROM node:18-alpine as frontend-build
+
+# Build React frontend
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm ci --only=production
+COPY frontend/ ./
+RUN npm run build
+
+# Python backend stage
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings_azure
+
+WORKDIR /code
+
+# Install system dependencies for Azure
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client \
+        build-essential \
+        libpq-dev \
+        curl \
+        wget \
+        gcc \
+        g++ \
+        libffi-dev \
+        libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.azure.txt /code/
+RUN pip install --no-cache-dir -r requirements.azure.txt \
+    && pip install --no-cache-dir gunicorn \
+    && pip install --no-cache-dir uvicorn[standard] \
+    && pip list | grep -E "(channels|uvicorn|redis|azure)" || echo "WARNING: Dependencies verification needed"
+
+# Copy project
+COPY . /code/
+
+# Verify WebSocket and Azure dependencies are installed
+RUN python verify_azure_deps.py || echo "⚠️ Azure dependency verification failed"
+
+# Copy built frontend from previous stage
+COPY --from=frontend-build /frontend/build /code/static/frontend/
+
+# Create staticfiles directory
+RUN mkdir -p /code/staticfiles
+
+# Collect static files with temporary secret key for build
+ENV DJANGO_SECRET_KEY='temporary-build-time-key-do-not-use-in-production'
+RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_azure || \
+    echo "Warning: Static files collection failed during build. Will retry at runtime."
+
+# Create initialization script for Azure
+RUN echo '#!/bin/bash\npython manage.py migrate --noinput\npython manage.py create_admin\nexec "$@"' > /code/init.sh && chmod +x /code/init.sh
+
+# Clear the temporary secret key
+ENV DJANGO_SECRET_KEY=
+
+# Copy Azure startup script
+COPY startup-azure.sh /code/
+RUN chmod +x /code/startup-azure.sh
+
+# Expose port
+EXPOSE 8080
+
+# Use Azure-specific startup script
+CMD ["/code/startup-azure.sh"]
