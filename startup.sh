@@ -13,101 +13,63 @@ if [ -n "$K_SERVICE" ]; then
         echo "⚠️  Static files collection failed, but continuing..."
     }
     
-    # Run database migrations
+    # Run database migrations (critical - must complete)
     echo "🗄️  Running database migrations..."
     python manage.py migrate --settings=poehr_scheduling_backend.settings_production || {
         echo "⚠️  Database migrations failed, but continuing..."
     }
     
-    # Run comprehensive database fix
-    echo "🔧 [CLOUDRUN] BEGIN comprehensive_db_fix.py..."
-    python comprehensive_db_fix.py || {
-        echo "⚠️  Comprehensive database fix failed, but continuing..."
-    }
-    echo "🔧 [CLOUDRUN] END comprehensive_db_fix.py."
+    # Only run essential fixes for startup, defer others to background
+    echo "🔧 Running essential database fixes..."
     
-    # Create appointments table
-    echo "🔧 [CLOUDRUN] BEGIN create_appointments_table.py..."
-    python create_appointments_table.py || {
-        echo "⚠️  Appointments table creation failed, but continuing..."
-    }
-    echo "🔧 [CLOUDRUN] END create_appointments_table.py."
+    # Background all non-critical fixes to avoid startup timeout
+    {
+        echo "🔧 [BACKGROUND] Running comprehensive database fix..."
+        python comprehensive_db_fix.py
+        
+        echo "🔧 [BACKGROUND] Creating appointments table..."
+        python create_appointments_table.py
+        
+        echo "� [BACKGROUND] Running API debug..."
+        python debug_api_issue.py
+        
+        echo "� [BACKGROUND] Checking ClinicEvent table..."
+        python fix_clinicevent_table.py
+        
+        echo "🩺 [BACKGROUND] Fixing appointment form endpoints..."
+        python fix_appointment_500_errors.py
+        
+        echo "🎄 [BACKGROUND] Fixing holidays table..."
+        python fix_holidays_table.py
+        
+        echo "⚙️  [BACKGROUND] Fixing environment setting table..."
+        python fix_environmentsetting_table.py
+        
+        echo "📧 [BACKGROUND] Fixing auto email table..."
+        python fix_autoemail_table.py
+        
+        echo "📅 [BACKGROUND] Fixing availability table..."
+        python fix_availability_table.py
+        
+        echo "🧪 [BACKGROUND] Testing available dates endpoint..."
+        python test_available_dates.py
+        
+        echo "🌍 [BACKGROUND] Fixing environment page endpoints..."
+        python fix_environment_page_errors.py
+        
+        echo "🔧 [BACKGROUND] Fixing EnvironmentSetting table structure..."
+        python fix_environment_setting_table.py
+        
+        echo "🔄 [BACKGROUND] Creating cache table..."
+        python manage.py createcachetable --settings=poehr_scheduling_backend.settings_production
+        
+        echo "📋 [BACKGROUND] Checking availability table..."
+        python fix_availability_table.py || python create_availability_table_direct.py
+        
+        echo "✅ [BACKGROUND] All background fixes completed"
+    } &
     
-    # Debug API issue
-    echo "🔍 [CLOUDRUN] BEGIN debug_api_issue.py..."
-    python debug_api_issue.py || {
-        echo "⚠️  API debug failed, but continuing..."
-    }
-    echo "🔍 [CLOUDRUN] END debug_api_issue.py."
-    
-    # Fix ClinicEvent table if needed
-    echo "🔧 Checking ClinicEvent table..."
-    python fix_clinicevent_table.py || {
-        echo "⚠️  ClinicEvent table check/fix failed, but continuing..."
-    }
-    
-    # Fix appointment form 500 errors
-    echo "🩺 Fixing appointment form endpoints..."
-    python fix_appointment_500_errors.py || {
-        echo "⚠️  Appointment form fix failed, but continuing..."
-    }
-    
-    # Fix holidays table
-    echo "🎄 Fixing holidays table..."
-    python fix_holidays_table.py || {
-        echo "⚠️  Holidays table fix failed, but continuing..."
-    }
-    
-    # Fix environment setting table
-    echo "⚙️  Fixing environment setting table..."
-    python fix_environmentsetting_table.py || {
-        echo "⚠️  Environment setting table fix failed, but continuing..."
-    }
-    
-    # Fix auto email table
-    echo "📧 Fixing auto email table..."
-    python fix_autoemail_table.py || {
-        echo "⚠️  Auto email table fix failed, but continuing..."
-    }
-    
-    # Fix availability table
-    echo "📅 Fixing availability table..."
-    python fix_availability_table.py || {
-        echo "⚠️  Availability table fix failed, but continuing..."
-    }
-    
-    # Test available dates endpoint
-    echo "🧪 Testing available dates endpoint..."
-    python test_available_dates.py || {
-        echo "⚠️  Available dates test failed, but continuing..."
-    }
-    
-    # Fix environment page API errors
-    echo "🌍 Fixing environment page endpoints..."
-    python fix_environment_page_errors.py || {
-        echo "⚠️  Environment page fix failed, but continuing..."
-    }
-    
-    # Fix EnvironmentSetting table structure
-    echo "🔧 Fixing EnvironmentSetting table structure..."
-    python fix_environment_setting_table.py || {
-        echo "⚠️  EnvironmentSetting table fix failed, but continuing..."
-    }
-    
-    # Create cache table (if using database cache)
-    echo "🔄 Creating cache table..."
-    python manage.py createcachetable --settings=poehr_scheduling_backend.settings_production || {
-        echo "ℹ️  Cache table creation skipped (might already exist)"
-    }
-    
-    # Fix availability table if missing
-    echo "📋 Checking availability table..."
-    python fix_availability_table.py || {
-        echo "⚠️  Availability table check/fix failed, trying direct creation..."
-        python create_availability_table_direct.py || {
-            echo "⚠️  Direct table creation failed, but continuing..."
-        }
-    }
+    echo "⚡ Background fixes started, proceeding with server startup..."
     
 else
     echo "🏠 Running in local development environment"
