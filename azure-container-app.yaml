@@ -1,0 +1,107 @@
+# Azure Container Apps Configuration
+# This file defines the container app deployment for POEHR Scheduling
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poehr-scheduling
+  labels:
+    app: poehr-scheduling
+spec:
+  properties:
+    managedEnvironmentId: "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.App/managedEnvironments/{environment-name}"
+    configuration:
+      activeRevisionsMode: Single
+      ingress:
+        external: true
+        targetPort: 8080
+        allowInsecure: false
+        traffic:
+          - weight: 100
+            latestRevision: true
+        customDomains: []
+      secrets:
+        - name: django-secret-key
+          keyVaultUrl: "https://{keyvault-name}.vault.azure.net/secrets/django-secret-key"
+        - name: database-password
+          keyVaultUrl: "https://{keyvault-name}.vault.azure.net/secrets/database-password"
+        - name: redis-connection-string
+          keyVaultUrl: "https://{keyvault-name}.vault.azure.net/secrets/redis-connection-string"
+        - name: email-host-password
+          keyVaultUrl: "https://{keyvault-name}.vault.azure.net/secrets/email-host-password"
+        - name: twilio-auth-token
+          keyVaultUrl: "https://{keyvault-name}.vault.azure.net/secrets/twilio-auth-token"
+        - name: stripe-secret-key
+          keyVaultUrl: "https://{keyvault-name}.vault.azure.net/secrets/stripe-secret-key"
+    template:
+      containers:
+        - image: "{registry-name}.azurecr.io/poehr-scheduling:latest"
+          name: poehr-scheduling
+          resources:
+            cpu: "1.0"
+            memory: "2Gi"
+          env:
+            # Azure-specific environment variables
+            - name: AZURE_SUBSCRIPTION_ID
+              value: "{subscription-id}"
+            - name: AZURE_RESOURCE_GROUP
+              value: "{resource-group}"
+            - name: AZURE_KEYVAULT_NAME
+              value: "{keyvault-name}"
+            
+            # Django configuration
+            - name: DJANGO_SETTINGS_MODULE
+              value: "poehr_scheduling_backend.settings_azure"
+            - name: DEBUG
+              value: "False"
+            - name: PORT
+              value: "8080"
+            
+            # Database configuration (Azure Database for PostgreSQL)
+            - name: DB_NAME
+              value: "poehr_db"
+            - name: DB_USER
+              value: "poehr_admin"
+            - name: DB_HOST
+              value: "{postgresql-server-name}.postgres.database.azure.com"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_PASSWORD
+              secretRef: "database-password"
+            
+            # Redis configuration (Azure Cache for Redis)
+            - name: REDIS_HOST
+              value: "{redis-cache-name}.redis.cache.windows.net"
+            - name: REDIS_PORT
+              value: "6380"
+            - name: REDIS_PASSWORD
+              secretRef: "redis-connection-string"
+            
+            # Application secrets
+            - name: DJANGO_SECRET_KEY
+              secretRef: "django-secret-key"
+            - name: EMAIL_HOST_PASSWORD
+              secretRef: "email-host-password"
+            - name: TWILIO_AUTH_TOKEN
+              secretRef: "twilio-auth-token"
+            - name: STRIPE_SECRET_KEY
+              secretRef: "stripe-secret-key"
+            
+            # Other environment variables
+            - name: EMAIL_HOST_USER
+              value: "your-email@gmail.com"
+            - name: TWILIO_ACCOUNT_SID
+              value: "your-twilio-sid"
+            - name: TWILIO_PHONE_NUMBER
+              value: "+1234567890"
+            - name: STRIPE_PUBLISHABLE_KEY
+              value: "pk_live_your_publishable_key"
+      
+      scale:
+        minReplicas: 1
+        maxReplicas: 10
+        rules:
+          - name: http-scaling
+            http:
+              metadata:
+                concurrentRequests: "30"
