@@ -354,7 +354,9 @@ This is an automated notification from POWER Scheduling.
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    serializer_class = CustomTokenObtainPairSerializer
+    # TEMPORARY: Use standard serializer to debug 500 error
+    # serializer_class = CustomTokenObtainPairSerializer
+    pass
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
