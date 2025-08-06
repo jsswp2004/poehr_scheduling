@@ -6,6 +6,8 @@ from django.views.generic import TemplateView
 from django.views.static import serve
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
+from django.core.management import call_command
+from django.views.decorators.csrf import csrf_exempt
 import os
 
 def favicon_view(request):
@@ -20,11 +22,31 @@ def health_check(request):
         'version': '1.0.0'
     })
 
+@csrf_exempt
+def create_admin_endpoint(request):
+    """Emergency endpoint to create admin user if needed"""
+    if request.method == 'POST':
+        try:
+            call_command('create_admin')
+            return JsonResponse({
+                'status': 'success',
+                'message': 'Admin user creation attempted. Check logs.'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Error: {str(e)}'
+            }, status=500)
+    return JsonResponse({'message': 'POST to create admin user'})
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     
     # Health check endpoint
     path('health/', health_check, name='health_check'),
+    
+    # Emergency admin creation endpoint
+    path('create-admin/', create_admin_endpoint, name='create_admin'),
     
     # Favicon handler
     path('favicon.ico', favicon_view, name='favicon'),
@@ -58,5 +80,5 @@ urlpatterns += [
 # Catch-all pattern for frontend routes (must be LAST)
 urlpatterns += [
     re_path(r'^$', TemplateView.as_view(template_name='index.html'), name='home'),
-    re_path(r'^(?!api/|admin/|health/|static/|media/).*$', TemplateView.as_view(template_name='index.html'), name='frontend_routes'),
+    re_path(r'^(?!api/|admin/|health/|static/|media/|create-admin/).*$', TemplateView.as_view(template_name='index.html'), name='frontend_routes'),
 ]

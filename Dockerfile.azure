@@ -51,7 +51,7 @@ RUN mkdir -p /code/staticfiles
 
 # Collect static files with temporary secret key for build
 ENV DJANGO_SECRET_KEY='temporary-build-time-key-do-not-use-in-production'
-RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_azure || \
+RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_azure_env || \
     echo "Warning: Static files collection failed during build. Will retry at runtime."
 
 # Create initialization script for Azure
