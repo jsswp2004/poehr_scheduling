@@ -1,0 +1,19 @@
+services:
+  web:
+    environment:
+      - DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings_azure_temp
+      - DB_HOST=poehr-scheduling-postgres.postgres.database.azure.com
+      - DB_USER=poehr_admin
+      - DB_PASSWORD=krat25Miko!
+      - DB_NAME=poehr_db
+      - DB_PORT=5432
+    command: python manage.py runserver 0.0.0.0:8000
+  
+  websocket:
+    environment:
+      - DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings_azure_temp
+      - DB_HOST=poehr-scheduling-postgres.postgres.database.azure.com
+      - DB_USER=poehr_admin
+      - DB_PASSWORD=krat25Miko!
+      - DB_NAME=poehr_db
+      - DB_PORT=5432
