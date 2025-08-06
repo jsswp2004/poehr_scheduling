@@ -25,7 +25,7 @@
 - Host: `poehr-scheduling-redis.redis.cache.windows.net`
 - Port: 6380 (SSL), 6379 (non-SSL)
 - SKU: Basic C0
-- Primary Key: `mg6F87C0wlGpo1oZEgLMYdIUdRyh3pjmkAzCaIRfxgA=`
+- Primary Key: `[REDACTED - NOT NEEDED SINCE REDIS REMOVED]`
 - TLS Version: 1.2
 
 ### Container Registry
@@ -72,7 +72,7 @@ az containerapp create \
         DB_USER="poehr_admin" \
         DB_PASSWORD="PoehrSecure123!" \
         REDIS_HOST="poehr-scheduling-redis.redis.cache.windows.net" \
-        REDIS_PASSWORD="mg6F87C0wlGpo1oZEgLMYdIUdRyh3pjmkAzCaIRfxgA="
+        REDIS_PASSWORD="[REDACTED - NOT NEEDED]"
 ```
 
 #### 4. Database Migration
@@ -144,7 +144,7 @@ az postgres flexible-server connect \
 ```bash
 # Test Redis connectivity
 redis-cli -h poehr-scheduling-redis.redis.cache.windows.net \
-    -p 6380 -a "mg6F87C0wlGpo1oZEgLMYdIUdRyh3pjmkAzCaIRfxgA=" --tls
+    -p 6380 -a "[REDACTED]" --tls
 ```
 
 #### Container Logs
