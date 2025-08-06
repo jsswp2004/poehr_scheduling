@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
+from users.models import CustomUser, Organization
 from django.contrib.auth.hashers import make_password
 
 
@@ -18,16 +18,32 @@ class Command(BaseCommand):
 
         try:
             # Check if user already exists
-            if User.objects.filter(username=username).exists():
+            if CustomUser.objects.filter(username=username).exists():
                 self.stdout.write(
                     self.style.WARNING(f'Superuser "{username}" already exists!')
                 )
-                user = User.objects.get(username=username)
-                self.stdout.write(f'Existing user: {user.username} - {user.email}')
+                user = CustomUser.objects.get(username=username)
+                self.stdout.write(f'Existing user: {user.username} - {user.email} - Role: {user.role}')
                 return
 
+            # Get or create an organization for the admin user
+            org, created = Organization.objects.get_or_create(
+                name="POWER Health Systems",
+                defaults={
+                    'organization_type': 'clinic',
+                    'address': 'Admin Office',
+                    'phone_number': '+1234567890',
+                    'subscription_tier': 'enterprise'
+                }
+            )
+            
+            if created:
+                self.stdout.write(f'Created organization: {org.name}')
+            else:
+                self.stdout.write(f'Using existing organization: {org.name}')
+
             # Create the superuser
-            user = User.objects.create(
+            user = CustomUser.objects.create(
                 username=username,
                 email=email,
                 password=make_password(password),
@@ -35,14 +51,20 @@ class Command(BaseCommand):
                 is_active=True,
                 is_superuser=True,
                 first_name="System",
-                last_name="Administrator"
+                last_name="Administrator",
+                role="system_admin",
+                organization=org,
+                phone_number="+1234567890"
             )
 
             self.stdout.write(
                 self.style.SUCCESS(f'Successfully created superuser "{username}"')
             )
             self.stdout.write(f'Email: {email}')
+            self.stdout.write(f'Role: {user.role}')
+            self.stdout.write(f'Organization: {org.name}')
             self.stdout.write('Access admin at: /admin/')
+            self.stdout.write('Application login at: /login')
             self.stdout.write(
                 self.style.WARNING('IMPORTANT: Consider changing the password after first login!')
             )
@@ -51,3 +73,5 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.ERROR(f'Error creating superuser: {e}')
             )
+            import traceback
+            traceback.print_exc()

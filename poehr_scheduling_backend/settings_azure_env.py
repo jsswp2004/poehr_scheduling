@@ -8,8 +8,10 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-key-change-in-product
 ALLOWED_HOSTS = [
     'poehr-scheduling.azurecontainerapps.io',
     'poehr-scheduling.kindforest-7b8bffcf.centralus.azurecontainerapps.io',
+    'poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io',
     'localhost',
     '127.0.0.1',
+    '*',  # Allow all hosts for now to avoid this issue
 ]
 
 # Database
@@ -52,9 +54,31 @@ CHANNEL_LAYERS = {
     },
 }
 
+# Templates for serving React frontend
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': ['/code/static/frontend'],  # React build output location
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
 # Static files
-STATIC_ROOT = '/app/staticfiles'
+STATIC_ROOT = '/code/staticfiles'
 STATIC_URL = '/static/'
+
+# Static files directories - where Django looks for static files before collecting
+STATICFILES_DIRS = [
+    '/code/static/frontend/static',  # React build output static files (JS, CSS, etc.)
+]
 
 # Email (using Azure Communication Services or SendGrid)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

@@ -11,9 +11,6 @@ import os
 import django
 import logging
 from django.core.asgi import get_asgi_application
-from channels.routing import ProtocolTypeRouter, URLRouter
-from users.middleware import JWTAuthMiddlewareStack
-import users.routing
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -27,7 +24,7 @@ try:
     django.setup()
     logger.info("✅ Django setup complete")
     
-    # Test channels import
+    # Test channels import AFTER Django setup
     logger.info("📦 Testing channels import...")
     from channels.routing import ProtocolTypeRouter, URLRouter
     from users.middleware import JWTAuthMiddlewareStack

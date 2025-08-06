@@ -9,14 +9,67 @@ if [ -n "$CONTAINER_APP_NAME" ]; then
     
     # Try to collect static files at runtime if not done during build
     echo "📁 Collecting static files..."
-    python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_azure || {
+    python manage.py collectstatic --noinput --settings=$DJANGO_SETTINGS_MODULE || {
         echo "⚠️  Static files collection failed, but continuing..."
     }
     
     # Run database migrations (critical - must complete)
     echo "🗄️  Running database migrations..."
-    python manage.py migrate --settings=poehr_scheduling_backend.settings_azure || {
+    python manage.py migrate --settings=$DJANGO_SETTINGS_MODULE || {
         echo "⚠️  Database migrations failed, but continuing..."
+    }
+    
+    # Create admin user if it doesn't exist (for login functionality)
+    echo "👤 Creating admin user if needed..."
+    python -c "
+import os
+import django
+from django.conf import settings
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', '$DJANGO_SETTINGS_MODULE')
+django.setup()
+
+try:
+    from users.models import CustomUser, Organization
+    from django.contrib.auth.hashers import make_password
+    
+    # Check if admin user exists
+    if not CustomUser.objects.filter(username='jsswp2004').exists():
+        print('Creating admin user...')
+        
+        # Get or create organization
+        org, created = Organization.objects.get_or_create(
+            name='POWER Health Systems',
+            defaults={
+                'organization_type': 'clinic',
+                'address': 'Admin Office',
+                'phone_number': '+1234567890',
+                'subscription_tier': 'enterprise'
+            }
+        )
+        
+        # Create admin user
+        admin_user = CustomUser.objects.create(
+            username='jsswp2004',
+            email='jsswp2004@powerhealth.com',
+            password=make_password('krat25Miko!'),
+            is_staff=True,
+            is_active=True,
+            is_superuser=True,
+            first_name='System',
+            last_name='Administrator',
+            role='system_admin',
+            organization=org,
+            phone_number='+1234567890'
+        )
+        print(f'✅ Admin user created: {admin_user.username}')
+    else:
+        print('✅ Admin user already exists')
+        
+except Exception as e:
+    print(f'⚠️  Admin user creation failed: {e}')
+" || {
+        echo "⚠️  Admin user creation failed, but continuing..."
     }
     
     # Only run essential fixes for startup, defer others to background
