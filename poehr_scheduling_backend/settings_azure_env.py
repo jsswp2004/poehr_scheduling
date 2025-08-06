@@ -19,8 +19,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'poehr_db'),
-        'USER': os.environ.get('DB_USER', 'poehr_admin'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'PoehrSecure123!'),
+        'USER': os.environ.get('DB_USER', 'poehr_admin'),  # Simple username works
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'krat25Miko!'),
         'HOST': os.environ.get('DB_HOST', 'poehr-scheduling-postgres.postgres.database.azure.com'),
         'PORT': os.environ.get('DB_PORT', '5432'),
         'OPTIONS': {
@@ -29,29 +29,19 @@ DATABASES = {
     }
 }
 
-# Redis Cache
+# Use local memory cache instead of Redis for now
 CACHES = {
     'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': f"redis://:{os.environ.get('REDIS_PASSWORD', 'mg6F87C0wlGpo1oZEgLMYdIUdRyh3pjmkAzCaIRfxgA=')}@{os.environ.get('REDIS_HOST', 'poehr-scheduling-redis.redis.cache.windows.net')}:6380",
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'CONNECTION_POOL_KWARGS': {
-                'ssl_cert_reqs': None,
-            }
-        }
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
     }
 }
 
-# Channels
+# Disable channels (websockets) for now since it also requires Redis
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [f"redis://:{os.environ.get('REDIS_PASSWORD', 'mg6F87C0wlGpo1oZEgLMYdIUdRyh3pjmkAzCaIRfxgA=')}@{os.environ.get('REDIS_HOST', 'poehr-scheduling-redis.redis.cache.windows.net')}:6380"],
-            'ssl_cert_reqs': None,
-        },
-    },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
 }
 
 # Templates for serving React frontend
