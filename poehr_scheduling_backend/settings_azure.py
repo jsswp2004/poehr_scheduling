@@ -1,6 +1,13 @@
 from .settings import *
 import os
-from .utils.azure_secrets import get_azure_secret
+# TEMPORARY: Comment out Azure Key Vault to fix 500 error
+# from .utils.azure_secrets import get_azure_secret
+
+# Temporary function to bypass Key Vault
+def get_azure_secret(secret_name, default=None):
+    """Temporary bypass for Azure Key Vault - uses environment variables instead"""
+    env_var = secret_name.upper().replace('-', '_')
+    return os.environ.get(env_var, default)
 
 # Azure production settings
 DEBUG = False
