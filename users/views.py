@@ -127,10 +127,19 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         data = request.data
         
+        # DEBUG: Add comprehensive logging for patient registration debugging
+        print(f"🔍 REGISTRATION DEBUG - Full request data: {data}")
+        print(f"🔍 REGISTRATION DEBUG - Request user authenticated: {request.user.is_authenticated}")
+        print(f"🔍 REGISTRATION DEBUG - Request user: {request.user if request.user.is_authenticated else 'Anonymous'}")
+        
         # Extract Stripe-related data from the request
         payment_method_id = data.get('payment_method_id')
         subscription_tier = data.get('subscription_tier', 'basic')
         is_enrollment = data.get('is_enrollment', False)  # Check if this is service enrollment
+        
+        print(f"🔍 REGISTRATION DEBUG - Is enrollment: {is_enrollment}")
+        print(f"🔍 REGISTRATION DEBUG - Payment method ID: {payment_method_id}")
+        print(f"🔍 REGISTRATION DEBUG - Subscription tier: {subscription_tier}")
         
         # Debug: Show what enrollment data was received
         if is_enrollment:
@@ -148,6 +157,7 @@ class RegisterView(generics.CreateAPIView):
         if request.user.is_authenticated:
             # User is logged in, use their organization
             organization = request.user.organization
+            print(f"🔍 REGISTRATION DEBUG - Using authenticated user's organization: {organization}")
         else:
             # User is not logged in, use the organization_name from the form or default
             org_name = data.get('organization_name') or "Default Organization"
@@ -162,21 +172,33 @@ class RegisterView(generics.CreateAPIView):
         # Validate the serializer first (without Stripe fields and organization_name)
         serializer_data = {k: v for k, v in data.items() 
                           if k not in ['payment_method_id', 'subscription_tier', 'is_enrollment', 'organization_name']}
+        
+        print(f"🔍 REGISTRATION DEBUG - Serializer data (after filtering): {serializer_data}")
         serializer = self.get_serializer(data=serializer_data)
         
         # Debug validation errors in detail
         if not serializer.is_valid():
             print("❌ Serializer validation errors:", serializer.errors)
             print("❌ Registration data causing errors:", serializer_data)
+            
+            # Check specifically for username errors
+            if 'username' in serializer.errors:
+                print(f"❌ USERNAME VALIDATION ERROR: {serializer.errors['username']}")
+                print(f"❌ Provided username: '{serializer_data.get('username')}'")
+            
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
+            print(f"✅ REGISTRATION DEBUG - User created successfully: {user.username}")
             
             # Set role to 'admin' for service enrollment
             if is_enrollment:
                 user.role = 'admin'
+                print(f"🔍 REGISTRATION DEBUG - Set role to admin for enrollment")
+            else:
+                print(f"🔍 REGISTRATION DEBUG - Patient registration, role: {user.role}")
             
             # User created successfully
               # Only create Stripe customer for service enrollment, not patient registration
