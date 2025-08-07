@@ -717,117 +717,12 @@ class UploadProvidersCSV(APIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        file = request.FILES.get("file")
-        if not file:
-            return Response({"error": "No file provided."}, status=400)
-        decoded_file = file.read().decode("utf-8").splitlines()
-        reader = csv.DictReader(decoded_file)
-        created_count = 0
-        updated_count = 0
-        errors = []
-        for row in reader:
-            username = row.get("username", "").strip()
-            email = row.get("email", "").strip()
-            first_name = row.get("first_name", "").strip()
-            last_name = row.get("last_name", "").strip()
-            org_name = row.get("organization", "").strip()
-            phone_number = row.get("phone_number", "").strip()
-            provider_username = row.get("provider", "").strip()
-            role = row.get("role", "doctor").strip() or "doctor"
-            password = row.get("password", "").strip()
-            if not username or not email:
-                errors.append(f"Missing username or email for row: {row}")
-                continue
-            # Get or create organization
-            org = None
-            if org_name:
-                org, _ = Organization.objects.get_or_create(name=org_name)
-            # Get provider (if specified)
-            provider = None
-            if provider_username:
-                try:
-                    provider = CustomUser.objects.get(username=provider_username)
-                except CustomUser.DoesNotExist:
-                    errors.append(
-                        f"Provider '{provider_username}' not found for user '{username}'"
-                    )
-            # Create or update user
-            user, created = CustomUser.objects.get_or_create(
-                username=username,
-                defaults={
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "role": role,
-                    "organization": org,
-                    "phone_number": phone_number,
-                },
-            )
-            if created:
-                if password:
-                    user.set_password(password)
-                else:
-                    user.set_password("changeme123")
-                user.save()
-                created_count += 1
-            else:
-                # Update fields
-                user.email = email
-                user.first_name = first_name
-                user.last_name = last_name
-                user.role = role
-                user.organization = org
-                user.phone_number = phone_number
-                if password:
-                    user.set_password(password)
-                user.save()
-                updated_count += 1
-            if provider:
-                user.provider = provider
-                user.save()
-        return Response(
-            {
-                "message": f"{created_count} providers created, {updated_count} updated.",
-                "errors": errors,
-            }
-        )
-
-
-class DownloadPatientsCSVTemplate(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
-
-    def get(self, request):
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="patients_template.csv"'
-        writer = csv.writer(response)
-        writer.writerow(
-            [
-                "username",
-                "email",
-                "first_name",
-                "last_name",
-                "organization",
-                "phone_number",
-                "date_of_birth",
-                "address",
-                "medical_history",
-                "password",
-            ]
-        )
-        return response
-
-
-class UploadPatientsCSV(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
-    parser_classes = [MultiPartParser]
-
-    def post(self, request):
-        logger.info("🔵 Starting patient CSV upload")
+        logger.info("🔵 Starting provider CSV upload")
         
         try:
             file = request.FILES.get("file")
             if not file:
-                logger.error("❌ No file provided in upload request")
+                logger.error("❌ No file provided in provider upload request")
                 return Response({"error": "No file provided."}, status=400)
 
             logger.info(f"📁 File received: {file.name}, size: {file.size} bytes")
@@ -864,15 +759,22 @@ class UploadPatientsCSV(APIView):
                     last_name = row.get("last_name", "").strip()
                     org_name = row.get("organization", "").strip()
                     phone_number = row.get("phone_number", "").strip()
-                    date_of_birth = row.get("date_of_birth", "").strip()
-                    address = row.get("address", "").strip()
-                    medical_history = row.get("medical_history", "").strip()
+                    provider_username = row.get("provider", "").strip()
+                    role = row.get("role", "doctor").strip() or "doctor"
                     password = row.get("password", "").strip()
 
-                    logger.info(f"📋 Row data - Username: {username}, Email: {email}, Phone: {phone_number}")
+                    logger.info(f"📋 Row data - Username: {username}, Email: {email}, Role: {role}, Phone: {phone_number}")
 
                     if not username or not email:
                         error_msg = f"Missing username or email for row {row_count}: {row}"
+                        logger.warning(f"⚠️ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                    # Validate role
+                    valid_roles = ['patient', 'doctor', 'receptionist', 'admin', 'registrar', 'none', 'system_admin']
+                    if role not in valid_roles:
+                        error_msg = f"Invalid role '{role}' for user '{username}'. Valid roles: {valid_roles}"
                         logger.warning(f"⚠️ {error_msg}")
                         errors.append(error_msg)
                         continue
@@ -888,11 +790,209 @@ class UploadPatientsCSV(APIView):
                             continue
                         phone_number = cleaned_phone
 
+                    # Get or create organization
+                    org = None
+                    if org_name:
+                        try:
+                            org, org_created = Organization.objects.get_or_create(name=org_name)
+                            logger.info(f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})")
+                        except Exception as e:
+                            error_msg = f"Organization creation error for '{org_name}': {str(e)}"
+                            logger.error(f"❌ {error_msg}")
+                            errors.append(error_msg)
+                            continue
+
+                    # Get provider (if specified)
+                    provider = None
+                    if provider_username:
+                        try:
+                            provider = CustomUser.objects.get(username=provider_username)
+                            logger.info(f"👨‍⚕️ Provider found: {provider.username}")
+                        except CustomUser.DoesNotExist:
+                            error_msg = f"Provider '{provider_username}' not found for user '{username}'"
+                            logger.warning(f"⚠️ {error_msg}")
+                            errors.append(error_msg)
+                            continue
+
+                    # Create or update user
+                    try:
+                        user, created = CustomUser.objects.get_or_create(
+                            username=username,
+                            defaults={
+                                "email": email,
+                                "first_name": first_name,
+                                "last_name": last_name,
+                                "role": role,
+                                "organization": org,
+                                "phone_number": phone_number,
+                            },
+                        )
+                        logger.info(f"👤 User: {username} ({'created' if created else 'updated'})")
+
+                        if created:
+                            if password:
+                                user.set_password(password)
+                            else:
+                                user.set_password("changeme123")
+                            user.save()
+                            created_count += 1
+                        else:
+                            # Update fields
+                            user.email = email
+                            user.first_name = first_name
+                            user.last_name = last_name
+                            user.role = role
+                            user.organization = org
+                            user.phone_number = phone_number
+                            if password:
+                                user.set_password(password)
+                            user.save()
+                            updated_count += 1
+
+                        # Set provider relationship if specified
+                        if provider:
+                            user.provider = provider
+                            user.save()
+                            logger.info(f"🔗 Provider relationship set: {username} -> {provider.username}")
+
+                    except Exception as e:
+                        error_msg = f"User creation/update error for '{username}': {str(e)}"
+                        logger.error(f"❌ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                except Exception as e:
+                    error_msg = f"Unexpected error processing row {row_count}: {str(e)}"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
+                    continue
+
+            logger.info(f"✅ Provider upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}")
+
+            return Response(
+                {
+                    "message": f"{created_count} providers created, {updated_count} updated.",
+                    "errors": errors,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"❌ Critical error in provider upload: {str(e)}", exc_info=True)
+            return Response(
+                {"error": f"Upload failed: {str(e)}"},
+                status=500
+            )
+
+
+class DownloadPatientsCSVTemplate(APIView):
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def get(self, request):
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="patients_template.csv"'
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                "username",
+                "email",
+                "first_name",
+                "last_name",
+                "organization",
+                "phone_number",
+                "date_of_birth",
+                "address",
+                "medical_history",
+                "password",
+            ]
+        )
+        return response
+
+
+class UploadPatientsCSV(APIView):
+    permission_classes = [IsAdminOrSystemAdmin]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        logger.info("🔵 Starting patient CSV upload")
+
+        try:
+            file = request.FILES.get("file")
+            if not file:
+                logger.error("❌ No file provided in upload request")
+                return Response({"error": "No file provided."}, status=400)
+
+            logger.info(f"📁 File received: {file.name}, size: {file.size} bytes")
+
+            # Check file encoding and content
+            try:
+                decoded_file = file.read().decode("utf-8").splitlines()
+                logger.info(f"📄 File decoded successfully, {len(decoded_file)} lines")
+            except UnicodeDecodeError as e:
+                logger.error(f"❌ File encoding error: {str(e)}")
+                return Response({"error": f"File encoding error: {str(e)}"}, status=400)
+
+            # Parse CSV
+            try:
+                reader = csv.DictReader(decoded_file)
+                logger.info(f"📊 CSV headers: {reader.fieldnames}")
+            except Exception as e:
+                logger.error(f"❌ CSV parsing error: {str(e)}")
+                return Response({"error": f"CSV parsing error: {str(e)}"}, status=400)
+
+            created_count = 0
+            updated_count = 0
+            errors = []
+            row_count = 0
+
+            for row in reader:
+                row_count += 1
+                logger.info(f"🔄 Processing row {row_count}: {row}")
+
+                try:
+                    username = row.get("username", "").strip()
+                    email = row.get("email", "").strip()
+                    first_name = row.get("first_name", "").strip()
+                    last_name = row.get("last_name", "").strip()
+                    org_name = row.get("organization", "").strip()
+                    phone_number = row.get("phone_number", "").strip()
+                    date_of_birth = row.get("date_of_birth", "").strip()
+                    address = row.get("address", "").strip()
+                    medical_history = row.get("medical_history", "").strip()
+                    password = row.get("password", "").strip()
+
+                    logger.info(
+                        f"📋 Row data - Username: {username}, Email: {email}, Phone: {phone_number}"
+                    )
+
+                    if not username or not email:
+                        error_msg = (
+                            f"Missing username or email for row {row_count}: {row}"
+                        )
+                        logger.warning(f"⚠️ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                    # Validate phone number format
+                    if phone_number:
+                        # Clean phone number - remove any non-digit characters except + and spaces
+                        cleaned_phone = "".join(
+                            c
+                            for c in phone_number
+                            if c.isdigit() or c in ["+", " ", "-", "(", ")"]
+                        )
+                        if len(cleaned_phone) > 20:  # Phone number too long
+                            error_msg = f"Phone number too long for user '{username}': {phone_number}"
+                            logger.warning(f"⚠️ {error_msg}")
+                            errors.append(error_msg)
+                            continue
+                        phone_number = cleaned_phone
+
                     # Parse date of birth
                     dob = None
                     if date_of_birth:
                         try:
                             from datetime import datetime
+
                             dob = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
                             logger.info(f"📅 Parsed DOB: {dob}")
                         except ValueError as e:
@@ -905,8 +1005,12 @@ class UploadPatientsCSV(APIView):
                     org = None
                     if org_name:
                         try:
-                            org, org_created = Organization.objects.get_or_create(name=org_name)
-                            logger.info(f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})")
+                            org, org_created = Organization.objects.get_or_create(
+                                name=org_name
+                            )
+                            logger.info(
+                                f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})"
+                            )
                         except Exception as e:
                             error_msg = f"Organization creation error for '{org_name}': {str(e)}"
                             logger.error(f"❌ {error_msg}")
@@ -926,7 +1030,9 @@ class UploadPatientsCSV(APIView):
                                 "phone_number": phone_number,
                             },
                         )
-                        logger.info(f"👤 User: {username} ({'created' if created else 'updated'})")
+                        logger.info(
+                            f"👤 User: {username} ({'created' if created else 'updated'})"
+                        )
 
                         if created:
                             if password:
@@ -949,7 +1055,9 @@ class UploadPatientsCSV(APIView):
                             updated_count += 1
 
                     except Exception as e:
-                        error_msg = f"User creation/update error for '{username}': {str(e)}"
+                        error_msg = (
+                            f"User creation/update error for '{username}': {str(e)}"
+                        )
                         logger.error(f"❌ {error_msg}")
                         errors.append(error_msg)
                         continue
@@ -965,13 +1073,17 @@ class UploadPatientsCSV(APIView):
                                 "organization": org,
                             },
                         )
-                        logger.info(f"🏥 Patient profile: ({'created' if patient_created else 'updated'})")
+                        logger.info(
+                            f"🏥 Patient profile: ({'created' if patient_created else 'updated'})"
+                        )
 
                         if not patient_created:
                             # Update patient fields
                             patient.date_of_birth = dob or patient.date_of_birth
                             patient.address = address or patient.address
-                            patient.medical_history = medical_history or patient.medical_history
+                            patient.medical_history = (
+                                medical_history or patient.medical_history
+                            )
                             patient.organization = org or patient.organization
                             patient.save()
 
@@ -987,7 +1099,9 @@ class UploadPatientsCSV(APIView):
                     errors.append(error_msg)
                     continue
 
-            logger.info(f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}")
+            logger.info(
+                f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}"
+            )
 
             return Response(
                 {
@@ -997,11 +1111,10 @@ class UploadPatientsCSV(APIView):
             )
 
         except Exception as e:
-            logger.error(f"❌ Critical error in patient upload: {str(e)}", exc_info=True)
-            return Response(
-                {"error": f"Upload failed: {str(e)}"},
-                status=500
+            logger.error(
+                f"❌ Critical error in patient upload: {str(e)}", exc_info=True
             )
+            return Response({"error": f"Upload failed: {str(e)}"}, status=500)
 
 
 @api_view(["GET", "PATCH"])
