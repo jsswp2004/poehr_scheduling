@@ -4,7 +4,13 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.generics import RetrieveAPIView, RetrieveUpdateAPIView, DestroyAPIView, RetrieveUpdateDestroyAPIView, CreateAPIView
+from rest_framework.generics import (
+    RetrieveAPIView,
+    RetrieveUpdateAPIView,
+    DestroyAPIView,
+    RetrieveUpdateDestroyAPIView,
+    CreateAPIView,
+)
 from rest_framework.parsers import MultiPartParser, JSONParser
 from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
@@ -17,7 +23,12 @@ import logging
 from django.db import transaction
 
 from .models import CustomUser, Patient
-from .serializers import UserSerializer, PatientSerializer, OrganizationSerializer, get_admin_emails
+from .serializers import (
+    UserSerializer,
+    PatientSerializer,
+    OrganizationSerializer,
+    get_admin_emails,
+)
 from .stripe_service import StripeService
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
@@ -28,18 +39,19 @@ from communicator.utils import send_email
 
 logger = logging.getLogger(__name__)
 
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')  # optional
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")  # optional
 
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = [MultiPartParser, JSONParser]  # Accept both file uploads and JSON
-    
+
     def get_queryset(self):
         """
         Filter organizations based on user role:
@@ -48,99 +60,107 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         - others: can see their own organization
         """
         user = self.request.user
-        if user.role == 'system_admin':
+        if user.role == "system_admin":
             return Organization.objects.all()
         elif user.organization:
             return Organization.objects.filter(id=user.organization.id)
         else:
             return Organization.objects.none()
-    
+
     def perform_create(self, serializer):
         """Allow admin, system_admin, and registrar to create organizations"""
         user = self.request.user
-        
-        if user.role not in ['admin', 'system_admin', 'registrar']:
+
+        if user.role not in ["admin", "system_admin", "registrar"]:
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("You do not have permission to create organizations.")
-        
+
+            raise PermissionDenied(
+                "You do not have permission to create organizations."
+            )
+
         serializer.save()
-    
+
     def perform_update(self, serializer):
         """Only allow admin and system_admin to update organizations"""
         user = self.request.user
-        if user.role not in ['admin', 'system_admin']:
+        if user.role not in ["admin", "system_admin"]:
             from rest_framework.exceptions import PermissionDenied
+
             raise PermissionDenied("You do not have permission to edit organizations.")
         serializer.save()
-    
+
     def perform_destroy(self, instance):
         """Only allow system_admin to delete organizations"""
         user = self.request.user
-        if user.role != 'system_admin':
+        if user.role != "system_admin":
             from rest_framework.exceptions import PermissionDenied
-            raise PermissionDenied("You do not have permission to delete organizations.")
+
+            raise PermissionDenied(
+                "You do not have permission to delete organizations."
+            )
         instance.delete()
+
 
 class UserDetailView(RetrieveUpdateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'pk'
-    lookup_url_kwarg = 'pk'
+    lookup_field = "pk"
+    lookup_url_kwarg = "pk"
+
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
 
+
 class PatientUpdateView(RetrieveUpdateAPIView):
-    queryset = Patient.objects.select_related('user')
+    queryset = Patient.objects.select_related("user")
     serializer_class = PatientSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'user__id'
-    lookup_url_kwarg = 'user_id'
-    
+    lookup_field = "user__id"
+    lookup_url_kwarg = "user_id"
+
     def update(self, request, *args, **kwargs):
         return super().update(request, *args, **kwargs)
 
+
 class PatientDetailView(RetrieveAPIView):
-    queryset = Patient.objects.select_related('user')
+    queryset = Patient.objects.select_related("user")
     serializer_class = PatientSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'user_id'
-    lookup_url_kwarg = 'user_id'
+    lookup_field = "user_id"
+    lookup_url_kwarg = "user_id"
+
 
 class DoctorListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        if user.role == 'system_admin':
-            doctors = CustomUser.objects.filter(role='doctor')
+        if user.role == "system_admin":
+            doctors = CustomUser.objects.filter(role="doctor")
         else:
-            doctors = CustomUser.objects.filter(role='doctor', organization=user.organization)
+            doctors = CustomUser.objects.filter(
+                role="doctor", organization=user.organization
+            )
         serializer = UserSerializer(doctors, many=True)
         return Response(serializer.data)
+
 
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
-    
+
     def create(self, request, *args, **kwargs):
         data = request.data
         
-        # DEBUG: Add comprehensive logging for patient registration debugging
-        print(f"🔍 REGISTRATION DEBUG - Full request data: {data}")
-        print(f"🔍 REGISTRATION DEBUG - Request user authenticated: {request.user.is_authenticated}")
-        print(f"🔍 REGISTRATION DEBUG - Request user: {request.user if request.user.is_authenticated else 'Anonymous'}")
-        
         # Extract Stripe-related data from the request
-        payment_method_id = data.get('payment_method_id')
-        subscription_tier = data.get('subscription_tier', 'basic')
-        is_enrollment = data.get('is_enrollment', False)  # Check if this is service enrollment
-        
-        print(f"🔍 REGISTRATION DEBUG - Is enrollment: {is_enrollment}")
-        print(f"🔍 REGISTRATION DEBUG - Payment method ID: {payment_method_id}")
-        print(f"🔍 REGISTRATION DEBUG - Subscription tier: {subscription_tier}")
-        
+        payment_method_id = data.get("payment_method_id")
+        subscription_tier = data.get("subscription_tier", "basic")
+        is_enrollment = data.get(
+            "is_enrollment", False
+        )  # Check if this is service enrollment
+
         # Debug: Show what enrollment data was received
         if is_enrollment:
             print(f"📝 Enrollment data received:")
@@ -149,19 +169,18 @@ class RegisterView(generics.CreateAPIView):
             print(f"   - User Name: '{data.get('first_name')} {data.get('last_name')}'")
             print(f"   - Email: '{data.get('email')}'")
             print(f"   - Is Enrollment: {is_enrollment}")
-        
+
         # Store plain password for welcome email before it gets hashed
-        plain_password = data.get('password', '') if is_enrollment else ''
-        
+        plain_password = data.get("password", "") if is_enrollment else ""
+
         # If the user is authenticated, use their organization
         if request.user.is_authenticated:
             # User is logged in, use their organization
             organization = request.user.organization
-            print(f"🔍 REGISTRATION DEBUG - Using authenticated user's organization: {organization}")
         else:
             # User is not logged in, use the organization_name from the form or default
-            org_name = data.get('organization_name') or "Default Organization"
-            org_type = data.get('organization_type', 'personal')
+            org_name = data.get("organization_name") or "Default Organization"
+            org_type = data.get("organization_type", "personal")
             print(f"🏢 Creating/getting organization: '{org_name}' (type: {org_type})")
             organization, created = Organization.objects.get_or_create(name=org_name)
             if created:
@@ -170,86 +189,87 @@ class RegisterView(generics.CreateAPIView):
                 print(f"♻️ Using existing organization: {organization.name}")
         
         # Validate the serializer first (without Stripe fields and organization_name)
-        serializer_data = {k: v for k, v in data.items() 
-                          if k not in ['payment_method_id', 'subscription_tier', 'is_enrollment', 'organization_name']}
+        serializer_data = {
+            k: v
+            for k, v in data.items()
+            if k
+            not in [
+                "payment_method_id",
+                "subscription_tier",
+                "is_enrollment",
+                "organization_name",
+            ]
+        }
         
-        print(f"🔍 REGISTRATION DEBUG - Serializer data (after filtering): {serializer_data}")
         serializer = self.get_serializer(data=serializer_data)
         
         # Debug validation errors in detail
         if not serializer.is_valid():
             print("❌ Serializer validation errors:", serializer.errors)
             print("❌ Registration data causing errors:", serializer_data)
-            
-            # Check specifically for username errors
-            if 'username' in serializer.errors:
-                print(f"❌ USERNAME VALIDATION ERROR: {serializer.errors['username']}")
-                print(f"❌ Provided username: '{serializer_data.get('username')}'")
-            
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
-            print(f"✅ REGISTRATION DEBUG - User created successfully: {user.username}")
             
             # Set role to 'admin' for service enrollment
             if is_enrollment:
-                user.role = 'admin'
-                print(f"🔍 REGISTRATION DEBUG - Set role to admin for enrollment")
-            else:
-                print(f"🔍 REGISTRATION DEBUG - Patient registration, role: {user.role}")
+                user.role = "admin"
             
             # User created successfully
-              # Only create Stripe customer for service enrollment, not patient registration
-            if is_enrollment:                # Initialize Stripe service
+            # Only create Stripe customer for service enrollment, not patient registration
+            if is_enrollment:  # Initialize Stripe service
                 stripe_service = StripeService()
-                
+
                 # Create or retrieve Stripe customer
                 customer = stripe_service.create_customer(
-                    user=user,
-                    payment_method_id=payment_method_id
+                    user=user, payment_method_id=payment_method_id
                 )
-                
+
                 if not customer:
                     # Delete the user if Stripe customer creation failed
                     user.delete()
                     return Response(
-                        {"error": "Failed to create Stripe customer"}, 
-                        status=status.HTTP_400_BAD_REQUEST
+                        {"error": "Failed to create Stripe customer"},
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
-                
+
                 customer_id = customer.id
-                  # Create trial subscription
+                # Create trial subscription
                 subscription = stripe_service.create_trial_subscription(
                     user=user,
                     tier=subscription_tier,
-                    payment_method_id=payment_method_id
+                    payment_method_id=payment_method_id,
                 )
-                
+
                 if not subscription:
                     # Delete the user if subscription creation failed
                     user.delete()
                     return Response(
-                        {"error": "Failed to create subscription"}, 
-                        status=status.HTTP_400_BAD_REQUEST
+                        {"error": "Failed to create subscription"},
+                        status=status.HTTP_400_BAD_REQUEST,
                     )
-                
+
                 # Update user with Stripe information (user data is already updated in create_trial_subscription)
                 # No need to manually set these fields as they're set in the method
             else:
                 # For patient registration, no Stripe integration needed
                 pass
-            
+
             # Save the user (with or without Stripe data)
             user.save()
-            
+
             if is_enrollment:
                 # Send welcome email to new enrollee
                 try:
                     # Format trial end date
-                    trial_end_formatted = user.trial_end_date.strftime('%B %d, %Y') if user.trial_end_date else 'N/A'
-                    
+                    trial_end_formatted = (
+                        user.trial_end_date.strftime("%B %d, %Y")
+                        if user.trial_end_date
+                        else "N/A"
+                    )
+
                     # Create welcome email content
                     subject = f"🎉 Welcome to POWER Scheduling - Your {user.subscription_tier.title()} Plan is Ready!"
                     message = f"""
@@ -280,25 +300,33 @@ Thank you for choosing POWER Scheduling!
 Best regards,
 The POWER Scheduling Team
                     """
-                    
+
                     send_email(
                         to_email=user.email,
                         subject=subject,
                         message=message.strip(),
-                        user=user
+                        user=user,
                     )
-                    
+
                 except Exception as email_error:
                     # Log email error but don't fail the registration
-                    logger.error(f"Failed to send welcome email to {user.email}: {str(email_error)}")
-                    print(f"⚠️ Welcome email failed for {user.email}: {str(email_error)}")
-                
+                    logger.error(
+                        f"Failed to send welcome email to {user.email}: {str(email_error)}"
+                    )
+                    print(
+                        f"⚠️ Welcome email failed for {user.email}: {str(email_error)}"
+                    )
+
                 # Send admin notification email for new enrollment
                 try:
-                    admin_emails = get_admin_emails()  # Get system admins (no specific organization)
-                    
+                    admin_emails = (
+                        get_admin_emails()
+                    )  # Get system admins (no specific organization)
+
                     if admin_emails:
-                        admin_subject = f"🚀 New Organization Enrollment - {user.organization.name}"
+                        admin_subject = (
+                            f"🚀 New Organization Enrollment - {user.organization.name}"
+                        )
                         admin_message = f"""
 New Organization Enrollment Alert
 
@@ -330,55 +358,68 @@ A new organization has successfully enrolled in POWER Scheduling!
 
 This is an automated notification from POWER Scheduling.
                         """
-                        
+
                         for admin_email in admin_emails:
                             send_email(
                                 to_email=admin_email,
                                 subject=admin_subject,
                                 message=admin_message.strip(),
-                                user=user  # Associate with enrolling user's organization
+                                user=user,  # Associate with enrolling user's organization
                             )
-                        
-                        print(f"✅ Admin notification sent to {len(admin_emails)} admin(s)")
-                    
+
+                        print(
+                            f"✅ Admin notification sent to {len(admin_emails)} admin(s)"
+                        )
+
                 except Exception as admin_email_error:
                     # Log admin email error but don't fail the registration
-                    logger.error(f"Failed to send admin notification for enrollment {user.email}: {str(admin_email_error)}")
-                    print(f"⚠️ Admin notification failed for enrollment {user.email}: {str(admin_email_error)}")
-                
-                return Response({
-                    "message": "User created successfully with 7-day free trial",
-                    "user_id": user.id,
-                    "trial_end_date": user.trial_end_date,
-                    "subscription_tier": user.subscription_tier,
-                    "subscription_status": user.subscription_status
-                }, status=status.HTTP_201_CREATED)
+                    logger.error(
+                        f"Failed to send admin notification for enrollment {user.email}: {str(admin_email_error)}"
+                    )
+                    print(
+                        f"⚠️ Admin notification failed for enrollment {user.email}: {str(admin_email_error)}"
+                    )
+
+                return Response(
+                    {
+                        "message": "User created successfully with 7-day free trial",
+                        "user_id": user.id,
+                        "trial_end_date": user.trial_end_date,
+                        "subscription_tier": user.subscription_tier,
+                        "subscription_status": user.subscription_status,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
             else:
-                return Response({
-                    "message": "Patient registered successfully",
-                    "user_id": user.id,
-                    "username": user.username,
-                    "email": user.email
-                }, status=status.HTTP_201_CREATED)
-            
+                return Response(
+                    {
+                        "message": "Patient registered successfully",
+                        "user_id": user.id,
+                        "username": user.username,
+                        "email": user.email,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+
         except Exception as e:
             logger.error(f"Registration error: {str(e)}")
             print(f"❌ Registration error: {str(e)}")
-            
+
             # If user was created but Stripe failed, we should clean up
-            if 'user' in locals() and hasattr(user, 'pk') and user.pk:
+            if "user" in locals() and hasattr(user, "pk") and user.pk:
                 user.delete()
-                
+
             return Response(
-                {"error": f"Registration failed: {str(e)}"}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": f"Registration failed: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-@api_view(['GET'])
+
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_patients(request):
     """
@@ -386,38 +427,48 @@ def get_patients(request):
     - If doctor: only assigned patients
     - If registrar/admin: all patients in their org
     - If system_admin: all patients (all orgs)
-    Supports search and provider filtering.    """
+    Supports search and provider filtering."""
     try:
         user = request.user
-        logger.info(f"🔍 get_patients called by user: {user.username} (role: {user.role})")
+        logger.info(
+            f"🔍 get_patients called by user: {user.username} (role: {user.role})"
+        )
 
-        if user.role not in ['doctor', 'registrar', 'admin', 'system_admin']:
-            logger.warning(f"❌ Access denied for user {user.username} with role {user.role}")
-            return Response({'detail': 'Access denied'}, status=403)
+        if user.role not in ["doctor", "registrar", "admin", "system_admin"]:
+            logger.warning(
+                f"❌ Access denied for user {user.username} with role {user.role}"
+            )
+            return Response({"detail": "Access denied"}, status=403)
 
-        if user.role == 'doctor':
-            patients = Patient.objects.select_related('user', 'user__provider', 'organization').filter(user__provider=user)
-        elif user.role == 'system_admin':
-            patients = Patient.objects.select_related('user', 'user__provider', 'organization').all()
+        if user.role == "doctor":
+            patients = Patient.objects.select_related(
+                "user", "user__provider", "organization"
+            ).filter(user__provider=user)
+        elif user.role == "system_admin":
+            patients = Patient.objects.select_related(
+                "user", "user__provider", "organization"
+            ).all()
         else:
             # registrar or admin
-            patients = Patient.objects.select_related('user', 'user__provider', 'organization').filter(user__organization=user.organization)
+            patients = Patient.objects.select_related(
+                "user", "user__provider", "organization"
+            ).filter(user__organization=user.organization)
 
         logger.info(f"📊 Initial patient count: {patients.count()}")
 
-        search = request.GET.get('search')
-        provider_id = request.GET.get('provider')
+        search = request.GET.get("search")
+        provider_id = request.GET.get("provider")
 
         if search:
             logger.info(f"🔍 Applying search filter: {search}")
             patients = patients.filter(
-                Q(user__first_name__icontains=search) |
-                Q(user__last_name__icontains=search) |
-                Q(user__email__icontains=search) |
-                Q(user__provider__first_name__icontains=search) |
-                Q(user__provider__last_name__icontains=search)
+                Q(user__first_name__icontains=search)
+                | Q(user__last_name__icontains=search)
+                | Q(user__email__icontains=search)
+                | Q(user__provider__first_name__icontains=search)
+                | Q(user__provider__last_name__icontains=search)
             )
-        
+
         if provider_id:
             logger.info(f"🔍 Applying provider filter: {provider_id}")
             patients = patients.filter(user__provider_id=provider_id)
@@ -425,7 +476,7 @@ def get_patients(request):
         logger.info(f"📊 Filtered patient count: {patients.count()}")
 
         # Get page size from frontend parameter, default to 10
-        page_size = request.GET.get('page_size', 10)
+        page_size = request.GET.get("page_size", 10)
         try:
             page_size = int(page_size)
             # Limit page size to prevent excessive requests
@@ -437,26 +488,31 @@ def get_patients(request):
 
         paginator = PageNumberPagination()
         paginator.page_size = page_size
-        result_page = paginator.paginate_queryset(patients.order_by('user__last_name'), request)
-        
-        logger.info(f"📄 Paginated result count: {len(result_page) if result_page else 0}")
-        
+        result_page = paginator.paginate_queryset(
+            patients.order_by("user__last_name"), request
+        )
+
+        logger.info(
+            f"📄 Paginated result count: {len(result_page) if result_page else 0}"
+        )
+
         serializer = PatientSerializer(result_page, many=True)
         logger.info(f"✅ Serialization completed successfully")
 
         return paginator.get_paginated_response(serializer.data)
-        
+
     except Exception as e:
         logger.error(f"❌ Error in get_patients: {str(e)}", exc_info=True)
-        return Response({'detail': f'Internal server error: {str(e)}'}, status=500)
+        return Response({"detail": f"Internal server error: {str(e)}"}, status=500)
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def change_password(request):
     user = request.user
-    current_password = request.data.get('current_password')
-    new_password = request.data.get('new_password')
-    confirm_password = request.data.get('confirm_password')
+    current_password = request.data.get("current_password")
+    new_password = request.data.get("new_password")
+    confirm_password = request.data.get("confirm_password")
 
     print(f"🔍 Password change attempt for user: {user.username}")
     print(f"🔍 Current password provided: '{current_password}'")
@@ -465,87 +521,93 @@ def change_password(request):
 
     if not user.check_password(current_password):
         print(f"❌ Current password check failed for user: {user.username}")
-        return Response({'detail': 'Current password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "Current password is incorrect."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     if new_password != confirm_password:
         print(f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'")
-        return Response({'detail': 'New passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"detail": "New passwords do not match."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     user.set_password(new_password)
     user.save()
     update_session_auth_hash(request, user)
-    
-    print(f"✅ Password changed successfully for user: {user.username}")
-    return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
 
-@api_view(['GET'])
+    print(f"✅ Password changed successfully for user: {user.username}")
+    return Response(
+        {"detail": "Password changed successfully."}, status=status.HTTP_200_OK
+    )
+
+
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def search_users(request):
     user = request.user
-    
+
     # Only admin and system_admin can search users
-    if user.role not in ['admin', 'system_admin']:
-        return Response({'detail': 'Access denied'}, status=403)
-    
-    query = request.GET.get('q', '')
-    
+    if user.role not in ["admin", "system_admin"]:
+        return Response({"detail": "Access denied"}, status=403)
+
+    query = request.GET.get("q", "")
+
     # Base query filter for all searches
     search_filter = (
-        Q(username__icontains=query) |
-        Q(email__icontains=query) |
-        Q(first_name__icontains=query) |
-        Q(last_name__icontains=query)
+        Q(username__icontains=query)
+        | Q(email__icontains=query)
+        | Q(first_name__icontains=query)
+        | Q(last_name__icontains=query)
     )
-    
+
     # For system_admin, allow searching all users across organizations
-    if user.role == 'system_admin':
+    if user.role == "system_admin":
         users = CustomUser.objects.filter(search_filter)
     # For regular admins, restrict to their organization
     else:
-        users = CustomUser.objects.filter(
-            search_filter,
-            organization=user.organization
-        )
-    
+        users = CustomUser.objects.filter(search_filter, organization=user.organization)
+
     serializer = UserSerializer(users.distinct(), many=True)
     return Response(serializer.data)
 
+
 class UserViewSet(viewsets.ModelViewSet):
     """ViewSet for managing users."""
+
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = [
-        'first_name',
-        'last_name',
-        'email',
-        'provider__first_name',
-        'provider__last_name',
+        "first_name",
+        "last_name",
+        "email",
+        "provider__first_name",
+        "provider__last_name",
     ]
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_sms(request):
-    phone = request.data.get('phone')
-    message = request.data.get('message')
+    phone = request.data.get("phone")
+    message = request.data.get("message")
 
     print("📨 SMS REQUEST RECEIVED:", phone, message)
 
     if not phone or not message:
-        return Response({'error': 'Phone and message are required.'}, status=400)
+        return Response({"error": "Phone and message are required."}, status=400)
 
     try:
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        sent = client.messages.create(
-            body=message,
-            from_=TWILIO_PHONE_NUMBER,
-            to=phone
-        )
+        sent = client.messages.create(body=message, from_=TWILIO_PHONE_NUMBER, to=phone)
         print("✅ SMS SENT:", sent.sid)
-        return Response({'message': 'SMS sent successfully', 'sid': sent.sid})
+        return Response({"message": "SMS sent successfully", "sid": sent.sid})
     except Exception as e:
         print("❌ TWILIO ERROR:", e)
-        return Response({'error': str(e)}, status=500)
+        return Response({"error": str(e)}, status=500)
+
 
 from django.core.mail import send_mail
 from rest_framework.decorators import api_view, permission_classes
@@ -555,51 +617,55 @@ from rest_framework import status
 from django.utils import timezone
 from datetime import timedelta
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_sms_email(request):
-    phone = request.data.get('phone')
-    carrier = request.data.get('carrier')
-    message = request.data.get('message')
+    phone = request.data.get("phone")
+    carrier = request.data.get("carrier")
+    message = request.data.get("message")
 
     carrier_domains = {
-        'verizon': 'vtext.com',
-        'att': 'txt.att.net',
-        'tmobile': 'tmomail.net',
-        'sprint': 'messaging.sprintpcs.com',
+        "verizon": "vtext.com",
+        "att": "txt.att.net",
+        "tmobile": "tmomail.net",
+        "sprint": "messaging.sprintpcs.com",
     }
 
     if not phone or not carrier or not message:
-        return Response({'error': 'Phone, carrier, and message are required.'}, status=400)
+        return Response(
+            {"error": "Phone, carrier, and message are required."}, status=400
+        )
 
     domain = carrier_domains.get(carrier.lower())
     if not domain:
-        return Response({'error': 'Unsupported carrier'}, status=400)
+        return Response({"error": "Unsupported carrier"}, status=400)
 
     to_email = f"{phone}@{domain}"
 
     try:
         send_mail(
-            subject='',
+            subject="",
             message=message,
             from_email=None,
             recipient_list=[to_email],
             fail_silently=False,
         )
-        return Response({'message': f'SMS sent to {phone} via {carrier}'})
+        return Response({"message": f"SMS sent to {phone} via {carrier}"})
     except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        return Response({"error": str(e)}, status=500)
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_patient_email(request):
 
-    email = request.data.get('email')
-    subject = request.data.get('subject', 'Message from your provider')
-    message = request.data.get('message')
+    email = request.data.get("email")
+    subject = request.data.get("subject", "Message from your provider")
+    message = request.data.get("message")
 
     if not email or not message:
-        return Response({'error': 'Email and message are required.'}, status=400)
+        return Response({"error": "Email and message are required."}, status=400)
 
     try:
         send_mail(
@@ -609,51 +675,66 @@ def send_patient_email(request):
             recipient_list=[email],
             fail_silently=False,
         )
-        return Response({'message': 'Email sent successfully'})
+        return Response({"message": "Email sent successfully"})
     except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        return Response({"error": str(e)}, status=500)
+
 
 class PatientDeleteView(DestroyAPIView):
     queryset = Patient.objects.all()
     serializer_class = PatientSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'user_id'  # because you're deleting via user_id
+    lookup_field = "user_id"  # because you're deleting via user_id
+
 
 class DownloadProvidersCSVTemplate(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
 
     def get(self, request):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="providers_template.csv"'
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            'attachment; filename="providers_template.csv"'
+        )
         writer = csv.writer(response)
-        writer.writerow([
-            'username', 'email', 'first_name', 'last_name', 'organization', 'phone_number', 'provider', 'role', 'password'
-        ])
+        writer.writerow(
+            [
+                "username",
+                "email",
+                "first_name",
+                "last_name",
+                "organization",
+                "phone_number",
+                "provider",
+                "role",
+                "password",
+            ]
+        )
         return response
+
 
 class UploadProvidersCSV(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        file = request.FILES.get('file')
+        file = request.FILES.get("file")
         if not file:
             return Response({"error": "No file provided."}, status=400)
-        decoded_file = file.read().decode('utf-8').splitlines()
+        decoded_file = file.read().decode("utf-8").splitlines()
         reader = csv.DictReader(decoded_file)
         created_count = 0
         updated_count = 0
         errors = []
         for row in reader:
-            username = row.get('username', '').strip()
-            email = row.get('email', '').strip()
-            first_name = row.get('first_name', '').strip()
-            last_name = row.get('last_name', '').strip()
-            org_name = row.get('organization', '').strip()
-            phone_number = row.get('phone_number', '').strip()
-            provider_username = row.get('provider', '').strip()
-            role = row.get('role', 'doctor').strip() or 'doctor'
-            password = row.get('password', '').strip()
+            username = row.get("username", "").strip()
+            email = row.get("email", "").strip()
+            first_name = row.get("first_name", "").strip()
+            last_name = row.get("last_name", "").strip()
+            org_name = row.get("organization", "").strip()
+            phone_number = row.get("phone_number", "").strip()
+            provider_username = row.get("provider", "").strip()
+            role = row.get("role", "doctor").strip() or "doctor"
+            password = row.get("password", "").strip()
             if not username or not email:
                 errors.append(f"Missing username or email for row: {row}")
                 continue
@@ -667,21 +748,26 @@ class UploadProvidersCSV(APIView):
                 try:
                     provider = CustomUser.objects.get(username=provider_username)
                 except CustomUser.DoesNotExist:
-                    errors.append(f"Provider '{provider_username}' not found for user '{username}'")
+                    errors.append(
+                        f"Provider '{provider_username}' not found for user '{username}'"
+                    )
             # Create or update user
-            user, created = CustomUser.objects.get_or_create(username=username, defaults={
-                'email': email,
-                'first_name': first_name,
-                'last_name': last_name,
-                'role': role,
-                'organization': org,
-                'phone_number': phone_number,
-            })
+            user, created = CustomUser.objects.get_or_create(
+                username=username,
+                defaults={
+                    "email": email,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "role": role,
+                    "organization": org,
+                    "phone_number": phone_number,
+                },
+            )
             if created:
                 if password:
                     user.set_password(password)
                 else:
-                    user.set_password('changeme123')
+                    user.set_password("changeme123")
                 user.save()
                 created_count += 1
             else:
@@ -699,88 +785,105 @@ class UploadProvidersCSV(APIView):
             if provider:
                 user.provider = provider
                 user.save()
-        return Response({
-            "message": f"{created_count} providers created, {updated_count} updated.",
-            "errors": errors
-        })
+        return Response(
+            {
+                "message": f"{created_count} providers created, {updated_count} updated.",
+                "errors": errors,
+            }
+        )
+
 
 class DownloadPatientsCSVTemplate(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
 
     def get(self, request):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="patients_template.csv"'
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = 'attachment; filename="patients_template.csv"'
         writer = csv.writer(response)
-        writer.writerow([
-            'username', 'email', 'first_name', 'last_name', 'organization', 'phone_number', 
-            'date_of_birth', 'address', 'medical_history', 'password'
-        ])
+        writer.writerow(
+            [
+                "username",
+                "email",
+                "first_name",
+                "last_name",
+                "organization",
+                "phone_number",
+                "date_of_birth",
+                "address",
+                "medical_history",
+                "password",
+            ]
+        )
         return response
+
 
 class UploadPatientsCSV(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        file = request.FILES.get('file')
+        file = request.FILES.get("file")
         if not file:
             return Response({"error": "No file provided."}, status=400)
-        
-        decoded_file = file.read().decode('utf-8').splitlines()
+
+        decoded_file = file.read().decode("utf-8").splitlines()
         reader = csv.DictReader(decoded_file)
         created_count = 0
         updated_count = 0
         errors = []
-        
+
         for row in reader:
-            username = row.get('username', '').strip()
-            email = row.get('email', '').strip()
-            first_name = row.get('first_name', '').strip()
-            last_name = row.get('last_name', '').strip()
-            org_name = row.get('organization', '').strip()
-            phone_number = row.get('phone_number', '').strip()
-            date_of_birth = row.get('date_of_birth', '').strip()
-            address = row.get('address', '').strip()
-            medical_history = row.get('medical_history', '').strip()
-            password = row.get('password', '').strip()
-            
+            username = row.get("username", "").strip()
+            email = row.get("email", "").strip()
+            first_name = row.get("first_name", "").strip()
+            last_name = row.get("last_name", "").strip()
+            org_name = row.get("organization", "").strip()
+            phone_number = row.get("phone_number", "").strip()
+            date_of_birth = row.get("date_of_birth", "").strip()
+            address = row.get("address", "").strip()
+            medical_history = row.get("medical_history", "").strip()
+            password = row.get("password", "").strip()
+
             if not username or not email:
                 errors.append(f"Missing username or email for row: {row}")
                 continue
-            
+
             # Parse date of birth
             dob = None
             if date_of_birth:
                 try:
                     from datetime import datetime
-                    dob = datetime.strptime(date_of_birth, '%Y-%m-%d').date()
+
+                    dob = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
                 except ValueError:
-                    errors.append(f"Invalid date format for user '{username}'. Use YYYY-MM-DD format.")
+                    errors.append(
+                        f"Invalid date format for user '{username}'. Use YYYY-MM-DD format."
+                    )
                     continue
-            
+
             # Get or create organization
             org = None
             if org_name:
                 org, _ = Organization.objects.get_or_create(name=org_name)
-            
+
             # Create or update user (with patient role)
             user, created = CustomUser.objects.get_or_create(
-                username=username, 
+                username=username,
                 defaults={
-                    'email': email,
-                    'first_name': first_name,
-                    'last_name': last_name,
-                    'role': 'patient',  # Always set role to patient
-                    'organization': org,
-                    'phone_number': phone_number,
-                }
+                    "email": email,
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "role": "patient",  # Always set role to patient
+                    "organization": org,
+                    "phone_number": phone_number,
+                },
             )
-            
+
             if created:
                 if password:
                     user.set_password(password)
                 else:
-                    user.set_password('changeme123')
+                    user.set_password("changeme123")
                 user.save()
                 created_count += 1
             else:
@@ -788,25 +891,25 @@ class UploadPatientsCSV(APIView):
                 user.email = email
                 user.first_name = first_name
                 user.last_name = last_name
-                user.role = 'patient'  # Ensure role is patient
+                user.role = "patient"  # Ensure role is patient
                 user.organization = org
                 user.phone_number = phone_number
                 if password:
                     user.set_password(password)
                 user.save()
                 updated_count += 1
-            
+
             # Create or update patient profile
             patient, patient_created = Patient.objects.get_or_create(
                 user=user,
                 defaults={
-                    'date_of_birth': dob,
-                    'address': address,
-                    'medical_history': medical_history,
-                    'organization': org,
-                }
+                    "date_of_birth": dob,
+                    "address": address,
+                    "medical_history": medical_history,
+                    "organization": org,
+                },
             )
-            
+
             if not patient_created:
                 # Update patient fields
                 patient.date_of_birth = dob or patient.date_of_birth
@@ -814,23 +917,26 @@ class UploadPatientsCSV(APIView):
                 patient.medical_history = medical_history or patient.medical_history
                 patient.organization = org or patient.organization
                 patient.save()
-        
-        return Response({
-            "message": f"Upload completed. Created {created_count} patients, updated {updated_count} patients.",
-            "errors": errors
-        })
 
-@api_view(['GET', 'PATCH'])
+        return Response(
+            {
+                "message": f"Upload completed. Created {created_count} patients, updated {updated_count} patients.",
+                "errors": errors,
+            }
+        )
+
+
+@api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
 def get_current_user(request):
     """Return or update the current user's information"""
     user = request.user
-    
-    if request.method == 'GET':
+
+    if request.method == "GET":
         serializer = UserSerializer(user)
         return Response(serializer.data)
-    
-    elif request.method == 'PATCH':
+
+    elif request.method == "PATCH":
         serializer = UserSerializer(user, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -838,29 +944,37 @@ def get_current_user(request):
         return Response(serializer.errors, status=400)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_team_members(request):
     """Return non-patient users for the current organization"""
     user = request.user
-    if user.role not in ['admin', 'system_admin', 'doctor', 'registrar', 'receptionist']:
-        return Response({'detail': 'Access denied'}, status=403)
+    if user.role not in [
+        "admin",
+        "system_admin",
+        "doctor",
+        "registrar",
+        "receptionist",
+    ]:
+        return Response({"detail": "Access denied"}, status=403)
 
-    if user.role == 'system_admin':
-        members = CustomUser.objects.exclude(role='patient')    
+    if user.role == "system_admin":
+        members = CustomUser.objects.exclude(role="patient")
     else:
-        members = CustomUser.objects.exclude(role='patient').filter(organization=user.organization)
+        members = CustomUser.objects.exclude(role="patient").filter(
+            organization=user.organization
+        )
 
-    search = request.GET.get('search')
+    search = request.GET.get("search")
     if search:
         members = members.filter(
-            Q(first_name__icontains=search) |
-            Q(last_name__icontains=search) |
-            Q(email__icontains=search)
+            Q(first_name__icontains=search)
+            | Q(last_name__icontains=search)
+            | Q(email__icontains=search)
         )
 
     # Get page size from frontend parameter, default to 10
-    page_size = request.GET.get('page_size', 10)
+    page_size = request.GET.get("page_size", 10)
     try:
         page_size = int(page_size)
         # Limit page size to prevent excessive requests
@@ -870,28 +984,29 @@ def get_team_members(request):
 
     paginator = PageNumberPagination()
     paginator.page_size = page_size
-    result_page = paginator.paginate_queryset(members.order_by('last_name'), request)
+    result_page = paginator.paginate_queryset(members.order_by("last_name"), request)
     serializer = UserSerializer(result_page, many=True)
     return paginator.get_paginated_response(serializer.data)
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([AllowAny])  # Public endpoint
 def send_contact_email(request):
     """
     Public endpoint for sending contact emails from the website
     """
     try:
-        name = request.data.get('name', '')
-        email = request.data.get('email', '')
-        subject = request.data.get('subject', 'Contact Form Submission')
-        message = request.data.get('message', '')
-        
+        name = request.data.get("name", "")
+        email = request.data.get("email", "")
+        subject = request.data.get("subject", "Contact Form Submission")
+        message = request.data.get("message", "")
+
         if not email or not message:
-            return Response({'error': 'Email and message are required'}, status=400)
-        
+            return Response({"error": "Email and message are required"}, status=400)
+
         # Send email to admin/support team
-        admin_email = 'support@poehrscheduling.com'  # Replace with actual admin email
-        
+        admin_email = "support@poehrscheduling.com"  # Replace with actual admin email
+
         full_message = f"""
         Contact Form Submission:
         
@@ -902,7 +1017,7 @@ def send_contact_email(request):
         Message:
         {message}
         """
-        
+
         send_mail(
             subject=f"Contact Form: {subject}",
             message=full_message,
@@ -910,41 +1025,45 @@ def send_contact_email(request):
             recipient_list=[admin_email],
             fail_silently=False,
         )
-        
-        return Response({'message': 'Contact email sent successfully'}, status=200)
-        
-    except Exception as e:
-        return Response({'error': f'Failed to send contact email: {str(e)}'}, status=500)
 
-@api_view(['POST'])
+        return Response({"message": "Contact email sent successfully"}, status=200)
+
+    except Exception as e:
+        return Response(
+            {"error": f"Failed to send contact email: {str(e)}"}, status=500
+        )
+
+
+@api_view(["POST"])
 @permission_classes([AllowAny])  # Public endpoint
 def send_contact_sms(request):
     """
     Public endpoint for sending contact SMS notifications
     """
     try:
-        phone = request.data.get('phone', '')
-        message = request.data.get('message', '')
-        
+        phone = request.data.get("phone", "")
+        message = request.data.get("message", "")
+
         if not phone or not message:
-            return Response({'error': 'Phone and message are required'}, status=400)
-        
+            return Response({"error": "Phone and message are required"}, status=400)
+
         # Initialize Twilio client
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        
+
         # Send SMS
         message = client.messages.create(
-            body=message,
-            from_=settings.TWILIO_PHONE_NUMBER,
-            to=phone
+            body=message, from_=settings.TWILIO_PHONE_NUMBER, to=phone
         )
-        
-        return Response({'message': 'Contact SMS sent successfully', 'sid': message.sid}, status=200)
-        
-    except Exception as e:
-        return Response({'error': f'Failed to send contact SMS: {str(e)}'}, status=500)
 
-@api_view(['POST'])
+        return Response(
+            {"message": "Contact SMS sent successfully", "sid": message.sid}, status=200
+        )
+
+    except Exception as e:
+        return Response({"error": f"Failed to send contact SMS: {str(e)}"}, status=500)
+
+
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def admin_change_password(request):
     """
@@ -955,64 +1074,91 @@ def admin_change_password(request):
     - confirm_password: Confirmation of the new password
     """
     admin_user = request.user
-    
+
     # Only admins and system_admins can use this endpoint
-    if admin_user.role not in ['admin', 'system_admin']:
-        print(f"❌ Access denied for user: {admin_user.username} (role: {admin_user.role})")
-        return Response({'detail': 'Access denied. Admin privileges required.'}, status=status.HTTP_403_FORBIDDEN)
-    
-    target_user_id = request.data.get('target_user_id')
-    admin_password = request.data.get('admin_password')
-    new_password = request.data.get('new_password')
-    confirm_password = request.data.get('confirm_password')
-    
+    if admin_user.role not in ["admin", "system_admin"]:
+        print(
+            f"❌ Access denied for user: {admin_user.username} (role: {admin_user.role})"
+        )
+        return Response(
+            {"detail": "Access denied. Admin privileges required."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    target_user_id = request.data.get("target_user_id")
+    admin_password = request.data.get("admin_password")
+    new_password = request.data.get("new_password")
+    confirm_password = request.data.get("confirm_password")
+
     print(f"🔍 Admin password change attempt by: {admin_user.username}")
     print(f"🔍 Target user ID: {target_user_id}")
     print(f"🔍 Admin password provided: '{admin_password}'")
     print(f"🔍 New password: '{new_password}'")
     print(f"🔍 Confirm password: '{confirm_password}'")
-    
+
     if not target_user_id:
-        return Response({'detail': 'Target user ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response(
+            {"detail": "Target user ID is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     # Verify admin's password
     if not admin_user.check_password(admin_password):
         print(f"❌ Admin password check failed for user: {admin_user.username}")
-        return Response({'detail': 'Admin password is incorrect.'}, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response(
+            {"detail": "Admin password is incorrect."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     # Verify new password confirmation
     if new_password != confirm_password:
         print(f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'")
-        return Response({'detail': 'New passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
-    
+        return Response(
+            {"detail": "New passwords do not match."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     try:
         # Get the target user
         target_user = CustomUser.objects.get(id=target_user_id)
         print(f"🔍 Target user found: {target_user.username}")
-        
+
         # Additional security: system_admin can change anyone's password,
         # but regular admin can only change passwords within their organization
-        if admin_user.role == 'admin':
+        if admin_user.role == "admin":
             if target_user.organization != admin_user.organization:
-                print(f"❌ Admin {admin_user.username} tried to change password for user in different organization")
-                return Response({
-                    'detail': 'You can only change passwords for users in your organization.'
-                }, status=status.HTTP_403_FORBIDDEN)
-        
+                print(
+                    f"❌ Admin {admin_user.username} tried to change password for user in different organization"
+                )
+                return Response(
+                    {
+                        "detail": "You can only change passwords for users in your organization."
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         # Change the target user's password
         target_user.set_password(new_password)
         target_user.save()
-        
-        print(f"✅ Password changed successfully for target user: {target_user.username} by admin: {admin_user.username}")
-        return Response({
-            'detail': f'Password changed successfully for {target_user.first_name} {target_user.last_name}.'
-        }, status=status.HTTP_200_OK)
-        
+
+        print(
+            f"✅ Password changed successfully for target user: {target_user.username} by admin: {admin_user.username}"
+        )
+        return Response(
+            {
+                "detail": f"Password changed successfully for {target_user.first_name} {target_user.last_name}."
+            },
+            status=status.HTTP_200_OK,
+        )
+
     except CustomUser.DoesNotExist:
         print(f"❌ Target user with ID {target_user_id} not found")
-        return Response({'detail': 'Target user not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {"detail": "Target user not found."}, status=status.HTTP_404_NOT_FOUND
+        )
 
-@api_view(['POST'])
+
+@api_view(["POST"])
 @permission_classes([IsAdminUser])  # Only system administrators can trigger this
 def send_trial_reminders(request):
     """
@@ -1020,64 +1166,78 @@ def send_trial_reminders(request):
     Admin endpoint to send trial reminders for users whose trials are expiring soon
     """
     try:
-        days_before = request.data.get('days_before', 3)
-        dry_run = request.data.get('dry_run', False)
-        
+        days_before = request.data.get("days_before", 3)
+        dry_run = request.data.get("dry_run", False)
+
         # Calculate the target date (X days from now)
         target_date = timezone.now().date() + timedelta(days=days_before)
-        
+
         # Find users with trials expiring on the target date
         expiring_users = CustomUser.objects.filter(
             trial_end_date=target_date,
-            subscription_status='trial',
-            role__in=['admin', 'system_admin']  # Only organization admins get trial reminders
-        ).exclude(email='')
-        
+            subscription_status="trial",
+            role__in=[
+                "admin",
+                "system_admin",
+            ],  # Only organization admins get trial reminders
+        ).exclude(email="")
+
         if not expiring_users.exists():
-            return Response({
-                'message': f'No users found with trials expiring in {days_before} days',
-                'sent_count': 0,
-                'target_date': target_date.strftime('%Y-%m-%d')
-            }, status=200)
-        
+            return Response(
+                {
+                    "message": f"No users found with trials expiring in {days_before} days",
+                    "sent_count": 0,
+                    "target_date": target_date.strftime("%Y-%m-%d"),
+                },
+                status=200,
+            )
+
         sent_count = 0
         errors = []
-        
+
         for user in expiring_users:
             try:
                 if not dry_run:
                     send_trial_reminder_email(user, days_before)
                 sent_count += 1
-                
+
             except Exception as e:
-                errors.append({
-                    'user_email': user.email,
-                    'organization': user.organization.name if user.organization else 'Unknown',
-                    'error': str(e)
-                })
+                errors.append(
+                    {
+                        "user_email": user.email,
+                        "organization": (
+                            user.organization.name if user.organization else "Unknown"
+                        ),
+                        "error": str(e),
+                    }
+                )
                 logger.error(f"Trial reminder email failed for {user.email}: {str(e)}")
-        
+
         action = "Would send" if dry_run else "Sent"
-        return Response({
-            'message': f'{action} {sent_count} trial reminder emails',
-            'sent_count': sent_count,
-            'target_date': target_date.strftime('%Y-%m-%d'),
-            'days_before': days_before,
-            'dry_run': dry_run,
-            'errors': errors
-        }, status=200)
-        
+        return Response(
+            {
+                "message": f"{action} {sent_count} trial reminder emails",
+                "sent_count": sent_count,
+                "target_date": target_date.strftime("%Y-%m-%d"),
+                "days_before": days_before,
+                "dry_run": dry_run,
+                "errors": errors,
+            },
+            status=200,
+        )
+
     except Exception as e:
-        return Response({
-            'error': f'Failed to send trial reminders: {str(e)}'
-        }, status=500)
+        return Response(
+            {"error": f"Failed to send trial reminders: {str(e)}"}, status=500
+        )
+
 
 def send_trial_reminder_email(user, days_before):
     """Helper function to send trial reminder email"""
-    
+
     # Format trial end date
-    trial_end_formatted = user.trial_end_date.strftime('%B %d, %Y')
-    
+    trial_end_formatted = user.trial_end_date.strftime("%B %d, %Y")
+
     # Determine urgency level for subject
     if days_before <= 1:
         urgency = "⏰ URGENT: "
@@ -1088,9 +1248,9 @@ def send_trial_reminder_email(user, days_before):
     else:
         urgency = "📅 NOTICE: "
         urgency_text = f"in {days_before} days"
-    
+
     subject = f"{urgency}Your POWER Scheduling trial expires {urgency_text}"
-    
+
     message = f"""
 Hello {user.first_name},
 
@@ -1134,13 +1294,9 @@ The POWER Scheduling Team
 ---
 This is an automated reminder. You're receiving this because your trial is expiring soon.
     """
-    
-    send_email(
-        to_email=user.email,
-        subject=subject,
-        message=message.strip(),
-        user=user
-    )
+
+    send_email(to_email=user.email, subject=subject, message=message.strip(), user=user)
+
 
 class PatientMobileView(RetrieveUpdateDestroyAPIView):
     """
@@ -1148,17 +1304,18 @@ class PatientMobileView(RetrieveUpdateDestroyAPIView):
     Supports GET, PUT, PATCH, and DELETE operations using Patient primary key.
     URL: /api/users/patients/{patient_id}/
     """
-    queryset = Patient.objects.select_related('user')
+
+    queryset = Patient.objects.select_related("user")
     serializer_class = PatientSerializer
     permission_classes = [IsAuthenticated]
-    lookup_field = 'pk'  # Use Patient primary key, not user_id
-    
+    lookup_field = "pk"  # Use Patient primary key, not user_id
+
     def update(self, request, *args, **kwargs):
         # Print the incoming data to debug
         print("Mobile Patient Update Data:", request.data)
-        print("Patient ID:", kwargs.get('pk'))
+        print("Patient ID:", kwargs.get("pk"))
         return super().update(request, *args, **kwargs)
-    
+
     def destroy(self, request, *args, **kwargs):
-        print("Mobile Patient Delete - Patient ID:", kwargs.get('pk'))
+        print("Mobile Patient Delete - Patient ID:", kwargs.get("pk"))
         return super().destroy(request, *args, **kwargs)
