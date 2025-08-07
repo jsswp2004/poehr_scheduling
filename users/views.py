@@ -659,15 +659,47 @@ def send_sms_email(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_patient_email(request):
-
-    email = request.data.get("email")
-    subject = request.data.get("subject", "Message from your provider")
-    message = request.data.get("message")
-
-    if not email or not message:
-        return Response({"error": "Email and message are required."}, status=400)
-
+    """
+    Enhanced email sending endpoint with comprehensive logging and error handling
+    """
+    
+    # Enhanced logging setup
+    logger = logging.getLogger(__name__)
+    logger.info(f"Email send request from user: {request.user.username}")
+    
     try:
+        # Extract and validate request data
+        email = request.data.get("email")
+        subject = request.data.get("subject", "Message from your provider")
+        message = request.data.get("message")
+        
+        logger.info(f"Email request data: email={email}, subject='{subject}', message_length={len(message) if message else 0}")
+        
+        # Validate required fields
+        if not email or not message:
+            error_msg = "Email and message are required."
+            logger.warning(f"Validation failed: {error_msg}")
+            return Response({"error": error_msg}, status=400)
+        
+        # Validate email format
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError
+        
+        try:
+            validate_email(email)
+        except ValidationError as e:
+            error_msg = f"Invalid email format: {email}"
+            logger.warning(f"Email validation failed: {error_msg}")
+            return Response({"error": error_msg}, status=400)
+        
+        # Log email settings for debugging
+        from django.conf import settings
+        logger.info(f"Email backend: {settings.EMAIL_BACKEND}")
+        logger.info(f"Email host: {getattr(settings, 'EMAIL_HOST', 'Not configured')}")
+        logger.info(f"Default from email: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'Not configured')}")
+        
+        # Attempt to send email
+        logger.info(f"Attempting to send email to: {email}")
         send_mail(
             subject=subject,
             message=message,
@@ -675,9 +707,24 @@ def send_patient_email(request):
             recipient_list=[email],
             fail_silently=False,
         )
+        
+        success_msg = f"Email sent successfully to {email}"
+        logger.info(success_msg)
         return Response({"message": "Email sent successfully"})
+        
     except Exception as e:
-        return Response({"error": str(e)}, status=500)
+        error_msg = f"Email sending failed: {str(e)}"
+        logger.error(error_msg)
+        logger.error(f"Exception type: {type(e).__name__}")
+        
+        # Log additional context for debugging
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        
+        return Response({
+            "error": str(e),
+            "detail": "Check server logs for more information"
+        }, status=500)
 
 
 class PatientDeleteView(DestroyAPIView):
