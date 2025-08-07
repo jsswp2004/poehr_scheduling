@@ -41,7 +41,11 @@ export const useLogin = () => {
 
     // Role-based navigation logic
     const handleRoleBasedNavigation = (userRole) => {
+        console.log('Login Debug - User role:', userRole);
+        console.log('Login Debug - Redirect parameter:', redirectTo);
+
         if (redirectTo === 'communicator') {
+            console.log('Login Debug - Redirecting to communicator path');
             // Check if user has admin privileges for communicator
             if (userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') {
                 navigate('/communicator');
@@ -50,17 +54,29 @@ export const useLogin = () => {
                 navigate('/dashboard');
             }
         } else if (redirectTo === 'portal') {
-            // Always redirect to dashboard for portal access
-            navigate('/dashboard');
+            console.log('Login Debug - Portal redirect requested, but checking role first');
+            // For portal redirect, still respect admin/system_admin roles
+            if (userRole === 'admin' || userRole === 'system_admin') {
+                console.log('Login Debug - Admin/System Admin detected, overriding portal redirect to go to /admin');
+                navigate('/admin');
+            } else {
+                console.log('Login Debug - Non-admin user, going to dashboard as requested');
+                navigate('/dashboard');
+            }
         } else {
+            console.log('Login Debug - Using default role-based redirect');
             // Default role-based redirect
             if (userRole === 'admin' || userRole === 'system_admin') {
+                console.log('Login Debug - Admin/System Admin detected, going to /admin');
                 navigate('/admin');
             } else if (userRole === 'doctor') {
+                console.log('Login Debug - Doctor detected, going to /patients');
                 navigate('/patients');
             } else if (userRole === 'registrar') {
+                console.log('Login Debug - Registrar detected, going to /patients');
                 navigate('/patients');
             } else {
+                console.log('Login Debug - Default case, going to /dashboard');
                 navigate('/dashboard'); // Default for patients
             }
         }
