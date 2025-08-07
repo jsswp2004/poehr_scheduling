@@ -701,16 +701,24 @@ def send_patient_email(request):
 
         # Log environment variables directly for debugging
         logger.info("=== EMAIL DEBUG INFORMATION ===")
-        logger.info(f"EMAIL_HOST_PASSWORD from env: {'***' if os.environ.get('EMAIL_HOST_PASSWORD') else 'NOT SET'}")
-        logger.info(f"EMAIL_HOST_USER from env: {os.environ.get('EMAIL_HOST_USER', 'NOT SET')}")
+        logger.info(
+            f"EMAIL_HOST_PASSWORD from env: {'***' if os.environ.get('EMAIL_HOST_PASSWORD') else 'NOT SET'}"
+        )
+        logger.info(
+            f"EMAIL_HOST_USER from env: {os.environ.get('EMAIL_HOST_USER', 'NOT SET')}"
+        )
         logger.info(f"EMAIL_HOST from env: {os.environ.get('EMAIL_HOST', 'NOT SET')}")
         logger.info(f"EMAIL_PORT from env: {os.environ.get('EMAIL_PORT', 'NOT SET')}")
-        
+
         logger.info(f"Email backend: {settings.EMAIL_BACKEND}")
         logger.info(f"Email host: {getattr(settings, 'EMAIL_HOST', 'Not configured')}")
         logger.info(f"Email port: {getattr(settings, 'EMAIL_PORT', 'Not configured')}")
-        logger.info(f"Email use SSL: {getattr(settings, 'EMAIL_USE_SSL', 'Not configured')}")
-        logger.info(f"Email host user: {getattr(settings, 'EMAIL_HOST_USER', 'Not configured')}")
+        logger.info(
+            f"Email use SSL: {getattr(settings, 'EMAIL_USE_SSL', 'Not configured')}"
+        )
+        logger.info(
+            f"Email host user: {getattr(settings, 'EMAIL_HOST_USER', 'Not configured')}"
+        )
         logger.info(
             f"Default from email: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'Not configured')}"
         )
