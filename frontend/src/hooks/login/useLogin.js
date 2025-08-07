@@ -97,7 +97,9 @@ export const useLogin = () => {
 
             // Decode token to get role
             const decoded = jwtDecode(access);
+            console.log('Login Debug - Decoded JWT token:', decoded);
             const userRole = decoded.role;
+            console.log('Login Debug - User role from token:', userRole);
 
             // Notify navbar to refresh with new user data
             notifyProfileUpdated();

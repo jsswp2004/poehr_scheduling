@@ -354,54 +354,7 @@ This is an automated notification from POWER Scheduling.
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
-    # DEBUGGING: Override post method to add comprehensive error logging
-    def post(self, request, *args, **kwargs):
-        import logging
-        import traceback
-        from django.http import JsonResponse
-        
-        logger = logging.getLogger(__name__)
-        
-        try:
-            logger.info("=== LOGIN DEBUG START ===")
-            logger.info(f"Request data: {request.data}")
-            logger.info(f"Request method: {request.method}")
-            logger.info(f"Database config: {settings.DATABASES['default']['HOST']}")
-            
-            # Check if user exists
-            username = request.data.get('username')
-            if username:
-                logger.info(f"Looking for user: {username}")
-                try:
-                    from .models import CustomUser
-                    user = CustomUser.objects.get(username=username)
-                    logger.info(f"Found user: {user.username}, role: {user.role}, org: {user.organization}")
-                except CustomUser.DoesNotExist:
-                    logger.error(f"User {username} not found in database")
-                    return JsonResponse({'error': 'User not found'}, status=400)
-                except Exception as db_error:
-                    logger.error(f"Database error during user lookup: {str(db_error)}")
-                    return JsonResponse({'error': f'Database error: {str(db_error)}'}, status=500)
-            
-            # Call parent method
-            logger.info("Calling parent TokenObtainPairView.post()")
-            response = super().post(request, *args, **kwargs)
-            logger.info(f"Parent method succeeded with status: {response.status_code}")
-            logger.info("=== LOGIN DEBUG SUCCESS ===")
-            return response
-            
-        except Exception as e:
-            logger.error("=== LOGIN DEBUG ERROR ===")
-            logger.error(f"Error type: {type(e).__name__}")
-            logger.error(f"Error message: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
-            logger.error("=== LOGIN DEBUG END ===")
-            
-            return JsonResponse({
-                'debug_error': str(e),
-                'debug_type': type(e).__name__,
-                'debug_settings_module': getattr(settings, 'SETTINGS_MODULE', 'Unknown')
-            }, status=500)
+    serializer_class = CustomTokenObtainPairSerializer
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
