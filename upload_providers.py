@@ -13,33 +13,34 @@ project_root = Path(__file__).parent
 sys.path.append(str(project_root))
 
 # Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'poehr_scheduling_backend.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "poehr_scheduling_backend.settings")
 django.setup()
 
 from users.models import CustomUser, Organization
 
+
 def upload_providers_from_csv(csv_file_path):
     """Upload providers from CSV file to database"""
-    
+
     print(f"🔵 Starting provider upload from {csv_file_path}")
-    
+
     # Check if file exists
     if not os.path.exists(csv_file_path):
         print(f"❌ CSV file not found: {csv_file_path}")
         return
-    
+
     created_count = 0
     updated_count = 0
     errors = []
-    
+
     try:
-        with open(csv_file_path, 'r', encoding='utf-8') as file:
+        with open(csv_file_path, "r", encoding="utf-8") as file:
             reader = csv.DictReader(file)
             print(f"📊 CSV headers: {reader.fieldnames}")
-            
+
             for row_count, row in enumerate(reader, 1):
                 print(f"🔄 Processing row {row_count}: {row}")
-                
+
                 try:
                     username = row.get("username", "").strip()
                     email = row.get("email", "").strip()
@@ -51,19 +52,28 @@ def upload_providers_from_csv(csv_file_path):
                     role = row.get("role", "doctor").strip() or "doctor"
                     password = row.get("password", "").strip()
 
-                    print(f"📋 Row data - Username: {username}, Email: {email}, Role: {role}")
+                    print(
+                        f"📋 Row data - Username: {username}, Email: {email}, Role: {role}"
+                    )
 
                     # Validate required fields
                     if not username or not email:
-                        error_msg = f"Missing username or email for row {row_count}: {row}"
+                        error_msg = (
+                            f"Missing username or email for row {row_count}: {row}"
+                        )
                         print(f"⚠️ {error_msg}")
                         errors.append(error_msg)
                         continue
 
                     # Validate role
                     valid_roles = [
-                        "patient", "doctor", "receptionist", "admin", 
-                        "registrar", "none", "system_admin"
+                        "patient",
+                        "doctor",
+                        "receptionist",
+                        "admin",
+                        "registrar",
+                        "none",
+                        "system_admin",
                     ]
                     if role not in valid_roles:
                         error_msg = f"Invalid role '{role}' for user '{username}'. Valid roles: {valid_roles}"
@@ -74,7 +84,8 @@ def upload_providers_from_csv(csv_file_path):
                     # Clean phone number
                     if phone_number:
                         cleaned_phone = "".join(
-                            c for c in phone_number 
+                            c
+                            for c in phone_number
                             if c.isdigit() or c in ["+", " ", "-", "(", ")"]
                         )
                         if len(cleaned_phone) > 20:
@@ -88,8 +99,12 @@ def upload_providers_from_csv(csv_file_path):
                     org = None
                     if org_name:
                         try:
-                            org, org_created = Organization.objects.get_or_create(name=org_name)
-                            print(f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})")
+                            org, org_created = Organization.objects.get_or_create(
+                                name=org_name
+                            )
+                            print(
+                                f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})"
+                            )
                         except Exception as e:
                             error_msg = f"Organization creation error for '{org_name}': {str(e)}"
                             print(f"❌ {error_msg}")
@@ -100,7 +115,9 @@ def upload_providers_from_csv(csv_file_path):
                     provider = None
                     if provider_username:
                         try:
-                            provider = CustomUser.objects.get(username=provider_username)
+                            provider = CustomUser.objects.get(
+                                username=provider_username
+                            )
                             print(f"👨‍⚕️ Provider found: {provider.username}")
                         except CustomUser.DoesNotExist:
                             error_msg = f"Provider '{provider_username}' not found for user '{username}'"
@@ -121,7 +138,9 @@ def upload_providers_from_csv(csv_file_path):
                                 "phone_number": phone_number,
                             },
                         )
-                        print(f"👤 User: {username} ({'created' if created else 'updated'})")
+                        print(
+                            f"👤 User: {username} ({'created' if created else 'updated'})"
+                        )
 
                         if created:
                             if password:
@@ -147,10 +166,14 @@ def upload_providers_from_csv(csv_file_path):
                         if provider:
                             user.provider = provider
                             user.save()
-                            print(f"🔗 Provider relationship set: {username} -> {provider.username}")
+                            print(
+                                f"🔗 Provider relationship set: {username} -> {provider.username}"
+                            )
 
                     except Exception as e:
-                        error_msg = f"User creation/update error for '{username}': {str(e)}"
+                        error_msg = (
+                            f"User creation/update error for '{username}': {str(e)}"
+                        )
                         print(f"❌ {error_msg}")
                         errors.append(error_msg)
                         continue
@@ -161,22 +184,21 @@ def upload_providers_from_csv(csv_file_path):
                     errors.append(error_msg)
                     continue
 
-        print(f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}")
-        
+        print(
+            f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}"
+        )
+
         if errors:
             print("\n❌ Errors encountered:")
             for error in errors:
                 print(f"  - {error}")
-        
-        return {
-            "created": created_count,
-            "updated": updated_count,
-            "errors": errors
-        }
+
+        return {"created": created_count, "updated": updated_count, "errors": errors}
 
     except Exception as e:
         print(f"❌ Critical error: {str(e)}")
         return {"error": str(e)}
+
 
 if __name__ == "__main__":
     csv_file = "test_providers_upload.csv"
