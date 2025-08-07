@@ -1,7 +1,14 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
 from rest_framework import viewsets, permissions
 from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail
-from .serializers import AppointmentSerializer, AvailabilitySerializer, EnvironmentSettingSerializer, HolidaySerializer, ClinicEventSerializer, AutoEmailSerializer
+from .serializers import (
+    AppointmentSerializer,
+    AvailabilitySerializer,
+    EnvironmentSettingSerializer,
+    HolidaySerializer,
+    ClinicEventSerializer,
+    AutoEmailSerializer,
+)
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -37,70 +44,76 @@ from .models import Appointment
 # Import User model properly
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
+
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        print("User:", user, "Role field:", getattr(user, 'role', None))
+        print("User:", user, "Role field:", getattr(user, "role", None))
 
         # === ADDED: System Admin sees all organizations ===
-        if user.role == 'system_admin':
-            queryset = Appointment.objects.all().order_by('appointment_datetime')
+        if user.role == "system_admin":
+            queryset = Appointment.objects.all().order_by("appointment_datetime")
         else:
             # Start by limiting to the user's organization
             queryset = Appointment.objects.filter(
                 organization=user.organization
-            ).order_by('appointment_datetime')
+            ).order_by("appointment_datetime")
 
             # Optional date filter from query params
-            date_str = self.request.query_params.get('date')
+            date_str = self.request.query_params.get("date")
             if date_str:
                 try:
                     date_obj = parse_date(date_str)
                     if date_obj:
                         start_of_day = make_aware(dt.combine(date_obj, dt.min.time()))
                         end_of_day = make_aware(dt.combine(date_obj, dt.max.time()))
-                        queryset = queryset.filter(appointment_datetime__range=(start_of_day, end_of_day))
+                        queryset = queryset.filter(
+                            appointment_datetime__range=(start_of_day, end_of_day)
+                        )
                 except Exception as e:
                     print("Date parsing failed:", e)
 
             # Role-based filtering
-            if user.role == 'patient':
+            if user.role == "patient":
                 queryset = queryset.filter(patient=user)
-            elif user.role == 'doctor':
-                queryset = queryset.filter(provider=user)  # optional: show only their own patients
-            elif user.role in ['registrar', 'admin']:
+            elif user.role == "doctor":
+                queryset = queryset.filter(
+                    provider=user
+                )  # optional: show only their own patients
+            elif user.role in ["registrar", "admin"]:
                 pass  # ✅ Allow access to all appointments for their org
-        
+
         return queryset
-    
+
     def perform_create(self, serializer):
         # Server-side validation for availability
-        appointment_datetime = serializer.validated_data.get('appointment_datetime')
-        duration_minutes = serializer.validated_data.get('duration_minutes', 30)
-        provider_id = self.request.data.get('provider')
-        
+        appointment_datetime = serializer.validated_data.get("appointment_datetime")
+        duration_minutes = serializer.validated_data.get("duration_minutes", 30)
+        provider_id = self.request.data.get("provider")
+
         if appointment_datetime and provider_id and duration_minutes:
             # Check if appointment time conflicts with provider's blocked availability
             appointment_start = appointment_datetime
             appointment_end = appointment_start + timedelta(minutes=duration_minutes)
-            
+
             blocked_availabilities = Availability.objects.filter(
                 doctor_id=provider_id,
                 is_blocked=True,
                 start_time__lt=appointment_end,
-                end_time__gt=appointment_start
+                end_time__gt=appointment_start,
             )
-            
+
             if blocked_availabilities.exists():
                 from rest_framework import serializers as rest_serializers
+
                 raise rest_serializers.ValidationError(
                     "Cannot schedule appointment during provider's blocked time. Please select another time."
                 )
 
-        provider_id = self.request.data.get('provider')
+        provider_id = self.request.data.get("provider")
         organization = None
         provider = None
         if provider_id:
@@ -109,41 +122,53 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 organization = provider.organization
             except User.DoesNotExist:
                 pass
-        
+
         # Default patient logic
         user = self.request.user
         patient = user
-        if user.role in ['registrar', 'admin', 'system_admin']:
-            patient_id = self.request.data.get('patient')
+        if user.role in ["registrar", "admin", "system_admin"]:
+            patient_id = self.request.data.get("patient")
             if patient_id:
                 try:
                     patient = User.objects.get(id=patient_id)
                 except User.DoesNotExist:
                     raise ValueError("Patient not found.")
-        
-        appointment = serializer.save(patient=patient, provider=provider, organization=organization)
-        
+
+        appointment = serializer.save(
+            patient=patient, provider=provider, organization=organization
+        )
+
         # ✅ Send email notification to organization and system admins
         # Import here to avoid circular imports
         from users.serializers import get_admin_emails
-        
+
         # Use the appointment organization, or fall back to user's organization
         notification_org = organization or self.request.user.organization
         admin_emails = get_admin_emails(organization=notification_org)
-        
+
         if admin_emails:
-            org_name = notification_org.name if notification_org else 'Unknown Organization'
-            provider_name = f"Dr. {provider.first_name} {provider.last_name}" if provider else "TBD"
-            patient_name = f"{patient.first_name} {patient.last_name}" if patient else "Unknown Patient"
-            
+            org_name = (
+                notification_org.name if notification_org else "Unknown Organization"
+            )
+            provider_name = (
+                f"Dr. {provider.first_name} {provider.last_name}" if provider else "TBD"
+            )
+            patient_name = (
+                f"{patient.first_name} {patient.last_name}"
+                if patient
+                else "Unknown Patient"
+            )
+
             # Determine who created the appointment for better messaging
-            if self.request.user.role == 'patient':
+            if self.request.user.role == "patient":
                 created_by_text = f"by {self.request.user.get_full_name()}"
                 subject = f"📅 New Appointment from {self.request.user.get_full_name()}"
             else:
                 created_by_text = f"by {self.request.user.get_full_name()} ({self.request.user.role}) for {patient_name}"
-                subject = f"📅 New Appointment Created by {self.request.user.role.title()}"
-            
+                subject = (
+                    f"📅 New Appointment Created by {self.request.user.role.title()}"
+                )
+
             message = (
                 f"A new appointment has been scheduled {created_by_text}:\n\n"
                 f"Patient: {patient_name}\n"
@@ -158,13 +183,13 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 message,
                 settings.DEFAULT_FROM_EMAIL,
                 admin_emails,
-                fail_silently=True  # Changed to True to prevent SMTP errors from breaking appointment creation
-            )        # Handle recurrence logic
+                fail_silently=True,  # Changed to True to prevent SMTP errors from breaking appointment creation
+            )  # Handle recurrence logic
         try:
             recurrence = appointment.recurrence
-            
+
             # Only process recurrence if it's not 'none'
-            if recurrence and recurrence != 'none':
+            if recurrence and recurrence != "none":
                 start_time = appointment.appointment_datetime
                 duration = appointment.duration_minutes
                 recurrence_end_date = appointment.recurrence_end_date
@@ -175,24 +200,26 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     blocked_days = env.blocked_days if env else []
                 except Exception:
                     blocked_days = []
-                
+
                 holidays = set(
-                    Holiday.objects.filter(is_recognized=True, suppressed=False).values_list('date', flat=True)
+                    Holiday.objects.filter(
+                        is_recognized=True, suppressed=False
+                    ).values_list("date", flat=True)
                 )
-                
+
                 repeats = {
-                    'daily': 179,
-                    'weekly': 59,
-                    'monthly': 11,
+                    "daily": 179,
+                    "weekly": 59,
+                    "monthly": 11,
                 }
                 count = repeats.get(recurrence, 0)
 
                 for i in range(1, count + 1):
-                    if recurrence == 'daily':
+                    if recurrence == "daily":
                         next_time = start_time + timedelta(days=i)
-                    elif recurrence == 'weekly':
+                    elif recurrence == "weekly":
                         next_time = start_time + timedelta(weeks=i)
-                    elif recurrence == 'monthly':
+                    elif recurrence == "monthly":
                         next_time = start_time + relativedelta(months=i)
                     else:
                         continue
@@ -214,7 +241,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                         provider=provider,
                         appointment_datetime=next_time,
                         patient=appointment.patient,
-                        title=appointment.title
+                        title=appointment.title,
                     ).exists()
                     if not exists:
                         Appointment.objects.create(
@@ -223,18 +250,19 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                             description=appointment.description,
                             appointment_datetime=next_time,
                             duration_minutes=duration,
-                            recurrence='none',  # Prevent chaining
+                            recurrence="none",  # Prevent chaining
                             provider=provider,
-                            organization=organization
+                            organization=organization,
                         )
         except Exception as e:
             import traceback
-            print('Error in appointment recurrence logic:', e)
+
+            print("Error in appointment recurrence logic:", e)
             traceback.print_exc()
             raise Exception(f"Error in appointment recurrence logic: {e}")
 
     def perform_update(self, serializer):
-        provider_id = self.request.data.get('provider')
+        provider_id = self.request.data.get("provider")
         organization = None
         provider = None
         if provider_id:
@@ -243,11 +271,13 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 organization = provider.organization
             except User.DoesNotExist:
                 pass
-        updated = serializer.save(provider=provider if provider else None, organization=organization)
+        updated = serializer.save(
+            provider=provider if provider else None, organization=organization
+        )
         print(f"✅ Saved duration_minutes: {updated.duration_minutes}")
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def doctor_available_slots(request, doctor_id):
     now = timezone.localtime()
@@ -273,8 +303,7 @@ def doctor_available_slots(request, doctor_id):
 
             # Check if slot is taken by existing appointment
             is_taken = Appointment.objects.filter(
-                provider_id=doctor_id,
-                appointment_datetime=slot_time
+                provider_id=doctor_id, appointment_datetime=slot_time
             ).exists()
 
             if is_taken:
@@ -284,12 +313,12 @@ def doctor_available_slots(request, doctor_id):
             # Default appointment duration is 30 minutes
             appointment_duration = 30
             slot_end_time = slot_time + timedelta(minutes=appointment_duration)
-            
+
             is_blocked = Availability.objects.filter(
                 doctor_id=doctor_id,
                 is_blocked=True,
                 start_time__lt=slot_end_time,
-                end_time__gt=slot_time
+                end_time__gt=slot_time,
             ).exists()
 
             if not is_blocked:
@@ -301,10 +330,12 @@ def doctor_available_slots(request, doctor_id):
 
     return Response([timezone.localtime(s).isoformat() for s in slots])
 
+
 class ClinicEventViewSet(viewsets.ModelViewSet):
     queryset = ClinicEvent.objects.filter(is_active=True)
     serializer_class = ClinicEventSerializer
     permission_classes = [permissions.IsAuthenticated]  # Or adjust as needed
+
 
 class AvailabilityViewSet(viewsets.ModelViewSet):
     serializer_class = AvailabilitySerializer
@@ -312,9 +343,11 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'system_admin':
-            return Availability.objects.all().order_by('-start_time')
-        return Availability.objects.filter(organization=user.organization).order_by('-start_time')
+        if user.role == "system_admin":
+            return Availability.objects.all().order_by("-start_time")
+        return Availability.objects.filter(organization=user.organization).order_by(
+            "-start_time"
+        )
 
     def perform_create(self, serializer):
         organization = self.request.user.organization
@@ -330,19 +363,19 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
         end_date_limit = availability.recurrence_end_date
 
         recurrence_count = {
-            'daily': 179,     # ~6 months
-            'weekly': 59,     # ~1 year
-            'monthly': 11,    # ~1 year
+            "daily": 179,  # ~6 months
+            "weekly": 59,  # ~1 year
+            "monthly": 11,  # ~1 year
         }
 
         count = recurrence_count.get(recurrence, 0)
 
         for i in range(1, count + 1):
-            if recurrence == 'daily':
+            if recurrence == "daily":
                 delta = timedelta(days=i)
-            elif recurrence == 'weekly':
+            elif recurrence == "weekly":
                 delta = timedelta(weeks=i)
-            elif recurrence == 'monthly':
+            elif recurrence == "monthly":
                 delta = relativedelta(months=i)
             else:
                 continue
@@ -353,8 +386,8 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
             # Stop if recurrence_end_date is set and we're past it
             if end_date_limit and next_start.date() > end_date_limit:
                 break
-    
-        # 👉 Skip Saturdays (5) and Sundays (6)
+
+            # 👉 Skip Saturdays (5) and Sundays (6)
             if next_start.weekday() in (5, 6):
                 continue
 
@@ -364,7 +397,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
                 start_time=next_start,
                 end_time=next_end,
                 is_blocked=is_blocked,
-                organization=organization
+                organization=organization,
             ).exists()
 
             if not exists:
@@ -373,203 +406,218 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
                     start_time=next_start,
                     end_time=next_end,
                     is_blocked=is_blocked,
-                    recurrence='none',  # avoid chaining
-                    organization=organization
+                    recurrence="none",  # avoid chaining
+                    organization=organization,
                 )
 
 
 class EnvironmentSettingView(APIView):
     def get_permissions(self):
-        if self.request.method == 'GET':
+        if self.request.method == "GET":
             return [permissions.IsAuthenticated()]  # All logged-in users can read
-        return [IsAdminOrSystemAdmin()]             # Only admin or system_admin can edit
+        return [IsAdminOrSystemAdmin()]  # Only admin or system_admin can edit
 
     def get(self, request):
         # Determine which organization to fetch settings for
         target_organization = None
-        
+
         # If system admin and organization_id is provided, use that organization
-        if hasattr(request.user, 'role') and request.user.role == 'system_admin':
-            org_id = request.query_params.get('organization_id')
+        if hasattr(request.user, "role") and request.user.role == "system_admin":
+            org_id = request.query_params.get("organization_id")
             if org_id:
                 try:
                     from users.models import Organization
+
                     target_organization = Organization.objects.get(id=org_id)
                 except Organization.DoesNotExist:
                     return Response(
-                        {"error": "Organization not found"}, 
-                        status=status.HTTP_404_NOT_FOUND
+                        {"error": "Organization not found"},
+                        status=status.HTTP_404_NOT_FOUND,
                     )
-        
+
         # Fallback to user's organization
         if not target_organization:
             target_organization = request.user.organization
-            
+
         # If still no organization, create a default one for the user
         if not target_organization:
             from users.models import Organization
-            
+
             # Create a default organization
             default_org, created = Organization.objects.get_or_create(
                 name="Default Organization",
                 defaults={
-                    'address': '123 Main St',
-                    'city': 'Default City', 
-                    'state': 'CA',
-                    'zipcode': '12345'
-                }
+                    "address": "123 Main St",
+                    "city": "Default City",
+                    "state": "CA",
+                    "zipcode": "12345",
+                },
             )
-            
+
             # Assign user to the default organization
             request.user.organization = default_org
             request.user.save()
             target_organization = default_org
-            
+
         if not target_organization:
             return Response(
-                {"error": "No organization found"}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No organization found"}, status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Get or create the environment settings for this organization
         env_obj, env_created = EnvironmentSetting.objects.get_or_create(
             organization=target_organization,
-            defaults={'blocked_days': [0, 6]}  # Default: weekends blocked
+            defaults={"blocked_days": [0, 6]},  # Default: weekends blocked
         )
         env_serializer = EnvironmentSettingSerializer(env_obj)
-        
+
         # Get auto email settings for the target organization
         auto_email_obj = None
         if target_organization:
-            auto_email_obj = AutoEmail.objects.filter(organization=target_organization).first()
-        
+            auto_email_obj = AutoEmail.objects.filter(
+                organization=target_organization
+            ).first()
+
         # If no organization-specific settings, try to get global settings
         if not auto_email_obj:
             auto_email_obj = AutoEmail.objects.filter(organization__isnull=True).first()
-        
+
         # If no settings at all, create default settings
         if not auto_email_obj:
             auto_email_obj = AutoEmail.objects.create(
                 organization=target_organization,
-                auto_message_frequency='weekly',
+                auto_message_frequency="weekly",
                 auto_message_day_of_week=1,  # Monday
-                auto_message_start_date=timezone.now().date() + timedelta(days=1)
+                auto_message_start_date=timezone.now().date() + timedelta(days=1),
             )
-        
+
         auto_email_serializer = AutoEmailSerializer(auto_email_obj)
-        
+
         # Combine the response
-        response_data = {
-            **env_serializer.data,
-            **auto_email_serializer.data
-        }
-        
+        response_data = {**env_serializer.data, **auto_email_serializer.data}
+
         return Response(response_data)
-        
+
         # Get auto email settings for the target organization
         auto_email_obj = None
         if target_organization:
-            auto_email_obj = AutoEmail.objects.filter(organization=target_organization).first()
-        
+            auto_email_obj = AutoEmail.objects.filter(
+                organization=target_organization
+            ).first()
+
         # If no organization-specific settings, try to get global settings
         if not auto_email_obj:
             auto_email_obj = AutoEmail.objects.filter(organization__isnull=True).first()
-        
+
         # If no settings at all, create default settings
         if not auto_email_obj:
             auto_email_obj = AutoEmail.objects.create(
                 organization=target_organization,
-                auto_message_frequency='weekly',
+                auto_message_frequency="weekly",
                 auto_message_day_of_week=1,  # Monday
-                auto_message_start_date=timezone.now().date() + timedelta(days=1)
+                auto_message_start_date=timezone.now().date() + timedelta(days=1),
             )
-        
+
         auto_email_serializer = AutoEmailSerializer(auto_email_obj)
-        
+
         # Combine the response
-        response_data = {
-            **env_serializer.data,
-            **auto_email_serializer.data
-        }
-        
+        response_data = {**env_serializer.data, **auto_email_serializer.data}
+
         return Response(response_data)
 
     def post(self, request):
         # Determine which organization to save settings for
         target_organization = None
-        
+
         # If system admin and organization_id is provided, use that organization
-        if hasattr(request.user, 'role') and request.user.role == 'system_admin':
-            org_id = request.data.get('organization_id')
+        if hasattr(request.user, "role") and request.user.role == "system_admin":
+            org_id = request.data.get("organization_id")
             if org_id:
                 try:
                     from users.models import Organization
+
                     target_organization = Organization.objects.get(id=org_id)
                 except Organization.DoesNotExist:
                     return Response(
-                        {"error": "Organization not found"}, 
-                        status=status.HTTP_404_NOT_FOUND
+                        {"error": "Organization not found"},
+                        status=status.HTTP_404_NOT_FOUND,
                     )
-        
+
         # Fallback to user's own organization
         if not target_organization:
             target_organization = request.user.organization
-            
+
         if not target_organization:
             return Response(
-                {"error": "No organization found"}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No organization found"}, status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Process environment settings
         env_obj, env_created = EnvironmentSetting.objects.get_or_create(
             organization=target_organization,
-            defaults={'blocked_days': [0, 6]}  # Default: weekends blocked
+            defaults={"blocked_days": [0, 6]},  # Default: weekends blocked
         )
-        env_data = {k: v for k, v in request.data.items() if k in ['blocked_days']}
-        
-        env_serializer = EnvironmentSettingSerializer(env_obj, data=env_data, partial=True)
+        env_data = {k: v for k, v in request.data.items() if k in ["blocked_days"]}
+
+        env_serializer = EnvironmentSettingSerializer(
+            env_obj, data=env_data, partial=True
+        )
         if env_serializer.is_valid():
             env_serializer.save()
         else:
             return Response(env_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
         # Process auto email settings
         auto_email_data = {
-            k: v for k, v in request.data.items() 
-            if k in ['auto_message_frequency', 'auto_message_day_of_week', 'auto_message_start_date', 'is_active']
+            k: v
+            for k, v in request.data.items()
+            if k
+            in [
+                "auto_message_frequency",
+                "auto_message_day_of_week",
+                "auto_message_start_date",
+                "is_active",
+            ]
         }
-        
+
         if auto_email_data:
             # Try to get organization-specific settings first
             auto_email_obj = None
             if target_organization:
-                auto_email_obj = AutoEmail.objects.filter(organization=target_organization).first()
-            
+                auto_email_obj = AutoEmail.objects.filter(
+                    organization=target_organization
+                ).first()
+
             # If no organization-specific settings, try to get or create global settings
             if not auto_email_obj:
                 auto_email_obj, created = AutoEmail.objects.get_or_create(
                     organization=target_organization,
                     defaults={
-                        'auto_message_frequency': 'weekly',
-                        'auto_message_day_of_week': 1,  # Monday
-                        'auto_message_start_date': timezone.now().date() + timedelta(days=1)
-                    }
+                        "auto_message_frequency": "weekly",
+                        "auto_message_day_of_week": 1,  # Monday
+                        "auto_message_start_date": timezone.now().date()
+                        + timedelta(days=1),
+                    },
                 )
-            auto_email_serializer = AutoEmailSerializer(auto_email_obj, data=auto_email_data, partial=True)
+            auto_email_serializer = AutoEmailSerializer(
+                auto_email_obj, data=auto_email_data, partial=True
+            )
             if auto_email_serializer.is_valid():
                 auto_email_obj = auto_email_serializer.save()
                 # Settings saved - django-cron will use these settings on next run
             else:
-                return Response(auto_email_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+                return Response(
+                    auto_email_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+                )
+
         # Combine the response
         response_data = {**env_serializer.data}
-        
+
         # Add auto email serializer data if available
-        if 'auto_email_serializer' in locals():
+        if "auto_email_serializer" in locals():
             response_data.update(auto_email_serializer.data)
         return Response(response_data)
+
 
 class HolidayViewSet(viewsets.ModelViewSet):
     queryset = Holiday.objects.all()  # <-- Add this line
@@ -577,7 +625,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        year = self.request.query_params.get('year')
+        year = self.request.query_params.get("year")
         if year is not None:
             try:
                 year = int(year)
@@ -585,11 +633,13 @@ class HolidayViewSet(viewsets.ModelViewSet):
                 year = datetime.now().year
             # Ensure holidays for this year exist in the database
             self.ensure_holidays_for_year(year)
-            return Holiday.objects.filter(date__year=year, suppressed=False).order_by('date')
+            return Holiday.objects.filter(date__year=year, suppressed=False).order_by(
+                "date"
+            )
         else:
             # Optionally, auto-add for current year if not already in DB
             self.ensure_holidays_for_year(datetime.now().year)
-            return Holiday.objects.filter(suppressed=False).order_by('date')
+            return Holiday.objects.filter(suppressed=False).order_by("date")
 
     @staticmethod
     def ensure_holidays_for_year(year):
@@ -598,30 +648,37 @@ class HolidayViewSet(viewsets.ModelViewSet):
             Holiday.objects.get_or_create(
                 name=name,
                 date=date,
-                defaults={'is_recognized': True, 'suppressed': False}  # set to False if you want unchecked by default
+                defaults={
+                    "is_recognized": True,
+                    "suppressed": False,
+                },  # set to False if you want unchecked by default
             )
+
 
 class DownloadClinicEventsTemplate(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
 
     def get(self, request):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="clinic_events_template.csv"'
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            'attachment; filename="clinic_events_template.csv"'
+        )
 
         writer = csv.writer(response)
-        writer.writerow(['name', 'description', 'is_active'])  # Header row
+        writer.writerow(["name", "description", "is_active"])  # Header row
 
         return response
+
 
 class UploadClinicEventsCSV(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
     parser_classes = [MultiPartParser]
-    
+
     def post(self, request):
         logger.info("🔵 Starting clinic events CSV upload")
 
         try:
-            file = request.FILES.get('file')
+            file = request.FILES.get("file")
             if not file:
                 logger.error("❌ No file provided in clinic events upload request")
                 return Response({"error": "No file provided."}, status=400)
@@ -630,7 +687,7 @@ class UploadClinicEventsCSV(APIView):
 
             # Check file encoding and content
             try:
-                decoded_file = file.read().decode('utf-8').splitlines()
+                decoded_file = file.read().decode("utf-8").splitlines()
                 logger.info(f"📄 File decoded successfully, {len(decoded_file)} lines")
             except UnicodeDecodeError as e:
                 logger.error(f"❌ File encoding error: {str(e)}")
@@ -654,11 +711,17 @@ class UploadClinicEventsCSV(APIView):
                 logger.info(f"🔄 Processing clinic event row {row_count}: {row}")
 
                 try:
-                    name = row.get('name', '').strip()
-                    description = row.get('description', '').strip()
-                    is_active = row.get('is_active', 'true').strip().lower() in ['true', '1', 'yes']
+                    name = row.get("name", "").strip()
+                    description = row.get("description", "").strip()
+                    is_active = row.get("is_active", "true").strip().lower() in [
+                        "true",
+                        "1",
+                        "yes",
+                    ]
 
-                    logger.info(f"📋 Row data - Name: {name}, Description: {description}, Active: {is_active}")
+                    logger.info(
+                        f"📋 Row data - Name: {name}, Description: {description}, Active: {is_active}"
+                    )
 
                     # Skip rows with empty names
                     if not name:
@@ -679,12 +742,12 @@ class UploadClinicEventsCSV(APIView):
                     # Create clinic event
                     try:
                         clinic_event = ClinicEvent.objects.create(
-                            name=name,
-                            description=description,
-                            is_active=is_active
+                            name=name, description=description, is_active=is_active
                         )
                         created_count += 1
-                        logger.info(f"✅ Created clinic event: {name} (ID: {clinic_event.id})")
+                        logger.info(
+                            f"✅ Created clinic event: {name} (ID: {clinic_event.id})"
+                        )
 
                     except Exception as e:
                         error_msg = f"Row {row_count}: Error creating clinic event '{name}' - {str(e)}"
@@ -700,7 +763,9 @@ class UploadClinicEventsCSV(APIView):
                     skipped_count += 1
                     continue
 
-            logger.info(f"✅ Upload completed - Created: {created_count}, Skipped: {skipped_count}, Errors: {len(errors)}")
+            logger.info(
+                f"✅ Upload completed - Created: {created_count}, Skipped: {skipped_count}, Errors: {len(errors)}"
+            )
 
             # Prepare response message
             message = f"Upload completed: {created_count} clinic events created"
@@ -712,26 +777,40 @@ class UploadClinicEventsCSV(APIView):
                 "created_count": created_count,
                 "skipped_count": skipped_count,
                 "total_rows": row_count,
-                "errors": errors
+                "errors": errors,
             }
 
             return Response(response_data, status=200)
 
         except Exception as e:
-            logger.error(f"❌ Critical error in clinic events upload: {str(e)}", exc_info=True)
+            logger.error(
+                f"❌ Critical error in clinic events upload: {str(e)}", exc_info=True
+            )
             return Response({"error": f"Upload failed: {str(e)}"}, status=500)
+
 
 class DownloadAvailabilityTemplate(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
 
     def get(self, request):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="availability_template.csv"'
+        response = HttpResponse(content_type="text/csv")
+        response["Content-Disposition"] = (
+            'attachment; filename="availability_template.csv"'
+        )
         writer = csv.writer(response)
-        writer.writerow([
-            'doctor_username', 'start_time', 'end_time', 'is_blocked', 'recurrence', 'recurrence_end_date', 'organization'
-        ])
+        writer.writerow(
+            [
+                "doctor_username",
+                "start_time",
+                "end_time",
+                "is_blocked",
+                "recurrence",
+                "recurrence_end_date",
+                "organization",
+            ]
+        )
         return response
+
 
 class UploadAvailabilityCSV(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
@@ -741,7 +820,7 @@ class UploadAvailabilityCSV(APIView):
         logger.info("🔵 Starting availability CSV upload")
 
         try:
-            file = request.FILES.get('file')
+            file = request.FILES.get("file")
             if not file:
                 logger.error("❌ No file provided in availability upload request")
                 return Response({"error": "No file provided."}, status=400)
@@ -750,7 +829,7 @@ class UploadAvailabilityCSV(APIView):
 
             # Check file encoding and content
             try:
-                decoded_file = file.read().decode('utf-8').splitlines()
+                decoded_file = file.read().decode("utf-8").splitlines()
                 logger.info(f"📄 File decoded successfully, {len(decoded_file)} lines")
             except UnicodeDecodeError as e:
                 logger.error(f"❌ File encoding error: {str(e)}")
@@ -766,7 +845,7 @@ class UploadAvailabilityCSV(APIView):
 
             from .models import Availability
             from users.models import CustomUser, Organization
-            
+
             created_count = 0
             updated_count = 0
             errors = []
@@ -777,15 +856,21 @@ class UploadAvailabilityCSV(APIView):
                 logger.info(f"🔄 Processing availability row {row_count}: {row}")
 
                 try:
-                    doctor_username = row.get('doctor_username', '').strip()
-                    start_time = row.get('start_time', '').strip()
-                    end_time = row.get('end_time', '').strip()
-                    is_blocked = row.get('is_blocked', 'false').strip().lower() in ['true', '1', 'yes']
-                    recurrence = row.get('recurrence', '').strip()
-                    recurrence_end_date = row.get('recurrence_end_date', '').strip()
-                    org_name = row.get('organization', '').strip()
+                    doctor_username = row.get("doctor_username", "").strip()
+                    start_time = row.get("start_time", "").strip()
+                    end_time = row.get("end_time", "").strip()
+                    is_blocked = row.get("is_blocked", "false").strip().lower() in [
+                        "true",
+                        "1",
+                        "yes",
+                    ]
+                    recurrence = row.get("recurrence", "").strip()
+                    recurrence_end_date = row.get("recurrence_end_date", "").strip()
+                    org_name = row.get("organization", "").strip()
 
-                    logger.info(f"📋 Row data - Doctor: {doctor_username}, Start: {start_time}, End: {end_time}, Blocked: {is_blocked}")
+                    logger.info(
+                        f"📋 Row data - Doctor: {doctor_username}, Start: {start_time}, End: {end_time}, Blocked: {is_blocked}"
+                    )
 
                     if not doctor_username or not start_time or not end_time:
                         error_msg = f"Row {row_count}: Missing required fields (doctor_username, start_time, end_time)"
@@ -795,10 +880,16 @@ class UploadAvailabilityCSV(APIView):
 
                     # Validate doctor
                     try:
-                        doctor = CustomUser.objects.get(username=doctor_username, role='doctor')
-                        logger.info(f"✅ Found doctor: {doctor.first_name} {doctor.last_name}")
+                        doctor = CustomUser.objects.get(
+                            username=doctor_username, role="doctor"
+                        )
+                        logger.info(
+                            f"✅ Found doctor: {doctor.first_name} {doctor.last_name}"
+                        )
                     except CustomUser.DoesNotExist:
-                        error_msg = f"Row {row_count}: Doctor '{doctor_username}' not found."
+                        error_msg = (
+                            f"Row {row_count}: Doctor '{doctor_username}' not found."
+                        )
                         logger.error(f"❌ {error_msg}")
                         errors.append(error_msg)
                         continue
@@ -807,11 +898,15 @@ class UploadAvailabilityCSV(APIView):
                     org = None
                     if org_name:
                         try:
-                            org, org_created = Organization.objects.get_or_create(name=org_name)
+                            org, org_created = Organization.objects.get_or_create(
+                                name=org_name
+                            )
                             if org_created:
                                 logger.info(f"📋 Created new organization: {org_name}")
                             else:
-                                logger.info(f"📋 Using existing organization: {org_name}")
+                                logger.info(
+                                    f"📋 Using existing organization: {org_name}"
+                                )
                         except Exception as e:
                             error_msg = f"Row {row_count}: Error with organization '{org_name}' - {str(e)}"
                             logger.error(f"❌ {error_msg}")
@@ -825,11 +920,11 @@ class UploadAvailabilityCSV(APIView):
                             start_time=start_time,
                             end_time=end_time,
                             defaults={
-                                'is_blocked': is_blocked,
-                                'recurrence': recurrence,
-                                'recurrence_end_date': recurrence_end_date or None,
-                                'organization': org or doctor.organization
-                            }
+                                "is_blocked": is_blocked,
+                                "recurrence": recurrence,
+                                "recurrence_end_date": recurrence_end_date or None,
+                                "organization": org or doctor.organization,
+                            },
                         )
 
                         if not created:
@@ -840,10 +935,14 @@ class UploadAvailabilityCSV(APIView):
                             avail.organization = org or doctor.organization
                             avail.save()
                             updated_count += 1
-                            logger.info(f"🔄 Updated availability for {doctor_username}: {start_time} - {end_time}")
+                            logger.info(
+                                f"🔄 Updated availability for {doctor_username}: {start_time} - {end_time}"
+                            )
                         else:
                             created_count += 1
-                            logger.info(f"✅ Created availability for {doctor_username}: {start_time} - {end_time}")
+                            logger.info(
+                                f"✅ Created availability for {doctor_username}: {start_time} - {end_time}"
+                            )
 
                     except Exception as e:
                         error_msg = f"Row {row_count}: Error creating/updating availability for '{doctor_username}' - {str(e)}"
@@ -857,19 +956,26 @@ class UploadAvailabilityCSV(APIView):
                     errors.append(error_msg)
                     continue
 
-            logger.info(f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}")
+            logger.info(
+                f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}"
+            )
 
-            return Response({
-                "message": f"Upload completed. {created_count} availabilities created, {updated_count} updated.",
-                "created_count": created_count,
-                "updated_count": updated_count,
-                "total_rows": row_count,
-                "errors": errors
-            })
+            return Response(
+                {
+                    "message": f"Upload completed. {created_count} availabilities created, {updated_count} updated.",
+                    "created_count": created_count,
+                    "updated_count": updated_count,
+                    "total_rows": row_count,
+                    "errors": errors,
+                }
+            )
 
         except Exception as e:
-            logger.error(f"❌ Critical error in availability upload: {str(e)}", exc_info=True)
+            logger.error(
+                f"❌ Critical error in availability upload: {str(e)}", exc_info=True
+            )
             return Response({"error": f"Upload failed: {str(e)}"}, status=500)
+
 
 class RunWeeklyPatientRemindersView(APIView):
     permission_classes = [IsAdminUser]
@@ -877,7 +983,11 @@ class RunWeeklyPatientRemindersView(APIView):
     def post(self, request):
         # Using django-cron function instead of Celery task
         send_patient_reminders()
-        return Response({"message": "Weekly patient reminders have been sent."}, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Weekly patient reminders have been sent."},
+            status=status.HTTP_200_OK,
+        )
+
 
 class RunPatientRemindersNowView(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
@@ -885,14 +995,21 @@ class RunPatientRemindersNowView(APIView):
     def post(self, request):
         try:
             send_patient_reminders()
-            return Response({"message": "Patient reminders have been sent successfully."}, status=status.HTTP_200_OK)
+            return Response(
+                {"message": "Patient reminders have been sent successfully."},
+                status=status.HTTP_200_OK,
+            )
         except Exception as e:
-            return Response({"error": f"Failed to send patient reminders: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"error": f"Failed to send patient reminders: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
 
 class AutoEmailViewSet(viewsets.ModelViewSet):
     serializer_class = AutoEmailSerializer
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get_queryset(self):
         user = self.request.user
         if user.organization:
@@ -900,7 +1017,8 @@ class AutoEmailViewSet(viewsets.ModelViewSet):
         else:
             return AutoEmail.objects.filter(organization__isnull=True)
 
-@api_view(['PATCH'])
+
+@api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def update_appointment_status(request, appointment_id):
     """
@@ -909,18 +1027,17 @@ def update_appointment_status(request, appointment_id):
     try:
         user = request.user
         # Get the appointment
-        if user.role == 'system_admin':
+        if user.role == "system_admin":
             appointment = Appointment.objects.get(id=appointment_id)
         else:
             appointment = Appointment.objects.get(
-                id=appointment_id,
-                organization=user.organization
+                id=appointment_id, organization=user.organization
             )
-        
+
         # Get the status to update
-        arrived = request.data.get('arrived')
-        no_show = request.data.get('no_show')
-        
+        arrived = request.data.get("arrived")
+        no_show = request.data.get("no_show")
+
         # Update the fields if provided
         if arrived is not None:
             appointment.arrived = arrived
@@ -929,20 +1046,16 @@ def update_appointment_status(request, appointment_id):
             # If marking as no-show, automatically mark as not arrived
             if no_show:
                 appointment.arrived = False
-        
+
         appointment.save()
-        
+
         # Return updated appointment data
         serializer = AppointmentSerializer(appointment)
         return Response(serializer.data, status=status.HTTP_200_OK)
-        
+
     except Appointment.DoesNotExist:
         return Response(
-            {'error': 'Appointment not found'}, 
-            status=status.HTTP_404_NOT_FOUND
+            {"error": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND
         )
     except Exception as e:
-        return Response(
-            {'error': str(e)}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
