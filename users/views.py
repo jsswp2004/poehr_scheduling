@@ -153,7 +153,7 @@ class RegisterView(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         data = request.data
-        
+
         # Extract Stripe-related data from the request
         payment_method_id = data.get("payment_method_id")
         subscription_tier = data.get("subscription_tier", "basic")
@@ -187,7 +187,7 @@ class RegisterView(generics.CreateAPIView):
                 print(f"✅ Created new organization: {organization.name}")
             else:
                 print(f"♻️ Using existing organization: {organization.name}")
-        
+
         # Validate the serializer first (without Stripe fields and organization_name)
         serializer_data = {
             k: v
@@ -200,9 +200,9 @@ class RegisterView(generics.CreateAPIView):
                 "organization_name",
             ]
         }
-        
+
         serializer = self.get_serializer(data=serializer_data)
-        
+
         # Debug validation errors in detail
         if not serializer.is_valid():
             print("❌ Serializer validation errors:", serializer.errors)
@@ -212,11 +212,11 @@ class RegisterView(generics.CreateAPIView):
         try:
             # Create the user first (but don't commit to database yet)
             user = serializer.save(organization=organization)
-            
+
             # Set role to 'admin' for service enrollment
             if is_enrollment:
                 user.role = "admin"
-            
+
             # User created successfully
             # Only create Stripe customer for service enrollment, not patient registration
             if is_enrollment:  # Initialize Stripe service
@@ -822,108 +822,186 @@ class UploadPatientsCSV(APIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        file = request.FILES.get("file")
-        if not file:
-            return Response({"error": "No file provided."}, status=400)
+        logger.info("🔵 Starting patient CSV upload")
+        
+        try:
+            file = request.FILES.get("file")
+            if not file:
+                logger.error("❌ No file provided in upload request")
+                return Response({"error": "No file provided."}, status=400)
 
-        decoded_file = file.read().decode("utf-8").splitlines()
-        reader = csv.DictReader(decoded_file)
-        created_count = 0
-        updated_count = 0
-        errors = []
+            logger.info(f"📁 File received: {file.name}, size: {file.size} bytes")
 
-        for row in reader:
-            username = row.get("username", "").strip()
-            email = row.get("email", "").strip()
-            first_name = row.get("first_name", "").strip()
-            last_name = row.get("last_name", "").strip()
-            org_name = row.get("organization", "").strip()
-            phone_number = row.get("phone_number", "").strip()
-            date_of_birth = row.get("date_of_birth", "").strip()
-            address = row.get("address", "").strip()
-            medical_history = row.get("medical_history", "").strip()
-            password = row.get("password", "").strip()
+            # Check file encoding and content
+            try:
+                decoded_file = file.read().decode("utf-8").splitlines()
+                logger.info(f"📄 File decoded successfully, {len(decoded_file)} lines")
+            except UnicodeDecodeError as e:
+                logger.error(f"❌ File encoding error: {str(e)}")
+                return Response({"error": f"File encoding error: {str(e)}"}, status=400)
 
-            if not username or not email:
-                errors.append(f"Missing username or email for row: {row}")
-                continue
+            # Parse CSV
+            try:
+                reader = csv.DictReader(decoded_file)
+                logger.info(f"📊 CSV headers: {reader.fieldnames}")
+            except Exception as e:
+                logger.error(f"❌ CSV parsing error: {str(e)}")
+                return Response({"error": f"CSV parsing error: {str(e)}"}, status=400)
 
-            # Parse date of birth
-            dob = None
-            if date_of_birth:
+            created_count = 0
+            updated_count = 0
+            errors = []
+            row_count = 0
+
+            for row in reader:
+                row_count += 1
+                logger.info(f"🔄 Processing row {row_count}: {row}")
+                
                 try:
-                    from datetime import datetime
+                    username = row.get("username", "").strip()
+                    email = row.get("email", "").strip()
+                    first_name = row.get("first_name", "").strip()
+                    last_name = row.get("last_name", "").strip()
+                    org_name = row.get("organization", "").strip()
+                    phone_number = row.get("phone_number", "").strip()
+                    date_of_birth = row.get("date_of_birth", "").strip()
+                    address = row.get("address", "").strip()
+                    medical_history = row.get("medical_history", "").strip()
+                    password = row.get("password", "").strip()
 
-                    dob = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
-                except ValueError:
-                    errors.append(
-                        f"Invalid date format for user '{username}'. Use YYYY-MM-DD format."
-                    )
+                    logger.info(f"📋 Row data - Username: {username}, Email: {email}, Phone: {phone_number}")
+
+                    if not username or not email:
+                        error_msg = f"Missing username or email for row {row_count}: {row}"
+                        logger.warning(f"⚠️ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                    # Validate phone number format
+                    if phone_number:
+                        # Clean phone number - remove any non-digit characters except + and spaces
+                        cleaned_phone = ''.join(c for c in phone_number if c.isdigit() or c in ['+', ' ', '-', '(', ')'])
+                        if len(cleaned_phone) > 20:  # Phone number too long
+                            error_msg = f"Phone number too long for user '{username}': {phone_number}"
+                            logger.warning(f"⚠️ {error_msg}")
+                            errors.append(error_msg)
+                            continue
+                        phone_number = cleaned_phone
+
+                    # Parse date of birth
+                    dob = None
+                    if date_of_birth:
+                        try:
+                            from datetime import datetime
+                            dob = datetime.strptime(date_of_birth, "%Y-%m-%d").date()
+                            logger.info(f"📅 Parsed DOB: {dob}")
+                        except ValueError as e:
+                            error_msg = f"Invalid date format for user '{username}'. Use YYYY-MM-DD format. Error: {str(e)}"
+                            logger.warning(f"⚠️ {error_msg}")
+                            errors.append(error_msg)
+                            continue
+
+                    # Get or create organization
+                    org = None
+                    if org_name:
+                        try:
+                            org, org_created = Organization.objects.get_or_create(name=org_name)
+                            logger.info(f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})")
+                        except Exception as e:
+                            error_msg = f"Organization creation error for '{org_name}': {str(e)}"
+                            logger.error(f"❌ {error_msg}")
+                            errors.append(error_msg)
+                            continue
+
+                    # Create or update user (with patient role)
+                    try:
+                        user, created = CustomUser.objects.get_or_create(
+                            username=username,
+                            defaults={
+                                "email": email,
+                                "first_name": first_name,
+                                "last_name": last_name,
+                                "role": "patient",  # Always set role to patient
+                                "organization": org,
+                                "phone_number": phone_number,
+                            },
+                        )
+                        logger.info(f"👤 User: {username} ({'created' if created else 'updated'})")
+
+                        if created:
+                            if password:
+                                user.set_password(password)
+                            else:
+                                user.set_password("changeme123")
+                            user.save()
+                            created_count += 1
+                        else:
+                            # Update user fields
+                            user.email = email
+                            user.first_name = first_name
+                            user.last_name = last_name
+                            user.role = "patient"  # Ensure role is patient
+                            user.organization = org
+                            user.phone_number = phone_number
+                            if password:
+                                user.set_password(password)
+                            user.save()
+                            updated_count += 1
+
+                    except Exception as e:
+                        error_msg = f"User creation/update error for '{username}': {str(e)}"
+                        logger.error(f"❌ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                    # Create or update patient profile
+                    try:
+                        patient, patient_created = Patient.objects.get_or_create(
+                            user=user,
+                            defaults={
+                                "date_of_birth": dob,
+                                "address": address,
+                                "medical_history": medical_history,
+                                "organization": org,
+                            },
+                        )
+                        logger.info(f"🏥 Patient profile: ({'created' if patient_created else 'updated'})")
+
+                        if not patient_created:
+                            # Update patient fields
+                            patient.date_of_birth = dob or patient.date_of_birth
+                            patient.address = address or patient.address
+                            patient.medical_history = medical_history or patient.medical_history
+                            patient.organization = org or patient.organization
+                            patient.save()
+
+                    except Exception as e:
+                        error_msg = f"Patient profile creation/update error for '{username}': {str(e)}"
+                        logger.error(f"❌ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                except Exception as e:
+                    error_msg = f"Unexpected error processing row {row_count}: {str(e)}"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
                     continue
 
-            # Get or create organization
-            org = None
-            if org_name:
-                org, _ = Organization.objects.get_or_create(name=org_name)
+            logger.info(f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}")
 
-            # Create or update user (with patient role)
-            user, created = CustomUser.objects.get_or_create(
-                username=username,
-                defaults={
-                    "email": email,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "role": "patient",  # Always set role to patient
-                    "organization": org,
-                    "phone_number": phone_number,
-                },
+            return Response(
+                {
+                    "message": f"Upload completed. Created {created_count} patients, updated {updated_count} patients.",
+                    "errors": errors,
+                }
             )
 
-            if created:
-                if password:
-                    user.set_password(password)
-                else:
-                    user.set_password("changeme123")
-                user.save()
-                created_count += 1
-            else:
-                # Update user fields
-                user.email = email
-                user.first_name = first_name
-                user.last_name = last_name
-                user.role = "patient"  # Ensure role is patient
-                user.organization = org
-                user.phone_number = phone_number
-                if password:
-                    user.set_password(password)
-                user.save()
-                updated_count += 1
-
-            # Create or update patient profile
-            patient, patient_created = Patient.objects.get_or_create(
-                user=user,
-                defaults={
-                    "date_of_birth": dob,
-                    "address": address,
-                    "medical_history": medical_history,
-                    "organization": org,
-                },
+        except Exception as e:
+            logger.error(f"❌ Critical error in patient upload: {str(e)}", exc_info=True)
+            return Response(
+                {"error": f"Upload failed: {str(e)}"},
+                status=500
             )
-
-            if not patient_created:
-                # Update patient fields
-                patient.date_of_birth = dob or patient.date_of_birth
-                patient.address = address or patient.address
-                patient.medical_history = medical_history or patient.medical_history
-                patient.organization = org or patient.organization
-                patient.save()
-
-        return Response(
-            {
-                "message": f"Upload completed. Created {created_count} patients, updated {updated_count} patients.",
-                "errors": errors,
-            }
-        )
 
 
 @api_view(["GET", "PATCH"])
