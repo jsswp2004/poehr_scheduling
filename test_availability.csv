@@ -1,0 +1,6 @@
+doctor_username,start_time,end_time,is_blocked,recurrence,recurrence_end_date,organization
+btaylor,2025-08-08 09:00:00,2025-08-08 17:00:00,false,weekly,2025-12-31,,SUNY Downstate
+dsingh,2025-08-08 08:00:00,2025-08-08 16:00:00,false,weekly,2025-12-31,,SUNY Downstate
+hsmith,2025-08-08 10:00:00,2025-08-08 18:00:00,false,weekly,2025-12-31,,SUNY Downstate
+jchen,2025-08-08 13:00:00,2025-08-08 17:00:00,false,weekly,2025-12-31,,SUNY Downstate
+ncooper,2025-08-08 08:30:00,2025-08-08 16:30:00,false,weekly,2025-12-31,,SUNY Downstate

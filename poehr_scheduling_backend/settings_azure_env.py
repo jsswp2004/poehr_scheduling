@@ -4,122 +4,124 @@ from .settings import *
 
 # Security
 DEBUG = False
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'fallback-key-change-in-production')
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "fallback-key-change-in-production")
 ALLOWED_HOSTS = [
-    'poehr-scheduling.azurecontainerapps.io',
-    'poehr-scheduling.kindforest-7b8bffcf.centralus.azurecontainerapps.io',
-    'poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io',
-    'localhost',
-    '127.0.0.1',
-    '*',  # Allow all hosts for now to avoid this issue
+    "poehr-scheduling.azurecontainerapps.io",
+    "poehr-scheduling.kindforest-7b8bffcf.centralus.azurecontainerapps.io",
+    "poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io",
+    "localhost",
+    "127.0.0.1",
+    "*",  # Allow all hosts for now to avoid this issue
 ]
 
 # Database
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'poehr_db'),
-        'USER': os.environ.get('DB_USER', 'jsswp2004'),  # Back to original user
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'krat25Miko!'),
-        'HOST': os.environ.get('DB_HOST', 'poehr-scheduling-postgres.postgres.database.azure.com'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
-        'OPTIONS': {
-            'sslmode': 'require',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME", "poehr_db"),
+        "USER": os.environ.get("DB_USER", "jsswp2004"),  # Back to original user
+        "PASSWORD": os.environ.get("DB_PASSWORD", "krat25Miko!"),
+        "HOST": os.environ.get(
+            "DB_HOST", "poehr-scheduling-postgres.postgres.database.azure.com"
+        ),
+        "PORT": os.environ.get("DB_PORT", "5432"),
+        "OPTIONS": {
+            "sslmode": "require",
         },
     }
 }
 
 # Use local memory cache instead of Redis for now
 CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'unique-snowflake',
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
     }
 }
 
 # Disable channels (websockets) for now since it also requires Redis
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     }
 }
 
 # Templates for serving React frontend
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': ['/code/static/frontend'],  # React build output location
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": ["/code/static/frontend"],  # React build output location
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
 # Static files
-STATIC_ROOT = '/code/staticfiles'
-STATIC_URL = '/static/'
+STATIC_ROOT = "/code/staticfiles"
+STATIC_URL = "/static/"
 
 # Static files directories - where Django looks for static files before collecting
 STATICFILES_DIRS = [
-    '/code/static/frontend/static',  # React build output static files (JS, CSS, etc.)
+    "/code/static/frontend/static",  # React build output static files (JS, CSS, etc.)
 ]
 
 # Email (using Azure Communication Services or SendGrid)
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.sendgrid.net')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.sendgrid.net")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False  # Explicitly disable SSL since we're using TLS
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'apikey')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@poehr.com')
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "apikey")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@poehr.com")
 
 # Security headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = "DENY"
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 
 # HTTPS settings (Azure Container Apps provides HTTPS termination)
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_TLS = True
 
 # Logging
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
     },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
         },
-        'chat': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "chat": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
         },
-        'scheduler': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
+        "scheduler": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+            "propagate": False,
         },
     },
 }

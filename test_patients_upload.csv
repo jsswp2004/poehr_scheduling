@@ -1,0 +1,5 @@
+username,email,first_name,last_name,organization,phone_number,date_of_birth,address,medical_history,password
+test_patient1,test1@example.com,John,Doe,POWER IT,+1 (555) 123-4567,1990-01-15,123 Main St,No known allergies,password123
+test_patient2,test2@example.com,Jane,Smith,POWER IT,555.123.4568,1985-05-20,456 Oak Ave,Diabetes,password123
+test_patient3,test3@example.com,Bob,Johnson,POWER IT,5551234569123456789012345,1992-12-10,789 Pine Rd,Hypertension,password123
+test_patient4,test4@example.com,Alice,Williams,POWER IT,"phone with spaces and special chars +1-555-123-4570",1988-03-25,321 Elm St,,password123

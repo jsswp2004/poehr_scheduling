@@ -101,7 +101,7 @@ function UploadTab() {
 
   const handleAvailabilityDownload = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/availability/download-template/`, {
+      const response = await axios.get(`${API_BASE_URL}/api/upload/availability/template/`, {
         headers: { Authorization: `Bearer ${token}` },
         responseType: 'blob',
       });
@@ -118,7 +118,7 @@ function UploadTab() {
     const formData = new FormData();
     formData.append('file', availabilityFile);
     try {
-      await axios.post(`${API_BASE_URL}/api/availability/upload-csv/`, formData, {
+      await axios.post(`${API_BASE_URL}/api/upload/availability/`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
