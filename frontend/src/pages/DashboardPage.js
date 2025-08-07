@@ -1,5 +1,4 @@
 // src/pages/DashboardPage.js (Material UI migration, fully feature-retained)
-import { jwtDecode } from "jwt-decode";
 import Select from "react-select";
 import { useState, useEffect } from "react";
 import axios from "axios";
@@ -37,7 +36,6 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useNavigate } from "react-router-dom";
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -99,8 +97,6 @@ function DashboardPage() {
   const [tempSmsConsent, setTempSmsConsent] = useState(false);
 
   const token = localStorage.getItem("access_token");
-  const userRole = token ? jwtDecode(token).role : null;
-  const navigate = useNavigate();
   const [tab, setTab] = useState("myinfo");
 
   useEffect(() => {
