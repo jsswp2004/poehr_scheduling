@@ -705,18 +705,32 @@ def send_patient_email(request):
         )
 
         # Check email configuration before attempting to send
-        email_host = getattr(settings, 'EMAIL_HOST', None)
-        email_password = getattr(settings, 'EMAIL_HOST_PASSWORD', None)
+        email_backend = getattr(settings, "EMAIL_BACKEND", None)
+        email_host = getattr(settings, "EMAIL_HOST", None)
+        email_password = getattr(settings, "EMAIL_HOST_PASSWORD", None)
         
-        if not email_host:
-            error_msg = "Email host is not configured"
-            logger.error(error_msg)
-            return Response({"error": "Email service is not configured"}, status=500)
-            
-        if not email_password:
-            error_msg = "Email host password is not configured"
-            logger.error(error_msg)
-            return Response({"error": "Email service authentication is not configured"}, status=500)
+        logger.info(f"Current email backend: {email_backend}")
+        logger.info(f"Current email host: {email_host}")
+        logger.info(f"Email password configured: {'Yes' if email_password else 'No'}")
+        
+        # Only validate SMTP settings if using SMTP backend
+        if email_backend == 'django.core.mail.backends.smtp.EmailBackend':
+            if not email_host:
+                error_msg = "Email host is not configured"
+                logger.error(error_msg)
+                return Response({"error": "Email service is not configured"}, status=500)
+
+            if not email_password:
+                error_msg = "Email host password is not configured"
+                logger.error(error_msg)
+                return Response(
+                    {"error": "Email service authentication is not configured"}, status=500
+                )
+        elif email_backend == 'django.core.mail.backends.console.EmailBackend':
+            logger.info("Using console email backend - emails will be logged instead of sent")
+        else:
+            # Console backend or other backends don't need SMTP validation
+            logger.info(f"Using non-SMTP backend: {email_backend}")
 
         # Attempt to send email with specific error handling
         logger.info(f"Attempting to send email to: {email}")
@@ -728,21 +742,23 @@ def send_patient_email(request):
                 recipient_list=[email],
                 fail_silently=False,
             )
-            
+
             success_msg = f"Email sent successfully to {email}"
             logger.info(success_msg)
             return Response({"message": "Email sent successfully"})
-            
+
         except SMTPAuthenticationError as e:
             error_msg = f"SMTP Authentication failed: {str(e)}"
             logger.error(error_msg)
-            return Response({"error": "Email service authentication failed"}, status=500)
-            
+            return Response(
+                {"error": "Email service authentication failed"}, status=500
+            )
+
         except SMTPConnectError as e:
             error_msg = f"SMTP Connection failed: {str(e)}"
             logger.error(error_msg)
             return Response({"error": "Cannot connect to email service"}, status=500)
-            
+
         except SMTPException as e:
             error_msg = f"SMTP Error: {str(e)}"
             logger.error(error_msg)
