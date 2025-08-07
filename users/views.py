@@ -697,9 +697,20 @@ def send_patient_email(request):
 
         # Log email settings for debugging
         from django.conf import settings
+        import os
 
+        # Log environment variables directly for debugging
+        logger.info("=== EMAIL DEBUG INFORMATION ===")
+        logger.info(f"EMAIL_HOST_PASSWORD from env: {'***' if os.environ.get('EMAIL_HOST_PASSWORD') else 'NOT SET'}")
+        logger.info(f"EMAIL_HOST_USER from env: {os.environ.get('EMAIL_HOST_USER', 'NOT SET')}")
+        logger.info(f"EMAIL_HOST from env: {os.environ.get('EMAIL_HOST', 'NOT SET')}")
+        logger.info(f"EMAIL_PORT from env: {os.environ.get('EMAIL_PORT', 'NOT SET')}")
+        
         logger.info(f"Email backend: {settings.EMAIL_BACKEND}")
         logger.info(f"Email host: {getattr(settings, 'EMAIL_HOST', 'Not configured')}")
+        logger.info(f"Email port: {getattr(settings, 'EMAIL_PORT', 'Not configured')}")
+        logger.info(f"Email use SSL: {getattr(settings, 'EMAIL_USE_SSL', 'Not configured')}")
+        logger.info(f"Email host user: {getattr(settings, 'EMAIL_HOST_USER', 'Not configured')}")
         logger.info(
             f"Default from email: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'Not configured')}"
         )
@@ -708,26 +719,31 @@ def send_patient_email(request):
         email_backend = getattr(settings, "EMAIL_BACKEND", None)
         email_host = getattr(settings, "EMAIL_HOST", None)
         email_password = getattr(settings, "EMAIL_HOST_PASSWORD", None)
-        
+
         logger.info(f"Current email backend: {email_backend}")
         logger.info(f"Current email host: {email_host}")
         logger.info(f"Email password configured: {'Yes' if email_password else 'No'}")
-        
+
         # Only validate SMTP settings if using SMTP backend
-        if email_backend == 'django.core.mail.backends.smtp.EmailBackend':
+        if email_backend == "django.core.mail.backends.smtp.EmailBackend":
             if not email_host:
                 error_msg = "Email host is not configured"
                 logger.error(error_msg)
-                return Response({"error": "Email service is not configured"}, status=500)
+                return Response(
+                    {"error": "Email service is not configured"}, status=500
+                )
 
             if not email_password:
                 error_msg = "Email host password is not configured"
                 logger.error(error_msg)
                 return Response(
-                    {"error": "Email service authentication is not configured"}, status=500
+                    {"error": "Email service authentication is not configured"},
+                    status=500,
                 )
-        elif email_backend == 'django.core.mail.backends.console.EmailBackend':
-            logger.info("Using console email backend - emails will be logged instead of sent")
+        elif email_backend == "django.core.mail.backends.console.EmailBackend":
+            logger.info(
+                "Using console email backend - emails will be logged instead of sent"
+            )
         else:
             # Console backend or other backends don't need SMTP validation
             logger.info(f"Using non-SMTP backend: {email_backend}")
