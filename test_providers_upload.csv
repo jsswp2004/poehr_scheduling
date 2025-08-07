@@ -1,7 +1,16 @@
 username,email,first_name,last_name,organization,phone_number,provider,role,password
-dr_smith,drsmith@example.com,John,Smith,POWER IT,555-123-4567,,doctor,password123
-nurse_jane,nurse@example.com,Jane,Doe,POWER IT,555-123-4568,dr_smith,receptionist,password123
-admin_bob,admin@example.com,Bob,Johnson,POWER IT,555-123-4569,,admin,password123
-invalid_role_user,test@example.com,Test,User,POWER IT,555-123-4570,,invalid_role,password123
-very_long_phone_user,longphone@example.com,Long,Phone,POWER IT,5551234567890123456789012345,dr_smith,doctor,password123
-missing_provider_user,missing@example.com,Missing,Provider,POWER IT,555-123-4571,nonexistent_provider,doctor,password123
+jdoe,jdoe@suny.edu,John,Doe,SUNY Downstate,7185550101,,admin,JDoe!2025
+amartin,amartin@suny.edu,Alice,Martin,SUNY Downstate,7185550102,,registrar,AMartin@23
+btaylor,btaylor@suny.edu,Ben,Taylor,SUNY Downstate,7185550103,,doctor,BTaylor#2025
+clee,clee@suny.edu,Chris,Lee,SUNY Downstate,7185550104,,registrar,CLee2025!
+dsingh,dsingh@suny.edu,Deepa,Singh,SUNY Downstate,7185550105,,doctor,DSingh@2025
+emorales,emorales@suny.edu,Elena,Morales,SUNY Downstate,7185550106,,receptionist,EMorales2025#
+ffranklin,ffranklin@suny.edu,Felix,Franklin,SUNY Downstate,7185550107,,admin,FFRank!23
+gmurphy,gmurphy@suny.edu,Grace,Murphy,SUNY Downstate,7185550108,,registrar,GMurphy2025@
+hsmith,hsmith@suny.edu,Hannah,Smith,SUNY Downstate,7185550109,,doctor,HSmith!2025
+ijones,ijones@suny.edu,Ian,Jones,SUNY Downstate,7185550110,,registrar,IJones2025#
+jchen,jchen@suny.edu,Jessica,Chen,SUNY Downstate,7185550111,,doctor,JChen@2025
+kroberts,kroberts@suny.edu,Kyle,Roberts,SUNY Downstate,7185550112,,registrar,KRoberts!23
+lparker,lparker@suny.edu,Lisa,Parker,SUNY Downstate,7185550113,,admin,LParker@2025
+mmason,mmason@suny.edu,Matt,Mason,SUNY Downstate,7185550114,,registrar,MMason2025!
+ncooper,ncooper@suny.edu,Nina,Cooper,SUNY Downstate,7185550115,,doctor,NCooper#2025

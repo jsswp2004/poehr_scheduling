@@ -1,0 +1,6 @@
+name,description,is_active
+Cardiology Consultation,Regular cardiology appointment for existing patients,true
+General Check-up,Annual wellness visit and health screening,true
+Mental Health Counseling,Individual therapy session for mental health support,true
+Physical Therapy,Rehabilitation session for musculoskeletal conditions,true
+Pediatric Visit,Routine checkup for children and adolescents,true

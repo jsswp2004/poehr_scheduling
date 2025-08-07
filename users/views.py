@@ -718,7 +718,7 @@ class UploadProvidersCSV(APIView):
 
     def post(self, request):
         logger.info("🔵 Starting provider CSV upload")
-        
+
         try:
             file = request.FILES.get("file")
             if not file:
@@ -751,7 +751,7 @@ class UploadProvidersCSV(APIView):
             for row in reader:
                 row_count += 1
                 logger.info(f"🔄 Processing row {row_count}: {row}")
-                
+
                 try:
                     username = row.get("username", "").strip()
                     email = row.get("email", "").strip()
@@ -763,16 +763,28 @@ class UploadProvidersCSV(APIView):
                     role = row.get("role", "doctor").strip() or "doctor"
                     password = row.get("password", "").strip()
 
-                    logger.info(f"📋 Row data - Username: {username}, Email: {email}, Role: {role}, Phone: {phone_number}")
+                    logger.info(
+                        f"📋 Row data - Username: {username}, Email: {email}, Role: {role}, Phone: {phone_number}"
+                    )
 
                     if not username or not email:
-                        error_msg = f"Missing username or email for row {row_count}: {row}"
+                        error_msg = (
+                            f"Missing username or email for row {row_count}: {row}"
+                        )
                         logger.warning(f"⚠️ {error_msg}")
                         errors.append(error_msg)
                         continue
 
                     # Validate role
-                    valid_roles = ['patient', 'doctor', 'receptionist', 'admin', 'registrar', 'none', 'system_admin']
+                    valid_roles = [
+                        "patient",
+                        "doctor",
+                        "receptionist",
+                        "admin",
+                        "registrar",
+                        "none",
+                        "system_admin",
+                    ]
                     if role not in valid_roles:
                         error_msg = f"Invalid role '{role}' for user '{username}'. Valid roles: {valid_roles}"
                         logger.warning(f"⚠️ {error_msg}")
@@ -782,7 +794,11 @@ class UploadProvidersCSV(APIView):
                     # Validate phone number format
                     if phone_number:
                         # Clean phone number - remove any non-digit characters except + and spaces
-                        cleaned_phone = ''.join(c for c in phone_number if c.isdigit() or c in ['+', ' ', '-', '(', ')'])
+                        cleaned_phone = "".join(
+                            c
+                            for c in phone_number
+                            if c.isdigit() or c in ["+", " ", "-", "(", ")"]
+                        )
                         if len(cleaned_phone) > 20:  # Phone number too long
                             error_msg = f"Phone number too long for user '{username}': {phone_number}"
                             logger.warning(f"⚠️ {error_msg}")
@@ -794,8 +810,12 @@ class UploadProvidersCSV(APIView):
                     org = None
                     if org_name:
                         try:
-                            org, org_created = Organization.objects.get_or_create(name=org_name)
-                            logger.info(f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})")
+                            org, org_created = Organization.objects.get_or_create(
+                                name=org_name
+                            )
+                            logger.info(
+                                f"🏢 Organization: {org.name} ({'created' if org_created else 'existing'})"
+                            )
                         except Exception as e:
                             error_msg = f"Organization creation error for '{org_name}': {str(e)}"
                             logger.error(f"❌ {error_msg}")
@@ -806,7 +826,9 @@ class UploadProvidersCSV(APIView):
                     provider = None
                     if provider_username:
                         try:
-                            provider = CustomUser.objects.get(username=provider_username)
+                            provider = CustomUser.objects.get(
+                                username=provider_username
+                            )
                             logger.info(f"👨‍⚕️ Provider found: {provider.username}")
                         except CustomUser.DoesNotExist:
                             error_msg = f"Provider '{provider_username}' not found for user '{username}'"
@@ -827,7 +849,9 @@ class UploadProvidersCSV(APIView):
                                 "phone_number": phone_number,
                             },
                         )
-                        logger.info(f"👤 User: {username} ({'created' if created else 'updated'})")
+                        logger.info(
+                            f"👤 User: {username} ({'created' if created else 'updated'})"
+                        )
 
                         if created:
                             if password:
@@ -853,10 +877,14 @@ class UploadProvidersCSV(APIView):
                         if provider:
                             user.provider = provider
                             user.save()
-                            logger.info(f"🔗 Provider relationship set: {username} -> {provider.username}")
+                            logger.info(
+                                f"🔗 Provider relationship set: {username} -> {provider.username}"
+                            )
 
                     except Exception as e:
-                        error_msg = f"User creation/update error for '{username}': {str(e)}"
+                        error_msg = (
+                            f"User creation/update error for '{username}': {str(e)}"
+                        )
                         logger.error(f"❌ {error_msg}")
                         errors.append(error_msg)
                         continue
@@ -867,7 +895,9 @@ class UploadProvidersCSV(APIView):
                     errors.append(error_msg)
                     continue
 
-            logger.info(f"✅ Provider upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}")
+            logger.info(
+                f"✅ Provider upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}"
+            )
 
             return Response(
                 {
@@ -877,11 +907,10 @@ class UploadProvidersCSV(APIView):
             )
 
         except Exception as e:
-            logger.error(f"❌ Critical error in provider upload: {str(e)}", exc_info=True)
-            return Response(
-                {"error": f"Upload failed: {str(e)}"},
-                status=500
+            logger.error(
+                f"❌ Critical error in provider upload: {str(e)}", exc_info=True
             )
+            return Response({"error": f"Upload failed: {str(e)}"}, status=500)
 
 
 class DownloadPatientsCSVTemplate(APIView):
