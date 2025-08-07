@@ -134,10 +134,12 @@ export const usePatients = (navigate) => {
 
     const handleSendEmail = async (token) => {
         try {
-            // Get a fresh token to ensure it's not expired
-            const freshToken = await getValidToken();
-            if (!freshToken) {
+            // Use direct token access like PatientDetailPage for consistency
+            const authToken = localStorage.getItem("access_token");
+            if (!authToken) {
                 toast.error('Authentication token not found. Please log in again.');
+                clearAuthData();
+                navigate('/login');
                 return;
             }
 
@@ -149,14 +151,14 @@ export const usePatients = (navigate) => {
             }
 
             await axios.post(
-                `${API_BASE_URL}/api/messages/send-email/`,
+                `${API_BASE_URL}/api/users/send-email/`,
                 {
                     email: emailAddress,
                     subject: emailForm.subject,
                     message: emailForm.message,
                 },
                 {
-                    headers: { Authorization: `Bearer ${freshToken}` },
+                    headers: { Authorization: `Bearer ${authToken}` },
                 }
             );
             toast.success('Email sent successfully!');
