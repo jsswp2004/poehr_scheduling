@@ -19,15 +19,17 @@ export const TOKEN_KEYS = {
  */
 export const storeTokens = (accessToken, refreshToken) => {
   if (accessToken) {
-    localStorage.setItem(TOKEN_KEYS.ACCESS, accessToken);
+    // Store as JSON to be extension-friendly
+    localStorage.setItem(TOKEN_KEYS.ACCESS, JSON.stringify({ token: accessToken }));
   }
   if (refreshToken) {
-    localStorage.setItem(TOKEN_KEYS.REFRESH, refreshToken);
+    // Store as JSON to be extension-friendly
+    localStorage.setItem(TOKEN_KEYS.REFRESH, JSON.stringify({ token: refreshToken }));
   }
-  
+
   // Clean up any legacy token keys to prevent confusion
   cleanupLegacyTokens();
-  
+
   console.log('✅ Tokens stored successfully');
 };
 
@@ -36,7 +38,17 @@ export const storeTokens = (accessToken, refreshToken) => {
  * @returns {string|null} Access token or null if not found
  */
 export const getAccessToken = () => {
-  return localStorage.getItem(TOKEN_KEYS.ACCESS);
+  const stored = localStorage.getItem(TOKEN_KEYS.ACCESS);
+  if (!stored) return null;
+
+  try {
+    // Try to parse as JSON first (new format)
+    const parsed = JSON.parse(stored);
+    return parsed.token || null;
+  } catch {
+    // Fallback to direct string (legacy format)
+    return stored;
+  }
 };
 
 /**
@@ -44,7 +56,17 @@ export const getAccessToken = () => {
  * @returns {string|null} Refresh token or null if not found
  */
 export const getRefreshToken = () => {
-  return localStorage.getItem(TOKEN_KEYS.REFRESH);
+  const stored = localStorage.getItem(TOKEN_KEYS.REFRESH);
+  if (!stored) return null;
+
+  try {
+    // Try to parse as JSON first (new format)
+    const parsed = JSON.parse(stored);
+    return parsed.token || null;
+  } catch {
+    // Fallback to direct string (legacy format)
+    return stored;
+  }
 };
 
 /**
@@ -53,10 +75,10 @@ export const getRefreshToken = () => {
 export const clearTokens = () => {
   localStorage.removeItem(TOKEN_KEYS.ACCESS);
   localStorage.removeItem(TOKEN_KEYS.REFRESH);
-  
+
   // Also clean up legacy tokens
   cleanupLegacyTokens();
-  
+
   console.log('🧹 All tokens cleared');
 };
 
@@ -80,7 +102,7 @@ const cleanupLegacyTokens = () => {
  */
 export const isTokenExpired = (token) => {
   if (!token) return true;
-  
+
   try {
     const decoded = jwtDecode(token);
     const currentTime = Math.floor(Date.now() / 1000);
@@ -98,7 +120,7 @@ export const isTokenExpired = (token) => {
  */
 export const isTokenExpiringSoon = (token) => {
   if (!token) return true;
-  
+
   try {
     const decoded = jwtDecode(token);
     const currentTime = Math.floor(Date.now() / 1000);
@@ -119,7 +141,7 @@ export const getCurrentUserFromToken = () => {
   if (!token || isTokenExpired(token)) {
     return null;
   }
-  
+
   try {
     const decoded = jwtDecode(token);
     return {
@@ -146,9 +168,9 @@ export const setupTokenStorageListener = (callback) => {
       callback();
     }
   };
-  
+
   window.addEventListener('storage', handleStorageChange);
-  
+
   // Return cleanup function
   return () => {
     window.removeEventListener('storage', handleStorageChange);
@@ -161,27 +183,27 @@ export const setupTokenStorageListener = (callback) => {
 export const debugTokenState = () => {
   const accessToken = getAccessToken();
   const refreshToken = getRefreshToken();
-  
+
   console.group('🔍 Token Debug State');
   console.log('Access token present:', !!accessToken);
   console.log('Refresh token present:', !!refreshToken);
-  
+
   if (accessToken) {
     console.log('Access token expired:', isTokenExpired(accessToken));
     console.log('Access token expiring soon:', isTokenExpiringSoon(accessToken));
-    
+
     const user = getCurrentUserFromToken();
     if (user) {
       console.log('Current user:', user);
     }
   }
-  
+
   // Check for legacy tokens
   const legacyKeys = ['token', 'authToken', 'jwt_token', 'auth_token'];
   const legacyTokens = legacyKeys.filter(key => localStorage.getItem(key));
   if (legacyTokens.length > 0) {
     console.warn('⚠️ Legacy tokens found:', legacyTokens);
   }
-  
+
   console.groupEnd();
 };
