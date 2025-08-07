@@ -53,19 +53,14 @@ EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 if EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
     EMAIL_HOST = os.environ.get("EMAIL_HOST", "mail.privateemail.com")
-    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 465))
-    EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
-    EMAIL_USE_TLS = False  # Disable TLS when using SSL
+    EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))  # Try port 587 with TLS first
+    EMAIL_USE_TLS = True  # Use TLS for port 587
+    EMAIL_USE_SSL = False  # Disable SSL when using TLS
     EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "info@powerhealthcareit.com")
 else:
     # Fallback to console backend for debugging when SMTP is not configured
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     print("⚠️  WARNING: EMAIL_HOST_PASSWORD not configured, using console backend")
-EMAIL_HOST = os.environ.get("EMAIL_HOST", "mail.privateemail.com")
-EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 465))
-EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
-EMAIL_USE_TLS = False  # Disable TLS when using SSL
-EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "info@powerhealthcareit.com")
 
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "info@powerhealthcareit.com")
 
