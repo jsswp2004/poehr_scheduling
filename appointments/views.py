@@ -23,11 +23,14 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework import status
 import holidays as pyholidays
 import csv
+import logging
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
 from .permissions import IsAdminOrSystemAdmin
 from appointments.cron import send_patient_reminders
 from rest_framework.permissions import IsAdminUser
+
+logger = logging.getLogger(__name__)
 
 from .models import Appointment
 
@@ -615,45 +618,89 @@ class UploadClinicEventsCSV(APIView):
     parser_classes = [MultiPartParser]
     
     def post(self, request):
-        file = request.FILES.get('file')
-        if not file:
-            return Response({"error": "No file provided."}, status=400)
+        logger.info("🔵 Starting clinic events CSV upload")
 
         try:
-            decoded_file = file.read().decode('utf-8').splitlines()
-            reader = csv.DictReader(decoded_file)
+            file = request.FILES.get('file')
+            if not file:
+                logger.error("❌ No file provided in clinic events upload request")
+                return Response({"error": "No file provided."}, status=400)
+
+            logger.info(f"📁 File received: {file.name}, size: {file.size} bytes")
+
+            # Check file encoding and content
+            try:
+                decoded_file = file.read().decode('utf-8').splitlines()
+                logger.info(f"📄 File decoded successfully, {len(decoded_file)} lines")
+            except UnicodeDecodeError as e:
+                logger.error(f"❌ File encoding error: {str(e)}")
+                return Response({"error": f"File encoding error: {str(e)}"}, status=400)
+
+            # Parse CSV
+            try:
+                reader = csv.DictReader(decoded_file)
+                logger.info(f"📊 CSV headers: {reader.fieldnames}")
+            except Exception as e:
+                logger.error(f"❌ CSV parsing error: {str(e)}")
+                return Response({"error": f"CSV parsing error: {str(e)}"}, status=400)
 
             created_count = 0
             skipped_count = 0
             errors = []
+            row_count = 0
 
-            for row_num, row in enumerate(reader, start=2):  # Start at 2 to account for header row
-                name = row.get('name', '').strip()
-                description = row.get('description', '').strip()
-                is_active = row.get('is_active', 'true').strip().lower() in ['true', '1', 'yes']
-
-                # Skip rows with empty names
-                if not name:
-                    skipped_count += 1
-                    errors.append(f"Row {row_num}: Skipped - Name field is empty")
-                    continue
-
-                # Check if clinic event with this name already exists
-                if ClinicEvent.objects.filter(name=name).exists():
-                    skipped_count += 1
-                    errors.append(f"Row {row_num}: Skipped - Clinic event '{name}' already exists")
-                    continue
+            for row in reader:
+                row_count += 1
+                logger.info(f"🔄 Processing clinic event row {row_count}: {row}")
 
                 try:
-                    ClinicEvent.objects.create(
-                        name=name,
-                        description=description,
-                        is_active=is_active
-                    )
-                    created_count += 1
+                    name = row.get('name', '').strip()
+                    description = row.get('description', '').strip()
+                    is_active = row.get('is_active', 'true').strip().lower() in ['true', '1', 'yes']
+
+                    logger.info(f"📋 Row data - Name: {name}, Description: {description}, Active: {is_active}")
+
+                    # Skip rows with empty names
+                    if not name:
+                        error_msg = f"Row {row_count}: Skipped - Name field is empty"
+                        logger.warning(f"⚠️ {error_msg}")
+                        errors.append(error_msg)
+                        skipped_count += 1
+                        continue
+
+                    # Check if clinic event with this name already exists
+                    if ClinicEvent.objects.filter(name=name).exists():
+                        error_msg = f"Row {row_count}: Skipped - Clinic event '{name}' already exists"
+                        logger.warning(f"⚠️ {error_msg}")
+                        errors.append(error_msg)
+                        skipped_count += 1
+                        continue
+
+                    # Create clinic event
+                    try:
+                        clinic_event = ClinicEvent.objects.create(
+                            name=name,
+                            description=description,
+                            is_active=is_active
+                        )
+                        created_count += 1
+                        logger.info(f"✅ Created clinic event: {name} (ID: {clinic_event.id})")
+
+                    except Exception as e:
+                        error_msg = f"Row {row_count}: Error creating clinic event '{name}' - {str(e)}"
+                        logger.error(f"❌ {error_msg}")
+                        errors.append(error_msg)
+                        skipped_count += 1
+                        continue
+
                 except Exception as e:
+                    error_msg = f"Unexpected error processing row {row_count}: {str(e)}"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
                     skipped_count += 1
-                    errors.append(f"Row {row_num}: Error creating '{name}' - {str(e)}")
+                    continue
+
+            logger.info(f"✅ Upload completed - Created: {created_count}, Skipped: {skipped_count}, Errors: {len(errors)}")
 
             # Prepare response message
             message = f"Upload completed: {created_count} clinic events created"
@@ -664,16 +711,15 @@ class UploadClinicEventsCSV(APIView):
                 "message": message,
                 "created_count": created_count,
                 "skipped_count": skipped_count,
-                "total_rows": created_count + skipped_count
+                "total_rows": row_count,
+                "errors": errors
             }
-
-            if errors:
-                response_data["errors"] = errors
 
             return Response(response_data, status=200)
 
         except Exception as e:
-            return Response({"error": f"Failed to process file: {str(e)}"}, status=400)
+            logger.error(f"❌ Critical error in clinic events upload: {str(e)}", exc_info=True)
+            return Response({"error": f"Upload failed: {str(e)}"}, status=500)
 
 class DownloadAvailabilityTemplate(APIView):
     permission_classes = [IsAdminOrSystemAdmin]
@@ -688,63 +734,142 @@ class DownloadAvailabilityTemplate(APIView):
         return response
 
 class UploadAvailabilityCSV(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminOrSystemAdmin]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        file = request.FILES.get('file')
-        if not file:
-            return Response({"error": "No file provided."}, status=400)
-        decoded_file = file.read().decode('utf-8').splitlines()
-        reader = csv.DictReader(decoded_file)
-        from .models import Availability
-        from users.models import CustomUser, Organization
-        created_count = 0
-        updated_count = 0
-        errors = []
-        for row in reader:
-            doctor_username = row.get('doctor_username', '').strip()
-            start_time = row.get('start_time', '').strip()
-            end_time = row.get('end_time', '').strip()
-            is_blocked = row.get('is_blocked', 'false').strip().lower() in ['true', '1', 'yes']
-            recurrence = row.get('recurrence', '').strip()
-            recurrence_end_date = row.get('recurrence_end_date', '').strip()
-            org_name = row.get('organization', '').strip()
-            # Validate doctor
+        logger.info("🔵 Starting availability CSV upload")
+
+        try:
+            file = request.FILES.get('file')
+            if not file:
+                logger.error("❌ No file provided in availability upload request")
+                return Response({"error": "No file provided."}, status=400)
+
+            logger.info(f"📁 File received: {file.name}, size: {file.size} bytes")
+
+            # Check file encoding and content
             try:
-                doctor = CustomUser.objects.get(username=doctor_username, role='doctor')
-            except CustomUser.DoesNotExist:
-                errors.append(f"Doctor '{doctor_username}' not found.")
-                continue
-            # Validate org
-            org = None
-            if org_name:
-                org, _ = Organization.objects.get_or_create(name=org_name)
-            # Try to find existing availability
-            avail, created = Availability.objects.get_or_create(
-                doctor=doctor,
-                start_time=start_time,
-                end_time=end_time,
-                defaults={
-                    'is_blocked': is_blocked,
-                    'recurrence': recurrence,
-                    'recurrence_end_date': recurrence_end_date or None,
-                    'organization': org or doctor.organization
-                }
-            )
-            if not created:
-                avail.is_blocked = is_blocked
-                avail.recurrence = recurrence
-                avail.recurrence_end_date = recurrence_end_date or None
-                avail.organization = org or doctor.organization
-                avail.save()
-                updated_count += 1
-            else:
-                created_count += 1
-        return Response({
-            "message": f"{created_count} availabilities created, {updated_count} updated.",
-            "errors": errors
-        })
+                decoded_file = file.read().decode('utf-8').splitlines()
+                logger.info(f"📄 File decoded successfully, {len(decoded_file)} lines")
+            except UnicodeDecodeError as e:
+                logger.error(f"❌ File encoding error: {str(e)}")
+                return Response({"error": f"File encoding error: {str(e)}"}, status=400)
+
+            # Parse CSV
+            try:
+                reader = csv.DictReader(decoded_file)
+                logger.info(f"📊 CSV headers: {reader.fieldnames}")
+            except Exception as e:
+                logger.error(f"❌ CSV parsing error: {str(e)}")
+                return Response({"error": f"CSV parsing error: {str(e)}"}, status=400)
+
+            from .models import Availability
+            from users.models import CustomUser, Organization
+            
+            created_count = 0
+            updated_count = 0
+            errors = []
+            row_count = 0
+
+            for row in reader:
+                row_count += 1
+                logger.info(f"🔄 Processing availability row {row_count}: {row}")
+
+                try:
+                    doctor_username = row.get('doctor_username', '').strip()
+                    start_time = row.get('start_time', '').strip()
+                    end_time = row.get('end_time', '').strip()
+                    is_blocked = row.get('is_blocked', 'false').strip().lower() in ['true', '1', 'yes']
+                    recurrence = row.get('recurrence', '').strip()
+                    recurrence_end_date = row.get('recurrence_end_date', '').strip()
+                    org_name = row.get('organization', '').strip()
+
+                    logger.info(f"📋 Row data - Doctor: {doctor_username}, Start: {start_time}, End: {end_time}, Blocked: {is_blocked}")
+
+                    if not doctor_username or not start_time or not end_time:
+                        error_msg = f"Row {row_count}: Missing required fields (doctor_username, start_time, end_time)"
+                        logger.warning(f"⚠️ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                    # Validate doctor
+                    try:
+                        doctor = CustomUser.objects.get(username=doctor_username, role='doctor')
+                        logger.info(f"✅ Found doctor: {doctor.first_name} {doctor.last_name}")
+                    except CustomUser.DoesNotExist:
+                        error_msg = f"Row {row_count}: Doctor '{doctor_username}' not found."
+                        logger.error(f"❌ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                    # Validate organization
+                    org = None
+                    if org_name:
+                        try:
+                            org, org_created = Organization.objects.get_or_create(name=org_name)
+                            if org_created:
+                                logger.info(f"📋 Created new organization: {org_name}")
+                            else:
+                                logger.info(f"📋 Using existing organization: {org_name}")
+                        except Exception as e:
+                            error_msg = f"Row {row_count}: Error with organization '{org_name}' - {str(e)}"
+                            logger.error(f"❌ {error_msg}")
+                            errors.append(error_msg)
+                            continue
+
+                    # Try to find existing availability
+                    try:
+                        avail, created = Availability.objects.get_or_create(
+                            doctor=doctor,
+                            start_time=start_time,
+                            end_time=end_time,
+                            defaults={
+                                'is_blocked': is_blocked,
+                                'recurrence': recurrence,
+                                'recurrence_end_date': recurrence_end_date or None,
+                                'organization': org or doctor.organization
+                            }
+                        )
+
+                        if not created:
+                            # Update existing availability
+                            avail.is_blocked = is_blocked
+                            avail.recurrence = recurrence
+                            avail.recurrence_end_date = recurrence_end_date or None
+                            avail.organization = org or doctor.organization
+                            avail.save()
+                            updated_count += 1
+                            logger.info(f"🔄 Updated availability for {doctor_username}: {start_time} - {end_time}")
+                        else:
+                            created_count += 1
+                            logger.info(f"✅ Created availability for {doctor_username}: {start_time} - {end_time}")
+
+                    except Exception as e:
+                        error_msg = f"Row {row_count}: Error creating/updating availability for '{doctor_username}' - {str(e)}"
+                        logger.error(f"❌ {error_msg}")
+                        errors.append(error_msg)
+                        continue
+
+                except Exception as e:
+                    error_msg = f"Unexpected error processing row {row_count}: {str(e)}"
+                    logger.error(f"❌ {error_msg}")
+                    errors.append(error_msg)
+                    continue
+
+            logger.info(f"✅ Upload completed - Created: {created_count}, Updated: {updated_count}, Errors: {len(errors)}")
+
+            return Response({
+                "message": f"Upload completed. {created_count} availabilities created, {updated_count} updated.",
+                "created_count": created_count,
+                "updated_count": updated_count,
+                "total_rows": row_count,
+                "errors": errors
+            })
+
+        except Exception as e:
+            logger.error(f"❌ Critical error in availability upload: {str(e)}", exc_info=True)
+            return Response({"error": f"Upload failed: {str(e)}"}, status=500)
 
 class RunWeeklyPatientRemindersView(APIView):
     permission_classes = [IsAdminUser]
