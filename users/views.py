@@ -610,6 +610,7 @@ def send_sms(request):
 
 
 from django.core.mail import send_mail
+from smtplib import SMTPException, SMTPAuthenticationError, SMTPConnectError
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -662,69 +663,105 @@ def send_patient_email(request):
     """
     Enhanced email sending endpoint with comprehensive logging and error handling
     """
-    
+
     # Enhanced logging setup
     logger = logging.getLogger(__name__)
     logger.info(f"Email send request from user: {request.user.username}")
-    
+
     try:
         # Extract and validate request data
         email = request.data.get("email")
         subject = request.data.get("subject", "Message from your provider")
         message = request.data.get("message")
-        
-        logger.info(f"Email request data: email={email}, subject='{subject}', message_length={len(message) if message else 0}")
-        
+
+        logger.info(
+            f"Email request data: email={email}, subject='{subject}', message_length={len(message) if message else 0}"
+        )
+
         # Validate required fields
         if not email or not message:
             error_msg = "Email and message are required."
             logger.warning(f"Validation failed: {error_msg}")
             return Response({"error": error_msg}, status=400)
-        
+
         # Validate email format
         from django.core.validators import validate_email
         from django.core.exceptions import ValidationError
-        
+
         try:
             validate_email(email)
         except ValidationError as e:
             error_msg = f"Invalid email format: {email}"
             logger.warning(f"Email validation failed: {error_msg}")
             return Response({"error": error_msg}, status=400)
-        
+
         # Log email settings for debugging
         from django.conf import settings
+
         logger.info(f"Email backend: {settings.EMAIL_BACKEND}")
         logger.info(f"Email host: {getattr(settings, 'EMAIL_HOST', 'Not configured')}")
-        logger.info(f"Default from email: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'Not configured')}")
-        
-        # Attempt to send email
-        logger.info(f"Attempting to send email to: {email}")
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=None,  # defaults to DEFAULT_FROM_EMAIL
-            recipient_list=[email],
-            fail_silently=False,
+        logger.info(
+            f"Default from email: {getattr(settings, 'DEFAULT_FROM_EMAIL', 'Not configured')}"
         )
+
+        # Check email configuration before attempting to send
+        email_host = getattr(settings, 'EMAIL_HOST', None)
+        email_password = getattr(settings, 'EMAIL_HOST_PASSWORD', None)
         
-        success_msg = f"Email sent successfully to {email}"
-        logger.info(success_msg)
-        return Response({"message": "Email sent successfully"})
-        
+        if not email_host:
+            error_msg = "Email host is not configured"
+            logger.error(error_msg)
+            return Response({"error": "Email service is not configured"}, status=500)
+            
+        if not email_password:
+            error_msg = "Email host password is not configured"
+            logger.error(error_msg)
+            return Response({"error": "Email service authentication is not configured"}, status=500)
+
+        # Attempt to send email with specific error handling
+        logger.info(f"Attempting to send email to: {email}")
+        try:
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=None,  # defaults to DEFAULT_FROM_EMAIL
+                recipient_list=[email],
+                fail_silently=False,
+            )
+            
+            success_msg = f"Email sent successfully to {email}"
+            logger.info(success_msg)
+            return Response({"message": "Email sent successfully"})
+            
+        except SMTPAuthenticationError as e:
+            error_msg = f"SMTP Authentication failed: {str(e)}"
+            logger.error(error_msg)
+            return Response({"error": "Email service authentication failed"}, status=500)
+            
+        except SMTPConnectError as e:
+            error_msg = f"SMTP Connection failed: {str(e)}"
+            logger.error(error_msg)
+            return Response({"error": "Cannot connect to email service"}, status=500)
+            
+        except SMTPException as e:
+            error_msg = f"SMTP Error: {str(e)}"
+            logger.error(error_msg)
+            return Response({"error": f"Email service error: {str(e)}"}, status=500)
+
     except Exception as e:
         error_msg = f"Email sending failed: {str(e)}"
         logger.error(error_msg)
         logger.error(f"Exception type: {type(e).__name__}")
-        
+
         # Log additional context for debugging
         import traceback
+
         logger.error(f"Full traceback: {traceback.format_exc()}")
-        
-        return Response({
-            "error": str(e),
-            "detail": "Check server logs for more information"
-        }, status=500)
+
+        return Response(
+            {"error": str(e), "detail": "Check server logs for more information"},
+            status=500,
+        )
 
 
 class PatientDeleteView(DestroyAPIView):
