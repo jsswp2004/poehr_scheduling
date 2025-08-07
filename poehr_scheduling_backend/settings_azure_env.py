@@ -19,7 +19,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ.get('DB_NAME', 'poehr_db'),
-        'USER': os.environ.get('DB_USER', 'poehr_admin'),  # Simple username works
+        'USER': os.environ.get('DB_USER', 'jsswp2004'),  # Match local database user
         'PASSWORD': os.environ.get('DB_PASSWORD', 'krat25Miko!'),
         'HOST': os.environ.get('DB_HOST', 'poehr-scheduling-postgres.postgres.database.azure.com'),
         'PORT': os.environ.get('DB_PORT', '5432'),
