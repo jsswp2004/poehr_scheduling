@@ -61,6 +61,11 @@ else:
     # Fallback to console backend for debugging when SMTP is not configured
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
     print("⚠️  WARNING: EMAIL_HOST_PASSWORD not configured, using console backend")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "mail.privateemail.com")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 465))
+EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
+EMAIL_USE_TLS = False  # Disable TLS when using SSL
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "info@powerhealthcareit.com")
 
 DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "info@powerhealthcareit.com")
 
