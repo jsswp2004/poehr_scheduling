@@ -2,7 +2,7 @@ name: Deploy to Azure Container Apps
 
 on:
   push:
-    branches: [ docker-azure-deployment, azure-deployment-fixed ]
+    branches: [docker-azure-deployment, azure-deployment-fixed]
   workflow_dispatch:
 
 env:
@@ -14,36 +14,40 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Azure Login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-    
-    - name: Build and push container image
-      run: |
-        az acr build \
-          --registry ${{ env.AZURE_CONTAINER_REGISTRY }} \
-          --image ${{ env.IMAGE_NAME }}:${{ github.sha }} \
-          --image ${{ env.IMAGE_NAME }}:latest \
-          --file Dockerfile.azure \
-          .
-    
-    - name: Deploy to Azure Container Apps
-      run: |
-        az containerapp update \
-          --name ${{ env.AZURE_CONTAINER_APP }} \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
-    
-    - name: Verify deployment
-      run: |
-        az containerapp show \
-          --name ${{ env.AZURE_CONTAINER_APP }} \
-          --resource-group ${{ env.AZURE_RESOURCE_GROUP }} \
-          --query properties.configuration.ingress.fqdn \
-          --output tsv
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build Docker image
+        run: |
+          docker build -f Dockerfile.azure -t poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }} .
+          docker tag poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }} poehrschedulingacr.azurecr.io/poehr-scheduling:latest
+
+      - name: Login to Azure Container Registry
+        run: az acr login --name poehrschedulingacr
+
+      - name: Push image to ACR
+        run: |
+          docker push poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }}
+          docker push poehrschedulingacr.azurecr.io/poehr-scheduling:latest
+
+      - name: Deploy to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name poehr-scheduling \
+            --resource-group poehr-scheduling-rg \
+            --image poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }}
+
+      - name: Verify deployment
+        run: |
+          az containerapp show \
+            --name poehr-scheduling \
+            --resource-group poehr-scheduling-rg \
+            --query properties.configuration.ingress.fqdn \
+            --output tsv
