@@ -246,7 +246,7 @@ export const useChatData = (currentUser) => {
         setLastError,
         getOrCreateRoom,
         addMessageToRoom,
-    isDuplicateMessage,
+        isDuplicateMessage,
         updateUnreadCount,
         markRoomAsRead,
         getRoomMessages,
