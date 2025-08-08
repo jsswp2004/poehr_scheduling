@@ -40,15 +40,16 @@ const ChatModal = ({
   onRetryConnection = null,
   getUserOnlineStatus,
   getUnreadCount = () => 0,
-  onDeleteOfflineMessage = null
+  onDeleteOfflineMessage = null,
+  markRoomAsRead = null // Function to mark room as read
 }) => {
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-    // Helper functions for user display
-    const getUserDisplayName = (user) => {
+  // Helper functions for user display
+  const getUserDisplayName = (user) => {
     if (!user) return 'Unknown User';
     return `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Unknown User';
   };
@@ -106,6 +107,16 @@ const ChatModal = ({
     }
   }, [open]);
 
+  // Mark room as read when modal opens with a selected user
+  useEffect(() => {
+    if (open && selectedUser && markRoomAsRead && currentUser) {
+      const roomKey = createRoomKey(currentUser, selectedUser);
+      if (roomKey) {
+        markRoomAsRead(roomKey);
+      }
+    }
+  }, [open, selectedUser, markRoomAsRead, currentUser]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -130,23 +141,23 @@ const ChatModal = ({
     }
   };
 
-    const handleInputChange = (e) => {
-        setMessageText(e.target.value);
+  const handleInputChange = (e) => {
+    setMessageText(e.target.value);
 
-        // Handle typing indicators
-        if (!isTyping) {
-            setIsTyping(true);
-            // Emit typing start event here
-        }
+    // Handle typing indicators
+    if (!isTyping) {
+      setIsTyping(true);
+      // Emit typing start event here
+    }
 
-        // Clear existing timeout
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
 
-        // Set timeout to stop typing
-        typingTimeoutRef.current = setTimeout(handleStopTyping, 2000);
-    };  const getMessageTime = (timestamp) => {
+    // Set timeout to stop typing
+    typingTimeoutRef.current = setTimeout(handleStopTyping, 2000);
+  }; const getMessageTime = (timestamp) => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
     } catch (error) {

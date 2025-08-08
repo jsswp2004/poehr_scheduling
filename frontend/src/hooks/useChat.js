@@ -45,7 +45,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     } finally {
       setChatSystemLoading(false);
     }
-  }, [websocketConnection, chatData.setLastError]);
+  }, [websocketConnection, chatData]);
 
   // Handle incoming messages
   const handleIncomingMessage = useCallback((message) => {
@@ -72,7 +72,8 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     // Add message to room
     chatDataRef.current.addMessageToRoom(roomKey, message);
 
-    // Update unread count for the sender
+    // Update unread count for the sender (who we received the message from)
+    // This represents how many unread messages the current user has from this sender
     chatDataRef.current.updateUnreadCount(message.sender_id);
     chatNotificationsRef.current.handleNewMessageNotification(message);
   }, [currentUser]);
@@ -157,7 +158,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     const room = chatData.getOrCreateRoom(targetUser);
     if (room) {
       chatData.setActiveRoom(room.id);
-      chatData.markRoomAsRead(room.id);
+      // Don't mark as read immediately - let the UI decide when to mark as read
 
       // Join the room using SIMPLE NUMERIC recipient_id
       if (sendMessage) {
@@ -226,7 +227,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
         console.error('❌ Error processing websocket message:', error);
       }
     }
-  }, [lastMessageFromOnlineStatus]);
+  }, [lastMessageFromOnlineStatus, handleIncomingMessage]);
 
   return {
     // State
