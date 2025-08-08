@@ -17,10 +17,10 @@ import {
 } from '@mui/material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-    faCommentDots,
-    faEnvelope,
     faSms,
+    faEnvelope,
 } from '@fortawesome/free-solid-svg-icons';
+import MessagesButton from '../MessagesButton';
 
 // StatusDot component removed for simplified chat system
 
@@ -32,11 +32,10 @@ function TeamTable({
     teamPage,
     setTeamPage,
     teamTotalPages,
-    onOpenChat,
-    getUserOnlineStatus,
-    getUnreadCountForUser,
     onSendText,
     onOpenEmailModal,
+    onOpenMessages,
+    totalUnreadCount = 0,
 }) {
     // Local state for responsive search input
     const [localSearchValue, setLocalSearchValue] = useState(teamSearch || '');
@@ -83,8 +82,8 @@ function TeamTable({
 
     return (
         <Box>
-            {/* Search Control */}
-            <Box sx={{ mb: 3 }}>
+            {/* Search Control and Messages Button */}
+            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <TextField
                     label="Search team members..."
                     value={localSearchValue}
@@ -93,6 +92,13 @@ function TeamTable({
                     size="small"
                     sx={{ minWidth: 300, mt: 2 }}
                 />
+                {onOpenMessages && (
+                    <MessagesButton
+                        onClick={onOpenMessages}
+                        totalUnreadCount={totalUnreadCount}
+                        sx={{ mt: 2 }}
+                    />
+                )}
             </Box>
 
             {/* Team Table */}
@@ -119,8 +125,6 @@ function TeamTable({
                             </TableRow>
                         ) : (
                             team.map((member) => {
-                                const unreadCount = getUnreadCountForUser ? getUnreadCountForUser(member.id) : 0;
-
                                 return (
                                     <TableRow
                                         key={member.id}
@@ -163,33 +167,6 @@ function TeamTable({
                                                         sx={{ color: 'primary.main' }}
                                                     >
                                                         <FontAwesomeIcon icon={faSms} />
-                                                    </IconButton>
-                                                </Tooltip>
-
-                                                <Tooltip title={`Send Message${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => onOpenChat(member)}
-                                                        sx={{
-                                                            color: unreadCount > 0 ? '#ff4444' : 'info.main',
-                                                            position: 'relative',
-                                                        }}
-                                                    >
-                                                        <FontAwesomeIcon icon={faCommentDots} />
-                                                        {unreadCount > 0 && (
-                                                            <Box
-                                                                sx={{
-                                                                    position: 'absolute',
-                                                                    top: -2,
-                                                                    right: -2,
-                                                                    width: 12,
-                                                                    height: 12,
-                                                                    backgroundColor: '#ff4444',
-                                                                    borderRadius: '50%',
-                                                                    border: '1px solid white',
-                                                                }}
-                                                            />
-                                                        )}
                                                     </IconButton>
                                                 </Tooltip>
 
