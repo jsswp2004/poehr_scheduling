@@ -49,7 +49,9 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         # Join user to their personal presence group
         self.user_group_name = f"user_{self.user.id}"
         await self.channel_layer.group_add(self.user_group_name, self.channel_name)
-        print(f"DEBUG_CONNECT: User {self.user.id} joined personal group {self.user_group_name} on channel {self.channel_name}")
+        print(
+            f"DEBUG_CONNECT: User {self.user.id} joined personal group {self.user_group_name} on channel {self.channel_name}"
+        )
 
         # Join global presence group to receive all user status updates
         await self.channel_layer.group_add("presence_updates", self.channel_name)
@@ -158,6 +160,10 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                     f"DEBUG_CHAT_RECEIVE: Routing to handle_create_chat_room for data: {data}"
                 )
                 await self.handle_create_chat_room(data)
+            elif message_type == "test_broadcast":
+                # Test direct user-to-user messaging
+                print(f"DEBUG_TEST: Handling test_broadcast: {data}")
+                await self.handle_test_broadcast(data)
             else:
                 print(
                     f"DEBUG_CHAT_RECEIVE: Unknown message type: {message_type}, Data: {data}"
@@ -653,6 +659,69 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 f"DEBUG_CHAT: Failed to create or retrieve chat room for participants: {participant_ids_int}. An error should have been sent."
             )
 
+    async def handle_test_broadcast(self, data):
+        """Test direct user-to-user messaging to debug WebSocket routing"""
+        try:
+            target_user_id = data.get("target_user_id")
+            test_message = data.get("message", "Test message")
+            
+            print(f"DEBUG_TEST: Sending test message from user {self.user.id} to user {target_user_id}")
+            
+            if not target_user_id:
+                await self.send_error("target_user_id required for test")
+                return
+                
+            # Send directly to target user's personal group
+            target_group = f"user_{target_user_id}"
+            print(f"DEBUG_TEST: Sending to group {target_group}")
+            
+            await self.channel_layer.group_send(
+                target_group,
+                {
+                    "type": "test_message_received", 
+                    "sender_id": self.user.id,
+                    "sender_name": getattr(self.user, 'username', 'unknown'),
+                    "message": test_message
+                }
+            )
+            
+            print(f"DEBUG_TEST: Test message sent successfully to {target_group}")
+            
+            # Confirm to sender
+            await self.send(
+                text_data=json.dumps({
+                    "type": "test_sent",
+                    "target_user_id": target_user_id,
+                    "message": "Test message sent"
+                })
+            )
+            
+        except Exception as e:
+            print(f"ERROR: Failed to send test broadcast: {e}")
+            import traceback
+            traceback.print_exc()
+
+    async def test_message_received(self, event):
+        """Handle test message reception"""
+        try:
+            print(f"DEBUG_TEST: User {self.user.id} receiving test message: {event}")
+            
+            await self.send(
+                text_data=json.dumps({
+                    "type": "test_message",
+                    "sender_id": event["sender_id"], 
+                    "sender_name": event["sender_name"],
+                    "message": event["message"]
+                })
+            )
+            
+            print(f"DEBUG_TEST: Successfully delivered test message to user {self.user.id}")
+            
+        except Exception as e:
+            print(f"ERROR: Failed to handle test message: {e}")
+            import traceback
+            traceback.print_exc()
+
     @database_sync_to_async
     def _get_participant_objs(self, room):
         return [
@@ -769,8 +838,17 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             participant_ids = await self.get_room_participant_ids(room_id)
             print(f"[WS DEBUG] Room {room_id} participants: {participant_ids}")
 
+            # CRITICAL: Ensure each participant is in their room group AND test direct delivery
             for participant_id in participant_ids:
                 await self.ensure_participant_in_room(room_id, participant_id)
+                
+                # Also try direct delivery to user's personal group as backup
+                user_group = f"user_{participant_id}"
+                print(f"[WS DEBUG] BACKUP: Also sending directly to {user_group}")
+                await self.channel_layer.group_send(
+                    user_group,
+                    {"type": "direct_message_broadcast", "message": message_data}
+                )
 
             # Send the message to the room group
             await self.channel_layer.group_send(
@@ -808,6 +886,29 @@ class PresenceConsumer(AsyncWebsocketConsumer):
 
             traceback.print_exc()
 
+    async def direct_message_broadcast(self, event):
+        """Handle direct message broadcast to user's personal group as backup"""
+        try:
+            message_data = event["message"]
+            print(
+                f"DIRECT_BROADCAST: User {self.user.id} ({getattr(self.user, 'username', 'unknown')}) receiving DIRECT message: {message_data}"
+            )
+
+            await self.send(
+                text_data=json.dumps({"type": "new_message", "message": message_data})
+            )
+            print(
+                f"DIRECT_BROADCAST: Successfully sent DIRECT message to user {self.user.id} frontend"
+            )
+
+        except Exception as e:
+            print(
+                f"ERROR: Failed to send direct broadcast message to client {self.user.id}: {e}"
+            )
+            import traceback
+
+            traceback.print_exc()
+
     async def save_chat_message_async(self, room_id, message_text, recipient_id=None):
         """Async wrapper for save_chat_message"""
         return await database_sync_to_async(self.save_chat_message)(
@@ -819,27 +920,37 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         try:
             # Check if the user has an active WebSocket connection
             user_group_name = f"user_{user_id}"
-            print(f"[WS DEBUG] Sending join room notification to group {user_group_name} for room {room_id}")
+            print(
+                f"[WS DEBUG] Sending join room notification to group {user_group_name} for room {room_id}"
+            )
             await self.channel_layer.group_send(
                 user_group_name,
                 {"type": "join_chat_room_notification", "room_id": room_id},
             )
-            print(f"[WS DEBUG] Successfully sent join room notification to user {user_id} for room {room_id}")
+            print(
+                f"[WS DEBUG] Successfully sent join room notification to user {user_id} for room {room_id}"
+            )
         except Exception as e:
             print(f"ERROR: Failed to ensure user {user_id} is in room {room_id}: {e}")
             import traceback
+
             traceback.print_exc()
 
     async def join_chat_room_notification(self, event):
         """Handle join room notification from group send"""
         try:
             room_id = event["room_id"]
-            print(f"[WS DEBUG] User {self.user.id} received join room notification for room {room_id}")
+            print(
+                f"[WS DEBUG] User {self.user.id} received join room notification for room {room_id}"
+            )
             await self.join_chat_room(room_id)
-            print(f"[WS DEBUG] User {self.user.id} successfully auto-joined room {room_id} via notification")
+            print(
+                f"[WS DEBUG] User {self.user.id} successfully auto-joined room {room_id} via notification"
+            )
         except Exception as e:
             print(f"ERROR: Failed to auto-join room via notification: {e}")
             import traceback
+
             traceback.print_exc()
 
     def save_chat_message(self, room_id, message_text, recipient_id=None):
