@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Azure WebSocket Direct Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-result { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #log { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Azure WebSocket Direct Connection Test</h1>
+    
+    <div class="info test-result">
+        <strong>Current URL:</strong> <span id="currentUrl"></span><br>
+        <strong>Detected Environment:</strong> <span id="environment"></span><br>
+        <strong>WebSocket URL:</strong> <span id="wsUrl"></span>
+    </div>
+
+    <div>
+        <button onclick="testWebSocketConnection()">🔌 Test WebSocket Connection</button>
+        <button onclick="testWithToken()">🔑 Test With Token</button>
+        <button onclick="clearLog()">🗑️ Clear Log</button>
+    </div>
+
+    <div id="log"></div>
+
+    <script>
+        // Display current environment info
+        document.getElementById('currentUrl').textContent = window.location.href;
+        
+        const isProduction = window.location.hostname.includes('azurewebsites.net') || 
+                            window.location.hostname.includes('azurecontainerapps.io') ||
+                            window.location.hostname.includes('run.app');
+        
+        document.getElementById('environment').textContent = isProduction ? 'Production (Azure)' : 'Development';
+        
+        const wsUrl = isProduction 
+            ? `wss://${window.location.host}/ws/presence/`
+            : 'ws://localhost:8080/ws/presence/';
+            
+        document.getElementById('wsUrl').textContent = wsUrl;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('log');
+            const div = document.createElement('div');
+            div.innerHTML = `<span style="color: #666;">[${timestamp}]</span> ${message}`;
+            if (type === 'error') div.style.color = '#721c24';
+            if (type === 'success') div.style.color = '#155724';
+            logElement.appendChild(div);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function testWebSocketConnection() {
+            log('🔌 Starting WebSocket connection test...', 'info');
+            log(`📡 Connecting to: ${wsUrl}`, 'info');
+            
+            const ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function(event) {
+                log('✅ WebSocket connection opened successfully!', 'success');
+                log('📤 Sending ping message...', 'info');
+                ws.send(JSON.stringify({type: 'ping'}));
+            };
+            
+            ws.onmessage = function(event) {
+                log(`📨 Message received: ${event.data}`, 'success');
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`📋 Parsed message: ${JSON.stringify(data, null, 2)}`, 'info');
+                } catch (e) {
+                    log(`⚠️ Could not parse message as JSON: ${e.message}`, 'error');
+                }
+            };
+            
+            ws.onerror = function(event) {
+                log(`❌ WebSocket error: ${JSON.stringify(event, Object.getOwnPropertyNames(event))}`, 'error');
+                log(`❌ Error details: ${event.type}`, 'error');
+            };
+            
+            ws.onclose = function(event) {
+                log(`🔌 WebSocket closed. Code: ${event.code}, Reason: "${event.reason}", Was Clean: ${event.wasClean}`, 'info');
+                if (event.code !== 1000) {
+                    log(`❌ Unexpected close code: ${event.code}`, 'error');
+                }
+            };
+            
+            // Close connection after 10 seconds for testing
+            setTimeout(() => {
+                if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                    log('🕐 Closing connection after 10 seconds...', 'info');
+                    ws.close(1000, 'Test completed');
+                }
+            }, 10000);
+        }
+
+        function testWithToken() {
+            const token = localStorage.getItem('token') || localStorage.getItem('access_token') || prompt('Enter JWT token:');
+            
+            if (!token) {
+                log('❌ No token available for testing', 'error');
+                return;
+            }
+            
+            const wsUrlWithToken = `${wsUrl}?token=${token}`;
+            log('🔑 Starting WebSocket connection test with token...', 'info');
+            log(`📡 Connecting to: ${wsUrlWithToken}`, 'info');
+            
+            const ws = new WebSocket(wsUrlWithToken);
+            
+            ws.onopen = function(event) {
+                log('✅ WebSocket connection with token opened successfully!', 'success');
+                log('📤 Sending authenticated ping message...', 'info');
+                ws.send(JSON.stringify({type: 'ping'}));
+            };
+            
+            ws.onmessage = function(event) {
+                log(`📨 Authenticated message received: ${event.data}`, 'success');
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`📋 Parsed authenticated message: ${JSON.stringify(data, null, 2)}`, 'info');
+                } catch (e) {
+                    log(`⚠️ Could not parse authenticated message as JSON: ${e.message}`, 'error');
+                }
+            };
+            
+            ws.onerror = function(event) {
+                log(`❌ Authenticated WebSocket error: ${JSON.stringify(event, Object.getOwnPropertyNames(event))}`, 'error');
+            };
+            
+            ws.onclose = function(event) {
+                log(`🔌 Authenticated WebSocket closed. Code: ${event.code}, Reason: "${event.reason}"`, 'info');
+            };
+            
+            // Close connection after 10 seconds
+            setTimeout(() => {
+                if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+                    log('🕐 Closing authenticated connection after 10 seconds...', 'info');
+                    ws.close(1000, 'Authenticated test completed');
+                }
+            }, 10000);
+        }
+
+        // Auto-start test when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            log('🚀 WebSocket Direct Test Tool loaded', 'info');
+            log('🔧 This tool directly tests WebSocket connections to diagnose Azure issues', 'info');
+            log('📋 Click "Test WebSocket Connection" to start...', 'info');
+        });
+    </script>
+</body>
+</html>
