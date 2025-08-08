@@ -49,6 +49,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         # Join user to their personal presence group
         self.user_group_name = f"user_{self.user.id}"
         await self.channel_layer.group_add(self.user_group_name, self.channel_name)
+        print(f"DEBUG_CONNECT: User {self.user.id} joined personal group {self.user_group_name} on channel {self.channel_name}")
 
         # Join global presence group to receive all user status updates
         await self.channel_layer.group_add("presence_updates", self.channel_name)
@@ -789,14 +790,14 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         try:
             message_data = event["message"]
             print(
-                f"BROADCAST_HANDLER: User {self.user.id} receiving message for broadcasting: {message_data}"
+                f"BROADCAST_HANDLER: User {self.user.id} ({getattr(self.user, 'username', 'unknown')}) receiving message for broadcasting: {message_data}"
             )
 
             await self.send(
                 text_data=json.dumps({"type": "new_message", "message": message_data})
             )
             print(
-                f"BROADCAST_HANDLER: Successfully sent message to user {self.user.id}"
+                f"BROADCAST_HANDLER: Successfully sent message to user {self.user.id} frontend"
             )
 
         except Exception as e:
@@ -818,26 +819,28 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         try:
             # Check if the user has an active WebSocket connection
             user_group_name = f"user_{user_id}"
+            print(f"[WS DEBUG] Sending join room notification to group {user_group_name} for room {room_id}")
             await self.channel_layer.group_send(
                 user_group_name,
                 {"type": "join_chat_room_notification", "room_id": room_id},
             )
-            print(
-                f"[WS DEBUG] Sent join room notification to user {user_id} for room {room_id}"
-            )
+            print(f"[WS DEBUG] Successfully sent join room notification to user {user_id} for room {room_id}")
         except Exception as e:
             print(f"ERROR: Failed to ensure user {user_id} is in room {room_id}: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def join_chat_room_notification(self, event):
         """Handle join room notification from group send"""
         try:
             room_id = event["room_id"]
+            print(f"[WS DEBUG] User {self.user.id} received join room notification for room {room_id}")
             await self.join_chat_room(room_id)
-            print(
-                f"[WS DEBUG] User {self.user.id} auto-joined room {room_id} via notification"
-            )
+            print(f"[WS DEBUG] User {self.user.id} successfully auto-joined room {room_id} via notification")
         except Exception as e:
             print(f"ERROR: Failed to auto-join room via notification: {e}")
+            import traceback
+            traceback.print_exc()
 
     def save_chat_message(self, room_id, message_text, recipient_id=None):
         """Save a chat message to the database"""
