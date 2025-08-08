@@ -8,10 +8,10 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots } from '@fortawesome/free-solid-svg-icons';
 
-const MessagesButton = ({ 
-    onClick, 
+const MessagesButton = ({
+    onClick,
     totalUnreadCount = 0,
-    sx = {} 
+    sx = {}
 }) => {
     return (
         <Box sx={{ display: 'flex', alignItems: 'center', ...sx }}>
@@ -29,8 +29,8 @@ const MessagesButton = ({
                         position: 'relative',
                     }}
                 >
-                    <Badge 
-                        badgeContent={totalUnreadCount > 0 ? totalUnreadCount : null} 
+                    <Badge
+                        badgeContent={totalUnreadCount > 0 ? totalUnreadCount : null}
                         color="error"
                         sx={{
                             '& .MuiBadge-badge': {
