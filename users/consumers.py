@@ -367,14 +367,18 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 
             print(f"DEBUG_ROOM: Using ChatRoom ID {room_id}")
             
-            # Ensure user is in the chat room group
+            # Ensure both sender and recipient are in the chat room group
             await self.join_chat_room(room_id)
+            await self.ensure_participant_in_room(room_id, recipient_id)
             
             # Save message to database
-            message_data = await database_sync_to_async(self.save_chat_message)(room_id, message_text, recipient_id)
+            message_data = await self.save_chat_message_async(room_id, message_text, recipient_id)
             print(f"Saved message data: {message_data}")
             
             if message_data:
+                # Ensure recipient is also in the chat room group
+                await self.ensure_participant_in_room(room_id, recipient_id)
+                
                 # Broadcast message to room participants
                 await self.broadcast_chat_message(message_data)
                 
@@ -642,14 +646,18 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             if not room_id:
                 print("ERROR: No room_id in message_data for broadcasting")
                 return
+                
             room_group_name = f"chat_room_{room_id}"
             print(f"[WS DEBUG] Broadcasting message to group {room_group_name} (room_id={room_id})")
-            # List all channels in the group (debug only; may not be available in all backends)
-            if hasattr(self.channel_layer, 'groups'):
-                group_channels = self.channel_layer.groups.get(room_group_name, set())
-                print(f"[WS DEBUG] Channels in group {room_group_name}: {group_channels}")
-            else:
-                print(f"[WS DEBUG] Cannot list channels in group {room_group_name} (backend limitation)")
+            
+            # Get room participants to ensure they're all in the group
+            participant_ids = await self.get_room_participant_ids(room_id)
+            print(f"[WS DEBUG] Room {room_id} participants: {participant_ids}")
+            
+            for participant_id in participant_ids:
+                await self.ensure_participant_in_room(room_id, participant_id)
+            
+            # Send the message to the room group
             await self.channel_layer.group_send(
                 room_group_name,
                 {
@@ -658,6 +666,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 }
             )
             print(f"[WS DEBUG] SUCCESS: Message broadcasted to group {room_group_name}")
+            
         except Exception as e:
             print(f"ERROR: Failed to broadcast message: {e}")
             import traceback
@@ -667,17 +676,48 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         """Handle broadcasting a chat message to WebSocket clients"""
         try:
             message_data = event['message']
-            print(f"BROADCAST_HANDLER: Sending message to WebSocket client: {message_data}")
+            print(f"BROADCAST_HANDLER: User {self.user.id} receiving message for broadcasting: {message_data}")
             
             await self.send(text_data=json.dumps({
                 'type': 'new_message',
                 'message': message_data
             }))
+            print(f"BROADCAST_HANDLER: Successfully sent message to user {self.user.id}")
             
         except Exception as e:
-            print(f"ERROR: Failed to send broadcasted message to client: {e}")
+            print(f"ERROR: Failed to send broadcasted message to client {self.user.id}: {e}")
             import traceback
             traceback.print_exc()
+    
+    
+    async def save_chat_message_async(self, room_id, message_text, recipient_id=None):
+        """Async wrapper for save_chat_message"""
+        return await database_sync_to_async(self.save_chat_message)(room_id, message_text, recipient_id)
+    
+    async def ensure_participant_in_room(self, room_id, user_id):
+        """Ensure a specific user is in the chat room group"""
+        try:
+            # Check if the user has an active WebSocket connection
+            user_group_name = f"user_{user_id}"
+            await self.channel_layer.group_send(
+                user_group_name,
+                {
+                    'type': 'join_chat_room_notification',
+                    'room_id': room_id
+                }
+            )
+            print(f"[WS DEBUG] Sent join room notification to user {user_id} for room {room_id}")
+        except Exception as e:
+            print(f"ERROR: Failed to ensure user {user_id} is in room {room_id}: {e}")
+    
+    async def join_chat_room_notification(self, event):
+        """Handle join room notification from group send"""
+        try:
+            room_id = event['room_id']
+            await self.join_chat_room(room_id)
+            print(f"[WS DEBUG] User {self.user.id} auto-joined room {room_id} via notification")
+        except Exception as e:
+            print(f"ERROR: Failed to auto-join room via notification: {e}")
     
     def save_chat_message(self, room_id, message_text, recipient_id=None):
         """Save a chat message to the database"""
@@ -722,6 +762,19 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             traceback.print_exc()
             return None
             
+    @database_sync_to_async
+    def get_room_participant_ids(self, room_id):
+        """Get all participant IDs for a chat room"""
+        try:
+            room = ChatRoom.objects.get(id=room_id)
+            return list(room.participants.values_list('id', flat=True))
+        except ChatRoom.DoesNotExist:
+            print(f"ERROR: Chat room {room_id} does not exist")
+            return []
+        except Exception as e:
+            print(f"ERROR: Failed to get participants for room {room_id}: {e}")
+            return []
+    
     @database_sync_to_async
     def verify_room_exists(self, room_id):
         """Verify that a chat room exists"""
