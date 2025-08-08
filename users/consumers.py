@@ -164,6 +164,14 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 # Test direct user-to-user messaging
                 print(f"DEBUG_TEST: Handling test_broadcast: {data}")
                 await self.handle_test_broadcast(data)
+            elif message_type == "ping":
+                # Simple ping test to verify backend is receiving messages
+                print(f"PING_TEST: Received ping from user {self.user.id}")
+                await self.send(text_data=json.dumps({
+                    "type": "pong", 
+                    "timestamp": timezone.now().isoformat(),
+                    "user_id": self.user.id
+                }))
             else:
                 print(
                     f"DEBUG_CHAT_RECEIVE: Unknown message type: {message_type}, Data: {data}"
