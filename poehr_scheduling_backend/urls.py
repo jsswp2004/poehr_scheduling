@@ -11,8 +11,8 @@ from django.views.decorators.csrf import csrf_exempt
 import os
 
 def favicon_view(request):
-    # Redirect to the static favicon
-    return redirect('/static/frontend/favicon.ico')
+    # Redirect to the static favicon in the build output
+    return redirect('/static/favicon.ico')
 
 def health_check(request):
     """Health check endpoint for Cloud Run"""
