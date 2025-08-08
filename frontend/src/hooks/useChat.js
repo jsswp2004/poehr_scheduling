@@ -75,6 +75,15 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
       return;
     }
 
+    // Avoid double-processing duplicates (e.g., reconnect replays)
+    const isDuplicate = chatDataRef.current?.isDuplicateMessage
+      ? chatDataRef.current.isDuplicateMessage(roomKey, message)
+      : false;
+    if (isDuplicate) {
+      console.log('♻️ Duplicate message detected. Skipping add/unread increment.');
+      return;
+    }
+
     // Add message to room
     console.log('📨 Adding message to room:', roomKey);
     chatDataRef.current.addMessageToRoom(roomKey, message);

@@ -20,6 +20,45 @@ export const useChatData = (currentUser) => {
         chatRoomsRef.current = chatRooms;
     }, [chatRooms]);
 
+    // Helper: compare two messages for near-duplicate equality
+    const messagesAreSimilar = (a, b) => {
+        if (!a || !b) return false;
+        if (a.id && b.id && a.id === b.id) return true;
+        try {
+            const tsA = new Date(a.timestamp).getTime();
+            const tsB = new Date(b.timestamp).getTime();
+            const within5s = Math.abs(tsA - tsB) < 5000;
+            return (
+                a.content === b.content &&
+                a.sender_id === b.sender_id &&
+                within5s
+            );
+        } catch (_) {
+            return (
+                a.content === b.content &&
+                a.sender_id === b.sender_id
+            );
+        }
+    };
+
+    // Check if a message would be a duplicate for a room (uses current state via ref)
+    const isDuplicateMessage = useCallback((roomKey, message) => {
+        const currentRooms = chatRoomsRef.current || {};
+        let room = currentRooms[roomKey];
+
+        // Try alternate key (room_B_A) for legacy/alternate key forms
+        if (!room && roomKey.startsWith('room_')) {
+            const parts = roomKey.split('_');
+            if (parts.length === 3) {
+                const altKey = `room_${parts[2]}_${parts[1]}`;
+                room = currentRooms[altKey];
+            }
+        }
+
+        if (!room || !Array.isArray(room.messages)) return false;
+        return room.messages.some((m) => messagesAreSimilar(m, message));
+    }, []);
+
     // Get or create chat room
     const getOrCreateRoom = useCallback((targetUser) => {
         const currentUserId = currentUser?.user_id || currentUser?.id;
@@ -88,12 +127,10 @@ export const useChatData = (currentUser) => {
                     messages: [],
                     lastActivity: new Date().toISOString(),
                 };
-            }            // Check if message already exists to prevent duplicates
+            }
+            // Check if message already exists to prevent duplicates
             const messageExists = room.messages.some(existingMessage =>
-                existingMessage.id === message.id ||
-                (existingMessage.content === message.content &&
-                    existingMessage.sender_id === message.sender_id &&
-                    Math.abs(new Date(existingMessage.timestamp) - new Date(message.timestamp)) < 5000) // Within 5 seconds
+                messagesAreSimilar(existingMessage, message)
             );
 
             if (messageExists) {
@@ -209,6 +246,7 @@ export const useChatData = (currentUser) => {
         setLastError,
         getOrCreateRoom,
         addMessageToRoom,
+    isDuplicateMessage,
         updateUnreadCount,
         markRoomAsRead,
         getRoomMessages,
