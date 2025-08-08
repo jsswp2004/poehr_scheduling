@@ -91,6 +91,7 @@ const MessagesModal = ({
     useEffect(() => {
         if (selectedUser && markRoomAsRead) {
             const roomKey = createRoomKey(currentUser, selectedUser);
+            console.log('🔢 MessagesModal: Marking room as read:', roomKey, 'for user:', selectedUser.id);
             markRoomAsRead(roomKey);
         }
     }, [selectedUser, markRoomAsRead, currentUser]);

@@ -116,18 +116,27 @@ export const useChatData = (currentUser) => {
 
     // Update unread count
     const updateUnreadCount = useCallback((userId, increment = true) => {
-        setUnreadCounts(prev => ({
-            ...prev,
-            [userId]: increment
-                ? (prev[userId] || 0) + 1
-                : 0
-        }));
+        console.log(`🔢 updateUnreadCount called for user ${userId}, increment: ${increment}`);
+        setUnreadCounts(prev => {
+            const newCounts = {
+                ...prev,
+                [userId]: increment
+                    ? (prev[userId] || 0) + 1
+                    : 0
+            };
+            console.log('🔢 Unread counts updated:', prev, '→', newCounts);
+            return newCounts;
+        });
     }, []);
 
     // Mark room as read
     const markRoomAsRead = useCallback((roomKey) => {
+        console.log('🔢 markRoomAsRead called for room:', roomKey);
         const room = chatRoomsRef.current[roomKey];
-        if (!room) return;
+        if (!room) {
+            console.log('🔢 Room not found:', roomKey);
+            return;
+        }
 
         const currentUserId = currentUser?.user_id || currentUser?.id;
         // Reset unread count for the other participant
@@ -137,7 +146,10 @@ export const useChatData = (currentUser) => {
         });
         if (otherParticipant) {
             const otherParticipantId = otherParticipant.user_id || otherParticipant.id;
+            console.log('🔢 Resetting unread count for user:', otherParticipantId);
             updateUnreadCount(otherParticipantId, false);
+        } else {
+            console.log('🔢 No other participant found in room participants:', room.participants);
         }
     }, [currentUser, updateUnreadCount]);
 
