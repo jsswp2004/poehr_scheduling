@@ -14,7 +14,7 @@ import { toast } from "react-toastify";
 
 // Components
 import BackButton from "../components/BackButton";
-import ChatModal from "../components/ChatModal";
+import MessagesModal from "../components/MessagesModal";
 import {
   PatientsTable,
   TeamTable,
@@ -55,8 +55,7 @@ function PatientsPage() {
     lastMessage: lastMessageFromOnlineStatus,
   } = useOnlineStatus();
 
-  const [chatModalOpen, setChatModalOpen] = useState(false);
-  const [selectedChatUser, setSelectedChatUser] = useState(null); // eslint-disable-line no-unused-vars
+  const [messagesModalOpen, setMessagesModalOpen] = useState(false);
 
   // Authentication
   // const { isSystemAdmin } = useAuth(); // Commented out since not used
@@ -146,7 +145,7 @@ function PatientsPage() {
     ) {
       const message = lastMessageFromOnlineStatus.message;
 
-      if (message && message.sender_id !== currentUser?.id && !chatModalOpen) {
+      if (message && message.sender_id !== currentUser?.id && !messagesModalOpen) {
         toast.info(
           `💬 ${message.sender_name}: ${message.content.length > 50
             ? message.content.substring(0, 50) + "..."
@@ -163,7 +162,7 @@ function PatientsPage() {
         );
       }
     }
-  }, [lastMessageFromOnlineStatus, currentUser, chatModalOpen]);
+  }, [lastMessageFromOnlineStatus, currentUser, messagesModalOpen]);
 
   // Fetch data based on active tab
   useEffect(() => {
@@ -214,19 +213,13 @@ function PatientsPage() {
   //   return currentUser.first_name || currentUser.username || "User";
   // };
 
-  // Chat handlers
-  const handleOpenChat = (user) => {
-    // First start the chat session to initialize the room
-    handleStartChat(user);
-
-    // Then open the modal UI
-    setSelectedChatUser(user);
-    setChatModalOpen(true);
+  // Messages handlers
+  const handleOpenMessages = () => {
+    setMessagesModalOpen(true);
   };
 
-  const handleCloseChat = () => {
-    setChatModalOpen(false);
-    setSelectedChatUser(null);
+  const handleCloseMessages = () => {
+    setMessagesModalOpen(false);
   };
 
   // Email handlers
@@ -299,18 +292,18 @@ function PatientsPage() {
   };
 
   // Memoized chat handlers to prevent infinite loops
-  const handleStartChat = useCallback((targetUser) => {
-    if (chat && chat.startChatWithUser) {
-      // Transform targetUser to ensure it has user_id property for chat system compatibility
-      const chatTargetUser = {
-        ...targetUser,
-        user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
-      };
+  // const handleStartChat = useCallback((targetUser) => {
+  //   if (chat && chat.startChatWithUser) {
+  //     // Transform targetUser to ensure it has user_id property for chat system compatibility
+  //     const chatTargetUser = {
+  //       ...targetUser,
+  //       user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
+  //     };
 
-      // Pass the transformed targetUser object to useChat
-      chat.startChatWithUser(chatTargetUser);
-    }
-  }, [chat]);
+  //     // Pass the transformed targetUser object to useChat
+  //     chat.startChatWithUser(chatTargetUser);
+  //   }
+  // }, [chat]);
 
   const handleSendChatMessage = useCallback((targetUser, content) => {
     if (chat && chat.sendMessage) {
@@ -497,9 +490,8 @@ function PatientsPage() {
               teamPage={team.teamPage}
               setTeamPage={team.setTeamPage}
               teamTotalPages={team.teamTotalPages}
-              onOpenChat={handleOpenChat}
-              getUserOnlineStatus={getUserOnlineStatus}
-              getUnreadCountForUser={chat.getUnreadCountForUser}
+              onOpenMessages={handleOpenMessages}
+              totalUnreadCount={chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0}
               onSendText={handleTeamSendText}
               onOpenEmailModal={handleTeamOpenEmailModal}
             />
@@ -555,14 +547,13 @@ function PatientsPage() {
           onSend={handleSendEmail}
         />
 
-        {/* Chat Modal */}
-        <ChatModal
-          open={chatModalOpen}
-          onClose={handleCloseChat}
+        {/* Messages Modal */}
+        <MessagesModal
+          open={messagesModalOpen}
+          onClose={handleCloseMessages}
           currentUser={currentUser}
-          selectedUser={selectedChatUser}
+          teamMembers={team.team}
           onSendMessage={handleSendChatMessage}
-          onStartChat={handleStartChat}
           getRoomMessages={chat.getRoomMessages}
           getTypingUsersForRoom={chat.getTypingUsersForRoom}
           isLoading={chat.isLoading}
@@ -571,12 +562,9 @@ function PatientsPage() {
           chatError={chat.lastError}
           onRetryConnection={() => window.location.reload()}
           getUserOnlineStatus={getUserOnlineStatus}
-          getUnreadCount={(userId) => chat.getUnreadCountForUser ? chat.getUnreadCountForUser(userId) : 0}
+          getUnreadCountForUser={chat.getUnreadCountForUser}
+          getAllUnreadCount={chat.getTotalUnreadCount}
           markRoomAsRead={chat.markRoomAsRead}
-          onDeleteOfflineMessage={(user) => {
-            // TODO: Implement delete offline messages functionality
-            console.log('Delete offline messages for user:', user);
-          }}
         />
       </Box>
     </LocalizationProvider>

@@ -50,7 +50,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Handle incoming messages
   const handleIncomingMessage = useCallback((message) => {
     console.log('🔥 handleIncomingMessage called with:', message);
-    
+
     if (!currentUser) {
       console.log('❌ No currentUser, skipping message');
       return;
@@ -98,7 +98,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Send message
   const handleSendMessage = useCallback(async (targetUser, content) => {
     console.log('📤 handleSendMessage called:', { targetUser, content });
-    
+
     if (!currentUser || !targetUser || !content.trim()) {
       console.warn('⚠️ Missing required data for sending message');
       return;
@@ -222,7 +222,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   useEffect(() => {
     if (lastMessageFromOnlineStatus) {
       console.log('📡 Raw WebSocket message received:', lastMessageFromOnlineStatus);
-      
+
       try {
         const messageData = typeof lastMessageFromOnlineStatus === 'string'
           ? JSON.parse(lastMessageFromOnlineStatus)
