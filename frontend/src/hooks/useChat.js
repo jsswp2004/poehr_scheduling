@@ -49,20 +49,26 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
   // Handle incoming messages
   const handleIncomingMessage = useCallback((message) => {
+    console.log('🔥 handleIncomingMessage called with:', message);
+    
     if (!currentUser) {
+      console.log('❌ No currentUser, skipping message');
       return;
     }
 
     const currentUserId = currentUser.user_id || currentUser.id;
+    console.log('👤 Current user ID:', currentUserId);
 
     // Skip processing messages sent by the current user (avoid duplicate handling)
     if (message.sender_id === currentUserId) {
+      console.log('⏭️ Skipping own message');
       return;
     }
 
     // For incoming messages, the other user is always the sender
     const otherUserId = message.sender_id;
     const roomKey = createRoomKey(currentUserId, otherUserId);
+    console.log('🏠 Room key created:', roomKey);
 
     if (!roomKey) {
       console.error('❌ Could not create room key for message:', message);
@@ -70,10 +76,12 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     }
 
     // Add message to room
+    console.log('📨 Adding message to room:', roomKey);
     chatDataRef.current.addMessageToRoom(roomKey, message);
 
     // Update unread count for the sender (who we received the message from)
     // This represents how many unread messages the current user has from this sender
+    console.log('🔢 Updating unread count for sender:', message.sender_id);
     chatDataRef.current.updateUnreadCount(message.sender_id);
     chatNotificationsRef.current.handleNewMessageNotification(message);
   }, [currentUser]);
@@ -89,6 +97,8 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
   // Send message
   const handleSendMessage = useCallback(async (targetUser, content) => {
+    console.log('📤 handleSendMessage called:', { targetUser, content });
+    
     if (!currentUser || !targetUser || !content.trim()) {
       console.warn('⚠️ Missing required data for sending message');
       return;
@@ -96,6 +106,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
     const currentUserId = currentUser.user_id || currentUser.id;
     const targetUserId = targetUser.user_id || targetUser.id;
+    console.log('👥 User IDs:', { currentUserId, targetUserId });
 
     setOperationStatus('sending');
     chatData.setLastError(null);
@@ -103,6 +114,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     try {
       // Create or get room
       const room = chatData.getOrCreateRoom(targetUser);
+      console.log('🏠 Room for message:', room);
 
       if (!room) {
         console.error('❌ Room creation failed - getOrCreateRoom returned null');
@@ -118,6 +130,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
         content: content.trim(),
         timestamp: new Date().toISOString(),
       };
+      console.log('💬 Created message object:', message);
 
       // Add to local state immediately for optimistic updates
       chatData.addMessageToRoom(room.id, message);
@@ -130,9 +143,11 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
           recipient_id: targetUserId,  // Use numeric user ID  
           message: content.trim(),
         };
+        console.log('📡 Sending WebSocket message:', wsMessage);
 
         try {
           const sent = sendMessage(wsMessage);
+          console.log('📡 WebSocket send result:', sent);
           if (!sent) {
             throw new Error('WebSocket not connected');
           }
@@ -206,21 +221,29 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Handle WebSocket messages
   useEffect(() => {
     if (lastMessageFromOnlineStatus) {
+      console.log('📡 Raw WebSocket message received:', lastMessageFromOnlineStatus);
+      
       try {
         const messageData = typeof lastMessageFromOnlineStatus === 'string'
           ? JSON.parse(lastMessageFromOnlineStatus)
           : lastMessageFromOnlineStatus;
 
+        console.log('📡 Parsed WebSocket message:', messageData);
+
         if (messageData.type === 'chat_message' || messageData.type === 'new_message') {
           // Handle both 'chat_message' and 'new_message' types
           const actualMessage = messageData.message || messageData;
+          console.log('💬 Processing chat message:', actualMessage);
           handleIncomingMessage(actualMessage);
         } else if (messageData.type === 'typing_indicator') {
+          console.log('⌨️ Processing typing indicator:', messageData);
           if (messageData.is_typing) {
             chatTypingRef.current.handleTypingStart(messageData.user_id, messageData.user_name);
           } else {
             chatTypingRef.current.handleTypingStop(messageData.user_id);
           }
+        } else {
+          console.log('ℹ️ Ignoring message type:', messageData.type);
         }
         // Silently ignore other message types like user_status_update, online_users_list
       } catch (error) {
@@ -253,7 +276,9 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
       return Object.values(chatData.unreadCounts).reduce((total, count) => total + count, 0);
     },
     getUnreadCountForUser: (userId) => {
-      return chatData.unreadCounts[userId] || 0;
+      const count = chatData.unreadCounts[userId] || 0;
+      console.log(`🔢 getUnreadCountForUser(${userId}):`, count, 'All unread counts:', chatData.unreadCounts);
+      return count;
     }
   };
 };
