@@ -11,8 +11,9 @@ from django.views.decorators.csrf import csrf_exempt
 import os
 
 def favicon_view(request):
-    # Redirect to the static favicon in the build output
-    return redirect('/static/favicon.ico')
+    # Return 204 No Content to stop the 404 errors
+    from django.http import HttpResponse
+    return HttpResponse(status=204)
 
 def health_check(request):
     """Health check endpoint for Cloud Run"""
