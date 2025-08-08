@@ -82,9 +82,11 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     // Update unread count for the sender (who we received the message from)
     // This represents how many unread messages the current user has from this sender
     console.log('🔢 Updating unread count for sender:', message.sender_id);
-    chatDataRef.current.updateUnreadCount(message.sender_id);
-    chatNotificationsRef.current.handleNewMessageNotification(message);
-  }, [currentUser]);
+    console.log('🔢 Current unread counts before update:', chatData.unreadCounts);
+    chatData.updateUnreadCount(message.sender_id);
+    console.log('🔢 Current unread counts after update:', chatData.unreadCounts);
+    chatNotifications.handleNewMessageNotification(message);
+  }, [currentUser, chatData, chatNotifications]);
 
   // Refs to avoid dependency issues
   const chatDataRef = useRef();
@@ -273,7 +275,9 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     getSortedRooms: chatData.getSortedRooms,
     getTypingUsersForRoom: chatTyping.getTypingUsersForRoom,
     getTotalUnreadCount: () => {
-      return Object.values(chatData.unreadCounts).reduce((total, count) => total + count, 0);
+      const totalCount = Object.values(chatData.unreadCounts).reduce((total, count) => total + count, 0);
+      console.log('🔢 getTotalUnreadCount:', totalCount, 'from unreadCounts:', chatData.unreadCounts);
+      return totalCount;
     },
     getUnreadCountForUser: (userId) => {
       const count = chatData.unreadCounts[userId] || 0;
