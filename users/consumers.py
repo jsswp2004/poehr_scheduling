@@ -212,10 +212,24 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             from .models import CustomUser
 
             print(
-                f"Database operation: Setting user {self.user.id} online status to {is_online}"
+                f"Database operation: Setting user {self.user.id} ({getattr(self.user, 'username', 'unknown')}) online status to {is_online}"
             )
+
+            # Get the user and check current status
             user = CustomUser.objects.get(id=self.user.id)
+            print(f"BEFORE: User {user.id} current is_online = {user.is_online}")
+
+            # Set online status
             user.set_online_status(is_online)
+
+            # Verify the change was saved
+            user.refresh_from_db()
+            print(f"AFTER: User {user.id} updated is_online = {user.is_online}")
+
+            # Also check how many total online users we have now
+            online_count = CustomUser.objects.filter(is_online=True).count()
+            print(f"TOTAL ONLINE USERS: {online_count}")
+
             print(
                 f"SUCCESS: Successfully set user {self.user.id} online status to {is_online}"
             )
@@ -225,6 +239,9 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             return False
         except Exception as e:
             print(f"ERROR: Error setting online status for user {self.user.id}: {e}")
+            import traceback
+
+            traceback.print_exc()
             return False
 
     @database_sync_to_async
@@ -271,6 +288,21 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         try:
             from .models import CustomUser
 
+            print(f"GET_ONLINE_USERS: Fetching online users...")
+
+            # First, let's see ALL users
+            all_users_count = CustomUser.objects.count()
+            print(f"GET_ONLINE_USERS: Total users in database: {all_users_count}")
+
+            # Check how many are marked as online
+            online_users_count = CustomUser.objects.filter(is_online=True).count()
+            print(f"GET_ONLINE_USERS: Users marked as online: {online_users_count}")
+
+            # Check how many non-patients we have
+            non_patient_count = CustomUser.objects.exclude(role="patient").count()
+            print(f"GET_ONLINE_USERS: Non-patient users: {non_patient_count}")
+
+            # Get the actual online non-patient users
             online_users_qs = (
                 CustomUser.objects.filter(is_online=True)
                 .exclude(role="patient")
@@ -285,15 +317,28 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                     "last_seen",
                 )
             )
+
+            print(
+                f"GET_ONLINE_USERS: Online non-patient query count: {online_users_qs.count()}"
+            )
+
             # Convert datetime objects to ISO strings
             online_users = []
             for user in online_users_qs:
                 if user["last_seen"]:
                     user["last_seen"] = user["last_seen"].isoformat()
                 online_users.append(user)
+                print(
+                    f"GET_ONLINE_USERS: Found online user: {user['username']} (ID: {user['id']}, Role: {user['role']})"
+                )
+
+            print(f"GET_ONLINE_USERS: Returning {len(online_users)} online users")
             return online_users
         except Exception as e:
             print(f"ERROR: Error in get_online_users: {e}")
+            import traceback
+
+            traceback.print_exc()
             return []
 
     async def broadcast_user_status(self):
@@ -383,7 +428,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             return None
 
     async def handle_send_message(self, data):
-        """Handle sending a chat message using numeric user IDs"""
+        """Handle sending a chat message using DIRECT user-to-user delivery"""
         print(f"MESSAGE: Received send_message request: {data}")
 
         if self.is_test_user:
@@ -391,15 +436,13 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-            # New simplified approach: expect sender_id and recipient_id directly
-            sender_id = (
-                data.get("sender_id") or self.user.id
-            )  # Use current user as sender if not provided
+            # Get sender and recipient IDs
+            sender_id = data.get("sender_id") or self.user.id
             recipient_id = data.get("recipient_id")
             message_text = data.get("message", "").strip()
 
             print(
-                f"Message details: sender={sender_id}, recipient={recipient_id}, text='{message_text[:50]}...'"
+                f"DIRECT_MESSAGE: sender={sender_id}, recipient={recipient_id}, text='{message_text[:50]}...'"
             )
 
             if not recipient_id:
@@ -412,57 +455,52 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 await self.send_error("Message cannot be empty")
                 return
 
-            # Get or create ChatRoom using the numeric user IDs directly
-            room_id = await self.get_or_create_chatroom_for_users(
-                sender_id, recipient_id
+            # Create message data without saving to database first (for testing)
+            message_data = {
+                "id": f"temp_{timezone.now().timestamp()}",
+                "sender_id": sender_id,
+                "recipient_id": recipient_id,
+                "sender_name": f"{self.user.first_name} {self.user.last_name}".strip()
+                or self.user.username,
+                "content": message_text,
+                "timestamp": timezone.now().isoformat(),
+                "is_read": False,
+            }
+
+            print(f"DIRECT_MESSAGE: Created message data: {message_data}")
+
+            # Send DIRECTLY to recipient's personal group - bypass all room logic
+            recipient_group = f"user_{recipient_id}"
+            print(f"DIRECT_MESSAGE: Sending directly to {recipient_group}")
+
+            await self.channel_layer.group_send(
+                recipient_group,
+                {"type": "direct_message_received", "message": message_data},
             )
-            if not room_id:
-                print(
-                    f"ERROR: Could not create/find ChatRoom for users {sender_id} and {recipient_id}"
+
+            print(f"DIRECT_MESSAGE: Sent to recipient group {recipient_group}")
+
+            # Send confirmation back to sender
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "message_sent",
+                        "message": message_data,
+                        "status": "delivered_direct",
+                    }
                 )
-                await self.send_error("Failed to create chat room")
-                return
-
-            print(f"DEBUG_ROOM: Using ChatRoom ID {room_id}")
-
-            # Ensure both sender and recipient are in the chat room group
-            await self.join_chat_room(room_id)
-            await self.ensure_participant_in_room(room_id, recipient_id)
-
-            # Save message to database
-            message_data = await self.save_chat_message_async(
-                room_id, message_text, recipient_id
             )
-            print(f"Saved message data: {message_data}")
 
-            if message_data:
-                # Ensure recipient is also in the chat room group
-                await self.ensure_participant_in_room(room_id, recipient_id)
-
-                # Broadcast message to room participants
-                await self.broadcast_chat_message(message_data)
-
-                # Send confirmation to sender
-                await self.send(
-                    text_data=json.dumps(
-                        {
-                            "type": "message_sent",
-                            "room_id": room_id,  # Send back the numeric room ID
-                            "message": message_data,
-                        }
-                    )
-                )
-                print(f"SUCCESS: Message sent and broadcasted successfully")
-            else:
-                await self.send_error("Failed to save message to database")
-                print(f"ERROR: Failed to save message to database")
+            print(
+                f"DIRECT_MESSAGE: SUCCESS - Message sent directly from {sender_id} to {recipient_id}"
+            )
 
         except Exception as e:
-            print(f"ERROR: Error handling send_message: {e}")
+            print(f"ERROR: Error in direct message handling: {e}")
             import traceback
 
             traceback.print_exc()
-            await self.send_error("Failed to process message")
+            await self.send_error("Failed to send direct message")
 
     async def handle_typing_indicator(self, data, is_typing):
         """Handle typing indicators"""
@@ -664,62 +702,72 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         try:
             target_user_id = data.get("target_user_id")
             test_message = data.get("message", "Test message")
-            
-            print(f"DEBUG_TEST: Sending test message from user {self.user.id} to user {target_user_id}")
-            
+
+            print(
+                f"DEBUG_TEST: Sending test message from user {self.user.id} to user {target_user_id}"
+            )
+
             if not target_user_id:
                 await self.send_error("target_user_id required for test")
                 return
-                
+
             # Send directly to target user's personal group
             target_group = f"user_{target_user_id}"
             print(f"DEBUG_TEST: Sending to group {target_group}")
-            
+
             await self.channel_layer.group_send(
                 target_group,
                 {
-                    "type": "test_message_received", 
+                    "type": "test_message_received",
                     "sender_id": self.user.id,
-                    "sender_name": getattr(self.user, 'username', 'unknown'),
-                    "message": test_message
-                }
+                    "sender_name": getattr(self.user, "username", "unknown"),
+                    "message": test_message,
+                },
             )
-            
+
             print(f"DEBUG_TEST: Test message sent successfully to {target_group}")
-            
+
             # Confirm to sender
             await self.send(
-                text_data=json.dumps({
-                    "type": "test_sent",
-                    "target_user_id": target_user_id,
-                    "message": "Test message sent"
-                })
+                text_data=json.dumps(
+                    {
+                        "type": "test_sent",
+                        "target_user_id": target_user_id,
+                        "message": "Test message sent",
+                    }
+                )
             )
-            
+
         except Exception as e:
             print(f"ERROR: Failed to send test broadcast: {e}")
             import traceback
+
             traceback.print_exc()
 
     async def test_message_received(self, event):
         """Handle test message reception"""
         try:
             print(f"DEBUG_TEST: User {self.user.id} receiving test message: {event}")
-            
+
             await self.send(
-                text_data=json.dumps({
-                    "type": "test_message",
-                    "sender_id": event["sender_id"], 
-                    "sender_name": event["sender_name"],
-                    "message": event["message"]
-                })
+                text_data=json.dumps(
+                    {
+                        "type": "test_message",
+                        "sender_id": event["sender_id"],
+                        "sender_name": event["sender_name"],
+                        "message": event["message"],
+                    }
+                )
             )
-            
-            print(f"DEBUG_TEST: Successfully delivered test message to user {self.user.id}")
-            
+
+            print(
+                f"DEBUG_TEST: Successfully delivered test message to user {self.user.id}"
+            )
+
         except Exception as e:
             print(f"ERROR: Failed to handle test message: {e}")
             import traceback
+
             traceback.print_exc()
 
     @database_sync_to_async
@@ -841,13 +889,13 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             # CRITICAL: Ensure each participant is in their room group AND test direct delivery
             for participant_id in participant_ids:
                 await self.ensure_participant_in_room(room_id, participant_id)
-                
+
                 # Also try direct delivery to user's personal group as backup
                 user_group = f"user_{participant_id}"
                 print(f"[WS DEBUG] BACKUP: Also sending directly to {user_group}")
                 await self.channel_layer.group_send(
                     user_group,
-                    {"type": "direct_message_broadcast", "message": message_data}
+                    {"type": "direct_message_broadcast", "message": message_data},
                 )
 
             # Send the message to the room group
@@ -904,6 +952,31 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         except Exception as e:
             print(
                 f"ERROR: Failed to send direct broadcast message to client {self.user.id}: {e}"
+            )
+            import traceback
+
+            traceback.print_exc()
+
+    async def direct_message_received(self, event):
+        """Handle direct message reception - bypasses all room logic"""
+        try:
+            message_data = event["message"]
+            print(
+                f"DIRECT_RECEIVE: User {self.user.id} ({getattr(self.user, 'username', 'unknown')}) received direct message: {message_data}"
+            )
+
+            # Send the message directly to the frontend
+            await self.send(
+                text_data=json.dumps({"type": "new_message", "message": message_data})
+            )
+
+            print(
+                f"DIRECT_RECEIVE: Successfully delivered direct message to user {self.user.id}"
+            )
+
+        except Exception as e:
+            print(
+                f"ERROR: Failed to handle direct message reception for user {self.user.id}: {e}"
             )
             import traceback
 
