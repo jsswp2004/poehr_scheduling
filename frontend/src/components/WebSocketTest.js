@@ -4,10 +4,10 @@ import useWebSocket from '../hooks/useWebSocket';
 
 const WebSocketTest = () => {
   // Determine WebSocket URL based on environment
-  const isProduction = window.location.hostname.includes('azurewebsites.net') || 
-                      window.location.hostname.includes('azurecontainerapps.io') ||
-                      window.location.hostname.includes('run.app');
-  const wsUrl = isProduction 
+  const isProduction = window.location.hostname.includes('azurewebsites.net') ||
+    window.location.hostname.includes('azurecontainerapps.io') ||
+    window.location.hostname.includes('run.app');
+  const wsUrl = isProduction
     ? `wss://${window.location.host}/ws/presence/`
     : 'ws://localhost:8080/ws/presence/';  // Updated to unified port 8080
 
@@ -19,7 +19,7 @@ const WebSocketTest = () => {
     protocol: window.location.protocol,
     host: window.location.host
   });
-  
+
   const { isConnected, lastMessage, error, sendMessage } = useWebSocket(
     wsUrl,
     {
@@ -80,12 +80,12 @@ const WebSocketTest = () => {
         <Typography variant="h5" component="h2" gutterBottom>
           WebSocket Connection Test
         </Typography>
-        
+
         <Box sx={{ mb: 2 }}>
           <Typography variant="body1" component="span">
-            Status: 
+            Status:
           </Typography>
-          <Chip 
+          <Chip
             label={isConnected ? 'Connected' : 'Disconnected'}
             color={isConnected ? 'success' : 'error'}
             sx={{ ml: 1 }}
@@ -105,9 +105,9 @@ const WebSocketTest = () => {
             <Typography variant="body2" component="div">
               <strong>Last Message:</strong>
             </Typography>
-            <Box component="pre" sx={{ 
-              backgroundColor: '#f5f5f5', 
-              padding: 1, 
+            <Box component="pre" sx={{
+              backgroundColor: '#f5f5f5',
+              padding: 1,
               borderRadius: 1,
               fontSize: '0.8rem',
               overflow: 'auto'
@@ -123,16 +123,16 @@ const WebSocketTest = () => {
         </Typography>
 
         <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             onClick={sendPing}
             disabled={!isConnected}
             size="small"
           >
             🏓 Send Ping Test
           </Button>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             onClick={testDirectMessage}
             disabled={!isConnected}
             size="small"

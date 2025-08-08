@@ -41,7 +41,7 @@ const useWebSocket = (url, options = {}) => {
     try {
       // Get token and handle both string and JSON formats
       let token = localStorage.getItem('token') || localStorage.getItem('access_token');
-      
+
       // If token is stored as JSON object, extract the actual token
       if (token && token.startsWith('{')) {
         try {
@@ -51,7 +51,7 @@ const useWebSocket = (url, options = {}) => {
           console.warn('⚠️ Could not parse token as JSON, using as-is');
         }
       }
-      
+
       console.log('🔑 Using token for WebSocket:', token ? `${token.substring(0, 20)}...` : 'No token');
       const wsUrl = token ? `${url}?token=${token}` : url;
       console.log('🔗 WebSocket connecting to:', wsUrl);
