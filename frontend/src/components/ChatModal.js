@@ -47,6 +47,17 @@ const ChatModal = ({
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
+    // Debug logging
+    useEffect(() => {
+        console.log('ChatModal props:', {
+            open,
+            selectedUser: selectedUser?.username,
+            isLoading,
+            operationStatus,
+            connectionStatus
+        });
+    }, [open, selectedUser, isLoading, operationStatus, connectionStatus]);
+
     // Helper functions for user display
     const getUserDisplayName = (user) => {
         if (!user) return 'Unknown User';
@@ -134,6 +145,7 @@ const ChatModal = ({
     };
 
     const handleInputChange = (e) => {
+        console.log('Input change detected:', e.target.value); // Debug log
         setMessageText(e.target.value);
 
         // Handle typing indicators
@@ -360,6 +372,7 @@ const ChatModal = ({
                                         borderRadius: 3
                                     }
                                 }}
+                                onFocus={() => console.log('TextField focused, disabled:', isLoading || operationStatus === 'sending', 'isLoading:', isLoading, 'operationStatus:', operationStatus)}
                             />
                             <IconButton
                                 onClick={handleSendMessage}
