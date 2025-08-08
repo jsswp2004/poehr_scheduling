@@ -76,7 +76,9 @@ const MessagesModal = ({
     // Get messages for selected user
     const messages = useMemo(() => {
         if (!selectedUser || !getRoomMessages) return [];
-        const roomKey = createRoomKey(currentUser, selectedUser);
+        const currentId = currentUser?.user_id || currentUser?.id;
+        const otherId = selectedUser?.user_id || selectedUser?.id;
+        const roomKey = createRoomKey(currentId, otherId);
         return getRoomMessages(roomKey);
     }, [selectedUser, getRoomMessages, currentUser]);
 
@@ -90,7 +92,9 @@ const MessagesModal = ({
     // Mark room as read when user is selected
     useEffect(() => {
         if (selectedUser && markRoomAsRead) {
-            const roomKey = createRoomKey(currentUser, selectedUser);
+            const currentId = currentUser?.user_id || currentUser?.id;
+            const otherId = selectedUser?.user_id || selectedUser?.id;
+            const roomKey = createRoomKey(currentId, otherId);
             console.log('🔢 MessagesModal: Marking room as read:', roomKey, 'for user:', selectedUser.id);
             markRoomAsRead(roomKey);
         }
@@ -148,7 +152,9 @@ const MessagesModal = ({
             .filter(member => member.id !== currentUser?.id) // Exclude current user
             .map(member => {
                 const unreadCount = getUnreadCountForUser(member.id);
-                const roomKey = createRoomKey(currentUser, member);
+                const currentId = currentUser?.user_id || currentUser?.id;
+                const otherId = member?.user_id || member?.id;
+                const roomKey = createRoomKey(currentId, otherId);
                 const roomMessages = getRoomMessages ? getRoomMessages(roomKey) : [];
                 const lastMessage = roomMessages[roomMessages.length - 1];
 
