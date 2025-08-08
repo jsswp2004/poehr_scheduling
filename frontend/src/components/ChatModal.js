@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -17,7 +17,6 @@ import {
   Chip,
   InputAdornment,
   CircularProgress,
-  Divider,
   Alert,
   Paper,
   Badge
@@ -73,14 +72,11 @@ const ChatModal = ({
     return !!status;
   };
 
-  // Get filtered users based on search and online status
+  // Get filtered users based on search (removed online status filtering for simplified messaging)
   const filteredUsers = teamMembers.filter(user => {
     if (user.id === currentUser?.id) return false; // Don't show current user
 
-    // Only show online users
-    const isOnline = isUserOnline(user);
-    if (!isOnline) return false;
-
+    // Show all users regardless of online status for messaging system
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
     const searchTerm = userSearch.toLowerCase();
     return fullName.toLowerCase().includes(searchTerm) ||
@@ -88,14 +84,27 @@ const ChatModal = ({
   });
 
   // Get messages for selected user
-  const messages = selectedUser && getRoomMessages ? (() => {
+  const messages = useMemo(() => {
+    if (!selectedUser || !getRoomMessages) return [];
     const roomKey = createRoomKey(currentUser, selectedUser);
     return getRoomMessages(roomKey);
-  })() : [];
+  }, [selectedUser, getRoomMessages, currentUser]);
 
   // Get typing users for selected user
   const typingUsers = selectedUser && getTypingUsersForRoom ?
     getTypingUsersForRoom(createRoomKey(currentUser, selectedUser)) : [];
+
+  // Handle stop typing function
+  const handleStopTyping = useCallback(() => {
+    if (isTyping) {
+      setIsTyping(false);
+      // Emit typing stop event here
+    }
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  }, [isTyping]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -106,7 +115,7 @@ const ChatModal = ({
   useEffect(() => {
     setMessageText('');
     handleStopTyping();
-  }, [selectedUser]);
+  }, [selectedUser, handleStopTyping]);
 
 
   // Clear search when modal closes
@@ -124,7 +133,6 @@ const ChatModal = ({
 
   const handleSendMessage = () => {
     if (messageText && messageText.trim() && selectedUser) {
-      const recipientId = selectedUser.id || selectedUser.user_id;
       try {
         // Pass the selectedUser object instead of just recipientId to match useChat expectation
         onSendMessage(selectedUser, messageText.trim());
@@ -159,17 +167,6 @@ const ChatModal = ({
 
     // Set timeout to stop typing
     typingTimeoutRef.current = setTimeout(handleStopTyping, 2000);
-  };
-
-  const handleStopTyping = () => {
-    if (isTyping) {
-      setIsTyping(false);
-      // Emit typing stop event here
-    }
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = null;
-    }
   };
 
   const getMessageTime = (timestamp) => {
@@ -295,7 +292,7 @@ const ChatModal = ({
               {filteredUsers.length === 0 ? (
                 <Box sx={{ p: 3, textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
-                    {userSearch ? 'No users found' : 'No team members available'}
+                    {userSearch ? 'No users found' : 'Loading team members...'}
                   </Typography>
                 </Box>
               ) : (
@@ -385,7 +382,7 @@ const ChatModal = ({
                   color: 'text.secondary'
                 }}
               >
-                <Typography variant="h6">Select a team member to start chatting</Typography>
+                <Typography variant="h6">Select a team member to send a message</Typography>
                 <Typography variant="body2">Choose someone from the list on the left</Typography>
               </Box>
             ) : (
