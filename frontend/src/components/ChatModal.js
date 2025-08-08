@@ -58,6 +58,11 @@ const ChatModal = ({
         });
     }, [open, selectedUser, isLoading, operationStatus, connectionStatus]);
 
+    // Debug messageText state changes
+    useEffect(() => {
+        console.log('messageText state changed to:', messageText);
+    }, [messageText]);
+
     // Helper functions for user display
     const getUserDisplayName = (user) => {
         if (!user) return 'Unknown User';
@@ -109,6 +114,7 @@ const ChatModal = ({
 
     // Reset message input when user changes
     useEffect(() => {
+        console.log('User changed, resetting messageText. selectedUser:', selectedUser?.username);
         setMessageText('');
         handleStopTyping();
     }, [selectedUser, handleStopTyping]);
@@ -116,6 +122,7 @@ const ChatModal = ({
     // Clear message when modal closes
     useEffect(() => {
         if (!open) {
+            console.log('Modal closed, clearing messageText');
             setMessageText('');
         }
     }, [open]);
@@ -146,7 +153,9 @@ const ChatModal = ({
 
     const handleInputChange = (e) => {
         console.log('Input change detected:', e.target.value); // Debug log
+        console.log('Current messageText before setState:', messageText); // Debug log
         setMessageText(e.target.value);
+        console.log('setMessageText called with:', e.target.value); // Debug log
 
         // Handle typing indicators
         if (!isTyping) {
