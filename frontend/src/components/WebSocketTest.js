@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
+import React, { useEffect, useCallback } from 'react';
+import { Card, CardContent, Typography, Box, Chip, Button } from '@mui/material';
 import useWebSocket from '../hooks/useWebSocket';
 
 const WebSocketTest = () => {
@@ -20,6 +20,38 @@ const WebSocketTest = () => {
       reconnectInterval: 2000
     }
   );
+
+  // Ping test function
+  const sendPing = useCallback(() => {
+    if (sendMessage) {
+      const result = sendMessage({ type: 'ping' });
+      console.log('🏓 Ping sent to backend - result:', result);
+      if (result) {
+        console.log('✅ Ping message sent successfully');
+      } else {
+        console.log('❌ Failed to send ping message');
+      }
+    } else {
+      console.log('❌ No sendMessage function available');
+    }
+  }, [sendMessage]);
+
+  // Test direct message function
+  const testDirectMessage = useCallback(() => {
+    if (sendMessage) {
+      const testMessage = {
+        type: 'send_message',
+        sender_id: 12, // registrarsuny
+        recipient_id: 16, // adminsuny  
+        message: 'Test direct message from WebSocket test component'
+      };
+      const result = sendMessage(testMessage);
+      console.log('📤 Direct message test sent - result:', result);
+      console.log('📤 Message data:', testMessage);
+    } else {
+      console.log('❌ No sendMessage function available');
+    }
+  }, [sendMessage]);
 
   useEffect(() => {
     console.log(`Connection status changed: ${isConnected ? 'Connected' : 'Disconnected'}`);
@@ -78,6 +110,25 @@ const WebSocketTest = () => {
           This component tests the WebSocket connection without causing infinite re-renders.
           Check the browser console for detailed logs.
         </Typography>
+
+        <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+          <Button 
+            variant="contained" 
+            onClick={sendPing}
+            disabled={!isConnected}
+            size="small"
+          >
+            🏓 Send Ping Test
+          </Button>
+          <Button 
+            variant="outlined" 
+            onClick={testDirectMessage}
+            disabled={!isConnected}
+            size="small"
+          >
+            📤 Test Direct Message
+          </Button>
+        </Box>
       </CardContent>
     </Card>
   );
