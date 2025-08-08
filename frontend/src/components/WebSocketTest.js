@@ -4,10 +4,21 @@ import useWebSocket from '../hooks/useWebSocket';
 
 const WebSocketTest = () => {
   // Determine WebSocket URL based on environment
-  const isProduction = window.location.hostname.includes('azurewebsites.net') || window.location.hostname.includes('run.app');
+  const isProduction = window.location.hostname.includes('azurewebsites.net') || 
+                      window.location.hostname.includes('azurecontainerapps.io') ||
+                      window.location.hostname.includes('run.app');
   const wsUrl = isProduction 
     ? `wss://${window.location.host}/ws/presence/`
     : 'ws://localhost:8080/ws/presence/';  // Updated to unified port 8080
+
+  // Debug logging
+  console.log('🔧 WebSocket Environment Debug:', {
+    hostname: window.location.hostname,
+    isProduction,
+    wsUrl,
+    protocol: window.location.protocol,
+    host: window.location.host
+  });
   
   const { isConnected, lastMessage, error, sendMessage } = useWebSocket(
     wsUrl,
