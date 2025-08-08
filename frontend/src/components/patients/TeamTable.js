@@ -21,20 +21,8 @@ import {
     faEnvelope,
     faSms,
 } from '@fortawesome/free-solid-svg-icons';
-import { useNavigate } from 'react-router-dom';
 
-// Simple status dot component
-const StatusDot = ({ isOnline, size = 8 }) => (
-    <Box
-        sx={{
-            width: size,
-            height: size,
-            borderRadius: '50%',
-            backgroundColor: isOnline ? '#4caf50' : '#757575',
-            flexShrink: 0,
-        }}
-    />
-);
+// StatusDot component removed for simplified chat system
 
 function TeamTable({
     team,
@@ -50,8 +38,6 @@ function TeamTable({
     onSendText,
     onOpenEmailModal,
 }) {
-    const navigate = useNavigate();
-
     // Local state for responsive search input
     const [localSearchValue, setLocalSearchValue] = useState(teamSearch || '');
     const searchTimeoutRef = useRef(null);
@@ -119,7 +105,6 @@ function TeamTable({
                             <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Organization</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                             <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                                 Actions
                             </TableCell>
@@ -128,15 +113,13 @@ function TeamTable({
                     <TableBody>
                         {team.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
+                                <TableCell colSpan={6} sx={{ textAlign: 'center', py: 4 }}>
                                     No team members found
                                 </TableCell>
                             </TableRow>
                         ) : (
                             team.map((member) => {
                                 const unreadCount = getUnreadCountForUser ? getUnreadCountForUser(member.id) : 0;
-                                const onlineStatus = getUserOnlineStatus(member.id);
-                                const isOnline = onlineStatus?.isOnline || false;
 
                                 return (
                                     <TableRow
@@ -147,12 +130,9 @@ function TeamTable({
                                         }}
                                     >
                                         <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <StatusDot isOnline={isOnline} size={12} />
-                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                                    {member.full_name}
-                                                </Typography>
-                                            </Box>
+                                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                {member.full_name}
+                                            </Typography>
                                         </TableCell>
                                         <TableCell>
                                             <Typography variant="body2" sx={{ textTransform: 'capitalize' }}>
@@ -173,37 +153,6 @@ function TeamTable({
                                             <Typography variant="body2">
                                                 {member.organization_name || 'No Organization'}
                                             </Typography>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography
-                                                    variant="body2"
-                                                    sx={{
-                                                        color: isOnline ? 'success.main' : 'grey.500',
-                                                        fontWeight: 500,
-                                                    }}
-                                                >
-                                                    {isOnline ? 'Online' : 'Offline'}
-                                                </Typography>
-                                                {unreadCount > 0 && (
-                                                    <Box
-                                                        sx={{
-                                                            backgroundColor: '#ff4444',
-                                                            color: 'white',
-                                                            borderRadius: '50%',
-                                                            width: 18,
-                                                            height: 18,
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            fontSize: '10px',
-                                                            fontWeight: 'bold',
-                                                        }}
-                                                    >
-                                                        {unreadCount > 9 ? '9+' : unreadCount}
-                                                    </Box>
-                                                )}
-                                            </Box>
                                         </TableCell>
                                         <TableCell sx={{ textAlign: 'center' }}>
                                             <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
