@@ -560,7 +560,7 @@ function PatientsPage() {
           open={chatModalOpen}
           onClose={handleCloseChat}
           currentUser={currentUser}
-          teamMembers={team.team}
+          selectedUser={selectedChatUser}
           onSendMessage={handleSendChatMessage}
           onStartChat={handleStartChat}
           getRoomMessages={chat.getRoomMessages}
