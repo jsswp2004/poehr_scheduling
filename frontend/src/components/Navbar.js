@@ -5,6 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
+import { getValidToken, clearAuthData } from '../utils/auth';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -12,8 +13,6 @@ import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
 import Tooltip from '@mui/material/Tooltip';
 import useForceUpdate from '../utils/useForceUpdate';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
@@ -29,54 +28,55 @@ function Navbar() {
   const [organizationName, setOrganizationName] = useState('');
   const isAuthenticated = !!localStorage.getItem('access_token');
   const [logoUrl, setLogoUrl] = useState(null);
-  const [anchorEl, setAnchorEl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
   // Function to fetch user data and update state
-  const fetchUserData = () => {
-    const token = localStorage.getItem('access_token');
-    if (!token) {
-      setUsername('');
-      setRole('');
-      setLogoUrl(null);
-      setOrganizationName('');
-      return;
-    }
-
+  const fetchUserData = async () => {
     try {
+      const token = await getValidToken();
+      if (!token) {
+        setUsername('');
+        setRole('');
+        setLogoUrl(null);
+        setOrganizationName('');
+        return;
+      }
+
       const decoded = jwtDecode(token);
       const userId = decoded.user_id;
       const firstName = decoded.first_name || decoded.username || '';
       setUsername(firstName);
       setRole(decoded.role || '');
 
-      axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
+      const response = await axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
         headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => {
-          // Get organization logo directly from the organization data
-          const orgLogo = res.data.organization_logo;
-          if (orgLogo) {
-            // The organization_logo field from UserSerializer already includes the full URL
-            setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `${API_BASE_URL}${orgLogo}`);
-          } else {
-            setLogoUrl(null);
-          }
-          setOrganizationName(res.data.organization_name || '');
-          // Fix: Only set profilePic if the value is not empty/null and is a valid string
-          if (res.data.profile_picture && typeof res.data.profile_picture === 'string' && res.data.profile_picture.trim() !== '') {
-            setProfilePic(res.data.profile_picture.startsWith('http') ? res.data.profile_picture : `${API_BASE_URL}${res.data.profile_picture}`);
-          } else {
-            setProfilePic(null);
-          }
-        })
-        .catch(err => {
-          console.error('Failed to load organization logo:', err);
-          setLogoUrl(null); // Reset logo on error
-        });
+      });
+
+      // Get organization logo directly from the organization data
+      const orgLogo = response.data.organization_logo;
+      if (orgLogo) {
+        // The organization_logo field from UserSerializer already includes the full URL
+        setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `${API_BASE_URL}${orgLogo}`);
+      } else {
+        setLogoUrl(null);
+      }
+      setOrganizationName(response.data.organization_name || '');
+      // Fix: Only set profilePic if the value is not empty/null and is a valid string
+      if (response.data.profile_picture && typeof response.data.profile_picture === 'string' && response.data.profile_picture.trim() !== '') {
+        setProfilePic(response.data.profile_picture.startsWith('http') ? response.data.profile_picture : `${API_BASE_URL}${response.data.profile_picture}`);
+      } else {
+        setProfilePic(null);
+      }
     } catch (err) {
-      console.error('Failed to decode JWT:', err);
-      setLogoUrl(null); // Reset logo on error
+      console.error('Failed to load user data:', err);
+      // If there's an authentication error, clear the auth data
+      if (err.response?.status === 401) {
+        clearAuthData();
+        setUsername('');
+        setRole('');
+        setLogoUrl(null);
+        setOrganizationName('');
+      }
     }
   };  // Run fetchUserData on component mount and when authentication changes
   useEffect(() => {
@@ -101,14 +101,14 @@ function Navbar() {
     // Force a refresh when the component mounts and periodically
     const interval = setInterval(() => {
       fetchUserData();
-    }, 30000); // Refresh every 30 seconds to catch any changes
+    }, 300000); // Refresh every 5 minutes (300000ms) to reduce API calls
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('profile-updated', handleProfileUpdate);
       clearInterval(interval);
     };
-  }, [isAuthenticated]); const handleLogoClick = (e) => {
+  }, [isAuthenticated, forceUpdate]); const handleLogoClick = (e) => {
     e.preventDefault(); // Prevent default link behavior
 
     // Show confirmation toast instead of browser alert
@@ -153,10 +153,8 @@ function Navbar() {
     // Dismiss any open toasts
     toast.dismiss();
 
-    // Clear all authentication data
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    sessionStorage.clear(); // Clear all session storage to remove any redirect traces
+    // Clear all authentication data using the centralized function
+    clearAuthData();
 
     // Clear user data
     setUsername('');
@@ -218,13 +216,6 @@ function Navbar() {
     if (hour < 12) return 'Good Morning';
     if (hour < 18) return 'Good Afternoon';
     return 'Good Evening';
-  };
-
-  const handleMenuOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-  const handleMenuClose = () => {
-    setAnchorEl(null);
   };
 
   return (
