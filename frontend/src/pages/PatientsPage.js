@@ -572,6 +572,7 @@ function PatientsPage() {
           onRetryConnection={() => window.location.reload()}
           getUserOnlineStatus={getUserOnlineStatus}
           getUnreadCount={(userId) => chat.getUnreadCountForUser ? chat.getUnreadCountForUser(userId) : 0}
+          markRoomAsRead={chat.markRoomAsRead}
           onDeleteOfflineMessage={(user) => {
             // TODO: Implement delete offline messages functionality
             console.log('Delete offline messages for user:', user);
