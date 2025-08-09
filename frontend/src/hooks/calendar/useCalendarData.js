@@ -180,8 +180,8 @@ export const useCalendarData = () => {
         loading,
 
         // User info
-    userRole,
-    token,
+        userRole,
+        token,
 
         // Actions
         refetchData: fetchAllData,
