@@ -149,10 +149,22 @@ const MessagesModal = ({
     }, [open]);
 
     const handleSendMessage = useCallback(async (e) => {
-        e.preventDefault();
-        if (!messageText.trim() || !selectedUser || !onSendMessage) return;
+        if (e && e.preventDefault) e.preventDefault();
+        if (!messageText.trim()) {
+            console.warn('⚠️ handleSendMessage: empty message');
+            return;
+        }
+        if (!selectedUser) {
+            console.warn('⚠️ handleSendMessage: no selectedUser');
+            return;
+        }
+        if (!onSendMessage) {
+            console.error('❌ handleSendMessage: onSendMessage not provided');
+            return;
+        }
 
         try {
+            console.log('📤 MessagesModal sending message:', { to: selectedUser, content: messageText.trim() });
             await onSendMessage(selectedUser, messageText.trim());
             setMessageText('');
             setIsTyping(false);
@@ -503,6 +515,7 @@ const MessagesModal = ({
                                 />
                                 <IconButton
                                     type="submit"
+                                    onClick={handleSendMessage}
                                     disabled={!messageText.trim() || isLoading}
                                     color="primary"
                                 >
