@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'users',
     'appointments',
     'communicator',
+    'poehr_scheduling_backend.core',
     'django_cron',
 ]
 
