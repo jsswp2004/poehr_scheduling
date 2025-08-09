@@ -417,6 +417,8 @@ function OrganizationManagement() {
                                 onError={(e) => {
                                     console.log(`User org logo failed to load for ${userOrganization.name}:`, userOrganization.logo);
                                     console.log('Attempted URL:', getLogoUrl(userOrganization.logo));
+                                    // Clear src to stop further 404 attempts and show fallback icon
+                                    e.currentTarget.src = '';
                                 }}
                             >
                                 <Business />
@@ -511,6 +513,7 @@ function OrganizationManagement() {
                                                 onError={(e) => {
                                                     console.log(`Table logo failed to load for ${org.name}:`, org.logo);
                                                     console.log('Attempted URL:', getLogoUrl(org.logo));
+                                                    e.currentTarget.src = '';
                                                 }}
                                             >
                                                 <Business />
