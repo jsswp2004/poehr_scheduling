@@ -1,3 +1,5 @@
+import { getAccessToken } from '../utils/tokenManager';
+
 /**
  * Custom hook for registration page utilities
  * Provides helper functions for formatting and validation
@@ -13,7 +15,7 @@ export const useRegistrationUtils = () => {
 
     // Check if user is logged in
     const isLoggedIn = () => {
-        return !!localStorage.getItem('access_token');
+        return !!getAccessToken();
     };
 
     // Validate email format
