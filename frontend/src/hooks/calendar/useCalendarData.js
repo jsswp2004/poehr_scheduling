@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
 import { calendarApi } from "../../utils/calendar/calendarApi";
+import { getValidToken } from "../../utils/auth";
 import {
     transformAppointmentsToEvents,
     transformAvailabilityToEvents,
@@ -22,25 +23,12 @@ export const useCalendarData = () => {
     const [holidays, setHolidays] = useState([]);
     const [availabilityEvents, setAvailabilityEvents] = useState([]);
     const [environmentSettings, setEnvironmentSettings] = useState(null);
+    const [token, setToken] = useState(null);
+    const [userRole, setUserRole] = useState(null);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
-
-    // User and authentication (support both keys)
-    const token =
-        localStorage.getItem("access_token") ||
-        localStorage.getItem("token");
-    let userRole = null;
-
-    if (token) {
-        try {
-            const decoded = jwtDecode(token);
-            userRole = decoded.role;
-        } catch (err) {
-            console.error("Failed to decode token:", err);
-        }
-    }
 
     const [currentView, setCurrentView] = useState(getDefaultView(userRole));
 
@@ -55,9 +43,21 @@ export const useCalendarData = () => {
 
     // Fetch all calendar data
     const fetchAllData = useCallback(async () => {
-        if (!token) {
-            console.log('❌ useCalendarData: No token found');
+        // Always fetch a fresh/valid token (handles refresh if needed)
+        const validToken = await getValidToken();
+        if (!validToken) {
+            console.warn('❌ useCalendarData: No valid token available; skipping calendar fetch');
+            setLoading(false);
             return;
+        }
+        if (validToken !== token) {
+            setToken(validToken);
+            try {
+                const decoded = jwtDecode(validToken);
+                setUserRole(decoded.role);
+            } catch (err) {
+                console.error("Failed to decode token:", err);
+            }
         }
 
         console.log('🚀 useCalendarData: Fetching calendar data...');
@@ -65,27 +65,27 @@ export const useCalendarData = () => {
         try {
             const [appointmentsData, availabilityData, doctorsData, clinicEventsData, holidaysData, environmentSettingsData] =
                 await Promise.all([
-                    calendarApi.fetchAppointments(token).catch(err => {
+                    calendarApi.fetchAppointments(validToken).catch(err => {
                         console.error("Failed to fetch appointments:", err);
                         return [];
                     }),
-                    calendarApi.fetchAvailability(token).catch(err => {
+                    calendarApi.fetchAvailability(validToken).catch(err => {
                         console.error("Failed to fetch availability:", err);
                         return [];
                     }),
-                    calendarApi.fetchDoctors(token).catch(err => {
+                    calendarApi.fetchDoctors(validToken).catch(err => {
                         console.error("Failed to fetch doctors:", err);
                         return [];
                     }),
-                    calendarApi.fetchClinicEvents(token).catch(err => {
+                    calendarApi.fetchClinicEvents(validToken).catch(err => {
                         console.error("Failed to fetch clinic events:", err);
                         return [];
                     }),
-                    calendarApi.fetchHolidays(token).catch(err => {
+                    calendarApi.fetchHolidays(validToken).catch(err => {
                         console.error("Failed to fetch holidays:", err);
                         return [];
                     }),
-                    calendarApi.fetchEnvironmentSettings(token).catch(err => {
+                    calendarApi.fetchEnvironmentSettings(validToken).catch(err => {
                         console.error("Failed to fetch environment settings:", err);
                         return null;
                     }),
@@ -135,10 +135,25 @@ export const useCalendarData = () => {
         }
     }, [token]);
 
-    // Initial data load
+    // Initial token fetch and data load
     useEffect(() => {
-        console.log('🔄 useCalendarData: Starting data fetch...');
-        fetchAllData();
+        let mounted = true;
+        (async () => {
+            const initialToken = await getValidToken();
+            if (!mounted) return;
+            if (initialToken) {
+                setToken(initialToken);
+                try {
+                    const decoded = jwtDecode(initialToken);
+                    setUserRole(decoded.role);
+                } catch (err) {
+                    console.error("Failed to decode token:", err);
+                }
+            }
+            console.log('🔄 useCalendarData: Starting data fetch...');
+            fetchAllData();
+        })();
+        return () => { mounted = false; };
     }, [fetchAllData]);
 
     // Memoized filtered events to prevent unnecessary re-calculations
@@ -165,8 +180,8 @@ export const useCalendarData = () => {
         loading,
 
         // User info
-        userRole,
-        token,
+    userRole,
+    token,
 
         // Actions
         refetchData: fetchAllData,
