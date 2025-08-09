@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getAccessToken } from '../utils/tokenManager';
 
 const useWebSocket = (url, options = {}) => {
   const [socket, setSocket] = useState(null);
@@ -39,18 +40,8 @@ const useWebSocket = (url, options = {}) => {
 
   const connect = useCallback(() => {
     try {
-      // Get token and handle both string and JSON formats
-      let token = localStorage.getItem('token') || localStorage.getItem('access_token');
-
-      // If token is stored as JSON object, extract the actual token
-      if (token && token.startsWith('{')) {
-        try {
-          const tokenObj = JSON.parse(token);
-          token = tokenObj.token || tokenObj.access_token || token;
-        } catch (e) {
-          console.warn('⚠️ Could not parse token as JSON, using as-is');
-        }
-      }
+      // Get token using centralized token manager
+      const token = getAccessToken();
 
       console.log('🔑 Using token for WebSocket:', token ? `${token.substring(0, 20)}...` : 'No token');
       const wsUrl = token ? `${url}?token=${token}` : url;
