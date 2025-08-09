@@ -20,7 +20,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import { toast } from "../components/SimpleToast";
 import { API_BASE_URL } from "../config/api";
 // Import centralized token helper
-import { getValidToken, clearAuthData } from "../utils/auth";
+import { getValidToken, clearAuthData, refreshAccessToken } from "../utils/auth";
 
 // PRODUCTION-READY ADDRESS AUTOCOMPLETE WITH GOOGLE PLACES API + COST OPTIMIZATION
 const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
@@ -522,33 +522,71 @@ function PatientDetailPage() {
   // Fetch doctors for dropdown
   useEffect(() => {
     (async () => {
-      const token = await getValidToken();
+      let token = await getValidToken();
       if (!token) return;
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
-          headers: { Authorization: `Bearer ${token}` },
+      
+      const doFetch = async (bearer) => 
+        axios.get(`${API_BASE_URL}/api/users/doctors/`, {
+          headers: { Authorization: `Bearer ${bearer}` },
         });
+
+      try {
+        const res = await doFetch(token);
         setDoctors(res.data);
       } catch (err) {
+        // Retry once on 401 by forcing a refresh
+        if (err?.response?.status === 401) {
+          try {
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+              const retryRes = await doFetch(refreshed);
+              setDoctors(retryRes.data);
+              return;
+            }
+          } catch (refreshErr) {
+            console.error('Doctors fetch retry after refresh failed:', refreshErr);
+          }
+          // If 401 after refresh, clear auth to force re-login
+          clearAuthData?.();
+          navigate("/login");
+          return;
+        }
         console.error("Failed to load doctors:", err);
       }
     })();
-  }, []);
+  }, [navigate]);
 
   // Fetch organizations for dropdown
   useEffect(() => {
     (async () => {
-      const token = await getValidToken();
+      let token = await getValidToken();
       if (!token) return;
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-          headers: { Authorization: `Bearer ${token}` },
+      
+      const doFetch = async (bearer) =>
+        axios.get(`${API_BASE_URL}/api/users/organizations/`, {
+          headers: { Authorization: `Bearer ${bearer}` },
         });
+
+      try {
+        const res = await doFetch(token);
         setOrganizations(res.data);
       } catch (err) {
         console.error("Failed to load organizations:", err);
         setOrganizations([]);
+        
+        // Retry once on 401 by forcing a refresh
         if (err?.response?.status === 401) {
+          try {
+            const refreshed = await refreshAccessToken();
+            if (refreshed) {
+              const retryRes = await doFetch(refreshed);
+              setOrganizations(retryRes.data);
+              return;
+            }
+          } catch (refreshErr) {
+            console.error('Organizations fetch retry after refresh failed:', refreshErr);
+          }
+          // If 401 after refresh, clear auth to force re-login
           clearAuthData?.();
           navigate("/login");
         }
