@@ -110,5 +110,51 @@ export const isAuthenticated = async () => {
   return !!token;
 };
 
+/**
+ * Make an authenticated API call with automatic token refresh on 401 errors
+ * @param {Function} apiCall - Function that makes the API call (should accept token as parameter)
+ * @param {number} maxRetries - Maximum number of retry attempts (default: 1)
+ * @returns {Promise<any>} - API response data
+ */
+export const authenticatedApiCall = async (apiCall, maxRetries = 1) => {
+  console.log('🔐 authenticatedApiCall: Starting authenticated API call...');
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const token = await getValidToken();
+      console.log(`🔑 authenticatedApiCall: Attempt ${attempt + 1}, token available:`, token ? '✅ Yes' : '❌ No');
+
+      if (!token) {
+        console.error('❌ authenticatedApiCall: No valid token available');
+        throw new Error('No valid token available');
+      }
+
+      console.log('📡 authenticatedApiCall: Making API call...');
+      const response = await apiCall(token);
+      console.log('✅ authenticatedApiCall: API call successful');
+      return response;
+
+    } catch (error) {
+      console.log(`⚠️ authenticatedApiCall: Attempt ${attempt + 1} failed:`, error.response?.status, error.message);
+
+      if (error.response?.status === 401 && attempt < maxRetries) {
+        console.log('🔄 authenticatedApiCall: 401 error detected, attempting token refresh...');
+        const newToken = await refreshAccessToken();
+
+        if (!newToken) {
+          console.error('❌ authenticatedApiCall: Token refresh failed, giving up');
+          throw error;
+        }
+
+        console.log('✅ authenticatedApiCall: Token refreshed, retrying API call...');
+        continue;
+      }
+
+      console.error('❌ authenticatedApiCall: Final failure:', error);
+      throw error;
+    }
+  }
+};
+
 // Re-export token manager functions for backwards compatibility
 export { isTokenExpired, isTokenExpiringSoon } from './tokenManager';

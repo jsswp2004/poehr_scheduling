@@ -3,6 +3,7 @@
  */
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { getValidToken } from '../../utils/auth';
 import {
     validateAppointmentForm,
     prepareAppointmentPayload,
@@ -21,7 +22,7 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
     });
 
     const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
-    const [token] = useState(localStorage.getItem('access_token'));
+    const [token] = useState(getValidToken());
 
     // Get user role from token
     let userRole = null;

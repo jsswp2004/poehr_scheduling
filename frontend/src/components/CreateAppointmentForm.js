@@ -1,48 +1,53 @@
 /**
  * Refactored CreateAppointmentForm component
- * 
+ *
  * This is a much more maintainable version of the original 518-line CreateAppointmentForm.js
  * - Business logic separated into focused hooks
  * - UI components modularized for reusability
  * - Better organization and maintainability
  */
-import React from 'react';
-import { Box, Paper, Typography } from '@mui/material';
-import { useAppointmentFormData } from '../hooks/appointment-form/useAppointmentFormData';
-import { useAppointmentDoctors } from '../hooks/appointment-form/useAppointmentDoctors';
-import { useAppointmentFormExternal } from '../hooks/appointment-form/useAppointmentFormExternal';
-import { useAppointmentFormSubmission } from '../hooks/appointment-form/useAppointmentFormSubmission';
-import { AppointmentFormFields } from './appointment-form/AppointmentFormFields';
-import { AvailableSlotsPanel } from './appointment-form/AvailableSlotsPanel';
-import { AppointmentFormActions } from './appointment-form/AppointmentFormActions';
+import React from "react";
+import { Box, Paper, Typography } from "@mui/material";
+import { useAppointmentFormData } from "../hooks/appointment-form/useAppointmentFormData";
+import { useAppointmentDoctors } from "../hooks/appointment-form/useAppointmentDoctors";
+import { useAppointmentFormExternal } from "../hooks/appointment-form/useAppointmentFormExternal";
+import { useAppointmentFormSubmission } from "../hooks/appointment-form/useAppointmentFormSubmission";
+import { AppointmentFormFields } from "./appointment-form/AppointmentFormFields";
+import { AvailableSlotsPanel } from "./appointment-form/AvailableSlotsPanel";
+import { AppointmentFormActions } from "./appointment-form/AppointmentFormActions";
+import { getValidToken } from "../utils/auth";
 
 function CreateAppointmentForm({
   onSuccess,
   defaultProviderId = null,
-  patientName = '',
+  patientName = "",
   patientId = null,
   appointmentToEdit = null,
-  editMode = false
+  editMode = false,
 }) {
   // External data (events, holidays, blocked days)
   const {
     clinicEvents,
     blockedDays,
     holidays,
-    loading: externalDataLoading
-  } = useAppointmentFormExternal(localStorage.getItem('access_token'));
+    loading: externalDataLoading,
+  } = useAppointmentFormExternal(getValidToken());
 
   // Form data management
   const {
     formData,
     selectedClinicEvent,
     token,
-    userRole,
     handleChange,
     handleClinicEventChange,
     validateForm,
     preparePayload,
-  } = useAppointmentFormData(appointmentToEdit, editMode, patientId, clinicEvents);
+  } = useAppointmentFormData(
+    appointmentToEdit,
+    editMode,
+    patientId,
+    clinicEvents
+  );
 
   // Doctors and availability management
   const {
@@ -78,9 +83,14 @@ function CreateAppointmentForm({
 
   const onSlotSelect = (slot, formattedSlot) => {
     handleSlotSelection(slot, formattedSlot, (updater) => {
-      if (typeof updater === 'function') {
+      if (typeof updater === "function") {
         const newData = updater(formData);
-        handleChange({ target: { name: 'appointment_datetime', value: newData.appointment_datetime } });
+        handleChange({
+          target: {
+            name: "appointment_datetime",
+            value: newData.appointment_datetime,
+          },
+        });
       }
     });
   };
@@ -94,12 +104,24 @@ function CreateAppointmentForm({
   }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 4, mt: 2 }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: { xs: "column", md: "row" },
+        gap: 4,
+        mt: 2,
+      }}
+    >
       {/* Left: Form */}
-      <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>
+      <Paper
+        elevation={3}
+        sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}
+      >
         <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-          {editMode ? 'Edit Appointment' : 'Create Appointment'}
-          {patientName && <span style={{ color: '#1976d2' }}> for {patientName}</span>}
+          {editMode ? "Edit Appointment" : "Create Appointment"}
+          {patientName && (
+            <span style={{ color: "#1976d2" }}> for {patientName}</span>
+          )}
         </Typography>
 
         <form onSubmit={onFormSubmit}>
