@@ -4,7 +4,7 @@ import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
-import { getAccessToken } from '../utils/tokenManager';
+import { getValidToken, clearAuthData } from '../utils/auth';
 
 export const useAnalytics = () => {
     const [reportStartDate, setReportStartDate] = useState(null);
@@ -51,9 +51,10 @@ export const useAnalytics = () => {
 
     const fetchOrganizationData = useCallback(async () => {
         try {
-            const token = getAccessToken();
+            // Use centralized, refresh-aware token getter to avoid 401s
+            const token = await getValidToken();
             if (!token) {
-                console.log('No token available for fetching organization data');
+                console.log('No valid token available for fetching organization data');
                 return;
             }
 
@@ -75,6 +76,10 @@ export const useAnalytics = () => {
             }
         } catch (err) {
             console.error('Failed to fetch organization data:', err);
+            if (err?.response?.status === 401) {
+                // Token invalid even after refresh attempt; clear auth to force re-login
+                clearAuthData?.();
+            }
         }
     }, []);
 
