@@ -29,6 +29,7 @@ import {
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
+import { getValidToken } from "../utils/auth";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlus,
@@ -58,27 +59,30 @@ function HolidaysTab() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    try {
-      const decoded = jwtDecode(token);
-      const role = decoded.role || "";
-      if (role !== "admin" && role !== "system_admin" && role !== "registrar") {
-        navigate("/");
+    (async () => {
+      const token = await getValidToken();
+      if (!token) {
+        navigate("/login");
+        return;
       }
-    } catch (err) {
-      navigate("/login");
-    }
+      try {
+        const decoded = jwtDecode(token);
+        const role = decoded.role || "";
+        if (role !== "admin" && role !== "system_admin" && role !== "registrar") {
+          navigate("/");
+        }
+      } catch (err) {
+        navigate("/login");
+      }
+    })();
   }, [navigate]);
 
   const loadHolidays = async () => {
     setLoading(true);
     setStatus("");
     try {
-      const token = localStorage.getItem("access_token");
+      const token = await getValidToken();
+      if (!token) throw new Error("Not authenticated");
       const res = await axios.get(
         `${API_BASE_URL}/api/holidays/?t=${Date.now()}`,
         {
@@ -112,18 +116,18 @@ function HolidaysTab() {
     setSaving(true);
     setStatus("");
     try {
-      const token = localStorage.getItem("access_token");
-      await Promise.all(
-        holidayList.map((h) =>
-          buffered[h.id] !== h.is_recognized
-            ? axios.patch(
-              `${API_BASE_URL}/api/holidays/${h.id}/`,
-              { is_recognized: buffered[h.id] },
-              { headers: { Authorization: `Bearer ${token}` } }
-            )
-            : null
-        )
-      );
+      const token = await getValidToken();
+      if (!token) throw new Error("Not authenticated");
+      const updates = holidayList
+        .filter((h) => buffered[h.id] !== h.is_recognized)
+        .map((h) =>
+          axios.patch(
+            `${API_BASE_URL}/api/holidays/${h.id}/`,
+            { is_recognized: buffered[h.id] },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+        );
+      await Promise.all(updates);
       setStatus("Saved!");
       await loadHolidays();
     } catch (e) {
@@ -139,9 +143,10 @@ function HolidaysTab() {
     setDeletingId(id);
     setStatus("");
 
-    const performDelete = async () => {
+  const performDelete = async () => {
       try {
-        const token = localStorage.getItem("access_token");
+    const token = await getValidToken();
+    if (!token) throw new Error("Not authenticated");
         await axios.patch(
           `${API_BASE_URL}/api/holidays/${id}/`,
           {
@@ -168,7 +173,8 @@ function HolidaysTab() {
     setLoadingYear(true);
     setStatus("");
     try {
-      const token = localStorage.getItem("access_token");
+      const token = await getValidToken();
+      if (!token) throw new Error("Not authenticated");
       await axios.get(`${API_BASE_URL}/api/holidays/?year=${yearInput}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -219,7 +225,8 @@ function HolidaysTab() {
     setSaving(true);
     setStatus("");
     try {
-      const token = localStorage.getItem("access_token");
+      const token = await getValidToken();
+      if (!token) throw new Error("Not authenticated");
       const payload = {
         name: holidayFormData.name,
         date: holidayFormData.date,

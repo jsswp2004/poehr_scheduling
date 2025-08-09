@@ -38,6 +38,8 @@ import {
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
+import { getValidToken } from '../utils/auth';
+import { getLogoUrl } from '../utils/organization/organizationUtils';
 
 function OrganizationManagement() {
     const [currentUser, setCurrentUser] = useState(null);
@@ -75,13 +77,6 @@ function OrganizationManagement() {
     const isSystemAdmin = currentUser && (currentUser.role === 'system_admin' || currentUser.role === 'admin');
     const isAdmin = currentUser && ['admin', 'system_admin'].includes(currentUser.role);
 
-    // Helper function to properly construct logo URLs
-    const getLogoUrl = (logoPath) => {
-        if (!logoPath) return null;
-        if (logoPath.startsWith('http')) return logoPath;
-        return `${API_BASE_URL}${logoPath}`;
-    };
-
     useEffect(() => {
         fetchCurrentUser();
     }, []);
@@ -110,7 +105,7 @@ function OrganizationManagement() {
 
     const fetchCurrentUser = async () => {
         try {
-            const token = localStorage.getItem('access_token');
+            const token = await getValidToken();
             if (!token) return;
 
             const decodedToken = jwtDecode(token);
@@ -126,7 +121,7 @@ function OrganizationManagement() {
 
     const fetchUserOrganization = async () => {
         try {
-            const token = localStorage.getItem('access_token');
+            const token = await getValidToken();
             if (!token || !currentUser?.organization) return;
 
             const response = await axios.get(`${API_BASE_URL}/api/users/organizations/${currentUser.organization}/`, {
@@ -144,7 +139,7 @@ function OrganizationManagement() {
 
     const fetchAllOrganizations = async () => {
         try {
-            const token = localStorage.getItem('access_token');
+            const token = await getValidToken();
             if (!token) return;
 
             const response = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
@@ -205,7 +200,8 @@ function OrganizationManagement() {
 
         setSaving(true);
         try {
-            const token = localStorage.getItem('access_token');
+            const token = await getValidToken();
+            if (!token) throw new Error('Not authenticated');
             const formData = new FormData();
             formData.append('name', createFormData.name.trim());
 
@@ -250,7 +246,7 @@ function OrganizationManagement() {
             logo: null
         });
         setEditFormErrors({});
-        setPreviewEditLogo(organization.logo ? `${API_BASE_URL}${organization.logo}` : null);
+        setPreviewEditLogo(getLogoUrl(organization.logo));
         setEditDialogOpen(true);
     };
 
@@ -299,7 +295,8 @@ function OrganizationManagement() {
 
         setSaving(true);
         try {
-            const token = localStorage.getItem('access_token');
+            const token = await getValidToken();
+            if (!token) throw new Error('Not authenticated');
             const formData = new FormData();
             formData.append('name', editFormData.name.trim());
 
@@ -355,7 +352,8 @@ function OrganizationManagement() {
 
         setSaving(true);
         try {
-            const token = localStorage.getItem('access_token');
+            const token = await getValidToken();
+            if (!token) throw new Error('Not authenticated');
 
             await axios.delete(`${API_BASE_URL}/api/users/organizations/${organizationToDelete.id}/`, {
                 headers: { Authorization: `Bearer ${token}` }
