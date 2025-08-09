@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { API_BASE_URL } from '../config/api';
+import { getValidToken } from "../utils/auth";
 import {
   Box,
   Stack,
@@ -48,7 +49,6 @@ function MaintenancePage() {
     block_type: "Lunch", // NEW
   });
 
-  const token = localStorage.getItem("access_token");
   const isFetchingRef = useRef(false);
 
   function getTodayAt(hour, minute = 0) {
@@ -72,35 +72,44 @@ function MaintenancePage() {
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const res = await axios.get(
-          `${API_BASE_URL}/api/users/doctors/`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const token = await getValidToken();
+        if (!token) {
+          toast.error("Not authenticated. Please log in again.");
+          return;
+        }
+        const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setDoctors(res.data);
       } catch (err) {
         toast.error("Error loading doctors.");
       }
     };
     fetchDoctors();
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     const fetchHolidays = async () => {
       try {
+        const token = await getValidToken();
+        if (!token) return;
         const res = await axios.get(`${API_BASE_URL}/api/holidays/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setHolidays(res.data.filter((h) => h.is_recognized));
-      } catch { }
+      } catch {}
     };
     fetchHolidays();
-  }, [token]);
+  }, []);
   const fetchSchedules = useCallback(async () => {
     if (!selectedDoctor || isFetchingRef.current) return;
     try {
       isFetchingRef.current = true;
+      const token = await getValidToken();
+      if (!token) {
+        toast.error("Not authenticated. Please log in again.");
+        return;
+      }
       const res = await axios.get(`${API_BASE_URL}/api/availability/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -114,7 +123,7 @@ function MaintenancePage() {
     } finally {
       isFetchingRef.current = false;
     }
-  }, [selectedDoctor, token]);
+  }, [selectedDoctor]);
 
   useEffect(() => {
     if (selectedDoctor) fetchSchedules();
@@ -182,6 +191,11 @@ function MaintenancePage() {
     console.log("is_blocked value:", formData.is_blocked, typeof formData.is_blocked);
 
     try {
+      const token = await getValidToken();
+      if (!token) {
+        toast.error("Not authenticated. Please log in again.");
+        return;
+      }
       if (editingId) {
         await axios.put(
           `${API_BASE_URL}/api/availability/${editingId}/`,
@@ -231,6 +245,11 @@ function MaintenancePage() {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this schedule?")) return;
     try {
+      const token = await getValidToken();
+      if (!token) {
+        toast.error("Not authenticated. Please log in again.");
+        return;
+      }
       await axios.delete(`${API_BASE_URL}/api/availability/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
