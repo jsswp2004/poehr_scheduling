@@ -24,6 +24,8 @@ import {
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
 import { API_BASE_URL } from '../config/api';
+import axios from 'axios';
+import { getValidToken } from '../utils/auth';
 import ChatConnectionStatus from './ChatConnectionStatus';
 import { generateSafeKey } from '../utils/chat/idUtils';
 import { createRoomKey } from '../utils/chat/chatUtils';
@@ -49,6 +51,9 @@ const MessagesModal = ({
     const [selectedUser, setSelectedUser] = useState(null);
     const [messageText, setMessageText] = useState('');
     const [isTyping, setIsTyping] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [allTeamMembers, setAllTeamMembers] = useState([]);
+    const [loadingMembers, setLoadingMembers] = useState(false);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
@@ -67,7 +72,6 @@ const MessagesModal = ({
     };
 
     const getInitials = (user) => {
-        if (!user) return '?';
         const firstName = user.first_name || '';
         const lastName = user.last_name || '';
         return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || user.username?.charAt(0).toUpperCase() || '?';
@@ -101,6 +105,49 @@ const MessagesModal = ({
     }, [selectedUser, markRoomAsRead, currentUser]);
 
     // Handle sending message
+    // Fetch full team list (paginated) when modal opens
+    useEffect(() => {
+        const fetchAllTeamMembers = async () => {
+            setLoadingMembers(true);
+            try {
+                const token = await getValidToken();
+                if (!token) {
+                    setLoadingMembers(false);
+                    return;
+                }
+
+                const firstUrl = `${API_BASE_URL}/api/users/team/?page_size=100`;
+                const results = [];
+                let nextUrl = firstUrl;
+
+                while (nextUrl) {
+                    const res = await axios.get(nextUrl, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+
+                    const data = res.data;
+                    const pageResults = (data.results || data) // support both paginated and full arrays
+                        .map(u => ({
+                            ...u,
+                            full_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Unknown User',
+                        }));
+                    results.push(...pageResults);
+
+                    nextUrl = data.next || null;
+                }
+                setAllTeamMembers(results);
+            } catch (e) {
+                console.error('Failed to fetch full team list:', e);
+            } finally {
+                setLoadingMembers(false);
+            }
+        };
+
+        if (open) {
+            fetchAllTeamMembers();
+        }
+    }, [open]);
+
     const handleSendMessage = useCallback(async (e) => {
         e.preventDefault();
         if (!messageText.trim() || !selectedUser || !onSendMessage) return;
@@ -142,23 +189,38 @@ const MessagesModal = ({
         };
     }, []);
 
-    // Filter team members who have conversations or unread messages
+    // Source of truth: use full team if available, else fallback to prop
+    const teamListSource = useMemo(() => {
+        const base = Array.isArray(allTeamMembers) && allTeamMembers.length > 0 ? allTeamMembers : (teamMembers || []);
+        // Exclude current user
+        return base.filter(m => (m.id || m.user_id) !== (currentUser?.id || currentUser?.user_id));
+    }, [allTeamMembers, teamMembers, currentUser]);
+
+    // Filter team members by search and map conversation info
     const conversationList = useMemo(() => {
-        if (!teamMembers || !Array.isArray(teamMembers)) return [];
+        const search = (searchQuery || '').toLowerCase();
+        const filtered = teamListSource.filter(member => {
+            if (!search) return true;
+            const first = (member.first_name || '').toLowerCase();
+            const last = (member.last_name || '').toLowerCase();
+            const user = (member.username || '').toLowerCase();
+            const full = (member.full_name || `${member.first_name || ''} ${member.last_name || ''}`).toLowerCase();
+            return first.includes(search) || last.includes(search) || user.includes(search) || full.includes(search);
+        });
 
-        console.log('🔍 MessagesModal: Processing team members:', teamMembers);
+        console.log('🔍 MessagesModal: Processing team members:', filtered);
 
-        return teamMembers
-            .filter(member => member.id !== currentUser?.id) // Exclude current user
+        return filtered
             .map(member => {
-                const unreadCount = getUnreadCountForUser(member.id);
+                const memberId = member.id || member.user_id;
+                const unreadCount = getUnreadCountForUser(memberId);
                 const currentId = currentUser?.user_id || currentUser?.id;
                 const otherId = member?.user_id || member?.id;
                 const roomKey = createRoomKey(currentId, otherId);
                 const roomMessages = getRoomMessages ? getRoomMessages(roomKey) : [];
                 const lastMessage = roomMessages[roomMessages.length - 1];
 
-                console.log(`🔍 Member ${member.id} (${member.first_name} ${member.last_name}):`, {
+                console.log(`🔍 Member ${memberId} (${member.first_name} ${member.last_name}):`, {
                     unreadCount,
                     roomKey,
                     messageCount: roomMessages.length,
@@ -167,6 +229,7 @@ const MessagesModal = ({
 
                 return {
                     ...member,
+                    id: memberId,
                     unreadCount,
                     lastMessage,
                     hasConversation: roomMessages.length > 0 || unreadCount > 0
@@ -185,7 +248,7 @@ const MessagesModal = ({
 
                 return getUserDisplayName(a).localeCompare(getUserDisplayName(b));
             });
-    }, [teamMembers, currentUser, getUnreadCountForUser, getRoomMessages]);
+    }, [teamListSource, searchQuery, currentUser, getUnreadCountForUser, getRoomMessages]);
 
     return (
         <Dialog
@@ -224,6 +287,18 @@ const MessagesModal = ({
                     <Typography variant="subtitle2" sx={{ p: 2, fontWeight: 'bold' }}>
                         Conversations
                     </Typography>
+
+                    {/* Search input for team members */}
+                    <Box sx={{ px: 2, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <TextField
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search team members..."
+                            size="small"
+                            fullWidth
+                        />
+                        {loadingMembers && <CircularProgress size={18} />}
+                    </Box>
 
                     <List sx={{ flex: 1, overflow: 'auto', p: 0 }}>
                         {conversationList.length === 0 ? (
