@@ -267,7 +267,7 @@ const MessagesModal = ({
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6">Messages</Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <ChatConnectionStatus status={connectionStatus} />
+                        <ChatConnectionStatus connectionStatus={connectionStatus} />
                         <IconButton onClick={onClose} size="small">
                             <CloseIcon />
                         </IconButton>
