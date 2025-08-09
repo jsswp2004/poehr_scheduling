@@ -39,19 +39,14 @@ export const storeTokens = (accessToken, refreshToken) => {
  */
 export const getAccessToken = () => {
   const stored = localStorage.getItem(TOKEN_KEYS.ACCESS);
-  console.log('🔍 getAccessToken: Raw stored value:', stored ? '✅ Found in localStorage' : '❌ Not found in localStorage');
-
   if (!stored) return null;
 
   try {
     // Try to parse as JSON first (new format)
     const parsed = JSON.parse(stored);
-    const token = parsed.token || null;
-    console.log('🔑 getAccessToken: Parsed token:', token ? '✅ Token extracted from JSON' : '❌ No token in JSON');
-    return token;
+    return parsed.token || null;
   } catch {
     // Fallback to direct string (legacy format)
-    console.log('🔑 getAccessToken: Using legacy format (direct string)');
     return stored;
   }
 };
@@ -62,19 +57,14 @@ export const getAccessToken = () => {
  */
 export const getRefreshToken = () => {
   const stored = localStorage.getItem(TOKEN_KEYS.REFRESH);
-  console.log('🔍 getRefreshToken: Raw stored value:', stored ? '✅ Found in localStorage' : '❌ Not found in localStorage');
-
   if (!stored) return null;
 
   try {
     // Try to parse as JSON first (new format)
     const parsed = JSON.parse(stored);
-    const token = parsed.token || null;
-    console.log('🔑 getRefreshToken: Parsed token:', token ? '✅ Token extracted from JSON' : '❌ No token in JSON');
-    return token;
+    return parsed.token || null;
   } catch {
     // Fallback to direct string (legacy format)
-    console.log('🔑 getRefreshToken: Using legacy format (direct string)');
     return stored;
   }
 };

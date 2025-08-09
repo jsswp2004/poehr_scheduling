@@ -7,7 +7,6 @@ import {
 } from "../config/api";
 import { notifyProfileUpdated } from "../utils/events";
 import { useAuth } from "./useAuth";
-import { getAccessToken } from "../utils/tokenManager";
 
 /**
  * Custom hook for profile management
@@ -37,7 +36,7 @@ export const useProfile = () => {
         if (!currentUser?.id) return;
 
         try {
-            const token = getAccessToken();
+            const token = localStorage.getItem("access_token");
             if (!token) {
                 return;
             }
@@ -75,7 +74,7 @@ export const useProfile = () => {
 
         setProfileLoading(true);
         try {
-            const token = getAccessToken();
+            const token = localStorage.getItem("access_token");
             if (!token) {
                 throw new Error("No authentication token found");
             }
@@ -114,7 +113,7 @@ export const useProfile = () => {
 
         setProfileLoading(true);
         try {
-            const token = getAccessToken();
+            const token = localStorage.getItem("access_token");
             if (!token) {
                 throw new Error("No authentication token found");
             }
@@ -152,7 +151,7 @@ export const useProfile = () => {
         async (file) => {
             if (!profile.id) return;
 
-            const token = getAccessToken();
+            const token = localStorage.getItem("access_token");
             if (!token) {
                 throw new Error("No authentication token found");
             }
@@ -183,7 +182,7 @@ export const useProfile = () => {
     const deleteUser = useCallback(async () => {
         if (!profile.id) return;
 
-        const token = getAccessToken();
+        const token = localStorage.getItem("access_token");
         if (!token) {
             throw new Error("No authentication token found");
         }

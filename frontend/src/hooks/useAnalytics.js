@@ -4,8 +4,7 @@ import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
-import { getValidToken, clearAuthData, refreshAccessToken } from '../utils/auth';
-import { jwtDecode } from 'jwt-decode';
+import { getAccessToken } from '../utils/tokenManager';
 
 export const useAnalytics = () => {
     const [reportStartDate, setReportStartDate] = useState(null);
@@ -38,13 +37,8 @@ export const useAnalytics = () => {
         'Blocked vs. Booked Time Comparison',
     ];
 
-    const fetchProviders = useCallback(async (maybeToken) => {
+    const fetchProviders = useCallback(async (token) => {
         try {
-            const token = maybeToken || (await getValidToken());
-            if (!token) {
-                console.log('No valid token available for fetching providers');
-                return;
-            }
             const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -56,60 +50,17 @@ export const useAnalytics = () => {
     }, []);
 
     const fetchOrganizationData = useCallback(async () => {
-        // Use centralized, refresh-aware token getter to avoid 401s
-        let token = await getValidToken();
-        if (!token) {
-            console.log('No valid token available for fetching organization data');
-            return;
-        }
-
-        // Determine role and userId to decide if organizations endpoint is allowed
-        let decoded = null;
         try {
-            decoded = jwtDecode(token);
-        } catch { }
-        const userId = decoded?.user_id;
-        const role = decoded?.role;
-        const hasOrgPrivilege = ['admin', 'system_admin', 'registrar', 'receptionist', 'doctor'].includes(role);
-
-        // Fallback: for roles without org privileges, fetch minimal org info from user endpoint
-        const fetchFromUser = async (bearer) => {
-            if (!userId) return false;
-            try {
-                const me = await axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
-                    headers: { Authorization: `Bearer ${bearer}` },
-                });
-                const orgLogo = me.data.organization_logo;
-                if (orgLogo) {
-                    const logoUrl = typeof orgLogo === 'string' && orgLogo.startsWith('http')
-                        ? orgLogo
-                        : `${API_BASE_URL}${orgLogo}`;
-                    setOrganizationLogo(logoUrl);
-                }
-                // Best-effort organization fields
-                setOrganizationData({
-                    id: me.data.organization ?? null,
-                    name: me.data.organization_name || '',
-                    logo: me.data.organization_logo || null,
-                });
-                return true;
-            } catch (e) {
-                return false;
+            const token = getAccessToken();
+            if (!token) {
+                console.log('No token available for fetching organization data');
+                return;
             }
-        };
 
-        if (!hasOrgPrivilege) {
-            const ok = await fetchFromUser(token);
-            if (ok) return;
-        }
-
-        const doFetch = async (bearer) =>
-            axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-                headers: { Authorization: `Bearer ${bearer}` },
+            const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
+                headers: { Authorization: `Bearer ${token}` },
             });
 
-        try {
-            const res = await doFetch(token);
             if (res.data && res.data.length > 0) {
                 const org = res.data[0];
                 setOrganizationData(org);
@@ -121,55 +72,9 @@ export const useAnalytics = () => {
                         : `${API_BASE_URL}${org.logo}`;
                     setOrganizationLogo(logoUrl);
                 }
-            } else {
-                // Empty list – fallback to user endpoint to populate minimal org info
-                const ok = await fetchFromUser(token);
-                if (ok) return;
             }
         } catch (err) {
-            // Retry once on 401 by forcing a refresh
-            if (err?.response?.status === 401 || err?.response?.status === 403) {
-                try {
-                    const refreshed = await refreshAccessToken();
-                    if (refreshed) {
-                        // First try the organizations endpoint again
-                        try {
-                            const retryRes = await doFetch(refreshed);
-                            if (retryRes.data && retryRes.data.length > 0) {
-                                const org = retryRes.data[0];
-                                setOrganizationData(org);
-                                if (org.logo) {
-                                    const logoUrl = org.logo.startsWith('http')
-                                        ? org.logo
-                                        : `${API_BASE_URL}${org.logo}`;
-                                    setOrganizationLogo(logoUrl);
-                                }
-                                return;
-                            } else {
-                                // Empty after retry – fallback
-                                const ok = await fetchFromUser(refreshed);
-                                if (ok) return;
-                            }
-                        } catch (retryErr) {
-                            // If organizations still fails, try fetching from user endpoint
-                            const ok = await fetchFromUser(refreshed);
-                            if (ok) return;
-                            throw retryErr;
-                        }
-                    }
-                } catch (refreshErr) {
-                    console.error('Organization fetch retry after refresh failed:', refreshErr);
-                }
-                // If 401 after all attempts, clear auth to force re-login. For 403, don't logout – just stop.
-                if (err?.response?.status === 401) {
-                    clearAuthData?.();
-                }
-                return;
-            }
             console.error('Failed to fetch organization data:', err);
-            // Final fallback attempt without disturbing auth
-            const ok = await fetchFromUser(token);
-            if (ok) return;
         }
     }, []);
 
@@ -187,15 +92,8 @@ export const useAnalytics = () => {
             if (reportEndDate) params.end_date = reportEndDate.toISOString().split('T')[0];
             if (reportProvider && reportProvider !== 'all') params.provider_id = reportProvider;
 
-            // Use provided token if present; otherwise, obtain a valid one
-            const bearer = token || (await getValidToken());
-            if (!bearer) {
-                toast.error('Not authenticated. Please log in again.');
-                return;
-            }
-
             const res = await axios.get(`${API_BASE_URL}/api/analytics/reports/`, {
-                headers: { Authorization: `Bearer ${bearer}` },
+                headers: { Authorization: `Bearer ${token}` },
                 params,
             });
 

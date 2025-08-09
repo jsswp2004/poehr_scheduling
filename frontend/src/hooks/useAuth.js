@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { getAccessToken, storeTokens, clearTokens } from '../utils/tokenManager';
+import { STORAGE_KEYS } from '../config/constants';
 
 /**
  * Custom hook for authentication state and user info
  */
 export const useAuth = () => {
     const [token, setToken] = useState(() =>
-        getAccessToken()
+        localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)
     );
     const [currentUser, setCurrentUser] = useState(null);
 
@@ -33,7 +33,7 @@ export const useAuth = () => {
             } catch (error) {
                 console.error('Failed to decode token:', error);
                 // Invalid token, remove it
-                clearTokens();
+                localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
                 setToken(null);
                 setCurrentUser(null);
             }
@@ -59,10 +59,10 @@ export const useAuth = () => {
 
     const updateToken = (newToken) => {
         if (newToken) {
-            storeTokens(newToken, null); // Store access token, keep existing refresh token
+            localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, newToken);
             setToken(newToken);
         } else {
-            clearTokens();
+            localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
             setToken(null);
         }
     };

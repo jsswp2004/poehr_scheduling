@@ -4,7 +4,6 @@ import { getValidToken, clearAuthData } from '../utils/auth';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
-import { getAccessToken } from '../utils/tokenManager';
 
 export const usePatients = (navigate) => {
     const [patients, setPatients] = useState([]);
@@ -135,8 +134,8 @@ export const usePatients = (navigate) => {
 
     const handleSendEmail = async (token) => {
         try {
-            // Use centralized token access
-            const authToken = getAccessToken();
+            // Use direct token access like PatientDetailPage for consistency
+            const authToken = localStorage.getItem("access_token");
             if (!authToken) {
                 toast.error('Authentication token not found. Please log in again.');
                 clearAuthData();
