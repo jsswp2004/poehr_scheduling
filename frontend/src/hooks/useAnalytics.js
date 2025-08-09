@@ -5,6 +5,7 @@ import Papa from 'papaparse';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
 import { getValidToken, clearAuthData, refreshAccessToken } from '../utils/auth';
+import { jwtDecode } from 'jwt-decode';
 
 export const useAnalytics = () => {
     const [reportStartDate, setReportStartDate] = useState(null);
@@ -62,6 +63,46 @@ export const useAnalytics = () => {
             return;
         }
 
+        // Determine role and userId to decide if organizations endpoint is allowed
+        let decoded = null;
+        try {
+            decoded = jwtDecode(token);
+        } catch {}
+        const userId = decoded?.user_id;
+        const role = decoded?.role;
+        const hasOrgPrivilege = ['admin', 'system_admin', 'registrar', 'receptionist', 'doctor'].includes(role);
+
+        // Fallback: for roles without org privileges, fetch minimal org info from user endpoint
+        const fetchFromUser = async (bearer) => {
+            if (!userId) return false;
+            try {
+                const me = await axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
+                    headers: { Authorization: `Bearer ${bearer}` },
+                });
+                const orgLogo = me.data.organization_logo;
+                if (orgLogo) {
+                    const logoUrl = typeof orgLogo === 'string' && orgLogo.startsWith('http')
+                        ? orgLogo
+                        : `${API_BASE_URL}${orgLogo}`;
+                    setOrganizationLogo(logoUrl);
+                }
+                // Best-effort organization fields
+                setOrganizationData({
+                    id: me.data.organization ?? null,
+                    name: me.data.organization_name || '',
+                    logo: me.data.organization_logo || null,
+                });
+                return true;
+            } catch (e) {
+                return false;
+            }
+        };
+
+        if (!hasOrgPrivilege) {
+            const ok = await fetchFromUser(token);
+            if (ok) return;
+        }
+
         const doFetch = async (bearer) =>
             axios.get(`${API_BASE_URL}/api/users/organizations/`, {
                 headers: { Authorization: `Bearer ${bearer}` },
@@ -87,18 +128,26 @@ export const useAnalytics = () => {
                 try {
                     const refreshed = await refreshAccessToken();
                     if (refreshed) {
-                        const retryRes = await doFetch(refreshed);
-                        if (retryRes.data && retryRes.data.length > 0) {
-                            const org = retryRes.data[0];
-                            setOrganizationData(org);
-                            if (org.logo) {
-                                const logoUrl = org.logo.startsWith('http')
-                                    ? org.logo
-                                    : `${API_BASE_URL}${org.logo}`;
-                                setOrganizationLogo(logoUrl);
+                        // First try the organizations endpoint again
+                        try {
+                            const retryRes = await doFetch(refreshed);
+                            if (retryRes.data && retryRes.data.length > 0) {
+                                const org = retryRes.data[0];
+                                setOrganizationData(org);
+                                if (org.logo) {
+                                    const logoUrl = org.logo.startsWith('http')
+                                        ? org.logo
+                                        : `${API_BASE_URL}${org.logo}`;
+                                    setOrganizationLogo(logoUrl);
+                                }
+                                return;
                             }
+                        } catch (retryErr) {
+                            // If organizations still fails, try fetching from user endpoint
+                            const ok = await fetchFromUser(refreshed);
+                            if (ok) return;
+                            throw retryErr;
                         }
-                        return;
                     }
                 } catch (refreshErr) {
                     console.error('Organization fetch retry after refresh failed:', refreshErr);
