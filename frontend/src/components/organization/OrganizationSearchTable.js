@@ -74,9 +74,10 @@ const OrganizationSearchTable = ({
                                 <Avatar
                                     src={getLogoUrl(org.logo)}
                                     sx={{ width: 40, height: 40 }}
-                                    onError={() => {
+                                    onError={(e) => {
                                         console.log(`Logo failed to load for ${org.name}:`, org.logo);
                                         console.log('Attempted URL:', getLogoUrl(org.logo));
+                                        e.currentTarget.src = '';
                                     }}
                                 >
                                     {org.name.charAt(0).toUpperCase()}
