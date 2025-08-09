@@ -6,8 +6,37 @@ import { API_BASE_URL } from '../../config/api';
 // Helper function to properly construct logo URLs
 export const getLogoUrl = (logoPath) => {
     if (!logoPath) return null;
-    if (logoPath.startsWith('http')) return logoPath;
-    return `${API_BASE_URL}${logoPath}`;
+    let path = String(logoPath).trim();
+    if (path.startsWith('http')) return path;
+
+    // Strip base URL if accidentally stored
+    if (API_BASE_URL && path.startsWith(API_BASE_URL)) {
+        path = path.slice(API_BASE_URL.length);
+    }
+
+    // Normalize slashes
+    path = path.replace(/\\/g, '/');
+
+    // Ensure we end up with a single '/media/...' path regardless of input shape
+    // Accepted inputs: '/media/org_logos/foo.png', 'media/org_logos/foo.png', 'org_logos/foo.png', 'foo.png'
+    if (path.startsWith('/media/')) {
+        // ok as-is
+    } else if (path.startsWith('media/')) {
+        path = `/${path}`;
+    } else if (path.startsWith('org_logos/')) {
+        path = `/media/${path}`;
+    } else if (!path.includes('/')) {
+        // bare filename
+        path = `/media/org_logos/${path}`;
+    } else {
+        // Unknown relative, ensure leading slash
+        if (!path.startsWith('/')) path = `/${path}`;
+    }
+
+    // De-dupe any accidental double media prefixes
+    path = path.replace(/^\/media\/media\//, '/media/');
+
+    return `${API_BASE_URL}${path}`;
 };
 
 // Validate organization form data

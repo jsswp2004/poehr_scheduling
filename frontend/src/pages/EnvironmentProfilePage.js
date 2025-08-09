@@ -25,6 +25,7 @@ import HolidaysTab from "./HolidaysPage";
 import OrganizationManagement from "../components/OrganizationManagement";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
+import { getValidToken } from "../utils/auth";
 
 const DAYS = [
   { label: "Mon", value: 1 },
@@ -49,29 +50,32 @@ function EnvironmentProfilePage() {
 
   useEffect(() => {
     // Role-based access control for admin and system_admin only
-    const token = localStorage.getItem("access_token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    try {
-      const decoded = jwtDecode(token);
-      const role = decoded.role || "";
-      setUserRole(role);
-      if (role !== "admin" && role !== "system_admin") {
-        navigate("/");
+    (async () => {
+      const token = await getValidToken();
+      if (!token) {
+        navigate("/login");
+        return;
       }
-    } catch (err) {
-      navigate("/login");
-    }
+      try {
+        const decoded = jwtDecode(token);
+        const role = decoded.role || "";
+        setUserRole(role);
+        if (role !== "admin" && role !== "system_admin") {
+          navigate("/");
+        }
+      } catch (err) {
+        navigate("/login");
+      }
+    })();
   }, [navigate]);
 
   useEffect(() => {
     // Fetch organizations for system admin
     const fetchOrganizations = async () => {
       if (userRole === "system_admin") {
-        const token = localStorage.getItem("access_token");
         try {
+          const token = await getValidToken();
+          if (!token) return;
           // Try the correct endpoint first: /api/users/organizations/
           const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -82,8 +86,6 @@ function EnvironmentProfilePage() {
           }
         } catch (err) {
           console.error("Failed to fetch organizations:", err);
-          // If that fails, the organizations might not exist yet
-          // Create a default organization notification
           setOrganizations([]);
           console.log("No organizations found. System admin should create organizations first.");
         }
@@ -93,10 +95,11 @@ function EnvironmentProfilePage() {
   }, [userRole]);
 
   useEffect(() => {
-    async function fetchSettings() {
+  async function fetchSettings() {
       setLoading(true);
       try {
-        const token = localStorage.getItem("access_token");
+    const token = await getValidToken();
+    if (!token) throw new Error("Not authenticated");
         const params = {};
         if (userRole === "system_admin" && selectedOrganization) {
           params.organization_id = selectedOrganization;
@@ -106,7 +109,7 @@ function EnvironmentProfilePage() {
         console.log("User role:", userRole);
         console.log("Selected organization:", selectedOrganization);
 
-        const res = await axios.get(
+  const res = await axios.get(
           `${API_BASE_URL}/api/settings/environment/`,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -117,7 +120,7 @@ function EnvironmentProfilePage() {
         console.log("Settings response:", res.data);
         setBlockedDays(res.data.blocked_days || []);
         setStatus(""); // Clear any previous error status
-      } catch (err) {
+  } catch (err) {
         console.error("Failed to load settings error:", err);
         console.error("Error response:", err.response?.data);
         console.error("Error status:", err.response?.status);
@@ -151,7 +154,8 @@ function EnvironmentProfilePage() {
     setSaving(true);
     setStatus("");
     try {
-      const token = localStorage.getItem("access_token");
+      const token = await getValidToken();
+      if (!token) throw new Error("Not authenticated");
       const payload = { blocked_days: blockedDays };
       if (userRole === "system_admin" && selectedOrganization) {
         payload.organization_id = selectedOrganization;
