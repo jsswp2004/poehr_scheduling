@@ -19,6 +19,8 @@ import BackButton from "../components/BackButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import { toast } from "../components/SimpleToast";
 import { API_BASE_URL } from "../config/api";
+// Import centralized token helper
+import { getValidToken, clearAuthData } from "../utils/auth";
 
 // PRODUCTION-READY ADDRESS AUTOCOMPLETE WITH GOOGLE PLACES API + COST OPTIMIZATION
 const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
@@ -466,64 +468,101 @@ function PatientDetailPage() {
   const [formData, setFormData] = useState({});
   const [doctors, setDoctors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
-  const token = localStorage.getItem("access_token");
+  // Remove direct localStorage token usage; always fetch a valid token
+  // const token = localStorage.getItem("access_token");
 
   // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    try {
-      const decoded = jwtDecode(token);
-      const role = decoded.role || "";
-      if (
-        role !== "admin" &&
-        role !== "system_admin" &&
-        role !== "doctor" &&
-        role !== "registrar" &&
-        role !== "receptionist"
-      ) {
-        navigate("/");
+    (async () => {
+      const token = await getValidToken();
+      if (!token) {
+        clearAuthData?.();
+        navigate("/login");
+        return;
       }
-    } catch (err) {
-      navigate("/login");
-    }
-  }, [navigate, token]);
+      try {
+        const decoded = jwtDecode(token);
+        const role = decoded.role || "";
+        if (
+          role !== "admin" &&
+          role !== "system_admin" &&
+          role !== "doctor" &&
+          role !== "registrar" &&
+          role !== "receptionist"
+        ) {
+          navigate("/");
+        }
+      } catch (err) {
+        navigate("/login");
+      }
+    })();
+  }, [navigate]);
+
   // Fetch patient data
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => {
+    (async () => {
+      const token = await getValidToken();
+      if (!token) return;
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setPatient(res.data);
         setFormData(res.data);
-      })
-      .catch((err) => console.error("Error fetching patient:", err));
-  }, [id, token]);
+      } catch (err) {
+        console.error("Error fetching patient:", err);
+        if (err?.response?.status === 401) {
+          clearAuthData?.();
+          navigate("/login");
+        }
+      }
+    })();
+  }, [id, navigate]);
 
   // Fetch doctors for dropdown
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/api/users/doctors/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => setDoctors(res.data))
-      .catch((err) => console.error("Failed to load doctors:", err));
-  }, [token]);
+    (async () => {
+      const token = await getValidToken();
+      if (!token) return;
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDoctors(res.data);
+      } catch (err) {
+        console.error("Failed to load doctors:", err);
+      }
+    })();
+  }, []);
 
   // Fetch organizations for dropdown
   useEffect(() => {
-    axios
-      .get(`${API_BASE_URL}/api/users/organizations/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => setOrganizations(res.data))
-      .catch((err) => setOrganizations([]));
-  }, [token]);
+    (async () => {
+      const token = await getValidToken();
+      if (!token) return;
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setOrganizations(res.data);
+      } catch (err) {
+        console.error("Failed to load organizations:", err);
+        setOrganizations([]);
+        if (err?.response?.status === 401) {
+          clearAuthData?.();
+          navigate("/login");
+        }
+      }
+    })();
+  }, [navigate]);
 
   const handleResetPassword = async () => {
+    const token = await getValidToken();
+    if (!token) {
+      clearAuthData?.();
+      navigate("/login");
+      return;
+    }
     if (!patient || !patient.email) {
       toast.error("Patient email not found. Cannot reset password.");
       return;
@@ -743,6 +782,12 @@ function PatientDetailPage() {
     }
 
     try {
+      const token = await getValidToken();
+      if (!token) {
+        clearAuthData?.();
+        navigate("/login");
+        return;
+      }
       await axios.put(
         `${API_BASE_URL}/api/users/patients/by-user/${id}/edit/`,
         dataToSend,
@@ -918,9 +963,14 @@ function PatientDetailPage() {
                   const formDataPic = new FormData();
                   formDataPic.append("profile_picture", file);
                   try {
+                    const token = await getValidToken();
+                    if (!token) {
+                      clearAuthData?.();
+                      navigate("/login");
+                      return;
+                    }
                     const res = await axios.patch(
-                      `${API_BASE_URL}/api/users/${patient.user_id || patient.id
-                      }/`,
+                      `${API_BASE_URL}/api/users/${patient.user_id || patient.id}/`,
                       formDataPic,
                       {
                         headers: {
@@ -1329,7 +1379,7 @@ function PatientDetailPage() {
                 >
                   Edit
                 </Button>
-              )}{" "}
+              )}
               <Button
                 variant="contained"
                 color="success"

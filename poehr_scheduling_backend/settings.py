@@ -14,95 +14,104 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback-secret-key-if-missing')
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "fallback-secret-key-if-missing")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '192.168.0.36', '192.168.1.153', 'poehr-scheduling-750584621883.us-central1.run.app', 'poehr-frontend-750584621883.us-central1.run.app', 'poehr-scheduling-mjf5efdj3a-uc.a.run.app', 'poehr-frontend-mjf5efdj3a-uc.a.run.app']
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+    "192.168.0.36",
+    "192.168.1.153",
+    "poehr-scheduling-750584621883.us-central1.run.app",
+    "poehr-frontend-750584621883.us-central1.run.app",
+    "poehr-scheduling-mjf5efdj3a-uc.a.run.app",
+    "poehr-frontend-mjf5efdj3a-uc.a.run.app",
+]
 
 # Application definition
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'channels',                      # Add channels
-    'django_rest_passwordreset',    # Third-party
-    'rest_framework',
-    'rest_framework_simplejwt',
-    'corsheaders',
-    'django_filters',
-
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "channels",  # Add channels
+    "django_rest_passwordreset",  # Third-party
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "corsheaders",
+    "django_filters",
     # Local apps
-    'users',
-    'appointments',
-    'communicator',
-    'poehr_scheduling_backend.core',
-    'django_cron',
+    "users",
+    "appointments",
+    "communicator",
+    "poehr_scheduling_backend.core",
+    "django_cron",
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'poehr_scheduling_backend.urls'
+ROOT_URLCONF = "poehr_scheduling_backend.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'poehr_scheduling_backend.wsgi.application'
+WSGI_APPLICATION = "poehr_scheduling_backend.wsgi.application"
 
 # Django ASGI application
-ASGI_APPLICATION = 'poehr_scheduling_backend.asgi.application'
+ASGI_APPLICATION = "poehr_scheduling_backend.asgi.application"
 
 # Database
 # Database configuration - supports both local and Docker
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('DB_NAME', 'poehr_db'),
-        'USER': os.environ.get('DB_USER', 'jsswp2004'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'krat25Miko!'),
-        'HOST': os.environ.get('DB_HOST', 'localhost'),
-        'PORT': os.environ.get('DB_PORT', '5432'),
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("DB_NAME", "poehr_db"),
+        "USER": os.environ.get("DB_USER", "jsswp2004"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", "krat25Miko!"),
+        "HOST": os.environ.get("DB_HOST", "localhost"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 
 # Use DATABASE_URL if provided (Docker environment)
-if 'DATABASE_URL' in os.environ:
+if "DATABASE_URL" in os.environ:
     import dj_database_url
-    DATABASES['default'] = dj_database_url.parse(os.environ['DATABASE_URL'])
+
+    DATABASES["default"] = dj_database_url.parse(os.environ["DATABASE_URL"])
 
 # Channel Layer Configuration (Redis)
-redis_host = os.environ.get('REDIS_HOST', '127.0.0.1')
-redis_port = int(os.environ.get('REDIS_PORT', '6379'))
+redis_host = os.environ.get("REDIS_HOST", "127.0.0.1")
+redis_port = int(os.environ.get("REDIS_PORT", "6379"))
 
 CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
             "hosts": [(redis_host, redis_port)],
         },
     },
@@ -110,49 +119,51 @@ CHANNEL_LAYERS = {
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 # Internationalization
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'America/New_York'
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "America/New_York"
 USE_I18N = True
 USE_TZ = True
 
 # Static files
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
 
 # Media files
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Custom user model
-AUTH_USER_MODEL = 'users.CustomUser'
+AUTH_USER_MODEL = "users.CustomUser"
 
 # DRF & JWT settings
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
-    'DEFAULT_FILTER_BACKENDS': [
-        'django_filters.rest_framework.DjangoFilterBackend',
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
     ],
 }
 
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': False,
-    'BLACKLIST_AFTER_ROTATION': False,
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+    "AUTH_HEADER_TYPES": ("Bearer",),
 }
 
 # CORS settings
@@ -160,32 +171,34 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Email settings
 # For development, use console backend to avoid SMTP authentication issues
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 # EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Re-enabled SMTP with updated credentials
-EMAIL_HOST = 'mail.privateemail.com'  # Private email server
+EMAIL_HOST = "mail.privateemail.com"  # Private email server
 EMAIL_PORT = 465
 EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-DEFAULT_FROM_EMAIL = 'info@powerhealthcareit.com'  # Updated from EMAIL_HOST_USER
-ADMIN_EMAIL = 'jsswp2004@outlook.com'  # 👈 where the notification goes
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = "info@powerhealthcareit.com"  # Updated from EMAIL_HOST_USER
+ADMIN_EMAIL = "jsswp2004@outlook.com"  # 👈 where the notification goes
 
 # ✅ Twilio settings
-TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")
 
 # ✅ Stripe settings
-STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
-STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
-STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 # Stripe Price IDs for subscription tiers
-STRIPE_BASIC_PRICE_ID = os.getenv('STRIPE_BASIC_PRICE_ID', 'price_test_basic')
-STRIPE_PREMIUM_PRICE_ID = os.getenv('STRIPE_PREMIUM_PRICE_ID', 'price_test_premium') 
-STRIPE_ENTERPRISE_PRICE_ID = os.getenv('STRIPE_ENTERPRISE_PRICE_ID', 'price_test_enterprise')
+STRIPE_BASIC_PRICE_ID = os.getenv("STRIPE_BASIC_PRICE_ID", "price_test_basic")
+STRIPE_PREMIUM_PRICE_ID = os.getenv("STRIPE_PREMIUM_PRICE_ID", "price_test_premium")
+STRIPE_ENTERPRISE_PRICE_ID = os.getenv(
+    "STRIPE_ENTERPRISE_PRICE_ID", "price_test_enterprise"
+)
 
 # Django Cron Settings
 CRON_CLASSES = [
-    'appointments.cron.BlastPatientReminderCronJob',
+    "appointments.cron.BlastPatientReminderCronJob",
 ]
