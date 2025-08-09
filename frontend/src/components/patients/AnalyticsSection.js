@@ -1,5 +1,6 @@
 import React from "react";
 import { API_BASE_URL } from '../../config/api';
+import { getAccessToken } from '../../utils/tokenManager';
 import {
     Box,
     Typography,
@@ -93,7 +94,7 @@ function AnalyticsSection({
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token') || localStorage.getItem('access_token')}`,
+                    'Authorization': `Bearer ${getAccessToken()}`,
                 },
             });
 

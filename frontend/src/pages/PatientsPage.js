@@ -11,6 +11,7 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
+import { getAccessToken } from "../utils/tokenManager";
 
 // Components
 import BackButton from "../components/BackButton";
@@ -76,8 +77,7 @@ function PatientsPage() {
 
   // Get current user from token
   useEffect(() => {
-    const token =
-      localStorage.getItem("token") || localStorage.getItem("access_token");
+    const token = getAccessToken();
     if (token) {
       try {
         const decoded = jwtDecode(token);

@@ -4,6 +4,7 @@ import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
+import { getAccessToken } from '../utils/tokenManager';
 
 export const useAnalytics = () => {
     const [reportStartDate, setReportStartDate] = useState(null);
@@ -50,7 +51,7 @@ export const useAnalytics = () => {
 
     const fetchOrganizationData = useCallback(async () => {
         try {
-            const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+            const token = getAccessToken();
             if (!token) {
                 console.log('No token available for fetching organization data');
                 return;
