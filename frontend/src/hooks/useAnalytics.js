@@ -67,7 +67,7 @@ export const useAnalytics = () => {
         let decoded = null;
         try {
             decoded = jwtDecode(token);
-        } catch {}
+        } catch { }
         const userId = decoded?.user_id;
         const role = decoded?.role;
         const hasOrgPrivilege = ['admin', 'system_admin', 'registrar', 'receptionist', 'doctor'].includes(role);
@@ -121,10 +121,14 @@ export const useAnalytics = () => {
                         : `${API_BASE_URL}${org.logo}`;
                     setOrganizationLogo(logoUrl);
                 }
+            } else {
+                // Empty list – fallback to user endpoint to populate minimal org info
+                const ok = await fetchFromUser(token);
+                if (ok) return;
             }
         } catch (err) {
             // Retry once on 401 by forcing a refresh
-            if (err?.response?.status === 401) {
+            if (err?.response?.status === 401 || err?.response?.status === 403) {
                 try {
                     const refreshed = await refreshAccessToken();
                     if (refreshed) {
@@ -141,6 +145,10 @@ export const useAnalytics = () => {
                                     setOrganizationLogo(logoUrl);
                                 }
                                 return;
+                            } else {
+                                // Empty after retry – fallback
+                                const ok = await fetchFromUser(refreshed);
+                                if (ok) return;
                             }
                         } catch (retryErr) {
                             // If organizations still fails, try fetching from user endpoint
@@ -152,11 +160,16 @@ export const useAnalytics = () => {
                 } catch (refreshErr) {
                     console.error('Organization fetch retry after refresh failed:', refreshErr);
                 }
-                // If we get here, clear auth to force re-login
-                clearAuthData?.();
+                // If 401 after all attempts, clear auth to force re-login. For 403, don't logout – just stop.
+                if (err?.response?.status === 401) {
+                    clearAuthData?.();
+                }
                 return;
             }
             console.error('Failed to fetch organization data:', err);
+            // Final fallback attempt without disturbing auth
+            const ok = await fetchFromUser(token);
+            if (ok) return;
         }
     }, []);
 
