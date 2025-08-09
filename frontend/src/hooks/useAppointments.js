@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { apiEndpoints, getAuthHeaders } from '../config/api';
 import { toast } from '../components/SimpleToast';
-import { STORAGE_KEYS } from '../config/constants';
+import { getAccessToken } from '../utils/tokenManager';
 
 /**
  * Custom hook for appointment management
@@ -25,7 +25,7 @@ export const useAppointments = () => {
     });
 
     // Helper to get token
-    const getToken = () => localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    const getToken = () => getAccessToken();
 
     // Load appointments
     const loadAppointments = useCallback(async () => {
