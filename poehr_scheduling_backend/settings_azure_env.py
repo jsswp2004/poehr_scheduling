@@ -81,10 +81,14 @@ USE_AZURE_MEDIA = os.environ.get("USE_AZURE_MEDIA", "true").lower() == "true"
 AZURE_ACCOUNT_NAME = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
 AZURE_ACCOUNT_KEY = os.environ.get("AZURE_STORAGE_ACCOUNT_KEY")
 AZURE_CONTAINER = os.environ.get("AZURE_STORAGE_CONTAINER", "media")
-AZURE_CUSTOM_DOMAIN = os.environ.get("AZURE_STORAGE_CUSTOM_DOMAIN")  # optional CDN/custom domain
+AZURE_CUSTOM_DOMAIN = os.environ.get(
+    "AZURE_STORAGE_CUSTOM_DOMAIN"
+)  # optional CDN/custom domain
 
-if USE_AZURE_MEDIA and AZURE_ACCOUNT_NAME and (
-    AZURE_ACCOUNT_KEY or os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+if (
+    USE_AZURE_MEDIA
+    and AZURE_ACCOUNT_NAME
+    and (AZURE_ACCOUNT_KEY or os.environ.get("AZURE_STORAGE_CONNECTION_STRING"))
 ):
     INSTALLED_APPS = list(INSTALLED_APPS)
     if "storages" not in INSTALLED_APPS:
@@ -98,7 +102,9 @@ if USE_AZURE_MEDIA and AZURE_ACCOUNT_NAME and (
     if AZURE_CUSTOM_DOMAIN:
         MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/"
     else:
-        MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+        MEDIA_URL = (
+            f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+        )
 
 # Email (using Azure Communication Services or SendGrid)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
