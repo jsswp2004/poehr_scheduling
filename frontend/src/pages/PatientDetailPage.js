@@ -516,38 +516,57 @@ function PatientDetailPage() {
   // Fetch patient data
   useEffect(() => {
     (async () => {
+      console.log('🔍 PatientDetailPage: Starting patient fetch for ID:', id);
+      
       let token = await getValidToken();
-      if (!token) return;
+      console.log('🔑 PatientDetailPage: Token received:', token ? '✅ Token exists' : '❌ No token');
+      
+      if (!token) {
+        console.error('❌ PatientDetailPage: No token available, redirecting to login');
+        return;
+      }
 
-      const doFetch = async (bearer) =>
-        axios.get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
+      const doFetch = async (bearer) => {
+        console.log('🔗 PatientDetailPage: Making API call with token length:', bearer?.length || 0);
+        return axios.get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
           headers: { Authorization: `Bearer ${bearer}` },
         });
+      };
 
       try {
+        console.log('📡 PatientDetailPage: Attempting initial fetch...');
         const res = await doFetch(token);
+        console.log('✅ PatientDetailPage: Initial fetch successful');
         setPatient(res.data);
         setFormData(res.data);
       } catch (err) {
+        console.error('❌ PatientDetailPage: Initial fetch failed:', err?.response?.status, err?.message);
+        
         // Retry once on 401 by forcing a refresh
         if (err?.response?.status === 401) {
+          console.log('🔄 PatientDetailPage: 401 error, attempting token refresh...');
           try {
             const refreshed = await refreshAccessToken();
+            console.log('🔑 PatientDetailPage: Token refresh result:', refreshed ? '✅ Success' : '❌ Failed');
+            
             if (refreshed) {
+              console.log('📡 PatientDetailPage: Attempting retry with refreshed token...');
               const retryRes = await doFetch(refreshed);
+              console.log('✅ PatientDetailPage: Retry successful');
               setPatient(retryRes.data);
               setFormData(retryRes.data);
               return;
             }
           } catch (refreshErr) {
-            console.error('Patient fetch retry after refresh failed:', refreshErr);
+            console.error('❌ PatientDetailPage: Token refresh failed:', refreshErr);
           }
           // If 401 after refresh, clear auth to force re-login
+          console.log('🚪 PatientDetailPage: Clearing auth and redirecting to login');
           clearAuthData?.();
           navigate("/login");
           return;
         }
-        console.error("Error fetching patient:", err);
+        console.error("❌ PatientDetailPage: Non-401 error:", err);
       }
     })();
   }, [id, navigate]);
