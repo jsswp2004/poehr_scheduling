@@ -517,10 +517,10 @@ function PatientDetailPage() {
   useEffect(() => {
     (async () => {
       console.log('🔍 PatientDetailPage: Starting patient fetch for ID:', id);
-      
+
       let token = await getValidToken();
       console.log('🔑 PatientDetailPage: Token received:', token ? '✅ Token exists' : '❌ No token');
-      
+
       if (!token) {
         console.error('❌ PatientDetailPage: No token available, redirecting to login');
         return;
@@ -541,14 +541,14 @@ function PatientDetailPage() {
         setFormData(res.data);
       } catch (err) {
         console.error('❌ PatientDetailPage: Initial fetch failed:', err?.response?.status, err?.message);
-        
+
         // Retry once on 401 by forcing a refresh
         if (err?.response?.status === 401) {
           console.log('🔄 PatientDetailPage: 401 error, attempting token refresh...');
           try {
             const refreshed = await refreshAccessToken();
             console.log('🔑 PatientDetailPage: Token refresh result:', refreshed ? '✅ Success' : '❌ Failed');
-            
+
             if (refreshed) {
               console.log('📡 PatientDetailPage: Attempting retry with refreshed token...');
               const retryRes = await doFetch(refreshed);

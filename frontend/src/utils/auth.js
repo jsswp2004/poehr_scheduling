@@ -15,7 +15,7 @@ import {
  */
 export const refreshAccessToken = async () => {
   console.log('🔄 refreshAccessToken: Starting token refresh...');
-  
+
   const refreshToken = getRefreshToken();
   console.log('🔑 refreshAccessToken: Refresh token available:', refreshToken ? '✅ Yes' : '❌ No');
 
@@ -58,7 +58,7 @@ export const refreshAccessToken = async () => {
  */
 export const getValidToken = async () => {
   console.log('🔍 getValidToken: Starting token validation...');
-  
+
   let token = getAccessToken();
   console.log('🔑 getValidToken: Retrieved token from storage:', token ? `✅ Token exists (${token.substring(0, 20)}...)` : '❌ No token found');
 
