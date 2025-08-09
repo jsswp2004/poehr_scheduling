@@ -40,7 +40,7 @@ export const storeTokens = (accessToken, refreshToken) => {
 export const getAccessToken = () => {
   const stored = localStorage.getItem(TOKEN_KEYS.ACCESS);
   console.log('🔍 getAccessToken: Raw stored value:', stored ? '✅ Found in localStorage' : '❌ Not found in localStorage');
-  
+
   if (!stored) return null;
 
   try {
@@ -63,7 +63,7 @@ export const getAccessToken = () => {
 export const getRefreshToken = () => {
   const stored = localStorage.getItem(TOKEN_KEYS.REFRESH);
   console.log('🔍 getRefreshToken: Raw stored value:', stored ? '✅ Found in localStorage' : '❌ Not found in localStorage');
-  
+
   if (!stored) return null;
 
   try {
