@@ -4,7 +4,7 @@ import { saveAs } from 'file-saver';
 import Papa from 'papaparse';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
-import { getValidToken, clearAuthData } from '../utils/auth';
+import { getValidToken, clearAuthData, refreshAccessToken } from '../utils/auth';
 
 export const useAnalytics = () => {
     const [reportStartDate, setReportStartDate] = useState(null);
@@ -37,8 +37,13 @@ export const useAnalytics = () => {
         'Blocked vs. Booked Time Comparison',
     ];
 
-    const fetchProviders = useCallback(async (token) => {
+    const fetchProviders = useCallback(async (maybeToken) => {
         try {
+            const token = maybeToken || (await getValidToken());
+            if (!token) {
+                console.log('No valid token available for fetching providers');
+                return;
+            }
             const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -50,18 +55,20 @@ export const useAnalytics = () => {
     }, []);
 
     const fetchOrganizationData = useCallback(async () => {
-        try {
-            // Use centralized, refresh-aware token getter to avoid 401s
-            const token = await getValidToken();
-            if (!token) {
-                console.log('No valid token available for fetching organization data');
-                return;
-            }
+        // Use centralized, refresh-aware token getter to avoid 401s
+        let token = await getValidToken();
+        if (!token) {
+            console.log('No valid token available for fetching organization data');
+            return;
+        }
 
-            const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-                headers: { Authorization: `Bearer ${token}` },
+        const doFetch = async (bearer) =>
+            axios.get(`${API_BASE_URL}/api/users/organizations/`, {
+                headers: { Authorization: `Bearer ${bearer}` },
             });
 
+        try {
+            const res = await doFetch(token);
             if (res.data && res.data.length > 0) {
                 const org = res.data[0];
                 setOrganizationData(org);
@@ -75,11 +82,32 @@ export const useAnalytics = () => {
                 }
             }
         } catch (err) {
-            console.error('Failed to fetch organization data:', err);
+            // Retry once on 401 by forcing a refresh
             if (err?.response?.status === 401) {
-                // Token invalid even after refresh attempt; clear auth to force re-login
+                try {
+                    const refreshed = await refreshAccessToken();
+                    if (refreshed) {
+                        const retryRes = await doFetch(refreshed);
+                        if (retryRes.data && retryRes.data.length > 0) {
+                            const org = retryRes.data[0];
+                            setOrganizationData(org);
+                            if (org.logo) {
+                                const logoUrl = org.logo.startsWith('http')
+                                    ? org.logo
+                                    : `${API_BASE_URL}${org.logo}`;
+                                setOrganizationLogo(logoUrl);
+                            }
+                        }
+                        return;
+                    }
+                } catch (refreshErr) {
+                    console.error('Organization fetch retry after refresh failed:', refreshErr);
+                }
+                // If we get here, clear auth to force re-login
                 clearAuthData?.();
+                return;
             }
+            console.error('Failed to fetch organization data:', err);
         }
     }, []);
 
@@ -97,8 +125,15 @@ export const useAnalytics = () => {
             if (reportEndDate) params.end_date = reportEndDate.toISOString().split('T')[0];
             if (reportProvider && reportProvider !== 'all') params.provider_id = reportProvider;
 
+            // Use provided token if present; otherwise, obtain a valid one
+            const bearer = token || (await getValidToken());
+            if (!bearer) {
+                toast.error('Not authenticated. Please log in again.');
+                return;
+            }
+
             const res = await axios.get(`${API_BASE_URL}/api/analytics/reports/`, {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: { Authorization: `Bearer ${bearer}` },
                 params,
             });
 
