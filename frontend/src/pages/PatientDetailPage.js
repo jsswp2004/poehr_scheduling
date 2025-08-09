@@ -20,7 +20,7 @@ import InputAdornment from "@mui/material/InputAdornment";
 import { toast } from "../components/SimpleToast";
 import { API_BASE_URL } from "../config/api";
 // Import centralized token helper
-import { getValidToken, clearAuthData, refreshAccessToken } from "../utils/auth";
+import { getValidToken, clearAuthData } from "../utils/auth";
 
 // PRODUCTION-READY ADDRESS AUTOCOMPLETE WITH GOOGLE PLACES API + COST OPTIMIZATION
 const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
@@ -474,15 +474,14 @@ function PatientDetailPage() {
   // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
   useEffect(() => {
     (async () => {
-      let token = await getValidToken();
+      const token = await getValidToken();
       if (!token) {
         clearAuthData?.();
         navigate("/login");
         return;
       }
-
-      const checkRole = async (bearer) => {
-        const decoded = jwtDecode(bearer);
+      try {
+        const decoded = jwtDecode(token);
         const role = decoded.role || "";
         if (
           role !== "admin" &&
@@ -493,21 +492,7 @@ function PatientDetailPage() {
         ) {
           navigate("/");
         }
-      };
-
-      try {
-        await checkRole(token);
       } catch (err) {
-        // Try refreshing token if JWT decode fails
-        try {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
-            await checkRole(refreshed);
-            return;
-          }
-        } catch (refreshErr) {
-          console.error('Role check retry after refresh failed:', refreshErr);
-        }
         navigate("/login");
       }
     })();
@@ -516,57 +501,20 @@ function PatientDetailPage() {
   // Fetch patient data
   useEffect(() => {
     (async () => {
-      console.log('🔍 PatientDetailPage: Starting patient fetch for ID:', id);
-
-      let token = await getValidToken();
-      console.log('🔑 PatientDetailPage: Token received:', token ? '✅ Token exists' : '❌ No token');
-
-      if (!token) {
-        console.error('❌ PatientDetailPage: No token available, redirecting to login');
-        return;
-      }
-
-      const doFetch = async (bearer) => {
-        console.log('🔗 PatientDetailPage: Making API call with token length:', bearer?.length || 0);
-        return axios.get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
-          headers: { Authorization: `Bearer ${bearer}` },
-        });
-      };
-
+      const token = await getValidToken();
+      if (!token) return;
       try {
-        console.log('📡 PatientDetailPage: Attempting initial fetch...');
-        const res = await doFetch(token);
-        console.log('✅ PatientDetailPage: Initial fetch successful');
+        const res = await axios.get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setPatient(res.data);
         setFormData(res.data);
       } catch (err) {
-        console.error('❌ PatientDetailPage: Initial fetch failed:', err?.response?.status, err?.message);
-
-        // Retry once on 401 by forcing a refresh
+        console.error("Error fetching patient:", err);
         if (err?.response?.status === 401) {
-          console.log('🔄 PatientDetailPage: 401 error, attempting token refresh...');
-          try {
-            const refreshed = await refreshAccessToken();
-            console.log('🔑 PatientDetailPage: Token refresh result:', refreshed ? '✅ Success' : '❌ Failed');
-
-            if (refreshed) {
-              console.log('📡 PatientDetailPage: Attempting retry with refreshed token...');
-              const retryRes = await doFetch(refreshed);
-              console.log('✅ PatientDetailPage: Retry successful');
-              setPatient(retryRes.data);
-              setFormData(retryRes.data);
-              return;
-            }
-          } catch (refreshErr) {
-            console.error('❌ PatientDetailPage: Token refresh failed:', refreshErr);
-          }
-          // If 401 after refresh, clear auth to force re-login
-          console.log('🚪 PatientDetailPage: Clearing auth and redirecting to login');
           clearAuthData?.();
           navigate("/login");
-          return;
         }
-        console.error("❌ PatientDetailPage: Non-401 error:", err);
       }
     })();
   }, [id, navigate]);
@@ -574,71 +522,33 @@ function PatientDetailPage() {
   // Fetch doctors for dropdown
   useEffect(() => {
     (async () => {
-      let token = await getValidToken();
+      const token = await getValidToken();
       if (!token) return;
-
-      const doFetch = async (bearer) =>
-        axios.get(`${API_BASE_URL}/api/users/doctors/`, {
-          headers: { Authorization: `Bearer ${bearer}` },
-        });
-
       try {
-        const res = await doFetch(token);
+        const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setDoctors(res.data);
       } catch (err) {
-        // Retry once on 401 by forcing a refresh
-        if (err?.response?.status === 401) {
-          try {
-            const refreshed = await refreshAccessToken();
-            if (refreshed) {
-              const retryRes = await doFetch(refreshed);
-              setDoctors(retryRes.data);
-              return;
-            }
-          } catch (refreshErr) {
-            console.error('Doctors fetch retry after refresh failed:', refreshErr);
-          }
-          // If 401 after refresh, clear auth to force re-login
-          clearAuthData?.();
-          navigate("/login");
-          return;
-        }
         console.error("Failed to load doctors:", err);
       }
     })();
-  }, [navigate]);
+  }, []);
 
   // Fetch organizations for dropdown
   useEffect(() => {
     (async () => {
-      let token = await getValidToken();
+      const token = await getValidToken();
       if (!token) return;
-
-      const doFetch = async (bearer) =>
-        axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-          headers: { Authorization: `Bearer ${bearer}` },
-        });
-
       try {
-        const res = await doFetch(token);
+        const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setOrganizations(res.data);
       } catch (err) {
         console.error("Failed to load organizations:", err);
         setOrganizations([]);
-
-        // Retry once on 401 by forcing a refresh
         if (err?.response?.status === 401) {
-          try {
-            const refreshed = await refreshAccessToken();
-            if (refreshed) {
-              const retryRes = await doFetch(refreshed);
-              setOrganizations(retryRes.data);
-              return;
-            }
-          } catch (refreshErr) {
-            console.error('Organizations fetch retry after refresh failed:', refreshErr);
-          }
-          // If 401 after refresh, clear auth to force re-login
           clearAuthData?.();
           navigate("/login");
         }
@@ -647,7 +557,7 @@ function PatientDetailPage() {
   }, [navigate]);
 
   const handleResetPassword = async () => {
-    let token = await getValidToken();
+    const token = await getValidToken();
     if (!token) {
       clearAuthData?.();
       navigate("/login");
@@ -677,8 +587,9 @@ function PatientDetailPage() {
 
     if (!confirmed) return;
 
-    const doEmailSend = async (bearer) =>
-      axios.post(
+    try {
+      // First, send the email with the temporary password
+      await axios.post(
         `${API_BASE_URL}/api/users/send-email/`,
         {
           email: patient.email,
@@ -686,12 +597,12 @@ function PatientDetailPage() {
           message: `Dear ${patient.first_name} ${patient.last_name},\n\nYour password has been reset by an administrator.\n\nTemporary password: ${tempPassword}\n\nPlease log in with this temporary password and change it immediately in your account settings.\n\nIf you did not request this password reset, please contact your healthcare provider immediately.\n\nBest regards,\nPOWER Healthcare IT Systems`,
         },
         {
-          headers: { Authorization: `Bearer ${bearer}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-    const doPasswordChange = async (bearer) =>
-      axios.post(
+      // Then change the password in the system
+      await axios.post(
         `${API_BASE_URL}/api/users/admin-change-password/`,
         {
           target_user_id: patient.user_id || patient.id,
@@ -700,63 +611,9 @@ function PatientDetailPage() {
           confirm_password: tempPassword,
         },
         {
-          headers: { Authorization: `Bearer ${bearer}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
-
-    try {
-      // First, send the email with the temporary password
-      try {
-        await doEmailSend(token);
-      } catch (emailErr) {
-        // Retry email send on 401
-        if (emailErr?.response?.status === 401) {
-          try {
-            const refreshed = await refreshAccessToken();
-            if (refreshed) {
-              token = refreshed; // Update token for subsequent requests
-              await doEmailSend(refreshed);
-            } else {
-              clearAuthData?.();
-              navigate("/login");
-              return;
-            }
-          } catch (refreshErr) {
-            console.error('Email send retry after refresh failed:', refreshErr);
-            clearAuthData?.();
-            navigate("/login");
-            return;
-          }
-        } else {
-          throw emailErr;
-        }
-      }
-
-      // Then change the password in the system
-      try {
-        await doPasswordChange(token);
-      } catch (passwordErr) {
-        // Retry password change on 401
-        if (passwordErr?.response?.status === 401) {
-          try {
-            const refreshed = await refreshAccessToken();
-            if (refreshed) {
-              await doPasswordChange(refreshed);
-            } else {
-              clearAuthData?.();
-              navigate("/login");
-              return;
-            }
-          } catch (refreshErr) {
-            console.error('Password change retry after refresh failed:', refreshErr);
-            clearAuthData?.();
-            navigate("/login");
-            return;
-          }
-        } else {
-          throw passwordErr;
-        }
-      }
 
       toast.success(
         `🔑 Password reset successfully!\n\n` +
@@ -777,7 +634,18 @@ function PatientDetailPage() {
         );
 
         try {
-          await doPasswordChange(token);
+          await axios.post(
+            `${API_BASE_URL}/api/users/admin-change-password/`,
+            {
+              target_user_id: patient.user_id || patient.id,
+              admin_password: adminPassword,
+              new_password: tempPassword,
+              confirm_password: tempPassword,
+            },
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
 
           toast.success(
             `🔑 Password reset successfully!\n\n` +
@@ -914,49 +782,22 @@ function PatientDetailPage() {
     }
 
     try {
-      let token = await getValidToken();
+      const token = await getValidToken();
       if (!token) {
         clearAuthData?.();
         navigate("/login");
         return;
       }
-
-      const doUpdate = async (bearer) =>
-        axios.put(
-          `${API_BASE_URL}/api/users/patients/by-user/${id}/edit/`,
-          dataToSend,
-          {
-            headers: { Authorization: `Bearer ${bearer}` },
-          }
-        );
-
-      try {
-        await doUpdate(token);
-        toast.success("Patient updated successfully! 🎉");
-        setEditMode(false);
-        setPatient(formData);
-      } catch (updateErr) {
-        // Retry once on 401 by forcing a refresh
-        if (updateErr?.response?.status === 401) {
-          try {
-            const refreshed = await refreshAccessToken();
-            if (refreshed) {
-              await doUpdate(refreshed);
-              toast.success("Patient updated successfully! 🎉");
-              setEditMode(false);
-              setPatient(formData);
-              return;
-            }
-          } catch (refreshErr) {
-            console.error('Patient update retry after refresh failed:', refreshErr);
-          }
-          // If 401 after refresh, clear auth to force re-login
-          clearAuthData?.();
-          navigate("/login");
-          return;
+      await axios.put(
+        `${API_BASE_URL}/api/users/patients/by-user/${id}/edit/`,
+        dataToSend,
+        {
+          headers: { Authorization: `Bearer ${token}` },
         }
-        throw updateErr; // Re-throw non-401 errors for normal error handling
-      }
+      );
+      toast.success("Patient updated successfully! 🎉");
+      setEditMode(false);
+      setPatient(formData);
     } catch (err) {
       console.error("Update error:", err);
 
@@ -1122,64 +963,31 @@ function PatientDetailPage() {
                   const formDataPic = new FormData();
                   formDataPic.append("profile_picture", file);
                   try {
-                    let token = await getValidToken();
+                    const token = await getValidToken();
                     if (!token) {
                       clearAuthData?.();
                       navigate("/login");
                       return;
                     }
-
-                    const doUpload = async (bearer) =>
-                      axios.patch(
-                        `${API_BASE_URL}/api/users/${patient.user_id || patient.id}/`,
-                        formDataPic,
-                        {
-                          headers: {
-                            "Content-Type": "multipart/form-data",
-                            Authorization: `Bearer ${bearer}`,
-                          },
-                        }
-                      );
-
-                    try {
-                      const res = await doUpload(token);
-                      setPatient((prev) => ({
-                        ...prev,
-                        profile_picture: res.data.profile_picture,
-                      }));
-                      setFormData((prev) => ({
-                        ...prev,
-                        profile_picture: res.data.profile_picture,
-                      }));
-                      toast.success("Profile picture updated successfully! 📸");
-                    } catch (uploadErr) {
-                      // Retry once on 401 by forcing a refresh
-                      if (uploadErr?.response?.status === 401) {
-                        try {
-                          const refreshed = await refreshAccessToken();
-                          if (refreshed) {
-                            const retryRes = await doUpload(refreshed);
-                            setPatient((prev) => ({
-                              ...prev,
-                              profile_picture: retryRes.data.profile_picture,
-                            }));
-                            setFormData((prev) => ({
-                              ...prev,
-                              profile_picture: retryRes.data.profile_picture,
-                            }));
-                            toast.success("Profile picture updated successfully! 📸");
-                            return;
-                          }
-                        } catch (refreshErr) {
-                          console.error('Profile picture upload retry after refresh failed:', refreshErr);
-                        }
-                        // If 401 after refresh, clear auth to force re-login
-                        clearAuthData?.();
-                        navigate("/login");
-                        return;
+                    const res = await axios.patch(
+                      `${API_BASE_URL}/api/users/${patient.user_id || patient.id}/`,
+                      formDataPic,
+                      {
+                        headers: {
+                          "Content-Type": "multipart/form-data",
+                          Authorization: `Bearer ${token}`,
+                        },
                       }
-                      throw uploadErr; // Re-throw non-401 errors for normal error handling
-                    }
+                    );
+                    setPatient((prev) => ({
+                      ...prev,
+                      profile_picture: res.data.profile_picture,
+                    }));
+                    setFormData((prev) => ({
+                      ...prev,
+                      profile_picture: res.data.profile_picture,
+                    }));
+                    toast.success("Profile picture updated successfully! 📸");
                   } catch (err) {
                     console.error("Profile picture upload error:", err);
                     toast.error(
