@@ -52,28 +52,33 @@ export const refreshAccessToken = async () => {
  * @returns {Promise<string|null>} - valid access token or null if authentication failed
  */
 export const getValidToken = async () => {
+  console.log('🔍 getValidToken: Starting token validation...');
   let token = getAccessToken();
+  console.log('🔑 getValidToken: Retrieved token from storage:', token ? `✅ Token exists (${token.substring(0, 20)}...)` : '❌ No token found');
 
   if (!token) {
-    console.error('No access token found');
+    console.error('❌ getValidToken: No access token found');
     return null;
   }
 
   // If token is expired, try to refresh it
   if (isTokenExpired(token)) {
-    console.log('Token expired, attempting to refresh...');
+    console.log('🔄 getValidToken: Token expired, attempting to refresh...');
     token = await refreshAccessToken();
+    console.log('🔑 getValidToken: Refresh result:', token ? '✅ Success' : '❌ Failed');
   }
   // If token is expiring soon, proactively refresh it
   else if (isTokenExpiringSoon(token)) {
-    console.log('Token expiring soon, proactively refreshing...');
+    console.log('🔄 getValidToken: Token expiring soon, proactively refreshing...');
     const newToken = await refreshAccessToken();
+    console.log('🔑 getValidToken: Proactive refresh result:', newToken ? '✅ Success' : '❌ Failed');
     if (newToken) {
       token = newToken;
     }
     // If refresh fails, we still use the current token since it's not expired yet
   }
 
+  console.log('✅ getValidToken: Returning token:', token ? '✅ Valid token available' : '❌ No valid token');
   return token;
 };
 
