@@ -97,7 +97,7 @@ function MaintenancePage() {
           headers: { Authorization: `Bearer ${token}` },
         });
         setHolidays(res.data.filter((h) => h.is_recognized));
-      } catch {}
+      } catch { }
     };
     fetchHolidays();
   }, []);

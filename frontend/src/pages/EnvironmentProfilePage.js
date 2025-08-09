@@ -95,11 +95,11 @@ function EnvironmentProfilePage() {
   }, [userRole]);
 
   useEffect(() => {
-  async function fetchSettings() {
+    async function fetchSettings() {
       setLoading(true);
       try {
-    const token = await getValidToken();
-    if (!token) throw new Error("Not authenticated");
+        const token = await getValidToken();
+        if (!token) throw new Error("Not authenticated");
         const params = {};
         if (userRole === "system_admin" && selectedOrganization) {
           params.organization_id = selectedOrganization;
@@ -109,7 +109,7 @@ function EnvironmentProfilePage() {
         console.log("User role:", userRole);
         console.log("Selected organization:", selectedOrganization);
 
-  const res = await axios.get(
+        const res = await axios.get(
           `${API_BASE_URL}/api/settings/environment/`,
           {
             headers: { Authorization: `Bearer ${token}` },
@@ -120,7 +120,7 @@ function EnvironmentProfilePage() {
         console.log("Settings response:", res.data);
         setBlockedDays(res.data.blocked_days || []);
         setStatus(""); // Clear any previous error status
-  } catch (err) {
+      } catch (err) {
         console.error("Failed to load settings error:", err);
         console.error("Error response:", err.response?.data);
         console.error("Error status:", err.response?.status);

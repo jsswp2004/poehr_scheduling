@@ -143,10 +143,10 @@ function HolidaysTab() {
     setDeletingId(id);
     setStatus("");
 
-  const performDelete = async () => {
+    const performDelete = async () => {
       try {
-    const token = await getValidToken();
-    if (!token) throw new Error("Not authenticated");
+        const token = await getValidToken();
+        if (!token) throw new Error("Not authenticated");
         await axios.patch(
           `${API_BASE_URL}/api/holidays/${id}/`,
           {

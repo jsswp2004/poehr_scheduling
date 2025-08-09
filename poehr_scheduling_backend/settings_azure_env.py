@@ -72,6 +72,34 @@ STATICFILES_DIRS = [
     "/code/static/frontend/static",  # React build output static files (JS, CSS, etc.)
 ]
 
+# Media defaults (overridden when Azure Blob Storage is configured)
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+# Azure Blob Storage for media (django-storages)
+USE_AZURE_MEDIA = os.environ.get("USE_AZURE_MEDIA", "true").lower() == "true"
+AZURE_ACCOUNT_NAME = os.environ.get("AZURE_STORAGE_ACCOUNT_NAME")
+AZURE_ACCOUNT_KEY = os.environ.get("AZURE_STORAGE_ACCOUNT_KEY")
+AZURE_CONTAINER = os.environ.get("AZURE_STORAGE_CONTAINER", "media")
+AZURE_CUSTOM_DOMAIN = os.environ.get("AZURE_STORAGE_CUSTOM_DOMAIN")  # optional CDN/custom domain
+
+if USE_AZURE_MEDIA and AZURE_ACCOUNT_NAME and (
+    AZURE_ACCOUNT_KEY or os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+):
+    INSTALLED_APPS = list(INSTALLED_APPS)
+    if "storages" not in INSTALLED_APPS:
+        INSTALLED_APPS.append("storages")
+
+    DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
+    AZURE_CONNECTION_STRING = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+    AZURE_URL_EXPIRATION_SECS = 3600  # signed URL expiry if needed
+
+    # MEDIA_URL points to blob endpoint
+    if AZURE_CUSTOM_DOMAIN:
+        MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/"
+    else:
+        MEDIA_URL = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+
 # Email (using Azure Communication Services or SendGrid)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = os.environ.get("EMAIL_HOST", "smtp.sendgrid.net")
