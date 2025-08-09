@@ -237,8 +237,11 @@ const CalendarView = memo(function CalendarView({
   const dayPropGetter = useCallback(
     (date) => {
       // Check if this day is in the organization's blocked days
-      const isOrganizationBlockedDay =
-        environmentSettings?.blocked_days?.includes(date.getDay()) || false;
+      // Coerce blocked_days to numbers defensively
+      const blockedDays = Array.isArray(environmentSettings?.blocked_days)
+        ? environmentSettings.blocked_days.map((d) => Number(d))
+        : [];
+      const isOrganizationBlockedDay = blockedDays.includes(date.getDay());
 
       // Check if this date is a holiday
       const isHoliday = holidays.some((holiday) => {

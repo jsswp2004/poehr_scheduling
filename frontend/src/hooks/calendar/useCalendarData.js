@@ -27,8 +27,10 @@ export const useCalendarData = () => {
     const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
 
-    // User and authentication
-    const token = localStorage.getItem("access_token");
+    // User and authentication (support both keys)
+    const token =
+        localStorage.getItem("access_token") ||
+        localStorage.getItem("token");
     let userRole = null;
 
     if (token) {
@@ -120,6 +122,11 @@ export const useCalendarData = () => {
             setClinicEvents(clinicEventsData);
             setHolidays(holidaysData);
             setEnvironmentSettings(environmentSettingsData);
+            if (environmentSettingsData && environmentSettingsData.blocked_days) {
+                console.log('✅ Loaded environment blocked days:', environmentSettingsData.blocked_days);
+            } else {
+                console.warn('⚠️ No environment blocked days found in response.');
+            }
         } catch (error) {
             console.error("Error fetching calendar data:", error);
             toast.error("Failed to load calendar data");
