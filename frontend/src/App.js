@@ -4,6 +4,7 @@ import './toastify-custom.css';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import axios from 'axios';
+import { getAccessToken } from './utils/tokenManager';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -30,7 +31,7 @@ import OverviewPage from './pages/OverviewPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import EnrollmentPage from './pages/EnrollmentPage';
-import { refreshAccessToken, clearAuthData } from './utils/auth';
+import { getValidToken, clearAuthData } from './utils/auth';
 import DataSecurityPage from './pages/DataSecurityPage';
 import SupportPage from './pages/SupportPage';
 import ToastTestPage from './pages/ToastTestPage';
@@ -55,11 +56,37 @@ function AppContent() {
 
   // Setup axios interceptor for automatic token refresh
   useEffect(() => {
-    // Add request interceptor for debugging
+    // Add request interceptor to sanitize/attach Authorization header and debug
     const requestInterceptor = axios.interceptors.request.use(
       (config) => {
-        // Log outgoing requests with redacted Authorization header
-        const authHeader = config.headers?.Authorization || '';
+        // Ensure headers object exists
+        config.headers = config.headers || {};
+
+        // 1) Sanitize malformed headers like: Bearer {"token":"JWT"}
+        const incomingAuth = config.headers.Authorization || '';
+        if (incomingAuth && /^Bearer\s*\{/.test(incomingAuth.trim())) {
+          try {
+            const jsonPart = incomingAuth.replace(/^Bearer\s*/i, '').trim();
+            const parsed = JSON.parse(jsonPart);
+            if (parsed?.token) {
+              config.headers.Authorization = `Bearer ${parsed.token}`;
+              console.warn('🛠️ Fixed malformed Authorization header (JSON-wrapped token).');
+            }
+          } catch (e) {
+            console.warn('⚠️ Failed to parse JSON-wrapped Authorization header.');
+          }
+        }
+
+        // 2) If Authorization still missing, attach from centralized store
+        if (!config.headers.Authorization) {
+          const token = getAccessToken();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        }
+
+        // 3) Debug log (after sanitization/attachment)
+        const authHeader = config.headers.Authorization || '';
         const redactedAuth = authHeader.replace(/^Bearer\s+(.{0,12}).*(.{6})$/, 'Bearer $1…$2');
         console.log(
           '🌐 [axios:req]',
@@ -68,12 +95,13 @@ function AppContent() {
           'Auth=',
           redactedAuth || 'None'
         );
+
         return config;
       },
       (error) => Promise.reject(error)
     );
 
-    const responseInterceptor = axios.interceptors.response.use(
+  const responseInterceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
@@ -85,17 +113,19 @@ function AppContent() {
 
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
-          console.log('🔄 401 detected, attempting token refresh for:', originalRequest.url);
+          console.log('🔄 401 detected, attempting to get a valid token for:', originalRequest.url);
 
           try {
-            const newToken = await refreshAccessToken();
+            // Prefer centralized getValidToken to leverage single-flight + expiringSoon logic
+            const newToken = await getValidToken();
             if (newToken) {
+              originalRequest.headers = originalRequest.headers || {};
               originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
               console.log('✅ Retrying request with new token');
               return axios(originalRequest);
             }
           } catch (refreshError) {
-            console.error('Token refresh failed:', refreshError);
+            console.error('Token refresh/getValidToken failed:', refreshError);
             clearAuthData();
             window.location.href = '/login';
             return Promise.reject(refreshError);
