@@ -188,6 +188,10 @@ export const debugTokenState = () => {
 
   console.group('🔍 Token Debug State');
   console.log('Access token present:', !!accessToken);
+  if (accessToken) {
+    const short = `${accessToken.slice(0, 12)}…${accessToken.slice(-6)}`;
+    console.log('Access token preview:', short);
+  }
   console.log('Refresh token present:', !!refreshToken);
 
   if (accessToken) {

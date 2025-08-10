@@ -488,7 +488,10 @@ function PatientDetailPage() {
   // const token = localStorage.getItem("access_token");
 
   // Single initialization effect to fetch all data with one token call
+  const initRanRef = useRef(false);
   useEffect(() => {
+    if (initRanRef.current) return;
+    initRanRef.current = true;
     (async () => {
       console.log('🚀 PatientDetailPage: Starting initialization...');
 
