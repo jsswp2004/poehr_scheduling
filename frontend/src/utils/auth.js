@@ -16,6 +16,25 @@ let getValidTokenPromise = null;
 let refreshBackoffUntil = 0; // epoch ms, prevent rapid repeated refreshes
 const MIN_REFRESH_INTERVAL_MS = 15000; // 15s backoff between refresh attempts
 
+// Enable debug logging in development
+const DEBUG_AUTH = process.env.NODE_ENV === 'development' || process.env.REACT_APP_DEBUG_AUTH === 'true';
+
+const authLog = (message, ...args) => {
+  if (DEBUG_AUTH) {
+    console.log(message, ...args);
+  }
+};
+
+const authWarn = (message, ...args) => {
+  if (DEBUG_AUTH) {
+    console.warn(message, ...args);
+  }
+};
+
+const authError = (message, ...args) => {
+  console.error(message, ...args); // Always log errors
+};
+
 /**
  * Refresh the access token using the refresh token
  * @returns {Promise<string|null>} - new access token or null if failed
@@ -23,7 +42,7 @@ const MIN_REFRESH_INTERVAL_MS = 15000; // 15s backoff between refresh attempts
 export const refreshAccessToken = async () => {
   // If a refresh is already in progress, return that promise
   if (refreshPromise) {
-    console.log('🔄 Refresh already in progress, waiting for existing refresh...');
+    authLog('🔄 Refresh already in progress, waiting for existing refresh...');
     return refreshPromise;
   }
 
@@ -31,7 +50,7 @@ export const refreshAccessToken = async () => {
   const now = Date.now();
   if (now < refreshBackoffUntil) {
     const waitMs = refreshBackoffUntil - now;
-    console.warn(`⏳ Skipping refresh due to backoff. Wait ${waitMs}ms`);
+    authWarn(`⏳ Skipping refresh due to backoff. Wait ${waitMs}ms`);
     // Return current token instead of refreshing
     return getAccessToken();
   }
@@ -39,14 +58,14 @@ export const refreshAccessToken = async () => {
   const refreshToken = getRefreshToken();
 
   if (!refreshToken) {
-    console.error('No refresh token available');
+    authError('No refresh token available');
     return null;
   }
 
   // Create the refresh promise
   refreshPromise = (async () => {
     try {
-      console.log('🔄 Starting token refresh...');
+      authLog('🔄 Starting token refresh...');
       const response = await axios.post(`${API_BASE_URL}/api/auth/token/refresh/`, {
         refresh: refreshToken
       });
@@ -60,14 +79,15 @@ export const refreshAccessToken = async () => {
       axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
       api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
-      console.log('✅ Token refreshed successfully');
+      authLog('✅ Token refreshed successfully');
       return access;
     } catch (error) {
-      console.error('❌ Token refresh failed:', error);
+      authError('❌ Token refresh failed:', error);
 
-      // If refresh fails, clear all tokens and redirect to login
+      // If refresh fails, clear all tokens and headers
       clearTokens();
       delete axios.defaults.headers.common['Authorization'];
+      delete api.defaults.headers.common['Authorization'];
 
       return null;
     } finally {
@@ -88,7 +108,7 @@ export const refreshAccessToken = async () => {
 export const getValidToken = async () => {
   // If a getValidToken call is already in progress, return that promise
   if (getValidTokenPromise) {
-    console.log('🔄 getValidToken already in progress, waiting...');
+    authLog('🔄 getValidToken already in progress, waiting...');
     return getValidTokenPromise;
   }
 
@@ -98,7 +118,7 @@ export const getValidToken = async () => {
       let token = getAccessToken();
 
       if (!token) {
-        console.error('❌ No access token found');
+        authError('❌ No access token found');
         return null;
       }
 
@@ -106,14 +126,15 @@ export const getValidToken = async () => {
       const expired = isTokenExpired(token);
       const expiringSoon = isTokenExpiringSoon(token);
 
-      console.log(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
+      authLog(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
 
-      // If token is expired, try to refresh it
-      if (expired) {
-        console.log('🔄 Token expired, attempting to refresh...');
+      // If token is expired OR expiring soon, refresh it proactively
+      if (expired || expiringSoon) {
+        const reason = expired ? 'expired' : 'expiring soon';
+        authLog(`🔄 Token ${reason}, attempting to refresh...`);
         token = await refreshAccessToken();
       } else {
-        console.log('✅ Token is valid, no refresh needed');
+        authLog('✅ Token is valid, no refresh needed');
       }
 
       return token;
@@ -132,6 +153,12 @@ export const getValidToken = async () => {
 export const clearAuthData = () => {
   clearTokens();
   delete axios.defaults.headers.common['Authorization'];
+  delete api.defaults.headers.common['Authorization'];
+  
+  // Reset single-flight guards to prevent stuck states
+  refreshPromise = null;
+  getValidTokenPromise = null;
+  refreshBackoffUntil = 0;
 };
 
 /**
