@@ -503,7 +503,7 @@ function PatientDetailPage() {
   // Initialize data fetching with a single token call
   useEffect(() => {
     console.log('🚀 PatientDetailPage: Starting initialization...');
-    
+
     // Get token ONCE for all operations
     getValidToken().then(async (token) => {
       if (!token) {
@@ -514,7 +514,7 @@ function PatientDetailPage() {
       }
 
       console.log('🔑 Shared token obtained, using for all operations...');
-      
+
       // Use Promise.allSettled with shared token to prevent concurrent getValidToken() calls
       Promise.allSettled([
         roleValidation.validateRoleWithToken(token),
