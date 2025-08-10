@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { getValidToken } from '../utils/authUtils';
+import { getValidToken } from '../utils/auth';
 import { API_BASE_URL } from '../config/api';
 
 export const useClinicEvents = () => {

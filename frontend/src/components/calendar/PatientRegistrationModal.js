@@ -25,7 +25,7 @@ import { Close, PersonAdd } from "@mui/icons-material";
 import axios from "axios";
 import { API_BASE_URL } from "../../config/api";
 import { toast } from "react-toastify";
-import { getValidToken } from "../../utils/authUtils";
+import { getValidToken } from "../../utils/auth";
 
 const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
     const [hasProvider, setHasProvider] = useState("yes"); // Default to 'yes' for appointment creation
@@ -60,7 +60,7 @@ const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
                 return;
             }
 
-            const res = await axios.get("`${API_BASE_URL}/api/users/doctors/", {
+            const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             setDoctors(res.data);
@@ -75,7 +75,7 @@ const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
             const token = await getValidToken();
             if (!token) return;
 
-            const response = await axios.get("`${API_BASE_URL}/api/users/me/", {
+            const response = await axios.get(`${API_BASE_URL}/api/users/me/`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const userData = response.data;
@@ -123,7 +123,7 @@ const PatientRegistrationModal = ({ open, onClose, onPatientCreated }) => {
             }
 
             const response = await axios.post(
-                "`${API_BASE_URL}/api/auth/register/",
+                `${API_BASE_URL}/api/auth/register/`,
                 payload,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
