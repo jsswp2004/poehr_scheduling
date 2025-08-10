@@ -1,6 +1,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef, memo } from "react";
 import axios from "axios";
+import { api } from "../api/client";
 import CreateAppointmentForm from "../components/CreateAppointmentForm";
 import {
   Box,
@@ -530,11 +531,10 @@ function PatientDetailPage() {
       console.log('📡 Starting parallel data fetches...');
       const fetchPromises = [
         // Fetch patient data
-        axios.get(
+        api.get(
           `${API_BASE_URL}/api/users/patients/by-user/${id}/`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          // Headers are attached by api client interceptor; keep local header as fallback
+          { headers: { Authorization: `Bearer ${token}` } }
         ).then(res => {
           console.log('✅ Patient data loaded');
           setPatient(res.data);
@@ -548,7 +548,7 @@ function PatientDetailPage() {
         }),
 
         // Fetch doctors for dropdown
-        axios.get(`${API_BASE_URL}/api/users/doctors/`, {
+        api.get(`/api/users/doctors/`, {
           headers: { Authorization: `Bearer ${token}` },
         }).then(res => {
           console.log('✅ Doctors loaded, count:', res.data?.length || 0);
@@ -558,12 +558,9 @@ function PatientDetailPage() {
         }),
 
         // Fetch organizations for dropdown
-        axios.get(
-          `${API_BASE_URL}/api/users/organizations/`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        ).then(res => {
+        api.get(`/api/users/organizations/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).then(res => {
           console.log('✅ Organizations loaded, count:', res.data?.length || 0);
           setOrganizations(res.data);
         }).catch(err => {
