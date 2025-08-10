@@ -538,35 +538,28 @@ function PatientDetailPage() {
   // Fetch organizations for dropdown
   useEffect(() => {
     (async () => {
-      console.log('🔍 PatientDetailPage: Starting organizations fetch...');
       const token = await getValidToken();
-      console.log('🔑 PatientDetailPage: Token received for organizations:', token ? `✅ Token exists (${token.substring(0, 20)}...)` : '❌ No token');
-      
       if (!token) {
-        console.log('❌ PatientDetailPage: No token available for organizations fetch');
+        console.log('❌ No token available for organizations fetch');
         return;
       }
-      
+
       try {
-        console.log('📡 PatientDetailPage: Making organizations API call...');
         const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        console.log('✅ PatientDetailPage: Organizations fetch successful:', res.data);
         setOrganizations(res.data);
       } catch (err) {
-        console.error("❌ PatientDetailPage: Organizations fetch failed:", err?.response?.status, err?.response?.data, err?.message);
+        console.error("❌ Organizations fetch failed:", err?.response?.status, err?.response?.statusText);
         setOrganizations([]);
         if (err?.response?.status === 401) {
-          console.log('🚪 PatientDetailPage: 401 error, clearing auth and redirecting...');
+          console.log('🚪 401 error, clearing auth and redirecting...');
           clearAuthData?.();
           navigate("/login");
         }
       }
     })();
-  }, [navigate]);
-
-  const handleResetPassword = async () => {
+  }, [navigate]); const handleResetPassword = async () => {
     const token = await getValidToken();
     if (!token) {
       clearAuthData?.();

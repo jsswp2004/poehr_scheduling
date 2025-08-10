@@ -114,7 +114,7 @@ export const isTokenExpired = (token) => {
 };
 
 /**
- * Check if a token will expire soon (within 5 minutes)
+ * Check if a token will expire soon (within 5 minutes + 60s skew buffer)
  * @param {string} token - JWT token to check
  * @returns {boolean} True if expiring soon, false otherwise
  */
@@ -124,7 +124,8 @@ export const isTokenExpiringSoon = (token) => {
   try {
     const decoded = jwtDecode(token);
     const currentTime = Math.floor(Date.now() / 1000);
-    const fiveMinutesFromNow = currentTime + (5 * 60);
+    // Add 60 second buffer to prevent premature refresh storms
+    const fiveMinutesFromNow = currentTime + (5 * 60) + 60;
     return decoded.exp < fiveMinutesFromNow;
   } catch (error) {
     console.error('Error decoding token:', error);
