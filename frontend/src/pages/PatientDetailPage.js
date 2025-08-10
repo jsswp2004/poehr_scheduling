@@ -487,15 +487,21 @@ function PatientDetailPage() {
   // Remove direct localStorage token usage; always fetch a valid token
   // const token = localStorage.getItem("access_token");
 
-  // Role-based access control for admin, system_admin, doctor, registrar, and receptionist only
+  // Single initialization effect to fetch all data with one token call
   useEffect(() => {
     (async () => {
+      console.log('🚀 PatientDetailPage: Starting initialization...');
+      
+      // Get token once for all API calls
       const token = await getValidToken();
       if (!token) {
+        console.log("❌ No token available, redirecting to login");
         clearAuthData?.();
         navigate("/login");
         return;
       }
+
+      // Role-based access control check
       try {
         const decoded = jwtDecode(token);
         const role = decoded.role || "";
@@ -506,94 +512,73 @@ function PatientDetailPage() {
           role !== "registrar" &&
           role !== "receptionist"
         ) {
+          console.log(`❌ Access denied for role: ${role}`);
           navigate("/");
+          return;
         }
+        console.log(`✅ Access granted for role: ${role}`);
       } catch (err) {
+        console.error("❌ Token decode failed:", err);
         navigate("/login");
+        return;
       }
-    })();
-  }, [navigate]);
 
-  // Fetch patient data
-  useEffect(() => {
-    (async () => {
-      const token = await getValidToken();
-      if (!token) return;
-      try {
-        const res = await axios.get(
+      // Fetch all data in parallel with the same token
+      console.log('📡 Starting parallel data fetches...');
+      const fetchPromises = [
+        // Fetch patient data
+        axios.get(
           `${API_BASE_URL}/api/users/patients/by-user/${id}/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
-        );
-        setPatient(res.data);
-        setFormData(res.data);
-      } catch (err) {
-        console.error("Error fetching patient:", err);
-        if (err?.response?.status === 401) {
-          clearAuthData?.();
-          navigate("/login");
-        }
-      }
-    })();
-  }, [id, navigate]);
+        ).then(res => {
+          console.log('✅ Patient data loaded');
+          setPatient(res.data);
+          setFormData(res.data);
+        }).catch(err => {
+          console.error("❌ Error fetching patient:", err);
+          if (err?.response?.status === 401) {
+            clearAuthData?.();
+            navigate("/login");
+          }
+        }),
 
-  // Fetch doctors for dropdown
-  useEffect(() => {
-    (async () => {
-      const token = await getValidToken();
-      if (!token) return;
-      try {
-        const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
+        // Fetch doctors for dropdown
+        axios.get(`${API_BASE_URL}/api/users/doctors/`, {
           headers: { Authorization: `Bearer ${token}` },
-        });
-        setDoctors(res.data);
-      } catch (err) {
-        console.error("Failed to load doctors:", err);
-      }
-    })();
-  }, []);
+        }).then(res => {
+          console.log('✅ Doctors loaded, count:', res.data?.length || 0);
+          setDoctors(res.data);
+        }).catch(err => {
+          console.error("❌ Failed to load doctors:", err);
+        }),
 
-  // Fetch organizations for dropdown
-  useEffect(() => {
-    (async () => {
-      console.log('🏢 PatientDetailPage: Starting organizations fetch...');
-      const token = await getValidToken();
-      console.log('🔑 Organizations token check:', token ? `Token exists (${token.substring(0, 15)}...)` : 'No token');
-
-      if (!token) {
-        console.log("❌ No token available for organizations fetch");
-        return;
-      }
-
-      try {
-        console.log('📡 Making organizations API call to:', `${API_BASE_URL}/api/users/organizations/`);
-        console.log('🔐 Authorization header will be:', `Bearer ${token.substring(0, 15)}...`);
-
-        const res = await axios.get(
+        // Fetch organizations for dropdown
+        axios.get(
           `${API_BASE_URL}/api/users/organizations/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
-        );
-        console.log('✅ Organizations fetch successful, count:', res.data?.length || 0);
-        setOrganizations(res.data);
-      } catch (err) {
-        console.error('❌ Organizations fetch failed:');
-        console.error('   Status:', err?.response?.status);
-        console.error('   Status Text:', err?.response?.statusText);
-        console.error('   Response Data:', err?.response?.data);
-        console.error('   Full Error:', err);
+        ).then(res => {
+          console.log('✅ Organizations loaded, count:', res.data?.length || 0);
+          setOrganizations(res.data);
+        }).catch(err => {
+          console.error('❌ Organizations fetch failed:', err);
+          setOrganizations([]);
+          if (err?.response?.status === 401) {
+            console.log("🚪 401 error, clearing auth and redirecting...");
+            clearAuthData?.();
+            navigate("/login");
+          }
+        })
+      ];
 
-        setOrganizations([]);
-        if (err?.response?.status === 401) {
-          console.log("🚪 401 error, clearing auth and redirecting...");
-          clearAuthData?.();
-          navigate("/login");
-        }
-      }
+      // Wait for all fetches to complete
+      await Promise.allSettled(fetchPromises);
+      console.log('🎉 PatientDetailPage initialization complete');
     })();
-  }, [navigate]);
+  }, [id, navigate]);
   const handleResetPassword = async () => {
     const token = await getValidToken();
     if (!token) {
