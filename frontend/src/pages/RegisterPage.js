@@ -30,7 +30,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import DeleteIcon from "@mui/icons-material/Delete";
 import CancelIcon from "@mui/icons-material/Cancel";
-import { getValidToken, clearAuthData } from "../utils/authUtils";
+import { getValidToken, clearAuthData } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
 
 function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = false }) {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
-import { getValidToken, clearAuthData } from '../utils/authUtils';
+import { getValidToken, clearAuthData } from '../utils/auth';
 
 /**
  * Custom hook for managing patient information after registration

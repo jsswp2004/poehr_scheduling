@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
-import { getValidToken } from '../utils/authUtils';
+import { getValidToken } from '../utils/auth';
 
 /**
  * Custom hook for fetching and managing doctors and organizations data
