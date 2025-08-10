@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { api } from '../api/client';
 import { API_BASE_URL } from '../config/api';
 import {
   getAccessToken,
@@ -55,8 +56,9 @@ export const refreshAccessToken = async () => {
       // Update stored tokens using centralized manager
       storeTokens(access, newRefresh || refreshToken);
 
-      // Update axios default header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+  // Update axios default header and shared api client header
+  axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+  api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
       console.log('✅ Token refreshed successfully');
       return access;
@@ -71,8 +73,8 @@ export const refreshAccessToken = async () => {
     } finally {
       // Clear the promise so future refreshes can proceed
       refreshPromise = null;
-  // Set refresh backoff regardless of success/failure
-  refreshBackoffUntil = Date.now() + MIN_REFRESH_INTERVAL_MS;
+      // Set refresh backoff regardless of success/failure
+      refreshBackoffUntil = Date.now() + MIN_REFRESH_INTERVAL_MS;
     }
   })();
 
@@ -100,17 +102,17 @@ export const getValidToken = async () => {
         return null;
       }
 
-  // Check token status
-  const expired = isTokenExpired(token);
-  const expiringSoon = isTokenExpiringSoon(token);
+      // Check token status
+      const expired = isTokenExpired(token);
+      const expiringSoon = isTokenExpiringSoon(token);
 
-  console.log(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
+      console.log(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
 
-  // If token is expired, try to refresh it
-  if (expired) {
+      // If token is expired, try to refresh it
+      if (expired) {
         console.log('🔄 Token expired, attempting to refresh...');
         token = await refreshAccessToken();
-  } else {
+      } else {
         console.log('✅ Token is valid, no refresh needed');
       }
 
