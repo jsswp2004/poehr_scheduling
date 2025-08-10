@@ -15,7 +15,11 @@ export const usePatientData = (navigate) => {
 
         try {
             console.log('📡 Fetching patient data with provided token...');
-            const response = await api.get(`/api/users/patients/by-user/${patientId}/`);
+            const response = await api.get(`/api/users/patients/by-user/${patientId}/`, {
+                headers: {
+                    'Authorization': `Bearer ${token.access_token || token}`,
+                }
+            });
 
             console.log('✅ Patient data loaded');
             setPatient(response.data);

@@ -15,7 +15,11 @@ export const useDoctorsData = (navigate) => {
 
         try {
             console.log('📡 Fetching doctors with provided token...');
-            const response = await api.get('/api/users/doctors/');
+            const response = await api.get('/api/users/doctors/', {
+                headers: {
+                    'Authorization': `Bearer ${token.access_token || token}`,
+                }
+            });
 
             console.log('✅ Doctors loaded, count:', response.data?.length || 0);
             setDoctors(response.data);

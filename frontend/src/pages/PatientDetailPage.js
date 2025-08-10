@@ -518,7 +518,7 @@ function PatientDetailPage() {
       // Use Promise.allSettled with shared token to prevent concurrent getValidToken() calls
       Promise.allSettled([
         roleValidation.validateRoleWithToken(token),
-        patientData.fetchPatientWithToken(token),
+        patientData.fetchPatientWithToken(id, token),
         doctorsData.fetchDoctorsWithToken(token),
         organizationsData.fetchOrganizationsWithToken(token)
       ]).then((results) => {
