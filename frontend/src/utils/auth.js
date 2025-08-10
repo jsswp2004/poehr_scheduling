@@ -9,8 +9,9 @@ import {
   isTokenExpiringSoon
 } from './tokenManager';
 
-// Single-flight guard to prevent multiple simultaneous refreshes
+// Single-flight guards to prevent multiple simultaneous operations
 let refreshPromise = null;
+let getValidTokenPromise = null;
 
 /**
  * Refresh the access token using the refresh token
@@ -70,29 +71,53 @@ export const refreshAccessToken = async () => {
  * @returns {Promise<string|null>} - valid access token or null if authentication failed
  */
 export const getValidToken = async () => {
-  let token = getAccessToken();
-
-  if (!token) {
-    console.error('❌ No access token found');
-    return null;
+  // If a getValidToken call is already in progress, return that promise
+  if (getValidTokenPromise) {
+    console.log('🔄 getValidToken already in progress, waiting...');
+    return getValidTokenPromise;
   }
 
-  // If token is expired, try to refresh it
-  if (isTokenExpired(token)) {
-    console.log('🔄 Token expired, attempting to refresh...');
-    token = await refreshAccessToken();
-  }
-  // If token is expiring soon, proactively refresh it
-  else if (isTokenExpiringSoon(token)) {
-    console.log('🔄 Token expiring soon, proactively refreshing...');
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      token = newToken;
+  // Create the getValidToken promise
+  getValidTokenPromise = (async () => {
+    try {
+      let token = getAccessToken();
+
+      if (!token) {
+        console.error('❌ No access token found');
+        return null;
+      }
+
+      // Check token status
+      const expired = isTokenExpired(token);
+      const expiringSoon = isTokenExpiringSoon(token);
+      
+      console.log(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
+
+      // If token is expired, try to refresh it
+      if (expired) {
+        console.log('🔄 Token expired, attempting to refresh...');
+        token = await refreshAccessToken();
+      }
+      // If token is expiring soon, proactively refresh it
+      else if (expiringSoon) {
+        console.log('🔄 Token expiring soon, attempting proactive refresh...');
+        const newToken = await refreshAccessToken();
+        if (newToken) {
+          token = newToken;
+        }
+        // If refresh fails, we still use the current token since it's not expired yet
+      } else {
+        console.log('✅ Token is valid, no refresh needed');
+      }
+
+      return token;
+    } finally {
+      // Clear the promise so future calls can proceed
+      getValidTokenPromise = null;
     }
-    // If refresh fails, we still use the current token since it's not expired yet
-  }
+  })();
 
-  return token;
+  return getValidTokenPromise;
 };
 
 /**
