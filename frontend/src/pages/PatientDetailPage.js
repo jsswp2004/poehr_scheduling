@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef, memo } from "react";
 import axios from "axios";
-import { api } from "../api/client";
 import CreateAppointmentForm from "../components/CreateAppointmentForm";
 import {
   Box,
@@ -15,13 +14,18 @@ import {
   InputLabel,
   Select as MUISelect,
 } from "@mui/material";
-import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import { toast } from "../components/SimpleToast";
 import { API_BASE_URL } from "../config/api";
 // Import centralized token helper
 import { getValidToken, clearAuthData } from "../utils/auth";
+
+// Import custom hooks
+import { usePatientData } from "../hooks/usePatientData";
+import { useDoctorsData } from "../hooks/useDoctorsData";
+import { useOrganizationsData } from "../hooks/useOrganizationsData";
+import { useRoleValidation } from "../hooks/useRoleValidation";
 
 // PRODUCTION-READY ADDRESS AUTOCOMPLETE WITH GOOGLE PLACES API + COST OPTIMIZATION
 const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
@@ -479,106 +483,49 @@ const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
 function PatientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [patient, setPatient] = useState(null);
+  
+  // Use custom hooks for data management
+  const patientData = usePatientData(navigate);
+  const doctorsData = useDoctorsData(navigate);
+  const organizationsData = useOrganizationsData(navigate);
+  const roleValidation = useRoleValidation(navigate);
+  
+  // Local UI state
   const [editMode, setEditMode] = useState(false);
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [formData, setFormData] = useState({});
-  const [doctors, setDoctors] = useState([]);
-  const [organizations, setOrganizations] = useState([]);
-  // Remove direct localStorage token usage; always fetch a valid token
-  // const token = localStorage.getItem("access_token");
+  
+  // Destructure from hooks for easier access
+  const { patient, setPatient } = patientData;
+  const { doctors } = doctorsData;
+  const { organizations } = organizationsData;
 
-  // Single initialization effect to fetch all data with one token call
-  const initRanRef = useRef(false);
+  // Initialize data fetching
   useEffect(() => {
-    if (initRanRef.current) return;
-    initRanRef.current = true;
-    (async () => {
-      console.log('🚀 PatientDetailPage: Starting initialization...');
-
-      // Get token once for all API calls
-      const token = await getValidToken();
-      if (!token) {
-        console.log("❌ No token available, redirecting to login");
-        clearAuthData?.();
-        navigate("/login");
-        return;
+    console.log('🚀 PatientDetailPage: Starting initialization...');
+    
+    // Validate role first, then fetch data
+    roleValidation.validateRole().then((result) => {
+      if (result) {
+        // Role validation successful, fetch data in parallel
+        Promise.allSettled([
+          patientData.fetchPatient(id),
+          doctorsData.fetchDoctors(),
+          organizationsData.fetchOrganizations()
+        ]).then(() => {
+          console.log('🎉 PatientDetailPage initialization complete');
+        });
       }
+    });
+  }, [id, patientData, doctorsData, organizationsData, roleValidation]);
+  
+  // Update formData when patient data changes
+  useEffect(() => {
+    if (patient) {
+      setFormData(patient);
+    }
+  }, [patient]);
 
-      // Role-based access control check
-      try {
-        const decoded = jwtDecode(token);
-        const role = decoded.role || "";
-        if (
-          role !== "admin" &&
-          role !== "system_admin" &&
-          role !== "doctor" &&
-          role !== "registrar" &&
-          role !== "receptionist"
-        ) {
-          console.log(`❌ Access denied for role: ${role}`);
-          navigate("/");
-          return;
-        }
-        console.log(`✅ Access granted for role: ${role}`);
-      } catch (err) {
-        console.error("❌ Token decode failed:", err);
-        navigate("/login");
-        return;
-      }
-
-      // Fetch all data in parallel with the same token
-      console.log('📡 Starting parallel data fetches...');
-      const fetchPromises = [
-        // Fetch patient data
-        api.get(
-          `${API_BASE_URL}/api/users/patients/by-user/${id}/`,
-          // Headers are attached by api client interceptor; keep local header as fallback
-          { headers: { Authorization: `Bearer ${token}` } }
-        ).then(res => {
-          console.log('✅ Patient data loaded');
-          setPatient(res.data);
-          setFormData(res.data);
-        }).catch(err => {
-          console.error("❌ Error fetching patient:", err);
-          if (err?.response?.status === 401) {
-            clearAuthData?.();
-            navigate("/login");
-          }
-        }),
-
-        // Fetch doctors for dropdown
-        api.get(`/api/users/doctors/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }).then(res => {
-          console.log('✅ Doctors loaded, count:', res.data?.length || 0);
-          setDoctors(res.data);
-        }).catch(err => {
-          console.error("❌ Failed to load doctors:", err);
-        }),
-
-        // Fetch organizations for dropdown
-        api.get(`/api/users/organizations/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        }).then(res => {
-          console.log('✅ Organizations loaded, count:', res.data?.length || 0);
-          setOrganizations(res.data);
-        }).catch(err => {
-          console.error('❌ Organizations fetch failed:', err);
-          setOrganizations([]);
-          if (err?.response?.status === 401) {
-            console.log("🚪 401 error, clearing auth and redirecting...");
-            clearAuthData?.();
-            navigate("/login");
-          }
-        })
-      ];
-
-      // Wait for all fetches to complete
-      await Promise.allSettled(fetchPromises);
-      console.log('🎉 PatientDetailPage initialization complete');
-    })();
-  }, [id, navigate]);
   const handleResetPassword = async () => {
     const token = await getValidToken();
     if (!token) {
