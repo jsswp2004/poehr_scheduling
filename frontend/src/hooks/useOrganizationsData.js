@@ -52,7 +52,7 @@ export const useOrganizationsData = (navigate) => {
             console.log('📡 Fetching organizations with provided token...');
             const response = await api.get('/api/users/organizations/', {
                 headers: {
-                    'Authorization': `Bearer ${token.access_token}`,
+                    'Authorization': `Bearer ${token.access_token || token}`,
                 }
             });
 
