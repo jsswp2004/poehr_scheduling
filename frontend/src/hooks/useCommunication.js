@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import axios from 'axios';
 import { apiEndpoints, getAuthHeaders } from '../config/api';
 import { toast } from '../components/SimpleToast';
+import { getAccessToken } from '../utils/tokenManager';
 
 /**
  * Custom hook for email and SMS communication
@@ -53,7 +54,7 @@ export const useCommunication = () => {
 
         try {
             setEmailSending(true);
-            const token = localStorage.getItem('authToken');
+            const token = getAccessToken();
 
             // Transform data to match Django backend expectations
             const emailData = {
@@ -108,7 +109,7 @@ export const useCommunication = () => {
 
         try {
             setSmsSending(true);
-            const token = localStorage.getItem('authToken');
+            const token = getAccessToken();
 
             await axios.post(
                 apiEndpoints.sendSMS,

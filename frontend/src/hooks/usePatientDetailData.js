@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
+import { getAccessToken } from '../utils/tokenManager';
 
 export const usePatientDetailData = () => {
     const [doctors, setDoctors] = useState([]);
     const [organizations, setOrganizations] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    const token = localStorage.getItem('access_token');
+    const token = getAccessToken();
 
     // Fetch doctors for dropdown
     useEffect(() => {
