@@ -483,43 +483,64 @@ const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
 function PatientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   // Use custom hooks for data management
   const patientData = usePatientData(navigate);
   const doctorsData = useDoctorsData(navigate);
   const organizationsData = useOrganizationsData(navigate);
   const roleValidation = useRoleValidation(navigate);
-  
+
   // Local UI state
   const [editMode, setEditMode] = useState(false);
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [formData, setFormData] = useState({});
-  
+
   // Destructure from hooks for easier access
   const { patient, setPatient } = patientData;
   const { doctors } = doctorsData;
   const { organizations } = organizationsData;
 
-  // Initialize data fetching
+  // Initialize data fetching with a single token call
   useEffect(() => {
     console.log('🚀 PatientDetailPage: Starting initialization...');
     
-    // Validate role first, then fetch data
-    roleValidation.validateRole().then((result) => {
-      if (result) {
-        // Role validation successful, fetch data in parallel
-        Promise.allSettled([
-          patientData.fetchPatient(id),
-          doctorsData.fetchDoctors(),
-          organizationsData.fetchOrganizations()
-        ]).then(() => {
-          console.log('🎉 PatientDetailPage initialization complete');
-        });
+    // Get token ONCE for all operations
+    getValidToken().then(async (token) => {
+      if (!token) {
+        console.log("❌ No token available, redirecting to login");
+        clearAuthData();
+        navigate('/login');
+        return;
       }
+
+      console.log('🔑 Shared token obtained, using for all operations...');
+      
+      // Use Promise.allSettled with shared token to prevent concurrent getValidToken() calls
+      Promise.allSettled([
+        roleValidation.validateRoleWithToken(token),
+        patientData.fetchPatientWithToken(token),
+        doctorsData.fetchDoctorsWithToken(token),
+        organizationsData.fetchOrganizationsWithToken(token)
+      ]).then((results) => {
+        // Log results for debugging
+        const operations = ['role validation', 'patient fetch', 'doctors fetch', 'organizations fetch'];
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') {
+            console.log(`✅ ${operations[index]} completed successfully`);
+          } else {
+            console.error(`❌ ${operations[index]} failed:`, result.reason);
+          }
+        });
+        console.log('🎉 PatientDetailPage initialization complete');
+      }).catch((error) => {
+        console.error('❌ Page initialization failed:', error);
+      });
+    }).catch((error) => {
+      console.error('❌ Token retrieval failed:', error);
+      clearAuthData();
+      navigate('/login');
     });
-  }, [id, patientData, doctorsData, organizationsData, roleValidation]);
-  
-  // Update formData when patient data changes
+  }, [id, navigate, patientData, doctorsData, organizationsData, roleValidation]);  // Update formData when patient data changes
   useEffect(() => {
     if (patient) {
       setFormData(patient);

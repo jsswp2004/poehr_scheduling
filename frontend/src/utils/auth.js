@@ -56,9 +56,9 @@ export const refreshAccessToken = async () => {
       // Update stored tokens using centralized manager
       storeTokens(access, newRefresh || refreshToken);
 
-  // Update axios default header and shared api client header
-  axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
-  api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+      // Update axios default header and shared api client header
+      axios.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+      api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
 
       console.log('✅ Token refreshed successfully');
       return access;
