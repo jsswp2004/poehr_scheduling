@@ -1,9 +1,9 @@
 /**
- * Debug script to check token state
+ * Enhanced debug script to check token state and test the API
  * Run this in the browser console on the PatientDetailPage
  */
-console.log('🔍 Token Debug Information');
-console.log('========================');
+console.log('🔍 Enhanced Token Debug Information');
+console.log('=======================================');
 
 // Check localStorage directly
 console.log('📦 localStorage contents:');
@@ -15,57 +15,73 @@ Object.keys(localStorage).forEach(key => {
 });
 
 // Check specific token keys
-console.log('\n🔑 Specific token checks:');
+console.log('\n🔑 Token extraction test:');
 const accessToken = localStorage.getItem('access_token');
-console.log('access_token (raw):', accessToken ? accessToken.substring(0, 50) + '...' : 'null');
+console.log('Raw access_token:', accessToken ? accessToken.substring(0, 50) + '...' : 'null');
 
-// Try parsing if it's JSON
+// Try the tokenManager extraction
+let extractedToken = null;
 if (accessToken) {
     try {
         const parsed = JSON.parse(accessToken);
-        console.log('access_token (parsed):', parsed);
-        console.log('actual token:', parsed.token ? parsed.token.substring(0, 50) + '...' : 'null');
+        extractedToken = parsed.token || null;
+        console.log('Extracted token:', extractedToken ? extractedToken.substring(0, 50) + '...' : 'null');
     } catch (e) {
-        console.log('access_token is not JSON, using as direct string');
+        extractedToken = accessToken; // Direct string
+        console.log('Using direct string format');
     }
 }
 
-// Test the tokenManager functions
-console.log('\n🛠️ TokenManager test:');
-try {
-    // We need to import these, but for debugging we'll simulate
-    const getAccessTokenTest = () => {
-        const stored = localStorage.getItem('access_token');
-        if (!stored) return null;
+// Test token validity
+if (extractedToken) {
+    try {
+        const parts = extractedToken.split('.');
+        if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            console.log('\n🎫 Token Details:');
+            console.log('  User ID:', payload.user_id);
+            console.log('  Username:', payload.username);
+            console.log('  Role:', payload.role);
+            console.log('  Issued at:', new Date(payload.iat * 1000));
+            console.log('  Expires at:', new Date(payload.exp * 1000));
+            console.log('  Current time:', new Date());
 
-        try {
-            const parsed = JSON.parse(stored);
-            return parsed.token || null;
-        } catch {
-            return stored;
+            const isExpired = payload.exp < Date.now() / 1000;
+            const timeLeft = payload.exp - (Date.now() / 1000);
+            console.log('  Is expired?', isExpired);
+            console.log('  Time left:', Math.floor(timeLeft / 60), 'minutes');
         }
-    };
-
-    const token = getAccessTokenTest();
-    console.log('getAccessToken() result:', token ? token.substring(0, 50) + '...' : 'null');
-
-    // Test token validity
-    if (token) {
-        try {
-            const parts = token.split('.');
-            if (parts.length === 3) {
-                const payload = JSON.parse(atob(parts[1]));
-                console.log('Token payload:', payload);
-                console.log('Token expires at:', new Date(payload.exp * 1000));
-                console.log('Current time:', new Date());
-                console.log('Is expired?', payload.exp < Date.now() / 1000);
-            }
-        } catch (e) {
-            console.log('Error decoding token:', e);
-        }
+    } catch (e) {
+        console.log('❌ Error decoding token:', e);
     }
-} catch (e) {
-    console.log('Error testing token:', e);
 }
 
-console.log('\n✅ Debug complete');
+// Test the API call manually
+console.log('\n🧪 Manual API Test:');
+if (extractedToken) {
+    console.log('Testing API call with extracted token...');
+    fetch('https://poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io/api/users/organizations/', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${extractedToken}`,
+            'Content-Type': 'application/json'
+        }
+    })
+        .then(response => {
+            console.log('📊 Manual API Response:');
+            console.log('  Status:', response.status);
+            console.log('  Status Text:', response.statusText);
+            console.log('  Headers:', response.headers);
+            return response.json().catch(() => response.text());
+        })
+        .then(data => {
+            console.log('  Response Data:', data);
+        })
+        .catch(error => {
+            console.log('  Error:', error);
+        });
+} else {
+    console.log('❌ No token available for manual test');
+}
+
+console.log('\n✅ Enhanced debug complete');

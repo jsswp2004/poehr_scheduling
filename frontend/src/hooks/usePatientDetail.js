@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
 import { toast } from '../components/SimpleToast';
 import { apiEndpoints } from '../config/api';
+import { getAccessToken } from '../utils/tokenManager';
 
 export const usePatientDetail = (patientId) => {
     const navigate = useNavigate();
@@ -14,7 +15,7 @@ export const usePatientDetail = (patientId) => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
-    const token = localStorage.getItem('access_token');
+    const token = getAccessToken();
 
     // Role-based access control
     useEffect(() => {

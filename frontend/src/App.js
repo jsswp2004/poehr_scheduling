@@ -61,11 +61,11 @@ function AppContent() {
         // Log outgoing requests with redacted Authorization header
         const authHeader = config.headers?.Authorization || '';
         const redactedAuth = authHeader.replace(/^Bearer\s+(.{0,12}).*(.{6})$/, 'Bearer $1…$2');
-        console.debug(
-          '[axios:req]',
+        console.log(
+          '🌐 [axios:req]',
           config.method?.toUpperCase(),
           config.url,
-          'Authorization=',
+          'Auth=',
           redactedAuth || 'None'
         );
         return config;

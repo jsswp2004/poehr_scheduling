@@ -40,31 +40,37 @@ const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
   const CACHE_DURATION = 30 * 60 * 1000; // 30 minutes cache
 
   // Cache helper functions
-  const getCachedSuggestions = useCallback((query) => {
-    const cached = cacheRef.current.get(query.toLowerCase());
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      return cached.suggestions;
-    }
-    return null;
-  }, [CACHE_DURATION]);
+  const getCachedSuggestions = useCallback(
+    (query) => {
+      const cached = cacheRef.current.get(query.toLowerCase());
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        return cached.suggestions;
+      }
+      return null;
+    },
+    [CACHE_DURATION]
+  );
 
-  const setCachedSuggestions = useCallback((query, suggestions) => {
-    cacheRef.current.set(query.toLowerCase(), {
-      suggestions,
-      timestamp: Date.now()
-    });
-
-    // Clean old cache entries (simple cleanup)
-    if (cacheRef.current.size > 100) {
-      const entries = Array.from(cacheRef.current.entries());
-      const now = Date.now();
-      entries.forEach(([key, value]) => {
-        if (now - value.timestamp > CACHE_DURATION) {
-          cacheRef.current.delete(key);
-        }
+  const setCachedSuggestions = useCallback(
+    (query, suggestions) => {
+      cacheRef.current.set(query.toLowerCase(), {
+        suggestions,
+        timestamp: Date.now(),
       });
-    }
-  }, [CACHE_DURATION]);
+
+      // Clean old cache entries (simple cleanup)
+      if (cacheRef.current.size > 100) {
+        const entries = Array.from(cacheRef.current.entries());
+        const now = Date.now();
+        entries.forEach(([key, value]) => {
+          if (now - value.timestamp > CACHE_DURATION) {
+            cacheRef.current.delete(key);
+          }
+        });
+      }
+    },
+    [CACHE_DURATION]
+  );
 
   // Sync the input value with the parent value only when needed
   useEffect(() => {
@@ -74,237 +80,247 @@ const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
   }, [value]);
 
   // Google Places API with fallback to OpenStreetMap + Cost Optimization
-  const fetchAddressSuggestions = useCallback(async (query) => {
-    if (query.length < 2) {
-      setSuggestions([]);
-      setShowDropdown(false);
-      return;
-    }
-
-    // Cost Optimization #2: Check cache first
-    const cachedResults = getCachedSuggestions(query);
-    if (cachedResults) {
-      console.log('Using cached address suggestions for:', query);
-      setSuggestions(cachedResults);
-      setShowDropdown(cachedResults.length > 0);
-      setSelectedIndex(-1);
-      setIsLoading(false);
-      return;
-    }
-
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
-    // Create new abort controller
-    abortControllerRef.current = new AbortController();
-
-    setIsLoading(true);
-
-    try {
-      let addressSuggestions = [];
-
-      // Strategy 1: Try to use Google Places API if available and loaded
-      const GOOGLE_API_KEY = process.env.REACT_APP_GOOGLE_PLACES_API_KEY;
-
-      if (GOOGLE_API_KEY && window.google?.maps?.places?.AutocompleteService) {
-        try {
-          const service = new window.google.maps.places.AutocompleteService();
-
-          const request = {
-            input: query,
-            types: ["address"],
-            componentRestrictions: { country: "us" },
-          };
-
-          // Use Promise wrapper for the callback-based API
-          const predictions = await new Promise((resolve, reject) => {
-            service.getPlacePredictions(request, (predictions, status) => {
-              if (
-                status === window.google.maps.places.PlacesServiceStatus.OK &&
-                predictions
-              ) {
-                resolve(predictions);
-              } else {
-                reject(new Error(`Google Places API status: ${status}`));
-              }
-            });
-          });
-
-          // Cost Optimization #4: Limit to 5 results max to reduce costs
-          const limitedPredictions = predictions.slice(0, 5);
-          const googleSuggestions = limitedPredictions.map(
-            (prediction) => prediction.description
-          );
-
-          // Cost Optimization #2: Cache the results
-          setCachedSuggestions(query, googleSuggestions);
-          console.log('Google Places API call made for:', query, '- Results cached');
-
-          setSuggestions(googleSuggestions);
-          setShowDropdown(googleSuggestions.length > 0);
-          setSelectedIndex(-1);
-          setIsLoading(false);
-          return; // Successfully used Google API, exit early
-        } catch (googleError) {
-          console.warn("Google Places API failed:", googleError);
-          // Continue to OpenStreetMap fallback
-        }
-      } else if (
-        GOOGLE_API_KEY &&
-        !window.google?.maps?.places?.AutocompleteService
-      ) {
-        // Google API key is available but Google Maps script not loaded yet
-        // Load Google Maps script dynamically
-        if (!window.googleMapsScriptLoading && !window.google) {
-          window.googleMapsScriptLoading = true;
-          const script = document.createElement("script");
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places`;
-          script.async = true;
-          script.defer = true;
-          script.onload = () => {
-            window.googleMapsScriptLoading = false;
-            console.log("Google Maps script loaded successfully");
-          };
-          script.onerror = () => {
-            window.googleMapsScriptLoading = false;
-            console.warn("Failed to load Google Maps script");
-          };
-          document.head.appendChild(script);
-        }
-        // Fall through to OpenStreetMap for this request
+  const fetchAddressSuggestions = useCallback(
+    async (query) => {
+      if (query.length < 2) {
+        setSuggestions([]);
+        setShowDropdown(false);
+        return;
       }
 
-      // Strategy 2: Fallback to OpenStreetMap (Photon API)
+      // Cost Optimization #2: Check cache first
+      const cachedResults = getCachedSuggestions(query);
+      if (cachedResults) {
+        console.log("Using cached address suggestions for:", query);
+        setSuggestions(cachedResults);
+        setShowDropdown(cachedResults.length > 0);
+        setSelectedIndex(-1);
+        setIsLoading(false);
+        return;
+      }
+
+      // Cancel previous request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      // Create new abort controller
+      abortControllerRef.current = new AbortController();
+
+      setIsLoading(true);
+
       try {
-        const photonResponse = await fetch(
-          `https://photon.komoot.io/api/?q=${encodeURIComponent(
-            query
-          )}&limit=6`,
-          { signal: abortControllerRef.current.signal }
-        );
+        let addressSuggestions = [];
 
-        if (photonResponse.ok) {
-          const photonData = await photonResponse.json();
-          const photonSuggestions =
-            photonData.features?.map((feature) => {
-              const props = feature.properties;
-              const parts = [];
+        // Strategy 1: Try to use Google Places API if available and loaded
+        const GOOGLE_API_KEY = process.env.REACT_APP_GOOGLE_PLACES_API_KEY;
 
-              // Build comprehensive address from all available components
-              if (props.housenumber) parts.push(props.housenumber);
-
-              // Handle street names more comprehensively
-              if (props.street) {
-                parts.push(props.street);
-              } else if (props.name && !props.city && !props.state) {
-                parts.push(props.name);
-              }
-
-              // Handle locality (city/town/village)
-              if (props.city) {
-                parts.push(props.city);
-              } else if (props.district) {
-                parts.push(props.district);
-              } else if (props.county) {
-                parts.push(props.county);
-              }
-
-              if (props.state) parts.push(props.state);
-              if (props.postcode) parts.push(props.postcode);
-
-              const fullAddress = parts.join(", ");
-              return (
-                fullAddress || props.name || props.display_name || "Address"
-              );
-            }) || [];
-
-          addressSuggestions.push(...photonSuggestions);
-        }
-      } catch (photonError) {
-        console.warn("Photon API failed:", photonError);
-      }
-
-      // Strategy 3: Enhanced fallback suggestions based on query pattern
-      if (addressSuggestions.length === 0) {
-        const fallbackSuggestions = [];
-
-        // Analyze the query to provide intelligent suggestions
-        if (/^\d+\s+/.test(query)) {
-          // Starts with house number - suggest street types
-          fallbackSuggestions.push(
-            `${query} Street`,
-            `${query} Avenue`,
-            `${query} Drive`,
-            `${query} Road`,
-            `${query} Lane`
-          );
-        } else if (/\d{5}(-\d{4})?/.test(query)) {
-          // Contains ZIP code - suggest locations
-          const zipMatch = query.match(/\d{5}(-\d{4})?/)[0];
-          fallbackSuggestions.push(
-            `Main Street, ${zipMatch}`,
-            `First Avenue, ${zipMatch}`,
-            `Park Avenue, ${zipMatch}`,
-            `${query}, USA`
-          );
-        } else if (
-          query.toLowerCase().includes("street") ||
-          query.toLowerCase().includes("avenue") ||
-          query.toLowerCase().includes("road") ||
-          query.toLowerCase().includes("drive") ||
-          query.toLowerCase().includes("lane") ||
-          query.toLowerCase().includes("blvd")
+        if (
+          GOOGLE_API_KEY &&
+          window.google?.maps?.places?.AutocompleteService
         ) {
-          // Already contains street type - suggest completions
-          fallbackSuggestions.push(
-            `${query}, City, State`,
-            `123 ${query}`,
-            `456 ${query}`,
-            `${query}, USA`
-          );
-        } else {
-          // General query - could be street name, city, etc.
-          fallbackSuggestions.push(
-            `${query} Street`,
-            `${query} Avenue`,
-            `${query} Drive`,
-            `123 ${query} Street`,
-            `${query}, USA`
-          );
+          try {
+            const service = new window.google.maps.places.AutocompleteService();
+
+            const request = {
+              input: query,
+              types: ["address"],
+              componentRestrictions: { country: "us" },
+            };
+
+            // Use Promise wrapper for the callback-based API
+            const predictions = await new Promise((resolve, reject) => {
+              service.getPlacePredictions(request, (predictions, status) => {
+                if (
+                  status === window.google.maps.places.PlacesServiceStatus.OK &&
+                  predictions
+                ) {
+                  resolve(predictions);
+                } else {
+                  reject(new Error(`Google Places API status: ${status}`));
+                }
+              });
+            });
+
+            // Cost Optimization #4: Limit to 5 results max to reduce costs
+            const limitedPredictions = predictions.slice(0, 5);
+            const googleSuggestions = limitedPredictions.map(
+              (prediction) => prediction.description
+            );
+
+            // Cost Optimization #2: Cache the results
+            setCachedSuggestions(query, googleSuggestions);
+            console.log(
+              "Google Places API call made for:",
+              query,
+              "- Results cached"
+            );
+
+            setSuggestions(googleSuggestions);
+            setShowDropdown(googleSuggestions.length > 0);
+            setSelectedIndex(-1);
+            setIsLoading(false);
+            return; // Successfully used Google API, exit early
+          } catch (googleError) {
+            console.warn("Google Places API failed:", googleError);
+            // Continue to OpenStreetMap fallback
+          }
+        } else if (
+          GOOGLE_API_KEY &&
+          !window.google?.maps?.places?.AutocompleteService
+        ) {
+          // Google API key is available but Google Maps script not loaded yet
+          // Load Google Maps script dynamically
+          if (!window.googleMapsScriptLoading && !window.google) {
+            window.googleMapsScriptLoading = true;
+            const script = document.createElement("script");
+            script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places`;
+            script.async = true;
+            script.defer = true;
+            script.onload = () => {
+              window.googleMapsScriptLoading = false;
+              console.log("Google Maps script loaded successfully");
+            };
+            script.onerror = () => {
+              window.googleMapsScriptLoading = false;
+              console.warn("Failed to load Google Maps script");
+            };
+            document.head.appendChild(script);
+          }
+          // Fall through to OpenStreetMap for this request
         }
 
-        addressSuggestions = fallbackSuggestions;
-      }
+        // Strategy 2: Fallback to OpenStreetMap (Photon API)
+        try {
+          const photonResponse = await fetch(
+            `https://photon.komoot.io/api/?q=${encodeURIComponent(
+              query
+            )}&limit=6`,
+            { signal: abortControllerRef.current.signal }
+          );
 
-      // Remove duplicates and limit results
-      const uniqueSuggestions = [...new Set(addressSuggestions)].slice(0, 6);
+          if (photonResponse.ok) {
+            const photonData = await photonResponse.json();
+            const photonSuggestions =
+              photonData.features?.map((feature) => {
+                const props = feature.properties;
+                const parts = [];
 
-      // Cache the OpenStreetMap/fallback results too (for cost optimization)
-      if (uniqueSuggestions.length > 0) {
-        setCachedSuggestions(query, uniqueSuggestions);
-        console.log('OpenStreetMap/fallback results cached for:', query);
-      }
+                // Build comprehensive address from all available components
+                if (props.housenumber) parts.push(props.housenumber);
 
-      setSuggestions(uniqueSuggestions);
-      setShowDropdown(uniqueSuggestions.length > 0);
-      setSelectedIndex(-1);
-    } catch (error) {
-      if (error.name !== "AbortError") {
-        console.warn("All address lookup methods failed:", error);
-        // Final fallback
-        setSuggestions([
-          `${query} (Type full address)`,
-          `${query} Street`,
-          `${query} Avenue`,
-        ]);
-        setShowDropdown(true);
+                // Handle street names more comprehensively
+                if (props.street) {
+                  parts.push(props.street);
+                } else if (props.name && !props.city && !props.state) {
+                  parts.push(props.name);
+                }
+
+                // Handle locality (city/town/village)
+                if (props.city) {
+                  parts.push(props.city);
+                } else if (props.district) {
+                  parts.push(props.district);
+                } else if (props.county) {
+                  parts.push(props.county);
+                }
+
+                if (props.state) parts.push(props.state);
+                if (props.postcode) parts.push(props.postcode);
+
+                const fullAddress = parts.join(", ");
+                return (
+                  fullAddress || props.name || props.display_name || "Address"
+                );
+              }) || [];
+
+            addressSuggestions.push(...photonSuggestions);
+          }
+        } catch (photonError) {
+          console.warn("Photon API failed:", photonError);
+        }
+
+        // Strategy 3: Enhanced fallback suggestions based on query pattern
+        if (addressSuggestions.length === 0) {
+          const fallbackSuggestions = [];
+
+          // Analyze the query to provide intelligent suggestions
+          if (/^\d+\s+/.test(query)) {
+            // Starts with house number - suggest street types
+            fallbackSuggestions.push(
+              `${query} Street`,
+              `${query} Avenue`,
+              `${query} Drive`,
+              `${query} Road`,
+              `${query} Lane`
+            );
+          } else if (/\d{5}(-\d{4})?/.test(query)) {
+            // Contains ZIP code - suggest locations
+            const zipMatch = query.match(/\d{5}(-\d{4})?/)[0];
+            fallbackSuggestions.push(
+              `Main Street, ${zipMatch}`,
+              `First Avenue, ${zipMatch}`,
+              `Park Avenue, ${zipMatch}`,
+              `${query}, USA`
+            );
+          } else if (
+            query.toLowerCase().includes("street") ||
+            query.toLowerCase().includes("avenue") ||
+            query.toLowerCase().includes("road") ||
+            query.toLowerCase().includes("drive") ||
+            query.toLowerCase().includes("lane") ||
+            query.toLowerCase().includes("blvd")
+          ) {
+            // Already contains street type - suggest completions
+            fallbackSuggestions.push(
+              `${query}, City, State`,
+              `123 ${query}`,
+              `456 ${query}`,
+              `${query}, USA`
+            );
+          } else {
+            // General query - could be street name, city, etc.
+            fallbackSuggestions.push(
+              `${query} Street`,
+              `${query} Avenue`,
+              `${query} Drive`,
+              `123 ${query} Street`,
+              `${query}, USA`
+            );
+          }
+
+          addressSuggestions = fallbackSuggestions;
+        }
+
+        // Remove duplicates and limit results
+        const uniqueSuggestions = [...new Set(addressSuggestions)].slice(0, 6);
+
+        // Cache the OpenStreetMap/fallback results too (for cost optimization)
+        if (uniqueSuggestions.length > 0) {
+          setCachedSuggestions(query, uniqueSuggestions);
+          console.log("OpenStreetMap/fallback results cached for:", query);
+        }
+
+        setSuggestions(uniqueSuggestions);
+        setShowDropdown(uniqueSuggestions.length > 0);
+        setSelectedIndex(-1);
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.warn("All address lookup methods failed:", error);
+          // Final fallback
+          setSuggestions([
+            `${query} (Type full address)`,
+            `${query} Street`,
+            `${query} Avenue`,
+          ]);
+          setShowDropdown(true);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [getCachedSuggestions, setCachedSuggestions]);
+    },
+    [getCachedSuggestions, setCachedSuggestions]
+  );
 
   // Debounce the API calls
   useEffect(() => {
@@ -504,9 +520,12 @@ function PatientDetailPage() {
       const token = await getValidToken();
       if (!token) return;
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/users/patients/by-user/${id}/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await axios.get(
+          `${API_BASE_URL}/api/users/patients/by-user/${id}/`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
         setPatient(res.data);
         setFormData(res.data);
       } catch (err) {
@@ -538,28 +557,44 @@ function PatientDetailPage() {
   // Fetch organizations for dropdown
   useEffect(() => {
     (async () => {
+      console.log('🏢 PatientDetailPage: Starting organizations fetch...');
       const token = await getValidToken();
+      console.log('🔑 Organizations token check:', token ? `Token exists (${token.substring(0, 15)}...)` : 'No token');
+
       if (!token) {
-        console.log('❌ No token available for organizations fetch');
+        console.log("❌ No token available for organizations fetch");
         return;
       }
 
       try {
-        const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        console.log('📡 Making organizations API call to:', `${API_BASE_URL}/api/users/organizations/`);
+        console.log('🔐 Authorization header will be:', `Bearer ${token.substring(0, 15)}...`);
+
+        const res = await axios.get(
+          `${API_BASE_URL}/api/users/organizations/`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        console.log('✅ Organizations fetch successful, count:', res.data?.length || 0);
         setOrganizations(res.data);
       } catch (err) {
-        console.error("❌ Organizations fetch failed:", err?.response?.status, err?.response?.statusText);
+        console.error('❌ Organizations fetch failed:');
+        console.error('   Status:', err?.response?.status);
+        console.error('   Status Text:', err?.response?.statusText);
+        console.error('   Response Data:', err?.response?.data);
+        console.error('   Full Error:', err);
+
         setOrganizations([]);
         if (err?.response?.status === 401) {
-          console.log('🚪 401 error, clearing auth and redirecting...');
+          console.log("🚪 401 error, clearing auth and redirecting...");
           clearAuthData?.();
           navigate("/login");
         }
       }
     })();
-  }, [navigate]); const handleResetPassword = async () => {
+  }, [navigate]);
+  const handleResetPassword = async () => {
     const token = await getValidToken();
     if (!token) {
       clearAuthData?.();
@@ -973,7 +1008,8 @@ function PatientDetailPage() {
                       return;
                     }
                     const res = await axios.patch(
-                      `${API_BASE_URL}/api/users/${patient.user_id || patient.id}/`,
+                      `${API_BASE_URL}/api/users/${patient.user_id || patient.id
+                      }/`,
                       formDataPic,
                       {
                         headers: {
