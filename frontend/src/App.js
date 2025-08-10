@@ -101,7 +101,7 @@ function AppContent() {
       (error) => Promise.reject(error)
     );
 
-  const responseInterceptor = axios.interceptors.response.use(
+    const responseInterceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
