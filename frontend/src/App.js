@@ -55,18 +55,43 @@ function AppContent() {
 
   // Setup axios interceptor for automatic token refresh
   useEffect(() => {
+    // Add request interceptor for debugging
+    const requestInterceptor = axios.interceptors.request.use(
+      (config) => {
+        // Log outgoing requests with redacted Authorization header
+        const authHeader = config.headers?.Authorization || '';
+        const redactedAuth = authHeader.replace(/^Bearer\s+(.{0,12}).*(.{6})$/, 'Bearer $1…$2');
+        console.debug(
+          '[axios:req]',
+          config.method?.toUpperCase(),
+          config.url,
+          'Authorization=',
+          redactedAuth || 'None'
+        );
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
     const responseInterceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
 
+        // Don't refresh for the refresh endpoint itself to prevent recursion
+        if (originalRequest.url?.includes('/token/refresh/')) {
+          return Promise.reject(error);
+        }
+
         if (error.response?.status === 401 && !originalRequest._retry) {
           originalRequest._retry = true;
+          console.log('🔄 401 detected, attempting token refresh for:', originalRequest.url);
 
           try {
             const newToken = await refreshAccessToken();
             if (newToken) {
               originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
+              console.log('✅ Retrying request with new token');
               return axios(originalRequest);
             }
           } catch (refreshError) {
@@ -82,6 +107,7 @@ function AppContent() {
     );
 
     return () => {
+      axios.interceptors.request.eject(requestInterceptor);
       axios.interceptors.response.eject(responseInterceptor);
     };
   }, []);
