@@ -90,7 +90,7 @@ export const getValidToken = async () => {
       // Check token status
       const expired = isTokenExpired(token);
       const expiringSoon = isTokenExpiringSoon(token);
-      
+
       console.log(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
 
       // If token is expired, try to refresh it
