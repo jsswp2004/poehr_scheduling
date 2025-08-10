@@ -12,6 +12,8 @@ import {
 // Single-flight guards to prevent multiple simultaneous operations
 let refreshPromise = null;
 let getValidTokenPromise = null;
+let refreshBackoffUntil = 0; // epoch ms, prevent rapid repeated refreshes
+const MIN_REFRESH_INTERVAL_MS = 15000; // 15s backoff between refresh attempts
 
 /**
  * Refresh the access token using the refresh token
@@ -22,6 +24,15 @@ export const refreshAccessToken = async () => {
   if (refreshPromise) {
     console.log('🔄 Refresh already in progress, waiting for existing refresh...');
     return refreshPromise;
+  }
+
+  // Enforce a minimum interval between refresh attempts to avoid storms
+  const now = Date.now();
+  if (now < refreshBackoffUntil) {
+    const waitMs = refreshBackoffUntil - now;
+    console.warn(`⏳ Skipping refresh due to backoff. Wait ${waitMs}ms`);
+    // Return current token instead of refreshing
+    return getAccessToken();
   }
 
   const refreshToken = getRefreshToken();
@@ -60,6 +71,8 @@ export const refreshAccessToken = async () => {
     } finally {
       // Clear the promise so future refreshes can proceed
       refreshPromise = null;
+  // Set refresh backoff regardless of success/failure
+  refreshBackoffUntil = Date.now() + MIN_REFRESH_INTERVAL_MS;
     }
   })();
 
@@ -87,26 +100,17 @@ export const getValidToken = async () => {
         return null;
       }
 
-      // Check token status
-      const expired = isTokenExpired(token);
-      const expiringSoon = isTokenExpiringSoon(token);
+  // Check token status
+  const expired = isTokenExpired(token);
+  const expiringSoon = isTokenExpiringSoon(token);
 
-      console.log(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
+  console.log(`🔍 Token status - Expired: ${expired}, Expiring soon: ${expiringSoon}`);
 
-      // If token is expired, try to refresh it
-      if (expired) {
+  // If token is expired, try to refresh it
+  if (expired) {
         console.log('🔄 Token expired, attempting to refresh...');
         token = await refreshAccessToken();
-      }
-      // If token is expiring soon, proactively refresh it
-      else if (expiringSoon) {
-        console.log('🔄 Token expiring soon, attempting proactive refresh...');
-        const newToken = await refreshAccessToken();
-        if (newToken) {
-          token = newToken;
-        }
-        // If refresh fails, we still use the current token since it's not expired yet
-      } else {
+  } else {
         console.log('✅ Token is valid, no refresh needed');
       }
 
