@@ -491,7 +491,7 @@ function PatientDetailPage() {
   useEffect(() => {
     (async () => {
       console.log('🚀 PatientDetailPage: Starting initialization...');
-      
+
       // Get token once for all API calls
       const token = await getValidToken();
       if (!token) {
