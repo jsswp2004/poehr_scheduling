@@ -5,6 +5,8 @@ import App from './App';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 // Import Font Awesome initialization
 import './utils/fontAwesome';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const theme = createTheme({
   palette: {
@@ -20,11 +22,9 @@ root.render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <App />
+      <ToastContainer />
     </ThemeProvider>
   </React.StrictMode>
 );
 
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-
-// Frontend rebuild trigger - Force Azure Container Update #2
+// Frontend rebuild trigger - Force Azure Container Update #3
