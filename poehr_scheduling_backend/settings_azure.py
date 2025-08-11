@@ -147,6 +147,7 @@ if (
 ):
     try:
         import storages  # Test if storages is available
+
         INSTALLED_APPS = list(INSTALLED_APPS)
         if "storages" not in INSTALLED_APPS:
             INSTALLED_APPS.append("storages")

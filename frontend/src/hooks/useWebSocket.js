@@ -46,7 +46,7 @@ const useWebSocket = (url, options = {}) => {
       console.log('🔑 Using token for WebSocket:', token ? `${token.substring(0, 20)}...` : 'No token');
       const wsUrl = token ? `${url}?token=${token}` : url;
       console.log('🔗 WebSocket connecting to:', wsUrl);
-      
+
       // Additional debug info for Azure troubleshooting
       console.log('🔧 WebSocket Debug Info:', {
         originalUrl: url,
@@ -55,7 +55,7 @@ const useWebSocket = (url, options = {}) => {
         userAgent: navigator.userAgent,
         timestamp: new Date().toISOString()
       });
-      
+
       const ws = new WebSocket(wsUrl);
       setSocket(ws);
 
@@ -99,7 +99,7 @@ const useWebSocket = (url, options = {}) => {
       ws.onerror = (event) => {
         console.error('❌ WebSocket error event:', event);
         console.error('❌ WebSocket error object:', JSON.stringify(event, Object.getOwnPropertyNames(event)));
-        
+
         // Enhanced error debugging for Azure
         console.error('🔧 WebSocket Error Debug:', {
           readyState: ws.readyState,
@@ -110,7 +110,7 @@ const useWebSocket = (url, options = {}) => {
           userAgent: navigator.userAgent,
           connectionAttempt: reconnectAttemptsRef.current + 1
         });
-        
+
         // Check for specific Azure Container Apps issues
         if (ws.url.includes('azurecontainerapps.io')) {
           console.error('🔧 Azure Container Apps WebSocket Issues:');
@@ -119,7 +119,7 @@ const useWebSocket = (url, options = {}) => {
           console.error('   3. Check if authentication middleware is blocking connections');
           console.error('   4. Verify Redis channel layer is properly configured');
         }
-        
+
         setError(event);
         setIsConnected(false);
         if (optionsRef.current.onError) {

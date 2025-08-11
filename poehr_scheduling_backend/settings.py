@@ -58,6 +58,7 @@ INSTALLED_APPS = [
 # Conditionally add storages if available (for Azure blob storage)
 try:
     import storages
+
     INSTALLED_APPS.append("storages")
 except ImportError:
     pass  # storages not available, skip
