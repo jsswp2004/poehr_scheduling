@@ -452,7 +452,7 @@ function PatientDetailPage() {
             {/* Header with BackButton inline */}
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h5">
-                    Patient Details
+                    Patient Details Check 2
                 </Typography>
                 <BackButton to="/patients" />
             </Box>
