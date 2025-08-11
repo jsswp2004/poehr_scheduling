@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "django_filters",
-    "storages",  # Django-storages for Azure blob storage
+    # Note: storages conditionally added in production settings if available
     # Local apps
     "users",
     "appointments",
@@ -54,6 +54,13 @@ INSTALLED_APPS = [
     "poehr_scheduling_backend.core",
     "django_cron",
 ]
+
+# Conditionally add storages if available (for Azure blob storage)
+try:
+    import storages
+    INSTALLED_APPS.append("storages")
+except ImportError:
+    pass  # storages not available, skip
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
