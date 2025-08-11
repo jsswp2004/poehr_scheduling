@@ -26,7 +26,7 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -f Dockerfile.azure -t poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }} .
+          docker build --no-cache -f Dockerfile.azure -t poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }} .
           docker tag poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }} poehrschedulingacr.azurecr.io/poehr-scheduling:latest
 
       - name: Login to Azure Container Registry
