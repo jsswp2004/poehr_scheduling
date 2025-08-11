@@ -57,7 +57,7 @@ RUN echo "=== CHECKING COPIED FRONTEND FILES ===" && \
     echo "=== CHECKING INDEX.HTML IN STATIC ===" && \
     head -10 /code/static/frontend/index.html && \
     echo "=== SEARCHING FOR DEPLOYMENT TEST TEXT ===" && \
-    grep -r "MEGA DEPLOYMENT" /code/static/frontend/ || echo "DEPLOYMENT TEST NOT FOUND IN CONTAINER!" && \
+    grep -r "DEPLOYMENT.*TEST" /code/static/frontend/ || echo "DEPLOYMENT TEST NOT FOUND IN CONTAINER!" && \
     echo "=== CONTAINER BUILD TIMESTAMP ===" && \
     echo "Built at: $(date)" > /code/static/frontend/build-info.txt
 
@@ -88,7 +88,7 @@ RUN echo "=== STATIC FILES CHECK ===" && \
     echo "=== FRONTEND STATIC FILES ===" && \
     ls -la /code/static/frontend/ || echo "No frontend directory" && \
     echo "=== SEARCHING FOR DEPLOYMENT TEST IN STATIC FILES ===" && \
-    find /code -name "*.js" -exec grep -l "MEGA DEPLOYMENT" {} \; 2>/dev/null || echo "No MEGA DEPLOYMENT found in any JS files"
+    find /code -name "*.js" -exec grep -l "DEPLOYMENT.*TEST" {} \; 2>/dev/null || echo "No DEPLOYMENT TEST found in any JS files"
 
 # Expose port
 EXPOSE 8080
