@@ -30,11 +30,21 @@ const getWebSocketUrl = () => {
     }
 
     if (process.env.NODE_ENV === 'production') {
-        // Production WebSocket URL - use same domain but wss protocol, proxy through /ws/
+        // Production WebSocket URL - use same domain but wss protocol
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        return `${protocol}//${window.location.host}`;
+        const host = window.location.host;
+        
+        // Debug info for Azure troubleshooting
+        console.log('🔧 WebSocket URL Debug:', {
+            protocol: window.location.protocol,
+            host: window.location.host,
+            wsProtocol: protocol,
+            finalUrl: `${protocol}//${host}`
+        });
+        
+        return `${protocol}//${host}`;
     } else {
-        // Development WebSocket URL
+        // Development WebSocket URL - updated to use port 8080 consistently
         return `ws://localhost:8080`;
     }
 };

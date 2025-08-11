@@ -46,11 +46,21 @@ const useWebSocket = (url, options = {}) => {
       console.log('🔑 Using token for WebSocket:', token ? `${token.substring(0, 20)}...` : 'No token');
       const wsUrl = token ? `${url}?token=${token}` : url;
       console.log('🔗 WebSocket connecting to:', wsUrl);
+      
+      // Additional debug info for Azure troubleshooting
+      console.log('🔧 WebSocket Debug Info:', {
+        originalUrl: url,
+        hasToken: !!token,
+        finalUrl: wsUrl,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString()
+      });
+      
       const ws = new WebSocket(wsUrl);
       setSocket(ws);
 
       ws.onopen = () => {
-        console.log('✅ WebSocket connected');
+        console.log('✅ WebSocket connected successfully');
         setIsConnected(true);
         setError(null);
         reconnectAttemptsRef.current = 0;
@@ -89,6 +99,27 @@ const useWebSocket = (url, options = {}) => {
       ws.onerror = (event) => {
         console.error('❌ WebSocket error event:', event);
         console.error('❌ WebSocket error object:', JSON.stringify(event, Object.getOwnPropertyNames(event)));
+        
+        // Enhanced error debugging for Azure
+        console.error('🔧 WebSocket Error Debug:', {
+          readyState: ws.readyState,
+          url: ws.url,
+          protocol: ws.protocol,
+          extensions: ws.extensions,
+          timestamp: new Date().toISOString(),
+          userAgent: navigator.userAgent,
+          connectionAttempt: reconnectAttemptsRef.current + 1
+        });
+        
+        // Check for specific Azure Container Apps issues
+        if (ws.url.includes('azurecontainerapps.io')) {
+          console.error('🔧 Azure Container Apps WebSocket Issues:');
+          console.error('   1. Check if ASGI application is properly configured');
+          console.error('   2. Verify Azure Container Apps ingress supports WebSocket upgrades');
+          console.error('   3. Check if authentication middleware is blocking connections');
+          console.error('   4. Verify Redis channel layer is properly configured');
+        }
+        
         setError(event);
         setIsConnected(false);
         if (optionsRef.current.onError) {
