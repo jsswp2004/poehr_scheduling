@@ -28,6 +28,8 @@ ALLOWED_HOSTS = [
     "poehr-frontend-750584621883.us-central1.run.app",
     "poehr-scheduling-mjf5efdj3a-uc.a.run.app",
     "poehr-frontend-mjf5efdj3a-uc.a.run.app",
+    "poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io",  # Azure Container Apps
+    "*.bluedune-dee8c412.centralus.azurecontainerapps.io",  # Azure Container Apps wildcard
 ]
 
 # Application definition
@@ -44,6 +46,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "corsheaders",
     "django_filters",
+    "storages",  # Django-storages for Azure blob storage
     # Local apps
     "users",
     "appointments",
