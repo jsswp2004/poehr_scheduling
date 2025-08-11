@@ -3,6 +3,11 @@
 # Azure Container Apps startup script for POEHR Scheduling
 echo "🚀 Starting POEHR Scheduling application on Azure..."
 
+# Create startup status file immediately
+echo "Script started at: $(date)" > /code/static/frontend/startup-status.txt
+echo "Working directory: $(pwd)" >> /code/static/frontend/startup-status.txt
+echo "User: $(whoami)" >> /code/static/frontend/startup-status.txt
+
 # Check if we're in Azure Container Apps (has CONTAINER_APP_NAME environment variable)
 if [ -n "$CONTAINER_APP_NAME" ]; then
     echo "☁️  Running in Azure Container Apps environment"
@@ -183,6 +188,12 @@ except Exception as e:
 }
 
 echo "🚀 Starting Uvicorn..."
+
+# Create a simple health status file
+echo "Django startup attempted at: $(date)" > /code/static/frontend/django-status.txt
+echo "Environment: $DJANGO_SETTINGS_MODULE" >> /code/static/frontend/django-status.txt
+echo "Python version: $(python --version)" >> /code/static/frontend/django-status.txt
+
 exec uvicorn \
     --host 0.0.0.0 \
     --port ${PORT:-8080} \
