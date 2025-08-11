@@ -14,6 +14,19 @@ import { Link } from 'react-router-dom';
 const LoginForm = ({ formData, loading, onSubmit, onChange }) => {
     return (
         <>
+            {/* Deployment Test Banner */}
+            <Box sx={{ 
+                mb: 2, 
+                p: 1, 
+                bgcolor: '#ff5722', 
+                color: 'white', 
+                textAlign: 'center', 
+                borderRadius: 1,
+                fontWeight: 'bold'
+            }}>
+                🚨🚨🚨 DEPLOYMENT TEST ACTIVE - AUG 11 2025 - LOGIN PAGE UPDATED truly 🚨🚨🚨
+            </Box>
+            
             <Typography variant="h5" align="center" sx={{ mb: 2, fontWeight: 700, color: 'primary.main' }}>
                 Login
             </Typography>
