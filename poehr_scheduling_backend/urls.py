@@ -31,7 +31,7 @@ def debug_frontend_files(request):
     """Debug endpoint to check frontend files in production"""
     import os
     import glob
-    
+
     debug_info = {
         "static_root": settings.STATIC_ROOT,
         "frontend_path": "/code/static/frontend/",
@@ -39,34 +39,36 @@ def debug_frontend_files(request):
         "frontend_files": [],
         "build_info": None,
         "index_size": None,
-        "index_modified": None
+        "index_modified": None,
     }
-    
+
     try:
         # List frontend directory contents
         if os.path.exists("/code/static/frontend/"):
             debug_info["frontend_files"] = os.listdir("/code/static/frontend/")
-        
+
         # Check build info
         if os.path.exists("/code/static/frontend/build-info.txt"):
             with open("/code/static/frontend/build-info.txt", "r") as f:
                 debug_info["build_info"] = f.read().strip()
-        
+
         # Check index.html details
         if os.path.exists("/code/static/frontend/index.html"):
             stat = os.stat("/code/static/frontend/index.html")
             debug_info["index_size"] = stat.st_size
             debug_info["index_modified"] = stat.st_mtime
-            
+
             # Check if our test content is in the index.html
             with open("/code/static/frontend/index.html", "r") as f:
                 content = f.read()
                 debug_info["has_deployment_test"] = "MEGA DEPLOYMENT" in content
-                debug_info["content_preview"] = content[:500] + "..." if len(content) > 500 else content
-    
+                debug_info["content_preview"] = (
+                    content[:500] + "..." if len(content) > 500 else content
+                )
+
     except Exception as e:
         debug_info["error"] = str(e)
-    
+
     return JsonResponse(debug_info)
 
 
@@ -146,7 +148,7 @@ urlpatterns += [
 urlpatterns += [
     re_path(r"^$", TemplateView.as_view(template_name="index.html"), name="home"),
     re_path(
-        r"^(?!api/|admin/|health/|static/|media/|create-admin/).*$",
+        r"^(?!api/|admin/|health/|static/|media/|create-admin/|debug-frontend/).*$",
         TemplateView.as_view(template_name="index.html"),
         name="frontend_routes",
     ),
