@@ -23,10 +23,10 @@ os.environ.setdefault(
 
 try:
     logger.info("🔧 Setting up Django...")
-    django.setup()
-    logger.info("✅ Django setup complete")
+    # Note: django.setup() is called automatically by get_asgi_application()
+    logger.info("✅ Django setup will be handled by get_asgi_application()")
 
-    # Test channels import AFTER Django setup
+    # Test channels import BEFORE Django setup
     logger.info("📦 Testing channels import...")
     from channels.routing import ProtocolTypeRouter, URLRouter
     from users.middleware import JWTAuthMiddlewareStack
@@ -34,7 +34,7 @@ try:
 
     logger.info("✅ Channels imports successful")
 
-    # Get Django ASGI application
+    # Get Django ASGI application (this calls django.setup() internally)
     django_asgi_app = get_asgi_application()
     logger.info("✅ Django ASGI application created")
 
