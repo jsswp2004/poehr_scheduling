@@ -78,3 +78,5 @@ uvicorn[standard]==0.24.0
 azure-keyvault-secrets==4.7.0
 azure-identity==1.15.0
 azure-core==1.29.5
+django-storages==1.14.4
+azure-storage-blob==12.19.1
