@@ -902,7 +902,7 @@ function PatientDetailPage() {
         }}
       >
         <Typography variant="h4" style={{ backgroundColor: 'red', color: 'white', padding: '30px', fontSize: '24px', fontWeight: 'bold', textAlign: 'center', margin: '20px 0', border: '5px solid yellow' }}>
-          ��� DEPLOYMENT TEST ACTIVE - AUG 11 2025 - PATIENT DETAILS UPDATED ���
+          ��� DEPLOYMENT TEST ACTIVE - AUG 11 2025 - PATIENT DETAILS UPDATED truly ���
         </Typography>
         <BackButton to="/patients" />
       </Box>
