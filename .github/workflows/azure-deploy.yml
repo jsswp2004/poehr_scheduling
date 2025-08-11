@@ -42,7 +42,13 @@ jobs:
           az containerapp update \
             --name poehr-scheduling \
             --resource-group poehr-scheduling-rg \
-            --image poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }}
+            --image poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }} \
+            --revision-suffix $(date +%s)
+          
+          echo "Forcing container restart to ensure new image is used..."
+          az containerapp revision restart \
+            --name poehr-scheduling \
+            --resource-group poehr-scheduling-rg
 
       - name: Verify deployment
         run: |
