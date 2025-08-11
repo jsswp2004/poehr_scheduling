@@ -3,7 +3,6 @@
  */
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
-import { getValidToken } from '../../utils/auth';
 import {
     validateAppointmentForm,
     prepareAppointmentPayload,
@@ -11,7 +10,7 @@ import {
     checkAvailabilityConflict
 } from '../../utils/appointment/appointmentUtils';
 
-export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, clinicEvents) => {
+export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, clinicEvents, token) => {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -22,18 +21,8 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
     });
 
     const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
-    const [token, setToken] = useState(null);
 
-    // Get valid token on mount
-    useEffect(() => {
-        const initToken = async () => {
-            const validToken = await getValidToken();
-            setToken(validToken);
-        };
-        initToken();
-    }, []);
-
-    // Get user role from token
+    // Get user role from token when available
     let userRole = null;
     if (token) {
         try {
@@ -137,7 +126,6 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
     return {
         formData,
         selectedClinicEvent,
-        token,
         userRole,
         handleChange,
         handleClinicEventChange,

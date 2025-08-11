@@ -500,6 +500,12 @@ function PatientDetailPage() {
   const { doctors } = doctorsData;
   const { organizations } = organizationsData;
 
+  // Extract stable methods to avoid useEffect dependency issues
+  const fetchPatientWithToken = patientData.fetchPatientWithToken;
+  const fetchDoctorsWithToken = doctorsData.fetchDoctorsWithToken;
+  const fetchOrganizationsWithToken = organizationsData.fetchOrganizationsWithToken;
+  const validateRoleWithToken = roleValidation.validateRoleWithToken;
+
   // Initialize data fetching with a single token call
   useEffect(() => {
     console.log('🚀 PatientDetailPage: Starting initialization...');
@@ -517,10 +523,10 @@ function PatientDetailPage() {
 
       // Use Promise.allSettled with shared token to prevent concurrent getValidToken() calls
       Promise.allSettled([
-        roleValidation.validateRoleWithToken(token),
-        patientData.fetchPatientWithToken(id, token),
-        doctorsData.fetchDoctorsWithToken(token),
-        organizationsData.fetchOrganizationsWithToken(token)
+        validateRoleWithToken(token),
+        fetchPatientWithToken(id, token),
+        fetchDoctorsWithToken(token),
+        fetchOrganizationsWithToken(token)
       ]).then((results) => {
         // Log results for debugging
         const operations = ['role validation', 'patient fetch', 'doctors fetch', 'organizations fetch'];
@@ -540,7 +546,7 @@ function PatientDetailPage() {
       clearAuthData();
       navigate('/login');
     });
-  }, [id, navigate, patientData, doctorsData, organizationsData, roleValidation]);  // Update formData when patient data changes
+  }, [id, navigate, fetchPatientWithToken, fetchDoctorsWithToken, fetchOrganizationsWithToken, validateRoleWithToken]);  // Update formData when patient data changes
   useEffect(() => {
     if (patient) {
       setFormData(patient);

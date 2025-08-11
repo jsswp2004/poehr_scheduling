@@ -44,19 +44,18 @@ function CreateAppointmentForm({
     loading: externalDataLoading
   } = useAppointmentFormExternal(validToken);
 
-  // Form data management
+  // Form data management - pass the validToken instead of letting it get its own
   const {
     formData,
     selectedClinicEvent,
-    token,
     userRole,
     handleChange,
     handleClinicEventChange,
     validateForm,
     preparePayload,
-  } = useAppointmentFormData(appointmentToEdit, editMode, patientId, clinicEvents);
+  } = useAppointmentFormData(appointmentToEdit, editMode, patientId, clinicEvents, validToken);
 
-  // Doctors and availability management
+  // Doctors and availability management - use the same validToken
   const {
     doctors,
     selectedDoctor,
@@ -65,11 +64,11 @@ function CreateAppointmentForm({
     selectedSlot,
     handleDoctorChange,
     handleSlotSelection,
-  } = useAppointmentDoctors(token, defaultProviderId, appointmentToEdit);
+  } = useAppointmentDoctors(validToken, defaultProviderId, appointmentToEdit);
 
-  // Form submission handling
+  // Form submission handling - use the same validToken
   const { isSubmitting, handleSubmit } = useAppointmentFormSubmission(
-    token,
+    validToken,
     editMode,
     appointmentToEdit,
     onSuccess
