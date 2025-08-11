@@ -6,7 +6,7 @@
  * - UI components modularized for reusability
  * - Better organization and maintainability
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Paper, Typography } from '@mui/material';
 import { useAppointmentFormData } from '../hooks/appointment-form/useAppointmentFormData';
 import { useAppointmentDoctors } from '../hooks/appointment-form/useAppointmentDoctors';
@@ -15,6 +15,7 @@ import { useAppointmentFormSubmission } from '../hooks/appointment-form/useAppoi
 import { AppointmentFormFields } from './appointment-form/AppointmentFormFields';
 import { AvailableSlotsPanel } from './appointment-form/AvailableSlotsPanel';
 import { AppointmentFormActions } from './appointment-form/AppointmentFormActions';
+import { getValidToken } from '../utils/auth';
 
 function CreateAppointmentForm({
   onSuccess,
@@ -24,13 +25,24 @@ function CreateAppointmentForm({
   appointmentToEdit = null,
   editMode = false
 }) {
-  // External data (events, holidays, blocked days)
+  const [validToken, setValidToken] = useState(null);
+
+  // Get valid token once for the entire component
+  useEffect(() => {
+    const initializeToken = async () => {
+      const token = await getValidToken();
+      setValidToken(token);
+    };
+    initializeToken();
+  }, []);
+
+  // External data (events, holidays, blocked days) - only load when token is available
   const {
     clinicEvents,
     blockedDays,
     holidays,
     loading: externalDataLoading
-  } = useAppointmentFormExternal(localStorage.getItem('access_token'));
+  } = useAppointmentFormExternal(validToken);
 
   // Form data management
   const {

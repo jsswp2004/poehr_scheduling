@@ -154,7 +154,7 @@ export const clearAuthData = () => {
   clearTokens();
   delete axios.defaults.headers.common['Authorization'];
   delete api.defaults.headers.common['Authorization'];
-  
+
   // Reset single-flight guards to prevent stuck states
   refreshPromise = null;
   getValidTokenPromise = null;
