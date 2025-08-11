@@ -148,7 +148,7 @@ urlpatterns += [
 urlpatterns += [
     re_path(r"^$", TemplateView.as_view(template_name="index.html"), name="home"),
     re_path(
-        r"^(?!api/|admin/|health/|static/|media/|create-admin/|debug-frontend/).*$",
+        r"^(?!api/|admin/|health/|static/|media/|create-admin/|debug-frontend/|ws/).*$",
         TemplateView.as_view(template_name="index.html"),
         name="frontend_routes",
     ),
