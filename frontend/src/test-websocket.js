@@ -1,7 +1,34 @@
 // Simple test to check WebSocket connection in browser console
 console.log('Testing WebSocket connection...');
 
-const token = localStorage.getItem('token') || localStorage.getItem('access_token');
+// Helper function to get token properly (handles both JSON and plain string formats)
+function getAccessToken() {
+  // Try the centralized token manager key first
+  const accessTokenData = localStorage.getItem('access_token');
+  if (accessTokenData) {
+    try {
+      const parsed = JSON.parse(accessTokenData);
+      return parsed.token || accessTokenData;
+    } catch {
+      return accessTokenData;
+    }
+  }
+  
+  // Fallback to legacy token key
+  const tokenData = localStorage.getItem('token');
+  if (tokenData) {
+    try {
+      const parsed = JSON.parse(tokenData);
+      return parsed.token || tokenData;
+    } catch {
+      return tokenData;
+    }
+  }
+  
+  return null;
+}
+
+const token = getAccessToken();
 console.log('Token found:', !!token);
 console.log('Token preview:', token ? token.substring(0, 50) + '...' : 'None');
 

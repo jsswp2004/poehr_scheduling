@@ -3,11 +3,38 @@
  * Run this in browser console to test WebSocket connections
  */
 
+// Helper function to get token properly (handles both JSON and plain string formats)
+function getAccessToken() {
+  // Try the centralized token manager key first
+  const accessTokenData = localStorage.getItem('access_token');
+  if (accessTokenData) {
+    try {
+      const parsed = JSON.parse(accessTokenData);
+      return parsed.token || accessTokenData;
+    } catch {
+      return accessTokenData;
+    }
+  }
+  
+  // Fallback to legacy token key
+  const tokenData = localStorage.getItem('token');
+  if (tokenData) {
+    try {
+      const parsed = JSON.parse(tokenData);
+      return parsed.token || tokenData;
+    } catch {
+      return tokenData;
+    }
+  }
+  
+  return null;
+}
+
 async function testWebSocketConnections() {
   console.log('🚀 Testing WebSocket connections...');
   
-  // Get auth token
-  const token = localStorage.getItem('token');
+  // Get auth token using proper extraction
+  const token = getAccessToken();
   if (!token) {
     console.log('❌ No auth token found. Please log in first.');
     return;
