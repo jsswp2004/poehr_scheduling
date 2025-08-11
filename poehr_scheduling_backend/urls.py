@@ -27,6 +27,50 @@ def health_check(request):
 
 
 @csrf_exempt
+def debug_frontend_files(request):
+    """Debug endpoint to check frontend files in production"""
+    import os
+    import glob
+    
+    debug_info = {
+        "static_root": settings.STATIC_ROOT,
+        "frontend_path": "/code/static/frontend/",
+        "index_exists": os.path.exists("/code/static/frontend/index.html"),
+        "frontend_files": [],
+        "build_info": None,
+        "index_size": None,
+        "index_modified": None
+    }
+    
+    try:
+        # List frontend directory contents
+        if os.path.exists("/code/static/frontend/"):
+            debug_info["frontend_files"] = os.listdir("/code/static/frontend/")
+        
+        # Check build info
+        if os.path.exists("/code/static/frontend/build-info.txt"):
+            with open("/code/static/frontend/build-info.txt", "r") as f:
+                debug_info["build_info"] = f.read().strip()
+        
+        # Check index.html details
+        if os.path.exists("/code/static/frontend/index.html"):
+            stat = os.stat("/code/static/frontend/index.html")
+            debug_info["index_size"] = stat.st_size
+            debug_info["index_modified"] = stat.st_mtime
+            
+            # Check if our test content is in the index.html
+            with open("/code/static/frontend/index.html", "r") as f:
+                content = f.read()
+                debug_info["has_deployment_test"] = "MEGA DEPLOYMENT" in content
+                debug_info["content_preview"] = content[:500] + "..." if len(content) > 500 else content
+    
+    except Exception as e:
+        debug_info["error"] = str(e)
+    
+    return JsonResponse(debug_info)
+
+
+@csrf_exempt
 def create_admin_endpoint(request):
     """Emergency endpoint to create admin user if needed"""
     if request.method == "POST":
@@ -49,6 +93,8 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # Health check endpoint
     path("health/", health_check, name="health_check"),
+    # Debug endpoint
+    path("debug-frontend/", debug_frontend_files, name="debug_frontend"),
     # Emergency admin creation endpoint
     path("create-admin/", create_admin_endpoint, name="create_admin"),
     # Favicon handler
