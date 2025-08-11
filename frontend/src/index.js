@@ -24,4 +24,7 @@ root.render(
   </React.StrictMode>
 );
 
-// Frontend rebuild trigger: Sun, Aug 10, 2025 11:58:55 PM
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+// Frontend rebuild trigger - Force Azure Container Update #2
