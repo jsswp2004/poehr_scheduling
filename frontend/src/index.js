@@ -27,4 +27,4 @@ root.render(
   </React.StrictMode>
 );
 
-// Frontend rebuild trigger - Force Azure Container Update #3
+// Frontend rebuild trigger - Force Azure Container Update #4 - Aug 11 2025
