@@ -33,7 +33,7 @@ const getWebSocketUrl = () => {
         // Production WebSocket URL - use same domain but wss protocol
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
-        
+
         // Debug info for Azure troubleshooting
         console.log('🔧 WebSocket URL Debug:', {
             protocol: window.location.protocol,
@@ -41,7 +41,7 @@ const getWebSocketUrl = () => {
             wsProtocol: protocol,
             finalUrl: `${protocol}//${host}`
         });
-        
+
         return `${protocol}//${host}`;
     } else {
         // Development WebSocket URL - updated to use port 8080 consistently
