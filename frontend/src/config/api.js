@@ -35,7 +35,7 @@ const getWebSocketUrl = () => {
         return `${protocol}//${window.location.host}`;
     } else {
         // Development WebSocket URL
-        return `ws://localhost:9001`;
+        return `ws://localhost:8080`;
     }
 };
 
