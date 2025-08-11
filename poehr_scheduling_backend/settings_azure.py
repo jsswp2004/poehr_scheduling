@@ -145,24 +145,29 @@ if (
     and AZURE_ACCOUNT_NAME
     and (AZURE_ACCOUNT_KEY or os.environ.get("AZURE_STORAGE_CONNECTION_STRING"))
 ):
-    INSTALLED_APPS = list(INSTALLED_APPS)
-    if "storages" not in INSTALLED_APPS:
-        INSTALLED_APPS.append("storages")
+    try:
+        import storages  # Test if storages is available
+        INSTALLED_APPS = list(INSTALLED_APPS)
+        if "storages" not in INSTALLED_APPS:
+            INSTALLED_APPS.append("storages")
 
-    DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
-    AZURE_ACCOUNT_NAME = AZURE_ACCOUNT_NAME
-    AZURE_ACCOUNT_KEY = AZURE_ACCOUNT_KEY
-    AZURE_CONTAINER = AZURE_CONTAINER
-    AZURE_CONNECTION_STRING = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
-    AZURE_URL_EXPIRATION_SECS = 3600  # signed URL expiry if needed
+        DEFAULT_FILE_STORAGE = "storages.backends.azure_storage.AzureStorage"
+        AZURE_ACCOUNT_NAME = AZURE_ACCOUNT_NAME
+        AZURE_ACCOUNT_KEY = AZURE_ACCOUNT_KEY
+        AZURE_CONTAINER = AZURE_CONTAINER
+        AZURE_CONNECTION_STRING = os.environ.get("AZURE_STORAGE_CONNECTION_STRING")
+        AZURE_URL_EXPIRATION_SECS = 3600  # signed URL expiry if needed
 
-    # MEDIA_URL points to blob endpoint
-    if AZURE_CUSTOM_DOMAIN:
-        MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/"
-    else:
-        MEDIA_URL = (
-            f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
-        )
+        # MEDIA_URL points to blob endpoint
+        if AZURE_CUSTOM_DOMAIN:
+            MEDIA_URL = f"https://{AZURE_CUSTOM_DOMAIN}/"
+        else:
+            MEDIA_URL = (
+                f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net/{AZURE_CONTAINER}/"
+            )
+    except ImportError:
+        print("WARNING: django-storages not available, using local media storage")
+        # Keep default local media storage settings
 
 # Email configuration with Azure Key Vault
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

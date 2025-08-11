@@ -9,7 +9,8 @@ RUN npm run build
 # Production stage
 FROM python:3.11-slim
 ENV PYTHONUNBUFFERED=1
-ENV DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings_production
+# Don't set DJANGO_SETTINGS_MODULE here - let it be configured at runtime
+# ENV DJANGO_SETTINGS_MODULE will be set by the deployment environment
 
 # Set a temporary SECRET_KEY for build-time operations only
 ENV DJANGO_SECRET_KEY='temporary-build-time-key-do-not-use-in-production'
@@ -40,8 +41,8 @@ COPY --from=frontend-build /frontend/build /code/static/frontend/
 # Create directory for static files
 RUN mkdir -p /code/staticfiles
 
-# Try to collect static files, but don't fail the build if it doesn't work
-RUN python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || \
+# Try to collect static files with fallback settings, but don't fail the build if it doesn't work
+RUN DJANGO_SETTINGS_MODULE=poehr_scheduling_backend.settings python manage.py collectstatic --noinput || \
     echo "Warning: Static files collection failed during build. Will retry at runtime."
 
 # Remove the build-time SECRET_KEY

@@ -1,7 +1,11 @@
 #!/bin/bash
 
-# Startup script for POEHR Scheduling Cloud Run deployment
+# Startup script for POEHR Scheduling deployment
 echo "🚀 Starting POEHR Scheduling application..."
+
+# Set default Django settings if not specified
+export DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE:-"poehr_scheduling_backend.settings_production"}
+echo "📋 Using Django settings: $DJANGO_SETTINGS_MODULE"
 
 # Check if we're in Cloud Run (has K_SERVICE environment variable)
 if [ -n "$K_SERVICE" ]; then
@@ -9,13 +13,13 @@ if [ -n "$K_SERVICE" ]; then
     
     # Try to collect static files at runtime if not done during build
     echo "📁 Collecting static files..."
-    python manage.py collectstatic --noinput --settings=poehr_scheduling_backend.settings_production || {
+    python manage.py collectstatic --noinput || {
         echo "⚠️  Static files collection failed, but continuing..."
     }
     
     # Run database migrations (critical - must complete)
     echo "🗄️  Running database migrations..."
-    python manage.py migrate --settings=poehr_scheduling_backend.settings_production || {
+    python manage.py migrate || {
         echo "⚠️  Database migrations failed, but continuing..."
     }
     
@@ -61,7 +65,7 @@ if [ -n "$K_SERVICE" ]; then
         python fix_environment_setting_table.py
         
         echo "🔄 [BACKGROUND] Creating cache table..."
-        python manage.py createcachetable --settings=poehr_scheduling_backend.settings_production
+        python manage.py createcachetable
         
         echo "📋 [BACKGROUND] Checking availability table..."
         python fix_availability_table.py || python create_availability_table_direct.py
