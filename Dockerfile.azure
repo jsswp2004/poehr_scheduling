@@ -5,7 +5,12 @@ WORKDIR /frontend
 COPY frontend/package*.json ./
 RUN npm ci --only=production
 COPY frontend/ ./
-RUN npm run build
+RUN echo "=== BUILDING FRONTEND ===" && \
+    npm run build && \
+    echo "=== FRONTEND BUILD COMPLETE ===" && \
+    ls -la build/ && \
+    echo "=== CHECKING INDEX.HTML ===" && \
+    head -10 build/index.html
 
 # Python backend stage
 FROM python:3.11-slim
@@ -45,6 +50,12 @@ RUN python verify_azure_deps.py || echo "⚠️ Azure dependency verification fa
 
 # Copy built frontend from previous stage
 COPY --from=frontend-build /frontend/build /code/static/frontend/
+
+# Debug: Verify frontend files were copied
+RUN echo "=== CHECKING COPIED FRONTEND FILES ===" && \
+    ls -la /code/static/frontend/ && \
+    echo "=== CHECKING INDEX.HTML IN STATIC ===" && \
+    head -10 /code/static/frontend/index.html
 
 # Create staticfiles directory
 RUN mkdir -p /code/staticfiles
