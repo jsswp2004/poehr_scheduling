@@ -55,7 +55,11 @@ COPY --from=frontend-build /frontend/build /code/static/frontend/
 RUN echo "=== CHECKING COPIED FRONTEND FILES ===" && \
     ls -la /code/static/frontend/ && \
     echo "=== CHECKING INDEX.HTML IN STATIC ===" && \
-    head -10 /code/static/frontend/index.html
+    head -10 /code/static/frontend/index.html && \
+    echo "=== SEARCHING FOR DEPLOYMENT TEST TEXT ===" && \
+    grep -r "MEGA DEPLOYMENT" /code/static/frontend/ || echo "DEPLOYMENT TEST NOT FOUND IN CONTAINER!" && \
+    echo "=== CONTAINER BUILD TIMESTAMP ===" && \
+    echo "Built at: $(date)" > /code/static/frontend/build-info.txt
 
 # Create staticfiles directory
 RUN mkdir -p /code/staticfiles
