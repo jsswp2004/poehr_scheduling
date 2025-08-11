@@ -230,17 +230,36 @@ LOGGING = {
     },
 }
 
-# Channel layers for WebSocket (using Azure Cache for Redis)
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [(REDIS_HOST, REDIS_PORT)],
-            "password": REDIS_PASSWORD,
-            "ssl": True,  # Azure Cache for Redis requires SSL
+# Channel layers for WebSocket with Redis fallback
+# Try Redis first, but fallback to in-memory for development/testing
+try:
+    # Test Redis connection first
+    import redis
+    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, ssl=True, socket_connect_timeout=5)
+    r.ping()
+    
+    # Redis is available, use it
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [(REDIS_HOST, REDIS_PORT)],
+                "password": REDIS_PASSWORD,
+                "ssl": True,  # Azure Cache for Redis requires SSL
+            },
         },
-    },
-}
+    }
+    print("✅ Using Redis channel layer for WebSocket")
+    
+except (Exception, ConnectionError, redis.ConnectionError, redis.TimeoutError) as e:
+    print(f"⚠️ Redis connection failed ({e}), falling back to in-memory channel layer")
+    # Fallback to in-memory channel layer (single-server only, but works for testing)
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+    print("✅ Using in-memory channel layer for WebSocket (single-server only)")
 
 # ASGI Application
 ASGI_APPLICATION = "poehr_scheduling_backend.asgi.application"

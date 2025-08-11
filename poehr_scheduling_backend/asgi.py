@@ -41,6 +41,22 @@ try:
     # Test websocket patterns
     logger.info(f"📋 WebSocket URL patterns: {users.routing.websocket_urlpatterns}")
 
+    # Test channel layer configuration
+    logger.info("🔧 Testing channel layer...")
+    try:
+        from django.conf import settings
+        channel_config = getattr(settings, 'CHANNEL_LAYERS', {})
+        logger.info(f"📋 Channel layer config: {channel_config}")
+        
+        # Test channel layer import
+        from channels.layers import get_channel_layer
+        channel_layer = get_channel_layer()
+        logger.info(f"✅ Channel layer created: {type(channel_layer)}")
+        
+    except Exception as channel_error:
+        logger.error(f"⚠️ Channel layer test failed: {channel_error}")
+        logger.info("🔄 Proceeding with WebSocket setup anyway...")
+
     # Create protocol router
     application = ProtocolTypeRouter(
         {
@@ -51,6 +67,7 @@ try:
         }
     )
     logger.info("✅ ASGI Protocol Router configured with WebSocket support")
+    logger.info(f"📋 Protocol mappings: {list(application.application_mapping.keys())}")
 
 except ImportError as e:
     logger.error(f"❌ Import error in ASGI setup: {e}")
