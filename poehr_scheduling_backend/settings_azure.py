@@ -230,36 +230,40 @@ LOGGING = {
     },
 }
 
-# Channel layers for WebSocket with Redis fallback
-# Try Redis first, but fallback to in-memory for development/testing
-try:
-    # Test Redis connection first
-    import redis
-    r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, password=REDIS_PASSWORD, ssl=True, socket_connect_timeout=5)
-    r.ping()
-    
-    # Redis is available, use it
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [(REDIS_HOST, REDIS_PORT)],
-                "password": REDIS_PASSWORD,
-                "ssl": True,  # Azure Cache for Redis requires SSL
-            },
-        },
-    }
-    print("✅ Using Redis channel layer for WebSocket")
-    
-except (Exception, ConnectionError, redis.ConnectionError, redis.TimeoutError) as e:
-    print(f"⚠️ Redis connection failed ({e}), falling back to in-memory channel layer")
-    # Fallback to in-memory channel layer (single-server only, but works for testing)
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels.layers.InMemoryChannelLayer",
-        },
-    }
-    print("✅ Using in-memory channel layer for WebSocket (single-server only)")
+# Channel layers for WebSocket - Force in-memory for Azure reliability
+# Azure Container Apps may not have Redis configured, so use in-memory by default
+print("🔧 Configuring WebSocket channel layers for Azure...")
+
+# Force in-memory channel layer for immediate WebSocket functionality
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
+}
+print("✅ Using in-memory channel layer for WebSocket (single-server, but reliable)")
+
+# Optional: Try Redis as backup if explicitly configured
+REDIS_AVAILABLE = False
+if REDIS_HOST and REDIS_HOST != "localhost" and REDIS_PASSWORD:
+    try:
+        import redis
+        r = redis.Redis(
+            host=REDIS_HOST,
+            port=REDIS_PORT,
+            password=REDIS_PASSWORD,
+            ssl=True,
+            socket_connect_timeout=3,
+        )
+        r.ping()
+        
+        # Redis works, but keep in-memory as primary for stability
+        print(f"📡 Redis available at {REDIS_HOST}:{REDIS_PORT} but using in-memory for stability")
+        REDIS_AVAILABLE = True
+        
+    except Exception as e:
+        print(f"📡 Redis test failed ({e}) - continuing with in-memory channel layer")
+
+print(f"📋 Final channel layer: {CHANNEL_LAYERS['default']['BACKEND']}")
 
 # ASGI Application
 ASGI_APPLICATION = "poehr_scheduling_backend.asgi.application"
