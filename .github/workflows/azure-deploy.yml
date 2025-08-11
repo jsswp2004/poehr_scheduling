@@ -39,16 +39,24 @@ jobs:
 
       - name: Deploy to Azure Container Apps
         run: |
+          echo "Updating container app with new image..."
           az containerapp update \
             --name poehr-scheduling \
             --resource-group poehr-scheduling-rg \
             --image poehrschedulingacr.azurecr.io/poehr-scheduling:${{ github.sha }} \
             --revision-suffix $(date +%s)
 
-          echo "Forcing container restart to ensure new image is used..."
-          az containerapp revision restart \
+          echo "Waiting for deployment to complete..."
+          sleep 30
+
+          echo "Getting latest revision name..."
+          LATEST_REVISION=$(az containerapp revision list \
             --name poehr-scheduling \
-            --resource-group poehr-scheduling-rg
+            --resource-group poehr-scheduling-rg \
+            --query "[0].name" \
+            --output tsv)
+
+          echo "Latest revision: $LATEST_REVISION"
 
       - name: Verify deployment
         run: |
