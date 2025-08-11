@@ -70,6 +70,7 @@ STATIC_URL = "/static/"
 # Static files directories - where Django looks for static files before collecting
 STATICFILES_DIRS = [
     "/code/static/frontend/static",  # React build output static files (JS, CSS, etc.)
+    "/code/static/frontend",  # React build root (includes index.html and other assets)
 ]
 
 # Media defaults (overridden when Azure Blob Storage is configured)
