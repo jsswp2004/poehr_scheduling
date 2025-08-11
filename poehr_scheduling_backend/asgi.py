@@ -53,7 +53,6 @@ except ImportError as e:
     logger.error(f"❌ Import error in ASGI setup: {e}")
     logger.error("📦 Channels or related modules not available")
     # Fallback to basic Django ASGI app if channels setup fails
-    django.setup()
     application = get_asgi_application()
     logger.warning("⚠️  Falling back to basic Django ASGI (no WebSocket support)")
 except Exception as e:
@@ -61,6 +60,5 @@ except Exception as e:
     import traceback
     logger.error(f"📋 Full traceback: {traceback.format_exc()}")
     # Fallback to basic Django ASGI app if channels setup fails
-    django.setup()
     application = get_asgi_application()
     logger.warning("⚠️  Falling back to basic Django ASGI (no WebSocket support)")
