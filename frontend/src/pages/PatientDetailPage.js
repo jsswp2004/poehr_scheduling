@@ -901,7 +901,7 @@ function PatientDetailPage() {
           mb: 2,
         }}
       >
-        <Typography variant="h5">Patient Details</Typography>
+        <Typography variant="h5">Patient Details Check</Typography>
         <BackButton to="/patients" />
       </Box>
       {/* Show profile picture if available */}
