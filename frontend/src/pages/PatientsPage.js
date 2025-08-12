@@ -164,6 +164,33 @@ function PatientsPage() {
     }
   }, [lastMessageFromOnlineStatus, currentUser, messagesModalOpen]);
 
+  // Notification for offline messages loaded
+  useEffect(() => {
+    if (chat?.getTotalUnreadCount && currentUser) {
+      const totalUnread = chat.getTotalUnreadCount();
+
+      // Only show notification once when chat system finishes loading and has unread messages
+      if (!chat.chatSystemLoading && totalUnread > 0 && !chat.lastError) {
+        // Use a slight delay to ensure this shows after the chat system is fully initialized
+        const timer = setTimeout(() => {
+          toast.success(
+            `📬 Welcome back! You have ${totalUnread} unread message${totalUnread > 1 ? 's' : ''} waiting.`,
+            {
+              position: "top-center",
+              autoClose: 6000,
+              hideProgressBar: false,
+              closeOnClick: true,
+              pauseOnHover: true,
+              draggable: true,
+            }
+          );
+        }, 1000);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [chat, currentUser]);
+
   // Fetch data based on active tab
   useEffect(() => {
     if (!token) return;
