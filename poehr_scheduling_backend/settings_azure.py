@@ -247,6 +247,7 @@ REDIS_AVAILABLE = False
 if REDIS_HOST and REDIS_HOST != "localhost" and REDIS_PASSWORD:
     try:
         import redis
+
         r = redis.Redis(
             host=REDIS_HOST,
             port=REDIS_PORT,
@@ -255,11 +256,13 @@ if REDIS_HOST and REDIS_HOST != "localhost" and REDIS_PASSWORD:
             socket_connect_timeout=3,
         )
         r.ping()
-        
+
         # Redis works, but keep in-memory as primary for stability
-        print(f"📡 Redis available at {REDIS_HOST}:{REDIS_PORT} but using in-memory for stability")
+        print(
+            f"📡 Redis available at {REDIS_HOST}:{REDIS_PORT} but using in-memory for stability"
+        )
         REDIS_AVAILABLE = True
-        
+
     except Exception as e:
         print(f"📡 Redis test failed ({e}) - continuing with in-memory channel layer")
 
