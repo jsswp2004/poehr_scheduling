@@ -55,15 +55,13 @@ const BlockedAvailabilityModal = ({
         return local.toISOString().slice(0, 16);
     };
 
-    // Convert datetime-local input to ISO string
-    const fromLocalDatetimeInputValue = (localString) => {
-        const local = new Date(localString);
-        return local.toISOString();
-    };
-
     // Initialize form when event changes
     useEffect(() => {
         if (selectedEvent) {
+            console.log("🔍 Selected Event Data:", selectedEvent);
+            console.log("🔍 Event Resource:", selectedEvent.resource);
+            console.log("🔍 Event Resource Data:", selectedEvent.resource?.data);
+            
             setFormData({
                 start_time: toLocalDatetimeInputValue(selectedEvent.start),
                 end_time: toLocalDatetimeInputValue(selectedEvent.end),
@@ -118,11 +116,13 @@ const BlockedAvailabilityModal = ({
             });
 
             const updateData = {
-                start_time: fromLocalDatetimeInputValue(formData.start_time),
-                end_time: fromLocalDatetimeInputValue(formData.end_time),
+                doctor: selectedEvent.resource?.data?.doctor || selectedEvent.resource?.data?.doctor_id,
+                start_time: new Date(formData.start_time).toISOString(),
+                end_time: new Date(formData.end_time).toISOString(),
                 is_blocked: true,
                 block_type: formData.block_type,
-                doctor: selectedEvent.resource?.data?.doctor_id,
+                recurrence: "none", // Default recurrence value
+                recurrence_end_date: null, // Default recurrence end date
             };
 
             console.log("🔧 Update payload:", updateData);
