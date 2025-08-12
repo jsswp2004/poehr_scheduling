@@ -20,6 +20,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Initialization state
   const [chatSystemLoading, setChatSystemLoading] = useState(true);
   const [operationStatus, setOperationStatus] = useState(null);
+  const [offlineMessagesFetched, setOfflineMessagesFetched] = useState(false);
 
   // Use modular hooks
   const chatData = useChatData(currentUser);
@@ -28,10 +29,15 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
   // Fetch offline messages when user logs in
   const fetchOfflineMessages = useCallback(async () => {
-    if (!currentUser) return;
+    if (!currentUser || offlineMessagesFetched) {
+      console.log('📭 Skipping offline messages fetch:', { currentUser: !!currentUser, offlineMessagesFetched });
+      return;
+    }
 
     try {
       console.log('📥 Fetching offline messages for user:', currentUser.id);
+      setOfflineMessagesFetched(true); // Set flag to prevent re-fetching
+
       const token = await getValidToken();
       if (!token) {
         console.error('❌ No valid token for fetching offline messages');
@@ -84,10 +90,15 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
       console.error('❌ Error fetching offline messages:', error);
       chatData.setLastError('Failed to load offline messages');
     }
-  }, [currentUser, chatData, chatNotifications]);
+  }, [currentUser, offlineMessagesFetched, setOfflineMessagesFetched, chatData, chatNotifications]);
 
   // Initialize chat system
   const initializeChatSystem = useCallback(async () => {
+    if (chatSystemLoading === false) {
+      console.log('📭 Chat system already initialized, skipping');
+      return;
+    }
+
     setChatSystemLoading(true);
     try {
       const success = await initializeChatWithRetry(
@@ -98,8 +109,10 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
       if (success) {
         // Chat system initialized successfully
-        // Now fetch any offline messages
-        await fetchOfflineMessages();
+        // Now fetch any offline messages (only if not already fetched)
+        if (!offlineMessagesFetched) {
+          await fetchOfflineMessages();
+        }
       } else {
         console.error('❌ Chat system initialization failed');
         chatData.setLastError('Failed to initialize chat system');
@@ -110,7 +123,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     } finally {
       setChatSystemLoading(false);
     }
-  }, [websocketConnection, chatData, fetchOfflineMessages]);
+  }, [websocketConnection, chatData, fetchOfflineMessages, offlineMessagesFetched, chatSystemLoading]);
 
   // Handle incoming messages
   const handleIncomingMessage = useCallback((message) => {
@@ -287,12 +300,19 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     }
   }, [currentUser, sendMessage, chatTyping]);
 
-  // Initialize on mount
+  // Reset offline messages fetched flag when user changes
   useEffect(() => {
-    if (currentUser) {
+    setOfflineMessagesFetched(false);
+    setChatSystemLoading(true);
+  }, [currentUser?.id]);
+
+  // Initialize on mount (only once per user)
+  useEffect(() => {
+    if (currentUser && !offlineMessagesFetched && chatSystemLoading) {
+      console.log('🚀 Initializing chat system for user:', currentUser.id);
       initializeChatSystem();
     }
-  }, [currentUser, initializeChatSystem]);
+  }, [currentUser, offlineMessagesFetched, chatSystemLoading, initializeChatSystem]);
 
   // Handle WebSocket messages
   useEffect(() => {
