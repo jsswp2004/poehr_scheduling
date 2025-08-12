@@ -12,6 +12,9 @@ import { useChatTyping } from './chat/useChatTyping';
 import { useChatNotifications } from './chat/useChatNotifications';
 import { initializeChatWithRetry, createRoomKey } from '../utils/chat/chatUtils';
 import { generateUniqueMessageId } from '../utils/chat/idUtils';
+import { getValidToken } from '../utils/auth';
+import { API_BASE_URL } from '../config/api';
+import axios from 'axios';
 
 export const useChat = (currentUser, websocketConnection, sendMessage, lastMessageFromOnlineStatus) => {
   // Initialization state
@@ -22,6 +25,66 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   const chatData = useChatData(currentUser);
   const chatTyping = useChatTyping();
   const chatNotifications = useChatNotifications(currentUser);
+
+  // Fetch offline messages when user logs in
+  const fetchOfflineMessages = useCallback(async () => {
+    if (!currentUser) return;
+
+    try {
+      console.log('📥 Fetching offline messages for user:', currentUser.id);
+      const token = await getValidToken();
+      if (!token) {
+        console.error('❌ No valid token for fetching offline messages');
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/api/users/unread-messages/`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const { unread_messages, count } = response.data;
+
+      if (count > 0) {
+        console.log(`📬 Found ${count} offline messages`);
+
+        // Show notification about missed messages
+        chatNotifications.handleOfflineMessagesNotification?.(count);
+
+        // Process each offline message
+        unread_messages.forEach(message => {
+          const currentUserId = currentUser.user_id || currentUser.id;
+          const otherUserId = message.sender_id;
+          const roomKey = createRoomKey(currentUserId, otherUserId);
+
+          if (roomKey) {
+            // Format message for local state
+            const formattedMessage = {
+              id: message.id,
+              sender_id: message.sender_id,
+              sender_name: message.sender_name,
+              content: message.content,
+              timestamp: message.timestamp,
+              is_read: false,
+              offline: true, // Mark as offline message
+            };
+
+            // Add to chat room
+            chatData.addMessageToRoom(roomKey, formattedMessage);
+
+            // Update unread count
+            chatData.updateUnreadCount(message.sender_id);
+          }
+        });
+
+        console.log('✅ Offline messages loaded successfully');
+      } else {
+        console.log('📭 No offline messages found');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching offline messages:', error);
+      chatData.setLastError('Failed to load offline messages');
+    }
+  }, [currentUser, chatData, chatNotifications]);
 
   // Initialize chat system
   const initializeChatSystem = useCallback(async () => {
@@ -35,6 +98,8 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
       if (success) {
         // Chat system initialized successfully
+        // Now fetch any offline messages
+        await fetchOfflineMessages();
       } else {
         console.error('❌ Chat system initialization failed');
         chatData.setLastError('Failed to initialize chat system');
@@ -45,7 +110,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     } finally {
       setChatSystemLoading(false);
     }
-  }, [websocketConnection, chatData]);
+  }, [websocketConnection, chatData, fetchOfflineMessages]);
 
   // Handle incoming messages
   const handleIncomingMessage = useCallback((message) => {
@@ -263,6 +328,42 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     }
   }, [lastMessageFromOnlineStatus, handleIncomingMessage]);
 
+  // Mark messages as read on the server
+  const markMessagesReadOnServer = useCallback(async (messageIds) => {
+    if (!messageIds || messageIds.length === 0) return;
+
+    try {
+      const token = await getValidToken();
+      if (!token) return;
+
+      await axios.post(`${API_BASE_URL}/api/users/mark-messages-read/`, {
+        message_ids: messageIds
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      console.log('✅ Messages marked as read on server:', messageIds);
+    } catch (error) {
+      console.error('❌ Error marking messages as read on server:', error);
+    }
+  }, []);
+
+  // Enhanced mark room as read function
+  const markRoomAsReadEnhanced = useCallback((roomKey) => {
+    // Mark as read locally
+    chatData.markRoomAsRead(roomKey);
+
+    // Get messages in the room to find offline messages that need to be marked as read on server
+    const messages = chatData.getRoomMessages(roomKey);
+    const offlineMessageIds = messages
+      .filter(msg => msg.offline && !msg.is_read)
+      .map(msg => msg.id);
+
+    if (offlineMessageIds.length > 0) {
+      markMessagesReadOnServer(offlineMessageIds);
+    }
+  }, [chatData, markMessagesReadOnServer]);
+
   return {
     // State
     chatRooms: chatData.chatRooms,
@@ -279,7 +380,7 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     sendMessage: handleSendMessage,
     handleTyping,
     setActiveRoom: chatData.setActiveRoom,
-    markRoomAsRead: chatData.markRoomAsRead,
+    markRoomAsRead: markRoomAsReadEnhanced, // Use enhanced version
     getRoomMessages: chatData.getRoomMessages,
     getSortedRooms: chatData.getSortedRooms,
     getTypingUsersForRoom: chatTyping.getTypingUsersForRoom,
