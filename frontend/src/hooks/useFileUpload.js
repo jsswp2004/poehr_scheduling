@@ -66,7 +66,19 @@ export const useFileUpload = (token, onSuccessCallback) => {
             return true;
         } catch (err) {
             console.error('Failed to upload contacts:', err);
-            setError('Failed to upload contacts');
+            console.error('Error response:', err.response?.data);
+            
+            // Set more detailed error message
+            let errorMessage = 'Failed to upload contacts';
+            if (err.response?.data?.error) {
+                errorMessage = err.response.data.error;
+            } else if (err.response?.data?.errors) {
+                errorMessage = `Upload completed with errors: ${err.response.data.errors.join(', ')}`;
+            } else if (err.response?.status === 500) {
+                errorMessage = 'Server error occurred. Please check your CSV format and try again.';
+            }
+            
+            setError(errorMessage);
             return false;
         } finally {
             setUploading(false);

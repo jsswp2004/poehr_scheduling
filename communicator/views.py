@@ -45,22 +45,93 @@ class BulkUploadView(APIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
-        file = request.FILES.get('file')
-        if not file:
-            return Response({'error': 'No file provided'}, status=400)
+        try:
+            file = request.FILES.get('file')
+            if not file:
+                return Response({'error': 'No file provided'}, status=400)
 
-        decoded = file.read().decode('utf-8').splitlines()
-        reader = csv.DictReader(decoded)
-        created = 0
-        for row in reader:
-            Contact.objects.create(
-                uploaded_by=request.user,
-                name=row.get('name', ''),
-                phone=row.get('phone', ''),
-                email=row.get('email', ''),
-            )
-            created += 1
-        return Response({'created': created})
+            if not file.name.endswith('.csv'):
+                return Response({'error': 'File must be a CSV file'}, status=400)
+
+            # Read and decode file with proper error handling
+            try:
+                decoded = file.read().decode('utf-8').splitlines()
+            except UnicodeDecodeError:
+                try:
+                    # Try with different encoding
+                    file.seek(0)  # Reset file pointer
+                    decoded = file.read().decode('utf-8-sig').splitlines()
+                except UnicodeDecodeError:
+                    return Response({'error': 'Unable to decode file. Please ensure it is UTF-8 encoded.'}, status=400)
+
+            if not decoded:
+                return Response({'error': 'File is empty'}, status=400)
+
+            # Parse CSV with error handling
+            try:
+                reader = csv.DictReader(decoded)
+                
+                # Validate headers
+                expected_headers = {'name', 'phone', 'email'}
+                actual_headers = set(reader.fieldnames or [])
+                
+                if not expected_headers.issubset(actual_headers):
+                    missing_headers = expected_headers - actual_headers
+                    return Response({
+                        'error': f'Missing required headers: {", ".join(missing_headers)}. Expected: name, phone, email'
+                    }, status=400)
+
+                created = 0
+                errors = []
+                
+                for row_num, row in enumerate(reader, start=2):  # Start at 2 because row 1 is headers
+                    try:
+                        # Validate required fields
+                        name = row.get('name', '').strip()
+                        phone = row.get('phone', '').strip()
+                        email = row.get('email', '').strip()
+                        
+                        if not name:
+                            errors.append(f'Row {row_num}: Name is required')
+                            continue
+                            
+                        if not phone and not email:
+                            errors.append(f'Row {row_num}: At least one contact method (phone or email) is required')
+                            continue
+
+                        # Create contact
+                        Contact.objects.create(
+                            uploaded_by=request.user,
+                            name=name,
+                            phone=phone,
+                            email=email,
+                        )
+                        created += 1
+                        
+                    except Exception as e:
+                        errors.append(f'Row {row_num}: {str(e)}')
+                        continue
+
+                # Return results
+                result = {'created': created}
+                if errors:
+                    result['errors'] = errors
+                    result['message'] = f'Partially successful: {created} contacts created, {len(errors)} errors'
+                else:
+                    result['message'] = f'Successfully created {created} contacts'
+
+                return Response(result, status=200)
+                
+            except csv.Error as e:
+                return Response({'error': f'CSV parsing error: {str(e)}'}, status=400)
+                
+        except Exception as e:
+            # Log the full error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Unexpected error in contact upload: {str(e)}", exc_info=True)
+            
+            return Response({'error': f'Upload failed: {str(e)}'}, status=500)
 
 
 class SendBulkMessageView(APIView):
