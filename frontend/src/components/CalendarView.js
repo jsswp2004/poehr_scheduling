@@ -232,7 +232,7 @@ const CalendarView = memo(function CalendarView({
       } else if (event.resource?.type === "availability") {
         // Check if this is a blocked availability event
         const isBlocked = event.resource?.data?.isBlocked || event.resource?.data?.is_blocked;
-        
+
         if (isBlocked) {
           // Open blocked availability modal for editing
           blockedAvailabilityModal.openBlockedAvailabilityModal(event);
