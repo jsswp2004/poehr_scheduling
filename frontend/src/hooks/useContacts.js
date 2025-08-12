@@ -22,6 +22,7 @@ export const useContacts = (token) => {
             const response = await axios.get(`${API_BASE_URL}/api/communicator/contacts/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            console.log("📋 Fetched contacts response:", response.data);
             setContacts(response.data);
         } catch (err) {
             console.error('Failed to fetch contacts:', err);

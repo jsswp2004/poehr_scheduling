@@ -62,7 +62,9 @@ function CommunicatorPage() {
 
   // File upload with success callback
   const fileUpload = useFileUpload(token, (data) => {
+    console.log("🔄 Upload success data:", data);
     toast.success(`${data.created} contacts uploaded successfully`);
+    console.log("🔄 Calling contacts.refreshContacts()");
     contacts.refreshContacts();
   });
 
