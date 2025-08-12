@@ -25,12 +25,10 @@ import axios from "axios";
 import { toast } from "react-toastify";
 
 const BLOCK_TYPE_OPTIONS = [
-    "Vacation",
-    "Sick Leave",
-    "Conference",
-    "Training",
     "Lunch",
-    "Personal",
+    "Meeting",
+    "Vacation",
+    "On Leave",
     "Other",
 ];
 
@@ -61,7 +59,7 @@ const BlockedAvailabilityModal = ({
             console.log("🔍 Selected Event Data:", selectedEvent);
             console.log("🔍 Event Resource:", selectedEvent.resource);
             console.log("🔍 Event Resource Data:", selectedEvent.resource?.data);
-            
+
             setFormData({
                 start_time: toLocalDatetimeInputValue(selectedEvent.start),
                 end_time: toLocalDatetimeInputValue(selectedEvent.end),
@@ -116,9 +114,9 @@ const BlockedAvailabilityModal = ({
             });
 
             // Try multiple possible doctor field names
-            const doctorId = selectedEvent.resource?.data?.doctor || 
-                           selectedEvent.resource?.data?.doctor_id ||
-                           selectedEvent.resource?.data?.doctorId;
+            const doctorId = selectedEvent.resource?.data?.doctor ||
+                selectedEvent.resource?.data?.doctor_id ||
+                selectedEvent.resource?.data?.doctorId;
 
             const updateData = {
                 doctor: doctorId,
@@ -279,7 +277,7 @@ const BlockedAvailabilityModal = ({
 
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
                         Current: {formatTime(selectedEvent.start)} - {formatTime(selectedEvent.end)}
-                        {selectedEvent.resource?.data?.block_type && 
+                        {selectedEvent.resource?.data?.block_type &&
                             ` (${selectedEvent.resource.data.block_type})`
                         }
                     </Typography>
@@ -287,9 +285,9 @@ const BlockedAvailabilityModal = ({
             </DialogContent>
 
             <DialogActions>
-                <Button 
-                    onClick={handleDelete} 
-                    color="error" 
+                <Button
+                    onClick={handleDelete}
+                    color="error"
                     disabled={loading}
                     variant="outlined"
                 >
@@ -298,9 +296,9 @@ const BlockedAvailabilityModal = ({
                 <Button onClick={handleClose} disabled={loading}>
                     Cancel
                 </Button>
-                <Button 
-                    onClick={handleSave} 
-                    color="primary" 
+                <Button
+                    onClick={handleSave}
+                    color="primary"
                     variant="contained"
                     disabled={loading}
                 >
