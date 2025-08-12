@@ -81,28 +81,38 @@ function TeamTable({
     }
 
     return (
-        <Box>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Search Control and Messages Button */}
-            <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box
+                sx={{
+                    display: 'flex',
+                    gap: 2,
+                    mb: 3,
+                    mt: 2,
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexShrink: 0,
+                }}
+            >
                 <TextField
                     label="Search team members..."
                     value={localSearchValue}
                     onChange={handleSearchInputChange}
                     variant="outlined"
                     size="small"
-                    sx={{ minWidth: 300, mt: 2 }}
+                    sx={{ minWidth: 300 }}
                 />
                 {onOpenMessages && (
                     <MessagesButton
                         onClick={onOpenMessages}
                         totalUnreadCount={totalUnreadCount}
-                        sx={{ mt: 2 }}
                     />
                 )}
             </Box>
 
             {/* Team Table */}
-            <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
+            <TableContainer component={Paper} sx={{ flex: 1, minHeight: 0 }}>
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#e3f2fd' }}>
@@ -191,7 +201,7 @@ function TeamTable({
 
             {/* Pagination */}
             {teamTotalPages > 1 && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, flexShrink: 0 }}>
                     <Pagination
                         count={teamTotalPages}
                         page={teamPage}
