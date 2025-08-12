@@ -386,6 +386,16 @@ const CalendarView = memo(function CalendarView({
           step={15}
           timeslots={4}
           views={["month", "week", "work_week", "day", "agenda"]}
+          messages={{
+            work_week: "Work Week",
+            month: "Month",
+            week: "Week",
+            day: "Day",
+            agenda: "Agenda",
+            today: "Today",
+            previous: "Previous",
+            next: "Next"
+          }}
           dayPropGetter={dayPropGetter}
           components={{
             toolbar: toolbarComponent,
