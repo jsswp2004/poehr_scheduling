@@ -470,8 +470,32 @@ const MessagesModal = ({
                                                     p: 1.5,
                                                     bgcolor: message.sender_id === currentUser?.id ? 'primary.main' : 'grey.100',
                                                     color: message.sender_id === currentUser?.id ? 'primary.contrastText' : 'text.primary',
+                                                    position: 'relative',
                                                 }}
                                             >
+                                                {/* Offline message indicator */}
+                                                {message.offline && (
+                                                    <Box
+                                                        sx={{
+                                                            position: 'absolute',
+                                                            top: -8,
+                                                            right: -8,
+                                                            bgcolor: 'warning.main',
+                                                            color: 'warning.contrastText',
+                                                            borderRadius: '50%',
+                                                            width: 16,
+                                                            height: 16,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center',
+                                                            fontSize: '10px',
+                                                            fontWeight: 'bold',
+                                                        }}
+                                                        title="Received while you were offline"
+                                                    >
+                                                        📧
+                                                    </Box>
+                                                )}
                                                 <Typography variant="body2">
                                                     {message.content}
                                                 </Typography>
@@ -484,6 +508,11 @@ const MessagesModal = ({
                                                     }}
                                                 >
                                                     {formatDistanceToNow(new Date(message.timestamp))} ago
+                                                    {message.offline && (
+                                                        <span style={{ fontStyle: 'italic', marginLeft: 4 }}>
+                                                            (while offline)
+                                                        </span>
+                                                    )}
                                                 </Typography>
                                             </Paper>
                                         </Box>

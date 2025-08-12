@@ -1663,3 +1663,164 @@ class PatientMobileView(RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         print("Mobile Patient Delete - Patient ID:", kwargs.get("pk"))
         return super().destroy(request, *args, **kwargs)
+
+
+# ==========================================
+# OFFLINE CHAT MESSAGE API ENDPOINTS
+# ==========================================
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_unread_messages(request):
+    """
+    Get all unread chat messages for the current user
+    """
+    from .models import ChatMessage
+
+    try:
+        user = request.user
+
+        # Get all unread messages where the current user is the recipient
+        unread_messages = (
+            ChatMessage.objects.filter(recipient=user, is_read=False)
+            .select_related("sender", "room")
+            .order_by("timestamp")
+        )
+
+        # Format messages for frontend
+        messages_data = []
+        for message in unread_messages:
+            messages_data.append(
+                {
+                    "id": message.id,
+                    "sender_id": message.sender.id,
+                    "sender_name": f"{message.sender.first_name} {message.sender.last_name}".strip()
+                    or message.sender.username,
+                    "sender_username": message.sender.username,
+                    "content": message.message,
+                    "timestamp": message.timestamp.isoformat(),
+                    "room_id": message.room.id if message.room else None,
+                    "message_type": message.message_type,
+                }
+            )
+
+        return Response(
+            {"unread_messages": messages_data, "count": len(messages_data)}, status=200
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error fetching unread messages for user {user.id}: {str(e)}")
+        return Response({"error": "Failed to fetch unread messages"}, status=500)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def mark_messages_read(request):
+    """
+    Mark specific messages as read
+    Expected payload: {'message_ids': [1, 2, 3]}
+    """
+    from .models import ChatMessage
+
+    try:
+        user = request.user
+        message_ids = request.data.get("message_ids", [])
+
+        if not message_ids:
+            return Response({"error": "message_ids required"}, status=400)
+
+        # Mark messages as read (only if current user is the recipient)
+        updated_count = ChatMessage.objects.filter(
+            id__in=message_ids, recipient=user, is_read=False
+        ).update(is_read=True)
+
+        return Response(
+            {
+                "marked_read": updated_count,
+                "message": f"{updated_count} messages marked as read",
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error marking messages as read for user {user.id}: {str(e)}")
+        return Response({"error": "Failed to mark messages as read"}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_chat_rooms_with_unread(request):
+    """
+    Get all chat rooms for the user with unread message counts
+    """
+    from .models import ChatRoom, ChatMessage
+    from django.db.models import Count, Q
+
+    try:
+        user = request.user
+
+        # Get all rooms where user is a participant
+        user_rooms = (
+            ChatRoom.objects.filter(participants=user)
+            .prefetch_related("participants")
+            .annotate(
+                unread_count=Count(
+                    "messages",
+                    filter=Q(messages__recipient=user, messages__is_read=False),
+                )
+            )
+            .order_by("-created_at")
+        )
+
+        rooms_data = []
+        for room in user_rooms:
+            # Get the other participant (for direct messages)
+            other_participants = room.participants.exclude(id=user.id)
+            other_user = (
+                other_participants.first() if other_participants.exists() else None
+            )
+
+            # Get the last message in the room
+            last_message = room.messages.order_by("-timestamp").first()
+
+            room_data = {
+                "id": room.id,
+                "name": room.name,
+                "room_type": room.room_type,
+                "unread_count": room.unread_count,
+                "last_activity": room.created_at.isoformat(),
+                "other_user": (
+                    {
+                        "id": other_user.id,
+                        "username": other_user.username,
+                        "full_name": f"{other_user.first_name} {other_user.last_name}".strip()
+                        or other_user.username,
+                    }
+                    if other_user
+                    else None
+                ),
+                "last_message": (
+                    {
+                        "content": last_message.message,
+                        "timestamp": last_message.timestamp.isoformat(),
+                        "sender_name": f"{last_message.sender.first_name} {last_message.sender.last_name}".strip()
+                        or last_message.sender.username,
+                    }
+                    if last_message
+                    else None
+                ),
+            }
+            rooms_data.append(room_data)
+
+        return Response(
+            {
+                "chat_rooms": rooms_data,
+                "total_unread": sum(room["unread_count"] for room in rooms_data),
+            },
+            status=200,
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Error fetching chat rooms for user {user.id}: {str(e)}")
+        return Response({"error": "Failed to fetch chat rooms"}, status=500)
