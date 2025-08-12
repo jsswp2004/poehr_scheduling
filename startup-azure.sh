@@ -24,6 +24,12 @@ if [ -n "$CONTAINER_APP_NAME" ]; then
         echo "⚠️  Database migrations failed, but continuing..."
     }
     
+    # Run specific communicator migration fix
+    echo "🔧 Running communicator migration fix..."
+    python azure_migration_fix.py || {
+        echo "⚠️  Communicator migration fix failed, but continuing..."
+    }
+    
     # Create admin user if it doesn't exist (for login functionality)
     echo "👤 Creating admin user if needed..."
     python -c "
