@@ -31,12 +31,14 @@ import BackButton from "./BackButton";
 import CustomToolbar from "./calendar/CustomToolbar";
 import AppointmentModal from "./calendar/AppointmentModal";
 import AvailabilityModal from "./calendar/AvailabilityModal";
+import BlockedAvailabilityModal from "./calendar/BlockedAvailabilityModal";
 import AvailableProvidersModal from "./calendar/AvailableProvidersModal";
 
 // Hooks
 import { useCalendarData } from "../hooks/calendar/useCalendarData";
 import { useAppointmentModal } from "../hooks/calendar/useAppointmentModal";
 import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
+import { useBlockedAvailabilityModal } from "../hooks/calendar/useBlockedAvailabilityModal";
 import { usePatients } from "../hooks/usePatients";
 import { useClinicEvents } from "../hooks/useClinicEvents";
 
@@ -209,6 +211,7 @@ const CalendarView = memo(function CalendarView({
 
   const appointmentModal = useAppointmentModal(onUpdate || refetchData, token);
   const availabilityModal = useAvailabilityModal(availabilityEvents);
+  const blockedAvailabilityModal = useBlockedAvailabilityModal();
 
   // Calendar event handlers
   const handleSelectSlot = useCallback(
@@ -227,10 +230,19 @@ const CalendarView = memo(function CalendarView({
       if (event.resource?.type === "appointment") {
         appointmentModal.openEditAppointmentModal(event);
       } else if (event.resource?.type === "availability") {
-        availabilityModal.openAvailabilityModal(new Date(event.start));
+        // Check if this is a blocked availability event
+        const isBlocked = event.resource?.data?.isBlocked || event.resource?.data?.is_blocked;
+        
+        if (isBlocked) {
+          // Open blocked availability modal for editing
+          blockedAvailabilityModal.openBlockedAvailabilityModal(event);
+        } else {
+          // Open regular availability modal for viewing providers
+          availabilityModal.openAvailabilityModal(new Date(event.start));
+        }
       }
     },
-    [appointmentModal, availabilityModal]
+    [appointmentModal, availabilityModal, blockedAvailabilityModal]
   );
 
   // Day prop getter for blocked days styling
@@ -446,6 +458,14 @@ const CalendarView = memo(function CalendarView({
           open={availabilityModal.showAvailabilityModal}
           onClose={availabilityModal.closeAvailabilityModal}
           selectedDateAvailability={availabilityModal.selectedDateAvailability}
+        />
+
+        {/* Blocked Availability Modal */}
+        <BlockedAvailabilityModal
+          open={blockedAvailabilityModal.showBlockedAvailabilityModal}
+          onClose={blockedAvailabilityModal.closeBlockedAvailabilityModal}
+          selectedEvent={blockedAvailabilityModal.selectedBlockedEvent}
+          onUpdate={refetchData}
         />
 
         {/* Available Providers Modal */}
