@@ -229,6 +229,10 @@ function Navbar() {
           alt="Logo"
           sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
           variant="rounded"
+          onError={(e) => {
+            console.warn('Failed to load organization logo, falling back to default logo');
+            e.target.src = logo;
+          }}
         />          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
           {location.pathname === '/communicator' ? 'POWER Communicator' :
             location.pathname === '/dashboard' ? 'POWER Portal' : 'POWER Scheduler'}
