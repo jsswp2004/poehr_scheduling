@@ -20,10 +20,9 @@ import {
 } from "@mui/material";
 import { formatTime } from "../../utils/calendar/dateUtils";
 import { getValidToken } from "../../utils/auth";
+import { API_BASE_URL } from "../../config/api";
 import axios from "axios";
 import { toast } from "react-toastify";
-
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8000";
 
 const BLOCK_TYPE_OPTIONS = [
     "Vacation",
@@ -112,6 +111,12 @@ const BlockedAvailabilityModal = ({
                 return;
             }
 
+            console.log("🔧 Updating blocked availability:", {
+                id: selectedEvent.resource.data.id,
+                url: `${API_BASE_URL}/api/availability/${selectedEvent.resource.data.id}/`,
+                token: token ? "✅ Token available" : "❌ No token"
+            });
+
             const updateData = {
                 start_time: fromLocalDatetimeInputValue(formData.start_time),
                 end_time: fromLocalDatetimeInputValue(formData.end_time),
@@ -119,6 +124,8 @@ const BlockedAvailabilityModal = ({
                 block_type: formData.block_type,
                 doctor: selectedEvent.resource?.data?.doctor_id,
             };
+
+            console.log("🔧 Update payload:", updateData);
 
             await axios.put(
                 `${API_BASE_URL}/api/availability/${selectedEvent.resource.data.id}/`,
@@ -157,6 +164,12 @@ const BlockedAvailabilityModal = ({
                 setError("Authentication required. Please log in again.");
                 return;
             }
+
+            console.log("🗑️ Deleting blocked availability:", {
+                id: selectedEvent.resource.data.id,
+                url: `${API_BASE_URL}/api/availability/${selectedEvent.resource.data.id}/`,
+                token: token ? "✅ Token available" : "❌ No token"
+            });
 
             await axios.delete(
                 `${API_BASE_URL}/api/availability/${selectedEvent.resource.data.id}/`,
