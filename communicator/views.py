@@ -38,11 +38,16 @@ class ContactViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         import logging
+
         logger = logging.getLogger(__name__)
-        
-        queryset = Contact.objects.filter(uploaded_by=self.request.user).order_by("-created_at")
-        logger.info(f"📋 ContactViewSet: User {self.request.user.id} requesting contacts, found {queryset.count()} contacts")
-        
+
+        queryset = Contact.objects.filter(uploaded_by=self.request.user).order_by(
+            "-created_at"
+        )
+        logger.info(
+            f"📋 ContactViewSet: User {self.request.user.id} requesting contacts, found {queryset.count()} contacts"
+        )
+
         return queryset
 
     def perform_create(self, serializer):
@@ -128,11 +133,14 @@ class BulkUploadView(APIView):
                             email=email,
                         )
                         created += 1
-                        
+
                         # Debug logging
                         import logging
+
                         logger = logging.getLogger(__name__)
-                        logger.info(f"✅ Created contact: {contact.id} - {contact.name} (uploaded_by: {request.user.id})")
+                        logger.info(
+                            f"✅ Created contact: {contact.id} - {contact.name} (uploaded_by: {request.user.id})"
+                        )
 
                     except Exception as e:
                         errors.append(f"Row {row_num}: {str(e)}")
