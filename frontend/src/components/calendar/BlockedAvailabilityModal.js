@@ -115,8 +115,13 @@ const BlockedAvailabilityModal = ({
                 token: token ? "✅ Token available" : "❌ No token"
             });
 
+            // Try multiple possible doctor field names
+            const doctorId = selectedEvent.resource?.data?.doctor || 
+                           selectedEvent.resource?.data?.doctor_id ||
+                           selectedEvent.resource?.data?.doctorId;
+
             const updateData = {
-                doctor: selectedEvent.resource?.data?.doctor || selectedEvent.resource?.data?.doctor_id,
+                doctor: doctorId,
                 start_time: new Date(formData.start_time).toISOString(),
                 end_time: new Date(formData.end_time).toISOString(),
                 is_blocked: true,
@@ -125,9 +130,16 @@ const BlockedAvailabilityModal = ({
                 recurrence_end_date: null, // Default recurrence end date
             };
 
+            console.log("🔧 Doctor ID found:", doctorId);
+            console.log("🔧 Form data times:", {
+                start_local: formData.start_time,
+                end_local: formData.end_time,
+                start_iso: new Date(formData.start_time).toISOString(),
+                end_iso: new Date(formData.end_time).toISOString()
+            });
             console.log("🔧 Update payload:", updateData);
 
-            await axios.put(
+            const response = await axios.put(
                 `${API_BASE_URL}/api/availability/${selectedEvent.resource.data.id}/`,
                 updateData,
                 {
@@ -135,14 +147,20 @@ const BlockedAvailabilityModal = ({
                 }
             );
 
+            console.log("✅ Update successful:", response.data);
+
             toast.success("Block period updated successfully!");
             onUpdate(); // Refresh calendar data
             onClose();
         } catch (err) {
-            console.error("Error updating blocked availability:", err);
+            console.error("❌ Error updating blocked availability:", err);
+            console.error("❌ Error response:", err.response?.data);
+            console.error("❌ Error status:", err.response?.status);
+            console.error("❌ Error headers:", err.response?.headers);
             setError(
                 err.response?.data?.detail ||
                 err.response?.data?.error ||
+                JSON.stringify(err.response?.data) ||
                 "Failed to update block period."
             );
         } finally {
@@ -182,10 +200,13 @@ const BlockedAvailabilityModal = ({
             onUpdate(); // Refresh calendar data
             onClose();
         } catch (err) {
-            console.error("Error deleting blocked availability:", err);
+            console.error("❌ Error deleting blocked availability:", err);
+            console.error("❌ Error response:", err.response?.data);
+            console.error("❌ Error status:", err.response?.status);
             setError(
                 err.response?.data?.detail ||
                 err.response?.data?.error ||
+                JSON.stringify(err.response?.data) ||
                 "Failed to delete block period."
             );
         } finally {
