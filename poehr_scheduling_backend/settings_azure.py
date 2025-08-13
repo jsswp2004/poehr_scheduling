@@ -24,6 +24,8 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "*.azurecontainerapps.io",  # Azure Container Apps domains
     ".azurecontainerapps.io",  # Wildcard for all Azure Container Apps
+    "powerhealthcareit.com",    # Production domain
+    "*.powerhealthcareit.com",  # Subdomains (www, api, etc.)
 ]
 
 # Add any environment-specified hosts
@@ -109,9 +111,11 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = "DENY"
 
-# CSRF settings for Azure Container Apps
+# CSRF settings for Azure Container Apps and custom domain
 CSRF_TRUSTED_ORIGINS = [
     "https://*.azurecontainerapps.io",
+    "https://powerhealthcareit.com",
+    "https://www.powerhealthcareit.com",
 ]
 
 # Static files configuration
@@ -279,10 +283,12 @@ CELERY_RESULT_BACKEND = f"rediss://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0
 if "corsheaders" in INSTALLED_APPS:
     CORS_ALLOWED_ORIGINS = [
         f"https://{SERVICE_URL}.azurecontainerapps.io",
+        "https://powerhealthcareit.com",
+        "https://www.powerhealthcareit.com",
     ] + [
         f"https://{host}"
         for host in ALLOWED_HOSTS
-        if host not in ["localhost", "127.0.0.1"]
+        if host not in ["localhost", "127.0.0.1"] and not host.startswith("*")
     ]
 
 # Add a startup message to help with debugging
@@ -300,3 +306,13 @@ else:
     logger.warning(
         "Azure Key Vault not configured - using environment variables for secrets"
     )
+
+# Custom domain configuration for powerhealthcareit.com
+SITE_URL = os.environ.get("SITE_URL", "https://powerhealthcareit.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://powerhealthcareit.com")
+
+# Email settings for custom domain
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@powerhealthcareit.com")
+SERVER_EMAIL = os.environ.get("SERVER_EMAIL", "admin@powerhealthcareit.com")
+
+logger.info(f"Domain configuration: Site URL = {SITE_URL}, Frontend URL = {FRONTEND_URL}")

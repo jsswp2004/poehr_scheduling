@@ -19,7 +19,13 @@ spec:
         traffic:
           - weight: 100
             latestRevision: true
-        customDomains: []
+        customDomains:
+          - name: "powerhealthcareit.com"
+            bindingType: "SniEnabled"
+            certificateId: "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.App/managedCertificates/powerhealthcareit-com-cert"
+          - name: "www.powerhealthcareit.com"
+            bindingType: "SniEnabled"
+            certificateId: "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.App/managedCertificates/www-powerhealthcareit-com-cert"
       secrets:
         - name: django-secret-key
           keyVaultUrl: "https://{keyvault-name}.vault.azure.net/secrets/django-secret-key"
