@@ -5,7 +5,6 @@ import App from './App';
 import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 // Import Font Awesome initialization
 import './utils/fontAwesome';
-import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const theme = createTheme({
@@ -22,7 +21,6 @@ root.render(
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <App />
-      <ToastContainer />
     </ThemeProvider>
   </React.StrictMode>
 );
