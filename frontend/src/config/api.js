@@ -13,6 +13,11 @@ const getBaseUrl = () => {
 
     // Default based on environment
     if (process.env.NODE_ENV === 'production') {
+        // Check if we're on the custom domain
+        if (window.location.hostname === 'powerhealthcareit.com' || 
+            window.location.hostname === 'www.powerhealthcareit.com') {
+            return 'https://powerhealthcareit.com';
+        }
         // Production URL - use the same domain as the frontend (relative URL)
         return '';  // Empty string means use same domain and protocol
     } else {
@@ -30,6 +35,12 @@ const getWebSocketUrl = () => {
     }
 
     if (process.env.NODE_ENV === 'production') {
+        // Check if we're on the custom domain for WebSocket
+        if (window.location.hostname === 'powerhealthcareit.com' || 
+            window.location.hostname === 'www.powerhealthcareit.com') {
+            return 'wss://powerhealthcareit.com';
+        }
+        
         // Production WebSocket URL - use same domain but wss protocol
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
