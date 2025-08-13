@@ -225,42 +225,55 @@ const MessagesModal = ({
         return filtered
             .map(member => {
                 const memberId = member.id || member.user_id;
-                const unreadCount = getUnreadCountForUser(memberId);
-                const currentId = currentUser?.user_id || currentUser?.id;
-                const otherId = member?.user_id || member?.id;
-                const roomKey = createRoomKey(currentId, otherId);
-                const roomMessages = getRoomMessages ? getRoomMessages(roomKey) : [];
-                const lastMessage = roomMessages[roomMessages.length - 1];
-
-                console.log(`🔍 Member ${memberId} (${member.first_name} ${member.last_name}):`, {
-                    unreadCount,
-                    roomKey,
-                    messageCount: roomMessages.length,
-                    lastMessage
-                });
-
+                
                 return {
                     ...member,
                     id: memberId,
-                    unreadCount,
-                    lastMessage,
-                    hasConversation: roomMessages.length > 0 || unreadCount > 0
+                    // We'll compute unread counts and messages outside of useMemo
+                    hasConversation: false // Placeholder
                 };
             })
             .sort((a, b) => {
-                // Sort by: unread messages first, then by last message time, then alphabetically
-                if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
-                if (a.unreadCount === 0 && b.unreadCount > 0) return 1;
-
-                if (a.lastMessage && b.lastMessage) {
-                    return new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp);
-                }
-                if (a.lastMessage && !b.lastMessage) return -1;
-                if (!a.lastMessage && b.lastMessage) return 1;
-
+                // Simple alphabetical sort for now
                 return getUserDisplayName(a).localeCompare(getUserDisplayName(b));
             });
-    }, [teamListSource, searchQuery, currentUser, getUnreadCountForUser, getRoomMessages]);
+    }, [teamListSource, searchQuery]);
+
+    // Compute conversation data separately to avoid infinite loops
+    const conversationListWithData = useMemo(() => {
+        if (!getUnreadCountForUser || !getRoomMessages) {
+            return conversationList;
+        }
+
+        return conversationList.map(member => {
+            const memberId = member.id;
+            const unreadCount = getUnreadCountForUser(memberId);
+            const currentId = currentUser?.user_id || currentUser?.id;
+            const otherId = member?.user_id || member?.id;
+            const roomKey = createRoomKey(currentId, otherId);
+            const roomMessages = getRoomMessages(roomKey) || [];
+            const lastMessage = roomMessages[roomMessages.length - 1];
+
+            return {
+                ...member,
+                unreadCount,
+                lastMessage,
+                hasConversation: roomMessages.length > 0 || unreadCount > 0
+            };
+        }).sort((a, b) => {
+            // Sort by: unread messages first, then by last message time, then alphabetically
+            if (a.unreadCount > 0 && b.unreadCount === 0) return -1;
+            if (a.unreadCount === 0 && b.unreadCount > 0) return 1;
+
+            if (a.lastMessage && b.lastMessage) {
+                return new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp);
+            }
+            if (a.lastMessage && !b.lastMessage) return -1;
+            if (!a.lastMessage && b.lastMessage) return 1;
+
+            return getUserDisplayName(a).localeCompare(getUserDisplayName(b));
+        });
+    }, [conversationList, getUnreadCountForUser, getRoomMessages, currentUser]);
 
     return (
         <Dialog
@@ -313,7 +326,7 @@ const MessagesModal = ({
                     </Box>
 
                     <List sx={{ flex: 1, overflow: 'auto', p: 0 }}>
-                        {conversationList.length === 0 ? (
+                        {conversationListWithData.length === 0 ? (
                             <ListItem>
                                 <ListItemText
                                     primary="No conversations yet"
@@ -322,7 +335,7 @@ const MessagesModal = ({
                                 />
                             </ListItem>
                         ) : (
-                            conversationList.map((member) => (
+                            conversationListWithData.map((member) => (
                                 <ListItemButton
                                     key={member.id}
                                     selected={selectedUser?.id === member.id}
