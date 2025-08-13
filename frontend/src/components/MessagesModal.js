@@ -54,6 +54,7 @@ const MessagesModal = ({
     const [searchQuery, setSearchQuery] = useState('');
     const [allTeamMembers, setAllTeamMembers] = useState([]);
     const [loadingMembers, setLoadingMembers] = useState(false);
+    const [teamMembersFetched, setTeamMembersFetched] = useState(false); // Add flag to prevent re-fetching
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
 
@@ -105,10 +106,18 @@ const MessagesModal = ({
     // }, [selectedUser, markRoomAsRead, currentUser]);
 
     // Handle sending message
-    // Fetch full team list (paginated) when modal opens
+    // Fetch full team list (paginated) when modal opens - ONLY ONCE
     useEffect(() => {
         const fetchAllTeamMembers = async () => {
+            // Prevent multiple fetches
+            if (teamMembersFetched || loadingMembers) {
+                console.log('🚫 Skipping team fetch - already fetched or loading');
+                return;
+            }
+
             setLoadingMembers(true);
+            setTeamMembersFetched(true); // Set flag early to prevent race conditions
+            
             try {
                 const token = await getValidToken();
                 if (!token) {
@@ -116,6 +125,7 @@ const MessagesModal = ({
                     return;
                 }
 
+                console.log('📥 Fetching team members...');
                 const firstUrl = `${API_BASE_URL}/api/users/team/?page_size=100`;
                 const results = [];
                 let nextUrl = firstUrl;
@@ -135,16 +145,26 @@ const MessagesModal = ({
 
                     nextUrl = data.next || null;
                 }
+                console.log('✅ Team members fetched:', results.length);
                 setAllTeamMembers(results);
             } catch (e) {
                 console.error('Failed to fetch full team list:', e);
+                setTeamMembersFetched(false); // Reset flag on error so it can retry
             } finally {
                 setLoadingMembers(false);
             }
         };
 
-        if (open) {
+        if (open && !teamMembersFetched) {
             fetchAllTeamMembers();
+        }
+    }, [open, teamMembersFetched, loadingMembers]);
+
+    // Reset fetch flag when modal closes
+    useEffect(() => {
+        if (!open) {
+            setTeamMembersFetched(false);
+            setAllTeamMembers([]);
         }
     }, [open]);
 
@@ -241,9 +261,14 @@ const MessagesModal = ({
 
     // Compute conversation data separately to avoid infinite loops
     const conversationListWithData = useMemo(() => {
-        console.log('🔄 conversationListWithData useMemo triggered');
+        console.log('🔄 conversationListWithData useMemo triggered, deps:', {
+            conversationListLength: conversationList.length,
+            hasGetUnreadCountForUser: !!getUnreadCountForUser,
+            hasGetRoomMessages: !!getRoomMessages,
+            currentUserId: currentUser?.user_id || currentUser?.id
+        });
         
-        if (!getUnreadCountForUser || !getRoomMessages) {
+        if (!getUnreadCountForUser || !getRoomMessages || conversationList.length === 0) {
             return conversationList;
         }
 
@@ -275,7 +300,7 @@ const MessagesModal = ({
 
             return getUserDisplayName(a).localeCompare(getUserDisplayName(b));
         });
-    }, [conversationList, getUnreadCountForUser, getRoomMessages, currentUser]);
+    }, [conversationList, getUnreadCountForUser, getRoomMessages, currentUser?.user_id, currentUser?.id]);
 
     return (
         <Dialog
