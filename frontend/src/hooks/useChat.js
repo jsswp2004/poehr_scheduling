@@ -172,7 +172,11 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     console.log('🔢 Current unread counts before update:', chatData.unreadCounts);
     chatData.updateUnreadCount(message.sender_id);
     console.log('🔢 Current unread counts after update:', chatData.unreadCounts);
-    chatNotifications.handleNewMessageNotification(message);
+    
+    // Only show notification for real-time messages, not offline messages being loaded
+    if (!message.offline) {
+      chatNotifications.handleNewMessageNotification(message);
+    }
   }, [currentUser, chatData, chatNotifications]);
 
   // Refs to avoid dependency issues
