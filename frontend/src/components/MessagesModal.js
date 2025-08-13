@@ -94,16 +94,16 @@ const MessagesModal = ({
         }
     }, [messages]);
 
-    // Mark room as read when user is selected - TEMPORARILY DISABLED TO DEBUG INFINITE LOOP
-    // useEffect(() => {
-    //     if (selectedUser && markRoomAsRead) {
-    //         const currentId = currentUser?.user_id || currentUser?.id;
-    //         const otherId = selectedUser?.user_id || selectedUser?.id;
-    //         const roomKey = createRoomKey(currentId, otherId);
-    //         console.log('🔢 MessagesModal: Marking room as read:', roomKey, 'for user:', selectedUser.id);
-    //         markRoomAsRead(roomKey);
-    //     }
-    // }, [selectedUser, markRoomAsRead, currentUser]);
+    // Mark room as read when user is selected
+    useEffect(() => {
+        if (selectedUser && markRoomAsRead) {
+            const currentId = currentUser?.user_id || currentUser?.id;
+            const otherId = selectedUser?.user_id || selectedUser?.id;
+            const roomKey = createRoomKey(currentId, otherId);
+            console.log('🔢 MessagesModal: Marking room as read:', roomKey, 'for user:', selectedUser.id);
+            markRoomAsRead(roomKey);
+        }
+    }, [selectedUser, markRoomAsRead, currentUser]);
 
     // Handle sending message
     // Fetch full team list (paginated) when modal opens - ONLY ONCE
