@@ -57,6 +57,7 @@ const MessagesModal = ({
     const [teamMembersFetched, setTeamMembersFetched] = useState(false); // Add flag to prevent re-fetching
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+    const markedAsReadRef = useRef(new Set()); // Track which rooms we've already marked as read
 
     // Helper functions for user display
     const getUserDisplayName = (user) => {
@@ -94,16 +95,22 @@ const MessagesModal = ({
         }
     }, [messages]);
 
-    // Mark room as read when user is selected
+    // Mark room as read when user is selected - with deduplication to prevent loops
     useEffect(() => {
         if (selectedUser && markRoomAsRead) {
             const currentId = currentUser?.user_id || currentUser?.id;
             const otherId = selectedUser?.user_id || selectedUser?.id;
             const roomKey = createRoomKey(currentId, otherId);
-            console.log('🔢 MessagesModal: Marking room as read:', roomKey, 'for user:', selectedUser.id);
-            markRoomAsRead(roomKey);
+            
+            // Only mark as read if we haven't already done so for this room
+            if (!markedAsReadRef.current.has(roomKey)) {
+                console.log('🔢 MessagesModal: Marking room as read:', roomKey, 'for user:', selectedUser.id);
+                markedAsReadRef.current.add(roomKey);
+                markRoomAsRead(roomKey);
+            }
         }
-    }, [selectedUser, markRoomAsRead, currentUser]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedUser, currentUser]); // Intentionally excluding markRoomAsRead to prevent loops
 
     // Handle sending message
     // Fetch full team list (paginated) when modal opens - ONLY ONCE
@@ -165,6 +172,7 @@ const MessagesModal = ({
         if (!open) {
             setTeamMembersFetched(false);
             setAllTeamMembers([]);
+            markedAsReadRef.current.clear(); // Clear marked as read tracking
         }
     }, [open]);
 
