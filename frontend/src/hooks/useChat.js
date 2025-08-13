@@ -384,6 +384,19 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     }
   }, [chatData, markMessagesReadOnServer]);
 
+  // Memoized functions to prevent infinite loops in components
+  const getTotalUnreadCount = useCallback(() => {
+    const totalCount = Object.values(chatData.unreadCounts).reduce((total, count) => total + count, 0);
+    console.log('🔢 getTotalUnreadCount:', totalCount, 'from unreadCounts:', chatData.unreadCounts);
+    return totalCount;
+  }, [chatData.unreadCounts]);
+
+  const getUnreadCountForUser = useCallback((userId) => {
+    const count = chatData.unreadCounts[userId] || 0;
+    console.log(`🔢 getUnreadCountForUser(${userId}):`, count, 'All unread counts:', chatData.unreadCounts);
+    return count;
+  }, [chatData.unreadCounts]);
+
   return {
     // State
     chatRooms: chatData.chatRooms,
@@ -404,16 +417,8 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     getRoomMessages: chatData.getRoomMessages,
     getSortedRooms: chatData.getSortedRooms,
     getTypingUsersForRoom: chatTyping.getTypingUsersForRoom,
-    getTotalUnreadCount: () => {
-      const totalCount = Object.values(chatData.unreadCounts).reduce((total, count) => total + count, 0);
-      console.log('🔢 getTotalUnreadCount:', totalCount, 'from unreadCounts:', chatData.unreadCounts);
-      return totalCount;
-    },
-    getUnreadCountForUser: (userId) => {
-      const count = chatData.unreadCounts[userId] || 0;
-      console.log(`🔢 getUnreadCountForUser(${userId}):`, count, 'All unread counts:', chatData.unreadCounts);
-      return count;
-    }
+    getTotalUnreadCount,
+    getUnreadCountForUser
   };
 };
 
