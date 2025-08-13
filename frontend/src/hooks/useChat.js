@@ -1,7 +1,12 @@
 /**
  * Refactored useChat hook - Main chat functionality
  * 
- * This is a much more maintainable version of the original 691-line useChat.js
+ * This is a m          });
+
+        console.log('✅ Offline messages loaded successfully');
+      } else {
+        console.log('📭 No offline messages found');
+      }re maintainable version of the original 691-line useChat.js
  * - Business logic separated into focused hooks
  * - Utilities extracted for reusability
  * - Better organization and maintainability
@@ -30,12 +35,10 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Fetch offline messages when user logs in
   const fetchOfflineMessages = useCallback(async () => {
     if (!currentUser || offlineMessagesFetched) {
-      console.log('📭 Skipping offline messages fetch:', { currentUser: !!currentUser, offlineMessagesFetched });
       return;
     }
 
     try {
-      console.log('📥 Fetching offline messages for user:', currentUser.id);
       setOfflineMessagesFetched(true); // Set flag to prevent re-fetching
 
       const token = await getValidToken();
@@ -51,8 +54,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
       const { unread_messages, count } = response.data;
 
       if (count > 0) {
-        console.log(`📬 Found ${count} offline messages`);
-
         // Show notification about missed messages
         chatNotifications.handleOfflineMessagesNotification?.(count);
 
@@ -95,7 +96,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Initialize chat system
   const initializeChatSystem = useCallback(async () => {
     if (chatSystemLoading === false) {
-      console.log('📭 Chat system already initialized, skipping');
       return;
     }
 
@@ -127,26 +127,20 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
   // Handle incoming messages
   const handleIncomingMessage = useCallback((message) => {
-    console.log('🔥 handleIncomingMessage called with:', message);
-
     if (!currentUser) {
-      console.log('❌ No currentUser, skipping message');
       return;
     }
 
     const currentUserId = currentUser.user_id || currentUser.id;
-    console.log('👤 Current user ID:', currentUserId);
 
     // Skip processing messages sent by the current user (avoid duplicate handling)
     if (message.sender_id === currentUserId) {
-      console.log('⏭️ Skipping own message');
       return;
     }
 
     // For incoming messages, the other user is always the sender
     const otherUserId = message.sender_id;
     const roomKey = createRoomKey(currentUserId, otherUserId);
-    console.log('🏠 Room key created:', roomKey);
 
     if (!roomKey) {
       console.error('❌ Could not create room key for message:', message);
@@ -158,20 +152,14 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
       ? chatDataRef.current.isDuplicateMessage(roomKey, message)
       : false;
     if (isDuplicate) {
-      console.log('♻️ Duplicate message detected. Skipping add/unread increment.');
       return;
     }
 
     // Add message to room
-    console.log('📨 Adding message to room:', roomKey);
     chatDataRef.current.addMessageToRoom(roomKey, message);
 
     // Update unread count for the sender (who we received the message from)
-    // This represents how many unread messages the current user has from this sender
-    console.log('🔢 Updating unread count for sender:', message.sender_id);
-    console.log('🔢 Current unread counts before update:', chatData.unreadCounts);
     chatData.updateUnreadCount(message.sender_id);
-    console.log('🔢 Current unread counts after update:', chatData.unreadCounts);
     
     // Only show notification for real-time messages, not offline messages being loaded
     if (!message.offline) {
@@ -190,8 +178,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
   // Send message
   const handleSendMessage = useCallback(async (targetUser, content) => {
-    console.log('📤 handleSendMessage called:', { targetUser, content });
-
     if (!currentUser || !targetUser || !content.trim()) {
       console.warn('⚠️ Missing required data for sending message');
       return;
@@ -199,7 +185,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
 
     const currentUserId = currentUser.user_id || currentUser.id;
     const targetUserId = targetUser.user_id || targetUser.id;
-    console.log('👥 User IDs:', { currentUserId, targetUserId });
 
     setOperationStatus('sending');
     chatData.setLastError(null);
@@ -207,7 +192,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
     try {
       // Create or get room
       const room = chatData.getOrCreateRoom(targetUser);
-      console.log('🏠 Room for message:', room);
 
       if (!room) {
         console.error('❌ Room creation failed - getOrCreateRoom returned null');
@@ -223,7 +207,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
         content: content.trim(),
         timestamp: new Date().toISOString(),
       };
-      console.log('💬 Created message object:', message);
 
       // Add to local state immediately for optimistic updates
       chatData.addMessageToRoom(room.id, message);
@@ -236,11 +219,9 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
           recipient_id: targetUserId,  // Use numeric user ID  
           message: content.trim(),
         };
-        console.log('📡 Sending WebSocket message:', wsMessage);
 
         try {
           const sent = sendMessage(wsMessage);
-          console.log('📡 WebSocket send result:', sent);
           if (!sent) {
             throw new Error('WebSocket not connected');
           }
@@ -275,7 +256,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
           type: 'join_room',
           recipient_id: recipientId,  // Use numeric user ID directly
         };
-        console.log('🏠 Sending join_room message:', joinMessage);
         sendMessage(joinMessage);
       }
     }
@@ -313,7 +293,6 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Initialize on mount (only once per user)
   useEffect(() => {
     if (currentUser && !offlineMessagesFetched && chatSystemLoading) {
-      console.log('🚀 Initializing chat system for user:', currentUser.id);
       initializeChatSystem();
     }
   }, [currentUser, offlineMessagesFetched, chatSystemLoading, initializeChatSystem]);
@@ -321,29 +300,21 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Handle WebSocket messages
   useEffect(() => {
     if (lastMessageFromOnlineStatus) {
-      console.log('📡 Raw WebSocket message received:', lastMessageFromOnlineStatus);
-
       try {
         const messageData = typeof lastMessageFromOnlineStatus === 'string'
           ? JSON.parse(lastMessageFromOnlineStatus)
           : lastMessageFromOnlineStatus;
 
-        console.log('📡 Parsed WebSocket message:', messageData);
-
         if (messageData.type === 'chat_message' || messageData.type === 'new_message') {
           // Handle both 'chat_message' and 'new_message' types
           const actualMessage = messageData.message || messageData;
-          console.log('💬 Processing chat message:', actualMessage);
           handleIncomingMessage(actualMessage);
         } else if (messageData.type === 'typing_indicator') {
-          console.log('⌨️ Processing typing indicator:', messageData);
           if (messageData.is_typing) {
             chatTypingRef.current.handleTypingStart(messageData.user_id, messageData.user_name);
           } else {
             chatTypingRef.current.handleTypingStop(messageData.user_id);
           }
-        } else {
-          console.log('ℹ️ Ignoring message type:', messageData.type);
         }
         // Silently ignore other message types like user_status_update, online_users_list
       } catch (error) {
@@ -391,13 +362,11 @@ export const useChat = (currentUser, websocketConnection, sendMessage, lastMessa
   // Memoized functions to prevent infinite loops in components
   const getTotalUnreadCount = useCallback(() => {
     const totalCount = Object.values(chatData.unreadCounts).reduce((total, count) => total + count, 0);
-    console.log('🔢 getTotalUnreadCount:', totalCount, 'from unreadCounts:', chatData.unreadCounts);
     return totalCount;
   }, [chatData.unreadCounts]);
 
   const getUnreadCountForUser = useCallback((userId) => {
     const count = chatData.unreadCounts[userId] || 0;
-    console.log(`🔢 getUnreadCountForUser(${userId}):`, count, 'All unread counts:', chatData.unreadCounts);
     return count;
   }, [chatData.unreadCounts]);
 

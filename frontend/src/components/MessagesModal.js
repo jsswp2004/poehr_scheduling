@@ -104,7 +104,6 @@ const MessagesModal = ({
             
             // Only mark as read if we haven't already done so for this room
             if (!markedAsReadRef.current.has(roomKey)) {
-                console.log('🔢 MessagesModal: Marking room as read:', roomKey, 'for user:', selectedUser.id);
                 markedAsReadRef.current.add(roomKey);
                 markRoomAsRead(roomKey);
             }
@@ -118,7 +117,6 @@ const MessagesModal = ({
         const fetchAllTeamMembers = async () => {
             // Prevent multiple fetches
             if (teamMembersFetched || loadingMembers) {
-                console.log('🚫 Skipping team fetch - already fetched or loading');
                 return;
             }
 
@@ -132,7 +130,6 @@ const MessagesModal = ({
                     return;
                 }
 
-                console.log('📥 Fetching team members...');
                 const firstUrl = `${API_BASE_URL}/api/users/team/?page_size=100`;
                 const results = [];
                 let nextUrl = firstUrl;
@@ -152,7 +149,6 @@ const MessagesModal = ({
 
                     nextUrl = data.next || null;
                 }
-                console.log('✅ Team members fetched:', results.length);
                 setAllTeamMembers(results);
             } catch (e) {
                 console.error('Failed to fetch full team list:', e);
@@ -192,7 +188,6 @@ const MessagesModal = ({
         }
 
         try {
-            console.log('📤 MessagesModal sending message:', { to: selectedUser, content: messageText.trim() });
             await onSendMessage(selectedUser, messageText.trim());
             setMessageText('');
             setIsTyping(false);
@@ -248,8 +243,6 @@ const MessagesModal = ({
             return first.includes(search) || last.includes(search) || user.includes(search) || full.includes(search);
         });
 
-        console.log('🔍 MessagesModal: Processing team members:', filtered);
-
         return filtered
             .map(member => {
                 const memberId = member.id || member.user_id;
@@ -269,13 +262,6 @@ const MessagesModal = ({
 
     // Compute conversation data separately to avoid infinite loops
     const conversationListWithData = useMemo(() => {
-        console.log('🔄 conversationListWithData useMemo triggered, deps:', {
-            conversationListLength: conversationList.length,
-            hasGetUnreadCountForUser: !!getUnreadCountForUser,
-            hasGetRoomMessages: !!getRoomMessages,
-            currentUserId: currentUser?.user_id || currentUser?.id
-        });
-        
         if (!getUnreadCountForUser || !getRoomMessages || conversationList.length === 0) {
             return conversationList;
         }
