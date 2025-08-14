@@ -1,11 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import {
-  Box,
-  Typography,
-  Tabs,
-  Tab,
-  CircularProgress,
-} from "@mui/material";
+import { Box, Typography, Tabs, Tab, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate } from "react-router-dom";
@@ -145,11 +139,16 @@ function PatientsPage() {
     ) {
       const message = lastMessageFromOnlineStatus.message;
 
-      if (message && message.sender_id !== currentUser?.id && !messagesModalOpen) {
+      if (
+        message &&
+        message.sender_id !== currentUser?.id &&
+        !messagesModalOpen
+      ) {
         toast.info(
-          `💬 ${message.sender_name}: ${message.content.length > 50
-            ? message.content.substring(0, 50) + "..."
-            : message.content
+          `💬 ${message.sender_name}: ${
+            message.content.length > 50
+              ? message.content.substring(0, 50) + "..."
+              : message.content
           }`,
           {
             position: "top-right",
@@ -262,29 +261,35 @@ function PatientsPage() {
   };
 
   // Handle appointment status updates from dropdown
-  const handleAppointmentStatusUpdate = useCallback(async (appointmentId, newStatus) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/appointments/${appointmentId}/`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status: newStatus }),
-      });
+  const handleAppointmentStatusUpdate = useCallback(
+    async (appointmentId, newStatus) => {
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/appointments/${appointmentId}/`,
+          {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: newStatus }),
+          }
+        );
 
-      if (response.ok) {
-        // Refresh today's appointments to reflect the change
-        appointments.fetchTodaysAppointments(token);
-        toast.success(`Appointment status updated to ${newStatus}`);
-      } else {
-        toast.error('Failed to update appointment status');
+        if (response.ok) {
+          // Refresh today's appointments to reflect the change
+          appointments.fetchTodaysAppointments(token);
+          toast.success(`Appointment status updated to ${newStatus}`);
+        } else {
+          toast.error("Failed to update appointment status");
+        }
+      } catch (error) {
+        console.error("Error updating appointment status:", error);
+        toast.error("Error updating appointment status");
       }
-    } catch (error) {
-      console.error('Error updating appointment status:', error);
-      toast.error('Error updating appointment status');
-    }
-  }, [token, appointments]);
+    },
+    [token, appointments]
+  );
 
   // Analytics handlers
   const handleDownloadReport = (reportName) => {
@@ -305,18 +310,21 @@ function PatientsPage() {
   //   }
   // }, [chat]);
 
-  const handleSendChatMessage = useCallback((targetUser, content) => {
-    if (chat && chat.sendMessage) {
-      // Transform targetUser to ensure it has user_id property for chat system compatibility
-      const chatTargetUser = {
-        ...targetUser,
-        user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
-      };
+  const handleSendChatMessage = useCallback(
+    (targetUser, content) => {
+      if (chat && chat.sendMessage) {
+        // Transform targetUser to ensure it has user_id property for chat system compatibility
+        const chatTargetUser = {
+          ...targetUser,
+          user_id: targetUser.id || targetUser.user_id, // Use id if user_id doesn't exist
+        };
 
-      // Pass the transformed targetUser object to useChat
-      chat.sendMessage(chatTargetUser, content);
-    }
-  }, [chat]);
+        // Pass the transformed targetUser object to useChat
+        chat.sendMessage(chatTargetUser, content);
+      }
+    },
+    [chat]
+  );
 
   if (!token || !currentUser) {
     return (
@@ -342,7 +350,7 @@ function PatientsPage() {
           //boxShadow: 2,
           borderRadius: 2,
           bgcolor: "background.paper",
-          p: 2,
+          p: 0,
           height: "calc(100vh - 140px)", // Fixed: Changed from 120vh to 100vh
           display: "flex",
           flexDirection: "column",
@@ -455,8 +463,8 @@ function PatientsPage() {
             {(userRole === "admin" ||
               userRole === "system_admin" ||
               userRole === "registrar") && (
-                <Tab label="Register" value="register" />
-              )}
+              <Tab label="Register" value="register" />
+            )}
           </Tabs>
           <BackButton />
         </Box>
@@ -491,7 +499,9 @@ function PatientsPage() {
               setTeamPage={team.setTeamPage}
               teamTotalPages={team.teamTotalPages}
               onOpenMessages={handleOpenMessages}
-              totalUnreadCount={chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0}
+              totalUnreadCount={
+                chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0
+              }
               onSendText={handleTeamSendText}
               onOpenEmailModal={handleTeamOpenEmailModal}
             />
@@ -557,7 +567,9 @@ function PatientsPage() {
           getRoomMessages={chat.getRoomMessages}
           getTypingUsersForRoom={chat.getTypingUsersForRoom}
           isLoading={chat.isLoading}
-          connectionStatus={onlineStatusConnected ? 'connected' : 'disconnected'}
+          connectionStatus={
+            onlineStatusConnected ? "connected" : "disconnected"
+          }
           operationStatus={chat.operationStatus}
           chatError={chat.lastError}
           onRetryConnection={() => window.location.reload()}
