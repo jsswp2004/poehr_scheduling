@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { API_BASE_URL } from '../config/api';
+import { API_BASE_URL } from "../config/api";
 import {
   TextField,
   Box,
@@ -69,7 +69,8 @@ function AdminUserSearchPage() {
         const providerName =
           appt.provider_name ||
           (appt.provider
-            ? `Dr. ${appt.provider.first_name || ""} ${appt.provider.last_name || ""
+            ? `Dr. ${appt.provider.first_name || ""} ${
+                appt.provider.last_name || ""
               }`.trim()
             : "");
         const dateTime = appt.appointment_datetime
@@ -110,9 +111,16 @@ function AdminUserSearchPage() {
   );
 
   return (
-    <Box sx={{ width: "100%", mt: 5, px: 3 }}>
+    <Box sx={{ width: "100%", mt: 0, px: 3 }}>
       {/* Header with title and back button */}
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 3,
+        }}
+      >
         <Typography variant="h5" fontWeight={600}>
           Search Appointments
         </Typography>
@@ -198,8 +206,9 @@ function AdminUserSearchPage() {
                   <TableCell>
                     {appt.provider_name ||
                       (appt.provider &&
-                        (appt.provider.first_name || appt.provider.last_name)
-                        ? `Dr. ${appt.provider.first_name || ""} ${appt.provider.last_name || ""
+                      (appt.provider.first_name || appt.provider.last_name)
+                        ? `Dr. ${appt.provider.first_name || ""} ${
+                            appt.provider.last_name || ""
                           }`.trim()
                         : "-")}
                   </TableCell>
@@ -283,7 +292,10 @@ function AdminUserSearchPage() {
         fullWidth
       >
         <DialogTitle>Appointment Details</DialogTitle>
-        <DialogContent dividers sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <DialogContent
+          dividers
+          sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+        >
           {selectedAppointment && (
             <>
               <Typography>
@@ -297,7 +309,8 @@ function AdminUserSearchPage() {
                 <b>Provider:</b>{" "}
                 {selectedAppointment.provider_name ||
                   (selectedAppointment.provider
-                    ? `Dr. ${selectedAppointment.provider.first_name || ""} ${selectedAppointment.provider.last_name || ""
+                    ? `Dr. ${selectedAppointment.provider.first_name || ""} ${
+                        selectedAppointment.provider.last_name || ""
                       }`.trim()
                     : "-")}
               </Typography>
@@ -305,8 +318,8 @@ function AdminUserSearchPage() {
                 <b>Date & Time:</b>{" "}
                 {selectedAppointment.appointment_datetime
                   ? new Date(
-                    selectedAppointment.appointment_datetime
-                  ).toLocaleString()
+                      selectedAppointment.appointment_datetime
+                    ).toLocaleString()
                   : "-"}
               </Typography>
               <Typography>
