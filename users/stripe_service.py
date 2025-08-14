@@ -8,7 +8,18 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Configure Stripe API key with debugging
 stripe.api_key = settings.STRIPE_SECRET_KEY
+
+# Debug Stripe configuration
+if hasattr(settings, 'STRIPE_SECRET_KEY'):
+    stripe_key_preview = settings.STRIPE_SECRET_KEY[:12] + '...' if settings.STRIPE_SECRET_KEY else 'Not set'
+    print(f"🔧 Stripe API Key configured: {stripe_key_preview}")
+    if not settings.STRIPE_SECRET_KEY:
+        logger.error("❌ STRIPE_SECRET_KEY is not configured!")
+else:
+    logger.error("❌ STRIPE_SECRET_KEY setting not found!")
+    print("❌ STRIPE_SECRET_KEY setting not found!")
 
 # Tier key to display name mapping
 TIER_DISPLAY_NAMES = {

@@ -219,40 +219,52 @@ class RegisterView(generics.CreateAPIView):
 
             # User created successfully
             # Only create Stripe customer for service enrollment, not patient registration
-            if is_enrollment:  # Initialize Stripe service
-                stripe_service = StripeService()
+            if is_enrollment:
+                try:
+                    # Initialize Stripe service
+                    stripe_service = StripeService()
 
-                # Create or retrieve Stripe customer
-                customer = stripe_service.create_customer(
-                    user=user, payment_method_id=payment_method_id
-                )
-
-                if not customer:
-                    # Delete the user if Stripe customer creation failed
-                    user.delete()
-                    return Response(
-                        {"error": "Failed to create Stripe customer"},
-                        status=status.HTTP_400_BAD_REQUEST,
+                    # Create or retrieve Stripe customer
+                    customer = stripe_service.create_customer(
+                        user=user, payment_method_id=payment_method_id
                     )
 
-                customer_id = customer.id
-                # Create trial subscription
-                subscription = stripe_service.create_trial_subscription(
-                    user=user,
-                    tier=subscription_tier,
-                    payment_method_id=payment_method_id,
-                )
+                    if not customer:
+                        # Delete the user if Stripe customer creation failed
+                        user.delete()
+                        return Response(
+                            {"error": "Failed to create Stripe customer"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
 
-                if not subscription:
-                    # Delete the user if subscription creation failed
-                    user.delete()
-                    return Response(
-                        {"error": "Failed to create subscription"},
-                        status=status.HTTP_400_BAD_REQUEST,
+                    customer_id = customer.id
+                    # Create trial subscription
+                    subscription = stripe_service.create_trial_subscription(
+                        user=user,
+                        tier=subscription_tier,
+                        payment_method_id=payment_method_id,
                     )
 
-                # Update user with Stripe information (user data is already updated in create_trial_subscription)
-                # No need to manually set these fields as they're set in the method
+                    if not subscription:
+                        # Delete the user if subscription creation failed
+                        user.delete()
+                        return Response(
+                            {"error": "Failed to create subscription"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                    # Update user with Stripe information (user data is already updated in create_trial_subscription)
+                    # No need to manually set these fields as they're set in the method
+                
+                except Exception as stripe_error:
+                    # Delete the user if any Stripe operation failed
+                    user.delete()
+                    logger.error(f"❌ Stripe error during enrollment: {str(stripe_error)}")
+                    print(f"❌ Stripe error during enrollment: {str(stripe_error)}")
+                    return Response(
+                        {"error": f"Payment processing failed: {str(stripe_error)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
             else:
                 # For patient registration, no Stripe integration needed
                 pass
