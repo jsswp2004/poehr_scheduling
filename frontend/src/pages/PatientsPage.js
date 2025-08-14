@@ -92,20 +92,29 @@ function PatientsPage() {
   // Initialize authentication
   useEffect(() => {
     const initializeAuth = async () => {
+      console.log('🔍 PatientsPage: Starting authentication check...');
+      console.log('🌍 Current URL:', window.location.href);
+      console.log('🔧 Environment:', process.env.NODE_ENV);
+      console.log('📡 API Base URL:', process.env.REACT_APP_API_URL || 'relative');
+      
       try {
         const validToken = await getValidToken();
         if (!validToken) {
-          console.error("No valid token available");
+          console.error("❌ PatientsPage: No valid token available");
+          console.log('🔧 LocalStorage contents:', Object.keys(localStorage));
           clearAuthData();
           navigate("/login");
           return;
         }
 
+        console.log("✅ PatientsPage: Valid token obtained");
         setToken(validToken);
 
         // Validate user role
         const decoded = jwtDecode(validToken);
         const role = decoded.role || "";
+        console.log("👤 PatientsPage: User role:", role);
+        console.log("⏰ Token expiry:", new Date(decoded.exp * 1000));
         setUserRole(role);
 
         if (
@@ -115,13 +124,24 @@ function PatientsPage() {
           role !== "registrar" &&
           role !== "receptionist"
         ) {
+          console.error("❌ PatientsPage: Unauthorized role:", role);
           navigate("/");
+          return;
         }
 
+        console.log("✅ PatientsPage: Role authorized, fetching organization data...");
         // Fetch organization data after successful token validation
         await analytics.fetchOrganizationData();
+        console.log("✅ PatientsPage: Initialization complete");
       } catch (err) {
-        console.error("Authentication initialization failed:", err);
+        console.error("❌ PatientsPage: Authentication initialization failed:", err);
+        console.log('🔧 Error details:', {
+          name: err.name,
+          message: err.message,
+          stack: err.stack,
+          response: err.response?.data,
+          status: err.response?.status
+        });
         clearAuthData();
         navigate("/login");
       }
