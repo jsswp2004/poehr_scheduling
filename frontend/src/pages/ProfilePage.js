@@ -290,7 +290,7 @@ function ProfilePage() {
 
   if (loading) {
     return (
-      <Box sx={{ textAlign: "center", my: 5 }}>
+      <Box sx={{ textAlign: "center", mb: 5 }}>
         <CircularProgress />
       </Box>
     );
@@ -304,10 +304,15 @@ function ProfilePage() {
     );
 
   return (
-    <Box sx={{ mt: 4, px: 3, width: "100%" }}>
+    <Box sx={{ mt: 0, px: 0, width: "100%" }}>
       <Paper
         elevation={0}
-        sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, width: "100%", height: "calc(100vh - 120px)" }}
+        sx={{
+          p: { xs: 2, sm: 3 },
+          borderRadius: 2,
+          width: "100%",
+          height: "calc(100vh - 120px)",
+        }}
       >
         {" "}
         {/* Top Action Bar */}
@@ -473,18 +478,18 @@ function ProfilePage() {
                     </th>
                     {(loggedInUserRole === "admin" ||
                       loggedInUserRole === "system_admin") && (
-                        <th
-                          style={{
-                            padding: "8px 12px",
-                            textAlign: "center",
-                            fontWeight: 600,
-                            borderBottom: "2px solid #ddd",
-                            minWidth: "60px",
-                          }}
-                        >
-                          Delete
-                        </th>
-                      )}
+                      <th
+                        style={{
+                          padding: "8px 12px",
+                          textAlign: "center",
+                          fontWeight: 600,
+                          borderBottom: "2px solid #ddd",
+                          minWidth: "60px",
+                        }}
+                      >
+                        Delete
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -555,7 +560,7 @@ function ProfilePage() {
                         >
                           {result.organization_name ||
                             (result.organization &&
-                              typeof result.organization === "object"
+                            typeof result.organization === "object"
                               ? result.organization.name
                               : "Unknown")}
                         </td>
@@ -594,22 +599,22 @@ function ProfilePage() {
                       </td>
                       {(loggedInUserRole === "admin" ||
                         loggedInUserRole === "system_admin") && (
-                          <td
-                            style={{
-                              padding: "8px 12px",
-                              textAlign: "center",
-                            }}
+                        <td
+                          style={{
+                            padding: "8px 12px",
+                            textAlign: "center",
+                          }}
+                        >
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleDelete(result.id)}
+                            sx={{ padding: "4px" }}
                           >
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDelete(result.id)}
-                              sx={{ padding: "4px" }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </td>
-                        )}
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -841,10 +846,10 @@ function ProfilePage() {
                 readOnly: !isEditing,
                 sx: !isEditing
                   ? {
-                    color: "#333",
-                    backgroundColor: "#f8f9fa",
-                    WebkitTextFillColor: "#333",
-                  }
+                      color: "#333",
+                      backgroundColor: "#f8f9fa",
+                      WebkitTextFillColor: "#333",
+                    }
                   : {},
               }}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
@@ -863,10 +868,10 @@ function ProfilePage() {
                 readOnly: !isEditing,
                 sx: !isEditing
                   ? {
-                    color: "#333",
-                    backgroundColor: "#f8f9fa",
-                    WebkitTextFillColor: "#333",
-                  }
+                      color: "#333",
+                      backgroundColor: "#f8f9fa",
+                      WebkitTextFillColor: "#333",
+                    }
                   : {},
               }}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
@@ -886,10 +891,10 @@ function ProfilePage() {
                 readOnly: !isEditing,
                 sx: !isEditing
                   ? {
-                    color: "#333",
-                    backgroundColor: "#f8f9fa",
-                    WebkitTextFillColor: "#333",
-                  }
+                      color: "#333",
+                      backgroundColor: "#f8f9fa",
+                      WebkitTextFillColor: "#333",
+                    }
                   : {},
               }}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
@@ -910,10 +915,10 @@ function ProfilePage() {
                 readOnly: !isEditing,
                 sx: !isEditing
                   ? {
-                    color: "#333",
-                    backgroundColor: "#f8f9fa",
-                    WebkitTextFillColor: "#333",
-                  }
+                      color: "#333",
+                      backgroundColor: "#f8f9fa",
+                      WebkitTextFillColor: "#333",
+                    }
                   : {},
               }}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
@@ -928,8 +933,8 @@ function ProfilePage() {
                 Role
               </Typography>
               {isEditing &&
-                (loggedInUserRole === "admin" ||
-                  loggedInUserRole === "system_admin") ? (
+              (loggedInUserRole === "admin" ||
+                loggedInUserRole === "system_admin") ? (
                 <FormControl fullWidth size="small">
                   <InputLabel id="role-label">Role</InputLabel>
                   <MUISelect
@@ -1127,10 +1132,11 @@ function ProfilePage() {
                       }
                     />
                     <TextField
-                      label={`New Password${isAdminChangingOtherUser
-                        ? ` for ${user.first_name}`
-                        : ""
-                        }`}
+                      label={`New Password${
+                        isAdminChangingOtherUser
+                          ? ` for ${user.first_name}`
+                          : ""
+                      }`}
                       type="password"
                       name="new_password"
                       value={passwordData.new_password}

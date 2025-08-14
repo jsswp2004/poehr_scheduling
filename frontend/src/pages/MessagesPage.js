@@ -36,6 +36,7 @@ function MessagesPage() {
         bgcolor: "background.paper",
         //boxShadow: 2,
         borderRadius: 2,
+        mt: 0,
       }}
     >
       <Box

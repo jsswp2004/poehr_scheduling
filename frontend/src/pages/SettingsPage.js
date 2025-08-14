@@ -1,36 +1,31 @@
-import { useState } from 'react';
-import MaintenancePage from './MaintenancePage';
-import EnvironmentProfilePage from './EnvironmentProfilePage';
-import UploadTab from '../components/UploadTab';
-import BackButton from '../components/BackButton';
-import {
-  Box,
-  Typography,
-  Tabs,
-  Tab
-} from '@mui/material';
+import { useState } from "react";
+import MaintenancePage from "./MaintenancePage";
+import EnvironmentProfilePage from "./EnvironmentProfilePage";
+import UploadTab from "../components/UploadTab";
+import BackButton from "../components/BackButton";
+import { Box, Typography, Tabs, Tab } from "@mui/material";
 
 function SettingsPage() {
-  const [tab, setTab] = useState('maintenance');
+  const [tab, setTab] = useState("maintenance");
 
   return (
-    <div style={{ textAlign: 'left', width: '100%' }}>
-      <Box sx={{
-        mt: 0,
-        boxShadow: 2,
-        borderRadius: 2,
-        bgcolor: 'background.paper',
-        p: 3,
-
-
-      }}>
+    <div style={{ textAlign: "left", width: "100%" }}>
+      <Box
+        sx={{
+          mt: 0,
+          boxShadow: 2,
+          borderRadius: 2,
+          bgcolor: "background.paper",
+          p: 0,
+        }}
+      >
         <Box
           sx={{
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            alignItems: "center",
             mb: -1, // Negative margin to pull content up and connect to tabs
             borderRadius: 2,
-            bgcolor: '#f5faff',
+            bgcolor: "#f5faff",
             boxShadow: 1,
             minHeight: 48,
             p: 0,
@@ -42,28 +37,28 @@ function SettingsPage() {
             sx={{
               flex: 1,
               minHeight: 40,
-              '& .MuiTabs-indicator': {
+              "& .MuiTabs-indicator": {
                 height: 4,
                 borderRadius: 2,
-                bgcolor: 'primary.main',
+                bgcolor: "primary.main",
               },
-              '& .MuiTab-root': {
+              "& .MuiTab-root": {
                 fontWeight: 500,
-                fontSize: '1rem',
-                color: 'primary.main',
+                fontSize: "1rem",
+                color: "primary.main",
                 minHeight: 40,
-                textTransform: 'none',
+                textTransform: "none",
                 borderRadius: 2,
                 mx: 0.5,
-                transition: 'background 0.2s',
-                '&.Mui-selected': {
-                  bgcolor: 'primary.light',
-                  color: 'primary.dark',
+                transition: "background 0.2s",
+                "&.Mui-selected": {
+                  bgcolor: "primary.light",
+                  color: "primary.dark",
                   boxShadow: 2,
                 },
-                '&:hover': {
-                  bgcolor: 'primary.lighter',
-                  color: 'primary.dark',
+                "&:hover": {
+                  bgcolor: "primary.lighter",
+                  color: "primary.dark",
                 },
               },
             }}
@@ -77,20 +72,41 @@ function SettingsPage() {
           </Box>
         </Box>
 
-        {tab === 'maintenance' && (
-          <Box sx={{ boxShadow: 2, borderRadius: '0 0 8px 8px', bgcolor: 'background.paper', p: 3 }}>
+        {tab === "maintenance" && (
+          <Box
+            sx={{
+              boxShadow: 2,
+              borderRadius: "0 0 8px 8px",
+              bgcolor: "background.paper",
+              p: 3,
+            }}
+          >
             <MaintenancePage />
           </Box>
         )}
-        {tab === 'env' && (
-          <Box sx={{ boxShadow: 2, borderRadius: '0 0 8px 8px', bgcolor: 'background.paper', p: 3 }}>
+        {tab === "env" && (
+          <Box
+            sx={{
+              boxShadow: 2,
+              borderRadius: "0 0 8px 8px",
+              bgcolor: "background.paper",
+              p: 3,
+            }}
+          >
             {/*<Typography variant="h6" sx={{ mb: 2 }}>Environment Profile</Typography>*/}
             <EnvironmentProfilePage />
           </Box>
         )}
-        {tab === 'uploads' && (
-          <Box sx={{ boxShadow: 2, borderRadius: '0 0 8px 8px', bgcolor: 'background.paper', p: 3 }}>
-            { }
+        {tab === "uploads" && (
+          <Box
+            sx={{
+              boxShadow: 2,
+              borderRadius: "0 0 8px 8px",
+              bgcolor: "background.paper",
+              p: 3,
+            }}
+          >
+            {}
             <UploadTab />
           </Box>
         )}
