@@ -2,7 +2,15 @@ import { Navigate } from 'react-router-dom';
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('access_token');
-  return token ? children : <Navigate to="/login" />;
+  console.log('🛡️ PrivateRoute: Checking authentication, token exists:', !!token);
+  
+  if (!token) {
+    console.log('❌ PrivateRoute: No token found, redirecting to login');
+    return <Navigate to="/login" />;
+  }
+  
+  console.log('✅ PrivateRoute: Token found, allowing access');
+  return children;
 }
 
 export default PrivateRoute;

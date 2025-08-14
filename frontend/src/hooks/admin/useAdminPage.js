@@ -93,6 +93,29 @@ export const useAdminPage = () => {
 
     // Handle navigation to different admin sections
     const handleNavigate = (path) => {
+        console.log('🚀 AdminPage navigating to:', path);
+        console.log('🔑 Current token exists:', !!localStorage.getItem('access_token'));
+        console.log('👤 Current user role:', userRole);
+        console.log('🌍 Current URL:', window.location.href);
+        console.log('🔧 Environment:', process.env.NODE_ENV);
+        console.log('📡 API Base URL:', process.env.REACT_APP_API_URL || 'default');
+        
+        // Try to decode and log token info (safely)
+        try {
+            const token = localStorage.getItem('access_token');
+            if (token) {
+                const decoded = jwtDecode(token);
+                console.log('🔍 Token decoded:', {
+                    role: decoded.role,
+                    exp: new Date(decoded.exp * 1000),
+                    user_id: decoded.user_id,
+                    isExpired: decoded.exp * 1000 < Date.now()
+                });
+            }
+        } catch (e) {
+            console.error('❌ Error decoding token:', e);
+        }
+        
         navigate(path);
     };
 
