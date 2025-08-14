@@ -66,9 +66,16 @@ export const useRoleValidation = (navigate) => {
                 throw new Error('No token provided');
             }
 
+            // Ensure we're working with a string token
+            const tokenString = typeof token === 'string' ? token : token.access_token;
+            
+            if (!tokenString || typeof tokenString !== 'string') {
+                throw new Error('Invalid token format: must be a string');
+            }
+
             // Role-based access control check using provided token
             try {
-                const decoded = jwtDecode(token.access_token);
+                const decoded = jwtDecode(tokenString);
                 const role = decoded.role || "";
 
                 if (
@@ -85,7 +92,7 @@ export const useRoleValidation = (navigate) => {
 
                 console.log(`✅ Access granted for role: ${role} (with provided token)`);
                 setUserRole(role);
-                return { token, role };
+                return { token: tokenString, role };
             } catch (err) {
                 console.error("❌ Token decode failed:", err);
                 setError(err);

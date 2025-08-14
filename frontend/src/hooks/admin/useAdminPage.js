@@ -99,7 +99,7 @@ export const useAdminPage = () => {
         console.log('🌍 Current URL:', window.location.href);
         console.log('🔧 Environment:', process.env.NODE_ENV);
         console.log('📡 API Base URL:', process.env.REACT_APP_API_URL || 'default');
-        
+
         // Try to decode and log token info (safely)
         try {
             const token = localStorage.getItem('access_token');
@@ -115,7 +115,7 @@ export const useAdminPage = () => {
         } catch (e) {
             console.error('❌ Error decoding token:', e);
         }
-        
+
         navigate(path);
     };
 

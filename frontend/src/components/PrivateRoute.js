@@ -3,12 +3,12 @@ import { Navigate } from 'react-router-dom';
 function PrivateRoute({ children }) {
   const token = localStorage.getItem('access_token');
   console.log('🛡️ PrivateRoute: Checking authentication, token exists:', !!token);
-  
+
   if (!token) {
     console.log('❌ PrivateRoute: No token found, redirecting to login');
     return <Navigate to="/login" />;
   }
-  
+
   console.log('✅ PrivateRoute: Token found, allowing access');
   return children;
 }
@@ -25,7 +25,7 @@ export default PrivateRoute;
 // Make sure to import this component in your App.js or wherever you define your routes.
 // You can also customize the redirection path by passing a `to` prop to the Navigate component if you want to redirect to a different page.
 // For example: <Navigate to="/custom-login" />
-// This will redirect the user to the "/custom-login" page if they are not authenticated.   
+// This will redirect the user to the "/custom-login" page if they are not authenticated.
 // You can also add additional logic to handle different user roles or permissions if needed.
 // Just ensure that you have the necessary logic in place to check for those roles or permissions before rendering the protected components.
 // This will help you create a more secure and user-friendly application by ensuring that only authorized users can access certain parts of your app.
