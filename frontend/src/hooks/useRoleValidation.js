@@ -68,7 +68,7 @@ export const useRoleValidation = (navigate) => {
 
             // Ensure we're working with a string token
             const tokenString = typeof token === 'string' ? token : token.access_token;
-            
+
             if (!tokenString || typeof tokenString !== 'string') {
                 throw new Error('Invalid token format: must be a string');
             }
