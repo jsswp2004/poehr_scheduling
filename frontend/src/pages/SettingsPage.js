@@ -13,7 +13,7 @@ function SettingsPage() {
       <Box
         sx={{
           mt: 0,
-          boxShadow: 2,
+          boxShadow: 0,
           borderRadius: 2,
           bgcolor: "background.paper",
           p: 0,
@@ -26,7 +26,7 @@ function SettingsPage() {
             mb: -1, // Negative margin to pull content up and connect to tabs
             borderRadius: 2,
             bgcolor: "#f5faff",
-            boxShadow: 1,
+            boxShadow: 0,
             minHeight: 48,
             p: 0,
           }}
