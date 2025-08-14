@@ -209,68 +209,65 @@ class RegisterView(generics.CreateAPIView):
             print("❌ Registration data causing errors:", serializer_data)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        # Use atomic transaction to ensure all-or-nothing behavior
         try:
-            # Create the user first (but don't commit to database yet)
-            user = serializer.save(organization=organization)
+            with transaction.atomic():
+                # Create the user (this will be rolled back if Stripe fails)
+                user = serializer.save(organization=organization)
 
-            # Set role to 'admin' for service enrollment
-            if is_enrollment:
-                user.role = "admin"
+                # Set role to 'admin' for service enrollment
+                if is_enrollment:
+                    user.role = "admin"
+                    user.save()  # Save the role change
 
-            # User created successfully
-            # Only create Stripe customer for service enrollment, not patient registration
-            if is_enrollment:
-                try:
-                    # Initialize Stripe service
-                    stripe_service = StripeService()
+                # Only create Stripe customer for service enrollment, not patient registration
+                if is_enrollment:
+                    try:
+                        print(f"🔄 Starting Stripe operations for user: {user.username}")
+                        
+                        # Initialize Stripe service
+                        stripe_service = StripeService()
 
-                    # Create or retrieve Stripe customer
-                    customer = stripe_service.create_customer(
-                        user=user, payment_method_id=payment_method_id
-                    )
-
-                    if not customer:
-                        # Delete the user if Stripe customer creation failed
-                        user.delete()
-                        return Response(
-                            {"error": "Failed to create Stripe customer"},
-                            status=status.HTTP_400_BAD_REQUEST,
+                        # Create or retrieve Stripe customer
+                        customer = stripe_service.create_customer(
+                            user=user, payment_method_id=payment_method_id
                         )
 
-                    customer_id = customer.id
-                    # Create trial subscription
-                    subscription = stripe_service.create_trial_subscription(
-                        user=user,
-                        tier=subscription_tier,
-                        payment_method_id=payment_method_id,
-                    )
+                        if not customer:
+                            print("❌ Stripe customer creation failed")
+                            raise Exception("Failed to create Stripe customer")
 
-                    if not subscription:
-                        # Delete the user if subscription creation failed
-                        user.delete()
-                        return Response(
-                            {"error": "Failed to create subscription"},
-                            status=status.HTTP_400_BAD_REQUEST,
+                        print(f"✅ Stripe customer created: {customer.id}")
+                        
+                        # Create trial subscription
+                        subscription = stripe_service.create_trial_subscription(
+                            user=user,
+                            tier=subscription_tier,
+                            payment_method_id=payment_method_id,
                         )
 
-                    # Update user with Stripe information (user data is already updated in create_trial_subscription)
-                    # No need to manually set these fields as they're set in the method
-                
-                except Exception as stripe_error:
-                    # Delete the user if any Stripe operation failed
-                    user.delete()
-                    logger.error(f"❌ Stripe error during enrollment: {str(stripe_error)}")
-                    print(f"❌ Stripe error during enrollment: {str(stripe_error)}")
-                    return Response(
-                        {"error": f"Payment processing failed: {str(stripe_error)}"},
-                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    )
-            else:
-                # For patient registration, no Stripe integration needed
-                pass
+                        if not subscription:
+                            print("❌ Stripe subscription creation failed")
+                            raise Exception("Failed to create subscription")
 
-            # Save the user (with or without Stripe data)
-            user.save()
+                        print(f"✅ Stripe subscription created: {subscription.id}")
+
+                    except Exception as stripe_error:
+                        # This will trigger the transaction rollback
+                        print(f"❌ Stripe error during enrollment: {str(stripe_error)}")
+                        logger.error(f"❌ Stripe error during enrollment: {str(stripe_error)}")
+                        raise Exception(f"Payment processing failed: {str(stripe_error)}")
+
+                # If we get here, everything succeeded
+                print(f"✅ User created successfully: {user.username}")
+
+        except Exception as e:
+            # Transaction was rolled back, user was not created
+            print(f"❌ Registration failed, transaction rolled back: {str(e)}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
             if is_enrollment:
                 # Send welcome email to new enrollee
