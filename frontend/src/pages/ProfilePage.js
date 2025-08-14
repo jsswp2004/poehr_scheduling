@@ -629,7 +629,7 @@ function ProfilePage() {
             boxShadow: 0,
             borderRadius: 2,
             bgcolor: "background.paper",
-            p: 0,
+            p: 3,
           }}
         >
           <Typography variant="h6" sx={{ mb: 3 }}>
@@ -1142,8 +1142,8 @@ function ProfilePage() {
                       />
                       <TextField
                         label={`New Password${isAdminChangingOtherUser
-                            ? ` for ${user.first_name}`
-                            : ""
+                          ? ` for ${user.first_name}`
+                          : ""
                           }`}
                         type="password"
                         name="new_password"
