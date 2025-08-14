@@ -182,8 +182,8 @@ function AppContent() {
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/patients" element={<PatientsPage />} />
-        <Route path="/patients/:id" element={<PatientDetailPage />} />
+        <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
+        <Route path="/patients/:id" element={<PrivateRoute><PatientDetailPage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
