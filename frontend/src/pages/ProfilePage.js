@@ -304,7 +304,7 @@ function ProfilePage() {
     );
 
   return (
-    <Box sx={{ mt: 0, px: 0, width: "100%" }}>
+    <Box sx={{ m: 0, px: 0, width: "100%" }}>
       <Paper
         elevation={0}
         {/*p: { xs: 2, sm: 3 },*/}
