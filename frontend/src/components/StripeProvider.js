@@ -36,10 +36,10 @@ const StripeProvider = ({ children }) => {
     console.warn('⚠️ Stripe not configured. Payment features will be disabled.');
     return (
       <div>
-        <div style={{ 
-          padding: '16px', 
-          backgroundColor: '#fff3cd', 
-          border: '1px solid #ffeaa7', 
+        <div style={{
+          padding: '16px',
+          backgroundColor: '#fff3cd',
+          border: '1px solid #ffeaa7',
           borderRadius: '4px',
           marginBottom: '16px',
           color: '#856404'
