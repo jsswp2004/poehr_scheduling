@@ -307,8 +307,10 @@ function ProfilePage() {
     <Box sx={{ mt: 0, px: 0, width: "100%" }}>
       <Paper
         elevation={0}
+        {/*p: { xs: 2, sm: 3 },*/}
         sx={{
-          p: { xs: 2, sm: 3 },
+          
+          p: 0,
           borderRadius: 2,
           width: "100%",
           height: "calc(100vh - 120px)",

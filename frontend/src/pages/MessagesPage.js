@@ -32,7 +32,7 @@ function MessagesPage() {
     <Box
       sx={{
         height: "100%",
-        p: 3,
+        p: 0,
         bgcolor: "background.paper",
         //boxShadow: 2,
         borderRadius: 2,
