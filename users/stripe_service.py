@@ -9,21 +9,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 # Configure Stripe API key with debugging
-stripe.api_key = settings.STRIPE_SECRET_KEY
+try:
+    stripe.api_key = settings.STRIPE_SECRET_KEY
 
-# Debug Stripe configuration
-if hasattr(settings, "STRIPE_SECRET_KEY"):
-    stripe_key_preview = (
-        settings.STRIPE_SECRET_KEY[:12] + "..."
-        if settings.STRIPE_SECRET_KEY
-        else "Not set"
-    )
-    print(f"🔧 Stripe API Key configured: {stripe_key_preview}")
-    if not settings.STRIPE_SECRET_KEY:
-        logger.error("❌ STRIPE_SECRET_KEY is not configured!")
-else:
-    logger.error("❌ STRIPE_SECRET_KEY setting not found!")
-    print("❌ STRIPE_SECRET_KEY setting not found!")
+    # Debug Stripe configuration
+    if hasattr(settings, "STRIPE_SECRET_KEY"):
+        stripe_key_preview = (
+            settings.STRIPE_SECRET_KEY[:12] + "..."
+            if settings.STRIPE_SECRET_KEY
+            else "Not set"
+        )
+        print(f"🔧 Stripe API Key configured: {stripe_key_preview}")
+        if not settings.STRIPE_SECRET_KEY:
+            logger.error("❌ STRIPE_SECRET_KEY is not configured!")
+    else:
+        logger.error("❌ STRIPE_SECRET_KEY setting not found!")
+        print("❌ STRIPE_SECRET_KEY setting not found!")
+    
+    # Debug price IDs
+    print(f"🏷️ Price ID Debug:")
+    print(f"   Basic: {getattr(settings, 'STRIPE_BASIC_PRICE_ID', 'NOT_SET')}")
+    print(f"   Premium: {getattr(settings, 'STRIPE_PREMIUM_PRICE_ID', 'NOT_SET')}")
+    print(f"   Enterprise: {getattr(settings, 'STRIPE_ENTERPRISE_PRICE_ID', 'NOT_SET')}")
+    
+except Exception as e:
+    logger.error(f"❌ Error configuring Stripe: {e}")
+    print(f"❌ Error configuring Stripe: {e}")
 
 # Tier key to display name mapping
 TIER_DISPLAY_NAMES = {"basic": "Personal", "premium": "Clinic", "enterprise": "Group"}
