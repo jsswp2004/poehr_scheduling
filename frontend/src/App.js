@@ -23,6 +23,7 @@ import { autoMigrate } from './utils/tokenMigration';
 import HolidaysTab from './pages/HolidaysPage';
 import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
 import AdminUserSearchPage from './pages/AdminUserSearchPage';
+import AccountPage from './pages/AccountPage';
 import EditAppointmentPage from './pages/EditAppointmentPage';
 import AppointmentsPage from './pages/AppointmentsPage';
 import PricingPage from './pages/PricingPage';
@@ -185,6 +186,7 @@ function AppContent() {
         <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
         <Route path="/patients/:id" element={<PrivateRoute><PatientDetailPage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
+        <Route path="/account" element={<PrivateRoute><AccountPage /></PrivateRoute>} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/maintenance" element={<PrivateRoute><MaintenancePage /></PrivateRoute>} />
