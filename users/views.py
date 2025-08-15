@@ -108,42 +108,75 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
     lookup_field = "pk"
     lookup_url_kwarg = "pk"
 
+    def get(self, request, *args, **kwargs):
+        """Override get method with debugging"""
+        try:
+            print(f"🔍 GET request for user ID {kwargs.get('pk')} by user {request.user.username}")
+            return super().get(request, *args, **kwargs)
+        except Exception as e:
+            print(f"❌ Error in GET method: {str(e)}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
+            return Response(
+                {"error": f"Failed to retrieve user: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
         """Delete a user with proper permission checks"""
-        user_to_delete = self.get_object()
-        requesting_user = request.user
-        
-        # Security check: Only allow admins to delete users, and prevent self-deletion
-        if requesting_user.role not in ['admin', 'system_admin']:
+        try:
+            user_to_delete = self.get_object()
+            requesting_user = request.user
+            
+            print(f"🗑️ Delete request: User {requesting_user.username} (role: {requesting_user.role}) trying to delete user ID {kwargs.get('pk')}")
+            
+            # Security check: Only allow admins to delete users, and prevent self-deletion
+            if requesting_user.role not in ["admin", "system_admin"]:
+                print(f"❌ Permission denied: User role '{requesting_user.role}' not in allowed roles")
+                return Response(
+                    {"error": "Only administrators can delete users"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            if user_to_delete.pk == requesting_user.pk:
+                print(f"❌ Self-deletion attempted")
+                return Response(
+                    {"error": "Cannot delete your own account"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Optional: Check if user belongs to same organization (unless system admin)
+            if (
+                requesting_user.role != "system_admin"
+                and requesting_user.organization != user_to_delete.organization
+            ):
+                print(f"❌ Organization mismatch: {requesting_user.organization} vs {user_to_delete.organization}")
+                return Response(
+                    {"error": "Can only delete users from your organization"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Perform the deletion
+            username = user_to_delete.username
+            print(f"✅ Deleting user: {username}")
+            user_to_delete.delete()
+            print(f"✅ User {username} deleted successfully")
             return Response(
-                {"error": "Only administrators can delete users"}, 
-                status=status.HTTP_403_FORBIDDEN
+                {"message": f"User {username} deleted successfully"},
+                status=status.HTTP_204_NO_CONTENT,
             )
-        
-        if user_to_delete.pk == requesting_user.pk:
+            
+        except Exception as e:
+            print(f"❌ Error in delete method: {str(e)}")
+            import traceback
+            print(f"❌ Traceback: {traceback.format_exc()}")
             return Response(
-                {"error": "Cannot delete your own account"}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": f"Failed to delete user: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-        
-        # Optional: Check if user belongs to same organization (unless system admin)
-        if (requesting_user.role != 'system_admin' and 
-            requesting_user.organization != user_to_delete.organization):
-            return Response(
-                {"error": "Can only delete users from your organization"}, 
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
-        # Perform the deletion
-        username = user_to_delete.username
-        user_to_delete.delete()
-        return Response(
-            {"message": f"User {username} deleted successfully"}, 
-            status=status.HTTP_204_NO_CONTENT
-        )
 
 
 class PatientUpdateView(RetrieveUpdateAPIView):
