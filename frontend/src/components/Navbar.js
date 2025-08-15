@@ -17,6 +17,7 @@ import Tooltip from '@mui/material/Tooltip';
 import useForceUpdate from '../utils/useForceUpdate';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import ChatIcon from '@mui/icons-material/Chat';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
 
@@ -274,6 +275,20 @@ function Navbar() {
                     </IconButton>
                   </Tooltip>
                 )}
+
+              {/* Account Icon Link - only for admin and system_admin */}
+              {(role === 'admin' || role === 'system_admin') && (
+                <Tooltip title="Account Settings">
+                  <IconButton
+                    color="inherit"
+                    sx={{ mr: 1 }}
+                    onClick={() => navigate('/account')}
+                    aria-label="Account Settings"
+                  >
+                    <AccountCircleIcon sx={{ color: 'white' }} />
+                  </IconButton>
+                </Tooltip>
+              )}
               <Button
                 color="inherit"
                 sx={{
