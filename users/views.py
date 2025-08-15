@@ -101,7 +101,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         instance.delete()
 
 
-class UserDetailView(RetrieveUpdateAPIView):
+class UserDetailView(RetrieveUpdateDestroyAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
@@ -110,6 +110,40 @@ class UserDetailView(RetrieveUpdateAPIView):
 
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        """Delete a user with proper permission checks"""
+        user_to_delete = self.get_object()
+        requesting_user = request.user
+        
+        # Security check: Only allow admins to delete users, and prevent self-deletion
+        if requesting_user.role not in ['admin', 'system_admin']:
+            return Response(
+                {"error": "Only administrators can delete users"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        if user_to_delete.pk == requesting_user.pk:
+            return Response(
+                {"error": "Cannot delete your own account"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Optional: Check if user belongs to same organization (unless system admin)
+        if (requesting_user.role != 'system_admin' and 
+            requesting_user.organization != user_to_delete.organization):
+            return Response(
+                {"error": "Can only delete users from your organization"}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Perform the deletion
+        username = user_to_delete.username
+        user_to_delete.delete()
+        return Response(
+            {"message": f"User {username} deleted successfully"}, 
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
 class PatientUpdateView(RetrieveUpdateAPIView):
