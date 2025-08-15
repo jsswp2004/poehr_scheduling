@@ -111,11 +111,14 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
     def get(self, request, *args, **kwargs):
         """Override get method with debugging"""
         try:
-            print(f"🔍 GET request for user ID {kwargs.get('pk')} by user {request.user.username}")
+            print(f"🔍 GET request for user ID {kwargs.get('pk')}")
+            print(f"🔍 Request user: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+            print(f"🔍 Is authenticated: {request.user.is_authenticated}")
             return super().get(request, *args, **kwargs)
         except Exception as e:
             print(f"❌ Error in GET method: {str(e)}")
             import traceback
+
             print(f"❌ Traceback: {traceback.format_exc()}")
             return Response(
                 {"error": f"Failed to retrieve user: {str(e)}"},
@@ -130,12 +133,16 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         try:
             user_to_delete = self.get_object()
             requesting_user = request.user
-            
-            print(f"🗑️ Delete request: User {requesting_user.username} (role: {requesting_user.role}) trying to delete user ID {kwargs.get('pk')}")
-            
+
+            print(
+                f"🗑️ Delete request: User {requesting_user.username} (role: {requesting_user.role}) trying to delete user ID {kwargs.get('pk')}"
+            )
+
             # Security check: Only allow admins to delete users, and prevent self-deletion
             if requesting_user.role not in ["admin", "system_admin"]:
-                print(f"❌ Permission denied: User role '{requesting_user.role}' not in allowed roles")
+                print(
+                    f"❌ Permission denied: User role '{requesting_user.role}' not in allowed roles"
+                )
                 return Response(
                     {"error": "Only administrators can delete users"},
                     status=status.HTTP_403_FORBIDDEN,
@@ -153,7 +160,9 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
                 requesting_user.role != "system_admin"
                 and requesting_user.organization != user_to_delete.organization
             ):
-                print(f"❌ Organization mismatch: {requesting_user.organization} vs {user_to_delete.organization}")
+                print(
+                    f"❌ Organization mismatch: {requesting_user.organization} vs {user_to_delete.organization}"
+                )
                 return Response(
                     {"error": "Can only delete users from your organization"},
                     status=status.HTTP_403_FORBIDDEN,
@@ -168,10 +177,11 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
                 {"message": f"User {username} deleted successfully"},
                 status=status.HTTP_204_NO_CONTENT,
             )
-            
+
         except Exception as e:
             print(f"❌ Error in delete method: {str(e)}")
             import traceback
+
             print(f"❌ Traceback: {traceback.format_exc()}")
             return Response(
                 {"error": f"Failed to delete user: {str(e)}"},
