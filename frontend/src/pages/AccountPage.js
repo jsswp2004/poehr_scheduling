@@ -244,7 +244,7 @@ function AccountPage() {
     const currentPlanData = planOptions.find(plan => plan.value === currentPlan);
 
     return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Container maxWidth={false} sx={{ mt: 4, mb: 4, px: 4 }}>
             {/* Header with Back Button */}
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <IconButton
@@ -259,9 +259,9 @@ function AccountPage() {
                 </Typography>
             </Box>
 
-            <Grid container spacing={4}>
+            <Grid container spacing={4} sx={{ height: '100%' }}>
                 {/* LEFT PANE */}
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} lg={6}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
                         {/* Account Details Section */}
@@ -364,7 +364,7 @@ function AccountPage() {
                 </Grid>
 
                 {/* RIGHT PANE */}
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} lg={6}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
 
                         {/* Payment Methods Section */}
