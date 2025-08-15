@@ -226,9 +226,17 @@ class RegisterView(generics.CreateAPIView):
                         print(
                             f"🔄 Starting Stripe operations for user: {user.username}"
                         )
+                        print(f"🔄 Subscription tier: {subscription_tier}")
+                        print(f"🔄 Payment method ID: {payment_method_id}")
 
+                        # Debug: Check settings before initializing StripeService
+                        from django.conf import settings
+                        print(f"🔧 Stripe secret key available: {bool(getattr(settings, 'STRIPE_SECRET_KEY', None))}")
+                        print(f"🔧 Basic price ID: {getattr(settings, 'STRIPE_BASIC_PRICE_ID', 'NOT_SET')}")
+                        
                         # Initialize Stripe service
                         stripe_service = StripeService()
+                        print("✅ StripeService initialized successfully")
 
                         # Create or retrieve Stripe customer
                         customer = stripe_service.create_customer(
@@ -257,6 +265,9 @@ class RegisterView(generics.CreateAPIView):
                     except Exception as stripe_error:
                         # This will trigger the transaction rollback
                         print(f"❌ Stripe error during enrollment: {str(stripe_error)}")
+                        print(f"❌ Stripe error type: {type(stripe_error).__name__}")
+                        import traceback
+                        print(f"❌ Full traceback: {traceback.format_exc()}")
                         logger.error(
                             f"❌ Stripe error during enrollment: {str(stripe_error)}"
                         )
@@ -270,14 +281,19 @@ class RegisterView(generics.CreateAPIView):
         except Exception as e:
             # Transaction was rolled back, user was not created
             print(f"❌ Registration failed, transaction rolled back: {str(e)}")
+            print(f"❌ Error type: {type(e).__name__}")
+            import traceback
+            print(f"❌ Full traceback: {traceback.format_exc()}")
+            logger.error(f"Registration failed: {str(e)}")
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-            if is_enrollment:
-                # Send welcome email to new enrollee
-                try:
+        # Send welcome email if enrollment was successful
+        if is_enrollment:
+            # Send welcome email to new enrollee
+            try:
                     # Format trial end date
                     trial_end_formatted = (
                         user.trial_end_date.strftime("%B %d, %Y")
