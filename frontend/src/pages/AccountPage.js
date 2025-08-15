@@ -8,8 +8,6 @@ import { jwtDecode } from 'jwt-decode';
 import {
     Container,
     Typography,
-    Card,
-    CardContent,
     Grid,
     Button,
     Box,
@@ -27,10 +25,8 @@ import {
     Table,
     TableBody,
     TableCell,
-    TableContainer,
     TableHead,
     TableRow,
-    Paper,
     Alert
 } from '@mui/material';
 import {
@@ -263,11 +259,13 @@ function AccountPage() {
                 </Typography>
             </Box>
 
-            <Grid container spacing={3}>
-                {/* ROW 1, COLUMN 1: Account Details Section */}
+            <Grid container spacing={4}>
+                {/* LEFT PANE */}
                 <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+                        {/* Account Details Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                                 <Typography variant="h6" gutterBottom>
                                     <Person sx={{ mr: 1, verticalAlign: 'middle' }} />
@@ -304,14 +302,10 @@ function AccountPage() {
                                     <Typography variant="body1">{accountData?.organization_name || 'Not set'}</Typography>
                                 </Grid>
                             </Grid>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                        </Box>
 
-                {/* ROW 1, COLUMN 2: Current Plan Section */}
-                <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardContent>
+                        {/* Current Plan Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
                                 <Business sx={{ mr: 1, verticalAlign: 'middle' }} />
                                 Current Plan
@@ -346,14 +340,35 @@ function AccountPage() {
                             >
                                 Change Plan
                             </Button>
-                        </CardContent>
-                    </Card>
+                        </Box>
+
+                        {/* Cancellation Notice Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
+                            <Typography variant="h6" gutterBottom color="error">
+                                <Warning sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                Cancellation Notice
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                                Cancelling your account is permanent and cannot be undone. Please ensure you have saved any important data before proceeding.
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                color="error"
+                                onClick={() => setCancelAccountOpen(true)}
+                                startIcon={<Cancel />}
+                            >
+                                Cancel Account
+                            </Button>
+                        </Box>
+                    </Box>
                 </Grid>
 
-                {/* ROW 2, COLUMN 1: Payment Methods Section */}
+                {/* RIGHT PANE */}
                 <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardContent>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+
+                        {/* Payment Methods Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
                                 <CreditCard sx={{ mr: 1, verticalAlign: 'middle' }} />
                                 Payment Methods
@@ -365,7 +380,7 @@ function AccountPage() {
                                     justifyContent: 'space-between',
                                     alignItems: 'center',
                                     p: 2,
-                                    backgroundColor: '#f5f5f5',
+                                    backgroundColor: '#ffffff',
                                     borderRadius: 1,
                                     mb: 1
                                 }}>
@@ -396,20 +411,16 @@ function AccountPage() {
                             >
                                 Add Payment Method
                             </Button>
-                        </CardContent>
-                    </Card>
-                </Grid>
+                        </Box>
 
-                {/* ROW 2, COLUMN 2: Billing History Section */}
-                <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardContent>
+                        {/* Billing History Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
                                 <Email sx={{ mr: 1, verticalAlign: 'middle' }} />
                                 Billing History
                             </Typography>
 
-                            <TableContainer component={Paper} sx={{ mt: 2 }}>
+                            <Box sx={{ mt: 2, backgroundColor: '#ffffff', borderRadius: 1, overflow: 'hidden' }}>
                                 <Table>
                                     <TableHead>
                                         <TableRow>
@@ -436,36 +447,11 @@ function AccountPage() {
                                         ))}
                                     </TableBody>
                                 </Table>
-                            </TableContainer>
-                        </CardContent>
-                    </Card>
+                            </Box>
+                        </Box>
+                    </Box>
                 </Grid>
-
-                {/* ROW 3, COLUMN 1: Account Cancellation Section (Danger Zone) */}
-                <Grid item xs={12} md={6}>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6" gutterBottom color="error">
-                                <Warning sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                Cancellation Notice
-                            </Typography>
-                            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                                Cancelling your account is permanent and cannot be undone. Please ensure you have saved any important data before proceeding.
-                            </Typography>
-                            <Button
-                                variant="contained"
-                                color="error"
-                                onClick={() => setCancelAccountOpen(true)}
-                                startIcon={<Cancel />}
-                            >
-                                Cancel Account
-                            </Button>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
-
-            {/* Edit Account Dialog */}
+            </Grid>            {/* Edit Account Dialog */}
             <Dialog open={editAccountOpen} onClose={() => setEditAccountOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Edit Account Details</DialogTitle>
                 <DialogContent>
@@ -518,28 +504,28 @@ function AccountPage() {
                     <Grid container spacing={2} sx={{ mt: 1 }}>
                         {planOptions.map((plan) => (
                             <Grid item xs={12} md={4} key={plan.value}>
-                                <Card
+                                <Box
                                     sx={{
                                         cursor: 'pointer',
-                                        border: selectedPlan === plan.value ? '2px solid #1976d2' : '1px solid #e0e0e0'
+                                        border: selectedPlan === plan.value ? '2px solid #1976d2' : '1px solid #e0e0e0',
+                                        borderRadius: 2,
+                                        p: 3
                                     }}
                                     onClick={() => setSelectedPlan(plan.value)}
                                 >
-                                    <CardContent>
-                                        <Typography variant="h6" gutterBottom>{plan.label}</Typography>
-                                        <Typography variant="h5" color="primary" gutterBottom>{plan.price}</Typography>
-                                        <Box>
-                                            {plan.features.map((feature, index) => (
-                                                <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
-                                                    • {feature}
-                                                </Typography>
-                                            ))}
-                                        </Box>
-                                        {currentPlan === plan.value && (
-                                            <Chip label="Current Plan" color="primary" size="small" sx={{ mt: 1 }} />
-                                        )}
-                                    </CardContent>
-                                </Card>
+                                    <Typography variant="h6" gutterBottom>{plan.label}</Typography>
+                                    <Typography variant="h5" color="primary" gutterBottom>{plan.price}</Typography>
+                                    <Box>
+                                        {plan.features.map((feature, index) => (
+                                            <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
+                                                • {feature}
+                                            </Typography>
+                                        ))}
+                                    </Box>
+                                    {currentPlan === plan.value && (
+                                        <Chip label="Current Plan" color="primary" size="small" sx={{ mt: 1 }} />
+                                    )}
+                                </Box>
                             </Grid>
                         ))}
                     </Grid>
