@@ -164,9 +164,9 @@ function ProfilePage() {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         console.log(`� Delete attempt ${attempt}/${maxRetries} for user ${id}`);
-        
+
         const response = await axios.delete(`${API_BASE_URL}/api/users/${id}/`, {
-          headers: { 
+          headers: {
             Authorization: `Bearer ${token}`,
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
@@ -183,12 +183,16 @@ function ProfilePage() {
       } catch (error) {
         console.log(`❌ Delete attempt ${attempt} failed:`, error.response?.status, error.message);
         
+        // Don't retry 404 errors - user doesn't exist, which is the goal
+        if (error.response?.status === 404) {
+          console.log(`🎯 User ${id} doesn't exist (404 on attempt ${attempt}) - deletion goal achieved`);
+          return { success: true, deleted: true, wasNotFound: true };
+        }
+        
         // If it's the last attempt, return the error
         if (attempt === maxRetries) {
           return { success: false, error };
-        }
-        
-        // Wait before retrying (exponential backoff)
+        }        // Wait before retrying (exponential backoff)
         const delay = baseDelay * Math.pow(2, attempt - 1);
         console.log(`⏳ Waiting ${delay}ms before retry...`);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -207,19 +211,26 @@ function ProfilePage() {
 
     try {
       console.log(`🗑️ Starting delete process for user ${id}...`);
-      
+
       // Use retry logic to handle load balancer issues
       const result = await retryDelete(id);
-      
+
       if (result.success) {
-        const response = result.response;
-        if (response.status === 204 || response.status === 200) {
-          console.log(`✅ User ${id} deleted successfully`);
+        if (result.wasNotFound) {
+          // User didn't exist, but that's the goal of deletion
+          console.log(`✅ User ${id} deletion completed (user didn't exist)`);
           toast.success("User deleted successfully!");
           setSearchResults((prev) => prev.filter((u) => u.id !== id));
         } else {
-          console.log(`⚠️ Unexpected response status:`, response.status);
-          toast.error("Unexpected response from server.");
+          const response = result.response;
+          if (response.status === 204 || response.status === 200) {
+            console.log(`✅ User ${id} deleted successfully`);
+            toast.success("User deleted successfully!");
+            setSearchResults((prev) => prev.filter((u) => u.id !== id));
+          } else {
+            console.log(`⚠️ Unexpected response status:`, response.status);
+            toast.error("Unexpected response from server.");
+          }
         }
       } else {
         // Handle the final error after all retries
@@ -233,23 +244,11 @@ function ProfilePage() {
           console.log(`❌ Final error: HTTP ${status}: ${statusText}`);
 
           if (status === 404) {
-            // Check if user was already deleted by verifying it doesn't exist
-            try {
-              await axios.get(`${API_BASE_URL}/api/users/${id}/`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              // If we get here, user still exists, so it's a real 404 error
-              toast.error("User not found.");
-            } catch (checkError) {
-              if (checkError.response?.status === 404) {
-                // User doesn't exist, so deletion was successful
-                console.log(`✅ User ${id} confirmed deleted (404 on verification)`);
-                toast.success("User deleted successfully!");
-                setSearchResults((prev) => prev.filter((u) => u.id !== id));
-              } else {
-                toast.error("Error verifying user deletion.");
-              }
-            }
+            // If DELETE returns 404, user doesn't exist (already deleted or never existed)
+            // This is actually the expected outcome - treat as success
+            console.log(`✅ User ${id} doesn't exist (404 on DELETE) - treating as successful deletion`);
+            toast.success("User deleted successfully!");
+            setSearchResults((prev) => prev.filter((u) => u.id !== id));
           } else if (status === 403) {
             toast.error("Permission denied. You cannot delete this user.");
           } else if (status === 401) {
@@ -269,7 +268,7 @@ function ProfilePage() {
       console.error("❌ Unexpected error in handleDelete:", err);
       toast.error("An unexpected error occurred during deletion.");
     }
-  };  const handleChange = (e) => {
+  }; const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
