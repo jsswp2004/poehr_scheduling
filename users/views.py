@@ -225,27 +225,36 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
             except Exception as delete_error:
                 error_msg = str(delete_error)
                 print(f"❌ Delete error: {error_msg}")
-                
+
                 # Handle specific missing table errors
                 if "django_rest_passwordreset_resetpasswordtoken" in error_msg:
                     print("🔧 Password reset table missing - trying manual cleanup...")
-                    
+
                     # Try to delete related password reset tokens manually if table exists
                     try:
                         from django_rest_passwordreset.models import ResetPasswordToken
+
                         ResetPasswordToken.objects.filter(user=user_to_delete).delete()
                         print("✅ Password reset tokens cleaned up manually")
                     except Exception:
-                        print("⚠️ Could not clean up password reset tokens (table missing)")
-                    
+                        print(
+                            "⚠️ Could not clean up password reset tokens (table missing)"
+                        )
+
                     # Try deleting user again
                     try:
                         # Delete user without cascade to avoid the missing table
                         from django.db import connection
+
                         with connection.cursor() as cursor:
-                            cursor.execute("DELETE FROM users_customuser WHERE id = %s", [user_to_delete.pk])
-                        
-                        print(f"✅ User {username} (ID: {user_id}) deleted successfully (manual)")
+                            cursor.execute(
+                                "DELETE FROM users_customuser WHERE id = %s",
+                                [user_to_delete.pk],
+                            )
+
+                        print(
+                            f"✅ User {username} (ID: {user_id}) deleted successfully (manual)"
+                        )
                         return Response(
                             {"message": f"User {username} deleted successfully"},
                             status=status.HTTP_204_NO_CONTENT,
