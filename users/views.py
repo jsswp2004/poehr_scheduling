@@ -826,6 +826,8 @@ def search_users(request):
         | Q(email__icontains=query)
         | Q(first_name__icontains=query)
         | Q(last_name__icontains=query)
+        | Q(role__icontains=query)
+        | Q(organization__name__icontains=query)
     )
 
     # For system_admin, allow searching all users across organizations
