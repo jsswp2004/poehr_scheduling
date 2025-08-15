@@ -8,6 +8,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect
 from django.core.management import call_command
 from django.views.decorators.csrf import csrf_exempt
+from .frontend_views import FrontendView
 import os
 import base64
 
