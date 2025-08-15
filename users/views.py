@@ -231,9 +231,14 @@ class RegisterView(generics.CreateAPIView):
 
                         # Debug: Check settings before initializing StripeService
                         from django.conf import settings
-                        print(f"🔧 Stripe secret key available: {bool(getattr(settings, 'STRIPE_SECRET_KEY', None))}")
-                        print(f"🔧 Basic price ID: {getattr(settings, 'STRIPE_BASIC_PRICE_ID', 'NOT_SET')}")
-                        
+
+                        print(
+                            f"🔧 Stripe secret key available: {bool(getattr(settings, 'STRIPE_SECRET_KEY', None))}"
+                        )
+                        print(
+                            f"🔧 Basic price ID: {getattr(settings, 'STRIPE_BASIC_PRICE_ID', 'NOT_SET')}"
+                        )
+
                         # Initialize Stripe service
                         stripe_service = StripeService()
                         print("✅ StripeService initialized successfully")
@@ -267,6 +272,7 @@ class RegisterView(generics.CreateAPIView):
                         print(f"❌ Stripe error during enrollment: {str(stripe_error)}")
                         print(f"❌ Stripe error type: {type(stripe_error).__name__}")
                         import traceback
+
                         print(f"❌ Full traceback: {traceback.format_exc()}")
                         logger.error(
                             f"❌ Stripe error during enrollment: {str(stripe_error)}"
@@ -283,6 +289,7 @@ class RegisterView(generics.CreateAPIView):
             print(f"❌ Registration failed, transaction rolled back: {str(e)}")
             print(f"❌ Error type: {type(e).__name__}")
             import traceback
+
             print(f"❌ Full traceback: {traceback.format_exc()}")
             logger.error(f"Registration failed: {str(e)}")
             return Response(
@@ -294,16 +301,16 @@ class RegisterView(generics.CreateAPIView):
         if is_enrollment:
             # Send welcome email to new enrollee
             try:
-                    # Format trial end date
-                    trial_end_formatted = (
-                        user.trial_end_date.strftime("%B %d, %Y")
-                        if user.trial_end_date
-                        else "N/A"
-                    )
+                # Format trial end date
+                trial_end_formatted = (
+                    user.trial_end_date.strftime("%B %d, %Y")
+                    if user.trial_end_date
+                    else "N/A"
+                )
 
-                    # Create welcome email content
-                    subject = f"🎉 Welcome to POWER Scheduling - Your {user.subscription_tier.title()} Plan is Ready!"
-                    message = f"""
+                # Create welcome email content
+                subject = f"🎉 Welcome to POWER Scheduling - Your {user.subscription_tier.title()} Plan is Ready!"
+                message = f"""
 Welcome to POWER Scheduling, {user.first_name}!
 
 Your account has been successfully created and your 7-day free trial has started.
@@ -330,35 +337,33 @@ Thank you for choosing POWER Scheduling!
 
 Best regards,
 The POWER Scheduling Team
-                    """
+                """
 
-                    send_email(
-                        to_email=user.email,
-                        subject=subject,
-                        message=message.strip(),
-                        user=user,
+                send_email(
+                    to_email=user.email,
+                    subject=subject,
+                    message=message.strip(),
+                    user=user,
+                )
+
+            except Exception as email_error:
+                # Log email error but don't fail the registration
+                logger.error(
+                    f"Failed to send welcome email to {user.email}: {str(email_error)}"
+                )
+                print(f"⚠️ Welcome email failed for {user.email}: {str(email_error)}")
+
+            # Send admin notification email for new enrollment
+            try:
+                admin_emails = (
+                    get_admin_emails()
+                )  # Get system admins (no specific organization)
+
+                if admin_emails:
+                    admin_subject = (
+                        f"🚀 New Organization Enrollment - {user.organization.name}"
                     )
-
-                except Exception as email_error:
-                    # Log email error but don't fail the registration
-                    logger.error(
-                        f"Failed to send welcome email to {user.email}: {str(email_error)}"
-                    )
-                    print(
-                        f"⚠️ Welcome email failed for {user.email}: {str(email_error)}"
-                    )
-
-                # Send admin notification email for new enrollment
-                try:
-                    admin_emails = (
-                        get_admin_emails()
-                    )  # Get system admins (no specific organization)
-
-                    if admin_emails:
-                        admin_subject = (
-                            f"🚀 New Organization Enrollment - {user.organization.name}"
-                        )
-                        admin_message = f"""
+                    admin_message = f"""
 New Organization Enrollment Alert
 
 A new organization has successfully enrolled in POWER Scheduling!
@@ -388,61 +393,48 @@ A new organization has successfully enrolled in POWER Scheduling!
 • Provide onboarding support if needed
 
 This is an automated notification from POWER Scheduling.
-                        """
+                    """
 
-                        for admin_email in admin_emails:
-                            send_email(
-                                to_email=admin_email,
-                                subject=admin_subject,
-                                message=admin_message.strip(),
-                                user=user,  # Associate with enrolling user's organization
-                            )
-
-                        print(
-                            f"✅ Admin notification sent to {len(admin_emails)} admin(s)"
+                    for admin_email in admin_emails:
+                        send_email(
+                            to_email=admin_email,
+                            subject=admin_subject,
+                            message=admin_message.strip(),
+                            user=user,  # Associate with enrolling user's organization
                         )
 
-                except Exception as admin_email_error:
-                    # Log admin email error but don't fail the registration
-                    logger.error(
-                        f"Failed to send admin notification for enrollment {user.email}: {str(admin_email_error)}"
-                    )
-                    print(
-                        f"⚠️ Admin notification failed for enrollment {user.email}: {str(admin_email_error)}"
-                    )
+                    print(f"✅ Admin notification sent to {len(admin_emails)} admin(s)")
 
-                return Response(
-                    {
-                        "message": "User created successfully with 7-day free trial",
-                        "user_id": user.id,
-                        "trial_end_date": user.trial_end_date,
-                        "subscription_tier": user.subscription_tier,
-                        "subscription_status": user.subscription_status,
-                    },
-                    status=status.HTTP_201_CREATED,
+            except Exception as admin_email_error:
+                # Log admin email error but don't fail the registration
+                logger.error(
+                    f"Failed to send admin notification for enrollment {user.email}: {str(admin_email_error)}"
                 )
-            else:
-                return Response(
-                    {
-                        "message": "Patient registered successfully",
-                        "user_id": user.id,
-                        "username": user.username,
-                        "email": user.email,
-                    },
-                    status=status.HTTP_201_CREATED,
+                print(
+                    f"⚠️ Admin notification failed for enrollment {user.email}: {str(admin_email_error)}"
                 )
 
-        except Exception as e:
-            logger.error(f"Registration error: {str(e)}")
-            print(f"❌ Registration error: {str(e)}")
-
-            # If user was created but Stripe failed, we should clean up
-            if "user" in locals() and hasattr(user, "pk") and user.pk:
-                user.delete()
-
+        # Return success response
+        if is_enrollment:
             return Response(
-                {"error": f"Registration failed: {str(e)}"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {
+                    "message": "User created successfully with 7-day free trial",
+                    "user_id": user.id,
+                    "trial_end_date": user.trial_end_date,
+                    "subscription_tier": user.subscription_tier,
+                    "subscription_status": user.subscription_status,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        else:
+            return Response(
+                {
+                    "message": "Patient registered successfully",
+                    "user_id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                },
+                status=status.HTTP_201_CREATED,
             )
 
 

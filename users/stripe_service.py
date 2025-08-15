@@ -25,13 +25,15 @@ try:
     else:
         logger.error("❌ STRIPE_SECRET_KEY setting not found!")
         print("❌ STRIPE_SECRET_KEY setting not found!")
-    
+
     # Debug price IDs
     print(f"🏷️ Price ID Debug:")
     print(f"   Basic: {getattr(settings, 'STRIPE_BASIC_PRICE_ID', 'NOT_SET')}")
     print(f"   Premium: {getattr(settings, 'STRIPE_PREMIUM_PRICE_ID', 'NOT_SET')}")
-    print(f"   Enterprise: {getattr(settings, 'STRIPE_ENTERPRISE_PRICE_ID', 'NOT_SET')}")
-    
+    print(
+        f"   Enterprise: {getattr(settings, 'STRIPE_ENTERPRISE_PRICE_ID', 'NOT_SET')}"
+    )
+
 except Exception as e:
     logger.error(f"❌ Error configuring Stripe: {e}")
     print(f"❌ Error configuring Stripe: {e}")
