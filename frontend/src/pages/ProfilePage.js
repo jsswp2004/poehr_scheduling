@@ -166,14 +166,50 @@ function ProfilePage() {
     if (!confirmDelete) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/users/${id}/`, {
+      console.log(`🗑️ Attempting to delete user ${id}...`);
+      const response = await axios.delete(`${API_BASE_URL}/api/users/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success("User deleted!");
-      setSearchResults((prev) => prev.filter((u) => u.id !== id));
+      
+      console.log(`✅ Delete response:`, response.status, response.statusText);
+      
+      // Check for successful deletion (204 No Content or 200 OK)
+      if (response.status === 204 || response.status === 200) {
+        console.log(`✅ User ${id} deleted successfully`);
+        toast.success("User deleted successfully!");
+        setSearchResults((prev) => prev.filter((u) => u.id !== id));
+      } else {
+        console.log(`⚠️ Unexpected response status:`, response.status);
+        toast.error("Unexpected response from server.");
+      }
     } catch (err) {
-      console.error("Delete failed:", err);
-      toast.error("Failed to delete user.");
+      console.error("Delete request failed:", err);
+      
+      // More specific error handling
+      if (err.response) {
+        const status = err.response.status;
+        const statusText = err.response.statusText;
+        
+        console.log(`❌ Delete failed with status ${status}: ${statusText}`);
+        
+        if (status === 404) {
+          toast.error("User not found or already deleted.");
+          // Remove from UI anyway since it's already gone
+          setSearchResults((prev) => prev.filter((u) => u.id !== id));
+        } else if (status === 403) {
+          toast.error("Permission denied. You cannot delete this user.");
+        } else if (status === 401) {
+          toast.error("Authentication failed. Please log in again.");
+        } else {
+          toast.error(`Failed to delete user (${status}: ${statusText})`);
+        }
+      } else if (err.request) {
+        console.log(`❌ Network error:`, err.request);
+        toast.error("Network error. Please check your connection.");
+      } else {
+        console.log(`❌ Error:`, err.message);
+        toast.error("An unexpected error occurred.");
+      }
     }
   };
 
