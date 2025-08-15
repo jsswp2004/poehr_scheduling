@@ -174,29 +174,59 @@ function ProfilePage() {
     if (!confirmDelete) return;
 
     try {
-      console.log(`🗑️ Deleting user ${id}...`);
+      console.log(`🗑️ Attempting to delete user ${id}...`);
 
-      // Simple, straightforward delete request
+      // Attempt to delete the user
       await axios.delete(`${API_BASE_URL}/api/users/${id}/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log(`✅ User ${id} deleted successfully`);
-      toast.success("User deleted successfully!");
+      console.log(`🔄 Delete request completed, now validating deletion...`);
 
-      // Always refresh the search results to show current state
-      if (searchQuery.trim()) {
-        console.log("🔄 Refreshing search results after deletion...");
-        await handleSearch();
-      } else {
-        // Just remove from current results if no active search
-        setSearchResults((prev) => prev.filter((u) => u.id !== id));
+      // Validate that the user is actually deleted from the backend
+      try {
+        await axios.get(`${API_BASE_URL}/api/users/${id}/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // If we get here, the user still exists - deletion failed
+        console.log(`❌ Validation failed: User ${id} still exists in backend`);
+        toast.error("Delete failed - user still exists in database");
+
+      } catch (validationErr) {
+        if (validationErr.response?.status === 404) {
+          // User doesn't exist anymore - deletion was successful!
+          console.log(`✅ Validation confirmed: User ${id} successfully deleted from backend`);
+          toast.success("User successfully deleted!");
+
+          // Refresh the table to show current state
+          if (searchQuery.trim()) {
+            console.log("🔄 Refreshing search results after confirmed deletion...");
+            await handleSearch();
+          } else {
+            setSearchResults((prev) => prev.filter((u) => u.id !== id));
+          }
+        } else {
+          // Some other error during validation
+          console.log(`❌ Validation error: ${validationErr.response?.status}`);
+          toast.error("Could not validate deletion - please refresh and check");
+        }
       }
 
     } catch (err) {
-      console.error("❌ Delete failed:", err);
+      console.error("❌ Delete request failed:", err);
 
-      if (err.response?.status === 403) {
+      if (err.response?.status === 404) {
+        console.log("🎯 User doesn't exist - already deleted");
+        toast.success("User was already deleted!");
+
+        // Refresh table to show current state
+        if (searchQuery.trim()) {
+          await handleSearch();
+        } else {
+          setSearchResults((prev) => prev.filter((u) => u.id !== id));
+        }
+      } else if (err.response?.status === 403) {
         toast.error("Permission denied. You cannot delete this user.");
       } else if (err.response?.status === 401) {
         toast.error("Authentication failed. Please log in again.");
@@ -204,7 +234,9 @@ function ProfilePage() {
         toast.error("Failed to delete user. Please try again.");
       }
     }
-  }; const handleChange = (e) => {
+  };
+
+  const handleChange = (e) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
