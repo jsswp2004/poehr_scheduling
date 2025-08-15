@@ -31,6 +31,8 @@ from .views import (
     get_unread_messages,
     mark_messages_read,
     get_chat_rooms_with_unread,
+    # Debug function
+    debug_stripe_config,
 )
 
 router = DefaultRouter()
@@ -95,6 +97,8 @@ urlpatterns = [
     path("unread-messages/", get_unread_messages, name="get-unread-messages"),
     path("mark-messages-read/", mark_messages_read, name="mark-messages-read"),
     path("chat-rooms/", get_chat_rooms_with_unread, name="get-chat-rooms-with-unread"),
+    # Debug endpoint for Stripe configuration
+    path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),
 ]
 
 # ✅ Append viewset routes
