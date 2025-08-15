@@ -223,8 +223,10 @@ class RegisterView(generics.CreateAPIView):
                 # Only create Stripe customer for service enrollment, not patient registration
                 if is_enrollment:
                     try:
-                        print(f"🔄 Starting Stripe operations for user: {user.username}")
-                        
+                        print(
+                            f"🔄 Starting Stripe operations for user: {user.username}"
+                        )
+
                         # Initialize Stripe service
                         stripe_service = StripeService()
 
@@ -238,7 +240,7 @@ class RegisterView(generics.CreateAPIView):
                             raise Exception("Failed to create Stripe customer")
 
                         print(f"✅ Stripe customer created: {customer.id}")
-                        
+
                         # Create trial subscription
                         subscription = stripe_service.create_trial_subscription(
                             user=user,
@@ -255,8 +257,12 @@ class RegisterView(generics.CreateAPIView):
                     except Exception as stripe_error:
                         # This will trigger the transaction rollback
                         print(f"❌ Stripe error during enrollment: {str(stripe_error)}")
-                        logger.error(f"❌ Stripe error during enrollment: {str(stripe_error)}")
-                        raise Exception(f"Payment processing failed: {str(stripe_error)}")
+                        logger.error(
+                            f"❌ Stripe error during enrollment: {str(stripe_error)}"
+                        )
+                        raise Exception(
+                            f"Payment processing failed: {str(stripe_error)}"
+                        )
 
                 # If we get here, everything succeeded
                 print(f"✅ User created successfully: {user.username}")
@@ -1835,34 +1841,38 @@ def get_chat_rooms_with_unread(request):
         return Response({"error": "Failed to fetch chat rooms"}, status=500)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def debug_stripe_config(request):
     """Debug endpoint to check Stripe configuration"""
     from django.conf import settings
     import stripe
-    
+
     debug_info = {
-        'stripe_secret_key_configured': bool(getattr(settings, 'STRIPE_SECRET_KEY', None)),
-        'stripe_secret_key_preview': None,
-        'stripe_api_test': None,
-        'environment': getattr(settings, 'DEBUG', 'Unknown')
+        "stripe_secret_key_configured": bool(
+            getattr(settings, "STRIPE_SECRET_KEY", None)
+        ),
+        "stripe_secret_key_preview": None,
+        "stripe_api_test": None,
+        "environment": getattr(settings, "DEBUG", "Unknown"),
     }
-    
+
     # Check if secret key exists and preview it
-    if hasattr(settings, 'STRIPE_SECRET_KEY') and settings.STRIPE_SECRET_KEY:
-        debug_info['stripe_secret_key_preview'] = settings.STRIPE_SECRET_KEY[:12] + '...'
-        
+    if hasattr(settings, "STRIPE_SECRET_KEY") and settings.STRIPE_SECRET_KEY:
+        debug_info["stripe_secret_key_preview"] = (
+            settings.STRIPE_SECRET_KEY[:12] + "..."
+        )
+
         # Test basic Stripe API access
         try:
             stripe.api_key = settings.STRIPE_SECRET_KEY
             # Try a simple API call
             stripe.Account.retrieve()
-            debug_info['stripe_api_test'] = 'SUCCESS - API key is valid'
+            debug_info["stripe_api_test"] = "SUCCESS - API key is valid"
         except Exception as e:
-            debug_info['stripe_api_test'] = f'FAILED - {str(e)}'
+            debug_info["stripe_api_test"] = f"FAILED - {str(e)}"
     else:
-        debug_info['stripe_secret_key_preview'] = 'NOT_SET'
-        debug_info['stripe_api_test'] = 'SKIPPED - No secret key'
-    
+        debug_info["stripe_secret_key_preview"] = "NOT_SET"
+        debug_info["stripe_api_test"] = "SKIPPED - No secret key"
+
     return Response(debug_info)
