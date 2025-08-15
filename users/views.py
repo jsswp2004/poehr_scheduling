@@ -112,7 +112,9 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         """Override get method with debugging"""
         try:
             print(f"🔍 GET request for user ID {kwargs.get('pk')}")
-            print(f"🔍 Request user: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+            print(
+                f"🔍 Request user: {request.user.username if request.user.is_authenticated else 'Anonymous'}"
+            )
             print(f"🔍 Is authenticated: {request.user.is_authenticated}")
             return super().get(request, *args, **kwargs)
         except Exception as e:
@@ -131,11 +133,26 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
     def delete(self, request, *args, **kwargs):
         """Delete a user with proper permission checks"""
         try:
-            user_to_delete = self.get_object()
+            user_id = kwargs.get("pk")
+            print(f"🗑️ DELETE request for user ID: {user_id}")
+
+            # Check if user exists
+            try:
+                user_to_delete = self.get_object()
+                print(
+                    f"✅ Found user to delete: {user_to_delete.username} (ID: {user_to_delete.pk})"
+                )
+            except Exception as get_error:
+                print(f"❌ User not found: {str(get_error)}")
+                return Response(
+                    {"error": f"User with ID {user_id} not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
             requesting_user = request.user
 
             print(
-                f"🗑️ Delete request: User {requesting_user.username} (role: {requesting_user.role}) trying to delete user ID {kwargs.get('pk')}"
+                f"🗑️ Delete request: User {requesting_user.username} (role: {requesting_user.role}) trying to delete user ID {user_id}"
             )
 
             # Security check: Only allow admins to delete users, and prevent self-deletion
@@ -170,9 +187,36 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
 
             # Perform the deletion
             username = user_to_delete.username
-            print(f"✅ Deleting user: {username}")
+            user_id = user_to_delete.pk
+            print(f"✅ Deleting user: {username} (ID: {user_id})")
+
+            # Check for related records that might prevent deletion
+            from django.db import models
+
+            related_objects = []
+
+            # Check if user has related records
+            if (
+                hasattr(user_to_delete, "patient_set")
+                and user_to_delete.patient_set.exists()
+            ):
+                patient_count = user_to_delete.patient_set.count()
+                related_objects.append(f"{patient_count} patient records")
+
+            if (
+                hasattr(user_to_delete, "appointment_set")
+                and user_to_delete.appointment_set.exists()
+            ):
+                appointment_count = user_to_delete.appointment_set.count()
+                related_objects.append(f"{appointment_count} appointments")
+
+            if related_objects:
+                print(f"⚠️ User has related records: {', '.join(related_objects)}")
+                print(f"🔧 Attempting deletion anyway...")
+
+            # Try to delete the user
             user_to_delete.delete()
-            print(f"✅ User {username} deleted successfully")
+            print(f"✅ User {username} (ID: {user_id}) deleted successfully")
             return Response(
                 {"message": f"User {username} deleted successfully"},
                 status=status.HTTP_204_NO_CONTENT,
