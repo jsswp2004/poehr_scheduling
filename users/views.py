@@ -134,18 +134,28 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         """Delete a user with proper permission checks"""
         try:
             user_id = kwargs.get("pk")
+            logger.info(f"🗑️ DELETE request for user ID: {user_id}")
             print(f"🗑️ DELETE request for user ID: {user_id}")
+
+            # Log request details
+            logger.info(f"🔍 Request user: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+            logger.info(f"🔍 Request method: {request.method}")
+            logger.info(f"🔍 Request path: {request.path}")
+            print(f"🔍 Request user: {request.user.username if request.user.is_authenticated else 'Anonymous'}")
+            print(f"🔍 Request method: {request.method}")
+            print(f"🔍 Request path: {request.path}")
 
             # Check if user exists
             try:
                 user_to_delete = self.get_object()
-                print(
-                    f"✅ Found user to delete: {user_to_delete.username} (ID: {user_to_delete.pk})"
-                )
+                logger.info(f"✅ Found user to delete: {user_to_delete.username} (ID: {user_to_delete.pk})")
+                print(f"✅ Found user to delete: {user_to_delete.username} (ID: {user_to_delete.pk})")
             except Exception as get_error:
-                print(f"❌ User not found: {str(get_error)}")
+                error_msg = str(get_error)
+                logger.error(f"❌ User not found: {error_msg}")
+                print(f"❌ User not found: {error_msg}")
                 return Response(
-                    {"error": f"User with ID {user_id} not found"},
+                    {"error": f"User with ID {user_id} not found: {error_msg}"},
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
@@ -267,12 +277,23 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
                     raise delete_error
 
         except Exception as e:
-            print(f"❌ Error in delete method: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"❌ Error in delete method: {error_msg}")
+            logger.error(f"❌ Exception type: {type(e).__name__}")
+            print(f"❌ Error in delete method: {error_msg}")
+            print(f"❌ Exception type: {type(e).__name__}")
             import traceback
-
-            print(f"❌ Traceback: {traceback.format_exc()}")
+            traceback_str = traceback.format_exc()
+            logger.error(f"❌ Traceback: {traceback_str}")
+            print(f"❌ Traceback: {traceback_str}")
+            
+            # Return more detailed error information
             return Response(
-                {"error": f"Failed to delete user: {str(e)}"},
+                {
+                    "error": f"Failed to delete user: {error_msg}",
+                    "error_type": type(e).__name__,
+                    "user_id": kwargs.get("pk", "unknown")
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -2049,3 +2070,60 @@ def debug_stripe_config(request):
         debug_info["stripe_api_test"] = "SKIPPED - No secret key"
 
     return Response(debug_info)
+
+
+@api_view(["GET", "DELETE"])
+@permission_classes([IsAuthenticated])
+def debug_delete_user(request, user_id):
+    """Debug endpoint to test user deletion without going through the view"""
+    try:
+        logger.info(f"🔧 DEBUG DELETE: User {request.user.username} trying to delete user {user_id}")
+        print(f"🔧 DEBUG DELETE: User {request.user.username} trying to delete user {user_id}")
+        
+        # Check authentication
+        if not request.user.is_authenticated:
+            return Response({"error": "Not authenticated"}, status=401)
+            
+        # Check if target user exists
+        try:
+            target_user = CustomUser.objects.get(pk=user_id)
+            logger.info(f"🔧 Target user found: {target_user.username}")
+            print(f"🔧 Target user found: {target_user.username}")
+        except CustomUser.DoesNotExist:
+            return Response({"error": f"User {user_id} not found"}, status=404)
+            
+        # Check permissions
+        if request.user.role not in ["admin", "system_admin"]:
+            return Response({"error": f"Permission denied. Your role: {request.user.role}"}, status=403)
+            
+        if request.method == "GET":
+            # Just return debug info
+            return Response({
+                "requesting_user": request.user.username,
+                "requesting_user_role": request.user.role,
+                "target_user": target_user.username,
+                "target_user_id": target_user.pk,
+                "can_delete": True,
+                "message": "Ready to delete (use DELETE method)"
+            })
+            
+        elif request.method == "DELETE":
+            # Actually perform deletion
+            username = target_user.username
+            target_user.delete()
+            logger.info(f"✅ DEBUG: User {username} deleted successfully")
+            print(f"✅ DEBUG: User {username} deleted successfully")
+            return Response({"message": f"User {username} deleted successfully"})
+            
+    except Exception as e:
+        error_msg = str(e)
+        logger.error(f"❌ DEBUG DELETE ERROR: {error_msg}")
+        print(f"❌ DEBUG DELETE ERROR: {error_msg}")
+        import traceback
+        traceback_str = traceback.format_exc()
+        logger.error(f"❌ DEBUG TRACEBACK: {traceback_str}")
+        print(f"❌ DEBUG TRACEBACK: {traceback_str}")
+        return Response({
+            "error": error_msg,
+            "traceback": traceback_str
+        }, status=500)

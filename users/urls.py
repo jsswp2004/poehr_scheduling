@@ -31,8 +31,9 @@ from .views import (
     get_unread_messages,
     mark_messages_read,
     get_chat_rooms_with_unread,
-    # Debug function
+    # Debug functions
     debug_stripe_config,
+    debug_delete_user,
 )
 
 router = DefaultRouter()
@@ -99,6 +100,8 @@ urlpatterns = [
     path("chat-rooms/", get_chat_rooms_with_unread, name="get-chat-rooms-with-unread"),
     # Debug endpoint for Stripe configuration
     path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),
+    # Debug endpoint for user deletion
+    path("debug-delete/<int:user_id>/", debug_delete_user, name="debug-delete-user"),
 ]
 
 # ✅ Append viewset routes
