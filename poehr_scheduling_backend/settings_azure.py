@@ -24,7 +24,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "*.azurecontainerapps.io",  # Azure Container Apps domains
     ".azurecontainerapps.io",  # Wildcard for all Azure Container Apps
-    "powerhealthcareit.com",    # Production domain
+    "powerhealthcareit.com",  # Production domain
     "*.powerhealthcareit.com",  # Subdomains (www, api, etc.)
 ]
 
@@ -202,8 +202,12 @@ STRIPE_WEBHOOK_SECRET = get_azure_secret(
 
 # Stripe Price IDs for subscription tiers
 STRIPE_BASIC_PRICE_ID = os.environ.get("STRIPE_BASIC_PRICE_ID", "price_test_basic")
-STRIPE_PREMIUM_PRICE_ID = os.environ.get("STRIPE_PREMIUM_PRICE_ID", "price_test_premium")
-STRIPE_ENTERPRISE_PRICE_ID = os.environ.get("STRIPE_ENTERPRISE_PRICE_ID", "price_test_enterprise")
+STRIPE_PREMIUM_PRICE_ID = os.environ.get(
+    "STRIPE_PREMIUM_PRICE_ID", "price_test_premium"
+)
+STRIPE_ENTERPRISE_PRICE_ID = os.environ.get(
+    "STRIPE_ENTERPRISE_PRICE_ID", "price_test_enterprise"
+)
 
 # Logging configuration
 LOGGING = {
@@ -317,7 +321,11 @@ SITE_URL = os.environ.get("SITE_URL", "https://powerhealthcareit.com")
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://powerhealthcareit.com")
 
 # Email settings for custom domain
-DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@powerhealthcareit.com")
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", "noreply@powerhealthcareit.com"
+)
 SERVER_EMAIL = os.environ.get("SERVER_EMAIL", "admin@powerhealthcareit.com")
 
-logger.info(f"Domain configuration: Site URL = {SITE_URL}, Frontend URL = {FRONTEND_URL}")
+logger.info(
+    f"Domain configuration: Site URL = {SITE_URL}, Frontend URL = {FRONTEND_URL}"
+)
