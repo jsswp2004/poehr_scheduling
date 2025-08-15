@@ -1833,3 +1833,36 @@ def get_chat_rooms_with_unread(request):
     except Exception as e:
         logger.error(f"❌ Error fetching chat rooms for user {user.id}: {str(e)}")
         return Response({"error": "Failed to fetch chat rooms"}, status=500)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def debug_stripe_config(request):
+    """Debug endpoint to check Stripe configuration"""
+    from django.conf import settings
+    import stripe
+    
+    debug_info = {
+        'stripe_secret_key_configured': bool(getattr(settings, 'STRIPE_SECRET_KEY', None)),
+        'stripe_secret_key_preview': None,
+        'stripe_api_test': None,
+        'environment': getattr(settings, 'DEBUG', 'Unknown')
+    }
+    
+    # Check if secret key exists and preview it
+    if hasattr(settings, 'STRIPE_SECRET_KEY') and settings.STRIPE_SECRET_KEY:
+        debug_info['stripe_secret_key_preview'] = settings.STRIPE_SECRET_KEY[:12] + '...'
+        
+        # Test basic Stripe API access
+        try:
+            stripe.api_key = settings.STRIPE_SECRET_KEY
+            # Try a simple API call
+            stripe.Account.retrieve()
+            debug_info['stripe_api_test'] = 'SUCCESS - API key is valid'
+        except Exception as e:
+            debug_info['stripe_api_test'] = f'FAILED - {str(e)}'
+    else:
+        debug_info['stripe_secret_key_preview'] = 'NOT_SET'
+        debug_info['stripe_api_test'] = 'SKIPPED - No secret key'
+    
+    return Response(debug_info)
