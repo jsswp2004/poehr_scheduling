@@ -168,5 +168,9 @@ STRIPE_WEBHOOK_SECRET = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
 
 # Stripe Price IDs for subscription tiers
 STRIPE_BASIC_PRICE_ID = os.environ.get("STRIPE_BASIC_PRICE_ID", "price_test_basic")
-STRIPE_PREMIUM_PRICE_ID = os.environ.get("STRIPE_PREMIUM_PRICE_ID", "price_test_premium")
-STRIPE_ENTERPRISE_PRICE_ID = os.environ.get("STRIPE_ENTERPRISE_PRICE_ID", "price_test_enterprise")
+STRIPE_PREMIUM_PRICE_ID = os.environ.get(
+    "STRIPE_PREMIUM_PRICE_ID", "price_test_premium"
+)
+STRIPE_ENTERPRISE_PRICE_ID = os.environ.get(
+    "STRIPE_ENTERPRISE_PRICE_ID", "price_test_enterprise"
+)
