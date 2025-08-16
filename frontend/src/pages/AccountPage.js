@@ -303,70 +303,6 @@ function AccountPage() {
                                 </Grid>
                             </Grid>
                         </Box>
-
-                        {/* Current Plan Section */}
-                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
-                            <Typography variant="h6" gutterBottom>
-                                <Business sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                Current Plan
-                            </Typography>
-
-                            {currentPlanData && (
-                                <Box>
-                                    <Typography variant="h5" color="primary" gutterBottom>
-                                        {currentPlanData.label}
-                                    </Typography>
-                                    <Typography variant="h6" color="textSecondary" gutterBottom>
-                                        {currentPlanData.price}
-                                    </Typography>
-                                    <Box sx={{ mt: 2, mb: 2 }}>
-                                        {currentPlanData.features.map((feature, index) => (
-                                            <Chip
-                                                key={index}
-                                                label={feature}
-                                                size="small"
-                                                sx={{ mr: 1, mb: 1 }}
-                                            />
-                                        ))}
-                                    </Box>
-                                </Box>
-                            )}
-
-                            <Button
-                                variant="outlined"
-                                onClick={() => setChangePlanOpen(true)}
-                                startIcon={<Edit />}
-                                fullWidth
-                            >
-                                Change Plan
-                            </Button>
-                        </Box>
-
-                        {/* Cancellation Notice Section */}
-                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
-                            <Typography variant="h6" gutterBottom color="error">
-                                <Warning sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                Cancellation Notice
-                            </Typography>
-                            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                                Cancelling your account is permanent and cannot be undone. Please ensure you have saved any important data before proceeding.
-                            </Typography>
-                            <Button
-                                variant="contained"
-                                color="error"
-                                onClick={() => setCancelAccountOpen(true)}
-                                startIcon={<Cancel />}
-                            >
-                                Cancel Account
-                            </Button>
-                        </Box>
-                    </Box>
-                </Grid>
-
-                {/* RIGHT PANE */}
-                <Grid item xs={12} lg={6}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-
                         {/* Payment Methods Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
@@ -412,7 +348,6 @@ function AccountPage() {
                                 Add Payment Method
                             </Button>
                         </Box>
-
                         {/* Billing History Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
@@ -448,6 +383,67 @@ function AccountPage() {
                                     </TableBody>
                                 </Table>
                             </Box>
+                        </Box>
+                    </Box>
+                </Grid>
+
+                {/* RIGHT PANE */}
+                <Grid item xs={12} lg={6}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                        {/* Current Plan Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
+                            <Typography variant="h6" gutterBottom>
+                                <Business sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                Current Plan
+                            </Typography>
+
+                            {currentPlanData && (
+                                <Box>
+                                    <Typography variant="h5" color="primary" gutterBottom>
+                                        {currentPlanData.label}
+                                    </Typography>
+                                    <Typography variant="h6" color="textSecondary" gutterBottom>
+                                        {currentPlanData.price}
+                                    </Typography>
+                                    <Box sx={{ mt: 2, mb: 2 }}>
+                                        {currentPlanData.features.map((feature, index) => (
+                                            <Chip
+                                                key={index}
+                                                label={feature}
+                                                size="small"
+                                                sx={{ mr: 1, mb: 1 }}
+                                            />
+                                        ))}
+                                    </Box>
+                                </Box>
+                            )}
+
+                            <Button
+                                variant="outlined"
+                                onClick={() => setChangePlanOpen(true)}
+                                startIcon={<Edit />}
+                                fullWidth
+                            >
+                                Change Plan
+                            </Button>
+                        </Box>
+                        {/* Cancellation Notice Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
+                            <Typography variant="h6" gutterBottom color="error">
+                                <Warning sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                Cancellation Notice
+                            </Typography>
+                            <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                                Cancelling your account is permanent and cannot be undone. Please ensure you have saved any important data before proceeding.
+                            </Typography>
+                            <Button
+                                variant="contained"
+                                color="error"
+                                onClick={() => setCancelAccountOpen(true)}
+                                startIcon={<Cancel />}
+                            >
+                                Cancel Account
+                            </Button>
                         </Box>
                     </Box>
                 </Grid>
