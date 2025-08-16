@@ -28,10 +28,31 @@ function Navbar() {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('');
   const [organizationName, setOrganizationName] = useState('');
-  const isAuthenticated = !!getAccessToken(); // Use centralized token manager
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Make it stateful
   const [logoUrl, setLogoUrl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
+  
+  // Update authentication state when tokens change
+  useEffect(() => {
+    const updateAuthState = () => {
+      const token = getAccessToken();
+      setIsAuthenticated(!!token);
+    };
+    
+    // Set initial state
+    updateAuthState();
+    
+    // Listen for storage changes
+    const handleStorageChange = (e) => {
+      if (e.key === 'access_token') {
+        updateAuthState();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
   // Function to fetch user data and update state
   const fetchUserData = async () => {
     try {
@@ -82,14 +103,16 @@ function Navbar() {
     }
   };  // Run fetchUserData on component mount and when authentication changes
   useEffect(() => {
-    fetchUserData();
-
-    // Set up an event listener for storage changes (like tokens being updated)
-    const handleStorageChange = (e) => {
-      if (e.key === 'access_token') {
-        fetchUserData();
-      }
-    };
+    if (isAuthenticated) {
+      fetchUserData();
+    } else {
+      // Clear user data when not authenticated
+      setUsername('');
+      setRole('');
+      setLogoUrl(null);
+      setOrganizationName('');
+      setProfilePic(null);
+    }
 
     // Listen for custom profile update events
     const handleProfileUpdate = () => {
@@ -97,18 +120,19 @@ function Navbar() {
       forceUpdate(); // Force the navbar to re-render
     };
 
-    window.addEventListener('storage', handleStorageChange);
     window.addEventListener('profile-updated', handleProfileUpdate);
 
-    // Force a refresh when the component mounts and periodically
-    const interval = setInterval(() => {
-      fetchUserData();
-    }, 300000); // Refresh every 5 minutes (300000ms) to reduce API calls
+    // Force a refresh when authenticated and periodically
+    let interval = null;
+    if (isAuthenticated) {
+      interval = setInterval(() => {
+        fetchUserData();
+      }, 300000); // Refresh every 5 minutes (300000ms) to reduce API calls
+    }
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('profile-updated', handleProfileUpdate);
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
   }, [isAuthenticated, forceUpdate]); const handleLogoClick = (e) => {
     e.preventDefault(); // Prevent default link behavior
