@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 import { getValidToken, clearAuthData } from '../utils/auth';
+import { getAccessToken } from '../utils/tokenManager';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
@@ -27,7 +28,7 @@ function Navbar() {
   const [username, setUsername] = useState('');
   const [role, setRole] = useState('');
   const [organizationName, setOrganizationName] = useState('');
-  const isAuthenticated = !!localStorage.getItem('access_token');
+  const isAuthenticated = !!getAccessToken(); // Use centralized token manager
   const [logoUrl, setLogoUrl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
@@ -156,6 +157,12 @@ function Navbar() {
 
     // Clear all authentication data using the centralized function
     clearAuthData();
+
+    // Also clear any legacy token storage that might exist
+    localStorage.removeItem('access_token');  // Old format key
+    localStorage.removeItem('refresh_token'); // Old format key
+    localStorage.removeItem('user_data');
+    sessionStorage.clear();
 
     // Clear user data
     setUsername('');
