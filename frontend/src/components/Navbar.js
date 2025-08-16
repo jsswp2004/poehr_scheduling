@@ -2,7 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from '../components/SimpleToast';
 import logo from '../assets/POWER_Logo.png';
 import { jwtDecode } from 'jwt-decode';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 import { getValidToken, clearAuthData } from '../utils/auth';
@@ -54,14 +54,25 @@ function Navbar() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
   // Function to fetch user data and update state
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     try {
+      // Don't fetch if not authenticated
+      if (!isAuthenticated) {
+        setUsername('');
+        setRole('');
+        setLogoUrl(null);
+        setOrganizationName('');
+        setProfilePic(null);
+        return;
+      }
+
       const token = await getValidToken();
       if (!token) {
         setUsername('');
         setRole('');
         setLogoUrl(null);
         setOrganizationName('');
+        setProfilePic(null);
         return;
       }
 
@@ -99,9 +110,10 @@ function Navbar() {
         setRole('');
         setLogoUrl(null);
         setOrganizationName('');
+        setProfilePic(null);
       }
     }
-  };  // Run fetchUserData on component mount and when authentication changes
+  }, [isAuthenticated]);  // Run fetchUserData on component mount and when authentication changes
   useEffect(() => {
     if (isAuthenticated) {
       fetchUserData();
@@ -116,8 +128,10 @@ function Navbar() {
 
     // Listen for custom profile update events
     const handleProfileUpdate = () => {
-      fetchUserData();
-      forceUpdate(); // Force the navbar to re-render
+      if (isAuthenticated) {
+        fetchUserData();
+        forceUpdate(); // Force the navbar to re-render
+      }
     };
 
     window.addEventListener('profile-updated', handleProfileUpdate);
@@ -134,7 +148,7 @@ function Navbar() {
       window.removeEventListener('profile-updated', handleProfileUpdate);
       if (interval) clearInterval(interval);
     };
-  }, [isAuthenticated, forceUpdate]); const handleLogoClick = (e) => {
+  }, [isAuthenticated, forceUpdate, fetchUserData]); const handleLogoClick = (e) => {
     e.preventDefault(); // Prevent default link behavior
 
     // Show confirmation toast instead of browser alert
@@ -188,11 +202,21 @@ function Navbar() {
     localStorage.removeItem('user_data');
     sessionStorage.clear();
 
-    // Clear user data
+    // Update authentication state immediately
+    setIsAuthenticated(false);
+
+    // Clear user data immediately
     setUsername('');
     setRole('');
     setLogoUrl(null);
     setOrganizationName('');
+    setProfilePic(null);
+
+    // Dispatch storage event to notify other components
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'access_token',
+      newValue: null
+    }));
 
     toast.success('Logged out successfully! 👋');
 
