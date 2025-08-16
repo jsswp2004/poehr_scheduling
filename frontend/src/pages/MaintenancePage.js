@@ -506,6 +506,7 @@ function MaintenancePage() {
                     boxShadow: "none",
                     borderRadius: 0,
                     border: "0px solid #e0e0e0",
+                    minHeight: "300px",
                     maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
@@ -635,6 +636,7 @@ function MaintenancePage() {
                     boxShadow: "none",
                     borderRadius: 0,
                     border: "0px solid #e0e0e0",
+                    minHeight: "300px",
                     maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
