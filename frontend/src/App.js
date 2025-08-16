@@ -5,6 +5,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { useEffect } from 'react';
 import axios from 'axios';
 import { getAccessToken } from './utils/tokenManager';
+import { autoMigrateTokens } from './utils/authMigration';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
@@ -51,8 +52,11 @@ function AppContent() {
 
   // Run token migration on app startup
   useEffect(() => {
-    // Run token migration to fix any inconsistencies
+    // Run legacy token migration first
     autoMigrate();
+    
+    // Run new authentication migration to fix inconsistencies
+    autoMigrateTokens();
   }, []);
 
   // Setup axios interceptor for automatic token refresh
