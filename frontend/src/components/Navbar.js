@@ -220,11 +220,11 @@ function Navbar() {
 
     toast.success('Logged out successfully! 👋');
 
-    // Navigate to solutions page and replace history to prevent back button issues
-    navigate('/solutions', { replace: true });
-
-    // Clear browser history to ensure no traces
-    window.history.replaceState(null, null, '/solutions');
+    // Add a small delay to ensure the toast is visible, then refresh the page
+    setTimeout(() => {
+      // Force a complete page refresh to clear all cached state
+      window.location.href = '/solutions';
+    }, 1000);
   }; const handleLogout = () => {
     // Show confirmation toast instead of browser alert
     toast.warning(
