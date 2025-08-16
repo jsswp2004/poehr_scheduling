@@ -54,7 +54,7 @@ function AppContent() {
   useEffect(() => {
     // Run legacy token migration first
     autoMigrate();
-    
+
     // Run new authentication migration to fix inconsistencies
     autoMigrateTokens();
   }, []);

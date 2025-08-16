@@ -505,7 +505,7 @@ function MaintenancePage() {
                     overflowX: "hidden",
                     boxShadow: "none",
                     borderRadius: 0,
-                    border: "1px solid #e0e0e0",
+                    border: "0px solid #e0e0e0",
                     maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
@@ -634,7 +634,7 @@ function MaintenancePage() {
                     overflowX: "hidden",
                     boxShadow: "none",
                     borderRadius: 0,
-                    border: "1px solid #e0e0e0",
+                    border: "0px solid #e0e0e0",
                     maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",

@@ -62,7 +62,7 @@ export const useAuth = () => {
 
         window.addEventListener('profile-updated', handleProfileUpdated);
         window.addEventListener('storage', handleStorageChange);
-        
+
         return () => {
             window.removeEventListener('profile-updated', handleProfileUpdated);
             window.removeEventListener('storage', handleStorageChange);
