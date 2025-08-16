@@ -84,6 +84,24 @@ class CustomUser(AbstractUser):
         max_length=255, null=True, blank=True, help_text="Stripe subscription ID"
     )
 
+    # Account Cancellation Management (Soft Delete)
+    cancelled_at = models.DateTimeField(
+        null=True, blank=True, help_text="When the account was cancelled"
+    )
+    cancellation_reason = models.TextField(
+        null=True, blank=True, help_text="Reason provided for account cancellation"
+    )
+    cancellation_type = models.CharField(
+        max_length=20,
+        choices=[("immediate", "Immediate"), ("scheduled", "Scheduled")],
+        null=True,
+        blank=True,
+        help_text="Type of cancellation",
+    )
+    scheduled_cancellation_date = models.DateField(
+        null=True, blank=True, help_text="Scheduled date for account cancellation"
+    )
+
     ORGANIZATION_TYPE_CHOICES = [
         ("personal", "Personal"),
         ("clinic", "Clinic"),
@@ -115,6 +133,36 @@ class CustomUser(AbstractUser):
         if is_online:
             self.last_seen = timezone.now()
         self.save(update_fields=["is_online", "last_seen"])
+
+    def cancel_account(self, cancellation_type="immediate", reason=None, scheduled_date=None):
+        """Cancel user account with soft delete"""
+        self.is_active = False
+        self.cancelled_at = timezone.now()
+        self.cancellation_type = cancellation_type
+        self.cancellation_reason = reason
+        self.subscription_status = "canceled"
+
+        if cancellation_type == "scheduled" and scheduled_date:
+            self.scheduled_cancellation_date = scheduled_date
+
+        self.save()
+        return True
+
+    def reactivate_account(self):
+        """Reactivate a cancelled account (admin only)"""
+        self.is_active = True
+        self.cancelled_at = None
+        self.cancellation_type = None
+        self.cancellation_reason = None
+        self.scheduled_cancellation_date = None
+        self.subscription_status = "active"
+        self.save()
+        return True
+
+    @property
+    def is_cancelled(self):
+        """Check if account is cancelled"""
+        return self.cancelled_at is not None
 
 
 class OnlineUser(models.Model):

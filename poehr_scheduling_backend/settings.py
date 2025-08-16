@@ -157,6 +157,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Custom user model
 AUTH_USER_MODEL = "users.CustomUser"
 
+# Authentication backends with account status checking
+AUTHENTICATION_BACKENDS = [
+    'users.auth_backends.AccountStatusBackend',  # Custom backend that checks account status
+    'django.contrib.auth.backends.ModelBackend',  # Default backend as fallback
+]
+
 # DRF & JWT settings
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
