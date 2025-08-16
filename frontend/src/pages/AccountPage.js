@@ -221,15 +221,37 @@ function AccountPage() {
     const handleCancelAccount = async () => {
         try {
             const token = await getValidToken();
-            await axios.post(`${API_BASE_URL}/api/payments/cancel-subscription/`, cancellationData, {
+            
+            // Send cancellation request with access revocation
+            const response = await axios.post(`${API_BASE_URL}/api/payments/cancel-subscription/`, {
+                immediate: cancellationData.immediate,
+                endDate: cancellationData.endDate,
+                reason: cancellationData.reason,
+                revoke_access: true
+            }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            toast.success('Account cancellation scheduled successfully');
-            setCancelAccountOpen(false);
+            if (response.data.success) {
+                toast.success('Account cancelled successfully. You will be logged out shortly.');
+                setCancelAccountOpen(false);
+                
+                // Force logout after 3 seconds to show the success message
+                setTimeout(() => {
+                    // Clear all authentication data
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    
+                    // Redirect to login with cancellation notice
+                    window.location.href = '/login?cancelled=true&message=Account has been cancelled';
+                }, 3000);
+            } else {
+                throw new Error(response.data.message || 'Cancellation failed');
+            }
+            
         } catch (error) {
             console.error('Failed to cancel account:', error);
-            toast.error('Failed to cancel account');
+            toast.error('Failed to cancel account. Please try again.');
         }
     };
 
