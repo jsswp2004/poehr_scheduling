@@ -32,24 +32,24 @@ function Navbar() {
   const [logoUrl, setLogoUrl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
-  
+
   // Update authentication state when tokens change
   useEffect(() => {
     const updateAuthState = () => {
       const token = getAccessToken();
       setIsAuthenticated(!!token);
     };
-    
+
     // Set initial state
     updateAuthState();
-    
+
     // Listen for storage changes
     const handleStorageChange = (e) => {
       if (e.key === 'access_token') {
         updateAuthState();
       }
     };
-    
+
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
