@@ -104,6 +104,12 @@ export const useLogin = () => {
             // Notify navbar to refresh with new user data
             notifyProfileUpdated();
             refreshAuthState();
+            
+            // Manually trigger storage event for immediate Navbar update
+            window.dispatchEvent(new StorageEvent('storage', {
+                key: 'access_token',
+                newValue: JSON.stringify({ token: access })
+            }));
 
             toast.success('Login successful!');
 
