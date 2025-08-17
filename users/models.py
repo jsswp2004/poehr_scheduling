@@ -148,6 +148,7 @@ class CustomUser(AbstractUser):
             self.scheduled_cancellation_date = scheduled_date
 
         self.save()
+        return True  # Return True to indicate success
         return True
 
     def reactivate_account(self):
