@@ -134,7 +134,9 @@ class CustomUser(AbstractUser):
             self.last_seen = timezone.now()
         self.save(update_fields=["is_online", "last_seen"])
 
-    def cancel_account(self, cancellation_type="immediate", reason=None, scheduled_date=None):
+    def cancel_account(
+        self, cancellation_type="immediate", reason=None, scheduled_date=None
+    ):
         """Cancel user account with soft delete"""
         self.is_active = False
         self.cancelled_at = timezone.now()

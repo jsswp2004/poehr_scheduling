@@ -112,12 +112,17 @@ urlpatterns = [
     path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),
     # Debug endpoint for user deletion
     path("debug-delete/<int:user_id>/", debug_delete_user, name="debug-delete-user"),
-    
     # Payment Management Endpoints
-    path("payments/cancel-subscription/", cancel_subscription, name="cancel-subscription"),
+    path(
+        "payments/cancel-subscription/", cancel_subscription, name="cancel-subscription"
+    ),
     path("payments/change-plan/", change_plan, name="change-plan"),
     path("payments/methods/", payment_methods, name="payment-methods"),
-    path("payments/methods/<str:method_id>/", delete_payment_method, name="delete-payment-method"),
+    path(
+        "payments/methods/<str:method_id>/",
+        delete_payment_method,
+        name="delete-payment-method",
+    ),
     path("payments/history/", billing_history, name="billing-history"),
     path("payments/add-method/", add_payment_method, name="add-payment-method"),
 ]

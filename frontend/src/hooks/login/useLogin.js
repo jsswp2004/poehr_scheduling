@@ -29,12 +29,12 @@ export const useLogin = () => {
         if (justLoggedOut) {
             sessionStorage.removeItem('just_logged_out');
         }
-        
+
         // Check for cancellation message in URL params
         const urlParams = new URLSearchParams(window.location.search);
         const cancelled = urlParams.get('cancelled');
         const message = urlParams.get('message');
-        
+
         if (cancelled === 'true' && message) {
             toast.error(decodeURIComponent(message));
             // Clean up the URL
