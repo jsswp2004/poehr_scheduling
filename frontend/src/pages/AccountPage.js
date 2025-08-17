@@ -572,73 +572,73 @@ function AccountPage() {
             {/* Add Payment Method Dialog */}
             <Dialog open={addPaymentOpen} onClose={() => setAddPaymentOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Add Payment Method</DialogTitle>
-                <DialogContent>
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
+
+                {/* adds a subtle divider between title and content */}
+                <DialogContent dividers>
+                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                        {/* CARD NUMBER */}
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
-                                label="Card Number"
+                                label="Card number"
                                 value={paymentFormData.cardNumber}
                                 onChange={(e) => setPaymentFormData({ ...paymentFormData, cardNumber: e.target.value })}
                                 placeholder="1234 5678 9012 3456"
+                                inputMode="numeric"
+                                autoComplete="cc-number"
+                                helperText="We accept Visa, MasterCard, AmEx"
                             />
                         </Grid>
-                        <Grid item xs={4}>
-                            <FormControl fullWidth>
-                                <InputLabel>Expiry Month</InputLabel>
-                                <Select
-                                    value={paymentFormData.expiryMonth}
-                                    onChange={(e) => setPaymentFormData({ ...paymentFormData, expiryMonth: e.target.value })}
-                                >
-                                    {Array.from({ length: 12 }, (_, i) => (
-                                        <MenuItem key={i + 1} value={i + 1}>
-                                            {String(i + 1).padStart(2, '0')}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+
+                        {/* EXPIRY + CVC ON ONE ROW */}
+                        <Grid item xs={12} md={6}>
+                            <TextField
+                                fullWidth
+                                label="Expiry (MM/YY)"
+                                value={paymentFormData.expiry}
+                                onChange={(e) => setPaymentFormData({ ...paymentFormData, expiry: e.target.value })}
+                                placeholder="08/27"
+                                inputProps={{ maxLength: 5 }}
+                                autoComplete="cc-exp"
+                            />
                         </Grid>
-                        <Grid item xs={4}>
-                            <FormControl fullWidth>
-                                <InputLabel>Expiry Year</InputLabel>
-                                <Select
-                                    value={paymentFormData.expiryYear}
-                                    onChange={(e) => setPaymentFormData({ ...paymentFormData, expiryYear: e.target.value })}
-                                >
-                                    {Array.from({ length: 10 }, (_, i) => (
-                                        <MenuItem key={i} value={new Date().getFullYear() + i}>
-                                            {new Date().getFullYear() + i}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                        </Grid>
-                        <Grid item xs={4}>
+                        <Grid item xs={12} md={6}>
                             <TextField
                                 fullWidth
                                 label="CVC"
                                 value={paymentFormData.cvc}
                                 onChange={(e) => setPaymentFormData({ ...paymentFormData, cvc: e.target.value })}
                                 placeholder="123"
+                                inputMode="numeric"
+                                autoComplete="cc-csc"
+                                helperText="3–4 digits on the back of your card"
                             />
                         </Grid>
+
+                        {/* BILLING ADDRESS */}
                         <Grid item xs={12}>
                             <TextField
                                 fullWidth
-                                label="Billing Address"
+                                label="Billing address"
                                 multiline
-                                rows={3}
+                                minRows={3}
                                 value={paymentFormData.billingAddress}
                                 onChange={(e) => setPaymentFormData({ ...paymentFormData, billingAddress: e.target.value })}
+                                placeholder="Street, City, State, ZIP"
+                                autoComplete="billing street-address"
                             />
                         </Grid>
                     </Grid>
                 </DialogContent>
-                <DialogActions>
+
+                <DialogActions sx={{ px: 3, py: 2 }}>
                     <Button onClick={() => setAddPaymentOpen(false)}>Cancel</Button>
-                    <Button onClick={handleAddPaymentMethod} variant="contained">Add Payment Method</Button>
+                    <Button onClick={handleAddPaymentMethod} variant="contained">
+                        Add Payment Method
+                    </Button>
                 </DialogActions>
             </Dialog>
+
 
             {/* Cancel Account Dialog */}
             <Dialog open={cancelAccountOpen} onClose={() => setCancelAccountOpen(false)} maxWidth="sm" fullWidth>
