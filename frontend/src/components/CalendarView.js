@@ -74,6 +74,7 @@ const CalendarView = memo(function CalendarView({
     setSearchQuery,
     loading,
     token,
+    userRole,
     refetchData,
   } = useCalendarData();
 
@@ -85,8 +86,9 @@ const CalendarView = memo(function CalendarView({
     }
   }, [availabilityEvents]);
 
-  // Patients hook for patient search in appointment modal
-  const { patients } = usePatients(navigate);
+  // Patients hook for patient search in appointment modal - ONLY for doctors
+  // Note: We always call usePatients but it will handle role-based logic internally
+  const { patients } = usePatients(navigate, userRole);
 
   // Clinic events hook for appointment title dropdown
   const { clinicEvents: eventTypes } = useClinicEvents();

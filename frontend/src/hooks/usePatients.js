@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
 import { getAccessToken } from '../utils/tokenManager';
 
-export const usePatients = (navigate) => {
+export const usePatients = (navigate, userRole = null) => {
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -37,6 +37,14 @@ export const usePatients = (navigate) => {
     const totalPages = Math.ceil(totalSize / rowsPerPage);
 
     const fetchPatients = useCallback(async () => {
+        // Only fetch patients if user is a doctor
+        if (userRole !== 'doctor') {
+            console.log('👤 usePatients: Skipping patient fetch - user is not a doctor (role:', userRole, ')');
+            setPatients([]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
         try {
             const validToken = await getValidToken();
@@ -47,6 +55,7 @@ export const usePatients = (navigate) => {
                 return;
             }
 
+            console.log('👨‍⚕️ usePatients: Fetching patients for doctor user');
             const res = await axios.get(`${API_BASE_URL}/api/users/patients/`, {
                 headers: { Authorization: `Bearer ${validToken}` },
                 params: {
@@ -87,7 +96,7 @@ export const usePatients = (navigate) => {
         } finally {
             setLoading(false);
         }
-    }, [search, provider, page, navigate]);
+    }, [search, provider, page, navigate, userRole]);
 
     const handleSendText = async (patient, token) => {
         const phone = patient.phone_number;
@@ -204,7 +213,7 @@ export const usePatients = (navigate) => {
     // Auto-fetch patients when search changes
     useEffect(() => {
         fetchPatients();
-    }, [search, provider, page]);
+    }, [search, provider, page, fetchPatients]);
 
     return {
         patients,
