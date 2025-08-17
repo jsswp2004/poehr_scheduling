@@ -133,9 +133,9 @@ function DashboardPage() {
           setSelectedDoctor(
             matchedDoctor
               ? {
-                  value: matchedDoctor.id,
-                  label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}`,
-                }
+                value: matchedDoctor.id,
+                label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}`,
+              }
               : null
           );
         }
@@ -175,9 +175,8 @@ function DashboardPage() {
             }
           );
           const prov = provRes.data;
-          const provName = `${prov.first_name || ""} ${
-            prov.last_name || ""
-          }`.trim();
+          const provName = `${prov.first_name || ""} ${prov.last_name || ""
+            }`.trim();
           setProviderName(provName);
           setEmailForm((prev) => ({ ...prev, to: prov.email || "" }));
           setSmsForm((prev) => ({ ...prev, phone: prov.phone_number || "" }));
@@ -270,8 +269,9 @@ function DashboardPage() {
       await axios.post(
         `${API_BASE_URL}/api/users/change-password/`,
         {
-          old_password: passwordForm.currentPassword,
+          current_password: passwordForm.currentPassword,
           new_password: passwordForm.newPassword,
+          confirm_password: passwordForm.confirmPassword,
         },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -330,9 +330,9 @@ function DashboardPage() {
     const matched = doctors.find((doc) => doc.id === appointment.provider);
     const selected = matched
       ? {
-          value: matched.id,
-          label: `Dr. ${matched.first_name} ${matched.last_name}`,
-        }
+        value: matched.id,
+        label: `Dr. ${matched.first_name} ${matched.last_name}`,
+      }
       : null;
 
     setSelectedDoctor(selected);
@@ -788,7 +788,7 @@ function DashboardPage() {
                             }
                             helperText={
                               passwordForm.confirmPassword &&
-                              passwordForm.newPassword !== passwordForm.confirmPassword
+                                passwordForm.newPassword !== passwordForm.confirmPassword
                                 ? "Passwords do not match"
                                 : ""
                             }
@@ -1022,8 +1022,8 @@ function DashboardPage() {
                             <TableCell>
                               {a.appointment_datetime
                                 ? new Date(
-                                    a.appointment_datetime
-                                  ).toLocaleString()
+                                  a.appointment_datetime
+                                ).toLocaleString()
                                 : "Unknown"}
                             </TableCell>
                             <TableCell align="right">
