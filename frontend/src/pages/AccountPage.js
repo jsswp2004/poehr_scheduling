@@ -177,7 +177,7 @@ function AccountPage() {
     const handleChangePlan = async () => {
         try {
             const token = await getValidToken();
-            await axios.post(`${API_BASE_URL}/api/payments/change-plan/`,
+            await axios.post(`${API_BASE_URL}/api/users/payments/change-plan/`,
                 { plan: selectedPlan },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
@@ -206,7 +206,7 @@ function AccountPage() {
     const handleDeletePaymentMethod = async (paymentMethodId) => {
         try {
             const token = await getValidToken();
-            await axios.delete(`${API_BASE_URL}/api/payments/methods/${paymentMethodId}/`, {
+            await axios.delete(`${API_BASE_URL}/api/users/payments/methods/${paymentMethodId}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
@@ -223,7 +223,7 @@ function AccountPage() {
             const token = await getValidToken();
 
             // Send cancellation request with access revocation
-            const response = await axios.post(`${API_BASE_URL}/api/payments/cancel-subscription/`, {
+            const response = await axios.post(`${API_BASE_URL}/api/users/payments/cancel-subscription/`, {
                 immediate: cancellationData.immediate,
                 endDate: cancellationData.endDate,
                 reason: cancellationData.reason,
