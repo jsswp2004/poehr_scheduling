@@ -161,7 +161,7 @@ function AccountPage() {
     const handleEditAccount = async () => {
         try {
             const token = await getValidToken();
-            
+
             // Remove organization from update data as it's a foreign key, not a string
             const updateData = {
                 first_name: editFormData.first_name,
@@ -169,7 +169,7 @@ function AccountPage() {
                 email: editFormData.email,
                 phone_number: editFormData.phone_number
             };
-            
+
             await axios.patch(`${API_BASE_URL}/api/users/me/`, updateData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -583,7 +583,7 @@ function AccountPage() {
                                 placeholder="1234 5678 9012 3456"
                             />
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid item xs={4}>
                             <FormControl fullWidth>
                                 <InputLabel>Expiry Month</InputLabel>
                                 <Select
@@ -598,7 +598,7 @@ function AccountPage() {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid item xs={4}>
                             <FormControl fullWidth>
                                 <InputLabel>Expiry Year</InputLabel>
                                 <Select
@@ -613,7 +613,7 @@ function AccountPage() {
                                 </Select>
                             </FormControl>
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={4}>
                             <TextField
                                 fullWidth
                                 label="CVC"
