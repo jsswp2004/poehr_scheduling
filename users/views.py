@@ -808,7 +808,9 @@ def change_password(request):
             )
 
         if new_password != confirm_password:
-            print(f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'")
+            print(
+                f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'"
+            )
             return Response(
                 {"detail": "New passwords do not match."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -817,7 +819,7 @@ def change_password(request):
         # Set the new password
         user.set_password(new_password)
         user.save()
-        
+
         # Note: update_session_auth_hash is not needed for JWT authentication
         # update_session_auth_hash(request, user)
 
@@ -825,11 +827,12 @@ def change_password(request):
         return Response(
             {"detail": "Password changed successfully."}, status=status.HTTP_200_OK
         )
-    
+
     except Exception as e:
         print(f"❌ Unexpected error during password change: {str(e)}")
         print(f"❌ Error type: {type(e).__name__}")
         import traceback
+
         print(f"❌ Traceback: {traceback.format_exc()}")
         return Response(
             {"detail": "An error occurred while changing the password."},
