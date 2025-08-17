@@ -96,18 +96,23 @@ function DashboardPage() {
   const [tempPhoneNumber, setTempPhoneNumber] = useState("");
   const [tempSmsConsent, setTempSmsConsent] = useState(false);
 
+  // Password Change State
+  const [passwordEditing, setPasswordEditing] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+  });
+
   const token = localStorage.getItem("access_token");
   const [tab, setTab] = useState("myinfo");
 
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
-        const res = await axios.get(
-          `${API_BASE_URL}/api/users/doctors/`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
+        const res = await axios.get(`${API_BASE_URL}/api/users/doctors/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setDoctors(res.data);
       } catch (error) {
         console.error("Failed to fetch doctors:", error);
@@ -116,14 +121,11 @@ function DashboardPage() {
 
     const fetchAppointments = async () => {
       try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/appointments/`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const response = await axios.get(`${API_BASE_URL}/api/appointments/`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         setAppointments(response.data);
         if (response.data && response.data.length > 0) {
           const doctorId = response.data[0].doctor;
@@ -131,9 +133,9 @@ function DashboardPage() {
           setSelectedDoctor(
             matchedDoctor
               ? {
-                value: matchedDoctor.id,
-                label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}`,
-              }
+                  value: matchedDoctor.id,
+                  label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}`,
+                }
               : null
           );
         }
@@ -173,8 +175,9 @@ function DashboardPage() {
             }
           );
           const prov = provRes.data;
-          const provName = `${prov.first_name || ""} ${prov.last_name || ""
-            }`.trim();
+          const provName = `${prov.first_name || ""} ${
+            prov.last_name || ""
+          }`.trim();
           setProviderName(provName);
           setEmailForm((prev) => ({ ...prev, to: prov.email || "" }));
           setSmsForm((prev) => ({ ...prev, phone: prov.phone_number || "" }));
@@ -252,6 +255,42 @@ function DashboardPage() {
     }
   };
 
+  const handlePasswordChange = async () => {
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters long");
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${API_BASE_URL}/api/users/change-password/`,
+        {
+          old_password: passwordForm.currentPassword,
+          new_password: passwordForm.newPassword,
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      toast.success("Password changed successfully!");
+      setPasswordForm({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      });
+      setPasswordEditing(false);
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      toast.error(error.response?.data?.message || "Failed to change password");
+    }
+  };
+
   const fetchAvailableSlots = async (doctorId) => {
     setAvailableSlots([]);
     if (!doctorId) return;
@@ -291,9 +330,9 @@ function DashboardPage() {
     const matched = doctors.find((doc) => doc.id === appointment.provider);
     const selected = matched
       ? {
-        value: matched.id,
-        label: `Dr. ${matched.first_name} ${matched.last_name}`,
-      }
+          value: matched.id,
+          label: `Dr. ${matched.first_name} ${matched.last_name}`,
+        }
       : null;
 
     setSelectedDoctor(selected);
@@ -347,12 +386,9 @@ function DashboardPage() {
         toast.success("Appointment created!");
       }
 
-      const refreshed = await axios.get(
-        `${API_BASE_URL}/api/appointments/`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const refreshed = await axios.get(`${API_BASE_URL}/api/appointments/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       setAppointments(refreshed.data);
 
       setFormData({
@@ -551,12 +587,18 @@ function DashboardPage() {
                         <Box>
                           <TextField
                             label="Phone Number"
-                            value={phoneEditing ? tempPhoneNumber : (currentUser.phone_number || "")}
+                            value={
+                              phoneEditing
+                                ? tempPhoneNumber
+                                : currentUser.phone_number || ""
+                            }
                             onChange={(e) => setTempPhoneNumber(e.target.value)}
                             fullWidth
                             disabled={!phoneEditing}
                             variant="outlined"
-                            helperText={phoneEditing ? "Enter your phone number" : ""}
+                            helperText={
+                              phoneEditing ? "Enter your phone number" : ""
+                            }
                           />
                           <Box sx={{ mt: 1 }}>
                             {phoneEditing ? (
@@ -573,7 +615,9 @@ function DashboardPage() {
                                   size="small"
                                   variant="outlined"
                                   onClick={() => {
-                                    setTempPhoneNumber(currentUser.phone_number || "");
+                                    setTempPhoneNumber(
+                                      currentUser.phone_number || ""
+                                    );
                                     setPhoneEditing(false);
                                   }}
                                 >
@@ -606,7 +650,11 @@ function DashboardPage() {
                         <FormControlLabel
                           control={
                             <Checkbox
-                              checked={smsConsentEditing ? tempSmsConsent : (currentUser.sms_consent || false)}
+                              checked={
+                                smsConsentEditing
+                                  ? tempSmsConsent
+                                  : currentUser.sms_consent || false
+                              }
                               onChange={handleSmsConsentChange}
                               disabled={!smsConsentEditing && !phoneEditing}
                             />
@@ -614,22 +662,27 @@ function DashboardPage() {
                           label={
                             <Box>
                               <Typography variant="body2">
-                                By providing your phone number, you agree to receive appointment
-                                reminders and health notifications from POWER Healthcare IT Systems, LLC.
-                                Message frequency varies. Message and data rates may apply.
+                                By providing your phone number, you agree to
+                                receive appointment reminders and health
+                                notifications from POWER Healthcare IT Systems,
+                                LLC. Message frequency varies. Message and data
+                                rates may apply.
                               </Typography>
                             </Box>
                           }
                         />
 
-                        {currentUser.sms_consent && currentUser.sms_consent_date && (
-                          <Chip
-                            label={`Consented on ${new Date(currentUser.sms_consent_date).toLocaleDateString()}`}
-                            size="small"
-                            color="success"
-                            sx={{ mt: 1, ml: 4 }}
-                          />
-                        )}
+                        {currentUser.sms_consent &&
+                          currentUser.sms_consent_date && (
+                            <Chip
+                              label={`Consented on ${new Date(
+                                currentUser.sms_consent_date
+                              ).toLocaleDateString()}`}
+                              size="small"
+                              color="success"
+                              sx={{ mt: 1, ml: 4 }}
+                            />
+                          )}
 
                         <Box sx={{ mt: 2 }}>
                           {smsConsentEditing || phoneEditing ? (
@@ -638,7 +691,9 @@ function DashboardPage() {
                                 size="small"
                                 variant="contained"
                                 onClick={handleSmsConsentSave}
-                                disabled={tempSmsConsent && !tempPhoneNumber.trim()}
+                                disabled={
+                                  tempSmsConsent && !tempPhoneNumber.trim()
+                                }
                               >
                                 Save Preferences
                               </Button>
@@ -646,8 +701,12 @@ function DashboardPage() {
                                 size="small"
                                 variant="outlined"
                                 onClick={() => {
-                                  setTempSmsConsent(currentUser.sms_consent || false);
-                                  setTempPhoneNumber(currentUser.phone_number || "");
+                                  setTempSmsConsent(
+                                    currentUser.sms_consent || false
+                                  );
+                                  setTempPhoneNumber(
+                                    currentUser.phone_number || ""
+                                  );
                                   setSmsConsentEditing(false);
                                   setPhoneEditing(false);
                                 }}
@@ -668,12 +727,118 @@ function DashboardPage() {
 
                         {tempSmsConsent && !tempPhoneNumber.trim() && (
                           <Alert severity="warning" sx={{ mt: 2 }}>
-                            A phone number is required to receive SMS notifications.
+                            A phone number is required to receive SMS
+                            notifications.
                           </Alert>
                         )}
                       </Box>
                     </Paper>
                   )}
+
+                  {/* Change Password Section */}
+                  <Paper sx={{ p: 3 }}>
+                    <Typography variant="h6" sx={{ mb: 2 }}>
+                      Change Password
+                    </Typography>
+
+                    <Box>
+                      {passwordEditing ? (
+                        <Stack spacing={2}>
+                          <TextField
+                            fullWidth
+                            type="password"
+                            label="Current Password"
+                            value={passwordForm.currentPassword}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                currentPassword: e.target.value,
+                              })
+                            }
+                            required
+                          />
+                          <TextField
+                            fullWidth
+                            type="password"
+                            label="New Password"
+                            value={passwordForm.newPassword}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                newPassword: e.target.value,
+                              })
+                            }
+                            helperText="Password must be at least 8 characters long"
+                            required
+                          />
+                          <TextField
+                            fullWidth
+                            type="password"
+                            label="Confirm New Password"
+                            value={passwordForm.confirmPassword}
+                            onChange={(e) =>
+                              setPasswordForm({
+                                ...passwordForm,
+                                confirmPassword: e.target.value,
+                              })
+                            }
+                            error={
+                              passwordForm.confirmPassword &&
+                              passwordForm.newPassword !== passwordForm.confirmPassword
+                            }
+                            helperText={
+                              passwordForm.confirmPassword &&
+                              passwordForm.newPassword !== passwordForm.confirmPassword
+                                ? "Passwords do not match"
+                                : ""
+                            }
+                            required
+                          />
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              variant="contained"
+                              onClick={handlePasswordChange}
+                              disabled={
+                                !passwordForm.currentPassword ||
+                                !passwordForm.newPassword ||
+                                !passwordForm.confirmPassword ||
+                                passwordForm.newPassword !== passwordForm.confirmPassword ||
+                                passwordForm.newPassword.length < 8
+                              }
+                            >
+                              Change Password
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              onClick={() => {
+                                setPasswordForm({
+                                  currentPassword: "",
+                                  newPassword: "",
+                                  confirmPassword: ""
+                                });
+                                setPasswordEditing(false);
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                          </Stack>
+                        </Stack>
+                      ) : (
+                        <Box>
+                          <Typography variant="body2" sx={{ mb: 2 }}>
+                            Update your account password for enhanced security
+                          </Typography>
+                          <Button
+                            variant="outlined"
+                            startIcon={<EditIcon />}
+                            onClick={() => setPasswordEditing(true)}
+                          >
+                            Change Password
+                          </Button>
+                        </Box>
+                      )}
+                    </Box>
+                  </Paper>
                 </Stack>
               ) : (
                 <Alert severity="error">Failed to load user information</Alert>
@@ -857,8 +1022,8 @@ function DashboardPage() {
                             <TableCell>
                               {a.appointment_datetime
                                 ? new Date(
-                                  a.appointment_datetime
-                                ).toLocaleString()
+                                    a.appointment_datetime
+                                  ).toLocaleString()
                                 : "Unknown"}
                             </TableCell>
                             <TableCell align="right">
