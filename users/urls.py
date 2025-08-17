@@ -44,6 +44,7 @@ from .payment_views import (
     billing_history,
     add_payment_method,
     delete_payment_method,
+    set_default_payment_method,
 )
 
 router = DefaultRouter()
@@ -122,6 +123,11 @@ urlpatterns = [
         "payments/methods/<str:method_id>/",
         delete_payment_method,
         name="delete-payment-method",
+    ),
+    path(
+        "payments/methods/<str:method_id>/set-default/",
+        set_default_payment_method,
+        name="set-default-payment-method",
     ),
     path("payments/history/", billing_history, name="billing-history"),
     path("payments/add-method/", add_payment_method, name="add-payment-method"),
