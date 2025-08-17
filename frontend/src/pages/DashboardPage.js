@@ -361,13 +361,22 @@ function DashboardPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!formData.title || !formData.appointment_datetime) {
+      toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    // Convert datetime-local format to ISO format for backend
+    const appointmentDate = new Date(formData.appointment_datetime);
+    const isoDateTime = appointmentDate.toISOString();
+
     const payload = {
       ...formData,
+      appointment_datetime: isoDateTime,
       provider: selectedDoctor?.value || null,
     };
 
-    // Keep appointment_datetime as local time - the backend expects naive datetime
-    // The datetime-local input already gives us the correct local time format
+    console.log("Sending appointment payload:", payload);
 
     try {
       if (editMode && editingId) {
