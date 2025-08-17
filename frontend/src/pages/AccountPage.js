@@ -161,7 +161,16 @@ function AccountPage() {
     const handleEditAccount = async () => {
         try {
             const token = await getValidToken();
-            await axios.patch(`${API_BASE_URL}/api/users/me/`, editFormData, {
+            
+            // Remove organization from update data as it's a foreign key, not a string
+            const updateData = {
+                first_name: editFormData.first_name,
+                last_name: editFormData.last_name,
+                email: editFormData.email,
+                phone_number: editFormData.phone_number
+            };
+            
+            await axios.patch(`${API_BASE_URL}/api/users/me/`, updateData, {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
