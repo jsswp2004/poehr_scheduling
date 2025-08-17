@@ -294,6 +294,9 @@ def set_default_payment_method(request, method_id):
     except Exception as e:
         logger.error(f"❌ Failed to set default payment method: {e}")
         return Response(
-            {"success": False, "message": f"Failed to set default payment method: {str(e)}"},
+            {
+                "success": False,
+                "message": f"Failed to set default payment method: {str(e)}",
+            },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
