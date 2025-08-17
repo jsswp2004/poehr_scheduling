@@ -221,7 +221,10 @@ function AccountPage() {
 
     const handleDeletePaymentMethod = async (paymentMethodId) => {
         try {
+            console.log('🔍 Attempting to delete payment method:', paymentMethodId);
             const token = await getValidToken();
+            console.log('🔑 Token obtained:', token ? 'Present' : 'Missing');
+            
             await axios.delete(`${API_BASE_URL}/api/users/payments/methods/${paymentMethodId}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -230,13 +233,18 @@ function AccountPage() {
             await fetchAccountData();
         } catch (error) {
             console.error('Failed to delete payment method:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
             toast.error('Failed to delete payment method');
         }
     };
 
     const handleSetDefaultPaymentMethod = async (paymentMethodId) => {
         try {
+            console.log('🔍 Attempting to set default payment method:', paymentMethodId);
             const token = await getValidToken();
+            console.log('🔑 Token obtained:', token ? 'Present' : 'Missing');
+            
             await axios.patch(`${API_BASE_URL}/api/users/payments/methods/${paymentMethodId}/set-default/`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -251,6 +259,8 @@ function AccountPage() {
             toast.success('Default payment method updated successfully!');
         } catch (error) {
             console.error('Failed to set default payment method:', error);
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
             toast.error('Failed to update default payment method');
         }
     };

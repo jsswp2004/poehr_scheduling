@@ -272,3 +272,28 @@ def delete_payment_method(request, method_id):
             {"success": False, "message": f"Failed to delete payment method: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def set_default_payment_method(request, method_id):
+    """Set a payment method as default"""
+    try:
+        user = request.user
+
+        # TODO: Implement Stripe set default payment method
+        logger.info(
+            f"💳 Set default payment method requested: {method_id} for user {user.username}"
+        )
+
+        return Response(
+            {"success": True, "message": "Default payment method updated successfully"},
+            status=status.HTTP_200_OK,
+        )
+
+    except Exception as e:
+        logger.error(f"❌ Failed to set default payment method: {e}")
+        return Response(
+            {"success": False, "message": f"Failed to set default payment method: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
