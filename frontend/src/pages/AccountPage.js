@@ -38,7 +38,8 @@ import {
     Warning,
     Business,
     Email,
-    Person
+    Person,
+    Print
 } from '@mui/icons-material';
 
 function AccountPage() {
@@ -143,11 +144,16 @@ function AccountPage() {
 
             // Mock data for now
             setPaymentMethods([
-                { id: 1, type: 'Visa', last4: '4242', expires: '12/25', isDefault: true }
+                { id: 1, type: 'Visa', last4: '4242', expires: '12/25', isDefault: true },
+                { id: 2, type: 'Mastercard', last4: '8888', expires: '08/26', isDefault: false },
+                { id: 3, type: 'American Express', last4: '1001', expires: '03/27', isDefault: false }
             ]);
             setBillingHistory([
                 { id: 1, date: '2025-07-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
-                { id: 2, date: '2025-06-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' }
+                { id: 2, date: '2025-06-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
+                { id: 3, date: '2025-05-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
+                { id: 4, date: '2025-04-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
+                { id: 5, date: '2025-03-15', amount: '$99.00', status: 'Failed', description: 'Clinic Plan - Monthly' }
             ]);
 
         } catch (error) {
@@ -225,6 +231,63 @@ function AccountPage() {
             console.error('Failed to delete payment method:', error);
             toast.error('Failed to delete payment method');
         }
+    };
+
+    const handlePrintBillingHistory = () => {
+        const printWindow = window.open('', '_blank');
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Billing History - ${accountData?.first_name} ${accountData?.last_name}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 20px; }
+                    h1 { color: #1976d2; border-bottom: 2px solid #1976d2; padding-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                    th { background-color: #f5f5f5; font-weight: bold; }
+                    tr:nth-child(even) { background-color: #f9f9f9; }
+                    .header-info { margin-bottom: 20px; }
+                    .print-date { text-align: right; font-size: 12px; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="print-date">Generated: ${new Date().toLocaleDateString()}</div>
+                <h1>Billing History</h1>
+                <div class="header-info">
+                    <strong>Account:</strong> ${accountData?.first_name} ${accountData?.last_name}<br>
+                    <strong>Email:</strong> ${accountData?.email}<br>
+                    <strong>Organization:</strong> ${accountData?.organization_name || 'N/A'}
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${billingHistory.map(invoice => `
+                            <tr>
+                                <td>${invoice.date}</td>
+                                <td>${invoice.description}</td>
+                                <td>${invoice.amount}</td>
+                                <td>${invoice.status}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+        
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
     };
 
     const handleCancelAccount = async () => {
@@ -381,10 +444,19 @@ function AccountPage() {
                         </Box>
                         {/* Billing History Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
-                            <Typography variant="h6" gutterBottom>
-                                <Email sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                Billing History
-                            </Typography>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                                <Typography variant="h6">
+                                    <Email sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                    Billing History
+                                </Typography>
+                                <IconButton
+                                    onClick={handlePrintBillingHistory}
+                                    color="primary"
+                                    title="Print Billing History"
+                                >
+                                    <Print />
+                                </IconButton>
+                            </Box>
 
                             <Box sx={{ mt: 2, backgroundColor: '#ffffff', borderRadius: 1, overflow: 'hidden' }}>
                                 <Table>
