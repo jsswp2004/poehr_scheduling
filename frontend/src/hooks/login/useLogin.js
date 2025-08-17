@@ -99,7 +99,7 @@ export const useLogin = () => {
         setLoading(true);
 
         try {
-            const response = await axios.post(`${API_BASE_URL}/api/auth/login/`, formData);
+            const response = await axios.post(`${API_BASE_URL}/api/users/login/`, formData);
             const { access, refresh } = response.data;
 
             // Store tokens using centralized token manager
