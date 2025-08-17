@@ -224,7 +224,7 @@ function AccountPage() {
             console.log('🔍 Attempting to delete payment method:', paymentMethodId);
             const token = await getValidToken();
             console.log('🔑 Token obtained:', token ? 'Present' : 'Missing');
-            
+
             await axios.delete(`${API_BASE_URL}/api/users/payments/methods/${paymentMethodId}/`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
@@ -244,7 +244,7 @@ function AccountPage() {
             console.log('🔍 Attempting to set default payment method:', paymentMethodId);
             const token = await getValidToken();
             console.log('🔑 Token obtained:', token ? 'Present' : 'Missing');
-            
+
             await axios.patch(`${API_BASE_URL}/api/users/payments/methods/${paymentMethodId}/set-default/`, {}, {
                 headers: { Authorization: `Bearer ${token}` }
             });
