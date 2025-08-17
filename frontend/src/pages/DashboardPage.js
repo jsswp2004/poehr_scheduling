@@ -1240,7 +1240,10 @@ function DashboardPage() {
           )}
           {tab === "calendar" && (
             <Box sx={{ mt: 2 }}>
-              <CalendarView onUpdate={() => setRefreshFlag((prev) => !prev)} />
+              <CalendarView
+                onUpdate={() => setRefreshFlag((prev) => !prev)}
+                showBackButton={currentUser?.role !== 'patient'}
+              />
             </Box>
           )}{" "}
         </Box>{" "}
