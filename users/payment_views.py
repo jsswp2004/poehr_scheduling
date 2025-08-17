@@ -2,11 +2,13 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 from .stripe_service import StripeService
 from .models import CustomUser
 import json
@@ -15,13 +17,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-@login_required
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def cancel_subscription(request):
     """Cancel user subscription with soft delete and access revocation"""
     try:
-        data = json.loads(request.body)
+        data = request.data  # DRF automatically parses JSON
         user = request.user
 
         # Extract cancellation data
@@ -86,7 +87,7 @@ POWER Healthcare IT Team
 
             logger.info(f"✅ Account cancelled successfully for user {user.username}")
 
-            return JsonResponse(
+            return Response(
                 {
                     "success": True,
                     "message": "Account cancelled successfully",
@@ -94,28 +95,29 @@ POWER Healthcare IT Team
                     "cancelled_at": (
                         user.cancelled_at.isoformat() if user.cancelled_at else None
                     ),
-                }
+                },
+                status=status.HTTP_200_OK,
             )
         else:
-            return JsonResponse(
-                {"success": False, "message": "Failed to cancel account"}, status=400
+            return Response(
+                {"success": False, "message": "Failed to cancel account"}, 
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
     except Exception as e:
         logger.error(f"❌ Account cancellation failed: {e}")
-        return JsonResponse(
+        return Response(
             {"success": False, "message": f"Account cancellation failed: {str(e)}"},
-            status=500,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-@login_required
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def change_plan(request):
     """Change user subscription plan"""
     try:
-        data = json.loads(request.body)
+        data = request.data  # DRF automatically parses JSON
         new_plan = data.get("plan")
         user = request.user
 
@@ -142,25 +144,25 @@ def change_plan(request):
 
         logger.info(f"✅ Plan changed successfully to {new_plan}")
 
-        return JsonResponse(
+        return Response(
             {
                 "success": True,
                 "message": f"Plan changed to {new_plan} successfully",
                 "new_plan": new_plan,
-            }
+            },
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:
         logger.error(f"❌ Plan change failed: {e}")
-        return JsonResponse(
+        return Response(
             {"success": False, "message": f"Failed to change plan: {str(e)}"},
-            status=500,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@csrf_exempt
-@require_http_methods(["GET"])
-@login_required
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def payment_methods(request):
     """Get user's payment methods"""
     try:
@@ -168,7 +170,7 @@ def payment_methods(request):
 
         # TODO: Implement Stripe payment methods retrieval
         # For now, return mock data
-        return JsonResponse(
+        return Response(
             {
                 "payment_methods": [
                     {
@@ -179,20 +181,20 @@ def payment_methods(request):
                         "isDefault": True,
                     }
                 ]
-            }
+            },
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:
         logger.error(f"❌ Failed to get payment methods: {e}")
-        return JsonResponse(
+        return Response(
             {"success": False, "message": f"Failed to get payment methods: {str(e)}"},
-            status=500,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@csrf_exempt
-@require_http_methods(["GET"])
-@login_required
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def billing_history(request):
     """Get user's billing history"""
     try:
@@ -200,7 +202,7 @@ def billing_history(request):
 
         # TODO: Implement Stripe billing history retrieval
         # For now, return mock data
-        return JsonResponse(
+        return Response(
             {
                 "billing_history": [
                     {
@@ -211,44 +213,44 @@ def billing_history(request):
                         "description": f"{user.subscription_tier} Plan - Monthly",
                     }
                 ]
-            }
+            },
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:
         logger.error(f"❌ Failed to get billing history: {e}")
-        return JsonResponse(
+        return Response(
             {"success": False, "message": f"Failed to get billing history: {str(e)}"},
-            status=500,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-@login_required
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def add_payment_method(request):
     """Add a new payment method"""
     try:
-        data = json.loads(request.body)
+        data = request.data  # DRF automatically parses JSON
         user = request.user
 
         # TODO: Implement Stripe payment method creation
         logger.info(f"💳 Payment method addition requested for user {user.username}")
 
-        return JsonResponse(
-            {"success": True, "message": "Payment method added successfully"}
+        return Response(
+            {"success": True, "message": "Payment method added successfully"},
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:
         logger.error(f"❌ Failed to add payment method: {e}")
-        return JsonResponse(
+        return Response(
             {"success": False, "message": f"Failed to add payment method: {str(e)}"},
-            status=500,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
 
-@csrf_exempt
-@require_http_methods(["DELETE"])
-@login_required
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_payment_method(request, method_id):
     """Delete a payment method"""
     try:
@@ -259,13 +261,14 @@ def delete_payment_method(request, method_id):
             f"🗑️ Payment method deletion requested: {method_id} for user {user.username}"
         )
 
-        return JsonResponse(
-            {"success": True, "message": "Payment method deleted successfully"}
+        return Response(
+            {"success": True, "message": "Payment method deleted successfully"},
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:
         logger.error(f"❌ Failed to delete payment method: {e}")
-        return JsonResponse(
+        return Response(
             {"success": False, "message": f"Failed to delete payment method: {str(e)}"},
-            status=500,
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
