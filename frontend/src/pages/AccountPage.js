@@ -39,7 +39,8 @@ import {
     Business,
     Email,
     Person,
-    Print
+    Print,
+    CheckCircle
 } from '@mui/icons-material';
 
 function AccountPage() {
@@ -233,6 +234,27 @@ function AccountPage() {
         }
     };
 
+    const handleSetDefaultPaymentMethod = async (paymentMethodId) => {
+        try {
+            const token = await getValidToken();
+            await axios.patch(`${API_BASE_URL}/api/users/payments/methods/${paymentMethodId}/set-default/`, {}, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Update local state to reflect the change
+            const updatedMethods = paymentMethods.map(method => ({
+                ...method,
+                isDefault: method.id === paymentMethodId
+            }));
+            setPaymentMethods(updatedMethods);
+
+            toast.success('Default payment method updated successfully!');
+        } catch (error) {
+            console.error('Failed to set default payment method:', error);
+            toast.error('Failed to update default payment method');
+        }
+    };
+
     const handlePrintBillingHistory = () => {
         const printWindow = window.open('', '_blank');
         const printContent = `
@@ -282,7 +304,7 @@ function AccountPage() {
             </body>
             </html>
         `;
-        
+
         printWindow.document.write(printContent);
         printWindow.document.close();
         printWindow.focus();
@@ -423,12 +445,24 @@ function AccountPage() {
                                             {method.isDefault && <Chip label="Default" size="small" sx={{ ml: 1 }} />}
                                         </Typography>
                                     </Box>
-                                    <IconButton
-                                        onClick={() => handleDeletePaymentMethod(method.id)}
-                                        color="error"
-                                    >
-                                        <Delete />
-                                    </IconButton>
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        {!method.isDefault && (
+                                            <IconButton
+                                                onClick={() => handleSetDefaultPaymentMethod(method.id)}
+                                                color="primary"
+                                                title="Set as Default"
+                                            >
+                                                <CheckCircle />
+                                            </IconButton>
+                                        )}
+                                        <IconButton
+                                            onClick={() => handleDeletePaymentMethod(method.id)}
+                                            color="error"
+                                            title="Delete Payment Method"
+                                        >
+                                            <Delete />
+                                        </IconButton>
+                                    </Box>
                                 </Box>
                             ))}
 
