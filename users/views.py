@@ -775,38 +775,66 @@ def get_patients(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def change_password(request):
-    user = request.user
-    current_password = request.data.get("current_password")
-    new_password = request.data.get("new_password")
-    confirm_password = request.data.get("confirm_password")
+    try:
+        user = request.user
+        current_password = request.data.get("current_password")
+        new_password = request.data.get("new_password")
+        confirm_password = request.data.get("confirm_password")
 
-    print(f"🔍 Password change attempt for user: {user.username}")
-    print(f"🔍 Current password provided: '{current_password}'")
-    print(f"🔍 New password: '{new_password}'")
-    print(f"🔍 Confirm password: '{confirm_password}'")
+        print(f"🔍 Password change attempt for user: {user.username}")
+        print(f"🔍 Current password provided: '{current_password}'")
+        print(f"🔍 New password: '{new_password}'")
+        print(f"🔍 Confirm password: '{confirm_password}'")
 
-    if not user.check_password(current_password):
-        print(f"❌ Current password check failed for user: {user.username}")
+        if not current_password:
+            print(f"❌ No current password provided")
+            return Response(
+                {"detail": "Current password is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not new_password:
+            print(f"❌ No new password provided")
+            return Response(
+                {"detail": "New password is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not user.check_password(current_password):
+            print(f"❌ Current password check failed for user: {user.username}")
+            return Response(
+                {"detail": "Current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_password != confirm_password:
+            print(f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'")
+            return Response(
+                {"detail": "New passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Set the new password
+        user.set_password(new_password)
+        user.save()
+        
+        # Note: update_session_auth_hash is not needed for JWT authentication
+        # update_session_auth_hash(request, user)
+
+        print(f"✅ Password changed successfully for user: {user.username}")
         return Response(
-            {"detail": "Current password is incorrect."},
-            status=status.HTTP_400_BAD_REQUEST,
+            {"detail": "Password changed successfully."}, status=status.HTTP_200_OK
         )
-
-    if new_password != confirm_password:
-        print(f"❌ New passwords don't match: '{new_password}' vs '{confirm_password}'")
+    
+    except Exception as e:
+        print(f"❌ Unexpected error during password change: {str(e)}")
+        print(f"❌ Error type: {type(e).__name__}")
+        import traceback
+        print(f"❌ Traceback: {traceback.format_exc()}")
         return Response(
-            {"detail": "New passwords do not match."},
-            status=status.HTTP_400_BAD_REQUEST,
+            {"detail": "An error occurred while changing the password."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
-    user.set_password(new_password)
-    user.save()
-    update_session_auth_hash(request, user)
-
-    print(f"✅ Password changed successfully for user: {user.username}")
-    return Response(
-        {"detail": "Password changed successfully."}, status=status.HTTP_200_OK
-    )
 
 
 @api_view(["GET"])
