@@ -17,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def cancel_subscription(request):
     """Cancel user subscription with soft delete and access revocation"""
@@ -100,7 +100,7 @@ POWER Healthcare IT Team
             )
         else:
             return Response(
-                {"success": False, "message": "Failed to cancel account"}, 
+                {"success": False, "message": "Failed to cancel account"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -112,7 +112,7 @@ POWER Healthcare IT Team
         )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def change_plan(request):
     """Change user subscription plan"""
@@ -161,7 +161,7 @@ def change_plan(request):
         )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def payment_methods(request):
     """Get user's payment methods"""
@@ -193,7 +193,7 @@ def payment_methods(request):
         )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def billing_history(request):
     """Get user's billing history"""
@@ -225,7 +225,7 @@ def billing_history(request):
         )
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def add_payment_method(request):
     """Add a new payment method"""
@@ -249,7 +249,7 @@ def add_payment_method(request):
         )
 
 
-@api_view(['DELETE'])
+@api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
 def delete_payment_method(request, method_id):
     """Delete a payment method"""
