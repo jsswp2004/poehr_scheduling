@@ -385,12 +385,33 @@ function DashboardPage() {
     const appointmentDate = new Date(formData.appointment_datetime);
     const isoDateTime = appointmentDate.toISOString();
 
+    // Create base payload without recurrence_end_date
+    const { recurrence_end_date, ...baseFormData } = formData;
+    
     const payload = {
-      ...formData,
+      ...baseFormData,
       appointment_datetime: isoDateTime,
       provider: selectedDoctor?.value || null,
       patient: currentUser?.id || null,
     };
+
+    // Only include recurrence_end_date if recurrence is not "none" and date is provided
+    if (formData.recurrence !== "none" && formData.recurrence_end_date) {
+      // Ensure the date is in YYYY-MM-DD format
+      const dateValue = formData.recurrence_end_date;
+      // If it's already in YYYY-MM-DD format, use it directly
+      // If it's a Date object or other format, convert it
+      if (dateValue instanceof Date) {
+        payload.recurrence_end_date = dateValue.toISOString().split('T')[0];
+      } else if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        payload.recurrence_end_date = dateValue;
+      } else {
+        // Try to parse and format it
+        const parsedDate = new Date(dateValue);
+        payload.recurrence_end_date = parsedDate.toISOString().split('T')[0];
+      }
+      console.log("Recurrence end date being sent:", payload.recurrence_end_date, "Original:", dateValue);
+    }
 
     console.log("Sending appointment payload:", payload);
 
