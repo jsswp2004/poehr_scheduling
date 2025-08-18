@@ -32,20 +32,16 @@ def create_stripe_prices():
     # Define the pricing tiers
     tiers = [
         {
-            'name': 'Basic Plan',
-            'price': 1999,  # $19.99 in cents
+            'name': 'Personal Plan',
+            'price': 4999,  # $49.99 in cents
             'tier_key': 'basic'
         },
         {
-            'name': 'Premium Plan',
-            'price': 4999,  # $49.99 in cents
+            'name': 'Clinic Plan',
+            'price': 29999,  # $299.99 in cents
             'tier_key': 'premium'
-        },
-        {
-            'name': 'Enterprise Plan',
-            'price': 12999,  # $129.99 in cents
-            'tier_key': 'enterprise'
         }
+        # Note: Enterprise/Group plan is "Contact Sales" - no Stripe price needed
     ]
     
     created_prices = {}
