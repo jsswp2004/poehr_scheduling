@@ -382,9 +382,9 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           SECTION 7: PRICING PLANS
           - "Choose Your Plan" headline and description
           - Three pricing tiers side-by-side:
-            1. Personal ($0 Free) - Basic features
-            2. Clinic ($11.99/month) - MOST POPULAR with blue badge
-            3. Group ($49.99/month) - Enterprise features
+            1. Personal ($49.99/month) - Basic features
+            2. Clinic ($299.99/month) - MOST POPULAR with blue badge
+            3. Group (Contact Sales) - Enterprise features
           - Feature lists for each plan
           - Action buttons for each tier
           ================================================================= */}
@@ -404,7 +404,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="plan-name">Personal</div>
               <div className="plan-price">
                 <span className="price-amount">$49.99</span>
-                <span className="price-period">Free</span>
+                <span className="price-period">per month</span>
               </div>
             </div>
             <div className="plan-description">
