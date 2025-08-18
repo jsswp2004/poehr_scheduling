@@ -148,6 +148,13 @@ class EnvironmentSetting(models.Model):
         return f"Environment Setting for {self.organization.name}"
     
 class Holiday(models.Model):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name='holidays',
+        null=True,  # Allow null for existing records during migration
+        blank=True
+    )
     name = models.CharField(max_length=64)
     date = models.DateField()
     is_recognized = models.BooleanField(default=False)
@@ -155,11 +162,12 @@ class Holiday(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['name', 'date'], name='unique_holiday')
+            models.UniqueConstraint(fields=['organization', 'name', 'date'], name='unique_holiday_per_org')
         ]
 
     def __str__(self):
-        return f"{self.name} ({self.date})"
+        org_name = self.organization.name if self.organization else "Global"
+        return f"{self.name} ({self.date}) - {org_name}"
 
 class AutoEmail(models.Model):
     """
