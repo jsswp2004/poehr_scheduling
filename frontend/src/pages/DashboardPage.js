@@ -389,6 +389,7 @@ function DashboardPage() {
       ...formData,
       appointment_datetime: isoDateTime,
       provider: selectedDoctor?.value || null,
+      patient: currentUser?.id || null,
     };
 
     console.log("Sending appointment payload:", payload);
