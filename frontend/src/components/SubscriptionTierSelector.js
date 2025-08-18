@@ -19,7 +19,7 @@ import StarIcon from '@mui/icons-material/Star';
 const SUBSCRIPTION_TIERS = {
   basic: {
     name: 'Personal',
-    price: 19.99,
+    price: 49.99,
     popular: false,
     features: [
       'Up to 50 appointments per month',
@@ -30,7 +30,7 @@ const SUBSCRIPTION_TIERS = {
   },
   premium: {
     name: 'Clinic',
-    price: 49.99,
+    price: 299.99,
     popular: true,
     features: [
       'Unlimited appointments',
@@ -43,7 +43,7 @@ const SUBSCRIPTION_TIERS = {
   },
   enterprise: {
     name: 'Group',
-    price: 129.99,
+    price: null,
     popular: false,
     features: [
       'Everything in Premium',
@@ -110,12 +110,20 @@ const SubscriptionTierSelector = ({ selectedTier, onTierSelect, disabled = false
                   </Typography>
                   
                   <Box display="flex" alignItems="baseline" justifyContent="center" sx={{ mt: 1 }}>
-                    <Typography variant="h4" component="span" fontWeight="bold" color="primary">
-                      ${tier.price}
-                    </Typography>
-                    <Typography variant="body1" color="text.secondary" sx={{ ml: 0.5 }}>
-                      /month
-                    </Typography>
+                    {tier.price !== null ? (
+                      <>
+                        <Typography variant="h4" component="span" fontWeight="bold" color="primary">
+                          ${tier.price}
+                        </Typography>
+                        <Typography variant="body1" color="text.secondary" sx={{ ml: 0.5 }}>
+                          /month
+                        </Typography>
+                      </>
+                    ) : (
+                      <Typography variant="h6" component="span" fontWeight="bold" color="primary">
+                        Contact Sales
+                      </Typography>
+                    )}
                   </Box>
                   
                   <Paper 
@@ -170,7 +178,10 @@ const SubscriptionTierSelector = ({ selectedTier, onTierSelect, disabled = false
         <Box sx={{ mt: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 1 }}>
           <Typography variant="body2" color="text.secondary" align="center">
             <strong>Selected:</strong> {SUBSCRIPTION_TIERS[selectedTier].name} - 
-            ${SUBSCRIPTION_TIERS[selectedTier].price}/month after 7-day free trial
+            {SUBSCRIPTION_TIERS[selectedTier].price !== null 
+              ? `$${SUBSCRIPTION_TIERS[selectedTier].price}/month after 7-day free trial`
+              : 'Contact sales for pricing'
+            }
           </Typography>
         </Box>
       )}

@@ -10,7 +10,7 @@ import django
 from pathlib import Path
 
 # Add the project directory to Python path
-project_dir = Path(__file__).parent
+project_dir = Path(__file__).parent.parent.parent  # Go up to poehr_scheduling root
 sys.path.insert(0, str(project_dir))
 
 # Setup Django
