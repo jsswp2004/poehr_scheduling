@@ -21,6 +21,8 @@ import "../LandingPageV1Desktop1920Px/LandingPageV1Desktop1920Px.css";
 import Header from "../components/Header";
 // Import useNavigate for page navigation
 import { useNavigate } from "react-router-dom";
+// Import React hooks for state management
+import { useState } from "react";
 
 // Asset imports for page content (logo moved to header component)
 import DashboardImage from "../assets/dashboard_clinician.png"; // Dashboard clinician image
@@ -33,6 +35,9 @@ import Footer from "../components/Footer";
 export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
   // Initialize navigation hook
   const navigate = useNavigate();
+  
+  // State for App Store popup modal
+  const [showAppStoreModal, setShowAppStoreModal] = useState(false);
 
   // Handler for pricing page navigation
   const handlePricingClick = (planType = null) => {
@@ -46,6 +51,16 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
   // Navigate to detailed data security page
   const handleSecurityClick = () => {
     navigate("/security");
+  };
+
+  // Handler for App Store button click
+  const handleAppStoreClick = () => {
+    setShowAppStoreModal(true);
+  };
+
+  // Handler to close the modal
+  const closeModal = () => {
+    setShowAppStoreModal(false);
   };
 
   return (
@@ -388,7 +403,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-header">
               <div className="plan-name">Personal</div>
               <div className="plan-price">
-                <span className="price-amount">$15</span>
+                <span className="price-amount">$49.99</span>
                 <span className="price-period">Free</span>
               </div>
             </div>
@@ -417,7 +432,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-header">
               <div className="plan-name">Clinic</div>
               <div className="plan-price">
-                <span className="price-amount">$49.99</span>
+                <span className="price-amount">$299.99</span>
                 <span className="price-period">per month</span>
               </div>
             </div>
@@ -448,12 +463,12 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           <div className="pricing-card">
             <div className="plan-header">
               <div className="plan-name">Group</div>
-              <div className="plan-price">
+              {/*<div className="plan-price">
                 <span className="price-amount">$129.99</span>
                 <span className="price-period">per month</span>
-              </div>
+              </div>*/}
             </div>
-            <div className="plan-description">For larger teams</div>
+            <div className="plan-description">For larger teams, contact sales for a custom quote.</div>
             <div className="plan-features">
               <div className="feature">Everything in Clinic</div>
               <div className="feature">Unlimited users</div>
@@ -519,7 +534,11 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           </div>{" "}
           {/* Platform download icons */}
           <div className="app-icon">
-            <div className="apple-black-logo-2">
+            <div 
+              className="apple-black-logo-2"
+              onClick={handleAppStoreClick}
+              style={{ cursor: "pointer" }}
+            >
               <div className="platform-icon">App Store</div>
             </div>
             {/* Platform download icons 
@@ -544,6 +563,74 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           - Footer bottom bar with copyright and legal links
           ================================================================= */}
       <Footer pricingLink="/pricing" featuresLink="/features" />
+      
+      {/* App Store Coming Soon Modal */}
+      {showAppStoreModal && (
+        <div 
+          className="modal-overlay"
+          onClick={closeModal}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
+        >
+          <div 
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: 'white',
+              padding: '40px',
+              borderRadius: '12px',
+              textAlign: 'center',
+              maxWidth: '400px',
+              width: '90%',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
+            }}
+          >
+            <h2 style={{ 
+              marginBottom: '20px', 
+              color: '#333',
+              fontSize: '24px',
+              fontWeight: 'bold'
+            }}>
+              📱 App Coming Very Soon!
+            </h2>
+            <p style={{ 
+              marginBottom: '30px', 
+              color: '#666',
+              fontSize: '16px',
+              lineHeight: '1.5'
+            }}>
+              We're working hard to bring POWER to the App Store. Stay tuned for updates!
+            </p>
+            <button
+              onClick={closeModal}
+              style={{
+                backgroundColor: '#007bff',
+                color: 'white',
+                border: 'none',
+                padding: '12px 24px',
+                borderRadius: '6px',
+                fontSize: '16px',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#0056b3'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#007bff'}
+            >
+              Got it!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
