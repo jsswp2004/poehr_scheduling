@@ -109,7 +109,8 @@ export const PricingPage = ({ className, ...props }) => {
                   <div className="panel-badge">Starter</div>
                   <div className="panel-title">Personal Basic</div>
                   <div className="panel-price">
-                    <span className="price-amount">$19.99</span>
+                    <span className="price-amount">$49.99</span>
+                    <span className="price-period">per month</span>
                   </div>
                 </div>
                 <div className="panel-description">
@@ -216,7 +217,7 @@ export const PricingPage = ({ className, ...props }) => {
                   <div className="panel-badge">Standard</div>
                   <div className="panel-title">Clinic</div>
                   <div className="panel-price">
-                    <span className="price-amount">$49.99</span>
+                    <span className="price-amount">$299.99</span>
                     <span className="price-period">per month</span>
                   </div>
                 </div>
@@ -325,13 +326,9 @@ export const PricingPage = ({ className, ...props }) => {
                 <div className="panel-header">
                   <div className="panel-badge">Enterprise</div>
                   <div className="panel-title">Group</div>
-                  <div className="panel-price">
-                    <span className="price-amount">$129.99</span>
-                    <span className="price-period">per month</span>
-                  </div>
                 </div>
                 <div className="panel-description">
-                  Comprehensive solution for large healthcare organizations
+                  For larger teams, contact sales for a custom quote.
                 </div>
                 <div className="panel-features">
                   <div className="feature">Everything in Clinic</div>
