@@ -48,6 +48,14 @@ function toLocalDatetimeString(dateObj) {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
+function toLocalDateString(dateObj) {
+  const local = new Date(dateObj);
+  const year = local.getFullYear();
+  const month = String(local.getMonth() + 1).padStart(2, "0");
+  const day = String(local.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function DashboardPage() {
   const [refreshFlag, setRefreshFlag] = useState(false);
   const [doctors, setDoctors] = useState([]);
@@ -64,6 +72,7 @@ function DashboardPage() {
     appointment_datetime: "",
     duration_minutes: 30,
     recurrence: "none",
+    recurrence_end_date: "",
     provider: null,
   });
   const [showForm, setShowForm] = useState(true);
@@ -325,6 +334,7 @@ function DashboardPage() {
       ),
       duration_minutes: appointment.duration_minutes,
       recurrence: appointment.recurrence || "none",
+      recurrence_end_date: appointment.recurrence_end_date ? toLocalDateString(appointment.recurrence_end_date) : "",
     });
 
     const matched = doctors.find((doc) => doc.id === appointment.provider);
@@ -363,6 +373,11 @@ function DashboardPage() {
 
     if (!formData.title || !formData.appointment_datetime) {
       toast.error("Please fill in all required fields.");
+      return;
+    }
+
+    if (formData.recurrence !== "none" && !formData.recurrence_end_date) {
+      toast.error("Please provide an end date for recurring appointments.");
       return;
     }
 
@@ -406,6 +421,7 @@ function DashboardPage() {
         appointment_datetime: "",
         duration_minutes: 30,
         recurrence: "none",
+        recurrence_end_date: "",
       });
       setSelectedDoctor(null);
       setEditMode(false);
@@ -916,6 +932,20 @@ function DashboardPage() {
                           <MenuItem value="monthly">Monthly</MenuItem>
                         </MUISelect>
                       </FormControl>
+                      {formData.recurrence !== "none" && (
+                        <TextField
+                          fullWidth
+                          label="Recurrence End Date"
+                          name="recurrence_end_date"
+                          type="date"
+                          value={formData.recurrence_end_date}
+                          onChange={handleChange}
+                          InputLabelProps={{
+                            shrink: true,
+                          }}
+                          required
+                        />
+                      )}
                       <Box>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>
                           Select Doctor
@@ -956,6 +986,7 @@ function DashboardPage() {
                               appointment_datetime: "",
                               duration_minutes: 30,
                               recurrence: "none",
+                              recurrence_end_date: "",
                               provider: null,
                             });
                             setSelectedDoctor(null);
