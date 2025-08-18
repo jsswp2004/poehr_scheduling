@@ -6,41 +6,51 @@ import stripe
 stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
 
 # Subscription tier configuration
-SUBSCRIPTION_TIERS = {    'basic': {
-        'name': 'Basic Plan',
+SUBSCRIPTION_TIERS = {
+    'basic': {
+        'name': 'Personal Plan',
         'price_id': getattr(settings, 'STRIPE_BASIC_PRICE_ID', ''),
-        'price': 19.99,
+        'price': 49.99,
         'features': [
-            'Up to 50 appointments per month',
             'Basic scheduling',
+            'Basic calendar view',
             'Email notifications',
-            'Mobile app access'
+            'Mobile app access',
+            'Basic reporting'
         ]
     },
     'premium': {
-        'name': 'Premium Plan', 
+        'name': 'Clinic Plan', 
         'price_id': getattr(settings, 'STRIPE_PREMIUM_PRICE_ID', ''),
-        'price': 49.99,
+        'price': 299.99,
         'features': [
+            'Everything in Personal',
+            'Up to 10 providers',
             'Unlimited appointments',
-            'Advanced scheduling',
+            'Advanced calendar features',
+            'Team collaboration tools',
             'SMS + Email notifications',
-            'Calendar integrations',
-            'Custom branding',
-            'Analytics dashboard'
+            'Bulk SMS notifications',
+            'Patient management system',
+            'Automated reminders',
+            'Advanced reporting & analytics'
         ]
     },
     'enterprise': {
-        'name': 'Enterprise Plan',
+        'name': 'Group Plan',
         'price_id': getattr(settings, 'STRIPE_ENTERPRISE_PRICE_ID', ''),
-        'price': 129.99,
+        'price': None,  # Contact sales - no fixed price
         'features': [
-            'Everything in Premium',
-            'Multi-location support',
-            'API access',
-            'Custom integrations',
+            'Everything in Clinic',
+            'Unlimited users',
+            'Advanced analytics',
             'Priority support',
-            'Advanced reporting'
+            'Custom integrations',
+            'Multi-organization support',
+            'Custom branding',
+            '24/7 dedicated support',
+            'On-premise deployment option',
+            'Custom feature development'
         ]
     }
 }
