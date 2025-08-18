@@ -161,7 +161,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             if recurrence and recurrence != 'none':
                 start_time = appointment.appointment_datetime
                 duration = appointment.duration_minutes
-                recurrence_end_date = appointment.recurrence_end_date                # Fetch blocked days and holidays
+                recurrence_end_date = appointment.recurrence_end_date                # Fetch blocked days and holidays for the user's organization
                 try:
                     env = EnvironmentSetting.objects.first()
                     blocked_days = env.blocked_days if env else []
@@ -169,7 +169,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                     blocked_days = []
                 
                 holidays = set(
-                    Holiday.objects.filter(is_recognized=True, suppressed=False).values_list('date', flat=True)
+                    Holiday.objects.filter(
+                        organization=self.request.user.organization,
+                        is_recognized=True, 
+                        suppressed=False
+                    ).values_list('date', flat=True)
                 )
                 
                 repeats = {
@@ -396,27 +400,42 @@ class HolidayViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        user = self.request.user
+        organization = user.organization
+        
         year = self.request.query_params.get('year')
         if year is not None:
             try:
                 year = int(year)
             except ValueError:
                 year = datetime.now().year
-            # Ensure holidays for this year exist in the database
-            self.ensure_holidays_for_year(year)
-            return Holiday.objects.filter(date__year=year, suppressed=False).order_by('date')
+            # Ensure holidays for this year exist in the database for this organization
+            self.ensure_holidays_for_year(year, organization)
+            return Holiday.objects.filter(
+                organization=organization,
+                date__year=year, 
+                suppressed=False
+            ).order_by('date')
         else:
             # Optionally, auto-add for current year if not already in DB
-            self.ensure_holidays_for_year(datetime.now().year)
-            return Holiday.objects.filter(suppressed=False).order_by('date')
+            self.ensure_holidays_for_year(datetime.now().year, organization)
+            return Holiday.objects.filter(
+                organization=organization,
+                suppressed=False
+            ).order_by('date')
+
+    def perform_create(self, serializer):
+        # Associate holiday with user's organization
+        serializer.save(organization=self.request.user.organization)
 
     @staticmethod
-    def ensure_holidays_for_year(year):
+    def ensure_holidays_for_year(year, organization):
         us_holidays = pyholidays.US(years=year)
         for date, name in us_holidays.items():
             Holiday.objects.get_or_create(
                 name=name,
                 date=date,
+                organization=organization,
                 defaults={'is_recognized': True, 'suppressed': False}  # set to False if you want unchecked by default
             )
 
