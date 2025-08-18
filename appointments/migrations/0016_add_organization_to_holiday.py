@@ -12,10 +12,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # First, remove the old unique constraint
-        migrations.RunSQL(
-            "ALTER TABLE appointments_holiday DROP CONSTRAINT IF EXISTS unique_holiday;",
-            reverse_sql="-- Cannot reverse this operation safely"
+        # Remove the old unique constraint
+        migrations.RemoveConstraint(
+            model_name='holiday',
+            name='unique_holiday',
         ),
         
         # Add organization field (nullable initially for existing records)
@@ -32,12 +32,11 @@ class Migration(migrations.Migration):
         ),
         
         # Add new unique constraint for organization + name + date
-        migrations.RunSQL(
-            """
-            ALTER TABLE appointments_holiday 
-            ADD CONSTRAINT unique_holiday_per_org 
-            UNIQUE (organization_id, name, date);
-            """,
-            reverse_sql="ALTER TABLE appointments_holiday DROP CONSTRAINT IF EXISTS unique_holiday_per_org;"
+        migrations.AddConstraint(
+            model_name='holiday',
+            constraint=models.UniqueConstraint(
+                fields=['organization', 'name', 'date'], 
+                name='unique_holiday_per_org'
+            ),
         ),
     ]
