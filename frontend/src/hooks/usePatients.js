@@ -37,9 +37,9 @@ export const usePatients = (navigate, userRole = null) => {
     const totalPages = Math.ceil(totalSize / rowsPerPage);
 
     const fetchPatients = useCallback(async () => {
-        // Only fetch patients if user is a doctor
-        if (userRole !== 'doctor') {
-            console.log('👤 usePatients: Skipping patient fetch - user is not a doctor (role:', userRole, ')');
+        // Allow all roles except patients to fetch patient data
+        if (userRole === 'patient') {
+            console.log('👤 usePatients: Skipping patient fetch - user is a patient (role:', userRole, ')');
             setPatients([]);
             setLoading(false);
             return;
@@ -55,7 +55,7 @@ export const usePatients = (navigate, userRole = null) => {
                 return;
             }
 
-            console.log('👨‍⚕️ usePatients: Fetching patients for doctor user');
+            console.log('👨‍⚕️ usePatients: Fetching patients for authorized user with role:', userRole);
             const res = await axios.get(`${API_BASE_URL}/api/users/patients/`, {
                 headers: { Authorization: `Bearer ${validToken}` },
                 params: {
