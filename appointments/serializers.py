@@ -122,9 +122,17 @@ class EnvironmentSettingSerializer(serializers.ModelSerializer):
 
 
 class HolidaySerializer(serializers.ModelSerializer):
+    organization_name = serializers.SerializerMethodField()
+    
     class Meta:
         model = Holiday
-        fields = ["id", "name", "date", "is_recognized", "suppressed"]
+        fields = ["id", "name", "date", "is_recognized", "suppressed", "organization_name"]
+    
+    def get_organization_name(self, obj):
+        """Return organization name or 'Global' for system-wide holidays"""
+        if obj.organization:
+            return obj.organization.name
+        return "Global"
 
 
 class ClinicEventSerializer(serializers.ModelSerializer):

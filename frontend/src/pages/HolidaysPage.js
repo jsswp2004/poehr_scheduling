@@ -52,6 +52,7 @@ function HolidaysTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showHolidayDialog, setShowHolidayDialog] = useState(false);
   const [editingHoliday, setEditingHoliday] = useState(null);
+  const [userRole, setUserRole] = useState(""); // Track user role
   const [holidayFormData, setHolidayFormData] = useState({
     name: "",
     date: "",
@@ -68,6 +69,7 @@ function HolidaysTab() {
       try {
         const decoded = jwtDecode(token);
         const role = decoded.role || "";
+        setUserRole(role); // Store the user role
         if (role !== "admin" && role !== "system_admin" && role !== "registrar") {
           navigate("/");
         }
@@ -373,6 +375,11 @@ function HolidaysTab() {
                 >
                   Holiday
                 </TableCell>
+                {userRole === "system_admin" && (
+                  <TableCell style={{ width: 150, fontWeight: 700, py: 0.25 }}>
+                    Organization
+                  </TableCell>
+                )}
                 <TableCell style={{ width: 100, fontWeight: 700, py: 0.25 }}>
                   Recognized
                 </TableCell>
@@ -384,14 +391,14 @@ function HolidaysTab() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={4} align="center">
+                  <TableCell colSpan={userRole === "system_admin" ? 5 : 4} align="center">
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
               ) : filteredHolidays.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={userRole === "system_admin" ? 5 : 4}
                     align="center"
                     sx={{ color: "text.secondary", py: 4 }}
                   >
@@ -403,6 +410,11 @@ function HolidaysTab() {
                   <TableRow key={h.id} hover>
                     <TableCell>{formatDate(h.date)}</TableCell>
                     <TableCell sx={{ fontWeight: 500 }}>{h.name}</TableCell>
+                    {userRole === "system_admin" && (
+                      <TableCell sx={{ fontStyle: h.organization_name === "Global" ? "italic" : "normal", color: h.organization_name === "Global" ? "text.secondary" : "text.primary" }}>
+                        {h.organization_name || "Global"}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Checkbox
                         checked={buffered[h.id] ?? h.is_recognized}
