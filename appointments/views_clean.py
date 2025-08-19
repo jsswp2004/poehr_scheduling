@@ -435,7 +435,21 @@ class HolidayViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         # Associate new holidays with user's organization (making them organization-specific)
-        serializer.save(organization=self.request.user.organization)
+        user = self.request.user
+        user_org = user.organization
+        
+        print(f"🔍 Holiday creation debug:")
+        print(f"   User: {user.username}")
+        print(f"   User role: {user.role}")
+        print(f"   User organization: {user_org}")
+        print(f"   Organization ID: {user_org.id if user_org else 'None'}")
+        
+        if user_org:
+            serializer.save(organization=user_org)
+            print(f"   ✅ Holiday saved with organization: {user_org.name}")
+        else:
+            print(f"   ⚠️  No organization found, saving as global holiday")
+            serializer.save()  # This will save without organization (global)
 
     @staticmethod
     def ensure_holidays_for_year(year):
