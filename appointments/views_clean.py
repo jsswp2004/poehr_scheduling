@@ -24,6 +24,8 @@ import holidays as pyholidays
 import csv
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
+from django.db import models
+from django.db.models import Q
 
 from .models import Appointment
 
@@ -161,7 +163,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             if recurrence and recurrence != 'none':
                 start_time = appointment.appointment_datetime
                 duration = appointment.duration_minutes
-                recurrence_end_date = appointment.recurrence_end_date                # Fetch blocked days and holidays for the user's organization
+                recurrence_end_date = appointment.recurrence_end_date                # Fetch blocked days and holidays (both global and organization-specific)
                 try:
                     env = EnvironmentSetting.objects.first()
                     blocked_days = env.blocked_days if env else []
@@ -170,7 +172,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 
                 holidays = set(
                     Holiday.objects.filter(
-                        organization=self.request.user.organization,
+                        Q(organization__isnull=True) |  # Global holidays (federal)
+                        Q(organization=self.request.user.organization),  # Organization-specific holidays
                         is_recognized=True, 
                         suppressed=False
                     ).values_list('date', flat=True)
@@ -409,34 +412,41 @@ class HolidayViewSet(viewsets.ModelViewSet):
                 year = int(year)
             except ValueError:
                 year = datetime.now().year
-            # Ensure holidays for this year exist in the database for this organization
-            self.ensure_holidays_for_year(year, organization)
+            # Ensure holidays for this year exist in the database for global holidays
+            self.ensure_holidays_for_year(year)
+            
+            # Return both global holidays (organization=NULL) AND organization-specific holidays
             return Holiday.objects.filter(
-                organization=organization,
+                Q(organization__isnull=True) |  # Global holidays (federal)
+                Q(organization=organization),   # Organization-specific holidays
                 date__year=year, 
                 suppressed=False
             ).order_by('date')
         else:
             # Optionally, auto-add for current year if not already in DB
-            self.ensure_holidays_for_year(datetime.now().year, organization)
+            self.ensure_holidays_for_year(datetime.now().year)
+            
+            # Return both global holidays (organization=NULL) AND organization-specific holidays
             return Holiday.objects.filter(
-                organization=organization,
+                Q(organization__isnull=True) |  # Global holidays (federal)
+                Q(organization=organization),   # Organization-specific holidays
                 suppressed=False
             ).order_by('date')
 
     def perform_create(self, serializer):
-        # Associate holiday with user's organization
+        # Associate new holidays with user's organization (making them organization-specific)
         serializer.save(organization=self.request.user.organization)
 
     @staticmethod
-    def ensure_holidays_for_year(year, organization):
+    def ensure_holidays_for_year(year):
+        """Create global federal holidays (organization=NULL) for the specified year."""
         us_holidays = pyholidays.US(years=year)
         for date, name in us_holidays.items():
             Holiday.objects.get_or_create(
                 name=name,
                 date=date,
-                organization=organization,
-                defaults={'is_recognized': True, 'suppressed': False}  # set to False if you want unchecked by default
+                organization=None,  # Global holidays have no organization
+                defaults={'is_recognized': True, 'suppressed': False}
             )
 
 class DownloadClinicEventsTemplate(APIView):
