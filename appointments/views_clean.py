@@ -438,18 +438,18 @@ class HolidayViewSet(viewsets.ModelViewSet):
         user = self.request.user
         user_org = user.organization
         
-        print(f"🔍 Holiday creation debug:")
-        print(f"   User: {user.username}")
-        print(f"   User role: {user.role}")
-        print(f"   User organization: {user_org}")
-        print(f"   Organization ID: {user_org.id if user_org else 'None'}")
+        # Get the holiday data to modify the name for debugging
+        holiday_data = serializer.validated_data
+        original_name = holiday_data.get('name', 'Unknown')
         
         if user_org:
-            serializer.save(organization=user_org)
-            print(f"   ✅ Holiday saved with organization: {user_org.name}")
+            # Add organization info to the holiday name for debugging
+            debug_name = f"{original_name} [ORG: {user_org.name}]"
+            serializer.save(organization=user_org, name=debug_name)
         else:
-            print(f"   ⚠️  No organization found, saving as global holiday")
-            serializer.save()  # This will save without organization (global)
+            # Add debug info showing no organization
+            debug_name = f"{original_name} [NO ORG - USER: {user.username}]"
+            serializer.save(name=debug_name)  # This will save without organization (global)
 
     @staticmethod
     def ensure_holidays_for_year(year):
