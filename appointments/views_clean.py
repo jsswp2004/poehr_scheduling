@@ -437,36 +437,20 @@ class HolidayViewSet(viewsets.ModelViewSet):
         # Associate new holidays with user's organization (making them organization-specific)
         user = self.request.user
         
-        # Get the holiday data to modify the name for debugging
-        holiday_data = serializer.validated_data
-        original_name = holiday_data.get('name', 'Unknown')
-        
-        # Detailed debugging
-        debug_info = []
-        debug_info.append(f"USER: {user.username} (ID: {user.id})")
-        
-        # Check organization_id directly
-        try:
-            org_id = user.organization_id if hasattr(user, 'organization_id') else 'NO_ATTR'
-            debug_info.append(f"USER_ORG_ID: {org_id}")
-        except Exception as e:
-            debug_info.append(f"ORG_ID_ERROR: {str(e)}")
-        
-        # Try to access organization object
-        try:
-            user_org = user.organization
-            if user_org:
-                debug_info.append(f"ORG_OBJ: {user_org.name} (ID: {user_org.id})")
-                debug_name = f"{original_name} [{'; '.join(debug_info)}]"
-                serializer.save(organization=user_org, name=debug_name)
-            else:
-                debug_info.append("ORG_OBJ: NULL")
-                debug_name = f"{original_name} [{'; '.join(debug_info)}]"
-                serializer.save(name=debug_name)  # This will save without organization (global)
-        except Exception as e:
-            debug_info.append(f"ORG_ERROR: {str(e)}")
-            debug_name = f"{original_name} [{'; '.join(debug_info)}]"
-            serializer.save(name=debug_name)  # This will save without organization (global)
+        # Use direct organization_id approach to bypass Django relationship issues
+        if hasattr(user, 'organization_id') and user.organization_id:
+            # User has an organization - save holiday with organization_id
+            # Import Organization model to get the actual object
+            from users.models import Organization
+            try:
+                org = Organization.objects.get(id=user.organization_id)
+                serializer.save(organization=org)
+            except Organization.DoesNotExist:
+                # Organization doesn't exist, save as global holiday
+                serializer.save()
+        else:
+            # No organization_id, save as global holiday
+            serializer.save()
 
     @staticmethod
     def ensure_holidays_for_year(year):
