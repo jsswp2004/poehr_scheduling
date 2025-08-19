@@ -627,7 +627,6 @@ class HolidayViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        organization = user.organization
         
         year = self.request.query_params.get('year')
         if year is not None:
@@ -638,23 +637,38 @@ class HolidayViewSet(viewsets.ModelViewSet):
             # Ensure holidays for this year exist in the database for global holidays
             self.ensure_holidays_for_year(year)
             
-            # Return both global holidays (organization=NULL) AND organization-specific holidays
-            return Holiday.objects.filter(
-                Q(organization__isnull=True) |  # Global holidays (federal)
-                Q(organization=organization),   # Organization-specific holidays
-                date__year=year, 
-                suppressed=False
-            ).order_by('date')
+            # System admins see ALL holidays from ALL organizations
+            if user.role == 'system_admin':
+                return Holiday.objects.filter(
+                    date__year=year, 
+                    suppressed=False
+                ).order_by('date')
+            else:
+                # Regular users see global holidays + their organization's holidays
+                organization = user.organization
+                return Holiday.objects.filter(
+                    Q(organization__isnull=True) |  # Global holidays (federal)
+                    Q(organization=organization),   # Organization-specific holidays
+                    date__year=year, 
+                    suppressed=False
+                ).order_by('date')
         else:
             # Optionally, auto-add for current year if not already in DB
             self.ensure_holidays_for_year(datetime.now().year)
             
-            # Return both global holidays (organization=NULL) AND organization-specific holidays
-            return Holiday.objects.filter(
-                Q(organization__isnull=True) |  # Global holidays (federal)
-                Q(organization=organization),   # Organization-specific holidays
-                suppressed=False
-            ).order_by('date')
+            # System admins see ALL holidays from ALL organizations
+            if user.role == 'system_admin':
+                return Holiday.objects.filter(
+                    suppressed=False
+                ).order_by('date')
+            else:
+                # Regular users see global holidays + their organization's holidays
+                organization = user.organization
+                return Holiday.objects.filter(
+                    Q(organization__isnull=True) |  # Global holidays (federal)
+                    Q(organization=organization),   # Organization-specific holidays
+                    suppressed=False
+                ).order_by('date')
 
     def perform_create(self, serializer):
         # Associate new holidays with user's organization (making them organization-specific)
