@@ -36,6 +36,7 @@ from rest_framework.parsers import MultiPartParser
 from .permissions import IsAdminOrSystemAdmin
 from appointments.cron import send_patient_reminders
 from rest_framework.permissions import IsAdminUser
+from django.db.models import Q  # Add Q import for complex queries
 
 logger = logging.getLogger(__name__)
 
@@ -625,33 +626,65 @@ class HolidayViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        year = self.request.query_params.get("year")
+        user = self.request.user
+        organization = user.organization
+        
+        year = self.request.query_params.get('year')
         if year is not None:
             try:
                 year = int(year)
             except ValueError:
                 year = datetime.now().year
-            # Ensure holidays for this year exist in the database
+            # Ensure holidays for this year exist in the database for global holidays
             self.ensure_holidays_for_year(year)
-            return Holiday.objects.filter(date__year=year, suppressed=False).order_by(
-                "date"
-            )
+            
+            # Return both global holidays (organization=NULL) AND organization-specific holidays
+            return Holiday.objects.filter(
+                Q(organization__isnull=True) |  # Global holidays (federal)
+                Q(organization=organization),   # Organization-specific holidays
+                date__year=year, 
+                suppressed=False
+            ).order_by('date')
         else:
             # Optionally, auto-add for current year if not already in DB
             self.ensure_holidays_for_year(datetime.now().year)
-            return Holiday.objects.filter(suppressed=False).order_by("date")
+            
+            # Return both global holidays (organization=NULL) AND organization-specific holidays
+            return Holiday.objects.filter(
+                Q(organization__isnull=True) |  # Global holidays (federal)
+                Q(organization=organization),   # Organization-specific holidays
+                suppressed=False
+            ).order_by('date')
+
+    def perform_create(self, serializer):
+        # Associate new holidays with user's organization (making them organization-specific)
+        user = self.request.user
+        
+        # Use direct organization_id approach to bypass Django relationship issues
+        if hasattr(user, 'organization_id') and user.organization_id:
+            # User has an organization - save holiday with organization_id
+            # Import Organization model to get the actual object
+            from users.models import Organization
+            try:
+                org = Organization.objects.get(id=user.organization_id)
+                serializer.save(organization=org)
+            except Organization.DoesNotExist:
+                # Organization doesn't exist, save as global holiday
+                serializer.save()
+        else:
+            # No organization_id, save as global holiday
+            serializer.save()
 
     @staticmethod
     def ensure_holidays_for_year(year):
+        """Create global federal holidays (organization=NULL) for the specified year."""
         us_holidays = pyholidays.US(years=year)
         for date, name in us_holidays.items():
             Holiday.objects.get_or_create(
                 name=name,
                 date=date,
-                defaults={
-                    "is_recognized": True,
-                    "suppressed": False,
-                },  # set to False if you want unchecked by default
+                organization=None,  # Global holidays have no organization
+                defaults={'is_recognized': True, 'suppressed': False}
             )
 
 
