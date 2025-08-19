@@ -444,8 +444,15 @@ class HolidayViewSet(viewsets.ModelViewSet):
         # Detailed debugging
         debug_info = []
         debug_info.append(f"USER: {user.username} (ID: {user.id})")
-        debug_info.append(f"USER_ORG_DIRECT: {getattr(user, 'organization_id', 'NO_ORG_ID')}")
         
+        # Check organization_id directly
+        try:
+            org_id = user.organization_id if hasattr(user, 'organization_id') else 'NO_ATTR'
+            debug_info.append(f"USER_ORG_ID: {org_id}")
+        except Exception as e:
+            debug_info.append(f"ORG_ID_ERROR: {str(e)}")
+        
+        # Try to access organization object
         try:
             user_org = user.organization
             if user_org:
