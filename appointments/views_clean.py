@@ -436,19 +436,29 @@ class HolidayViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Associate new holidays with user's organization (making them organization-specific)
         user = self.request.user
-        user_org = user.organization
         
         # Get the holiday data to modify the name for debugging
         holiday_data = serializer.validated_data
         original_name = holiday_data.get('name', 'Unknown')
         
-        if user_org:
-            # Add organization info to the holiday name for debugging
-            debug_name = f"{original_name} [ORG: {user_org.name}]"
-            serializer.save(organization=user_org, name=debug_name)
-        else:
-            # Add debug info showing no organization
-            debug_name = f"{original_name} [NO ORG - USER: {user.username}]"
+        # Detailed debugging
+        debug_info = []
+        debug_info.append(f"USER: {user.username} (ID: {user.id})")
+        debug_info.append(f"USER_ORG_DIRECT: {getattr(user, 'organization_id', 'NO_ORG_ID')}")
+        
+        try:
+            user_org = user.organization
+            if user_org:
+                debug_info.append(f"ORG_OBJ: {user_org.name} (ID: {user_org.id})")
+                debug_name = f"{original_name} [{'; '.join(debug_info)}]"
+                serializer.save(organization=user_org, name=debug_name)
+            else:
+                debug_info.append("ORG_OBJ: NULL")
+                debug_name = f"{original_name} [{'; '.join(debug_info)}]"
+                serializer.save(name=debug_name)  # This will save without organization (global)
+        except Exception as e:
+            debug_info.append(f"ORG_ERROR: {str(e)}")
+            debug_name = f"{original_name} [{'; '.join(debug_info)}]"
             serializer.save(name=debug_name)  # This will save without organization (global)
 
     @staticmethod
