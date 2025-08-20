@@ -317,6 +317,10 @@ function AnalyticsSection({
             // Use the working backend endpoint (same as download functionality)
             const backendUrl = process.env.REACT_APP_BACKEND_URL || API_BASE_URL;
             const endpoint = `${backendUrl}/api/analytics/reports/?${params.toString()}`;
+            
+            console.log(`🌐 Backend URL: ${backendUrl}`);
+            console.log(`🔗 Full endpoint: ${endpoint}`);
+            console.log(`🔑 Access token: ${getAccessToken() ? 'Available' : 'Missing'}`);
 
             const response = await fetch(endpoint, {
                 method: 'GET',
