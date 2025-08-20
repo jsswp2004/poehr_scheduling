@@ -45,6 +45,7 @@ import WebSocketDirectTest from './components/WebSocketDirectTest';
 import ChatTestPage from './pages/ChatTestPage';
 import DebugAvailability from './components/DebugAvailability';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
+import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
 
 function AppContent() {
   const location = useLocation();
@@ -182,6 +183,7 @@ function AppContent() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/support" element={<SupportPage />} />
+        <Route path="/terms" element={<PrivacyAndTermsPage />} />
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/security" element={<DataSecurityPage />} />
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
