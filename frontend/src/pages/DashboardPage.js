@@ -727,8 +727,15 @@ function DashboardPage() {
                                 frequency varies. Message and data rates may
                                 apply. Reply STOP to opt out or HELP for
                                 support. Your information will not be shared
-                                with third parties for marketing. See our
-                                Privacy Policy and Terms..
+                                with third parties for marketing. See our{" "}
+                                <a 
+                                  href="https://powerhealthcareit.com/terms" 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  style={{ color: '#1976d2', textDecoration: 'underline' }}
+                                >
+                                  Privacy Policy and Terms
+                                </a>.
                               </Typography>
                             </Box>
                           }
