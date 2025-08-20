@@ -28,15 +28,15 @@ export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" })
             </div>
           </div>
 
-          {/* Resources navigation links */}
-          <div className="footer-column">
+          {/* Resources navigation links - HIDDEN */}
+          {/*<div className="footer-column">
             <div className="footer-column-title">Resources</div>
             <div className="footer-links">
-              {/*<a href="#guides" className="footer-link">Guides &amp; Tutorials</a>
-              <a href="#help" className="footer-link">Help Center</a>*/}
+              <a href="#guides" className="footer-link">Guides &amp; Tutorials</a>
+              <a href="#help" className="footer-link">Help Center</a>
               <Link to="/support" className="footer-link">Support</Link>
             </div>
-          </div>
+          </div>*/}
 
           {/* Company navigation links */}
           <div className="footer-column">
