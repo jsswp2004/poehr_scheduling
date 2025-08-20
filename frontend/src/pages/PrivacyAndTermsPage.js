@@ -279,7 +279,7 @@ function PrivacyAndTermsPage() {
               <strong>POWER Healthcare IT Systems</strong>
             </Typography>
             <Typography variant="body1">
-              Email: support@powerhealthcareit.com
+              Email: info@powerhealthcareit.com
             </Typography>
             <Typography variant="body1">
               Website: https://powerhealthcareit.com
