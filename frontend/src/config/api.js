@@ -18,8 +18,8 @@ const getBaseUrl = () => {
             window.location.hostname === 'www.powerhealthcareit.com') {
             return 'https://powerhealthcareit.com';
         }
-        // Production URL - use the same domain as the frontend (relative URL)
-        return '';  // Empty string means use same domain and protocol
+        // Production URL - use the specific backend Azure Container App URL
+        return 'https://poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io';
     } else {
         // Development URL - default to localhost:8000
         return 'http://localhost:8000';
