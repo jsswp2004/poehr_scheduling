@@ -110,7 +110,7 @@ function DashboardPage() {
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
-    confirmPassword: ""
+    confirmPassword: "",
   });
 
   const token = localStorage.getItem("access_token");
@@ -142,9 +142,9 @@ function DashboardPage() {
           setSelectedDoctor(
             matchedDoctor
               ? {
-                value: matchedDoctor.id,
-                label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}`,
-              }
+                  value: matchedDoctor.id,
+                  label: `Dr. ${matchedDoctor.first_name} ${matchedDoctor.last_name}`,
+                }
               : null
           );
         }
@@ -184,8 +184,9 @@ function DashboardPage() {
             }
           );
           const prov = provRes.data;
-          const provName = `${prov.first_name || ""} ${prov.last_name || ""
-            }`.trim();
+          const provName = `${prov.first_name || ""} ${
+            prov.last_name || ""
+          }`.trim();
           setProviderName(provName);
           setEmailForm((prev) => ({ ...prev, to: prov.email || "" }));
           setSmsForm((prev) => ({ ...prev, phone: prov.phone_number || "" }));
@@ -291,7 +292,7 @@ function DashboardPage() {
       setPasswordForm({
         currentPassword: "",
         newPassword: "",
-        confirmPassword: ""
+        confirmPassword: "",
       });
       setPasswordEditing(false);
     } catch (error) {
@@ -334,15 +335,17 @@ function DashboardPage() {
       ),
       duration_minutes: appointment.duration_minutes,
       recurrence: appointment.recurrence || "none",
-      recurrence_end_date: appointment.recurrence_end_date ? toLocalDateString(appointment.recurrence_end_date) : "",
+      recurrence_end_date: appointment.recurrence_end_date
+        ? toLocalDateString(appointment.recurrence_end_date)
+        : "",
     });
 
     const matched = doctors.find((doc) => doc.id === appointment.provider);
     const selected = matched
       ? {
-        value: matched.id,
-        label: `Dr. ${matched.first_name} ${matched.last_name}`,
-      }
+          value: matched.id,
+          label: `Dr. ${matched.first_name} ${matched.last_name}`,
+        }
       : null;
 
     setSelectedDoctor(selected);
@@ -387,7 +390,7 @@ function DashboardPage() {
 
     // Create base payload without recurrence_end_date
     const { recurrence_end_date, ...baseFormData } = formData;
-    
+
     const payload = {
       ...baseFormData,
       appointment_datetime: isoDateTime,
@@ -402,15 +405,23 @@ function DashboardPage() {
       // If it's already in YYYY-MM-DD format, use it directly
       // If it's a Date object or other format, convert it
       if (dateValue instanceof Date) {
-        payload.recurrence_end_date = dateValue.toISOString().split('T')[0];
-      } else if (typeof dateValue === 'string' && dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        payload.recurrence_end_date = dateValue.toISOString().split("T")[0];
+      } else if (
+        typeof dateValue === "string" &&
+        dateValue.match(/^\d{4}-\d{2}-\d{2}$/)
+      ) {
         payload.recurrence_end_date = dateValue;
       } else {
         // Try to parse and format it
         const parsedDate = new Date(dateValue);
-        payload.recurrence_end_date = parsedDate.toISOString().split('T')[0];
+        payload.recurrence_end_date = parsedDate.toISOString().split("T")[0];
       }
-      console.log("Recurrence end date being sent:", payload.recurrence_end_date, "Original:", dateValue);
+      console.log(
+        "Recurrence end date being sent:",
+        payload.recurrence_end_date,
+        "Original:",
+        dateValue
+      );
     }
 
     console.log("Sending appointment payload:", payload);
@@ -709,11 +720,15 @@ function DashboardPage() {
                           label={
                             <Box>
                               <Typography variant="body2">
-                                By providing your phone number, you agree to
-                                receive appointment reminders and health
-                                notifications from POWER Healthcare IT Systems,
-                                LLC. Message frequency varies. Message and data
-                                rates may apply.
+                                By providing your phone number and checking this
+                                box, you consent to receive automated
+                                appointment reminders and health alerts via SMS
+                                from POWER Healthcare IT Systems. Message
+                                frequency varies. Message and data rates may
+                                apply. Reply STOP to opt out or HELP for
+                                support. Your information will not be shared
+                                with third parties for marketing. See our
+                                Privacy Policy and Terms..
                               </Typography>
                             </Box>
                           }
@@ -831,11 +846,13 @@ function DashboardPage() {
                             }
                             error={
                               passwordForm.confirmPassword &&
-                              passwordForm.newPassword !== passwordForm.confirmPassword
+                              passwordForm.newPassword !==
+                                passwordForm.confirmPassword
                             }
                             helperText={
                               passwordForm.confirmPassword &&
-                                passwordForm.newPassword !== passwordForm.confirmPassword
+                              passwordForm.newPassword !==
+                                passwordForm.confirmPassword
                                 ? "Passwords do not match"
                                 : ""
                             }
@@ -849,7 +866,8 @@ function DashboardPage() {
                                 !passwordForm.currentPassword ||
                                 !passwordForm.newPassword ||
                                 !passwordForm.confirmPassword ||
-                                passwordForm.newPassword !== passwordForm.confirmPassword ||
+                                passwordForm.newPassword !==
+                                  passwordForm.confirmPassword ||
                                 passwordForm.newPassword.length < 8
                               }
                             >
@@ -861,7 +879,7 @@ function DashboardPage() {
                                 setPasswordForm({
                                   currentPassword: "",
                                   newPassword: "",
-                                  confirmPassword: ""
+                                  confirmPassword: "",
                                 });
                                 setPasswordEditing(false);
                               }}
@@ -1084,8 +1102,8 @@ function DashboardPage() {
                             <TableCell>
                               {a.appointment_datetime
                                 ? new Date(
-                                  a.appointment_datetime
-                                ).toLocaleString()
+                                    a.appointment_datetime
+                                  ).toLocaleString()
                                 : "Unknown"}
                             </TableCell>
                             <TableCell align="right">
@@ -1304,7 +1322,7 @@ function DashboardPage() {
             <Box sx={{ mt: 2 }}>
               <CalendarView
                 onUpdate={() => setRefreshFlag((prev) => !prev)}
-                showBackButton={currentUser?.role !== 'patient'}
+                showBackButton={currentUser?.role !== "patient"}
               />
             </Box>
           )}{" "}
