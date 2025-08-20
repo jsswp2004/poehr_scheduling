@@ -56,7 +56,7 @@ function PatientsPage() {
   // const { isSystemAdmin } = useAuth(); // Commented out since not used
 
   // Custom hooks for each section
-  const patients = usePatients(navigate);
+  const patients = usePatients(navigate, userRole);
   const team = useTeam(navigate);
   const appointments = usePatientsAppointments();
   const analytics = useAnalytics();
