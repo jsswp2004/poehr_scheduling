@@ -220,6 +220,334 @@ class AnalyticsReportView(APIView):
                 'distribution': duration_groups
             }
 
+        elif report_type == 'Appointment Volume Trends':
+            # Get appointment volume trends over time
+            from django.db.models import Count
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            # Get daily appointment counts for the date range
+            daily_counts = appointments.extra(
+                select={'day': 'date(datetime)'}
+            ).values('day').annotate(
+                count=Count('id')
+            ).order_by('day')
+            
+            # Fill in missing days with 0 counts
+            current_date = start_date
+            trend_data = []
+            daily_dict = {item['day'].strftime('%Y-%m-%d'): item['count'] for item in daily_counts}
+            
+            while current_date <= end_date:
+                date_str = current_date.strftime('%Y-%m-%d')
+                trend_data.append({
+                    'date': date_str,
+                    'count': daily_dict.get(date_str, 0)
+                })
+                current_date += timedelta(days=1)
+            
+            return {
+                'trend_data': trend_data,
+                'total_appointments': appointments.count(),
+                'average_daily': round(appointments.count() / max(1, (end_date - start_date).days + 1), 1)
+            }
+
+        elif report_type == 'No-Show & Cancellation Rate':
+            # Calculate no-show and cancellation rates
+            total_appointments = appointments.count()
+            scheduled_count = appointments.filter(status='scheduled').count()
+            completed_count = appointments.filter(status='completed').count()
+            cancelled_count = appointments.filter(status='cancelled').count()
+            no_show_count = appointments.filter(status='no_show').count()
+            
+            return {
+                'totals': {
+                    'total_appointments': total_appointments,
+                    'scheduled': scheduled_count,
+                    'completed': completed_count,
+                    'cancelled': cancelled_count,
+                    'no_show': no_show_count
+                },
+                'rates': {
+                    'completion_rate': round((completed_count / max(1, total_appointments)) * 100, 1),
+                    'cancellation_rate': round((cancelled_count / max(1, total_appointments)) * 100, 1),
+                    'no_show_rate': round((no_show_count / max(1, total_appointments)) * 100, 1),
+                    'scheduled_rate': round((scheduled_count / max(1, total_appointments)) * 100, 1)
+                }
+            }
+
+        elif report_type == 'Provider Utilization Report':
+            # Calculate provider utilization rates
+            from django.db.models import Sum
+            
+            utilization_data = []
+            providers_list = appointments.values_list('doctor', flat=True).distinct()
+            
+            for provider_id in providers_list:
+                provider_appointments = appointments.filter(doctor_id=provider_id)
+                provider = provider_appointments.first().doctor if provider_appointments.exists() else None
+                
+                if provider:
+                    total_duration = provider_appointments.aggregate(
+                        total=Sum('duration_minutes')
+                    )['total'] or 0
+                    
+                    completed_appointments = provider_appointments.filter(status='completed').count()
+                    total_appointments = provider_appointments.count()
+                    
+                    utilization_data.append({
+                        'provider_name': f"Dr. {provider.first_name} {provider.last_name}",
+                        'total_appointments': total_appointments,
+                        'completed_appointments': completed_appointments,
+                        'total_hours': round(total_duration / 60, 1),
+                        'completion_rate': round((completed_appointments / max(1, total_appointments)) * 100, 1)
+                    })
+            
+            return {
+                'provider_utilization': sorted(utilization_data, key=lambda x: x['total_appointments'], reverse=True)
+            }
+
+        elif report_type == 'Patient Visit Frequency':
+            # Analyze patient visit frequency patterns
+            from django.db.models import Count
+            
+            patient_visits = appointments.values('patient').annotate(
+                visit_count=Count('id')
+            ).order_by('-visit_count')
+            
+            frequency_groups = {
+                '1 visit': patient_visits.filter(visit_count=1).count(),
+                '2-3 visits': patient_visits.filter(visit_count__gte=2, visit_count__lte=3).count(),
+                '4-5 visits': patient_visits.filter(visit_count__gte=4, visit_count__lte=5).count(),
+                '6+ visits': patient_visits.filter(visit_count__gte=6).count()
+            }
+            
+            # Get top frequent patients
+            top_patients = []
+            for patient_data in patient_visits[:10]:  # Top 10
+                try:
+                    patient = patient_data['patient']
+                    if hasattr(patient, 'first_name'):
+                        patient_name = f"{patient.first_name} {patient.last_name}"
+                    else:
+                        patient_name = f"Patient {patient_data['patient']}"
+                    
+                    top_patients.append({
+                        'patient_name': patient_name,
+                        'visit_count': patient_data['visit_count']
+                    })
+                except:
+                    continue
+            
+            return {
+                'frequency_distribution': frequency_groups,
+                'top_frequent_patients': top_patients,
+                'total_unique_patients': patient_visits.count()
+            }
+
+        elif report_type == 'New vs. Returning Patients':
+            # Analyze new vs returning patient patterns
+            from django.db.models import Min
+            
+            # Get each patient's first appointment date
+            patient_first_appointments = appointments.values('patient').annotate(
+                first_appointment=Min('datetime')
+            )
+            
+            new_patients = []
+            returning_patients = []
+            
+            for patient_data in patient_first_appointments:
+                first_date = patient_data['first_appointment'].date()
+                patient_appointments = appointments.filter(patient=patient_data['patient'])
+                
+                if start_date <= first_date <= end_date:
+                    # Patient is new in this period
+                    new_patients.append({
+                        'patient_id': patient_data['patient'],
+                        'first_appointment': first_date.strftime('%Y-%m-%d'),
+                        'total_appointments': patient_appointments.count()
+                    })
+                else:
+                    # Patient is returning
+                    period_appointments = patient_appointments.filter(
+                        datetime__date__gte=start_date,
+                        datetime__date__lte=end_date
+                    ).count()
+                    
+                    if period_appointments > 0:
+                        returning_patients.append({
+                            'patient_id': patient_data['patient'],
+                            'appointments_in_period': period_appointments
+                        })
+            
+            return {
+                'new_patients': {
+                    'count': len(new_patients),
+                    'patients': new_patients[:20]  # Top 20
+                },
+                'returning_patients': {
+                    'count': len(returning_patients),
+                    'patients': returning_patients[:20]  # Top 20
+                },
+                'ratio': {
+                    'new_percentage': round((len(new_patients) / max(1, len(new_patients) + len(returning_patients))) * 100, 1),
+                    'returning_percentage': round((len(returning_patients) / max(1, len(new_patients) + len(returning_patients))) * 100, 1)
+                }
+            }
+
+        elif report_type == 'Appointment Lead Time Analysis':
+            # Analyze how far in advance appointments are booked
+            from django.utils import timezone
+            import pytz
+            
+            lead_times = []
+            for appointment in appointments:
+                if hasattr(appointment, 'created_at') and appointment.created_at:
+                    # Calculate lead time in days
+                    lead_time = (appointment.datetime.date() - appointment.created_at.date()).days
+                    lead_times.append(lead_time)
+            
+            if lead_times:
+                avg_lead_time = sum(lead_times) / len(lead_times)
+                
+                # Group by lead time ranges
+                lead_time_groups = {
+                    'Same day': len([lt for lt in lead_times if lt == 0]),
+                    '1-3 days': len([lt for lt in lead_times if 1 <= lt <= 3]),
+                    '4-7 days': len([lt for lt in lead_times if 4 <= lt <= 7]),
+                    '1-2 weeks': len([lt for lt in lead_times if 8 <= lt <= 14]),
+                    '2+ weeks': len([lt for lt in lead_times if lt > 14])
+                }
+            else:
+                avg_lead_time = 0
+                lead_time_groups = {
+                    'Same day': 0, '1-3 days': 0, '4-7 days': 0, 
+                    '1-2 weeks': 0, '2+ weeks': 0
+                }
+            
+            return {
+                'average_lead_time_days': round(avg_lead_time, 1),
+                'lead_time_distribution': lead_time_groups,
+                'total_analyzed': len(lead_times)
+            }
+
+        elif report_type == 'Patient Demographic Breakdown':
+            # Analyze patient demographics (basic version)
+            from django.db.models import Count
+            from datetime import date
+            
+            # Get unique patients in the appointment data
+            unique_patients = appointments.values('patient').distinct()
+            total_patients = unique_patients.count()
+            
+            # Gender distribution (if available in patient model)
+            gender_data = {'Unknown': total_patients}  # Default fallback
+            
+            # Age groups (if birth date available)
+            age_groups = {
+                'Under 18': 0,
+                '18-30': 0,
+                '31-50': 0,
+                '51-65': 0,
+                'Over 65': 0,
+                'Unknown': total_patients
+            }
+            
+            # Try to get actual demographic data if fields exist
+            try:
+                from users.models import CustomUser
+                patients = CustomUser.objects.filter(
+                    id__in=[p['patient'] for p in unique_patients],
+                    role='patient'
+                )
+                
+                # Reset counters
+                age_groups = {
+                    'Under 18': 0, '18-30': 0, '31-50': 0, 
+                    '51-65': 0, 'Over 65': 0, 'Unknown': 0
+                }
+                
+                for patient in patients:
+                    # Calculate age if birth_date exists
+                    if hasattr(patient, 'birth_date') and patient.birth_date:
+                        today = date.today()
+                        age = today.year - patient.birth_date.year - ((today.month, today.day) < (patient.birth_date.month, patient.birth_date.day))
+                        
+                        if age < 18:
+                            age_groups['Under 18'] += 1
+                        elif 18 <= age <= 30:
+                            age_groups['18-30'] += 1
+                        elif 31 <= age <= 50:
+                            age_groups['31-50'] += 1
+                        elif 51 <= age <= 65:
+                            age_groups['51-65'] += 1
+                        else:
+                            age_groups['Over 65'] += 1
+                    else:
+                        age_groups['Unknown'] += 1
+                        
+            except Exception as e:
+                # Fallback if patient model doesn't have demographic fields
+                age_groups['Unknown'] = total_patients
+            
+            return {
+                'total_patients': total_patients,
+                'age_distribution': age_groups,
+                'appointment_frequency': {
+                    'single_visit': appointments.values('patient').annotate(count=Count('id')).filter(count=1).count(),
+                    'multiple_visits': appointments.values('patient').annotate(count=Count('id')).filter(count__gt=1).count()
+                }
+            }
+
+        elif report_type == 'Blocked vs. Booked Time Comparison':
+            # Compare blocked time slots vs booked appointments
+            from django.db.models import Sum
+            
+            # Get booked appointment time
+            booked_duration = appointments.aggregate(
+                total=Sum('duration_minutes')
+            )['total'] or 0
+            
+            # Get blocked time slots (from availability model)
+            blocked_duration = 0
+            try:
+                from .models import Availability
+                blocked_slots = Availability.objects.filter(
+                    doctor__in=appointments.values_list('doctor', flat=True).distinct(),
+                    date__gte=start_date,
+                    date__lte=end_date,
+                    is_blocked=True
+                )
+                
+                for slot in blocked_slots:
+                    if hasattr(slot, 'start_time') and hasattr(slot, 'end_time'):
+                        # Calculate duration in minutes
+                        start_datetime = timezone.datetime.combine(slot.date, slot.start_time)
+                        end_datetime = timezone.datetime.combine(slot.date, slot.end_time)
+                        duration = (end_datetime - start_datetime).total_seconds() / 60
+                        blocked_duration += duration
+                        
+            except Exception as e:
+                blocked_duration = 0
+            
+            total_time = booked_duration + blocked_duration
+            
+            return {
+                'booked_time': {
+                    'minutes': booked_duration,
+                    'hours': round(booked_duration / 60, 1),
+                    'percentage': round((booked_duration / max(1, total_time)) * 100, 1)
+                },
+                'blocked_time': {
+                    'minutes': blocked_duration,
+                    'hours': round(blocked_duration / 60, 1),
+                    'percentage': round((blocked_duration / max(1, total_time)) * 100, 1)
+                },
+                'total_time_hours': round(total_time / 60, 1),
+                'efficiency_ratio': round(booked_duration / max(1, blocked_duration), 2) if blocked_duration > 0 else 'N/A'
+            }
+
         else:
             return {'error': 'Unknown report type'}
 
@@ -327,6 +655,82 @@ class ExportReportView(APIView):
             writer.writerow(['Duration Range', 'Count'])
             for range_name, count in data['distribution'].items():
                 writer.writerow([range_name, count])
+                
+        elif report_type == 'Appointment Volume Trends':
+            writer.writerow(['Date', 'Appointment Count'])
+            for item in data['trend_data']:
+                writer.writerow([item['date'], item['count']])
+            writer.writerow([])  # Empty row
+            writer.writerow(['Total Appointments', data['total_appointments']])
+            writer.writerow(['Average Daily', data['average_daily']])
+            
+        elif report_type == 'No-Show & Cancellation Rate':
+            writer.writerow(['Status', 'Count', 'Percentage'])
+            totals = data['totals']
+            rates = data['rates']
+            writer.writerow(['Total', totals['total_appointments'], '100%'])
+            writer.writerow(['Completed', totals['completed'], f"{rates['completion_rate']}%"])
+            writer.writerow(['Scheduled', totals['scheduled'], f"{rates['scheduled_rate']}%"])
+            writer.writerow(['Cancelled', totals['cancelled'], f"{rates['cancellation_rate']}%"])
+            writer.writerow(['No Show', totals['no_show'], f"{rates['no_show_rate']}%"])
+            
+        elif report_type == 'Provider Utilization Report':
+            writer.writerow(['Provider', 'Total Appointments', 'Completed', 'Total Hours', 'Completion Rate'])
+            for provider in data['provider_utilization']:
+                writer.writerow([
+                    provider['provider_name'],
+                    provider['total_appointments'],
+                    provider['completed_appointments'],
+                    provider['total_hours'],
+                    f"{provider['completion_rate']}%"
+                ])
+                
+        elif report_type == 'Patient Visit Frequency':
+            writer.writerow(['Frequency Group', 'Patient Count'])
+            for group, count in data['frequency_distribution'].items():
+                writer.writerow([group, count])
+            writer.writerow([])  # Empty row
+            writer.writerow(['Top Frequent Patients'])
+            writer.writerow(['Patient Name', 'Visit Count'])
+            for patient in data['top_frequent_patients']:
+                writer.writerow([patient['patient_name'], patient['visit_count']])
+                
+        elif report_type == 'New vs. Returning Patients':
+            writer.writerow(['Patient Type', 'Count', 'Percentage'])
+            writer.writerow(['New Patients', data['new_patients']['count'], f"{data['ratio']['new_percentage']}%"])
+            writer.writerow(['Returning Patients', data['returning_patients']['count'], f"{data['ratio']['returning_percentage']}%"])
+            writer.writerow([])  # Empty row
+            writer.writerow(['New Patients Details'])
+            writer.writerow(['Patient ID', 'First Appointment', 'Total Appointments'])
+            for patient in data['new_patients']['patients']:
+                writer.writerow([patient['patient_id'], patient['first_appointment'], patient['total_appointments']])
+                
+        elif report_type == 'Appointment Lead Time Analysis':
+            writer.writerow(['Metric', 'Value'])
+            writer.writerow(['Average Lead Time (days)', data['average_lead_time_days']])
+            writer.writerow(['Total Analyzed', data['total_analyzed']])
+            writer.writerow([])  # Empty row
+            writer.writerow(['Lead Time Range', 'Count'])
+            for range_name, count in data['lead_time_distribution'].items():
+                writer.writerow([range_name, count])
+                
+        elif report_type == 'Patient Demographic Breakdown':
+            writer.writerow(['Age Group', 'Count'])
+            for age_group, count in data['age_distribution'].items():
+                writer.writerow([age_group, count])
+            writer.writerow([])  # Empty row
+            writer.writerow(['Visit Frequency'])
+            writer.writerow(['Single Visit Patients', data['appointment_frequency']['single_visit']])
+            writer.writerow(['Multiple Visit Patients', data['appointment_frequency']['multiple_visits']])
+            writer.writerow(['Total Unique Patients', data['total_patients']])
+            
+        elif report_type == 'Blocked vs. Booked Time Comparison':
+            writer.writerow(['Time Type', 'Hours', 'Minutes', 'Percentage'])
+            writer.writerow(['Booked Time', data['booked_time']['hours'], data['booked_time']['minutes'], f"{data['booked_time']['percentage']}%"])
+            writer.writerow(['Blocked Time', data['blocked_time']['hours'], data['blocked_time']['minutes'], f"{data['blocked_time']['percentage']}%"])
+            writer.writerow([])  # Empty row
+            writer.writerow(['Total Time (hours)', data['total_time_hours']])
+            writer.writerow(['Efficiency Ratio', data['efficiency_ratio']])
         
         return response
 
