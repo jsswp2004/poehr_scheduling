@@ -226,30 +226,37 @@ class AnalyticsReportView(APIView):
             from django.utils import timezone
             from datetime import timedelta
             
+            # Use start_dt and end_dt from the parsed parameters
+            if not start_dt:
+                start_dt = timezone.now() - timedelta(days=30)
+            if not end_dt:
+                end_dt = timezone.now()
+            
             # Get daily appointment counts for the date range
             daily_counts = appointments.extra(
-                select={'day': 'date(datetime)'}
+                select={'day': 'date(appointment_datetime)'}
             ).values('day').annotate(
                 count=Count('id')
             ).order_by('day')
             
             # Fill in missing days with 0 counts
-            current_date = start_date
+            current_date = start_dt.date()
+            end_date = end_dt.date()
             trend_data = []
-            daily_dict = {item['day'].strftime('%Y-%m-%d'): item['count'] for item in daily_counts}
+            daily_dict = {item['day']: item['count'] for item in daily_counts}
             
             while current_date <= end_date:
                 date_str = current_date.strftime('%Y-%m-%d')
                 trend_data.append({
                     'date': date_str,
-                    'count': daily_dict.get(date_str, 0)
+                    'count': daily_dict.get(current_date, 0)
                 })
                 current_date += timedelta(days=1)
             
             return {
                 'trend_data': trend_data,
                 'total_appointments': appointments.count(),
-                'average_daily': round(appointments.count() / max(1, (end_date - start_date).days + 1), 1)
+                'average_daily': round(appointments.count() / max(1, (end_date - start_dt.date()).days + 1), 1)
             }
 
         elif report_type == 'No-Show & Cancellation Rate':
@@ -281,27 +288,28 @@ class AnalyticsReportView(APIView):
             from django.db.models import Sum
             
             utilization_data = []
-            providers_list = appointments.values_list('doctor', flat=True).distinct()
+            providers_list = appointments.values_list('provider', flat=True).distinct()
             
             for provider_id in providers_list:
-                provider_appointments = appointments.filter(doctor_id=provider_id)
-                provider = provider_appointments.first().doctor if provider_appointments.exists() else None
-                
-                if provider:
-                    total_duration = provider_appointments.aggregate(
-                        total=Sum('duration_minutes')
-                    )['total'] or 0
+                if provider_id:  # Skip None values
+                    provider_appointments = appointments.filter(provider_id=provider_id)
+                    provider = provider_appointments.first().provider if provider_appointments.exists() else None
                     
-                    completed_appointments = provider_appointments.filter(status='completed').count()
-                    total_appointments = provider_appointments.count()
-                    
-                    utilization_data.append({
-                        'provider_name': f"Dr. {provider.first_name} {provider.last_name}",
-                        'total_appointments': total_appointments,
-                        'completed_appointments': completed_appointments,
-                        'total_hours': round(total_duration / 60, 1),
-                        'completion_rate': round((completed_appointments / max(1, total_appointments)) * 100, 1)
-                    })
+                    if provider:
+                        total_duration = provider_appointments.aggregate(
+                            total=Sum('duration_minutes')
+                        )['total'] or 0
+                        
+                        completed_appointments = provider_appointments.filter(status='completed').count()
+                        total_appointments = provider_appointments.count()
+                        
+                        utilization_data.append({
+                            'provider_name': f"Dr. {provider.first_name} {provider.last_name}",
+                            'total_appointments': total_appointments,
+                            'completed_appointments': completed_appointments,
+                            'total_hours': round(total_duration / 60, 1),
+                            'completion_rate': round((completed_appointments / max(1, total_appointments)) * 100, 1)
+                        })
             
             return {
                 'provider_utilization': sorted(utilization_data, key=lambda x: x['total_appointments'], reverse=True)
