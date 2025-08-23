@@ -10,6 +10,7 @@ import { getAccessToken } from "../utils/tokenManager";
 // Components
 import BackButton from "../components/BackButton";
 import MessagesModal from "../components/MessagesModal";
+import SMSModal from "../components/SMSModal";
 import {
   PatientsTable,
   TeamTable,
@@ -260,8 +261,8 @@ function PatientsPage() {
 
   // Team handlers (similar to patients)
   const handleTeamSendText = (teamMember) => {
-    // Use the same SMS logic as patients since team members are also users
-    patients.handleSendText(teamMember, token);
+    // Use the team-specific SMS handler
+    patients.handleTeamSendText(teamMember, token);
   };
 
   const handleTeamOpenEmailModal = (teamMember) => {
@@ -574,6 +575,16 @@ function PatientsPage() {
           emailForm={patients.emailForm}
           setEmailForm={patients.setEmailForm}
           onSend={handleSendEmail}
+        />
+
+        {/* SMS Modal */}
+        <SMSModal
+          open={patients.showSMSModal}
+          onClose={patients.handleCloseSMSModal}
+          recipient={patients.selectedPatient}
+          recipientType={patients.smsRecipientType}
+          onSend={patients.handleSendSMS}
+          loading={patients.sendingSMS}
         />
 
         {/* Messages Modal */}
