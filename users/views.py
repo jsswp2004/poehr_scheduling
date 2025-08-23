@@ -39,11 +39,7 @@ from communicator.utils import send_email
 
 logger = logging.getLogger(__name__)
 
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_PHONE_NUMBER = os.getenv("TWILIO_PHONE_NUMBER")  # optional
-
-client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+# Remove global Twilio client - will create clients locally when needed
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -890,22 +886,59 @@ class UserViewSet(viewsets.ModelViewSet):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_sms(request):
+    """
+    Enhanced SMS sending endpoint with improved error handling and logging
+    """
     phone = request.data.get("phone")
     message = request.data.get("message")
 
-    print("📨 SMS REQUEST RECEIVED:", phone, message)
+    logger.info(f"📨 SMS REQUEST RECEIVED from user {request.user.username}: phone={phone}, message_length={len(message) if message else 0}")
 
+    # Validate required fields
     if not phone or not message:
-        return Response({"error": "Phone and message are required."}, status=400)
+        error_msg = "Phone and message are required."
+        logger.warning(f"SMS validation failed: {error_msg}")
+        return Response({"error": error_msg}, status=400)
+
+    # Validate phone number format (basic check)
+    if not phone.startswith('+') or len(phone) < 10:
+        error_msg = "Phone number must be in international format (e.g., +1234567890)"
+        logger.warning(f"SMS phone validation failed: {error_msg} for phone={phone}")
+        return Response({"error": error_msg}, status=400)
 
     try:
+        # Create Twilio client with proper settings
+        logger.info("🔧 Creating Twilio client...")
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
-        sent = client.messages.create(body=message, from_=TWILIO_PHONE_NUMBER, to=phone)
-        print("✅ SMS SENT:", sent.sid)
-        return Response({"message": "SMS sent successfully", "sid": sent.sid})
+        
+        # Send SMS message
+        logger.info(f"📤 Sending SMS to {phone} from {settings.TWILIO_PHONE_NUMBER}")
+        sent = client.messages.create(
+            body=message, 
+            from_=settings.TWILIO_PHONE_NUMBER, 
+            to=phone
+        )
+        
+        logger.info(f"✅ SMS SENT successfully: SID={sent.sid}, Status={sent.status}")
+        return Response({
+            "message": "SMS sent successfully", 
+            "sid": sent.sid,
+            "status": sent.status
+        })
+        
     except Exception as e:
-        print("❌ TWILIO ERROR:", e)
-        return Response({"error": str(e)}, status=500)
+        error_msg = str(e)
+        logger.error(f"❌ TWILIO ERROR: {error_msg}")
+        
+        # Provide more specific error messages
+        if "not a valid phone number" in error_msg.lower():
+            return Response({"error": "Invalid phone number format. Use international format (e.g., +1234567890)"}, status=400)
+        elif "not a mobile number" in error_msg.lower():
+            return Response({"error": "Phone number is not a mobile number capable of receiving SMS"}, status=400)
+        elif "account" in error_msg.lower() and "suspended" in error_msg.lower():
+            return Response({"error": "SMS service temporarily unavailable. Please try again later."}, status=503)
+        else:
+            return Response({"error": f"SMS delivery failed: {error_msg}"}, status=500)
 
 
 from django.core.mail import send_mail
@@ -1681,29 +1714,55 @@ def send_contact_email(request):
 @permission_classes([AllowAny])  # Public endpoint
 def send_contact_sms(request):
     """
-    Public endpoint for sending contact SMS notifications
+    Public endpoint for sending contact SMS notifications with enhanced validation and logging
     """
     try:
         phone = request.data.get("phone", "")
         message = request.data.get("message", "")
 
+        logger.info(f"📨 CONTACT SMS REQUEST: phone={phone}, message_length={len(message) if message else 0}")
+
+        # Validate required fields
         if not phone or not message:
-            return Response({"error": "Phone and message are required"}, status=400)
+            error_msg = "Phone and message are required"
+            logger.warning(f"Contact SMS validation failed: {error_msg}")
+            return Response({"error": error_msg}, status=400)
+
+        # Validate phone number format
+        if not phone.startswith('+') or len(phone) < 10:
+            error_msg = "Phone number must be in international format (e.g., +1234567890)"
+            logger.warning(f"Contact SMS phone validation failed: {error_msg} for phone={phone}")
+            return Response({"error": error_msg}, status=400)
 
         # Initialize Twilio client
+        logger.info("🔧 Creating Twilio client for contact SMS...")
         client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
         # Send SMS
-        message = client.messages.create(
-            body=message, from_=settings.TWILIO_PHONE_NUMBER, to=phone
+        logger.info(f"📤 Sending contact SMS to {phone} from {settings.TWILIO_PHONE_NUMBER}")
+        sms_result = client.messages.create(
+            body=message, 
+            from_=settings.TWILIO_PHONE_NUMBER, 
+            to=phone
         )
 
+        logger.info(f"✅ CONTACT SMS SENT successfully: SID={sms_result.sid}, Status={sms_result.status}")
         return Response(
-            {"message": "Contact SMS sent successfully", "sid": message.sid}, status=200
+            {"message": "Contact SMS sent successfully", "sid": sms_result.sid}, 
+            status=200
         )
 
     except Exception as e:
-        return Response({"error": f"Failed to send contact SMS: {str(e)}"}, status=500)
+        error_msg = str(e)
+        logger.error(f"❌ CONTACT SMS ERROR: {error_msg}")
+        
+        # Provide specific error messages
+        if "not a valid phone number" in error_msg.lower():
+            return Response({"error": "Invalid phone number format. Use international format (e.g., +1234567890)"}, status=400)
+        elif "not a mobile number" in error_msg.lower():
+            return Response({"error": "Phone number is not a mobile number capable of receiving SMS"}, status=400)
+        else:
+            return Response({"error": f"Failed to send contact SMS: {error_msg}"}, status=500)
 
 
 @api_view(["POST"])
