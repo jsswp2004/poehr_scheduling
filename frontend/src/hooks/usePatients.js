@@ -5,6 +5,7 @@ import { jwtDecode } from 'jwt-decode';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
 import { getAccessToken } from '../utils/tokenManager';
+import { formatPhoneToInternational } from '../utils/phoneUtils';
 
 export const usePatients = (navigate, userRole = null) => {
     const [patients, setPatients] = useState([]);
@@ -14,7 +15,10 @@ export const usePatients = (navigate, userRole = null) => {
     const [page, setPage] = useState(1);
     const [totalSize, setTotalSize] = useState(0);
     const [showEmailModal, setShowEmailModal] = useState(false);
+    const [showSMSModal, setShowSMSModal] = useState(false);
+    const [smsRecipientType, setSmsRecipientType] = useState('patient'); // 'patient' or 'team'
     const [selectedPatient, setSelectedPatient] = useState(null);
+    const [sendingSMS, setSendingSMS] = useState(false);
     const [emailForm, setEmailForm] = useState({
         subject: 'Message from your provider',
         message: '',
@@ -99,25 +103,68 @@ export const usePatients = (navigate, userRole = null) => {
     }, [search, provider, page, navigate, userRole]);
 
     const handleSendText = async (patient, token) => {
-        const phone = patient.phone_number;
-        const message = `Hello ${patient.first_name}, this is a reminder from your provider.`;
+        // Open SMS modal instead of sending directly
+        setSelectedPatient(patient);
+        setSmsRecipientType('patient');
+        setShowSMSModal(true);
+    };
 
-        if (!phone) {
-            toast.warning(`No phone number available for ${patient.first_name}`);
-            return;
-        }
+    const handleTeamSendText = async (teamMember, token) => {
+        // Open SMS modal for team member
+        setSelectedPatient(teamMember);
+        setSmsRecipientType('team');
+        setShowSMSModal(true);
+    };
 
+    const handleSendSMS = async ({ phone, message, recipient, recipientType }) => {
+        setSendingSMS(true);
+        
         try {
+            // Format phone number to international format
+            const formattedPhone = formatPhoneToInternational(phone);
+            
+            // Get current token
+            const authToken = getAccessToken();
+            if (!authToken) {
+                throw new Error('Authentication token not found. Please log in again.');
+            }
+
             await axios.post(
                 `${API_BASE_URL}/api/sms/send-sms/`,
-                { phone, message },
-                { headers: { Authorization: `Bearer ${token}` } }
+                { 
+                    phone: formattedPhone, 
+                    message: message.trim() 
+                },
+                { headers: { Authorization: `Bearer ${authToken}` } }
             );
-            toast.success(`Text sent to ${patient.first_name}`);
+            
+            const recipientName = `${recipient.first_name} ${recipient.last_name}`.trim();
+            toast.success(`SMS sent successfully to ${recipientName}`);
+            
         } catch (err) {
             console.error('SMS failed:', err);
-            toast.error('Failed to send SMS');
+            
+            // Handle specific error messages
+            if (err.response?.data?.error) {
+                toast.error(`SMS failed: ${err.response.data.error}`);
+            } else if (err.response?.status === 400) {
+                toast.error('Invalid phone number or message format');
+            } else if (err.response?.status === 401) {
+                toast.error('Authentication expired. Please log in again.');
+            } else {
+                toast.error('Failed to send SMS. Please try again.');
+            }
+            
+            throw err; // Re-throw to handle in modal
+        } finally {
+            setSendingSMS(false);
         }
+    };
+
+    const handleCloseSMSModal = () => {
+        setShowSMSModal(false);
+        setSelectedPatient(null);
+        setSmsRecipientType('patient');
     };
 
     const handleOpenEmailModal = (patient, token) => {
@@ -229,12 +276,19 @@ export const usePatients = (navigate, userRole = null) => {
         rowsPerPage,
         showEmailModal,
         setShowEmailModal,
+        showSMSModal,
+        setShowSMSModal,
+        smsRecipientType,
+        sendingSMS,
         selectedPatient,
         setSelectedPatient,
         emailForm,
         setEmailForm,
         fetchPatients,
         handleSendText,
+        handleTeamSendText,
+        handleSendSMS,
+        handleCloseSMSModal,
         handleOpenEmailModal,
         handleSendEmail,
         handleDelete,
