@@ -211,8 +211,16 @@ def send_patient_sms_reminders():
             if not patient or not patient.phone_number or patient.id in sms_sent_patients:
                 continue
 
-            appt_date = appt.appointment_datetime.strftime("%A, %B %d, %Y at %I:%M %p")
-            message = f"Hi {patient.first_name}, This is a reminder of your visit on: {appt_date}. Please arrive 15 minutes early. See you soon!"
+            # Format date and time separately
+            appt_date = appt.appointment_datetime.strftime("%A, %B %d, %Y")
+            appt_time = appt.appointment_datetime.strftime("%I:%M %p")
+            
+            # Get organization info
+            org_name = appt.organization.name if appt.organization else "Clinic"
+            org_address = appt.organization.address if appt.organization and appt.organization.address else "Our Location"
+            
+            # Create the new message format
+            message = f"{org_name}: Reminder for {patient.first_name} — your {appt.title} is scheduled on {appt_date} at {appt_time} at {org_address}. Reply C to confirm or R to reschedule."
 
             try:
                 send_sms(
@@ -223,7 +231,7 @@ def send_patient_sms_reminders():
                 )
                 new_sms_sent_patients.add(patient.id)
                 print(
-                    f"Sent SMS reminder to {patient.phone_number} for appointment on {appt_date}"
+                    f"Sent SMS reminder to {patient.phone_number} for appointment on {appt_date} at {appt_time}"
                 )
             except Exception as e:
                 print(f"Failed to send SMS to {patient.phone_number}: {str(e)}")
