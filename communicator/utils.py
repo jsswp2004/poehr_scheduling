@@ -50,13 +50,20 @@ def send_sms(to: str, message: str, user=None, organization=None):
     # Format phone number to international format
     formatted_phone = format_phone_to_international(to)
 
+    print(f"=== SMS SEND DEBUG ===")
+    print(f"Original phone number: '{to}'")
+    print(f"Formatted phone number: '{formatted_phone}'")
+    print(f"Organization: {org.name if org else 'None'}")
+
     client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
     try:
+        print(f"Sending to Twilio with number: '{formatted_phone}'")
         result = client.messages.create(
             body=message,
             from_=settings.TWILIO_PHONE_NUMBER,
             to=formatted_phone,  # Use formatted phone number
         )
+        print(f"✅ Twilio success - SID: {result.sid}")
         MessageLog.objects.create(
             user=user,
             organization=org,
@@ -66,8 +73,10 @@ def send_sms(to: str, message: str, user=None, organization=None):
             status="sent",
             provider_id=result.sid,
         )
+        print(f"✅ MessageLog created with recipient: '{formatted_phone}'")
         return result
     except Exception as exc:
+        print(f"❌ Twilio error: {str(exc)}")
         MessageLog.objects.create(
             user=user,
             organization=org,
