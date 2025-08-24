@@ -227,7 +227,6 @@ class MessageLogViewSet(viewsets.ModelViewSet):
         from django.db.models import Q
 
         user = self.request.user
-        print(f"🔍 MessageLogViewSet: user={user}, authenticated={user.is_authenticated}, role={getattr(user, 'role', None)}")
 
         if user.role == "system_admin":
             # System admins see everything
