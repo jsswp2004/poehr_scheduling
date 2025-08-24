@@ -67,6 +67,9 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             # Automatically join user to all their existing chat room groups
             await self.join_existing_chat_rooms()
 
+            # CRITICAL: Deliver any offline messages when user comes online
+            await self.deliver_offline_messages()
+
             # Broadcast user's online status to all connected clients
             await self.broadcast_user_status()
         else:
@@ -436,7 +439,7 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             return None
 
     async def handle_send_message(self, data):
-        """Handle sending a chat message using DIRECT user-to-user delivery"""
+        """Handle sending a chat message with offline delivery support"""
         print(f"MESSAGE: Received send_message request: {data}")
 
         if self.is_test_user:
@@ -463,52 +466,63 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 await self.send_error("Message cannot be empty")
                 return
 
-            # Create message data without saving to database first (for testing)
-            message_data = {
-                "id": f"temp_{timezone.now().timestamp()}",
-                "sender_id": sender_id,
-                "recipient_id": recipient_id,
-                "sender_name": f"{self.user.first_name} {self.user.last_name}".strip()
-                or self.user.username,
-                "content": message_text,
-                "timestamp": timezone.now().isoformat(),
-                "is_read": False,
-            }
+            # First, get or create a chat room for persistent message storage
+            room_id = await self.get_or_create_chatroom_for_users(sender_id, recipient_id)
+            if not room_id:
+                print("ERROR: Failed to create/get chat room")
+                await self.send_error("Failed to create chat room")
+                return
 
-            print(f"DIRECT_MESSAGE: Created message data: {message_data}")
+            # Save message to database for persistence (CRITICAL for offline delivery)
+            saved_message = await self.save_chat_message_async(room_id, message_text, recipient_id)
+            if not saved_message:
+                print("ERROR: Failed to save message to database")
+                await self.send_error("Failed to save message")
+                return
 
-            # Send DIRECTLY to recipient's personal group - bypass all room logic
-            recipient_group = f"user_{recipient_id}"
-            print(f"DIRECT_MESSAGE: Sending directly to {recipient_group}")
+            print(f"PERSISTENCE: Message saved to database with ID {saved_message['id']}")
 
-            await self.channel_layer.group_send(
-                recipient_group,
-                {"type": "direct_message_received", "message": message_data},
-            )
+            # Check if recipient is online
+            is_recipient_online = await self.is_user_online(recipient_id)
+            print(f"OFFLINE_CHECK: Recipient {recipient_id} is {'ONLINE' if is_recipient_online else 'OFFLINE'}")
 
-            print(f"DIRECT_MESSAGE: Sent to recipient group {recipient_group}")
+            # Always try to deliver immediately to online users
+            if is_recipient_online:
+                recipient_group = f"user_{recipient_id}"
+                print(f"DIRECT_MESSAGE: Sending to ONLINE recipient {recipient_group}")
+
+                await self.channel_layer.group_send(
+                    recipient_group,
+                    {"type": "direct_message_received", "message": saved_message},
+                )
+                print(f"DIRECT_MESSAGE: Sent to online recipient {recipient_group}")
+                delivery_status = "delivered_online"
+            else:
+                print(f"OFFLINE_DELIVERY: Recipient {recipient_id} is offline - message saved for later delivery")
+                delivery_status = "saved_for_offline_delivery"
 
             # Send confirmation back to sender
             await self.send(
                 text_data=json.dumps(
                     {
                         "type": "message_sent",
-                        "message": message_data,
-                        "status": "delivered_direct",
+                        "message": saved_message,
+                        "status": delivery_status,
+                        "recipient_online": is_recipient_online,
                     }
                 )
             )
 
             print(
-                f"DIRECT_MESSAGE: SUCCESS - Message sent directly from {sender_id} to {recipient_id}"
+                f"DIRECT_MESSAGE: SUCCESS - Message from {sender_id} to {recipient_id} ({delivery_status})"
             )
 
         except Exception as e:
-            print(f"ERROR: Error in direct message handling: {e}")
+            print(f"ERROR: Error in message handling: {e}")
             import traceback
 
             traceback.print_exc()
-            await self.send_error("Failed to send direct message")
+            await self.send_error("Failed to send message")
 
     async def handle_typing_indicator(self, data, is_typing):
         """Handle typing indicators"""
@@ -978,6 +992,12 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 text_data=json.dumps({"type": "new_message", "message": message_data})
             )
 
+            # Mark message as read if it has a real ID (not temporary)
+            message_id = message_data.get("id")
+            if message_id and not str(message_id).startswith("temp_"):
+                await self.mark_message_as_read_async(message_id)
+                print(f"DIRECT_RECEIVE: Marked message {message_id} as read for user {self.user.id}")
+
             print(
                 f"DIRECT_RECEIVE: Successfully delivered direct message to user {self.user.id}"
             )
@@ -1109,4 +1129,89 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             room = ChatRoom.objects.get(id=room_id)
             return room.participants.filter(id=self.user.id).exists()
         except ChatRoom.DoesNotExist:
+            return False
+
+    @database_sync_to_async
+    def is_user_online(self, user_id):
+        """Check if a user is currently online"""
+        try:
+            user = CustomUser.objects.get(id=user_id)
+            return user.is_online
+        except CustomUser.DoesNotExist:
+            return False
+
+    async def deliver_offline_messages(self):
+        """Deliver any unread messages that were sent while user was offline"""
+        try:
+            print(f"OFFLINE_DELIVERY: Checking for offline messages for user {self.user.id}")
+            
+            # Get all unread messages for this user
+            unread_messages = await self.get_unread_messages_for_user()
+            
+            if unread_messages:
+                print(f"OFFLINE_DELIVERY: Found {len(unread_messages)} unread messages for user {self.user.id}")
+                
+                # Send each message to the user
+                for message in unread_messages:
+                    await self.send(
+                        text_data=json.dumps({
+                            "type": "offline_message",
+                            "message": message
+                        })
+                    )
+                    print(f"OFFLINE_DELIVERY: Delivered offline message ID {message['id']} to user {self.user.id}")
+                
+                print(f"OFFLINE_DELIVERY: Successfully delivered {len(unread_messages)} offline messages")
+            else:
+                print(f"OFFLINE_DELIVERY: No offline messages found for user {self.user.id}")
+                
+        except Exception as e:
+            print(f"ERROR: Failed to deliver offline messages for user {self.user.id}: {e}")
+            import traceback
+            traceback.print_exc()
+
+    @database_sync_to_async
+    def get_unread_messages_for_user(self):
+        """Get all unread messages for the current user"""
+        try:
+            # Get all unread messages where this user is the recipient
+            unread_messages = ChatMessage.objects.filter(
+                recipient_id=self.user.id,
+                is_read=False
+            ).order_by('timestamp')
+            
+            # Convert to list of dictionaries for JSON serialization
+            messages = []
+            for message in unread_messages:
+                messages.append({
+                    "id": message.id,
+                    "room_id": message.room.id,
+                    "sender_id": message.sender.id,
+                    "sender_name": f"{message.sender.first_name} {message.sender.last_name}".strip() or message.sender.username,
+                    "recipient_id": message.recipient.id if message.recipient else None,
+                    "content": message.message,
+                    "timestamp": message.timestamp.isoformat(),
+                    "is_read": False,
+                    "message_type": "offline_delivery"
+                })
+            
+            return messages
+            
+        except Exception as e:
+            print(f"ERROR: Failed to get unread messages for user {self.user.id}: {e}")
+            return []
+
+    @database_sync_to_async
+    def mark_message_as_read_async(self, message_id):
+        """Mark a message as read in the database"""
+        try:
+            message = ChatMessage.objects.get(id=message_id)
+            message.mark_as_read()
+            print(f"READ_RECEIPT: Message {message_id} marked as read")
+            return True
+        except ChatMessage.DoesNotExist:
+            print(f"ERROR: Message {message_id} not found for marking as read")
+            return False
+        except Exception as e:
+            print(f"ERROR: Failed to mark message {message_id} as read: {e}")
             return False
