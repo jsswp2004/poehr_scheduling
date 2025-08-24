@@ -23,7 +23,7 @@ class MessageLog(models.Model):
     MESSAGE_TYPE_CHOICES = [
         ("sms", "SMS"),
         ("email", "Email"),
-        ("sms_webhook", "SMS Webhook"),
+        ("webhook", "SMS Webhook"),
     ]
 
     user = models.ForeignKey(
