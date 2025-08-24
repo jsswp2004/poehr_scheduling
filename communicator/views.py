@@ -263,7 +263,7 @@ class SMSWebhookView(APIView):
 
         try:
             # Extract Twilio webhook data - handle both DRF and regular Django requests
-            if hasattr(request, 'data'):
+            if hasattr(request, "data"):
                 # DRF request
                 from_phone = request.data.get("From", "").strip()
                 body = request.data.get("Body", "").strip().upper()
@@ -285,7 +285,7 @@ class SMSWebhookView(APIView):
             # Define keyword categories
             opt_out_keywords = [
                 "OPTOUT",
-                "CANCEL", 
+                "CANCEL",
                 "END",
                 "QUIT",
                 "UNSUBSCRIBE",
@@ -461,21 +461,25 @@ class SMSWebhookView(APIView):
         try:
             from users.models import CustomUser
             from .utils import format_phone_to_international, send_sms
-            
+
             # Format phone number to match database format
             formatted_phone = format_phone_to_international(phone_number)
-            
+
             # Find user by phone number to get their current status
             user = CustomUser.objects.filter(phone_number=formatted_phone).first()
-            
+
             if not user:
                 # Try without formatting
                 user = CustomUser.objects.filter(phone_number=phone_number).first()
-            
+
             # Create personalized help message based on user status
             if user:
-                org_name = user.organization.name if user.organization else "POWER Healthcare IT Systems"
-                
+                org_name = (
+                    user.organization.name
+                    if user.organization
+                    else "POWER Healthcare IT Systems"
+                )
+
                 if user.sms_opt_out:
                     # User is opted out
                     help_msg = f"SMS Help - {org_name}:\n\nYou are currently OPTED OUT of SMS notifications.\n\nCommands:\n• JOIN, START, YES, UNSTOP, or IN - Opt back in to receive notifications\n• HELP - Show this help message\n\nFor support, contact your healthcare provider."
@@ -485,13 +489,17 @@ class SMSWebhookView(APIView):
                 else:
                     # User exists but hasn't consented
                     help_msg = f"SMS Help - {org_name}:\n\nYou are currently NOT ENROLLED for SMS notifications.\n\nTo receive appointment reminders:\n1. Log into your patient portal\n2. Enable SMS notifications in your profile\n\nCommands:\n• HELP - Show this help message\n\nFor support, contact your healthcare provider."
-                
-                logger.info(f"✅ Personalized help message for user {user.username} (ID: {user.id})")
+
+                logger.info(
+                    f"✅ Personalized help message for user {user.username} (ID: {user.id})"
+                )
             else:
                 # Generic help for unknown numbers
                 help_msg = "SMS Help - POWER Healthcare IT Systems:\n\nCommands:\n• OPTOUT, CANCEL, END, QUIT, UNSUBSCRIBE, REVOKE, STOP, or STOPALL - Stop receiving SMS notifications\n• JOIN, START, YES, UNSTOP, or IN - Resume SMS notifications\n• HELP - Show this help message\n\nIf you received this message in error, please contact your healthcare provider."
-                logger.info(f"✅ Generic help message for unknown number: {phone_number}")
-            
+                logger.info(
+                    f"✅ Generic help message for unknown number: {phone_number}"
+                )
+
             # Send help message
             try:
                 send_sms(
@@ -499,13 +507,13 @@ class SMSWebhookView(APIView):
                     help_msg,
                     user=user,
                     organization=user.organization if user else None,
-                    bypass_opt_out=True  # Always allow help messages
+                    bypass_opt_out=True,  # Always allow help messages
                 )
                 return True
             except Exception as e:
                 logger.warning(f"⚠️ Could not send help message: {str(e)}")
                 return False
-                
+
         except Exception as e:
             logger.error(f"❌ Error handling help request: {str(e)}", exc_info=True)
             return False
@@ -514,17 +522,19 @@ class SMSWebhookView(APIView):
         """Send a brief help message for unrecognized commands"""
         try:
             from .utils import send_sms
-            
+
             brief_help = "SMS Commands: STOP (unsubscribe), START (subscribe), HELP (more info). For support, contact your healthcare provider."
-            
+
             send_sms(
                 phone_number,
                 brief_help,
                 user=None,
                 organization=None,
-                bypass_opt_out=True  # Always allow help messages
+                bypass_opt_out=True,  # Always allow help messages
             )
-            logger.info(f"✅ Generic help sent for unrecognized message from {phone_number}")
-            
+            logger.info(
+                f"✅ Generic help sent for unrecognized message from {phone_number}"
+            )
+
         except Exception as e:
             logger.warning(f"⚠️ Could not send generic help: {str(e)}")
