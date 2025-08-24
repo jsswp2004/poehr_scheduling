@@ -16,6 +16,7 @@ from django.contrib.auth import update_session_auth_hash
 from django.db.models import Q
 from django.http import HttpResponse
 from django.conf import settings
+from django.utils import timezone
 from twilio.rest import Client
 import os
 import csv
@@ -1147,6 +1148,242 @@ def send_patient_email(request):
             {"error": str(e), "detail": "Check server logs for more information"},
             status=500,
         )
+
+
+class SMSOptOutManagementView(APIView):
+    """
+    Admin endpoint for managing SMS opt-out status for users.
+    Allows admins to view opt-out status and manually opt users in/out.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get SMS opt-out statistics and user list"""
+        user = request.user
+
+        # Check permissions
+        if user.role not in ["admin", "system_admin", "registrar"]:
+            return Response(
+                {"error": "Insufficient permissions"}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        # Filter users based on organization
+        if user.role == "system_admin":
+            users = CustomUser.objects.all()
+        else:
+            users = CustomUser.objects.filter(organization=user.organization)
+
+        # Get opt-out statistics
+        total_users = users.count()
+        opted_out_users = users.filter(sms_opt_out=True).count()
+        opted_in_users = users.filter(sms_consent=True, sms_opt_out=False).count()
+
+        # Get detailed user list with SMS status
+        users_data = []
+        for u in users.filter(phone_number__isnull=False, phone_number__gt=""):
+            users_data.append(
+                {
+                    "id": u.id,
+                    "username": u.username,
+                    "first_name": u.first_name,
+                    "last_name": u.last_name,
+                    "phone_number": u.phone_number,
+                    "sms_consent": u.sms_consent,
+                    "sms_consent_date": u.sms_consent_date,
+                    "sms_opt_out": u.sms_opt_out,
+                    "sms_opt_out_date": u.sms_opt_out_date,
+                    "sms_opt_out_method": u.sms_opt_out_method,
+                    "role": u.role,
+                }
+            )
+
+        return Response(
+            {
+                "statistics": {
+                    "total_users": total_users,
+                    "opted_out_users": opted_out_users,
+                    "opted_in_users": opted_in_users,
+                    "users_with_phone": len(users_data),
+                },
+                "users": users_data,
+            }
+        )
+
+    def post(self, request):
+        """Manually update SMS opt-out status for a user"""
+        user = request.user
+
+        # Check permissions
+        if user.role not in ["admin", "system_admin", "registrar"]:
+            return Response(
+                {"error": "Insufficient permissions"}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        user_id = request.data.get("user_id")
+        action = request.data.get("action")  # 'opt_out' or 'opt_in'
+
+        if not user_id or not action:
+            return Response(
+                {"error": "user_id and action are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if action not in ["opt_out", "opt_in"]:
+            return Response(
+                {"error": "action must be 'opt_out' or 'opt_in'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            target_user = CustomUser.objects.get(id=user_id)
+
+            # Check if admin can modify this user
+            if (
+                user.role != "system_admin"
+                and target_user.organization != user.organization
+            ):
+                return Response(
+                    {"error": "Cannot modify users from other organizations"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Update SMS status
+            if action == "opt_out":
+                target_user.sms_opt_out = True
+                target_user.sms_opt_out_date = timezone.now()
+                target_user.sms_opt_out_method = "ADMIN"
+                message = f"User {target_user.username} has been opted out of SMS notifications"
+            else:  # opt_in
+                target_user.sms_opt_out = False
+                target_user.sms_opt_out_date = None
+                target_user.sms_opt_out_method = None
+                target_user.sms_consent = True
+                target_user.sms_consent_date = timezone.now()
+                message = (
+                    f"User {target_user.username} has been opted into SMS notifications"
+                )
+
+            target_user.save()
+
+            # Log the action
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"Admin {user.username} (ID: {user.id}) {action} user {target_user.username} (ID: {target_user.id})"
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": message,
+                    "user": {
+                        "id": target_user.id,
+                        "username": target_user.username,
+                        "sms_opt_out": target_user.sms_opt_out,
+                        "sms_opt_out_date": target_user.sms_opt_out_date,
+                        "sms_opt_out_method": target_user.sms_opt_out_method,
+                        "sms_consent": target_user.sms_consent,
+                        "sms_consent_date": target_user.sms_consent_date,
+                    },
+                }
+            )
+
+        except CustomUser.DoesNotExist:
+            return Response(
+                {"error": "User not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in SMS opt-out management: {str(e)}", exc_info=True)
+            return Response(
+                {"error": f"Failed to update SMS status: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+class SMSPreferencesView(APIView):
+    """
+    User endpoint for managing their own SMS preferences.
+    Allows users to view and update their SMS consent and opt-out status.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get current user's SMS preferences"""
+        user = request.user
+
+        return Response(
+            {
+                "user_id": user.id,
+                "username": user.username,
+                "phone_number": user.phone_number,
+                "sms_consent": user.sms_consent,
+                "sms_consent_date": user.sms_consent_date,
+                "sms_opt_out": user.sms_opt_out,
+                "sms_opt_out_date": user.sms_opt_out_date,
+                "sms_opt_out_method": user.sms_opt_out_method,
+            }
+        )
+
+    def post(self, request):
+        """Update user's SMS preferences"""
+        user = request.user
+        action = request.data.get("action")  # 'opt_out' or 'opt_in'
+
+        if not action:
+            return Response(
+                {"error": "action is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if action not in ["opt_out", "opt_in"]:
+            return Response(
+                {"error": "action must be 'opt_out' or 'opt_in'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Update SMS status
+            if action == "opt_out":
+                user.sms_opt_out = True
+                user.sms_opt_out_date = timezone.now()
+                user.sms_opt_out_method = "MANUAL"
+                message = "You have been opted out of SMS notifications"
+            else:  # opt_in
+                user.sms_opt_out = False
+                user.sms_opt_out_date = None
+                user.sms_opt_out_method = None
+                user.sms_consent = True
+                user.sms_consent_date = timezone.now()
+                message = "You have been opted into SMS notifications"
+
+            user.save()
+
+            # Log the action
+            logger = logging.getLogger(__name__)
+            logger.info(f"User {user.username} (ID: {user.id}) self-{action}")
+
+            return Response(
+                {
+                    "success": True,
+                    "message": message,
+                    "preferences": {
+                        "sms_consent": user.sms_consent,
+                        "sms_consent_date": user.sms_consent_date,
+                        "sms_opt_out": user.sms_opt_out,
+                        "sms_opt_out_date": user.sms_opt_out_date,
+                        "sms_opt_out_method": user.sms_opt_out_method,
+                    },
+                }
+            )
+
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in user SMS preferences: {str(e)}", exc_info=True)
+            return Response(
+                {"error": f"Failed to update SMS preferences: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 
 class PatientDeleteView(DestroyAPIView):
