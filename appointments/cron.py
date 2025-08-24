@@ -120,8 +120,12 @@ def send_patient_reminders():
     cache.set("emailed_patients_today", new_emailed_patients, 24 * 60 * 60)
 
 
-def send_patient_sms_reminders():
-    """Send patient SMS reminders based on AutoEmail configuration."""
+def send_patient_sms_reminders(ignore_day_restrictions=False):
+    """Send patient SMS reminders based on AutoEmail configuration.
+    
+    Args:
+        ignore_day_restrictions (bool): If True, ignores day-of-week restrictions for manual execution
+    """
     today = timezone.now().date()
     current_weekday = timezone.now().weekday()  # 0=Monday, 6=Sunday
 
@@ -143,7 +147,11 @@ def send_patient_sms_reminders():
         # Frequency-based logic
         should_send = False
 
-        if config.auto_message_frequency == "daily":
+        if ignore_day_restrictions:
+            # For manual execution, ignore all day restrictions
+            should_send = True
+            print(f"Manual execution: ignoring day restrictions for config {config.id}")
+        elif config.auto_message_frequency == "daily":
             # Send every day - ignore day_of_week setting
             should_send = True
             print(f"Daily frequency: sending SMS every day")
@@ -203,22 +211,32 @@ def send_patient_sms_reminders():
                 appointment_datetime__date__gte=today,
                 appointment_datetime__date__lte=next_week,
             ).select_related("patient")
-            print(f"Processing {appointments.count()} SMS appointments (all organizations)")
+            print(
+                f"Processing {appointments.count()} SMS appointments (all organizations)"
+            )
 
         # Send SMS messages
         for appt in appointments:
             patient = appt.patient
-            if not patient or not patient.phone_number or patient.id in sms_sent_patients:
+            if (
+                not patient
+                or not patient.phone_number
+                or patient.id in sms_sent_patients
+            ):
                 continue
 
             # Format date and time separately
             appt_date = appt.appointment_datetime.strftime("%A, %B %d, %Y")
             appt_time = appt.appointment_datetime.strftime("%I:%M %p")
-            
+
             # Get organization info
             org_name = appt.organization.name if appt.organization else "Clinic"
-            org_address = appt.organization.address if appt.organization and appt.organization.address else "Our Location"
-            
+            org_address = (
+                appt.organization.address
+                if appt.organization and appt.organization.address
+                else "Our Location"
+            )
+
             # Create the new message format
             message = f"{org_name}: Reminder for {patient.first_name} — your {appt.title} is scheduled on {appt_date} at {appt_time} at {org_address}. Reply C to confirm or R to reschedule."
 
