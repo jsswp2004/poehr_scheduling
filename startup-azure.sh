@@ -24,6 +24,32 @@ if [ -n "$CONTAINER_APP_NAME" ]; then
         echo "⚠️  Database migrations failed, but continuing..."
     }
     
+    # Ensure communicator migrations are applied specifically
+    echo "🔧 Ensuring communicator migrations are applied..."
+    python manage.py migrate communicator --settings=$DJANGO_SETTINGS_MODULE || {
+        echo "⚠️  Communicator migrations failed, applying manually..."
+        python -c "
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', '$DJANGO_SETTINGS_MODULE')
+django.setup()
+from django.db import connection
+try:
+    with connection.cursor() as cursor:
+        # Check if organization column exists
+        cursor.execute('SELECT column_name FROM information_schema.columns WHERE table_name=\'communicator_messagelog\' AND column_name=\'organization_id\'')
+        if not cursor.fetchone():
+            print('Adding organization_id column...')
+            cursor.execute('ALTER TABLE communicator_messagelog ADD COLUMN organization_id BIGINT')
+            cursor.execute('ALTER TABLE communicator_messagelog ADD CONSTRAINT communicator_messagelog_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES users_organization(id) ON DELETE SET NULL')
+            cursor.execute('INSERT INTO django_migrations (app, name, applied) VALUES (\'communicator\', \'0003_messagelog_organization\', NOW()) ON CONFLICT (app, name) DO NOTHING')
+            print('✅ Organization column added successfully!')
+        else:
+            print('✅ Organization column already exists')
+except Exception as e:
+    print(f'⚠️ Manual migration failed: {e}')
+"
+    }
+    
     # Run specific communicator migration fix
     echo "🔧 Running communicator migration fix..."
     python azure_migration_fix.py || {
