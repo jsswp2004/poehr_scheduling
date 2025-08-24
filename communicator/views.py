@@ -332,7 +332,7 @@ class SMSWebhookView(APIView):
 
             # Create message log entry
             MessageLog.objects.create(
-                message_type="sms",
+                message_type="webhook",
                 body=f"Webhook: {body}",
                 recipient=from_phone,
                 status="received",
