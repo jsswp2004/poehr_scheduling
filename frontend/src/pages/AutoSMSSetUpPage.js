@@ -117,7 +117,7 @@ function AutoSMSSetUpPage() {
     try {
       const token = localStorage.getItem("access_token");
       await axios.post(
-        `${API_BASE_URL}/api/run-patient-reminders-now/`,
+        `${API_BASE_URL}/api/run-patient-sms-reminders-now/`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

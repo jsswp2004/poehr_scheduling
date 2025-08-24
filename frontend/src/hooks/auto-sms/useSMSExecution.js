@@ -44,7 +44,7 @@ export const useSMSExecution = (getAuthToken) => {
         try {
             const token = getAuthToken();
             await axios.post(
-                `${API_BASE_URL}/api/run-patient-reminders-now/`,
+                `${API_BASE_URL}/api/run-patient-sms-reminders-now/`,
                 {},
                 { headers: { Authorization: `Bearer ${token}` } }
             );
