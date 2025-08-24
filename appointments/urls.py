@@ -13,9 +13,10 @@ from .views import (
     UploadAvailabilityCSV,
     RunWeeklyPatientRemindersView,
     RunPatientRemindersNowView,
+    RunPatientSMSRemindersNowView,
     AutoEmailViewSet,
     update_appointment_status,
-)  # ⬅️ import the new view
+)  # ⬅️ import the new SMS view
 from .analytics_views import AnalyticsReportView, ExportReportView
 
 router = DefaultRouter()
@@ -71,6 +72,11 @@ urlpatterns = router.urls + [
         "run-patient-reminders-now/",
         RunPatientRemindersNowView.as_view(),
         name="run-patient-reminders-now",
+    ),
+    path(
+        "run-patient-sms-reminders-now/",
+        RunPatientSMSRemindersNowView.as_view(),
+        name="run-patient-sms-reminders-now",
     ),
     path("analytics/reports/", AnalyticsReportView.as_view(), name="analytics-reports"),
     path("analytics/export/", ExportReportView.as_view(), name="export-reports"),

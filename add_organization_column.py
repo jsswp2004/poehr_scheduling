@@ -6,7 +6,9 @@ import os
 import django
 
 # Setup Django settings for Azure
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "poehr_scheduling_backend.settings_azure")
+os.environ.setdefault(
+    "DJANGO_SETTINGS_MODULE", "poehr_scheduling_backend.settings_azure"
+)
 django.setup()
 
 from django.db import connection
@@ -22,44 +24,52 @@ def add_organization_column():
         with connection.cursor() as cursor:
             # Check if organization column exists
             logger.info("🔍 Checking if organization column exists...")
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_name='communicator_messagelog' 
                 AND column_name='organization_id';
-            """)
+            """
+            )
             result = cursor.fetchone()
-            
+
             if result:
                 logger.info("✅ organization_id column already exists!")
                 return True
             else:
                 logger.info("❌ organization_id column missing, adding it...")
-                
+
                 # Add the column
-                cursor.execute("""
+                cursor.execute(
+                    """
                     ALTER TABLE communicator_messagelog 
                     ADD COLUMN organization_id BIGINT;
-                """)
-                
+                """
+                )
+
                 # Add foreign key constraint
-                cursor.execute("""
+                cursor.execute(
+                    """
                     ALTER TABLE communicator_messagelog
                     ADD CONSTRAINT communicator_messagelog_organization_id_fkey
                     FOREIGN KEY (organization_id) REFERENCES users_organization(id) ON DELETE SET NULL;
-                """)
-                
+                """
+                )
+
                 logger.info("✅ organization_id column added!")
-                
+
                 # Mark the migration as applied
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO django_migrations (app, name, applied) 
                     VALUES ('communicator', '0003_messagelog_organization', NOW())
                     ON CONFLICT (app, name) DO NOTHING;
-                """)
+                """
+                )
                 logger.info("✅ Migration marked as applied!")
                 return True
-                
+
     except Exception as e:
         logger.error(f"❌ Failed to add organization column: {e}")
         return False

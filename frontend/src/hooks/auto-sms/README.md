@@ -74,7 +74,7 @@ const AutoSMSSetUpPage = () => {
 
 ### Execution Endpoints
 
-- **POST** `/api/run-patient-reminders-now/` - Trigger immediate SMS
+- **POST** `/api/run-patient-sms-reminders-now/` - Trigger immediate SMS
 - **GET** `/api/communicator/logs/` - Fetch SMS logs for analytics
 
 ## File Structure
