@@ -47,6 +47,24 @@ class CustomUser(AbstractUser):
     sms_consent_date = models.DateTimeField(
         null=True, blank=True, help_text="When the user gave SMS consent"
     )
+    sms_opt_out = models.BooleanField(
+        default=False, help_text="User has opted out of SMS notifications"
+    )
+    sms_opt_out_date = models.DateTimeField(
+        null=True, blank=True, help_text="When the user opted out of SMS"
+    )
+    sms_opt_out_method = models.CharField(
+        max_length=20,
+        choices=[
+            ("STOP", "STOP keyword"),
+            ("UNSUBSCRIBE", "UNSUBSCRIBE keyword"),
+            ("MANUAL", "Manual opt-out"),
+            ("ADMIN", "Admin action"),
+        ],
+        null=True,
+        blank=True,
+        help_text="How the user opted out of SMS",
+    )
 
     # Subscription and Trial Management
     stripe_customer_id = models.CharField(

@@ -21,6 +21,8 @@ from .views import (
     send_trial_reminders,  # Add trial reminders function
     PatientDeleteView,
     OrganizationViewSet,  # ✅
+    SMSOptOutManagementView,
+    SMSPreferencesView,
     DownloadProvidersCSVTemplate,
     UploadProvidersCSV,
     DownloadPatientsCSVTemplate,
@@ -113,6 +115,13 @@ urlpatterns = [
     path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),
     # Debug endpoint for user deletion
     path("debug-delete/<int:user_id>/", debug_delete_user, name="debug-delete-user"),
+    # SMS Opt-out Management
+    path(
+        "sms-optout-management/",
+        SMSOptOutManagementView.as_view(),
+        name="sms-optout-management",
+    ),
+    path("sms-preferences/", SMSPreferencesView.as_view(), name="sms-preferences"),
     # Payment Management Endpoints
     path(
         "payments/cancel-subscription/", cancel_subscription, name="cancel-subscription"

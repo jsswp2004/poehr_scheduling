@@ -39,7 +39,7 @@ def format_phone_to_international(phone):
     return phone
 
 
-def send_sms(to: str, message: str, user=None, organization=None):
+def send_sms(to: str, message: str, user=None, organization=None, bypass_opt_out=False):
     # Determine organization scope
     org = (
         organization
@@ -54,6 +54,77 @@ def send_sms(to: str, message: str, user=None, organization=None):
     print(f"Original phone number: '{to}'")
     print(f"Formatted phone number: '{formatted_phone}'")
     print(f"Organization: {org.name if org else 'None'}")
+    print(f"Bypass opt-out: {bypass_opt_out}")
+
+    # Check for opt-out status unless bypassed
+    if not bypass_opt_out:
+        from users.models import CustomUser
+
+        # Find user by phone number to check opt-out status
+        target_user = CustomUser.objects.filter(phone_number=formatted_phone).first()
+        if not target_user:
+            # Try with original phone number format
+            target_user = CustomUser.objects.filter(phone_number=to).first()
+
+        if target_user:
+            # Check if user has NOT consented to SMS (existing system)
+            if not target_user.sms_consent:
+                print(
+                    f"❌ SMS blocked: User {target_user.username} (ID: {target_user.id}) has not consented to SMS"
+                )
+                print(f"   SMS consent: {target_user.sms_consent}")
+                print(f"   SMS consent date: {target_user.sms_consent_date}")
+
+                # Log the blocked message
+                MessageLog.objects.create(
+                    user=user,
+                    organization=org,
+                    recipient=formatted_phone,
+                    body=message,
+                    message_type="sms",
+                    status="blocked_no_consent",
+                    provider_id="User has not consented to SMS notifications",
+                )
+
+                # Raise exception to indicate SMS was blocked
+                raise Exception(
+                    f"SMS blocked: Recipient has not consented to SMS notifications"
+                )
+
+            # Check if user has explicitly opted out (new system)
+            if target_user.sms_opt_out:
+                print(
+                    f"❌ SMS blocked: User {target_user.username} (ID: {target_user.id}) has opted out"
+                )
+                print(f"   Opt-out date: {target_user.sms_opt_out_date}")
+                print(f"   Opt-out method: {target_user.sms_opt_out_method}")
+
+                # Log the blocked message
+                MessageLog.objects.create(
+                    user=user,
+                    organization=org,
+                    recipient=formatted_phone,
+                    body=message,
+                    message_type="sms",
+                    status="blocked_opted_out",
+                    provider_id=f"User opted out via {target_user.sms_opt_out_method}",
+                )
+
+                # Raise exception to indicate SMS was blocked
+                raise Exception(
+                    f"SMS blocked: Recipient has opted out of SMS notifications"
+                )
+
+            print(
+                f"✅ SMS allowed: User {target_user.username} (ID: {target_user.id}) has consented and not opted out"
+            )
+        else:
+            print(
+                f"⚠️ SMS proceeding: No user found for phone number: {to} (formatted: {formatted_phone})"
+            )
+            print(
+                f"   This might be a contact from the contact list rather than a registered user"
+            )
 
     client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
     try:
