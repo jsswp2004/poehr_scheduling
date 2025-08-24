@@ -1029,7 +1029,8 @@ class RunPatientSMSRemindersNowView(APIView):
 
     def post(self, request):
         try:
-            send_patient_sms_reminders()
+            # For manual execution, ignore day restrictions
+            send_patient_sms_reminders(ignore_day_restrictions=True)
             return Response(
                 {"message": "Patient SMS reminders have been sent successfully."},
                 status=status.HTTP_200_OK,
