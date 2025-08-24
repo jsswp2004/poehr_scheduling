@@ -32,6 +32,15 @@ class MessageLog(models.Model):
         blank=True,
         related_name="message_logs",
     )
+    # Optional organization for system-generated or org-scoped logs
+    organization = models.ForeignKey(
+        "users.Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="message_logs",
+        help_text="Organization associated with this message, used when user is None or to scope logs",
+    )
     recipient = models.CharField(max_length=255)
     subject = models.CharField(max_length=255, blank=True)
     body = models.TextField()
@@ -45,4 +54,3 @@ class MessageLog(models.Model):
 
     def __str__(self) -> str:
         return f"{self.message_type.upper()} to {self.recipient}"
-

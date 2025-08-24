@@ -16,6 +16,9 @@ class MessageLogFilter(django_filters.FilterSet):
     created_at__gte = django_filters.DateFilter(
         field_name="created_at", lookup_expr="gte"
     )
+    created_at__lt = django_filters.DateFilter(
+        field_name="created_at", lookup_expr="lt"
+    )
     created_at__lte = django_filters.DateFilter(
         field_name="created_at", lookup_expr="lte"
     )
@@ -184,12 +187,23 @@ class SendBulkMessageView(APIView):
         for contact in contacts:
             if send_sms_flag and contact.phone:
                 try:
-                    send_sms(contact.phone, message, user=request.user)
+                    send_sms(
+                        contact.phone,
+                        message,
+                        user=request.user,
+                        organization=getattr(request.user, "organization", None),
+                    )
                 except Exception:
                     pass
             if send_email_flag and contact.email:
                 try:
-                    send_email(contact.email, subject, message, user=request.user)
+                    send_email(
+                        contact.email,
+                        subject,
+                        message,
+                        user=request.user,
+                        organization=getattr(request.user, "organization", None),
+                    )
                 except Exception:
                     pass
 
@@ -207,7 +221,7 @@ class MessageLogViewSet(viewsets.ModelViewSet):
         """
         Filter message logs based on user role:
         - system_admin: sees all messages
-        - admin/registrar: sees only messages from their organization
+        - admin/registrar: sees only messages from their organization, including system logs tagged with their org
         - others: sees their own messages only
         """
         from django.db.models import Q
@@ -218,9 +232,10 @@ class MessageLogViewSet(viewsets.ModelViewSet):
             # System admins see everything
             return MessageLog.objects.all().order_by("-created_at")
         elif user.role in ["admin", "registrar"] and user.organization:
-            # Admins and registrars see only org messages (no system messages)
+            # Admins and registrars see org messages and system-tagged org messages
             return MessageLog.objects.filter(
-                user__organization=user.organization
+                Q(user__organization=user.organization)
+                | Q(organization=user.organization)
             ).order_by("-created_at")
         else:
             # Regular users see only their own messages
