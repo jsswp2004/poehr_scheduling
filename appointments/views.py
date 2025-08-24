@@ -419,6 +419,7 @@ class EnvironmentSettingView(APIView):
         return [IsAdminOrSystemAdmin()]  # Only admin or system_admin can edit
 
     def get(self, request):
+        print(f"🔍 EnvironmentSettingView: user={request.user}, authenticated={request.user.is_authenticated}, role={getattr(request.user, 'role', None)}")
         # Determine which organization to fetch settings for
         target_organization = None
 
