@@ -118,11 +118,11 @@ export const usePatients = (navigate, userRole = null) => {
 
     const handleSendSMS = async ({ phone, message, recipient, recipientType }) => {
         setSendingSMS(true);
-        
+
         try {
             // Format phone number to international format
             const formattedPhone = formatPhoneToInternational(phone);
-            
+
             // Get current token
             const authToken = getAccessToken();
             if (!authToken) {
@@ -131,19 +131,19 @@ export const usePatients = (navigate, userRole = null) => {
 
             await axios.post(
                 `${API_BASE_URL}/api/sms/send-sms/`,
-                { 
-                    phone: formattedPhone, 
-                    message: message.trim() 
+                {
+                    phone: formattedPhone,
+                    message: message.trim()
                 },
                 { headers: { Authorization: `Bearer ${authToken}` } }
             );
-            
+
             const recipientName = `${recipient.first_name} ${recipient.last_name}`.trim();
             toast.success(`SMS sent successfully to ${recipientName}`);
-            
+
         } catch (err) {
             console.error('SMS failed:', err);
-            
+
             // Handle specific error messages
             if (err.response?.data?.error) {
                 toast.error(`SMS failed: ${err.response.data.error}`);
@@ -154,7 +154,7 @@ export const usePatients = (navigate, userRole = null) => {
             } else {
                 toast.error('Failed to send SMS. Please try again.');
             }
-            
+
             throw err; // Re-throw to handle in modal
         } finally {
             setSendingSMS(false);

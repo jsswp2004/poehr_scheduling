@@ -10,31 +10,31 @@ def format_phone_to_international(phone):
     """
     if not phone:
         return phone
-    
+
     # Remove all non-numeric characters
-    cleaned = ''.join(filter(str.isdigit, phone))
-    
+    cleaned = "".join(filter(str.isdigit, phone))
+
     # Handle different scenarios
     if len(cleaned) == 10:
         # US number without country code: 3018806015 → +13018806015
         return f"+1{cleaned}"
-    elif len(cleaned) == 11 and cleaned.startswith('1'):
+    elif len(cleaned) == 11 and cleaned.startswith("1"):
         # US number with country code: 13018806015 → +13018806015
         return f"+{cleaned}"
-    elif len(cleaned) == 11 and not cleaned.startswith('1'):
+    elif len(cleaned) == 11 and not cleaned.startswith("1"):
         # Assume US number: 03018806015 → +13018806015 (remove leading 0)
         return f"+1{cleaned[1:]}"
-    elif phone.startswith('+1') and len(cleaned) == 11:
+    elif phone.startswith("+1") and len(cleaned) == 11:
         # Already formatted correctly: +13018806015
         return phone
-    elif phone.startswith('+') and len(cleaned) >= 10:
+    elif phone.startswith("+") and len(cleaned) >= 10:
         # International format: +441234567890
         return phone
-    
+
     # If we can't determine format, assume US and try to fix
     if len(cleaned) >= 10:
         return f"+1{cleaned[-10:]}"
-    
+
     # Return original if we can't format
     return phone
 
@@ -42,7 +42,7 @@ def format_phone_to_international(phone):
 def send_sms(to: str, message: str, user=None):
     # Format phone number to international format
     formatted_phone = format_phone_to_international(to)
-    
+
     client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
     try:
         result = client.messages.create(
