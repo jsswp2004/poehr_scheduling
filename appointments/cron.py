@@ -223,7 +223,9 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
                 or not patient.phone_number
                 or patient.id in sms_sent_patients
             ):
-                print(f"Skipping appointment {appt.id}: patient={bool(patient)}, phone={bool(patient.phone_number if patient else False)}, already_sent={patient.id in sms_sent_patients if patient else False}")
+                print(
+                    f"Skipping appointment {appt.id}: patient={bool(patient)}, phone={bool(patient.phone_number if patient else False)}, already_sent={patient.id in sms_sent_patients if patient else False}"
+                )
                 continue
 
             try:
@@ -233,19 +235,16 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
 
                 # Get organization info
                 org_name = appt.organization.name if appt.organization else "Clinic"
-                org_address = (
-                    appt.organization.address
-                    if appt.organization and appt.organization.address
-                    else "Our Location"
-                )
-
+                
                 # Safe handling of appointment title
                 appt_title = appt.title if appt.title else "appointment"
 
                 # Create the new message format
-                message = f"{org_name}: Reminder for {patient.first_name} — your {appt_title} is scheduled on {appt_date} at {appt_time} at {org_address}. Reply C to confirm or R to reschedule."
+                message = f"{org_name}: Reminder for {patient.first_name} — your {appt_title} is scheduled on {appt_date} at {appt_time}. Reply C to confirm or R to reschedule."
 
-                print(f"Attempting to send SMS to {patient.phone_number} for appointment {appt.id}")
+                print(
+                    f"Attempting to send SMS to {patient.phone_number} for appointment {appt.id}"
+                )
                 send_sms(
                     patient.phone_number,
                     message,
@@ -258,7 +257,9 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
                 )
             except Exception as e:
                 print(f"Failed to send SMS to {patient.phone_number}: {str(e)}")
-                print(f"Appointment details: ID={appt.id}, title='{appt.title}', patient='{patient.first_name} {patient.last_name}'")
+                print(
+                    f"Appointment details: ID={appt.id}, title='{appt.title}', patient='{patient.first_name} {patient.last_name}'"
+                )
                 # Continue with next appointment instead of crashing
                 continue
 
