@@ -9,10 +9,10 @@
  */
 export const formatPhoneToInternational = (phone) => {
     if (!phone) return '';
-    
+
     // Remove all non-numeric characters
     const cleaned = phone.replace(/\D/g, '');
-    
+
     // Handle different scenarios
     if (cleaned.length === 10) {
         // US number without country code: 3018806015 → +13018806015
@@ -30,12 +30,12 @@ export const formatPhoneToInternational = (phone) => {
         // International format: +441234567890
         return phone;
     }
-    
+
     // If we can't determine format, assume US and try to fix
     if (cleaned.length >= 10) {
         return `+1${cleaned.slice(-10)}`;
     }
-    
+
     // Return original if we can't format
     return phone;
 };
@@ -47,9 +47,9 @@ export const formatPhoneToInternational = (phone) => {
  */
 export const formatPhoneForDisplay = (phone) => {
     if (!phone) return 'No phone number';
-    
+
     const international = formatPhoneToInternational(phone);
-    
+
     // Extract country code and number
     if (international.startsWith('+1') && international.length === 12) {
         const number = international.slice(2); // Remove +1
@@ -58,7 +58,7 @@ export const formatPhoneForDisplay = (phone) => {
         const subscriber = number.slice(6, 10);
         return `+1 (${area}) ${exchange}-${subscriber}`;
     }
-    
+
     // For non-US numbers, return as-is
     return international;
 };
@@ -76,9 +76,9 @@ export const validatePhoneNumber = (phone) => {
             formatted: ''
         };
     }
-    
+
     const cleaned = phone.replace(/\D/g, '');
-    
+
     if (cleaned.length < 10) {
         return {
             isValid: false,
@@ -86,7 +86,7 @@ export const validatePhoneNumber = (phone) => {
             formatted: phone
         };
     }
-    
+
     if (cleaned.length > 15) {
         return {
             isValid: false,
@@ -94,9 +94,9 @@ export const validatePhoneNumber = (phone) => {
             formatted: phone
         };
     }
-    
+
     const formatted = formatPhoneToInternational(phone);
-    
+
     return {
         isValid: true,
         message: 'Valid phone number',
@@ -111,13 +111,13 @@ export const validatePhoneNumber = (phone) => {
  */
 export const getCountryCode = (phone) => {
     if (!phone) return '+1'; // Default to US
-    
+
     const formatted = formatPhoneToInternational(phone);
-    
+
     if (formatted.startsWith('+1')) return '+1';
     if (formatted.startsWith('+44')) return '+44';
     if (formatted.startsWith('+33')) return '+33';
-    
+
     // Extract first 1-3 digits after +
     const match = formatted.match(/^\+(\d{1,3})/);
     return match ? `+${match[1]}` : '+1';
@@ -130,18 +130,18 @@ export const getCountryCode = (phone) => {
  */
 export const isUSPhoneNumber = (phone) => {
     if (!phone) return true; // Default assumption
-    
+
     const cleaned = phone.replace(/\D/g, '');
-    
+
     // 10 digits = US without country code
     if (cleaned.length === 10) return true;
-    
+
     // 11 digits starting with 1 = US with country code
     if (cleaned.length === 11 && cleaned.startsWith('1')) return true;
-    
+
     // Already formatted with +1
     if (phone.startsWith('+1')) return true;
-    
+
     return false;
 };
 
@@ -154,7 +154,7 @@ export const getSMSCharacterInfo = (message) => {
     const count = message ? message.length : 0;
     const singleSMSLimit = 160;
     const multiSMSLimit = 153; // Per segment for multi-part SMS
-    
+
     if (count <= singleSMSLimit) {
         return {
             count,

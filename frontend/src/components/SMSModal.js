@@ -23,13 +23,13 @@ import {
 import { toast } from 'react-toastify';
 import { formatPhoneForDisplay, validatePhoneNumber, getSMSCharacterInfo } from '../utils/phoneUtils';
 
-const SMSModal = ({ 
-    open, 
-    onClose, 
-    recipient, 
+const SMSModal = ({
+    open,
+    onClose,
+    recipient,
     recipientType = 'patient', // 'patient' or 'team'
     onSend,
-    loading = false 
+    loading = false
 }) => {
     const [message, setMessage] = useState('');
     const [phoneValidation, setPhoneValidation] = useState({ isValid: true, message: '', formatted: '' });
@@ -119,7 +119,7 @@ const SMSModal = ({
                 recipient,
                 recipientType
             });
-            
+
             // Success handling is done in parent component
             onClose();
         } catch (error) {
@@ -141,10 +141,10 @@ const SMSModal = ({
     if (!recipient) return null;
 
     return (
-        <Dialog 
-            open={open} 
-            onClose={onClose} 
-            maxWidth="md" 
+        <Dialog
+            open={open}
+            onClose={onClose}
+            maxWidth="md"
             fullWidth
             PaperProps={{
                 sx: { borderRadius: 2 }
@@ -183,9 +183,9 @@ const SMSModal = ({
                             {recipient.first_name} {recipient.last_name}
                         </Typography>
                         {recipient.role && (
-                            <Chip 
-                                label={recipient.role} 
-                                size="small" 
+                            <Chip
+                                label={recipient.role}
+                                size="small"
                                 variant="outlined"
                                 color={recipientType === 'patient' ? 'primary' : 'secondary'}
                             />
@@ -219,7 +219,7 @@ const SMSModal = ({
                                 variant="outlined"
                                 size="small"
                                 onClick={() => handleTemplateClick(template)}
-                                sx={{ 
+                                sx={{
                                     textTransform: 'none',
                                     justifyContent: 'flex-start',
                                     maxWidth: '250px',
@@ -277,7 +277,7 @@ const SMSModal = ({
                 {recipientType === 'patient' && (
                     <Alert severity="info" sx={{ mb: 2 }}>
                         <Typography variant="caption">
-                            <strong>HIPAA Compliance:</strong> Avoid sharing sensitive medical information via SMS. 
+                            <strong>HIPAA Compliance:</strong> Avoid sharing sensitive medical information via SMS.
                             Use general reminders and instructions only.
                         </Typography>
                     </Alert>
@@ -285,7 +285,7 @@ const SMSModal = ({
             </DialogContent>
 
             <DialogActions sx={{ px: 3, pb: 3 }}>
-                <Button 
+                <Button
                     onClick={onClose}
                     disabled={loading}
                 >
