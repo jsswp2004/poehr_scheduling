@@ -12,8 +12,9 @@ import {
   Alert,
   CircularProgress,
   Stack,
-  TextField,
 } from "@mui/material";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import MessageLogTable from "../components/MessageLogTable";
@@ -27,6 +28,7 @@ function AutoEmailSetUpPage() {
   const [loading, setLoading] = useState(true);
   const [runNowStatus, setRunNowStatus] = useState("");
   const [monthlyEmailTotal, setMonthlyEmailTotal] = useState(0);
+  const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -41,6 +43,7 @@ function AutoEmailSetUpPage() {
         );
         setFrequency(res.data.auto_message_frequency || "weekly");
         setDayOfWeek(res.data.auto_message_day_of_week || 1);
+        setEnabled(typeof res.data.is_active === 'boolean' ? res.data.is_active : true);
 
         // Handle start date from API response
         if (res.data.auto_message_start_date) {
@@ -68,10 +71,13 @@ function AutoEmailSetUpPage() {
       const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
       const startDate = firstDay.toISOString().split("T")[0];
-      const endDate = lastDay.toISOString().split("T")[0];
+      // Use exclusive end date: add one day and use created_at__lt
+      const endDateExclusive = new Date(lastDay);
+      endDateExclusive.setDate(endDateExclusive.getDate() + 1);
+      const endDate = endDateExclusive.toISOString().split("T")[0];
 
       const res = await axios.get(
-        `${API_BASE_URL}/api/communicator/logs/?message_type=email&created_at__gte=${startDate}&created_at__lte=${endDate}`,
+        `${API_BASE_URL}/api/communicator/logs/?message_type=email&created_at__gte=${startDate}&created_at__lt=${endDate}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -102,6 +108,7 @@ function AutoEmailSetUpPage() {
           auto_message_frequency: frequency,
           auto_message_day_of_week: dayOfWeek,
           auto_message_start_date: formattedDate,
+          is_active: enabled,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -184,6 +191,10 @@ function AutoEmailSetUpPage() {
                 <MenuItem value="monthly">Monthly</MenuItem>
               </Select>
             </FormControl>
+            <FormControlLabel
+              control={<Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />}
+              label="Enabled"
+            />
             <FormControl fullWidth>
               <InputLabel id="day-label">Day of Week</InputLabel>
               <Select

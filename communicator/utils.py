@@ -39,7 +39,14 @@ def format_phone_to_international(phone):
     return phone
 
 
-def send_sms(to: str, message: str, user=None):
+def send_sms(to: str, message: str, user=None, organization=None):
+    # Determine organization scope
+    org = (
+        organization
+        if organization is not None
+        else getattr(user, "organization", None)
+    )
+
     # Format phone number to international format
     formatted_phone = format_phone_to_international(to)
 
@@ -52,6 +59,7 @@ def send_sms(to: str, message: str, user=None):
         )
         MessageLog.objects.create(
             user=user,
+            organization=org,
             recipient=formatted_phone,  # Log the formatted number
             body=message,
             message_type="sms",
@@ -62,6 +70,7 @@ def send_sms(to: str, message: str, user=None):
     except Exception as exc:
         MessageLog.objects.create(
             user=user,
+            organization=org,
             recipient=formatted_phone,  # Log the formatted number even for failures
             body=message,
             message_type="sms",
@@ -71,7 +80,14 @@ def send_sms(to: str, message: str, user=None):
         raise
 
 
-def send_email(to_email: str, subject: str, message: str, user=None):
+def send_email(to_email: str, subject: str, message: str, user=None, organization=None):
+    # Determine organization scope
+    org = (
+        organization
+        if organization is not None
+        else getattr(user, "organization", None)
+    )
+
     try:
         send_mail(
             subject=subject,
@@ -82,6 +98,7 @@ def send_email(to_email: str, subject: str, message: str, user=None):
         )
         MessageLog.objects.create(
             user=user,
+            organization=org,
             recipient=to_email,
             subject=subject,
             body=message,
@@ -91,6 +108,7 @@ def send_email(to_email: str, subject: str, message: str, user=None):
     except Exception as exc:
         MessageLog.objects.create(
             user=user,
+            organization=org,
             recipient=to_email,
             subject=subject,
             body=message,

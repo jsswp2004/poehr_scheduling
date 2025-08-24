@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { API_BASE_URL } from '../config/api';
 import {
@@ -30,23 +30,28 @@ function MessageLogTable({ type }) {
   const [page, setPage] = useState(1);
   const [isSystemAdmin, setIsSystemAdmin] = useState(false);
   const [userRole, setUserRole] = useState("");
-  const [userOrgId, setUserOrgId] = useState(null);
+  // const [userOrgId, setUserOrgId] = useState(null);
   const rowsPerPage = 15;
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const token = localStorage.getItem("access_token");
       let url = `${API_BASE_URL}/api/communicator/logs/?message_type=${type}`;
 
       // Add date filters if applied
       if (appliedStart) url += `&created_at__gte=${appliedStart}`;
-      if (appliedEnd) url += `&created_at__lte=${appliedEnd}`;
+      if (appliedEnd) {
+        // Exclusive end date: add one day and use created_at__lt
+        const endDate = new Date(appliedEnd);
+        endDate.setDate(endDate.getDate() + 1);
+        const endIso = endDate.toISOString().split("T")[0];
+        url += `&created_at__lt=${endIso}`;
+      }
 
       // Backend now handles organization filtering automatically based on user role
       // No need to manually add organization parameter
 
       // Debug: Log the URL being called
       console.log("Fetching logs with URL:", url);
-      console.log("User role:", userRole, "Organization ID:", userOrgId, "Is System Admin:", isSystemAdmin);
 
       const res = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -57,10 +62,10 @@ function MessageLogTable({ type }) {
     } catch (err) {
       console.error("Failed to fetch logs", err);
     }
-  };
+  }, [type, appliedStart, appliedEnd]);
   useEffect(() => {
     fetchLogs();
-  }, [type, appliedStart, appliedEnd]);
+  }, [fetchLogs]);
 
   useEffect(() => {
     // Check user role and organization on component mount
@@ -69,20 +74,20 @@ function MessageLogTable({ type }) {
       try {
         const decoded = jwtDecode(token);
         const role = decoded.role;
-        const orgId = decoded.organization_id;
+        // const orgId = decoded.organization_id;
 
         console.log("🔍 FULL TOKEN DECODED:", decoded);
-        console.log("Decoded token - Role:", role, "Organization ID:", orgId);
+        console.log("Decoded token - Role:", role);
         console.log("Available token fields:", Object.keys(decoded));
 
         setUserRole(role);
-        setUserOrgId(orgId);
+        // setUserOrgId(orgId);
         setIsSystemAdmin(role === "system_admin");
       } catch (err) {
         console.error("Error decoding token:", err);
         setIsSystemAdmin(false);
         setUserRole("");
-        setUserOrgId(null);
+        // setUserOrgId(null);
       }
     }
   }, []);
@@ -135,10 +140,7 @@ function MessageLogTable({ type }) {
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
-    const currentMonth = new Date().toLocaleDateString("en-US", {
-      month: "long",
-      year: "numeric",
-    });
+    // const currentMonth = new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" });
     const logType = type === "sms" ? "SMS" : "Email";
     const orgSuffix = !isSystemAdmin && (userRole === 'admin' || userRole === 'registrar')
       ? " (Organization Messages)"

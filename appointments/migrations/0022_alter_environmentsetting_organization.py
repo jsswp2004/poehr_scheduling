@@ -7,14 +7,27 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('users', '0021_add_sms_consent_fields'),
-        ('appointments', '0021_environmentsetting_organization'),
+        ("users", "0021_add_sms_consent_fields"),
+        ("appointments", "0021_environmentsetting_organization"),
     ]
 
+    def purge_null_env_settings(apps, schema_editor):
+        EnvironmentSetting = apps.get_model("appointments", "EnvironmentSetting")
+        # Delete any EnvironmentSetting rows with null organization to satisfy NOT NULL constraint
+        EnvironmentSetting.objects.filter(organization__isnull=True).delete()
+
     operations = [
+        migrations.RunPython(
+            purge_null_env_settings, reverse_code=migrations.RunPython.noop
+        ),
         migrations.AlterField(
-            model_name='environmentsetting',
-            name='organization',
-            field=models.OneToOneField(help_text='Organization this setting belongs to', on_delete=django.db.models.deletion.CASCADE, related_name='environment_setting', to='users.organization'),
+            model_name="environmentsetting",
+            name="organization",
+            field=models.OneToOneField(
+                help_text="Organization this setting belongs to",
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="environment_setting",
+                to="users.organization",
+            ),
         ),
     ]
