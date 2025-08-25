@@ -75,7 +75,7 @@ class AnalyticsReportView(APIView):
         # Generate report data based on type
         try:
             data = self._generate_report_data(
-                report_type, appointments, availabilities, user
+                report_type, appointments, availabilities, user, start_dt, end_dt
             )
             return Response(
                 {
@@ -94,7 +94,7 @@ class AnalyticsReportView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-    def _generate_report_data(self, report_type, appointments, availabilities, user):
+    def _generate_report_data(self, report_type, appointments, availabilities, user, start_dt=None, end_dt=None):
         """Generate specific report data based on report type."""
 
         if report_type == "Upcoming Appointments Report":
