@@ -170,11 +170,15 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             elif message_type == "ping":
                 # Simple ping test to verify backend is receiving messages
                 print(f"PING_TEST: Received ping from user {self.user.id}")
-                await self.send(text_data=json.dumps({
-                    "type": "pong", 
-                    "timestamp": timezone.now().isoformat(),
-                    "user_id": self.user.id
-                }))
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "pong",
+                            "timestamp": timezone.now().isoformat(),
+                            "user_id": self.user.id,
+                        }
+                    )
+                )
             else:
                 print(
                     f"DEBUG_CHAT_RECEIVE: Unknown message type: {message_type}, Data: {data}"
@@ -467,24 +471,32 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 return
 
             # First, get or create a chat room for persistent message storage
-            room_id = await self.get_or_create_chatroom_for_users(sender_id, recipient_id)
+            room_id = await self.get_or_create_chatroom_for_users(
+                sender_id, recipient_id
+            )
             if not room_id:
                 print("ERROR: Failed to create/get chat room")
                 await self.send_error("Failed to create chat room")
                 return
 
             # Save message to database for persistence (CRITICAL for offline delivery)
-            saved_message = await self.save_chat_message_async(room_id, message_text, recipient_id)
+            saved_message = await self.save_chat_message_async(
+                room_id, message_text, recipient_id
+            )
             if not saved_message:
                 print("ERROR: Failed to save message to database")
                 await self.send_error("Failed to save message")
                 return
 
-            print(f"PERSISTENCE: Message saved to database with ID {saved_message['id']}")
+            print(
+                f"PERSISTENCE: Message saved to database with ID {saved_message['id']}"
+            )
 
             # Check if recipient is online
             is_recipient_online = await self.is_user_online(recipient_id)
-            print(f"OFFLINE_CHECK: Recipient {recipient_id} is {'ONLINE' if is_recipient_online else 'OFFLINE'}")
+            print(
+                f"OFFLINE_CHECK: Recipient {recipient_id} is {'ONLINE' if is_recipient_online else 'OFFLINE'}"
+            )
 
             # Always try to deliver immediately to online users
             if is_recipient_online:
@@ -498,7 +510,9 @@ class PresenceConsumer(AsyncWebsocketConsumer):
                 print(f"DIRECT_MESSAGE: Sent to online recipient {recipient_group}")
                 delivery_status = "delivered_online"
             else:
-                print(f"OFFLINE_DELIVERY: Recipient {recipient_id} is offline - message saved for later delivery")
+                print(
+                    f"OFFLINE_DELIVERY: Recipient {recipient_id} is offline - message saved for later delivery"
+                )
                 delivery_status = "saved_for_offline_delivery"
 
             # Send confirmation back to sender
@@ -996,7 +1010,9 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             message_id = message_data.get("id")
             if message_id and not str(message_id).startswith("temp_"):
                 await self.mark_message_as_read_async(message_id)
-                print(f"DIRECT_RECEIVE: Marked message {message_id} as read for user {self.user.id}")
+                print(
+                    f"DIRECT_RECEIVE: Marked message {message_id} as read for user {self.user.id}"
+                )
 
             print(
                 f"DIRECT_RECEIVE: Successfully delivered direct message to user {self.user.id}"
@@ -1143,31 +1159,43 @@ class PresenceConsumer(AsyncWebsocketConsumer):
     async def deliver_offline_messages(self):
         """Deliver any unread messages that were sent while user was offline"""
         try:
-            print(f"OFFLINE_DELIVERY: Checking for offline messages for user {self.user.id}")
-            
+            print(
+                f"OFFLINE_DELIVERY: Checking for offline messages for user {self.user.id}"
+            )
+
             # Get all unread messages for this user
             unread_messages = await self.get_unread_messages_for_user()
-            
+
             if unread_messages:
-                print(f"OFFLINE_DELIVERY: Found {len(unread_messages)} unread messages for user {self.user.id}")
-                
+                print(
+                    f"OFFLINE_DELIVERY: Found {len(unread_messages)} unread messages for user {self.user.id}"
+                )
+
                 # Send each message to the user
                 for message in unread_messages:
                     await self.send(
-                        text_data=json.dumps({
-                            "type": "offline_message",
-                            "message": message
-                        })
+                        text_data=json.dumps(
+                            {"type": "offline_message", "message": message}
+                        )
                     )
-                    print(f"OFFLINE_DELIVERY: Delivered offline message ID {message['id']} to user {self.user.id}")
-                
-                print(f"OFFLINE_DELIVERY: Successfully delivered {len(unread_messages)} offline messages")
+                    print(
+                        f"OFFLINE_DELIVERY: Delivered offline message ID {message['id']} to user {self.user.id}"
+                    )
+
+                print(
+                    f"OFFLINE_DELIVERY: Successfully delivered {len(unread_messages)} offline messages"
+                )
             else:
-                print(f"OFFLINE_DELIVERY: No offline messages found for user {self.user.id}")
-                
+                print(
+                    f"OFFLINE_DELIVERY: No offline messages found for user {self.user.id}"
+                )
+
         except Exception as e:
-            print(f"ERROR: Failed to deliver offline messages for user {self.user.id}: {e}")
+            print(
+                f"ERROR: Failed to deliver offline messages for user {self.user.id}: {e}"
+            )
             import traceback
+
             traceback.print_exc()
 
     @database_sync_to_async
@@ -1176,27 +1204,31 @@ class PresenceConsumer(AsyncWebsocketConsumer):
         try:
             # Get all unread messages where this user is the recipient
             unread_messages = ChatMessage.objects.filter(
-                recipient_id=self.user.id,
-                is_read=False
-            ).order_by('timestamp')
-            
+                recipient_id=self.user.id, is_read=False
+            ).order_by("timestamp")
+
             # Convert to list of dictionaries for JSON serialization
             messages = []
             for message in unread_messages:
-                messages.append({
-                    "id": message.id,
-                    "room_id": message.room.id,
-                    "sender_id": message.sender.id,
-                    "sender_name": f"{message.sender.first_name} {message.sender.last_name}".strip() or message.sender.username,
-                    "recipient_id": message.recipient.id if message.recipient else None,
-                    "content": message.message,
-                    "timestamp": message.timestamp.isoformat(),
-                    "is_read": False,
-                    "message_type": "offline_delivery"
-                })
-            
+                messages.append(
+                    {
+                        "id": message.id,
+                        "room_id": message.room.id,
+                        "sender_id": message.sender.id,
+                        "sender_name": f"{message.sender.first_name} {message.sender.last_name}".strip()
+                        or message.sender.username,
+                        "recipient_id": (
+                            message.recipient.id if message.recipient else None
+                        ),
+                        "content": message.message,
+                        "timestamp": message.timestamp.isoformat(),
+                        "is_read": False,
+                        "message_type": "offline_delivery",
+                    }
+                )
+
             return messages
-            
+
         except Exception as e:
             print(f"ERROR: Failed to get unread messages for user {self.user.id}: {e}")
             return []
