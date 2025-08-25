@@ -3,7 +3,7 @@ import React from 'react';
 const PricingSection = ({ onPricingClick, onContactClick }) => {
     const pricingPlans = [
         {
-            name: 'Personal',
+            name: 'Professional',
             price: '$15',
             period: 'Free',
             description: 'For individuals getting started with healthcare scheduling',

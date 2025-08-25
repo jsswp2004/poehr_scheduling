@@ -17,10 +17,10 @@ export const PricingSection = ({
             </div>
 
             <div className="pricing-cards">
-                {/* Personal Plan - Free */}
+                {/* Professional Plan - Free */}
                 <div className="pricing-card">
                     <div className="plan-header">
-                        <div className="plan-name">Personal</div>
+                        <div className="plan-name">Professional</div>
                         <div className="plan-price">
                             <span className="price-amount">$15</span>
                             <span className="price-period">Free</span>
@@ -56,7 +56,7 @@ export const PricingSection = ({
                         Keep your Clinic on track
                     </div>
                     <div className="plan-features">
-                        <div className="feature">Everything in Personal</div>
+                        <div className="feature">Everything in Professional</div>
                         <div className="feature">Up to 10 providers</div>
                         <div className="feature">Unlimited appointments</div>
                         <div className="feature">Advanced calendar features</div>
