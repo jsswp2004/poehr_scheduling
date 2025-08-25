@@ -18,7 +18,7 @@ import StarIcon from '@mui/icons-material/Star';
 
 const SUBSCRIPTION_TIERS = {
   basic: {
-    name: 'Personal',
+    name: 'Professional',
     price: 49.99,
     popular: false,
     features: [

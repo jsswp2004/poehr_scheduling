@@ -32,7 +32,7 @@ const AccountDetailsStep = ({
                 required
                 size="small"
             >
-                <MenuItem value="personal">Personal</MenuItem>
+                <MenuItem value="personal">Professional</MenuItem>
                 <MenuItem value="clinic">Clinic</MenuItem>
                 <MenuItem value="group">Group</MenuItem>
             </TextField>
