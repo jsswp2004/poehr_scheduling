@@ -5,7 +5,7 @@
  * =====================
  * 1. Navigation Header - Same as landing page with logo, menu, login/trial buttons
  * 2. Page Title - "Pick your plan" heading
- * 3. Tab Navigation - Personal, Clinic, Group tabs (functionality to be added later)
+ * 3. Tab Navigation - Professional, Clinic, Group tabs (functionality to be added later)
  * 4. Pricing Cards Section - Three pricing tiers copied from landing page
  * 5. Footer - Same footer as landing page
  */
@@ -76,7 +76,7 @@ export const PricingPage = ({ className, ...props }) => {
               className={`tab-item ${activeTab === "personal" ? "active" : ""}`}
               onClick={() => handleTabClick("personal")}
             >
-              Personal
+              Professional
             </div>
             <div
               className={`tab-item ${activeTab === "clinic" ? "active" : ""}`}
@@ -107,7 +107,7 @@ export const PricingPage = ({ className, ...props }) => {
               <div className="pricing-panel">
                 <div className="panel-header">
                   <div className="panel-badge">Starter</div>
-                  <div className="panel-title">Personal Basic</div>
+                  <div className="panel-title">Professional</div>
                   <div className="panel-price">
                     <span className="price-amount">$49.99</span>
                     <span className="price-period">per month</span>
@@ -225,7 +225,7 @@ export const PricingPage = ({ className, ...props }) => {
                   Essential tools for small to medium healthcare clinics
                 </div>
                 <div className="panel-features">
-                  <div className="feature">Everything in Personal</div>
+                  <div className="feature">Everything in Professional</div>
                   <div className="feature">Up to 10 providers</div>
                   <div className="feature">Unlimited appointments</div>
                   <div className="feature">Advanced calendar features</div>
@@ -256,8 +256,8 @@ export const PricingPage = ({ className, ...props }) => {
                 </div>
                 <div className="panel-features">
                   <div className="feature">
-                    Everything in Personal - Includes all the essential features
-                    from the Personal plan, ensuring a strong foundation for
+                    Everything in Professional - Includes all the essential features
+                    from the Professional plan, ensuring a strong foundation for
                     your clinic or group practice.
                   </div>
                   <div className="feature">

@@ -8,7 +8,7 @@ stripe.api_key = getattr(settings, 'STRIPE_SECRET_KEY', '')
 # Subscription tier configuration
 SUBSCRIPTION_TIERS = {
     'basic': {
-        'name': 'Personal Plan',
+        'name': 'Professional Plan',
         'price_id': getattr(settings, 'STRIPE_BASIC_PRICE_ID', ''),
         'price': 49.99,
         'features': [
