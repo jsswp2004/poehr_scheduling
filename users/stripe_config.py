@@ -15,7 +15,7 @@ SUBSCRIPTION_TIERS = {
             'Basic scheduling',
             'Basic calendar view',
             'Email notifications',
-            'Mobile app access',
+            # 'Mobile app access',
             'Basic reporting'
         ]
     },

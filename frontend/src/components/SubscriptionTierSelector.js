@@ -22,10 +22,10 @@ const SUBSCRIPTION_TIERS = {
     price: 49.99,
     popular: false,
     features: [
-      'Up to 50 appointments per month',
+      'Up to 200 appointments per month',
       'Basic scheduling',
       'Email notifications',
-      'Mobile app access'
+      // 'Mobile app access'
     ]
   },
   premium: {
