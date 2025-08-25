@@ -6,7 +6,7 @@ export const usePricingData = () => {
     const personalPlans = {
         basic: {
             badge: 'Starter',
-            title: 'Personal Basic',
+            title: 'Professional',
             price: '$19.99',
             period: '',
             description: 'Perfect for individual healthcare providers just getting started',
@@ -59,7 +59,7 @@ export const usePricingData = () => {
             title: 'Features',
             description: 'Advanced features for busy clinics with complex needs',
             features: [
-                'Everything in Personal - Includes all the essential features from the Personal plan, ensuring a strong foundation for your clinic or group practice.',
+                'Everything in Professional - Includes all the essential features from the Professional plan, ensuring a strong foundation for your clinic or group practice.',
                 'Up to 10 providers - Manage scheduling and appointments for up to ten individual healthcare providers within your organization, supporting group practices and clinics of varying sizes.',
                 'Unlimited appointments - Enjoy the flexibility of booking and managing an unlimited number of appointments without any restrictions, allowing your team to grow without limits.',
                 'Advanced calendar features - Benefit from enhanced calendar capabilities, including color-coded schedules, recurring appointments, and customizable views to better organize your practice.',
