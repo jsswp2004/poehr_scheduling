@@ -278,7 +278,6 @@ class AnalyticsReportView(APIView):
 
         elif report_type == "Appointment Volume Trends":
             # Get appointment volume trends over time
-            from django.db.models import Count
             from datetime import timedelta
 
             # Use start_dt and end_dt from the parsed parameters
@@ -352,7 +351,6 @@ class AnalyticsReportView(APIView):
 
         elif report_type == "Provider Utilization Report":
             # Calculate provider utilization rates
-            from django.db.models import Sum
 
             utilization_data = []
             providers_list = appointments.values_list("provider", flat=True).distinct()
@@ -406,7 +404,6 @@ class AnalyticsReportView(APIView):
 
         elif report_type == "Patient Visit Frequency":
             # Analyze patient visit frequency patterns
-            from django.db.models import Count
 
             patient_visits = (
                 appointments.values("patient")
@@ -578,7 +575,6 @@ class AnalyticsReportView(APIView):
 
         elif report_type == "Patient Demographic Breakdown":
             # Analyze patient demographics (basic version)
-            from django.db.models import Count
             from datetime import date
 
             # Get unique patients in the appointment data
@@ -600,8 +596,6 @@ class AnalyticsReportView(APIView):
 
             # Try to get actual demographic data if fields exist
             try:
-                from users.models import CustomUser
-
                 patients = CustomUser.objects.filter(
                     id__in=[p["patient"] for p in unique_patients], role="patient"
                 )
@@ -663,7 +657,6 @@ class AnalyticsReportView(APIView):
 
         elif report_type == "Blocked vs. Booked Time Comparison":
             # Compare blocked time slots vs booked appointments
-            from django.db.models import Sum
 
             # Get booked appointment time
             booked_duration = (
