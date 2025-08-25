@@ -576,7 +576,7 @@ function AccountPage() {
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
                                 <Business sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                Current Plan
+                                Current Plan: {currentPlanData ? currentPlanData.label : 'Loading...'}
                             </Typography>
 
                             {currentPlanData && (
