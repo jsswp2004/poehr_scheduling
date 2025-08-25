@@ -279,7 +279,6 @@ class AnalyticsReportView(APIView):
         elif report_type == "Appointment Volume Trends":
             # Get appointment volume trends over time
             from django.db.models import Count
-            from django.utils import timezone
             from datetime import timedelta
 
             # Use start_dt and end_dt from the parsed parameters
@@ -539,7 +538,6 @@ class AnalyticsReportView(APIView):
 
         elif report_type == "Appointment Lead Time Analysis":
             # Analyze how far in advance appointments are booked
-            from django.utils import timezone
 
             lead_times = []
             for appointment in appointments:
@@ -682,10 +680,10 @@ class AnalyticsReportView(APIView):
                         # Calculate duration in minutes
                         if hasattr(slot, "date"):
                             # If availability has a date field
-                            start_datetime = timezone.datetime.combine(
+                            start_datetime = datetime.combine(
                                 slot.date, slot.start_time
                             )
-                            end_datetime = timezone.datetime.combine(
+                            end_datetime = datetime.combine(
                                 slot.date, slot.end_time
                             )
                         else:
