@@ -137,7 +137,10 @@ function AccountPage() {
             });
 
             setAccountData(userResponse.data);
-            setCurrentPlan(userResponse.data.subscription_tier || 'basic');
+            console.log('🔍 User subscription_tier from API:', userResponse.data.subscription_tier);
+            const userPlan = userResponse.data.subscription_tier || 'basic';
+            console.log('🔍 Setting currentPlan to:', userPlan);
+            setCurrentPlan(userPlan);
             setEditFormData({
                 first_name: userResponse.data.first_name || '',
                 last_name: userResponse.data.last_name || '',
@@ -379,6 +382,9 @@ function AccountPage() {
     }
 
     const currentPlanData = planOptions.find(plan => plan.value === currentPlan);
+    console.log('🔍 currentPlan value:', currentPlan);
+    console.log('🔍 currentPlanData found:', currentPlanData);
+    console.log('🔍 Available planOptions:', planOptions.map(p => p.value));
 
     return (
         <Container maxWidth={false} sx={{ mt: 4, mb: 4, px: 4 }}>
