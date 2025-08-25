@@ -27,6 +27,7 @@ import { usePatients } from "../hooks/usePatients";
 import { useTeam } from "../hooks/useTeam";
 import { usePatientsAppointments } from "../hooks/usePatientsAppointments";
 import { useAnalytics } from "../hooks/useAnalytics";
+import { useSubscriptionAccess, SubscriptionGate } from "../hooks/useSubscriptionAccess";
 // import { useAuth } from "../hooks/useAuth"; // Commented out since not used
 
 // Utils
@@ -61,6 +62,9 @@ function PatientsPage() {
   const team = useTeam(navigate);
   const appointments = usePatientsAppointments();
   const analytics = useAnalytics();
+
+  // Subscription access control
+  const { userTier, permissions, canAccess, requiresUpgrade } = useSubscriptionAccess();
 
   // Initialize chat
   const chat = useChat(
@@ -478,7 +482,34 @@ function PatientsPage() {
             />
 
             <Tab label="Appointments" value="appointments" />
-            <Tab label="Analytics" value="analytics" />
+            
+            {canAccess('analyticsSection') ? (
+              <Tab label="Analytics" value="analytics" />
+            ) : (
+              <Tab 
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    Analytics
+                    <span style={{ 
+                      fontSize: '10px', 
+                      color: '#1976d2', 
+                      fontWeight: 'bold',
+                      backgroundColor: '#e3f2fd',
+                      padding: '2px 6px',
+                      borderRadius: '8px'
+                    }}>
+                      UPGRADE
+                    </span>
+                  </Box>
+                } 
+                value="analytics" 
+                onClick={() => {
+                  if (requiresUpgrade('analyticsSection')) {
+                    window.location.href = '/pricing?plan=clinic';
+                  }
+                }}
+              />
+            )}
 
             {(userRole === "admin" ||
               userRole === "system_admin" ||
@@ -542,22 +573,29 @@ function PatientsPage() {
           )}
 
           {tab === "analytics" && (
-            <AnalyticsSection
-              analyticsTab={analytics.analyticsTab}
-              setAnalyticsTab={analytics.setAnalyticsTab}
-              reportStartDate={analytics.reportStartDate}
-              setReportStartDate={analytics.setReportStartDate}
-              reportEndDate={analytics.reportEndDate}
-              setReportEndDate={analytics.setReportEndDate}
-              reportProvider={analytics.reportProvider}
-              setReportProvider={analytics.setReportProvider}
-              providers={analytics.providers}
-              analyticsReports={analytics.analyticsReports}
-              advancedAnalyticsReports={analytics.advancedAnalyticsReports}
-              onDownloadReport={handleDownloadReport}
-              organizationData={analytics.organizationData}
-              organizationLogo={analytics.organizationLogo}
-            />
+            <SubscriptionGate
+              feature="analyticsSection"
+              userTier={userTier}
+              permissions={permissions}
+              showUpgradePrompt={true}
+            >
+              <AnalyticsSection
+                analyticsTab={analytics.analyticsTab}
+                setAnalyticsTab={analytics.setAnalyticsTab}
+                reportStartDate={analytics.reportStartDate}
+                setReportStartDate={analytics.setReportStartDate}
+                reportEndDate={analytics.reportEndDate}
+                setReportEndDate={analytics.setReportEndDate}
+                reportProvider={analytics.reportProvider}
+                setReportProvider={analytics.setReportProvider}
+                providers={analytics.providers}
+                analyticsReports={analytics.analyticsReports}
+                advancedAnalyticsReports={analytics.advancedAnalyticsReports}
+                onDownloadReport={handleDownloadReport}
+                organizationData={analytics.organizationData}
+                organizationLogo={analytics.organizationLogo}
+              />
+            </SubscriptionGate>
           )}
 
           {tab === "register" && (

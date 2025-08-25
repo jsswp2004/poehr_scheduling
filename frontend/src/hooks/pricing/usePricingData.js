@@ -11,10 +11,10 @@ export const usePricingData = () => {
             period: '',
             description: 'Perfect for individual healthcare providers just getting started',
             features: [
-                'Basic scheduling with up to 50 appointments',
+                'Basic scheduling with up to 200 appointments',
                 'Basic calendar view with daily/weekly views',
                 'SMS + Email appointment notifications',
-                'Mobile app access for on-the-go management',
+                // 'Mobile app access for on-the-go management',
                 'Basic reporting on appointment statistics'
             ],
             buttonText: 'Get Started Free',

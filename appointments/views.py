@@ -90,6 +90,29 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        # Check subscription-based appointment limits
+        user = self.request.user
+        if hasattr(user, 'subscription_tier') and user.subscription_tier == 'basic':
+            # Professional plan: 200 appointments per month limit
+            from datetime import datetime
+            from django.utils import timezone
+            
+            current_month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            current_month_appointments = Appointment.objects.filter(
+                patient__user=user,
+                appointment_datetime__gte=current_month_start
+            ).count()
+            
+            if current_month_appointments >= 200:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied({
+                    'error': 'Professional plan appointment limit reached',
+                    'message': 'You have reached your monthly limit of 200 appointments. Upgrade to Clinic plan for unlimited appointments.',
+                    'current_count': current_month_appointments,
+                    'limit': 200,
+                    'upgrade_url': '/pricing?plan=clinic'
+                })
+
         # Server-side validation for availability
         appointment_datetime = serializer.validated_data.get("appointment_datetime")
         duration_minutes = serializer.validated_data.get("duration_minutes", 30)

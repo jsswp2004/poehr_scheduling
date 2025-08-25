@@ -33,7 +33,7 @@ export const PricingSection = ({
                         <div className="feature">Basic scheduling</div>
                         <div className="feature">Basic calendar view</div>
                         <div className="feature">Email notifications</div>
-                        <div className="feature">Mobile app access</div>
+                        {/* <div className="feature">Mobile app access</div> */}
                         <div className="feature">Basic reporting</div>
                     </div>
                     <div className="plan-button">
