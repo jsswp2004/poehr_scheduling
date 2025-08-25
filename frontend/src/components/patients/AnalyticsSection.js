@@ -111,7 +111,8 @@ function AnalyticsSection({
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: "300px",
+            height: "100%",
+            minHeight: 300,
             gap: 2,
           }}
         >
@@ -131,7 +132,8 @@ function AnalyticsSection({
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: "300px",
+            height: "100%",
+            minHeight: 300,
             gap: 2,
             color: "error.main",
           }}
@@ -161,9 +163,14 @@ function AnalyticsSection({
 
     if (previewData) {
       return (
-        <Box sx={{ height: "100%" }}>
+        <Box sx={{ 
+          height: "100%", 
+          display: "flex", 
+          flexDirection: "column",
+          overflow: "hidden"
+        }}>
           {/* Report Header */}
-          <Box sx={{ mb: 3, pb: 2, borderBottom: "2px solid #1976d2" }}>
+          <Box sx={{ mb: 2, pb: 2, borderBottom: "2px solid #1976d2", flexShrink: 0 }}>
             <Typography variant="h6" sx={{ color: "primary.main", mb: 1 }}>
               {selectedReportName}
             </Typography>
@@ -180,7 +187,7 @@ function AnalyticsSection({
           </Box>
 
           {/* Filter Summary */}
-          <Box sx={{ mb: 3, p: 2, bgcolor: "#f5f5f5", borderRadius: 1 }}>
+          <Box sx={{ mb: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 1, flexShrink: 0 }}>
             <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
               Applied Filters:
             </Typography>
@@ -211,7 +218,13 @@ function AnalyticsSection({
 
           {/* Report Data */}
           {previewData.records && previewData.records.length > 0 ? (
-            <TableContainer sx={{ maxHeight: "400px" }}>
+            <TableContainer sx={{ 
+              flex: 1, 
+              overflow: "auto",
+              minHeight: 0,
+              border: "1px solid #e0e0e0",
+              borderRadius: 1
+            }}>
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
@@ -287,7 +300,8 @@ function AnalyticsSection({
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                height: "200px",
+                flex: 1,
+                minHeight: 200,
                 bgcolor: "#f9f9f9",
                 borderRadius: 1,
                 border: "2px dashed #ccc",
@@ -319,9 +333,10 @@ function AnalyticsSection({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          height: "300px",
+          height: "100%",
           gap: 2,
           color: "text.secondary",
+          minHeight: 300,
         }}
       >
         <Typography variant="h6">📊 Report Preview</Typography>
@@ -1142,16 +1157,20 @@ function AnalyticsSection({
                   sx={{
                     p: 3,
                     height: "calc(70vh - 100px)",
-                    overflowY: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
                   }}
                 >
                   <Typography
                     variant="h6"
-                    sx={{ mb: 0, color: "primary.main" }}
+                    sx={{ mb: 2, color: "primary.main", flexShrink: 0 }}
                   >
                     Report Preview
                   </Typography>
-                  {renderReportPreview()}
+                  <Box sx={{ flex: 1, minHeight: 0 }}>
+                    {renderReportPreview()}
+                  </Box>
                 </Paper>
               </Grid>
             </Grid>
@@ -1356,16 +1375,20 @@ function AnalyticsSection({
                   sx={{
                     p: 3,
                     height: "calc(70vh - 200px)",
-                    overflowY: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
                   }}
                 >
                   <Typography
                     variant="h6"
-                    sx={{ mb: 2, color: "primary.main" }}
+                    sx={{ mb: 2, color: "primary.main", flexShrink: 0 }}
                   >
                     Report Preview
                   </Typography>
-                  {renderReportPreview()}
+                  <Box sx={{ flex: 1, minHeight: 0 }}>
+                    {renderReportPreview()}
+                  </Box>
                 </Paper>
               </Grid>
             </Grid>
