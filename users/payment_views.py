@@ -167,21 +167,40 @@ def payment_methods(request):
     """Get user's payment methods"""
     try:
         user = request.user
+        
+        # If user doesn't have a Stripe customer ID, return empty list
+        if not user.stripe_customer_id:
+            return Response(
+                {"payment_methods": []},
+                status=status.HTTP_200_OK,
+            )
 
-        # TODO: Implement Stripe payment methods retrieval
-        # For now, return mock data
+        # Retrieve payment methods from Stripe
+        import stripe
+        
+        payment_methods = stripe.PaymentMethod.list(
+            customer=user.stripe_customer_id,
+            type="card",
+        )
+        
+        # Get customer to check default payment method
+        customer = stripe.Customer.retrieve(user.stripe_customer_id)
+        default_payment_method = customer.get('invoice_settings', {}).get('default_payment_method')
+        
+        # Format payment methods for frontend
+        formatted_methods = []
+        for pm in payment_methods.data:
+            card = pm.card
+            formatted_methods.append({
+                "id": pm.id,
+                "type": card.brand.title(),  # visa -> Visa
+                "last4": card.last4,
+                "expires": f"{str(card.exp_month).zfill(2)}/{str(card.exp_year)[2:]}",
+                "isDefault": pm.id == default_payment_method,
+            })
+
         return Response(
-            {
-                "payment_methods": [
-                    {
-                        "id": "pm_mock",
-                        "type": "Visa",
-                        "last4": "4242",
-                        "expires": "12/25",
-                        "isDefault": True,
-                    }
-                ]
-            },
+            {"payment_methods": formatted_methods},
             status=status.HTTP_200_OK,
         )
 
@@ -200,20 +219,58 @@ def billing_history(request):
     try:
         user = request.user
 
-        # TODO: Implement Stripe billing history retrieval
-        # For now, return mock data
+        # If user doesn't have a Stripe customer ID, return empty list
+        if not user.stripe_customer_id:
+            return Response(
+                {"billing_history": []},
+                status=status.HTTP_200_OK,
+            )
+
+        # Retrieve invoices from Stripe
+        import stripe
+        from datetime import datetime
+        
+        invoices = stripe.Invoice.list(
+            customer=user.stripe_customer_id,
+            limit=50,  # Get last 50 invoices
+        )
+        
+        # Format billing history for frontend
+        formatted_history = []
+        for invoice in invoices.data:
+            # Convert timestamp to readable date
+            invoice_date = datetime.fromtimestamp(invoice.created).strftime('%Y-%m-%d')
+            
+            # Format amount (Stripe amounts are in cents)
+            amount = f"${invoice.amount_paid / 100:.2f}"
+            
+            # Determine status
+            status_text = "Paid" if invoice.paid else "Unpaid"
+            if invoice.status == "open":
+                status_text = "Pending"
+            elif invoice.status == "draft":
+                status_text = "Draft"
+            elif invoice.status == "void":
+                status_text = "Void"
+            
+            # Get description from subscription or line items
+            description = f"{user.subscription_tier} Plan - Monthly"
+            if invoice.lines.data:
+                line_item = invoice.lines.data[0]
+                if line_item.description:
+                    description = line_item.description
+            
+            formatted_history.append({
+                "id": invoice.id,
+                "date": invoice_date,
+                "amount": amount,
+                "status": status_text,
+                "description": description,
+                "invoice_url": invoice.hosted_invoice_url,  # URL to view/download invoice
+            })
+
         return Response(
-            {
-                "billing_history": [
-                    {
-                        "id": 1,
-                        "date": "2025-07-15",
-                        "amount": "$99.00",
-                        "status": "Paid",
-                        "description": f"{user.subscription_tier} Plan - Monthly",
-                    }
-                ]
-            },
+            {"billing_history": formatted_history},
             status=status.HTTP_200_OK,
         )
 
