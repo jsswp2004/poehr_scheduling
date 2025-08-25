@@ -131,31 +131,27 @@ function AccountPage() {
                 organization: userResponse.data.organization_name || ''
             });
 
-            // Fetch payment methods (placeholder - will implement Stripe integration)
-            // const paymentResponse = await axios.get(`${API_BASE_URL}/api/payments/methods/`, {
-            //   headers: { Authorization: `Bearer ${token}` }
-            // });
-            // setPaymentMethods(paymentResponse.data);
+            // Fetch payment methods from Stripe
+            try {
+                const paymentResponse = await axios.get(`${API_BASE_URL}/api/users/payments/methods/`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setPaymentMethods(paymentResponse.data.payment_methods || []);
+            } catch (error) {
+                console.error('Failed to fetch payment methods:', error);
+                setPaymentMethods([]); // Fallback to empty array
+            }
 
-            // Fetch billing history (placeholder)
-            // const billingResponse = await axios.get(`${API_BASE_URL}/api/payments/history/`, {
-            //   headers: { Authorization: `Bearer ${token}` }
-            // });
-            // setBillingHistory(billingResponse.data);
-
-            // Mock data for now
-            setPaymentMethods([
-                { id: 1, type: 'Visa', last4: '4242', expires: '12/25', isDefault: true },
-                { id: 2, type: 'Mastercard', last4: '8888', expires: '08/26', isDefault: false },
-                { id: 3, type: 'American Express', last4: '1001', expires: '03/27', isDefault: false }
-            ]);
-            setBillingHistory([
-                { id: 1, date: '2025-07-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
-                { id: 2, date: '2025-06-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
-                { id: 3, date: '2025-05-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
-                { id: 4, date: '2025-04-15', amount: '$99.00', status: 'Paid', description: 'Clinic Plan - Monthly' },
-                { id: 5, date: '2025-03-15', amount: '$99.00', status: 'Failed', description: 'Clinic Plan - Monthly' }
-            ]);
+            // Fetch billing history from Stripe
+            try {
+                const billingResponse = await axios.get(`${API_BASE_URL}/api/users/payments/history/`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setBillingHistory(billingResponse.data.billing_history || []);
+            } catch (error) {
+                console.error('Failed to fetch billing history:', error);
+                setBillingHistory([]); // Fallback to empty array
+            }
 
         } catch (error) {
             console.error('Failed to fetch account data:', error);
@@ -436,45 +432,59 @@ function AccountPage() {
                                 Payment Methods
                             </Typography>
 
-                            {paymentMethods.map((method) => (
-                                <Box key={method.id} sx={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    p: 2,
-                                    backgroundColor: '#ffffff',
-                                    borderRadius: 1,
-                                    mb: 1
+                            {paymentMethods.length === 0 ? (
+                                <Box sx={{ 
+                                    p: 3, 
+                                    backgroundColor: '#ffffff', 
+                                    borderRadius: 1, 
+                                    textAlign: 'center',
+                                    mb: 2 
                                 }}>
-                                    <Box>
-                                        <Typography variant="body1">
-                                            {method.type} ending in {method.last4}
-                                        </Typography>
-                                        <Typography variant="body2" color="textSecondary">
-                                            Expires {method.expires}
-                                            {method.isDefault && <Chip label="Default" size="small" sx={{ ml: 1 }} />}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', gap: 1 }}>
-                                        {!method.isDefault && (
-                                            <IconButton
-                                                onClick={() => handleSetDefaultPaymentMethod(method.id)}
-                                                color="primary"
-                                                title="Set as Default"
-                                            >
-                                                <CheckCircle />
-                                            </IconButton>
-                                        )}
-                                        <IconButton
-                                            onClick={() => handleDeletePaymentMethod(method.id)}
-                                            color="error"
-                                            title="Delete Payment Method"
-                                        >
-                                            <Delete />
-                                        </IconButton>
-                                    </Box>
+                                    <Typography variant="body2" color="textSecondary">
+                                        No payment methods found. Add a payment method to manage your subscription.
+                                    </Typography>
                                 </Box>
-                            ))}
+                            ) : (
+                                paymentMethods.map((method) => (
+                                    <Box key={method.id} sx={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        p: 2,
+                                        backgroundColor: '#ffffff',
+                                        borderRadius: 1,
+                                        mb: 1
+                                    }}>
+                                        <Box>
+                                            <Typography variant="body1">
+                                                {method.type} ending in {method.last4}
+                                            </Typography>
+                                            <Typography variant="body2" color="textSecondary">
+                                                Expires {method.expires}
+                                                {method.isDefault && <Chip label="Default" size="small" sx={{ ml: 1 }} />}
+                                            </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', gap: 1 }}>
+                                            {!method.isDefault && (
+                                                <IconButton
+                                                    onClick={() => handleSetDefaultPaymentMethod(method.id)}
+                                                    color="primary"
+                                                    title="Set as Default"
+                                                >
+                                                    <CheckCircle />
+                                                </IconButton>
+                                            )}
+                                            <IconButton
+                                                onClick={() => handleDeletePaymentMethod(method.id)}
+                                                color="error"
+                                                title="Delete Payment Method"
+                                            >
+                                                <Delete />
+                                            </IconButton>
+                                        </Box>
+                                    </Box>
+                                ))
+                            )}
 
                             <Button
                                 variant="outlined"
@@ -513,20 +523,30 @@ function AccountPage() {
                                         </TableRow>
                                     </TableHead>
                                     <TableBody>
-                                        {billingHistory.map((invoice) => (
-                                            <TableRow key={invoice.id}>
-                                                <TableCell>{invoice.date}</TableCell>
-                                                <TableCell>{invoice.description}</TableCell>
-                                                <TableCell>{invoice.amount}</TableCell>
-                                                <TableCell>
-                                                    <Chip
-                                                        label={invoice.status}
-                                                        color={invoice.status === 'Paid' ? 'success' : 'error'}
-                                                        size="small"
-                                                    />
+                                        {billingHistory.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={4} sx={{ textAlign: 'center', py: 4 }}>
+                                                    <Typography variant="body2" color="textSecondary">
+                                                        No billing history found. Invoices will appear here after your first payment.
+                                                    </Typography>
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            billingHistory.map((invoice) => (
+                                                <TableRow key={invoice.id}>
+                                                    <TableCell>{invoice.date}</TableCell>
+                                                    <TableCell>{invoice.description}</TableCell>
+                                                    <TableCell>{invoice.amount}</TableCell>
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={invoice.status}
+                                                            color={invoice.status === 'Paid' ? 'success' : 'error'}
+                                                            size="small"
+                                                        />
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </Box>
