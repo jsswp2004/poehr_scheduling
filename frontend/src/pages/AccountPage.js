@@ -77,19 +77,19 @@ function AccountPage() {
     const planOptions = [
         { 
             value: 'basic', 
-            label: 'Professional Plan', 
+            label: 'Professional', 
             price: '$49.99/month', 
             features: ['Basic scheduling', 'Basic calendar view', 'Email notifications', 'Basic reporting'] 
         },
         { 
             value: 'premium', 
-            label: 'Clinic Plan', 
+            label: 'Clinic', 
             price: '$299.99/month', 
             features: ['Up to 10 providers', 'Unlimited appointments', 'Advanced calendar features', 'SMS + Email notifications', 'Patient management system', 'Advanced reporting & analytics'] 
         },
         { 
             value: 'enterprise', 
-            label: 'Group Plan', 
+            label: 'Group', 
             price: 'Contact Sales', 
             features: ['Unlimited users', 'Advanced analytics', 'Priority support', 'Custom integrations', 'Multi-organization support', 'Custom branding'] 
         }
@@ -138,7 +138,14 @@ function AccountPage() {
 
             setAccountData(userResponse.data);
             console.log('🔍 User subscription_tier from API:', userResponse.data.subscription_tier);
-            const userPlan = userResponse.data.subscription_tier || 'basic';
+            
+            // Map old 'personal' tier to new 'basic' tier for backwards compatibility
+            let userPlan = userResponse.data.subscription_tier || 'basic';
+            if (userPlan.toLowerCase() === 'personal') {
+                console.log('🔧 Mapping "Personal" tier to "basic" (Professional Plan) for backwards compatibility');
+                userPlan = 'basic';
+            }
+            
             console.log('🔍 Setting currentPlan to:', userPlan);
             setCurrentPlan(userPlan);
             setEditFormData({
@@ -383,8 +390,8 @@ function AccountPage() {
 
     const currentPlanData = planOptions.find(plan => plan.value === currentPlan);
     console.log('🔍 currentPlan value:', currentPlan);
-    console.log('🔍 currentPlanData found:', currentPlanData);
-    console.log('🔍 Available planOptions:', planOptions.map(p => p.value));
+    console.log('🔍 currentPlanData found:', currentPlanData ? currentPlanData.label : 'undefined');
+    console.log('🔍 Available plan labels:', planOptions.map(p => `${p.value} (${p.label})`));
 
     return (
         <Container maxWidth={false} sx={{ mt: 4, mb: 4, px: 4 }}>
