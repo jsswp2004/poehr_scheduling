@@ -73,11 +73,26 @@ function AccountPage() {
         reason: ''
     });
 
-    // Plan options
+    // Plan options (updated to match current subscription tiers)
     const planOptions = [
-        { value: 'personal', label: 'Personal', price: '$29/month', features: ['Basic scheduling', 'Email notifications', '1 provider'] },
-        { value: 'clinic', label: 'Clinic', price: '$99/month', features: ['Advanced scheduling', 'SMS notifications', 'Up to 10 providers', 'Analytics'] },
-        { value: 'group', label: 'Group', price: '$199/month', features: ['Enterprise scheduling', 'Custom integrations', 'Unlimited providers', 'Priority support'] }
+        { 
+            value: 'basic', 
+            label: 'Professional Plan', 
+            price: '$49.99/month', 
+            features: ['Basic scheduling', 'Basic calendar view', 'Email notifications', 'Basic reporting'] 
+        },
+        { 
+            value: 'premium', 
+            label: 'Clinic Plan', 
+            price: '$299.99/month', 
+            features: ['Up to 10 providers', 'Unlimited appointments', 'Advanced calendar features', 'SMS + Email notifications', 'Patient management system', 'Advanced reporting & analytics'] 
+        },
+        { 
+            value: 'enterprise', 
+            label: 'Group Plan', 
+            price: 'Contact Sales', 
+            features: ['Unlimited users', 'Advanced analytics', 'Priority support', 'Custom integrations', 'Multi-organization support', 'Custom branding'] 
+        }
     ];
 
     const checkAccess = useCallback(async () => {
@@ -122,7 +137,7 @@ function AccountPage() {
             });
 
             setAccountData(userResponse.data);
-            setCurrentPlan(userResponse.data.subscription_tier || 'personal');
+            setCurrentPlan(userResponse.data.subscription_tier || 'basic');
             setEditFormData({
                 first_name: userResponse.data.first_name || '',
                 last_name: userResponse.data.last_name || '',
