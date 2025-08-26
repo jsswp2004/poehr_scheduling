@@ -227,9 +227,91 @@ class Organization(models.Model):
     name = models.CharField(max_length=255)
     logo = models.ImageField(upload_to="org_logos/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    
+    # Phase 2: Organization-level subscription management
+    subscription_status = models.CharField(
+        max_length=20,
+        default="trial",
+        choices=[
+            ("trial", "Trial"),
+            ("active", "Active"),
+            ("canceled", "Canceled"),
+            ("unpaid", "Unpaid"),
+        ],
+        help_text="Current subscription status for the organization",
+    )
+    subscription_tier = models.CharField(
+        max_length=50,
+        default="basic",
+        choices=[
+            ("basic", "Professional"),  # Individual/Professional use
+            ("premium", "Clinic"),      # Small clinic/practice
+            ("enterprise", "Group"),    # Large group/enterprise
+        ],
+        help_text="Subscription tier/plan for the organization",
+    )
+    trial_start_date = models.DateTimeField(
+        null=True, blank=True, help_text="When the trial period started"
+    )
+    trial_end_date = models.DateTimeField(
+        null=True, blank=True, help_text="When the trial period ends"
+    )
+    stripe_subscription_id = models.CharField(
+        max_length=255, null=True, blank=True, help_text="Stripe subscription ID for organization"
+    )
+    
+    # Organization settings
+    max_users = models.IntegerField(
+        default=1, 
+        help_text="Maximum number of users allowed in this organization"
+    )
+    organization_type = models.CharField(
+        max_length=50,
+        default="personal",
+        choices=[
+            ("personal", "Personal Practice"),
+            ("clinic", "Clinic"),
+            ("group", "Group Practice"),
+        ],
+        help_text="Type of organization"
+    )
 
     def __str__(self):
         return self.name
+    
+    @property
+    def current_user_count(self):
+        """Return the current number of active users in the organization"""
+        return self.users.filter(is_active=True).count()
+    
+    @property 
+    def can_add_users(self):
+        """Check if organization can add more users based on subscription"""
+        return self.current_user_count < self.max_users
+    
+    def get_subscription_limits(self):
+        """Get subscription limits based on tier"""
+        limits = {
+            'basic': {
+                'max_users': 1,
+                'max_appointments_per_month': 200,
+                'analytics_access': 'standard',
+                'features': ['standard_reports', 'basic_scheduling']
+            },
+            'premium': {
+                'max_users': 10,
+                'max_appointments_per_month': 999999,
+                'analytics_access': 'advanced',
+                'features': ['standard_reports', 'advanced_analytics', 'team_management']
+            },
+            'enterprise': {
+                'max_users': 999999,
+                'max_appointments_per_month': 999999,
+                'analytics_access': 'advanced',
+                'features': ['standard_reports', 'advanced_analytics', 'team_management', 'enterprise_features']
+            }
+        }
+        return limits.get(self.subscription_tier, limits['basic'])
 
 
 # ✅ Phase 2: Real-time Chat Models

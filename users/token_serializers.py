@@ -15,10 +15,27 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             
             # Safely handle organization relationship
             try:
-                token['organization_id'] = user.organization.id if user.organization else None
+                if user.organization:
+                    token['organization_id'] = user.organization.id
+                    token['organization_name'] = user.organization.name
+                    # Phase 2: Add organization subscription info to token
+                    token['subscription_tier'] = user.organization.subscription_tier
+                    token['subscription_status'] = user.organization.subscription_status
+                    token['organization_type'] = user.organization.organization_type
+                else:
+                    token['organization_id'] = None
+                    token['organization_name'] = None
+                    # Default to basic tier if no organization
+                    token['subscription_tier'] = 'basic'
+                    token['subscription_status'] = 'trial'
+                    token['organization_type'] = 'personal'
             except Exception as org_error:
                 print(f"[TOKEN ERROR] Organization access failed: {org_error}")
                 token['organization_id'] = None
+                token['organization_name'] = None
+                token['subscription_tier'] = 'basic'
+                token['subscription_status'] = 'trial' 
+                token['organization_type'] = 'personal'
                 
         except Exception as token_error:
             print(f"[TOKEN ERROR] Token generation failed: {token_error}")

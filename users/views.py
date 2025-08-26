@@ -422,11 +422,19 @@ class RegisterView(generics.CreateAPIView):
             org_name = data.get("organization_name") or "Default Organization"
             org_type = data.get("organization_type", "personal")
             print(f"🏢 Creating/getting organization: '{org_name}' (type: {org_type})")
-            organization, created = Organization.objects.get_or_create(name=org_name)
+            organization, created = Organization.objects.get_or_create(
+                name=org_name,
+                defaults={
+                    'organization_type': org_type,
+                    'subscription_tier': 'basic',  # Start with basic tier
+                    'subscription_status': 'trial',
+                    'max_users': 1  # Will be updated based on selected tier
+                }
+            )
             if created:
-                print(f"✅ Created new organization: {organization.name}")
+                print(f"✅ Created new organization: {organization.name} (type: {organization.organization_type})")
             else:
-                print(f"♻️ Using existing organization: {organization.name}")
+                print(f"♻️ Using existing organization: {organization.name} (type: {organization.organization_type})")
 
         # Validate the serializer first (without Stripe fields and organization_name)
         serializer_data = {
@@ -494,18 +502,20 @@ class RegisterView(generics.CreateAPIView):
 
                         print(f"✅ Stripe customer created: {customer.id}")
 
-                        # Create trial subscription
-                        subscription = stripe_service.create_trial_subscription(
-                            user=user,
+                        # Phase 2: Create organization trial subscription instead of user subscription
+                        subscription = stripe_service.create_organization_trial_subscription(
+                            organization=organization,
+                            admin_user=user,
                             tier=subscription_tier,
                             payment_method_id=payment_method_id,
                         )
 
                         if not subscription:
-                            print("❌ Stripe subscription creation failed")
-                            raise Exception("Failed to create subscription")
+                            print("❌ Organization Stripe subscription creation failed")
+                            raise Exception("Failed to create organization subscription")
 
-                        print(f"✅ Stripe subscription created: {subscription.id}")
+                        print(f"✅ Organization Stripe subscription created: {subscription.id}")
+                        print(f"✅ Organization {organization.name} is now on {organization.subscription_tier} plan")
 
                     except Exception as stripe_error:
                         # This will trigger the transaction rollback
