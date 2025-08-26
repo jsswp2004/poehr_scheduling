@@ -1,9 +1,9 @@
 import '../DataSecurityPage/DataSecurityPage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import encryptionImage from '../assets/images/Encryption.png';
-import dataOwnershipImage from '../assets/images/DataOwnership.png';
-import cloudProtectionImage from '../assets/images/CloudProtection.png';
+import encryptionImage from '../assets/Encryption.png';
+import dataOwnershipImage from '../assets/DataOwnership.png';
+import cloudProtectionImage from '../assets/CloudProtection.png';
 
 export const DataSecurityPage = ({ className }) => {
   return (
