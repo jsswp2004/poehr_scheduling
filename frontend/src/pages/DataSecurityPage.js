@@ -1,6 +1,9 @@
 import '../DataSecurityPage/DataSecurityPage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import encryptionImage from '../assets/images/Encryption.png';
+import dataOwnershipImage from '../assets/images/DataOwnership.png';
+import cloudProtectionImage from '../assets/images/CloudProtection.png';
 
 export const DataSecurityPage = ({ className }) => {
   return (
@@ -23,7 +26,11 @@ export const DataSecurityPage = ({ className }) => {
             <span className="feature-badge">⚕️ HIPAA Compliant</span>
           </div>
         </div>
-        <div className="image-placeholder encryption-image" />
+        <img 
+          src={encryptionImage} 
+          alt="Enterprise-grade encryption security infrastructure" 
+          className="security-image encryption-image" 
+        />
       </div>
       <div className="security-details">
         <div className="text-block">
@@ -41,7 +48,11 @@ export const DataSecurityPage = ({ className }) => {
             <span className="feature-badge">🌍 Multi-Region Protection</span>
           </div>
         </div>
-        <div className="image-placeholder cloud-image" />
+        <img 
+          src={cloudProtectionImage} 
+          alt="Azure cloud-powered data protection infrastructure" 
+          className="security-image cloud-image" 
+        />
       </div>
       <div className="security-details">
         <div className="text-block">
@@ -59,7 +70,11 @@ export const DataSecurityPage = ({ className }) => {
             <span className="feature-badge">⚖️ GDPR & CCPA Compliant</span>
           </div>
         </div>
-        <div className="image-placeholder ownership-image" />
+        <img 
+          src={dataOwnershipImage} 
+          alt="Complete data ownership and control features" 
+          className="security-image ownership-image" 
+        />
       </div>
       
       <div className="security-contact-section">
@@ -87,8 +102,8 @@ export const DataSecurityPage = ({ className }) => {
             </div>
           </div>
           <div className="contact-info">
-            <p><strong>Security Team:</strong> security@powerehrsolutions.com</p>
-            <p><strong>Compliance Inquiries:</strong> compliance@powerehrsolutions.com</p>
+            {/*<p><strong>Security Team:</strong> security@powerehrsolutions.com</p>
+            <p><strong>Compliance Inquiries:</strong> compliance@powerehrsolutions.com</p>*/}
             <p><strong>Data Requests:</strong> Available 24/7 through your account dashboard</p>
           </div>
         </div>
