@@ -84,7 +84,7 @@ export const OverviewPage = ({ className }) => {
 
             <div className="feature-highlights">
               <div className="highlight-item">
-                <span className="highlight-icon"></span>
+                <span className="highlight-icon">💬</span>
                 <span className="highlight-text">
                   Secure HIPAA-compliant messaging
                 </span>
