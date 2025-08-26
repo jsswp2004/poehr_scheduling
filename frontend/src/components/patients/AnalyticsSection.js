@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { API_BASE_URL } from "../../config/api";
 import { getAccessToken } from "../../utils/tokenManager";
+import { useSubscriptionAccess } from "../../hooks/useSubscriptionAccess";
 import {
   Box,
   Typography,
@@ -48,6 +49,16 @@ function AnalyticsSection({
   organizationData,
   organizationLogo,
 }) {
+  // Subscription access control
+  const { permissions, tier } = useSubscriptionAccess();
+  
+  // Redirect to standard reports if user doesn't have advanced analytics access
+  useEffect(() => {
+    if (analyticsTab === 'advanced' && !permissions?.advancedAnalytics) {
+      setAnalyticsTab('standard');
+    }
+  }, [analyticsTab, permissions?.advancedAnalytics, setAnalyticsTab]);
+  
   // State for report preview functionality
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -956,7 +967,9 @@ function AnalyticsSection({
           }}
         >
           <Tab label="Standard Reports" value="standard" />
-          <Tab label="Advanced Analytics" value="advanced" />
+          {permissions?.advancedAnalytics && (
+            <Tab label="Advanced Analytics" value="advanced" />
+          )}
         </Tabs>
 
         {/* Standard Reports - New Three Panel Layout */}
@@ -1180,38 +1193,40 @@ function AnalyticsSection({
         {/* Advanced Analytics - New Three Panel Layout */}
         {analyticsTab === "advanced" && (
           <Box>
-            {/* Top Panel - Report Filters */}
-            <Paper sx={{ p: 3, mb: 0 }}>
-              <Typography variant="h6" sx={{ mb: 0, color: "primary.main" }}>
-                Report Filters
-              </Typography>
+            {permissions?.advancedAnalytics ? (
+              <Box>
+                {/* Top Panel - Report Filters */}
+                <Paper sx={{ p: 3, mb: 0 }}>
+                  <Typography variant="h6" sx={{ mb: 0, color: "primary.main" }}>
+                    Report Filters
+                  </Typography>
 
-              <Grid container spacing={3} alignItems="center">
-                <Grid item xs={12} sm={6} md={3}>
-                  <DatePicker
-                    label="Start Date"
-                    value={reportStartDate}
-                    onChange={setReportStartDate}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                      },
-                    }}
-                  />
-                </Grid>
+                  <Grid container spacing={3} alignItems="center">
+                    <Grid item xs={12} sm={6} md={3}>
+                      <DatePicker
+                        label="Start Date"
+                        value={reportStartDate}
+                        onChange={setReportStartDate}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            fullWidth: true,
+                          },
+                        }}
+                      />
+                    </Grid>
 
-                <Grid item xs={12} sm={6} md={3}>
-                  <DatePicker
-                    label="End Date"
-                    value={reportEndDate}
-                    onChange={setReportEndDate}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                      },
-                    }}
+                    <Grid item xs={12} sm={6} md={3}>
+                      <DatePicker
+                        label="End Date"
+                        value={reportEndDate}
+                        onChange={setReportEndDate}
+                        slotProps={{
+                          textField: {
+                            size: "small",
+                            fullWidth: true,
+                          },
+                        }}
                   />
                 </Grid>
 
@@ -1392,6 +1407,35 @@ function AnalyticsSection({
                 </Paper>
               </Grid>
             </Grid>
+          </Box>
+            ) : (
+              // Upgrade prompt for Professional tier users
+              <Paper sx={{ p: 4, textAlign: 'center', mt: 2 }}>
+                <Typography variant="h5" sx={{ mb: 2, color: 'primary.main' }}>
+                  Advanced Analytics
+                </Typography>
+                <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
+                  Access powerful insights, custom dashboards, and advanced reporting tools.
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 3 }}>
+                  Current Plan: {tier === 'basic' ? 'Professional' : tier.charAt(0).toUpperCase() + tier.slice(1)}
+                </Typography>
+                <Button 
+                  variant="contained" 
+                  size="large"
+                  sx={{ px: 4 }}
+                  onClick={() => {
+                    // Navigate to upgrade page - you may want to implement this
+                    console.log('Navigate to upgrade page');
+                  }}
+                >
+                  Upgrade to Clinic Plan
+                </Button>
+                <Typography variant="caption" display="block" sx={{ mt: 2, color: 'text.secondary' }}>
+                  Unlock Advanced Analytics and more with our Clinic or Group plans
+                </Typography>
+              </Paper>
+            )}
           </Box>
         )}
       </Box>

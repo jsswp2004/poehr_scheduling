@@ -119,7 +119,7 @@ export const PricingPage = ({ className, ...props }) => {
                 </div>{" "}
                 <div className="panel-features">
                   <div className="feature">
-                    Basic scheduling with up to 50 appointments
+                    Basic scheduling with up to 200 appointments
                   </div>
 
                   <div className="feature">
@@ -128,9 +128,11 @@ export const PricingPage = ({ className, ...props }) => {
                   <div className="feature">
                     SMS + Email appointment notifications
                   </div>
+                  {/*
                   <div className="feature">
                     Mobile app access for on-the-go management
                   </div>
+                  */}
                   <div className="feature">
                     Basic reporting on appointment statistics
                   </div>
@@ -178,12 +180,14 @@ export const PricingPage = ({ className, ...props }) => {
                     notification system that automatically sends appointment
                     reminders and updates via SMS and email.
                   </div>
+                  {/*}
                   <div className="feature">
                     Access your schedule on iOS and Android devices - Enjoy the
                     convenience of accessing your appointment schedule anytime,
                     anywhere, from any iOS or Android mobile device, ensuring
                     you are always up to date.
                   </div>
+                  */}
                   <div className="feature">
                     Essential reporting for appointment analytics - Make
                     informed decisions with essential reporting tools that
