@@ -1,7 +1,7 @@
 import '../AboutPage/AboutPage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import CEOPicture from '../assets/CEO_CTO.jpg'; // CEO image
+import CEOPicture from '../assets/CEO_CTO.png'; // CEO image
 import COOPicture from '../assets/COO.png'; // COO image
 
 export const AboutPage = ({ className }) => {
