@@ -61,13 +61,17 @@ const getPermissionsForTier = (tier) => {
         mobileAppAccess: false,
         appointmentLimit: tier === 'basic' ? 200 : 999999,
         
+        // Analytics access - Professional gets standard reports, Clinic+ gets both
+        analyticsSection: true, // All tiers can access analytics section
+        standardReports: true, // All tiers can access standard reports
+        advancedAnalytics: tier === 'premium' || tier === 'enterprise', // Only Clinic+ gets advanced analytics
+        
         // Premium features (Clinic plan and above)
         advancedCalendar: tier === 'premium' || tier === 'enterprise',
         teamManagement: tier === 'premium' || tier === 'enterprise',
         unlimitedAppointments: tier === 'premium' || tier === 'enterprise',
         advancedReporting: tier === 'premium' || tier === 'enterprise',
         bulkNotifications: tier === 'premium' || tier === 'enterprise',
-        analyticsSection: tier === 'premium' || tier === 'enterprise',
         smsNotifications: tier === 'premium' || tier === 'enterprise',
         
         // Enterprise features
