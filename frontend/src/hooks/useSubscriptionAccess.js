@@ -4,11 +4,12 @@ import { getAccessToken } from '../utils/tokenManager';
 
 /**
  * Custom hook for subscription-based feature access control
- * Determines what features a user can access based on their subscription tier
+ * Phase 2: Uses organization-based subscription data from JWT token
  */
 export const useSubscriptionAccess = () => {
     const [userTier, setUserTier] = useState(null);
     const [permissions, setPermissions] = useState({});
+    const [organizationData, setOrganizationData] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -16,26 +17,52 @@ export const useSubscriptionAccess = () => {
         if (token) {
             try {
                 const decoded = jwtDecode(token);
-                const tier = decoded.subscription_tier || 'basic';
-                setUserTier(tier);
-                setPermissions(getPermissionsForTier(tier));
+                
+                // Phase 2: Extract organization subscription data from token
+                const orgSubscriptionTier = decoded.subscription_tier || 'basic';
+                const orgSubscriptionStatus = decoded.subscription_status || 'trial';
+                const organizationId = decoded.organization_id;
+                const organizationName = decoded.organization_name;
+                const organizationType = decoded.organization_type || 'personal';
+                
+                setUserTier(orgSubscriptionTier);
+                setPermissions(getPermissionsForTier(orgSubscriptionTier));
+                setOrganizationData({
+                    id: organizationId,
+                    name: organizationName,
+                    type: organizationType,
+                    subscriptionTier: orgSubscriptionTier,
+                    subscriptionStatus: orgSubscriptionStatus
+                });
+                
+                console.log('🏢 Organization Subscription Data:', {
+                    organization: organizationName,
+                    tier: orgSubscriptionTier,
+                    status: orgSubscriptionStatus,
+                    type: organizationType
+                });
+                
             } catch (error) {
                 console.error('Failed to decode token for subscription access:', error);
                 // Default to basic tier permissions if token is invalid
                 setUserTier('basic');
                 setPermissions(getPermissionsForTier('basic'));
+                setOrganizationData(null);
             }
         } else {
             // No token, default to basic tier
             setUserTier('basic');
             setPermissions(getPermissionsForTier('basic'));
+            setOrganizationData(null);
         }
         setLoading(false);
     }, []);
 
     return {
         userTier,
+        tier: userTier, // Keep both for backward compatibility
         permissions,
+        organizationData, // Phase 2: Organization subscription data
         loading,
         isBasic: userTier === 'basic',
         isPremium: userTier === 'premium', 

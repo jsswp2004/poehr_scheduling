@@ -229,3 +229,107 @@ class StripeService:
                 f"Failed to update subscription tier for user {user.id}: {str(e)}"
             )
             raise
+
+
+    # Phase 2: Organization-based subscription methods
+    def create_organization_trial_subscription(self, organization, admin_user, tier="basic", payment_method_id=None):
+        """
+        Create a trial subscription for an organization instead of individual user
+        """
+        try:
+            tier_info = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS["basic"])
+            price_id = tier_info["price_id"]
+
+            if not price_id:
+                raise ValueError(f"No price ID configured for tier: {tier}")
+
+            # Create Stripe subscription for organization (using admin user's customer)
+            subscription = stripe.Subscription.create(
+                customer=admin_user.stripe_customer_id,
+                items=[{"price": price_id}],
+                trial_period_days=TRIAL_PERIOD_DAYS,
+                metadata={
+                    "organization_id": str(organization.id),
+                    "organization_name": organization.name,
+                    "admin_user_id": str(admin_user.id),
+                    "subscription_type": "organization"
+                },
+                payment_behavior="default_incomplete",
+                expand=["latest_invoice.payment_intent"],
+            )
+
+            # Update organization subscription info (instead of user)
+            trial_start = timezone.now()
+            trial_end = trial_start + timedelta(days=TRIAL_PERIOD_DAYS)
+            tier_display_name = get_tier_display_name(tier)
+
+            organization.stripe_subscription_id = subscription.id
+            organization.subscription_status = "trial"
+            organization.subscription_tier = tier_display_name
+            organization.trial_start_date = trial_start
+            organization.trial_end_date = trial_end
+            
+            # Set max users based on tier
+            limits = organization.get_subscription_limits()
+            organization.max_users = limits['max_users']
+            organization.save()
+
+            # Mark admin user as registered but remove individual subscription fields
+            admin_user.registered = True
+            # Keep user subscription fields for backward compatibility, but organization takes precedence
+            admin_user.save()
+
+            logger.info(
+                f"Created organization trial subscription {subscription.id} for organization {organization.id}"
+            )
+            return subscription
+
+        except stripe.error.StripeError as e:
+            logger.error(
+                f"Failed to create organization trial subscription for organization {organization.id}: {str(e)}"
+            )
+            raise
+
+    def update_organization_subscription_tier(self, organization, new_tier):
+        """
+        Update an organization's subscription tier
+        """
+        if not organization.stripe_subscription_id:
+            raise ValueError("Organization has no Stripe subscription")
+
+        try:
+            subscription = stripe.Subscription.retrieve(organization.stripe_subscription_id)
+            new_tier_info = SUBSCRIPTION_TIERS.get(new_tier, SUBSCRIPTION_TIERS["basic"])
+            new_price_id = new_tier_info["price_id"]
+
+            if not new_price_id:
+                raise ValueError(f"No price ID configured for tier: {new_tier}")
+
+            # Update subscription
+            stripe.Subscription.modify(
+                organization.stripe_subscription_id,
+                items=[
+                    {
+                        "id": subscription["items"]["data"][0]["id"],
+                        "price": new_price_id,
+                    }
+                ],
+            )
+
+            # Update organization with new tier
+            tier_display_name = get_tier_display_name(new_tier)
+            organization.subscription_tier = tier_display_name
+            
+            # Update max users based on new tier
+            limits = organization.get_subscription_limits()
+            organization.max_users = limits['max_users']
+            organization.save()
+
+            logger.info(f"Updated organization subscription tier to {new_tier} for organization {organization.id}")
+            return subscription
+
+        except stripe.error.StripeError as e:
+            logger.error(
+                f"Failed to update organization subscription tier for organization {organization.id}: {str(e)}"
+            )
+            raise
