@@ -1,7 +1,9 @@
 import '../OverviewPage/OverviewPage.css';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import OverviewImage from '../assets/dashboard_overview.png'; // Or use dashboard_features2.png if you prefer
+import schedulerImage from '../assets/dashboard_scheduling.jpg';
+import communicatorImage from '../assets/communicator.png';
+import portalImage from '../assets/Portal.png';
 
 export const OverviewPage = ({ className }) => {
   return (
@@ -10,23 +12,23 @@ export const OverviewPage = ({ className }) => {
 
       <div className="page-title-section">
         <h1 className="page-title">Application Overview</h1>
-        <p className="page-subtitle">Learn how POWER simplifies clinic scheduling.</p>
-      </div>      <div className="content-panels">
-        <div className="image-panel">
-          <div className="image-container">
+        <p className="page-subtitle">Discover the complete POWER healthcare management suite</p>
+      </div>
+      
+      <div className="three-panel-layout">
+        {/* POWER Scheduler Panel */}
+        <div className="application-panel">
+          <div className="panel-image">
             <img
-              src={OverviewImage}
-              alt="Application Overview"
-              className="overview-image"
+              src={schedulerImage}
+              alt="POWER Scheduler Dashboard"
+              className="app-image"
             />
           </div>
-        </div>
-
-        <div className="features-panel">
-          <div className="feature-content">
-            <h2 className="features-title">Comprehensive Healthcare Scheduling</h2>
-            <p className="overview-text">
-              <b>POWER Scheduler</b> is a healthcare scheduling system built with a Django backend and React frontend. Clinics and providers can upload events, holidays, staff lists, and provider lists directly from the app, manage availability and block times, and send automated text and email reminders.
+          <div className="panel-content">
+            <h2 className="app-title">POWER Scheduler</h2>
+            <p className="app-description">
+              Comprehensive healthcare scheduling system built with Django backend and React frontend. Clinics and providers can manage availability, upload events and staff lists, and send automated reminders.
             </p>
             
             <div className="feature-highlights">
@@ -43,8 +45,80 @@ export const OverviewPage = ({ className }) => {
                 <span className="highlight-text">Real-time notifications for administrators</span>
               </div>
               <div className="highlight-item">
-                <span className="highlight-icon">👥</span>
-                <span className="highlight-text">Patient portal for visit requests</span>
+                <span className="highlight-icon">⏰</span>
+                <span className="highlight-text">Block time and holiday management</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* POWER Communicator Panel */}
+        <div className="application-panel">
+          <div className="panel-image">
+            <img
+              src={communicatorImage}
+              alt="POWER Communicator Interface"
+              className="app-image"
+            />
+          </div>
+          <div className="panel-content">
+            <h2 className="app-title">POWER Communicator</h2>
+            <p className="app-description">
+              Streamlined healthcare communication platform ensuring secure, HIPAA-compliant messaging between providers, staff, and patients with real-time updates and alerts.
+            </p>
+            
+            <div className="feature-highlights">
+              <div className="highlight-item">
+                <span className="highlight-icon">�</span>
+                <span className="highlight-text">Secure HIPAA-compliant messaging</span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">🚨</span>
+                <span className="highlight-text">Provider alerts and notifications</span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">📞</span>
+                <span className="highlight-text">Patient communication hub</span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">�</span>
+                <span className="highlight-text">End-to-end encryption</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* POWER Portal Panel */}
+        <div className="application-panel">
+          <div className="panel-image">
+            <img
+              src={portalImage}
+              alt="POWER Portal Patient Interface"
+              className="app-image"
+            />
+          </div>
+          <div className="panel-content">
+            <h2 className="app-title">POWER Portal</h2>
+            <p className="app-description">
+              Patient self-service portal providing 24/7 access to healthcare services, appointment booking, medical records, and billing information with intuitive user experience.
+            </p>
+            
+            <div className="feature-highlights">
+              <div className="highlight-item">
+                <span className="highlight-icon">�</span>
+                <span className="highlight-text">Patient visit requests</span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">📋</span>
+                <span className="highlight-text">Medical records access</span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">�</span>
+                <span className="highlight-text">Billing and payment management</span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">📱</span>
+                <span className="highlight-text">Mobile-responsive design</span>
               </div>
             </div>
           </div>
