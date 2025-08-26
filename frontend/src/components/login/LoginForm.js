@@ -69,7 +69,7 @@ const LoginForm = ({ formData, loading, onSubmit, onChange }) => {
                     >
                         Forgot Password?
                     </Link>
-
+                    {/* 
                     <Typography variant="body2" component="span">
                         Don't have an account?{' '}
                         <Link
@@ -83,6 +83,7 @@ const LoginForm = ({ formData, loading, onSubmit, onChange }) => {
                             Sign up
                         </Link>
                     </Typography>
+                    */}
                 </Box>
             </Box>
         </>
