@@ -22,7 +22,7 @@ export const FeaturesPage = ({ className }) => {
               <div className="feature">Simple appointment scheduling for individual providers</div>
               <div className="feature">Standard calendar with daily and weekly views</div>
               <div className="feature">SMS & Email appointment notifications</div>
-              <div className="feature">Mobile app access on iOS and Android</div>
+              <div className="feature">Mobile app access on iOS (coming soon!)</div>
               <div className="feature">Basic reporting and analytics</div>
             </div>
           </div>
@@ -31,13 +31,13 @@ export const FeaturesPage = ({ className }) => {
               <div className="panel-title">Clinic</div>
             </div>
             <div className="panel-features">
+              <div className="feature">Everything in Professional</div>
               <div className="feature">Support for multiple providers</div>
-              <div className="feature">Team collaboration tools</div>
+              <div className="feature">Team chat collaboration tool</div>
               <div className="feature">Multi-location scheduling</div>
               <div className="feature">Patient management portal</div>
               <div className="feature">Bulk SMS notifications</div>
-              <div className="feature">Advanced scheduling rules and workflows</div>
-              <div className="feature">API access and integrations</div>
+              <div className="feature">Advanced scheduling features and workflows</div>
               <div className="feature">Priority support</div>
             </div>
           </div>
@@ -46,6 +46,7 @@ export const FeaturesPage = ({ className }) => {
               <div className="panel-title">Group</div>
             </div>
             <div className="panel-features">
+              <div className="feature">Everything in Clinic</div>
               <div className="feature">Unlimited users and organizations</div>
               <div className="feature">Multi-organization support</div>
               <div className="feature">Custom integrations & APIs</div>
