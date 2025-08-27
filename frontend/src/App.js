@@ -46,6 +46,7 @@ import ChatTestPage from './pages/ChatTestPage';
 import DebugAvailability from './components/DebugAvailability';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
+import SimpleFooter from './components/SimpleFooter';
 
 function AppContent() {
   const location = useLocation();
@@ -208,6 +209,7 @@ function AppContent() {
         <Route path="/debug-availability" element={<PrivateRoute><DebugAvailability /></PrivateRoute>} />
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
       </Routes>
+      {showNavbar && <SimpleFooter />}
     </>
   );
 }
