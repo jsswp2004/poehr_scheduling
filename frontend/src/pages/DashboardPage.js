@@ -1273,7 +1273,8 @@ function DashboardPage() {
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  maxHeight: "70vh",
+                  height: "70vh",
+                  overflow: "hidden",
                 }}
               >
                 <Typography
@@ -1288,7 +1289,7 @@ function DashboardPage() {
                     respond to you as soon as possible.
                   </Alert>
                 )}
-                <Stack spacing={2} sx={{ flex: 1 }}>
+                <Stack spacing={2} sx={{ flex: 1, overflow: "auto" }}>
                   <TextField
                     label="From"
                     value={emailForm.from}
@@ -1325,12 +1326,11 @@ function DashboardPage() {
                   <TextField
                     label="Message"
                     multiline
-                    rows={4}
+                    rows={6}
                     value={emailForm.message}
                     onChange={handleEmailChange("message")}
                     fullWidth
                     sx={{
-                      flex: 1,
                       "& .MuiOutlinedInput-root": { borderRadius: 2 },
                     }}
                   />
