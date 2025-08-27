@@ -4,14 +4,17 @@ import { AppBar, Toolbar, Typography } from '@mui/material';
 const SimpleFooter = () => {
   return (
     <AppBar 
-      position="static" 
+      position="fixed" 
       sx={{ 
         top: 'auto',
         bottom: 0,
+        left: 0,
+        right: 0,
         height: '21px', // 1/3 of navbar height (64px)
         minHeight: '21px',
         bgcolor: 'primary.main', // Same color as navbar
-        boxShadow: 1
+        boxShadow: 1,
+        zIndex: 1200 // Ensure it stays above other content
       }}
     >
       <Toolbar 
