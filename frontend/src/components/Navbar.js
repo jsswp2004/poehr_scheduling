@@ -1,33 +1,33 @@
-import { useNavigate, useLocation } from 'react-router-dom';
-import { toast } from '../components/SimpleToast';
-import logo from '../assets/POWER_Logo.png';
-import { jwtDecode } from 'jwt-decode';
-import { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../config/api';
-import { getValidToken, clearAuthData } from '../utils/auth';
-import { getAccessToken } from '../utils/tokenManager';
-import AppBar from '@mui/material/AppBar';
-import Toolbar from '@mui/material/Toolbar';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import IconButton from '@mui/material/IconButton';
-import Box from '@mui/material/Box';
-import Avatar from '@mui/material/Avatar';
-import Tooltip from '@mui/material/Tooltip';
-import useForceUpdate from '../utils/useForceUpdate';
-import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
-import ChatIcon from '@mui/icons-material/Chat';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSignOutAlt } from '@fortawesome/free-solid-svg-icons';
+import { useNavigate, useLocation } from "react-router-dom";
+import { toast } from "../components/SimpleToast";
+import logo from "../assets/POWER_Logo.png";
+import { jwtDecode } from "jwt-decode";
+import { useEffect, useState, useCallback } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "../config/api";
+import { getValidToken, clearAuthData } from "../utils/auth";
+import { getAccessToken } from "../utils/tokenManager";
+import AppBar from "@mui/material/AppBar";
+import Toolbar from "@mui/material/Toolbar";
+import Typography from "@mui/material/Typography";
+import Button from "@mui/material/Button";
+import IconButton from "@mui/material/IconButton";
+import Box from "@mui/material/Box";
+import Avatar from "@mui/material/Avatar";
+import Tooltip from "@mui/material/Tooltip";
+import useForceUpdate from "../utils/useForceUpdate";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import ChatIcon from "@mui/icons-material/Chat";
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
 
 function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [username, setUsername] = useState('');
-  const [role, setRole] = useState('');
-  const [organizationName, setOrganizationName] = useState('');
+  const [username, setUsername] = useState("");
+  const [role, setRole] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Make it stateful
   const [logoUrl, setLogoUrl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
@@ -45,84 +45,94 @@ function Navbar() {
 
     // Listen for storage changes
     const handleStorageChange = (e) => {
-      if (e.key === 'access_token') {
+      if (e.key === "access_token") {
         updateAuthState();
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
   // Function to fetch user data and update state
   const fetchUserData = useCallback(async () => {
     try {
       // Don't fetch if not authenticated
       if (!isAuthenticated) {
-        setUsername('');
-        setRole('');
+        setUsername("");
+        setRole("");
         setLogoUrl(null);
-        setOrganizationName('');
+        setOrganizationName("");
         setProfilePic(null);
         return;
       }
 
       const token = await getValidToken();
       if (!token) {
-        setUsername('');
-        setRole('');
+        setUsername("");
+        setRole("");
         setLogoUrl(null);
-        setOrganizationName('');
+        setOrganizationName("");
         setProfilePic(null);
         return;
       }
 
       const decoded = jwtDecode(token);
       const userId = decoded.user_id;
-      const firstName = decoded.first_name || decoded.username || '';
+      const firstName = decoded.first_name || decoded.username || "";
       setUsername(firstName);
-      setRole(decoded.role || '');
+      setRole(decoded.role || "");
 
       const response = await axios.get(`${API_BASE_URL}/api/users/${userId}/`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       // Get organization logo directly from the organization data
       const orgLogo = response.data.organization_logo;
       if (orgLogo) {
         // The organization_logo field from UserSerializer already includes the full URL
-        setLogoUrl(orgLogo.startsWith('http') ? orgLogo : `${API_BASE_URL}${orgLogo}`);
+        setLogoUrl(
+          orgLogo.startsWith("http") ? orgLogo : `${API_BASE_URL}${orgLogo}`
+        );
       } else {
         setLogoUrl(null);
       }
-      setOrganizationName(response.data.organization_name || '');
+      setOrganizationName(response.data.organization_name || "");
       // Fix: Only set profilePic if the value is not empty/null and is a valid string
-      if (response.data.profile_picture && typeof response.data.profile_picture === 'string' && response.data.profile_picture.trim() !== '') {
-        setProfilePic(response.data.profile_picture.startsWith('http') ? response.data.profile_picture : `${API_BASE_URL}${response.data.profile_picture}`);
+      if (
+        response.data.profile_picture &&
+        typeof response.data.profile_picture === "string" &&
+        response.data.profile_picture.trim() !== ""
+      ) {
+        setProfilePic(
+          response.data.profile_picture.startsWith("http")
+            ? response.data.profile_picture
+            : `${API_BASE_URL}${response.data.profile_picture}`
+        );
       } else {
         setProfilePic(null);
       }
     } catch (err) {
-      console.error('Failed to load user data:', err);
+      console.error("Failed to load user data:", err);
       // If there's an authentication error, clear the auth data
       if (err.response?.status === 401) {
         clearAuthData();
-        setUsername('');
-        setRole('');
+        setUsername("");
+        setRole("");
         setLogoUrl(null);
-        setOrganizationName('');
+        setOrganizationName("");
         setProfilePic(null);
       }
     }
-  }, [isAuthenticated]);  // Run fetchUserData on component mount and when authentication changes
+  }, [isAuthenticated]); // Run fetchUserData on component mount and when authentication changes
   useEffect(() => {
     if (isAuthenticated) {
       fetchUserData();
     } else {
       // Clear user data when not authenticated
-      setUsername('');
-      setRole('');
+      setUsername("");
+      setRole("");
       setLogoUrl(null);
-      setOrganizationName('');
+      setOrganizationName("");
       setProfilePic(null);
     }
 
@@ -134,7 +144,7 @@ function Navbar() {
       }
     };
 
-    window.addEventListener('profile-updated', handleProfileUpdate);
+    window.addEventListener("profile-updated", handleProfileUpdate);
 
     // Force a refresh when authenticated and periodically
     let interval = null;
@@ -145,27 +155,30 @@ function Navbar() {
     }
 
     return () => {
-      window.removeEventListener('profile-updated', handleProfileUpdate);
+      window.removeEventListener("profile-updated", handleProfileUpdate);
       if (interval) clearInterval(interval);
     };
-  }, [isAuthenticated, forceUpdate, fetchUserData]); const handleLogoClick = (e) => {
+  }, [isAuthenticated, forceUpdate, fetchUserData]);
+  const handleLogoClick = (e) => {
     e.preventDefault(); // Prevent default link behavior
 
     // Show confirmation toast instead of browser alert
     toast.warning(
       <div>
-        <p><strong>Are you sure you want to log out?</strong></p>
-        <div style={{ marginTop: '10px' }}>
+        <p>
+          <strong>Are you sure you want to log out?</strong>
+        </p>
+        <div style={{ marginTop: "10px" }}>
           <button
             onClick={() => performLogout()}
             style={{
-              marginRight: '10px',
-              padding: '5px 15px',
-              backgroundColor: '#d32f2f',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+              marginRight: "10px",
+              padding: "5px 15px",
+              backgroundColor: "#d32f2f",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
             }}
           >
             Yes, Log Out
@@ -173,12 +186,12 @@ function Navbar() {
           <button
             onClick={() => toast.dismiss()}
             style={{
-              padding: '5px 15px',
-              backgroundColor: '#757575',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+              padding: "5px 15px",
+              backgroundColor: "#757575",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
             }}
           >
             Cancel
@@ -197,50 +210,55 @@ function Navbar() {
     clearAuthData();
 
     // Also clear any legacy token storage that might exist
-    localStorage.removeItem('access_token');  // Old format key
-    localStorage.removeItem('refresh_token'); // Old format key
-    localStorage.removeItem('user_data');
+    localStorage.removeItem("access_token"); // Old format key
+    localStorage.removeItem("refresh_token"); // Old format key
+    localStorage.removeItem("user_data");
     sessionStorage.clear();
 
     // Update authentication state immediately
     setIsAuthenticated(false);
 
     // Clear user data immediately
-    setUsername('');
-    setRole('');
+    setUsername("");
+    setRole("");
     setLogoUrl(null);
-    setOrganizationName('');
+    setOrganizationName("");
     setProfilePic(null);
 
     // Dispatch storage event to notify other components
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'access_token',
-      newValue: null
-    }));
+    window.dispatchEvent(
+      new StorageEvent("storage", {
+        key: "access_token",
+        newValue: null,
+      })
+    );
 
-    toast.success('Logged out successfully! 👋');
+    toast.success("Logged out successfully! 👋");
 
     // Add a small delay to ensure the toast is visible, then refresh the page
     setTimeout(() => {
       // Force a complete page refresh to clear all cached state
-      window.location.href = '/solutions';
+      window.location.href = "/solutions";
     }, 1000);
-  }; const handleLogout = () => {
+  };
+  const handleLogout = () => {
     // Show confirmation toast instead of browser alert
     toast.warning(
       <div>
-        <p><strong>Are you sure you want to log out?</strong></p>
-        <div style={{ marginTop: '10px' }}>
+        <p>
+          <strong>Are you sure you want to log out?</strong>
+        </p>
+        <div style={{ marginTop: "10px" }}>
           <button
             onClick={() => performLogout()}
             style={{
-              marginRight: '10px',
-              padding: '5px 15px',
-              backgroundColor: '#d32f2f',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+              marginRight: "10px",
+              padding: "5px 15px",
+              backgroundColor: "#d32f2f",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
             }}
           >
             Yes, Log Out
@@ -248,12 +266,12 @@ function Navbar() {
           <button
             onClick={() => toast.dismiss()}
             style={{
-              padding: '5px 15px',
-              backgroundColor: '#757575',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
+              padding: "5px 15px",
+              backgroundColor: "#757575",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
             }}
           >
             Cancel
@@ -264,124 +282,188 @@ function Navbar() {
     );
   };
 
-  const isSystemAdmin = role === 'system_admin';
+  const isSystemAdmin = role === "system_admin";
 
   // Add greeting function
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning';
-    if (hour < 18) return 'Good Afternoon';
-    return 'Good Evening';
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
   };
 
   return (
     <AppBar position="fixed" color="primary" sx={{ zIndex: 1201 }}>
-      <Toolbar sx={{ display: 'flex', justifyContent: 'space-between', minHeight: 64 }}>        <Box
-        sx={{ display: 'flex', alignItems: 'center', flex: 1, cursor: 'pointer' }}
-        onClick={handleLogoClick}
+      <Toolbar
+        sx={{ display: "flex", justifyContent: "space-between", minHeight: 64 }}
       >
-        <Avatar
-          src={logoUrl || logo}
-          alt="Logo"
-          sx={{ height: 40, width: 40, bgcolor: 'white', mr: 1, borderRadius: 1, p: 0.5 }}
-          variant="rounded"
-          onError={(e) => {
-            console.warn('Failed to load organization logo, falling back to default logo');
-            e.target.src = logo;
+        {" "}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flex: 1,
+            cursor: "pointer",
           }}
-        />          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, letterSpacing: 1, fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
-          {location.pathname === '/communicator' ? 'POWER Communicator' :
-            location.pathname === '/dashboard' ? 'POWER Portal' : 'POWER Scheduler'}
-        </Typography>
-        {organizationName && (
-          <Typography variant="h6" noWrap sx={{ color: 'white', fontWeight: 450, ml: 2, flex: 1, textAlign: 'center', fontFamily: 'Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif' }}>
-            {organizationName}
+          onClick={handleLogoClick}
+        >
+          <Avatar
+            src={logoUrl || logo}
+            alt="Logo"
+            sx={{
+              height: 40,
+              width: 40,
+              bgcolor: "white",
+              mr: 1,
+              borderRadius: 1,
+              p: 0.5,
+            }}
+            variant="rounded"
+            onError={(e) => {
+              console.warn(
+                "Failed to load organization logo, falling back to default logo"
+              );
+              e.target.src = logo;
+            }}
+          />{" "}
+          <Typography
+            variant="h6"
+            noWrap
+            sx={{
+              color: "white",
+              fontWeight: 450,
+              letterSpacing: 1,
+              fontFamily: "Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
+            }}
+          >
+            {location.pathname === "/communicator"
+              ? `${organizationName || "POWER"} Communicator`
+              : location.pathname === "/dashboard"
+              ? `${organizationName || "POWER"} Portal`
+              : `${organizationName || "POWER"} Scheduler`}
           </Typography>
-        )}
-      </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {/*{organizationName && (
+            <Typography
+              variant="h6"
+              noWrap
+              sx={{
+                color: "white",
+                fontWeight: 450,
+                ml: 2,
+                flex: 1,
+                textAlign: "center",
+                fontFamily:
+                  "Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
+              }}
+            >
+              {organizationName}
+            </Typography>
+          )}
+          */}
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           {isAuthenticated && (
             <>
               {/* Communicator Icon Link - only for system_admin, admin, and registrar roles */}
-              {(role === 'system_admin' || role === 'admin' || role === 'registrar') && location.pathname !== '/communicator' && location.pathname !== '/dashboard' && (
-                <Tooltip title="POWER Communicator">
-                  <IconButton
-                    color="inherit"
-                    sx={{ mr: 1 }}
-                    onClick={() => navigate('/communicator')}
-                    aria-label="Communicator"
-                  >
-                    <ChatIcon sx={{ color: 'white' }} />
-                  </IconButton>
-                </Tooltip>
-              )}
+              {(role === "system_admin" ||
+                role === "admin" ||
+                role === "registrar") &&
+                location.pathname !== "/communicator" &&
+                location.pathname !== "/dashboard" && (
+                  <Tooltip title="POWER Communicator">
+                    <IconButton
+                      color="inherit"
+                      sx={{ mr: 1 }}
+                      onClick={() => navigate("/communicator")}
+                      aria-label="Communicator"
+                    >
+                      <ChatIcon sx={{ color: "white" }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
 
               {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on dashboard page */}
-              {(role === 'admin' || role === 'registrar' || role === 'receptionist' || role === 'system_admin') &&
-                location.pathname !== '/dashboard' && (
+              {(role === "admin" ||
+                role === "registrar" ||
+                role === "receptionist" ||
+                role === "system_admin") &&
+                location.pathname !== "/dashboard" && (
                   <Tooltip title="Management Portal">
                     <IconButton
                       color="inherit"
                       sx={{ mr: 1 }}
-                      onClick={() => navigate('/admin/')}
+                      onClick={() => navigate("/admin/")}
                       aria-label="Admin Panel"
                     >
-                      <AdminPanelSettingsIcon sx={{ color: 'white' }} />
+                      <AdminPanelSettingsIcon sx={{ color: "white" }} />
                     </IconButton>
                   </Tooltip>
                 )}
 
               {/* Account Icon Link - only for admin and system_admin */}
-              {(role === 'admin' || role === 'system_admin') && (
+              {(role === "admin" || role === "system_admin") && (
                 <Tooltip title="Account Settings">
                   <IconButton
                     color="inherit"
                     sx={{ mr: 1 }}
-                    onClick={() => navigate('/account')}
+                    onClick={() => navigate("/account")}
                     aria-label="Account Settings"
                   >
-                    <AccountCircleIcon sx={{ color: 'white' }} />
+                    <AccountCircleIcon sx={{ color: "white" }} />
                   </IconButton>
                 </Tooltip>
               )}
               <Button
                 color="inherit"
                 sx={{
-                  textTransform: 'none',
+                  textTransform: "none",
                   fontWeight: 450,
-                  fontSize: '1rem',
+                  fontSize: "1rem",
                   mr: 2,
                   pl: 1,
                   pr: 1,
-                  color: 'white',
-                  '& .MuiAvatar-root': { bgcolor: 'primary.light', color: 'primary.contrastText' },
-                  '& .navbar-username': { color: 'white' },
+                  color: "white",
+                  "& .MuiAvatar-root": {
+                    bgcolor: "primary.light",
+                    color: "primary.contrastText",
+                  },
+                  "& .navbar-username": { color: "white" },
                 }}
                 endIcon={
                   <Avatar
-                    sx={{ width: 28, height: 28, bgcolor: 'primary.light', color: 'primary.contrastText' }}
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      bgcolor: "primary.light",
+                      color: "primary.contrastText",
+                    }}
                     src={profilePic || undefined}
                   >
-                    {!profilePic && (username?.[0]?.toUpperCase() || '?')}
+                    {!profilePic && (username?.[0]?.toUpperCase() || "?")}
                   </Avatar>
                 }
                 disableRipple
                 disabled
               >
-                <span className="navbar-username">{getGreeting()}, {username}</span>
+                <span className="navbar-username">
+                  {getGreeting()}, {username}
+                </span>
                 {isSystemAdmin && (
-                  <Box component="span" sx={{
-                    background: 'white',
-                    color: '#1976d2',
-                    fontWeight: 700,
-                    fontSize: '0.95em',
-                    borderRadius: '7px',
-                    px: 1.5,
-                    ml: 1.5,
-                    border: '2px solid',
-                    borderColor: '#1976d2',
-                    display: 'inline-block',
-                  }}>
+                  <Box
+                    component="span"
+                    sx={{
+                      background: "white",
+                      color: "#1976d2",
+                      fontWeight: 700,
+                      fontSize: "0.95em",
+                      borderRadius: "7px",
+                      px: 1.5,
+                      ml: 1.5,
+                      border: "2px solid",
+                      borderColor: "#1976d2",
+                      display: "inline-block",
+                    }}
+                  >
                     System Admin
                   </Box>
                 )}
@@ -391,17 +473,17 @@ function Navbar() {
                 color="inherit"
                 sx={{
                   ml: 1,
-                  color: 'white',
-                  border: '2px solid #1976d2',
+                  color: "white",
+                  border: "2px solid #1976d2",
                   borderRadius: 1,
                   p: 1,
-                  transition: 'background 0.2s, color 0.2s, border-color 0.2s',
-                  '&:hover': {
-                    background: 'rgba(211, 47, 47, 0.10)', // red tint
-                    color: '#d32f2f', // MUI error.main
-                    borderColor: '#d32f2f',
-                    boxShadow: '0 0 0 2px #d32f2f33',
-                    cursor: 'pointer',
+                  transition: "background 0.2s, color 0.2s, border-color 0.2s",
+                  "&:hover": {
+                    background: "rgba(211, 47, 47, 0.10)", // red tint
+                    color: "#d32f2f", // MUI error.main
+                    borderColor: "#d32f2f",
+                    boxShadow: "0 0 0 2px #d32f2f33",
+                    cursor: "pointer",
                   },
                 }}
                 title="Logout"
