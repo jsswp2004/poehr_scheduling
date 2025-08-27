@@ -2563,3 +2563,71 @@ def debug_delete_user(request, user_id):
         logger.error(f"❌ DEBUG TRACEBACK: {traceback_str}")
         print(f"❌ DEBUG TRACEBACK: {traceback_str}")
         return Response({"error": error_msg, "traceback": traceback_str}, status=500)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_organization_admin_info(request):
+    """
+    Get organization admin information for the current user's organization.
+    Returns the admin's email and phone number for messaging purposes.
+    """
+    try:
+        user = request.user
+        
+        # Get the user's organization
+        if not user.organization:
+            return Response(
+                {"error": "User is not associated with any organization"}, 
+                status=400
+            )
+        
+        organization = user.organization
+        
+        # Find admin users in the same organization
+        org_admins = CustomUser.objects.filter(
+            organization=organization,
+            role='admin',
+            is_active=True
+        ).exclude(email='')
+        
+        # If no organization admin found, look for system admins
+        if not org_admins.exists():
+            org_admins = CustomUser.objects.filter(
+                role='system_admin',
+                is_active=True
+            ).exclude(email='')
+        
+        if not org_admins.exists():
+            return Response(
+                {"error": "No admin found for this organization"}, 
+                status=404
+            )
+        
+        # Get the first admin (or you could implement logic to select preferred admin)
+        admin = org_admins.first()
+        
+        # Format admin phone number to international format if needed
+        admin_phone = admin.phone_number or ""
+        if admin_phone and not admin_phone.startswith('+'):
+            # Clean the phone number
+            import re
+            clean_phone = re.sub(r'[^\d]', '', admin_phone)
+            if len(clean_phone) == 10:
+                admin_phone = '+1' + clean_phone
+            elif len(clean_phone) == 11 and clean_phone.startswith('1'):
+                admin_phone = '+' + clean_phone
+        
+        return Response({
+            "admin_email": admin.email,
+            "admin_phone": admin_phone,
+            "admin_name": f"{admin.first_name or ''} {admin.last_name or ''}".strip(),
+            "organization_name": organization.name
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting organization admin info: {str(e)}")
+        return Response(
+            {"error": "Failed to get organization admin information"}, 
+            status=500
+        )
