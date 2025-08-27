@@ -20,7 +20,7 @@ export const ContactPage = ({ className }) => {
   });
   // SMS form data
   const [smsFormData, setSmsFormData] = useState({
-    phone_to: '3018806015',
+    phone_to: '+13018806015',
     phone_from: '',
     message: ''
   });
@@ -83,6 +83,12 @@ export const ContactPage = ({ className }) => {
 
     if (!smsFormData.phone_from.trim()) {
       errors.phone_from = 'Your phone number is required';
+    } else {
+      // Remove all non-digit characters to check length
+      const digitsOnly = smsFormData.phone_from.replace(/\D/g, '');
+      if (digitsOnly.length < 10) {
+        errors.phone_from = 'Please enter a valid phone number (at least 10 digits)';
+      }
     }
 
     if (!smsFormData.message.trim()) {
@@ -147,13 +153,15 @@ export const ContactPage = ({ className }) => {
     setIsSmsLoading(true);
 
     try {
+      // Prepare the message with user's contact info
+      const fullMessage = `Contact Form SMS\nFrom: ${smsFormData.phone_from}\n\nMessage:\n${smsFormData.message}`;
+      
       // Send SMS through the API using the public contact SMS endpoint
       await axios.post(
         `${API_BASE_URL}/api/messages/contact-sms/`,
         {
-          phone_to: smsFormData.phone_to,
-          phone_from: smsFormData.phone_from,
-          message: smsFormData.message,
+          phone: smsFormData.phone_to, // Company phone number to receive the message
+          message: fullMessage, // Message including user's contact info
         }
         // Note: No Authorization header needed for contact form
       );
@@ -163,7 +171,7 @@ export const ContactPage = ({ className }) => {
       // Close modal and reset form
       setIsSmsModalOpen(false);
       setSmsFormData({
-        phone_to: '3018806015',
+        phone_to: '+13018806015',
         phone_from: '',
         message: ''
       });
