@@ -197,7 +197,7 @@ const SupportPage = () => {
                   <li>2.	Choose Your Plan</li>
                   <li>Review the available subscription plans</li>
                   <li>Select the plan that best fits your organization's size and needs</li>
-                  <li>Click "Get Started Free" or "Get Started Free"</li>
+                  <li>Click "Get Started Free"</li>
                 </ul>
               </div>
               <div className="info-card" onClick={openModal} style={{cursor: 'pointer'}}>
@@ -380,10 +380,10 @@ const SupportPage = () => {
                   <li>Email: A general contact email for your organization</li>
                   <li>Phone Number: Enter your phone number</li>
                   <li>Password: create your password</li>
-                  <li style={{marginLeft: '20px'}}>• Choose a strong password (at least 8 characters)</li>
-                  <li style={{marginLeft: '20px'}}>• Include uppercase and lowercase letters, numbers, and symbols</li>
-                  <li style={{marginLeft: '20px'}}>• Confirm your password</li>
-                  <li>• As the person registering, you'll become the main administrator.</li>
+                  <li style={{marginLeft: '20px'}}>Choose a strong password (at least 8 characters)</li>
+                  <li style={{marginLeft: '20px'}}>Include uppercase and lowercase letters, numbers, and symbols</li>
+                  <li style={{marginLeft: '20px'}}>Confirm your password</li>
+                  <li>As the person registering, you'll become the main administrator.</li>
                   <br />
                   <li><strong>2. Choose Plan</strong></li>
                   <li>Review the plan you selected, click Next</li>
