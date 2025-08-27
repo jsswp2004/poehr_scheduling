@@ -36,6 +36,7 @@ from .views import (
     # Debug functions
     debug_stripe_config,
     debug_delete_user,
+    get_organization_admin_info,  # Add new function
 )
 
 # Import payment views
@@ -115,6 +116,8 @@ urlpatterns = [
     path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),
     # Debug endpoint for user deletion
     path("debug-delete/<int:user_id>/", debug_delete_user, name="debug-delete-user"),
+    # Organization admin info endpoint
+    path("organization-admin-info/", get_organization_admin_info, name="organization-admin-info"),
     # SMS Opt-out Management
     path(
         "sms-optout-management/",
