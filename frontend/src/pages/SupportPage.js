@@ -372,33 +372,33 @@ const SupportPage = () => {
                   <li><strong>You'll now fill out a form with your practice information:</strong></li>
                   <br />
                   <li><strong>1. Create your account and enter account details</strong></li>
-                  <li>• Organization Name: Enter your clinic or practice's official name</li>
-                  <li>• Organization Type: Enter/Select type of organization</li>
-                  <li>• Firstname: Enter Firstname</li>
-                  <li>• Lastname: Enter Lastname</li>
-                  <li>• Username: Enter/create your username</li>
-                  <li>• Email: A general contact email for your organization</li>
-                  <li>• Phone Number: Enter your phone number</li>
-                  <li>• Password: create your password</li>
+                  <li>Organization Name: Enter your clinic or practice's official name</li>
+                  <li>Organization Type: Enter/Select type of organization</li>
+                  <li>Firstname: Enter Firstname</li>
+                  <li>Lastname: Enter Lastname</li>
+                  <li>Username: Enter/create your username</li>
+                  <li>Email: A general contact email for your organization</li>
+                  <li>Phone Number: Enter your phone number</li>
+                  <li>Password: create your password</li>
                   <li style={{marginLeft: '20px'}}>• Choose a strong password (at least 8 characters)</li>
                   <li style={{marginLeft: '20px'}}>• Include uppercase and lowercase letters, numbers, and symbols</li>
                   <li style={{marginLeft: '20px'}}>• Confirm your password</li>
                   <li>• As the person registering, you'll become the main administrator.</li>
                   <br />
                   <li><strong>2. Choose Plan</strong></li>
-                  <li>• Review the plan you selected, click Next</li>
+                  <li>Review the plan you selected, click Next</li>
                   <br />
                   <li><strong>3. Payment Information</strong></li>
-                  <li>• Enter your payment information (We accept all major credit and debit cards)</li>
-                  <li style={{marginLeft: '20px'}}>• Credit Card Number: Enter your payment card details</li>
-                  <li style={{marginLeft: '20px'}}>• Expiration Date: MM/YY format</li>
-                  <li style={{marginLeft: '20px'}}>• Security Code: The 3–4-digit code on your card</li>
+                  <li>Enter your payment information (We accept all major credit and debit cards)</li>
+                  <li style={{marginLeft: '20px'}}>Credit Card Number: Enter your payment card details</li>
+                  <li style={{marginLeft: '20px'}}>Expiration Date: MM/YY format</li>
+                  <li style={{marginLeft: '20px'}}>Security Code: The 3–4-digit code on your card</li>
                   <br />
                   <li><strong>4. Review and Confirm</strong></li>
-                  <li>• Review all information</li>
-                  <li>• Verify your contact details</li>
-                  <li>• Confirm your subscription plan</li>
-                  <li>• Click "Complete Enrollment"</li>
+                  <li>Review all information</li>
+                  <li>Verify your contact details</li>
+                  <li>Confirm your subscription plan</li>
+                  <li>Click "Complete Enrollment"</li>
                 </ul>
               </div>
             </div>
