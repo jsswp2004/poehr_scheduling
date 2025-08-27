@@ -109,7 +109,7 @@ export const ContactPage = ({ className }) => {
 
     try {
       // Prepare email data matching the API format
-      const subject = formData.subject || 'Contact Form Inquiry';
+      const subject = formData.subject || 'Customer Inquiry';
       const message = `From: ${formData.from}\nPhone: ${formData.telephone}\n\nMessage:\n${formData.message}`;      // Send email directly through the API using the public contact endpoint
       await axios.post(
         `${API_BASE_URL}/api/messages/contact-email/`,
@@ -154,7 +154,7 @@ export const ContactPage = ({ className }) => {
 
     try {
       // Prepare the message with user's contact info
-      const fullMessage = `Contact Form SMS\nFrom: ${smsFormData.phone_from}\n\nMessage:\n${smsFormData.message}`;
+      const fullMessage = `Customer Inquiry\nFrom: ${smsFormData.phone_from}\n\nMessage:\n${smsFormData.message}`;
       
       // Send SMS through the API using the public contact SMS endpoint
       await axios.post(
