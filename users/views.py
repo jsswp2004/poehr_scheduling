@@ -1941,7 +1941,7 @@ def send_contact_email(request):
             return Response({"error": "Email and message are required"}, status=400)
 
         # Send email to admin/support team
-        admin_email = "support@poehrscheduling.com"  # Replace with actual admin email
+        admin_email = "info@powerhealthcareit.com"  # Company support email
 
         full_message = f"""
         Contact Form Submission:
