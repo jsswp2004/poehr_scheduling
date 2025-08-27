@@ -703,7 +703,9 @@ function DashboardPage() {
             <Tab value="myinfo" label="My Information" />
             <Tab value="manage" label="Manage Appointments" />
             <Tab value="message" label="Message my Provider" />
-            <Tab value="calendar" label="Calendar" />
+            {currentUser?.role !== "patient" && (
+              <Tab value="calendar" label="Calendar" />
+            )}
           </Tabs>
           <Divider sx={{ mb: 2 }} />
           {tab === "myinfo" && (
@@ -1441,7 +1443,7 @@ function DashboardPage() {
               </Box>
             </Box>
           )}
-          {tab === "calendar" && (
+          {tab === "calendar" && currentUser?.role !== "patient" && (
             <Box sx={{ mt: 2 }}>
               <CalendarView
                 onUpdate={() => setRefreshFlag((prev) => !prev)}
