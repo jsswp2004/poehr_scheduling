@@ -78,9 +78,9 @@ function DashboardPage() {
   const [showForm, setShowForm] = useState(true);
   // Message my Provider form state
   const [emailForm, setEmailForm] = useState({
+    from: "",
     to: "",
     cc: "",
-    bcc: "",
     subject: "",
     message: "",
     attachments: [],
@@ -96,6 +96,7 @@ function DashboardPage() {
   const [patientName, setPatientName] = useState("");
   const [messageSent, setMessageSent] = useState(false);
   const [smsSent, setSMSSent] = useState(false);
+  const [organizationAdmin, setOrganizationAdmin] = useState(null);
 
   // User Information State
   const [currentUser, setCurrentUser] = useState(null);
@@ -176,35 +177,81 @@ function DashboardPage() {
         setTempPhoneNumber(user.phone_number || "");
         setTempSmsConsent(user.sms_consent || false);
         setUserInfoLoading(false);
-        if (user.provider) {
-          const provRes = await axios.get(
-            `${API_BASE_URL}/api/users/${user.provider}/`,
+
+        // Set email "from" field - patient email or name
+        const fromField = user.email || name;
+        
+        // Try to get organization admin info first
+        try {
+          const adminRes = await axios.get(
+            `${API_BASE_URL}/api/users/organization-admin-info/`,
             {
               headers: { Authorization: `Bearer ${token}` },
             }
           );
-          const prov = provRes.data;
-          const provName = `${prov.first_name || ""} ${
-            prov.last_name || ""
-          }`.trim();
-          setProviderName(provName);
-          setEmailForm((prev) => ({ ...prev, to: prov.email || "" }));
+          const adminData = adminRes.data;
+          setOrganizationAdmin(adminData);
           
-          // Format provider phone number for SMS
-          let providerPhone = prov.phone_number || "";
-          if (providerPhone && !providerPhone.startsWith('+')) {
-            // Clean the phone number
-            const cleanPhone = providerPhone.replace(/[^\d]/g, '');
-            if (cleanPhone.length === 10) {
-              providerPhone = '+1' + cleanPhone;
-            } else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
-              providerPhone = '+' + cleanPhone;
-            }
-          }
+          // Set default email recipient to organization admin
+          setEmailForm((prev) => ({ 
+            ...prev, 
+            from: fromField,
+            to: adminData.admin_email || "" 
+          }));
           
-          setSmsForm((prev) => ({ ...prev, phone: providerPhone }));
-          const template = `${new Date().toLocaleDateString()}\n\nDear ${provName},\n\n[Your message here]\n\nThank you,\n${name}`;
+          // Set default SMS recipient to organization admin
+          setSmsForm((prev) => ({ 
+            ...prev, 
+            phone: adminData.admin_phone || "" 
+          }));
+          
+          // Update provider name to admin name
+          setProviderName(adminData.admin_name || "Organization Admin");
+          
+          const template = `${new Date().toLocaleDateString()}\n\nDear ${adminData.admin_name || "Admin"},\n\n[Your message here]\n\nThank you,\n${name}`;
           setEmailForm((prev) => ({ ...prev, message: template }));
+          
+        } catch (adminError) {
+          console.log("No organization admin found, falling back to provider:", adminError);
+          
+          // Fallback to provider-based logic if organization admin not found
+          if (user.provider) {
+            const provRes = await axios.get(
+              `${API_BASE_URL}/api/users/${user.provider}/`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+            const prov = provRes.data;
+            const provName = `${prov.first_name || ""} ${
+              prov.last_name || ""
+            }`.trim();
+            setProviderName(provName);
+            setEmailForm((prev) => ({ 
+              ...prev, 
+              from: fromField,
+              to: prov.email || "" 
+            }));
+            
+            // Format provider phone number for SMS
+            let providerPhone = prov.phone_number || "";
+            if (providerPhone && !providerPhone.startsWith('+')) {
+              // Clean the phone number
+              const cleanPhone = providerPhone.replace(/[^\d]/g, '');
+              if (cleanPhone.length === 10) {
+                providerPhone = '+1' + cleanPhone;
+              } else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
+                providerPhone = '+' + cleanPhone;
+              }
+            }
+            
+            setSmsForm((prev) => ({ ...prev, phone: providerPhone }));
+            const template = `${new Date().toLocaleDateString()}\n\nDear ${provName},\n\n[Your message here]\n\nThank you,\n${name}`;
+            setEmailForm((prev) => ({ ...prev, message: template }));
+          } else {
+            // No provider either, set basic defaults
+            setEmailForm((prev) => ({ ...prev, from: fromField }));
+          }
         }
       } catch (err) {
         console.error("Failed to fetch user/provider info:", err);
@@ -494,7 +541,6 @@ function DashboardPage() {
       const form = new FormData();
       form.append("email", emailForm.to);
       if (emailForm.cc) form.append("cc", emailForm.cc);
-      if (emailForm.bcc) form.append("bcc", emailForm.bcc);
       form.append("subject", emailForm.subject);
       form.append("message", emailForm.message);
       emailForm.attachments.forEach((f) => form.append("attachments", f));
@@ -510,9 +556,9 @@ function DashboardPage() {
 
       // Reset the form fields
       setEmailForm({
-        to: emailForm.to, // Keep the provider's email
+        from: emailForm.from, // Keep the patient's from info
+        to: emailForm.to, // Keep the admin/provider's email
         cc: "",
-        bcc: "",
         subject: "",
         message: `${new Date().toLocaleDateString()}\n\nDear ${providerName},\n\n[Your message here]\n\nThank you,\n${patientName}`,
         attachments: [],
@@ -559,14 +605,18 @@ function DashboardPage() {
       }
     }
 
+    // Format SMS message with patient name prefix
+    const formattedMessage = `A message from ${patientName}: ${smsForm.message}`;
+
     console.log('Sending SMS with formatted phone:', formattedPhone);
+    console.log('Formatted message:', formattedMessage);
 
     try {
       await axios.post(
         `${API_BASE_URL}/api/messages/send-sms/`,
         {
           phone: formattedPhone,
-          message: smsForm.message,
+          message: formattedMessage,
         },
         {
           headers: {
@@ -1240,6 +1290,15 @@ function DashboardPage() {
                 )}
                 <Stack spacing={2} sx={{ flex: 1 }}>
                   <TextField
+                    label="From"
+                    value={emailForm.from}
+                    fullWidth
+                    size="small"
+                    disabled
+                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+                    helperText="Your email address or name"
+                  />
+                  <TextField
                     label="To"
                     value={emailForm.to}
                     onChange={handleEmailChange("to")}
@@ -1251,14 +1310,6 @@ function DashboardPage() {
                     label="Cc"
                     value={emailForm.cc}
                     onChange={handleEmailChange("cc")}
-                    fullWidth
-                    size="small"
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                  />
-                  <TextField
-                    label="Bcc"
-                    value={emailForm.bcc}
-                    onChange={handleEmailChange("bcc")}
                     fullWidth
                     size="small"
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
@@ -1348,14 +1399,14 @@ function DashboardPage() {
                 )}
                 <Stack spacing={2.5} sx={{ flex: 1 }}>
                   <TextField
-                    label="Provider Phone Number"
+                    label="Admin/Provider Phone Number"
                     value={smsForm.phone}
                     onChange={handleSMSChange("phone")}
                     fullWidth
                     size="small"
                     placeholder="+1234567890"
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                    helperText="Format: +1234567890 (country code required)"
+                    helperText="Organization admin or provider phone number"
                   />{" "}
                   <TextField
                     label="Message"
@@ -1368,7 +1419,7 @@ function DashboardPage() {
                       flex: 1,
                       "& .MuiOutlinedInput-root": { borderRadius: 2 },
                     }}
-                    helperText="Keep your message concise for SMS"
+                    helperText="Your message will be prefixed with your name automatically"
                   />
                   <Box sx={{ mt: 3 }}>
                     <Button
