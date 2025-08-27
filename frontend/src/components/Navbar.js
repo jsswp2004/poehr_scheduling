@@ -302,8 +302,8 @@ function Navbar() {
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           {isAuthenticated && (
             <>
-              {/* Communicator Icon Link - for all authenticated users except patients and not on communicator or dashboard page */}
-              {role !== 'patient' && location.pathname !== '/communicator' && location.pathname !== '/dashboard' && (
+              {/* Communicator Icon Link - only for system_admin, admin, and registrar roles */}
+              {(role === 'system_admin' || role === 'admin' || role === 'registrar') && location.pathname !== '/communicator' && location.pathname !== '/dashboard' && (
                 <Tooltip title="POWER Communicator">
                   <IconButton
                     color="inherit"
