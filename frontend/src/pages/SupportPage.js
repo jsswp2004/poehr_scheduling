@@ -1,9 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../SupportPage/SupportPage.css';
 
 const SupportPage = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
   return (
     <div className="support-page">
       <Header />
@@ -195,35 +200,14 @@ const SupportPage = () => {
                   <li>Click "Get Started Free" or "Get Started Free"</li>
                 </ul>
               </div>
-              <div className="info-card">
-                <h4 className="info-title">✅ Step 2: Set Up Your Account Details</h4>
+              <div className="info-card" onClick={openModal} style={{cursor: 'pointer'}}>
+                <h4 className="info-title">✅ Step 2: Set Up Your Account Details (Click for details)</h4>
                 <ul className="info-list">
-                  <li>You'll now fill out a form with your practice information:</li>
-                  <li>1. Create your account and enter account details</li>
-                  <li>- Organization Name: Enter your clinic or practice's official name</li>
-                  <li>- Organization Type: Enter/Select type of organization</li>
-                  <li>- Firstname: Enter Firstname</li>
-                  <li>- Lastname: Enter Lastname</li>
-                  <li>- Username: Enter/create your username</li>
-                  <li>- Email: A general contact email for your organization</li>
-                  <li>- Phone Number: Enter your phone number</li>
-                  <li>- Password: create your password</li>
-                  <li>Choose a strong password (at least 8 characters)</li>
-                  <li>Include uppercase and lowercase letters, numbers, and symbols</li>
-                  <li>Confirm your password</li>
-                  <li>As the person registering, you'll become the main administrator.</li>
-                  <li>2. Choose Plan</li>
-                  <li>- Review the plan you selected, click Next</li>
-                  <li>3. Payment Information</li>
-                  <li>- Enter your payment information (We accept all major credit and debit cards)</li>
-                  <li>Credit Card Number: Enter your payment card details</li>
-                  <li>Expiration Date: MM/YY format</li>
-                  <li>Security Code: The 3–4-digit code on your card</li>
-                  <li>4. Review and Confirm</li>
-                  <li>- Review all information</li>
-                  <li>- Verify your contact details</li>
-                  <li>- Confirm your subscription plan</li>
-                  <li>- Click "Complete Enrollment"</li>
+                  <li>Click to see detailed registration steps</li>
+                  <li>Account creation form</li>
+                  <li>Plan selection process</li>
+                  <li>Payment information</li>
+                  <li>Review and confirmation</li>
                 </ul>
               </div>
               <div className="info-card">
@@ -341,6 +325,85 @@ const SupportPage = () => {
           </div>
           
         </div>
+
+        {/* Modal */}
+        {isModalOpen && (
+          <div className="modal-overlay" onClick={closeModal} style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{
+              backgroundColor: 'white',
+              padding: '30px',
+              borderRadius: '8px',
+              maxWidth: '800px',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              position: 'relative',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+            }}>
+              <button 
+                onClick={closeModal}
+                style={{
+                  position: 'absolute',
+                  top: '10px',
+                  right: '15px',
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  color: '#666'
+                }}
+              >
+                ×
+              </button>
+              
+              <div className="modal-info-card">
+                <h4 className="modal-info-title" style={{color: '#2c3e50', marginBottom: '20px'}}>✅ Step 2: Set Up Your Account Details</h4>
+                <ul className="modal-info-list" style={{lineHeight: '1.6', color: '#333'}}>
+                  <li><strong>You'll now fill out a form with your practice information:</strong></li>
+                  <br />
+                  <li><strong>1. Create your account and enter account details</strong></li>
+                  <li>• Organization Name: Enter your clinic or practice's official name</li>
+                  <li>• Organization Type: Enter/Select type of organization</li>
+                  <li>• Firstname: Enter Firstname</li>
+                  <li>• Lastname: Enter Lastname</li>
+                  <li>• Username: Enter/create your username</li>
+                  <li>• Email: A general contact email for your organization</li>
+                  <li>• Phone Number: Enter your phone number</li>
+                  <li>• Password: create your password</li>
+                  <li style={{marginLeft: '20px'}}>• Choose a strong password (at least 8 characters)</li>
+                  <li style={{marginLeft: '20px'}}>• Include uppercase and lowercase letters, numbers, and symbols</li>
+                  <li style={{marginLeft: '20px'}}>• Confirm your password</li>
+                  <li>• As the person registering, you'll become the main administrator.</li>
+                  <br />
+                  <li><strong>2. Choose Plan</strong></li>
+                  <li>• Review the plan you selected, click Next</li>
+                  <br />
+                  <li><strong>3. Payment Information</strong></li>
+                  <li>• Enter your payment information (We accept all major credit and debit cards)</li>
+                  <li style={{marginLeft: '20px'}}>• Credit Card Number: Enter your payment card details</li>
+                  <li style={{marginLeft: '20px'}}>• Expiration Date: MM/YY format</li>
+                  <li style={{marginLeft: '20px'}}>• Security Code: The 3–4-digit code on your card</li>
+                  <br />
+                  <li><strong>4. Review and Confirm</strong></li>
+                  <li>• Review all information</li>
+                  <li>• Verify your contact details</li>
+                  <li>• Confirm your subscription plan</li>
+                  <li>• Click "Complete Enrollment"</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
     </div>
