@@ -189,7 +189,20 @@ function DashboardPage() {
           }`.trim();
           setProviderName(provName);
           setEmailForm((prev) => ({ ...prev, to: prov.email || "" }));
-          setSmsForm((prev) => ({ ...prev, phone: prov.phone_number || "" }));
+          
+          // Format provider phone number for SMS
+          let providerPhone = prov.phone_number || "";
+          if (providerPhone && !providerPhone.startsWith('+')) {
+            // Clean the phone number
+            const cleanPhone = providerPhone.replace(/[^\d]/g, '');
+            if (cleanPhone.length === 10) {
+              providerPhone = '+1' + cleanPhone;
+            } else if (cleanPhone.length === 11 && cleanPhone.startsWith('1')) {
+              providerPhone = '+' + cleanPhone;
+            }
+          }
+          
+          setSmsForm((prev) => ({ ...prev, phone: providerPhone }));
           const template = `${new Date().toLocaleDateString()}\n\nDear ${provName},\n\n[Your message here]\n\nThank you,\n${name}`;
           setEmailForm((prev) => ({ ...prev, message: template }));
         }
@@ -516,11 +529,43 @@ function DashboardPage() {
   };
 
   const handleSendSMS = async () => {
+    // Validate form fields
+    if (!smsForm.phone.trim()) {
+      toast.error("Provider phone number is required");
+      return;
+    }
+
+    if (!smsForm.message.trim()) {
+      toast.error("Message cannot be empty");
+      return;
+    }
+
+    // Format phone number to international format
+    let formattedPhone = smsForm.phone.trim();
+    
+    // Remove any non-digit characters except +
+    formattedPhone = formattedPhone.replace(/[^\d+]/g, '');
+    
+    // Add + prefix if not present and phone number looks valid
+    if (!formattedPhone.startsWith('+')) {
+      // Assume US number if no country code and 10 digits
+      if (formattedPhone.length === 10) {
+        formattedPhone = '+1' + formattedPhone;
+      } else if (formattedPhone.length === 11 && formattedPhone.startsWith('1')) {
+        formattedPhone = '+' + formattedPhone;
+      } else {
+        toast.error("Please provide a valid phone number with country code (e.g., +1234567890)");
+        return;
+      }
+    }
+
+    console.log('Sending SMS with formatted phone:', formattedPhone);
+
     try {
       await axios.post(
         `${API_BASE_URL}/api/messages/send-sms/`,
         {
-          phone: smsForm.phone,
+          phone: formattedPhone,
           message: smsForm.message,
         },
         {
@@ -530,6 +575,9 @@ function DashboardPage() {
           },
         }
       );
+
+      console.log('SMS sent successfully');
+      toast.success("Text message sent successfully!");
 
       // Show success confirmation
       setSMSSent(true);
@@ -546,7 +594,24 @@ function DashboardPage() {
       }, 5000);
     } catch (err) {
       console.error("Failed to send SMS:", err);
-      toast.error("Failed to send SMS");
+      
+      // Provide more specific error messages
+      if (err.response?.status === 401) {
+        toast.error("Authentication failed. Please log in again.");
+      } else if (err.response?.status === 400) {
+        const errorData = err.response.data;
+        if (errorData.phone) {
+          toast.error(`Phone number error: ${errorData.phone.join(', ')}`);
+        } else if (errorData.message) {
+          toast.error(`Message error: ${errorData.message.join(', ')}`);
+        } else {
+          toast.error("Invalid request. Please check your input.");
+        }
+      } else if (err.response?.status === 500) {
+        toast.error("Server error. Please try again later or contact support.");
+      } else {
+        toast.error(`Failed to send SMS: ${err.response?.data?.detail || err.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -1288,9 +1353,9 @@ function DashboardPage() {
                     onChange={handleSMSChange("phone")}
                     fullWidth
                     size="small"
-                    placeholder="(555) 123-4567"
+                    placeholder="+1234567890"
                     sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                    helperText="Your provider's phone number for text messages"
+                    helperText="Format: +1234567890 (country code required)"
                   />{" "}
                   <TextField
                     label="Message"
