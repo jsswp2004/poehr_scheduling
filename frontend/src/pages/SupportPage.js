@@ -19,7 +19,7 @@ export const SupportPage = ({ className }) => {
             <li><strong>Organization Information</strong>
               <ul>
                 <li>✅ Your practice or clinic's official name</li>
-                <li>✅ Business address (street, city, state, zip code)</li>
+                {/*<li>✅ Business address (street, city, state, zip code)</li>*/}
                 <li>✅ Main phone number</li>
                 <li>✅ Business email address</li>
               </ul>
@@ -45,7 +45,7 @@ export const SupportPage = ({ className }) => {
           <h3>Step 1: Start Your Registration</h3>
           <ul className="section-list">
             <li>Visit the POWER Healthcare website</li>
-            <li>Go to your organization's POWER platform URL</li>
+            <li>Go or visit <a href="https://powerhealthcareit.com">https://powerhealthcareit.com</a></li>
             <li>Click the "Get Started", "Try Power Free" or "Try it now" button</li>
           </ul>
           <h3>Step 2: Set Up Your Account Details</h3>
@@ -79,7 +79,7 @@ export const SupportPage = ({ className }) => {
           <h3>Welcome Email</h3>
           <ul className="section-list">
             <li>Login link and access to your POWER dashboard</li>
-            <li>Getting started checklist</li>
+            {/*<li>Getting started checklist</li>*/}
             <li>Support contact information</li>
           </ul>
         </div>
