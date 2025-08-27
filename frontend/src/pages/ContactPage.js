@@ -12,7 +12,7 @@ export const ContactPage = ({ className }) => {
   // State for SMS modal
   const [isSmsModalOpen, setIsSmsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    to: 'info@powerhealthcareit.com  ',
+    to: 'info@powerhealthcareit.com',
     from: '',
     telephone: '',
     subject: '',
@@ -126,7 +126,7 @@ export const ContactPage = ({ className }) => {
       // Close modal and reset form
       setIsModalOpen(false);
       setFormData({
-        to: 'info@powerhealthcareit.com  ',
+        to: 'info@powerhealthcareit.com',
         from: '',
         telephone: '',
         subject: '',
@@ -215,7 +215,7 @@ export const ContactPage = ({ className }) => {
           </div>
           <div className="contact-card" onClick={() => setIsModalOpen(true)} style={{ cursor: 'pointer' }}>
             <div className="contact-title">Email</div>
-            <div className="contact-details">info@powerhealthcareit.com  </div>
+            <div className="contact-details">info@powerhealthcareit.com</div>
           </div>
         </div>
       </div>
