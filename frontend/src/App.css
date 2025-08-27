@@ -30,6 +30,7 @@
 
 body {
   padding-top: 70px; /* adjust if needed */
+  padding-bottom: 25px; /* Space for fixed footer */
 }
 
 @keyframes App-logo-spin {

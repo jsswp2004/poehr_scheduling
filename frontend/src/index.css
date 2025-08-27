@@ -10,6 +10,7 @@ body {
 /* Add padding only for pages that use the regular Navbar component */
 body.with-navbar {
   padding-top: 70px;
+  padding-bottom: 25px; /* Space for fixed footer */
 }
 
 code {
