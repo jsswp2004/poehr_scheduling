@@ -6,83 +6,136 @@ export const SupportPage = ({ className }) => {
   return (
     <div className={`support-page ${className || ""}`}>
       <Header />
-      <div className="page-title-section">
-        <h1 className="page-title">🏥 How to Register Your Organization with POWER Healthcare</h1>
-        <p className="page-subtitle">
-          A step-by-step guide to getting your healthcare practice set up and running with POWER.
-        </p>
+      <div className="hero-section">
+        <div className="hero-content">
+          <div className="hero-badge">
+            <span className="badge-icon">🏥</span>
+            <span className="badge-text">Organization Setup Guide</span>
+          </div>
+          <h1 className="hero-title">Register Your Healthcare Organization</h1>
+          <p className="hero-subtitle">
+            Complete step-by-step guide to onboard your healthcare practice with POWER Healthcare IT solutions
+          </p>
+          <div className="hero-stats">
+            <div className="stat-item">
+              <span className="stat-number">5 min</span>
+              <span className="stat-label">Setup Time</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-number">7 days</span>
+              <span className="stat-label">Free Trial</span>
+            </div>
+            <div className="stat-item">
+              <span className="stat-number">24/7</span>
+              <span className="stat-label">Support</span>
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="support-content">
-        <div className="section">
-          <h2 className="section-heading">📋 What You'll Need Before You Start</h2>
-          <ul className="section-list">
-            <li><strong>Organization Information</strong>
-              <ul>
-                <li>✅ Your practice or clinic's official name</li>
-                {/*<li>✅ Business address (street, city, state, zip code)</li>*/}
-                <li>✅ Main phone number</li>
-                <li>✅ Business email address</li>
-              </ul>
-            </li>
-            <li><strong>Administrator Details</strong>
-              <ul>
-                <li>✅ Your full name (as the main administrator)</li>
-                <li>✅ Your professional email address</li>
-                <li>✅ Your direct phone number</li>
-              </ul>
-            </li>
-            <li><strong>Subscription Information</strong>
-              <ul>
-                <li>✅ Credit card or payment method</li>
-                <li>✅ Billing address (if different from business address)</li>
-              </ul>
-            </li>
-          </ul>
-        </div>
+      <div className="main-content">
+        <div className="content-container">
+          
+          <div className="section-card">
+            <div className="section-header">
+              <div className="section-icon">📋</div>
+              <h2 className="section-title">Prerequisites</h2>
+              <p className="section-description">Gather these details before starting your registration</p>
+            </div>
+            <div className="requirement-grid">
+              <div className="requirement-card">
+                <h4 className="requirement-title">🏢 Organization Information</h4>
+                <ul className="requirement-list">
+                  <li>Practice or clinic's official name</li>
+                  <li>Main phone number</li>
+                  <li>Business email address</li>
+                </ul>
+              </div>
+              <div className="requirement-card">
+                <h4 className="requirement-title">👤 Administrator Details</h4>
+                <ul className="requirement-list">
+                  <li>Full name (main administrator)</li>
+                  <li>Professional email address</li>
+                  <li>Direct phone number</li>
+                </ul>
+              </div>
+              <div className="requirement-card">
+                <h4 className="requirement-title">💳 Payment Information</h4>
+                <ul className="requirement-list">
+                  <li>Credit card or payment method</li>
+                  <li>Billing address</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
-        <div className="section">
-          <h2 className="section-heading">🚀 Step-by-Step Registration Process</h2>
-          <h3>Step 1: Start Your Registration</h3>
-          <ul className="section-list">
-            <li>Visit the POWER Healthcare website</li>
-            <li>Go or visit <a href="https://powerhealthcareit.com">https://powerhealthcareit.com</a></li>
-            <li>Click the "Get Started", "Try Power Free" or "Try it now" button</li>
-          </ul>
-          <h3>Step 2: Set Up Your Account Details</h3>
-          <ul className="section-list">
-            <li>Create your account and enter account details
-              <ul>
-                <li>Organization Name, Organization Type</li>
-                <li>Firstname, Lastname, Username, Email</li>
-                <li>Phone Number</li>
-                <li>Password: at least 8 characters with mixed characters</li>
-                <li>As the person registering, you'll become the main administrator</li>
-              </ul>
-            </li>
-            <li>Choose Plan – review and click Next</li>
-            <li>Payment Information – major credit/debit cards
-              <ul>
-                <li>Card Number, Expiration (MM/YY), Security Code</li>
-              </ul>
-            </li>
-            <li>Review and Confirm – verify details and click "Complete Enrollment"</li>
-          </ul>
-        </div>
+          <div className="section-card">
+            <div className="section-header">
+              <div className="section-icon">🚀</div>
+              <h2 className="section-title">Registration Process</h2>
+              <p className="section-description">Follow these steps to complete your organization setup</p>
+            </div>
+            
+            <div className="process-steps">
+              <div className="step-card">
+                <div className="step-number">1</div>
+                <div className="step-content">
+                  <h3 className="step-title">Start Registration</h3>
+                  <ul className="step-list">
+                    <li>Visit <a href="https://powerhealthcareit.com" className="link">powerhealthcareit.com</a></li>
+                    <li>Click "Get Started" or "Try Power Free"</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="step-card">
+                <div className="step-number">2</div>
+                <div className="step-content">
+                  <h3 className="step-title">Account Details</h3>
+                  <ul className="step-list">
+                    <li>Enter organization name and type</li>
+                    <li>Provide administrator details</li>
+                    <li>Create secure password (8+ characters)</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="step-card">
+                <div className="step-number">3</div>
+                <div className="step-content">
+                  <h3 className="step-title">Choose Plan & Payment</h3>
+                  <ul className="step-list">
+                    <li>Select subscription tier</li>
+                    <li>Enter payment information</li>
+                    <li>Review and confirm details</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <div className="section">
-          <h2 className="section-heading">✅ What Happens Next?</h2>
-          <ul className="section-list">
-            <li>You'll be redirected to the login screen</li>
-            <li>A confirmation email will be sent to your administrator email</li>
-            <li>Your account will be activated within a few minutes</li>
-          </ul>
-          <h3>Welcome Email</h3>
-          <ul className="section-list">
-            <li>Login link and access to your POWER dashboard</li>
-            {/*<li>Getting started checklist</li>*/}
-            <li>Support contact information</li>
-          </ul>
-        </div>
+          <div className="section-card">
+            <div className="section-header">
+              <div className="section-icon">✅</div>
+              <h2 className="section-title">After Registration</h2>
+              <p className="section-description">What to expect once your account is created</p>
+            </div>
+            <div className="info-grid">
+              <div className="info-card">
+                <h4 className="info-title">📧 Welcome Email</h4>
+                <ul className="info-list">
+                  <li>Login credentials and dashboard access</li>
+                  <li>Support contact information</li>
+                </ul>
+              </div>
+              <div className="info-card">
+                <h4 className="info-title">🔓 Account Activation</h4>
+                <ul className="info-list">
+                  <li>Immediate access to your portal</li>
+                  <li>7-day free trial begins</li>
+                </ul>
+              </div>
+            </div>
+          </div>
 
         <div className="section">
           <h2 className="section-heading">🔧 Getting Started After Registration</h2>
@@ -191,6 +244,8 @@ export const SupportPage = ({ className }) => {
             <li>Use training resources</li>
             <li>Provide feedback to improve the platform</li>
           </ul>
+          </div>
+          
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
