@@ -67,7 +67,7 @@ const SupportPage = () => {
               </div>
             </div>
           </div>
-
+          {/* Getting Started After Registration 
           <div className="section-card">
             <div className="section-header">
               <div className="section-icon">🔧</div>
@@ -101,7 +101,7 @@ const SupportPage = () => {
               </div>
             </div>
           </div>
-
+          
           <div className="section-card">
             <div className="section-header">
               <div className="section-icon">🆘</div>
@@ -170,7 +170,7 @@ const SupportPage = () => {
               </div>
             </div>
           </div>
-          
+          */}
         </div>
         {/*Step by Step Registration*/}
         <div className="sections-container">
