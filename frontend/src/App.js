@@ -47,10 +47,11 @@ import DebugAvailability from './components/DebugAvailability';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
 import SimpleFooter from './components/SimpleFooter';
+import CheckInPage from './pages/CheckInPage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/check-in'].includes(location.pathname);
 
   // Run token migration on app startup
   useEffect(() => {
@@ -208,6 +209,7 @@ function AppContent() {
         <Route path="/chat-test" element={<ChatTestPage />} />
         <Route path="/debug-availability" element={<PrivateRoute><DebugAvailability /></PrivateRoute>} />
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
+        <Route path="/check-in" element={<PrivateRoute><CheckInPage /></PrivateRoute>} />
       </Routes>
       {showNavbar && <SimpleFooter />}
     </>

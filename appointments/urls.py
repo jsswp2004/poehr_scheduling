@@ -16,7 +16,9 @@ from .views import (
     RunPatientSMSRemindersNowView,
     AutoEmailViewSet,
     update_appointment_status,
-)  # ⬅️ import the new SMS view
+    CheckInSearchView,
+    CheckInStatusUpdateView,
+)  # ⬅️ import the new SMS view and check-in views
 from .analytics_views import AnalyticsReportView, ExportReportView
 
 # Debug import
@@ -214,4 +216,11 @@ urlpatterns = router.urls + [
     path("analytics/export/", ExportReportView.as_view(), name="export-reports"),
     path("debug-sms/", debug_sms_data, name="debug-sms"),
     path("debug-sms-logs/", debug_sms_logs, name="debug-sms-logs"),
+    # Check-in endpoints
+    path("check-in/search/", CheckInSearchView.as_view(), name="check-in-search"),
+    path(
+        "check-in/update-status/<int:appointment_id>/",
+        CheckInStatusUpdateView.as_view(),
+        name="check-in-status-update",
+    ),
 ]
