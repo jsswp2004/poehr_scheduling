@@ -123,16 +123,15 @@ const CheckInPage = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            toast.success(
+            // Show immediate success alert
+            alert(
                 !currentStatus
-                    ? 'Patient checked in successfully! Refreshing...'
-                    : 'Patient check-in status updated! Refreshing...'
+                    ? 'Patient checked in successfully! Status updated to "In Progress". Page will refresh now.'
+                    : 'Patient check-in status updated! Page will refresh now.'
             );
 
             // Auto-refresh the page after successful check-in
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500); // Give time for toast to show
+            window.location.reload();
 
         } catch (error) {
             console.error('Check-in update error:', error);
