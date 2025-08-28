@@ -251,8 +251,37 @@ export const Header = ({ className }) => {
 
       {/* Demo Request Email Modal */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={handleCloseModal} style={{ zIndex: 1300 }}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="modal-overlay" 
+          onClick={handleCloseModal} 
+          style={{ 
+            zIndex: 1300,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.5)',
+            padding: '20px'
+          }}
+        >
+          <div 
+            className="modal-content" 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '500px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+              margin: 'auto'
+            }}
+          >
             <div className="modal-header">
               <h2>Request a Demo</h2>
               <button className="close-button" onClick={handleCloseModal}>×</button>
