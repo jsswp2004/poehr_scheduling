@@ -64,6 +64,15 @@ export const useLogin = () => {
                 toast.error('Access denied. Communicator requires admin privileges.');
                 navigate('/dashboard');
             }
+        } else if (redirectTo === 'check-in') {
+            console.log('Login Debug - Redirecting to check-in path');
+            // Check if user has admin privileges for check-in
+            if (userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') {
+                navigate('/check-in');
+            } else {
+                toast.error('Access denied. Check-in system requires admin privileges.');
+                navigate('/dashboard');
+            }
         } else if (redirectTo === 'portal') {
             console.log('Login Debug - Portal redirect requested, but checking role first');
             // For portal redirect, still respect admin/system_admin roles

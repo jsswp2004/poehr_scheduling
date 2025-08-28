@@ -92,26 +92,30 @@ class AppointmentViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Check subscription-based appointment limits
         user = self.request.user
-        if hasattr(user, 'subscription_tier') and user.subscription_tier == 'basic':
+        if hasattr(user, "subscription_tier") and user.subscription_tier == "basic":
             # Professional plan: 200 appointments per month limit
             from datetime import datetime
             from django.utils import timezone
-            
-            current_month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            current_month_start = timezone.now().replace(
+                day=1, hour=0, minute=0, second=0, microsecond=0
+            )
             current_month_appointments = Appointment.objects.filter(
-                patient__user=user,
-                appointment_datetime__gte=current_month_start
+                patient__user=user, appointment_datetime__gte=current_month_start
             ).count()
-            
+
             if current_month_appointments >= 200:
                 from rest_framework.exceptions import PermissionDenied
-                raise PermissionDenied({
-                    'error': 'Professional plan appointment limit reached',
-                    'message': 'You have reached your monthly limit of 200 appointments. Upgrade to Clinic plan for unlimited appointments.',
-                    'current_count': current_month_appointments,
-                    'limit': 200,
-                    'upgrade_url': '/pricing?plan=clinic'
-                })
+
+                raise PermissionDenied(
+                    {
+                        "error": "Professional plan appointment limit reached",
+                        "message": "You have reached your monthly limit of 200 appointments. Upgrade to Clinic plan for unlimited appointments.",
+                        "current_count": current_month_appointments,
+                        "limit": 200,
+                        "upgrade_url": "/pricing?plan=clinic",
+                    }
+                )
 
         # Server-side validation for availability
         appointment_datetime = serializer.validated_data.get("appointment_datetime")
@@ -1118,3 +1122,100 @@ def update_appointment_status(request, appointment_id):
         )
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CheckInSearchView(APIView):
+    """
+    Search today's appointments by patient name for check-in
+    """
+
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def get(self, request):
+        search_query = request.GET.get("query", "").strip()
+
+        if not search_query:
+            return Response([], status=status.HTTP_200_OK)
+
+        user = request.user
+
+        # Get today's date range
+        today = timezone.now().date()
+        tomorrow = today + timedelta(days=1)
+
+        # Build base queryset for today's appointments
+        if user.role == "system_admin":
+            queryset = Appointment.objects.filter(appointment_datetime__date=today)
+        else:
+            queryset = Appointment.objects.filter(
+                appointment_datetime__date=today, organization=user.organization
+            )
+
+        # Search by patient name (first name, last name, or full name)
+        search_filter = Q()
+
+        # Search in patient_name field directly
+        search_filter |= Q(patient_name__icontains=search_query)
+
+        # Search in related patient object if it exists
+        search_filter |= Q(patient__first_name__icontains=search_query)
+        search_filter |= Q(patient__last_name__icontains=search_query)
+
+        # Search for full name combinations
+        name_parts = search_query.split()
+        if len(name_parts) > 1:
+            for i in range(len(name_parts)):
+                first_part = " ".join(name_parts[: i + 1])
+                last_part = " ".join(name_parts[i + 1 :])
+                if last_part:
+                    search_filter |= Q(patient__first_name__icontains=first_part) & Q(
+                        patient__last_name__icontains=last_part
+                    )
+
+        appointments = queryset.filter(search_filter).order_by("appointment_datetime")
+
+        # Serialize the results
+        serializer = AppointmentSerializer(appointments, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CheckInStatusUpdateView(APIView):
+    """
+    Update the arrived status for a specific appointment
+    """
+
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def patch(self, request, appointment_id):
+        try:
+            user = request.user
+
+            # Get the appointment
+            if user.role == "system_admin":
+                appointment = Appointment.objects.get(id=appointment_id)
+            else:
+                appointment = Appointment.objects.get(
+                    id=appointment_id, organization=user.organization
+                )
+
+            # Get the arrived status
+            arrived = request.data.get("arrived")
+
+            if arrived is not None:
+                appointment.arrived = arrived
+                # If marking as arrived, clear no_show status
+                if arrived:
+                    appointment.no_show = False
+
+                appointment.save()
+
+            # Return updated appointment data
+            serializer = AppointmentSerializer(appointment)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Appointment.DoesNotExist:
+            return Response(
+                {"error": "Appointment not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
