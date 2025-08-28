@@ -1214,10 +1214,10 @@ class CheckInStatusUpdateView(APIView):
 
             if arrived is not None:
                 appointment.arrived = arrived
-                # If marking as arrived, clear no_show status and set status to "In Progress"
+                # If marking as arrived, clear no_show status and set status to "in_progress"
                 if arrived:
                     appointment.no_show = False
-                    appointment.status = "In Progress"
+                    appointment.status = "in_progress"
 
                 appointment.save()
 
