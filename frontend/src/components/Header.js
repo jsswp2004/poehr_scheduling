@@ -251,7 +251,7 @@ export const Header = ({ className }) => {
 
       {/* Demo Request Email Modal */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={handleCloseModal}>
+        <div className="modal-overlay" onClick={handleCloseModal} style={{ zIndex: 1300 }}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Request a Demo</h2>
