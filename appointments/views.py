@@ -1133,6 +1133,10 @@ class CheckInSearchView(APIView):
 
     def get(self, request):
         search_query = request.GET.get("query", "").strip()
+        
+        # Debug logging
+        print(f"[DEBUG] CheckInSearchView: user={request.user}, role={getattr(request.user, 'role', None)}")
+        print(f"[DEBUG] CheckInSearchView: search_query='{search_query}'")
 
         if not search_query:
             return Response([], status=status.HTTP_200_OK)
@@ -1141,7 +1145,7 @@ class CheckInSearchView(APIView):
 
         # Get today's date range
         today = timezone.now().date()
-        tomorrow = today + timedelta(days=1)
+        print(f"[DEBUG] CheckInSearchView: today={today}")
 
         # Build base queryset for today's appointments
         if user.role == "system_admin":
@@ -1150,12 +1154,11 @@ class CheckInSearchView(APIView):
             queryset = Appointment.objects.filter(
                 appointment_datetime__date=today, organization=user.organization
             )
+        
+        print(f"[DEBUG] CheckInSearchView: base queryset count={queryset.count()}")
 
         # Search by patient name (first name, last name, or full name)
         search_filter = Q()
-
-        # Search in patient_name field directly
-        search_filter |= Q(patient_name__icontains=search_query)
 
         # Search in related patient object if it exists
         search_filter |= Q(patient__first_name__icontains=search_query)
@@ -1173,9 +1176,11 @@ class CheckInSearchView(APIView):
                     )
 
         appointments = queryset.filter(search_filter).order_by("appointment_datetime")
+        print(f"[DEBUG] CheckInSearchView: filtered appointments count={appointments.count()}")
 
         # Serialize the results
         serializer = AppointmentSerializer(appointments, many=True)
+        print(f"[DEBUG] CheckInSearchView: serialized data length={len(serializer.data)}")
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
