@@ -50,11 +50,10 @@ export const Header = ({ className }) => {
   // State for demo request email modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    to: 'info@powerhealthcareit.com',
-    from: '',
-    telephone: '',
-    subject: 'Demo Request',
-    message: 'I would like to request a demo of POWER Healthcare IT Systems.'
+    name: '',
+    email: '',
+    subject: 'Demo Request - POWER Healthcare IT Systems',
+    message: 'I would like to request a demo of POWER Healthcare IT Systems. Please contact me to schedule a demonstration.'
   });
   const [formErrors, setFormErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -124,7 +123,7 @@ export const Header = ({ className }) => {
     setIsLoading(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/send-email/`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/users/contact-email/`, formData, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -135,11 +134,10 @@ export const Header = ({ className }) => {
         // Close modal and reset form
         setIsModalOpen(false);
         setFormData({
-          to: 'info@powerhealthcareit.com',
-          from: '',
-          telephone: '',
-          subject: 'Demo Request',
-          message: 'I would like to request a demo of POWER Healthcare IT Systems.'
+          name: '',
+          email: '',
+          subject: 'Demo Request - POWER Healthcare IT Systems',
+          message: 'I would like to request a demo of POWER Healthcare IT Systems. Please contact me to schedule a demonstration.'
         });
         setFormErrors({});
       }
@@ -288,46 +286,33 @@ export const Header = ({ className }) => {
             </div>
             <form onSubmit={handleSendEmail} className="email-form">
               <div className="form-group">
-                <label htmlFor="to">To:</label>
+                <label htmlFor="name">Name: *</label>
                 <input
-                  type="email"
-                  id="to"
-                  name="to"
-                  value={formData.to}
+                  type="text"
+                  id="name"
+                  name="name"
+                  value={formData.name}
                   onChange={handleInputChange}
-                  readOnly
-                  className="form-input readonly"
+                  placeholder="Please enter your full name"
+                  className={`form-input ${formErrors.name ? 'error' : ''}`}
+                  required
                 />
+                {formErrors.name && <span className="error-message">{formErrors.name}</span>}
               </div>
 
               <div className="form-group">
-                <label htmlFor="from">From: *</label>
+                <label htmlFor="email">Email: *</label>
                 <input
                   type="email"
-                  id="from"
-                  name="from"
-                  value={formData.from}
+                  id="email"
+                  name="email"
+                  value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Please enter your email address"
-                  className={`form-input ${formErrors.from ? 'error' : ''}`}
+                  className={`form-input ${formErrors.email ? 'error' : ''}`}
                   required
                 />
-                {formErrors.from && <span className="error-message">{formErrors.from}</span>}
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="telephone">Phone Number: *</label>
-                <input
-                  type="tel"
-                  id="telephone"
-                  name="telephone"
-                  value={formData.telephone}
-                  onChange={handleInputChange}
-                  placeholder="Please enter your phone number"
-                  className={`form-input ${formErrors.telephone ? 'error' : ''}`}
-                  required
-                />
-                {formErrors.telephone && <span className="error-message">{formErrors.telephone}</span>}
+                {formErrors.email && <span className="error-message">{formErrors.email}</span>}
               </div>
 
               <div className="form-group">
