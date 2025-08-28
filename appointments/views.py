@@ -101,7 +101,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 day=1, hour=0, minute=0, second=0, microsecond=0
             )
             current_month_appointments = Appointment.objects.filter(
-                patient__user=user, appointment_datetime__gte=current_month_start
+                patient=user, appointment_datetime__gte=current_month_start
             ).count()
 
             if current_month_appointments >= 200:
@@ -1133,9 +1133,11 @@ class CheckInSearchView(APIView):
 
     def get(self, request):
         search_query = request.GET.get("query", "").strip()
-        
+
         # Debug logging
-        print(f"[DEBUG] CheckInSearchView: user={request.user}, role={getattr(request.user, 'role', None)}")
+        print(
+            f"[DEBUG] CheckInSearchView: user={request.user}, role={getattr(request.user, 'role', None)}"
+        )
         print(f"[DEBUG] CheckInSearchView: search_query='{search_query}'")
 
         if not search_query:
@@ -1154,7 +1156,7 @@ class CheckInSearchView(APIView):
             queryset = Appointment.objects.filter(
                 appointment_datetime__date=today, organization=user.organization
             )
-        
+
         print(f"[DEBUG] CheckInSearchView: base queryset count={queryset.count()}")
 
         # Search by patient name (first name, last name, or full name)
@@ -1176,11 +1178,15 @@ class CheckInSearchView(APIView):
                     )
 
         appointments = queryset.filter(search_filter).order_by("appointment_datetime")
-        print(f"[DEBUG] CheckInSearchView: filtered appointments count={appointments.count()}")
+        print(
+            f"[DEBUG] CheckInSearchView: filtered appointments count={appointments.count()}"
+        )
 
         # Serialize the results
         serializer = AppointmentSerializer(appointments, many=True)
-        print(f"[DEBUG] CheckInSearchView: serialized data length={len(serializer.data)}")
+        print(
+            f"[DEBUG] CheckInSearchView: serialized data length={len(serializer.data)}"
+        )
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -1208,9 +1214,10 @@ class CheckInStatusUpdateView(APIView):
 
             if arrived is not None:
                 appointment.arrived = arrived
-                # If marking as arrived, clear no_show status
+                # If marking as arrived, clear no_show status and set status to "In Progress"
                 if arrived:
                     appointment.no_show = False
+                    appointment.status = "In Progress"
 
                 appointment.save()
 

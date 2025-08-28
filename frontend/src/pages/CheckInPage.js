@@ -123,25 +123,21 @@ const CheckInPage = () => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
 
-            // Update the local state
-            setAppointments(prev =>
-                prev.map(appt =>
-                    appt.id === appointmentId
-                        ? { ...appt, arrived: !currentStatus, no_show: false }
-                        : appt
-                )
-            );
-
             toast.success(
                 !currentStatus
-                    ? 'Patient checked in successfully!'
-                    : 'Patient check-in status updated!'
+                    ? 'Patient checked in successfully! Refreshing...'
+                    : 'Patient check-in status updated! Refreshing...'
             );
+
+            // Auto-refresh the page after successful check-in
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500); // Give time for toast to show
+
         } catch (error) {
             console.error('Check-in update error:', error);
             toast.error('Failed to update check-in status');
-        } finally {
-            setLoading(false);
+            setLoading(false); // Only set loading false on error, since we're refreshing on success
         }
     };
 
