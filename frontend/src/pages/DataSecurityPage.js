@@ -20,9 +20,13 @@ export const DataSecurityPage = ({ className }) => {
             Powered by Microsoft Azure's enterprise-grade security infrastructure, all data is protected with AES-256 encryption and TLS 1.3 protocols. Your patient information and clinic data are secured with the same encryption standards used by Fortune 500 companies, ensuring confidentiality in transit, at rest, and during processing. Azure Key Vault manages all encryption keys with hardware security modules (HSMs) for maximum protection.
           </p>
           <div className="security-features">
-            <span className="feature-badge">🔐 AES-256 Encryption</span>
+            {/**/}
+            {/**/}
+            {/*
+            <span className="feature-badge">🔐 AES-256 Encryption</span>*/}
+            
             <span className="feature-badge">🛡️ Azure Key Vault</span>
-            <span className="feature-badge">✅ SOC 2 Certified</span>
+            {/*<span className="feature-badge">✅ SOC 2 Certified</span>*/}
             <span className="feature-badge">⚕️ HIPAA Compliant</span>
           </div>
         </div>
@@ -42,6 +46,7 @@ export const DataSecurityPage = ({ className }) => {
             <strong>Complete Data Ownership:</strong> While leveraging Azure's powerful infrastructure, you maintain 100% ownership of your data. Request to download your complete data archive in standard formats (JSON, CSV, PDF) or delete all records at your convenience through our self-service portal. No vendor lock-in, no hidden fees - your data, your control.
           </p>
           <div className="security-features">
+            {/**/}
             <span className="feature-badge">☁️ Azure Global Infrastructure</span>
             <span className="feature-badge">📊 99.99% Uptime SLA</span>
             <span className="feature-badge">🔄 Auto Backup & Recovery</span>
@@ -67,7 +72,7 @@ export const DataSecurityPage = ({ className }) => {
             <span className="feature-badge">📋 Complete Audit Trails</span>
             <span className="feature-badge">📤 Instant Data Export</span>
             <span className="feature-badge">🗑️ Right to Deletion</span>
-            <span className="feature-badge">⚖️ GDPR & CCPA Compliant</span>
+          {/*  <span className="feature-badge">⚖️ GDPR & CCPA Compliant</span>*/}
           </div>
         </div>
         <img 
@@ -84,21 +89,21 @@ export const DataSecurityPage = ({ className }) => {
             Have questions about our security practices? Our dedicated security team is here to help. We conduct regular security assessments, penetration testing, and compliance audits to ensure your data remains protected.
           </p>
           <div className="compliance-badges">
-            <div className="badge-item">
+            {/*<div className="badge-item">
               <div className="badge-icon">🛡️</div>
               <span>SOC 2 Type II</span>
-            </div>
+            </div>*/}
             <div className="badge-item">
               <div className="badge-icon">⚕️</div>
               <span>HIPAA Compliant</span>
             </div>
-            <div className="badge-item">
+            {/*<div className="badge-item">
               <div className="badge-icon">🔒</div>
               <span>ISO 27001</span>
-            </div>
+            </div>*/}
             <div className="badge-item">
               <div className="badge-icon">☁️</div>
-              <span>Azure Certified</span>
+              <span>Hosted in Azure</span>
             </div>
           </div>
           <div className="contact-info">
