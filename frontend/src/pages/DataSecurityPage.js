@@ -7,7 +7,7 @@ import cloudProtectionImage from '../assets/CloudProtection.png';
 
 export const DataSecurityPage = ({ className }) => {
   return (
-    <div className={`data-security-page ${className || ''}`}> 
+    <div className={`data-security-page ${className || ''}`}>
       <Header />
       <div className="page-title-section">
         <h1 className="page-title">Data Security & Privacy</h1>
@@ -22,18 +22,17 @@ export const DataSecurityPage = ({ className }) => {
           <div className="security-features">
             {/**/}
             {/**/}
-            {/*
-            <span className="feature-badge">🔐 AES-256 Encryption</span>*/}
-            
+
+            <span className="feature-badge">🔐 AES-256 Encryption</span>
             <span className="feature-badge">🛡️ Azure Key Vault</span>
             {/*<span className="feature-badge">✅ SOC 2 Certified</span>*/}
             <span className="feature-badge">⚕️ HIPAA Compliant</span>
           </div>
         </div>
-        <img 
-          src={encryptionImage} 
-          alt="Enterprise-grade encryption security infrastructure" 
-          className="security-image encryption-image" 
+        <img
+          src={encryptionImage}
+          alt="Enterprise-grade encryption security infrastructure"
+          className="security-image encryption-image"
         />
       </div>
       <div className="security-details">
@@ -53,10 +52,10 @@ export const DataSecurityPage = ({ className }) => {
             <span className="feature-badge">🌍 Multi-Region Protection</span>
           </div>
         </div>
-        <img 
-          src={cloudProtectionImage} 
-          alt="Azure cloud-powered data protection infrastructure" 
-          className="security-image cloud-image" 
+        <img
+          src={cloudProtectionImage}
+          alt="Azure cloud-powered data protection infrastructure"
+          className="security-image cloud-image"
         />
       </div>
       <div className="security-details">
@@ -72,16 +71,16 @@ export const DataSecurityPage = ({ className }) => {
             <span className="feature-badge">📋 Complete Audit Trails</span>
             <span className="feature-badge">📤 Instant Data Export</span>
             <span className="feature-badge">🗑️ Right to Deletion</span>
-          {/*  <span className="feature-badge">⚖️ GDPR & CCPA Compliant</span>*/}
+            {/*  <span className="feature-badge">⚖️ GDPR & CCPA Compliant</span>*/}
           </div>
         </div>
-        <img 
-          src={dataOwnershipImage} 
-          alt="Complete data ownership and control features" 
-          className="security-image ownership-image" 
+        <img
+          src={dataOwnershipImage}
+          alt="Complete data ownership and control features"
+          className="security-image ownership-image"
         />
       </div>
-      
+
       <div className="security-contact-section">
         <div className="contact-content">
           <h2 className="section-heading">Security & Compliance</h2>
