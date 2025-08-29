@@ -317,8 +317,8 @@ else:
     )
 
 # Custom domain configuration for powerhealthcareit.com
-SITE_URL = os.environ.get("SITE_URL", "https://powerhealthcareit.com")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://powerhealthcareit.com")
+SITE_URL = os.environ.get("SITE_URL", "https://www.powerhealthcareit.com")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://www.powerhealthcareit.com")
 
 # Email settings for custom domain
 DEFAULT_FROM_EMAIL = os.environ.get(
