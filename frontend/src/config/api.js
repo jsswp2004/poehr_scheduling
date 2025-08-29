@@ -18,9 +18,12 @@ const getBaseUrl = () => {
             window.location.hostname === 'www.powerhealthcareit.com') {
             // Always use www version for SSL certificate compatibility
             // This ensures SSL works regardless of how user accessed the site
+            console.log('🔧 SSL Debug - Detected custom domain, using www version');
+            console.log('🔧 SSL Debug - Current hostname:', window.location.hostname);
             return 'https://www.powerhealthcareit.com';
         }
         // Production URL - use the specific backend Azure Container App URL
+        console.log('🔧 SSL Debug - Using Azure Container App URL');
         return 'https://poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io';
     } else {
         // Development URL - default to localhost:8000

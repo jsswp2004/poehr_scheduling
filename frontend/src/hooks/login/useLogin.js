@@ -108,7 +108,13 @@ export const useLogin = () => {
         setLoading(true);
 
         try {
-            const response = await axios.post(`${API_BASE_URL}/api/users/login/`, formData);
+            // Debug: Log the actual URL being used
+            const loginUrl = `${API_BASE_URL}/api/users/login/`;
+            console.log('🔧 Login Debug - API_BASE_URL:', API_BASE_URL);
+            console.log('🔧 Login Debug - Full login URL:', loginUrl);
+            console.log('🔧 Login Debug - Current hostname:', window.location.hostname);
+            
+            const response = await axios.post(loginUrl, formData);
             const { access, refresh } = response.data;
 
             // Store tokens using centralized token manager
