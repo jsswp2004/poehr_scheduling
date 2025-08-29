@@ -14,9 +14,11 @@ const getBaseUrl = () => {
     // Default based on environment
     if (process.env.NODE_ENV === 'production') {
         // Check if we're on the custom domain
-        if (window.location.hostname === 'powerhealthcareit.com' || 
+        if (window.location.hostname === 'powerhealthcareit.com' ||
             window.location.hostname === 'www.powerhealthcareit.com') {
-            return 'https://powerhealthcareit.com';
+            // Always use www version for SSL certificate compatibility
+            // This ensures SSL works regardless of how user accessed the site
+            return 'https://www.powerhealthcareit.com';
         }
         // Production URL - use the specific backend Azure Container App URL
         return 'https://poehr-scheduling.bluedune-dee8c412.centralus.azurecontainerapps.io';
@@ -36,11 +38,13 @@ const getWebSocketUrl = () => {
 
     if (process.env.NODE_ENV === 'production') {
         // Check if we're on the custom domain for WebSocket
-        if (window.location.hostname === 'powerhealthcareit.com' || 
+        if (window.location.hostname === 'powerhealthcareit.com' ||
             window.location.hostname === 'www.powerhealthcareit.com') {
-            return 'wss://powerhealthcareit.com';
+            // Always use www version for SSL certificate compatibility
+            // This ensures WebSocket SSL works regardless of how user accessed the site
+            return 'wss://www.powerhealthcareit.com';
         }
-        
+
         // Production WebSocket URL - use same domain but wss protocol
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
