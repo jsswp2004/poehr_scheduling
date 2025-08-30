@@ -40,7 +40,12 @@ import {
     Email,
     Person,
     Print,
-    CheckCircle
+    CheckCircle,
+    CloudDownload,
+    DeleteForever,
+    Storage,
+    Checkbox,
+    CheckBox
 } from '@mui/icons-material';
 
 function AccountPage() {
@@ -56,6 +61,9 @@ function AccountPage() {
     const [changePlanOpen, setChangePlanOpen] = useState(false);
     const [addPaymentOpen, setAddPaymentOpen] = useState(false);
     const [cancelAccountOpen, setCancelAccountOpen] = useState(false);
+    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
 
     // Form states
     const [editFormData, setEditFormData] = useState({});
@@ -72,6 +80,25 @@ function AccountPage() {
         endDate: '',
         reason: ''
     });
+    
+    // Data management states
+    const [exportFormData, setExportFormData] = useState({
+        formats: ['json'],
+        include_data: {
+            users: true,
+            appointments: true,
+            availability: true,
+            clinic_events: true,
+            holidays: true,
+            communications: false
+        }
+    });
+    const [deleteFormData, setDeleteFormData] = useState({
+        confirmation_name: '',
+        final_confirmation: false
+    });
+    const [exportLoading, setExportLoading] = useState(false);
+    const [deleteLoading, setDeleteLoading] = useState(false);
 
     // Plan options (updated to match current subscription tiers)
     const planOptions = [
@@ -380,6 +407,116 @@ function AccountPage() {
         }
     };
 
+    // Data Export Handler
+    const handleExportData = async () => {
+        try {
+            setExportLoading(true);
+            const token = await getValidToken();
+
+            const response = await axios.post(`${API_BASE_URL}/api/users/organization/export-data/`, exportFormData, {
+                headers: { 
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                responseType: 'blob' // Important for file download
+            });
+
+            // Create blob and download file
+            const blob = new Blob([response.data], { type: 'application/zip' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Extract filename from response headers or create default
+            const disposition = response.headers['content-disposition'];
+            let filename = 'organization_export.zip';
+            if (disposition) {
+                const filenameMatch = disposition.match(/filename="(.+)"/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Organization data exported successfully!');
+            setExportDialogOpen(false);
+
+        } catch (error) {
+            console.error('Export failed:', error);
+            toast.error('Failed to export organization data. Please try again.');
+        } finally {
+            setExportLoading(false);
+        }
+    };
+
+    // Organization Delete Handler
+    const handleDeleteOrganization = async () => {
+        try {
+            setDeleteLoading(true);
+            const token = await getValidToken();
+
+            // First, prepare deletion and get confirmation
+            const response = await axios.post(`${API_BASE_URL}/api/users/organization/delete/`, {
+                confirmation_name: deleteFormData.confirmation_name
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (response.data.message) {
+                // Show confirmation dialog with details
+                setDeleteDialogOpen(false);
+                setDeleteConfirmationOpen(true);
+            }
+
+        } catch (error) {
+            console.error('Delete preparation failed:', error);
+            if (error.response?.data?.error) {
+                toast.error(error.response.data.error);
+            } else {
+                toast.error('Failed to prepare organization deletion. Please try again.');
+            }
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    // Final Delete Confirmation Handler
+    const handleFinalDeleteConfirmation = async () => {
+        try {
+            setDeleteLoading(true);
+            const token = await getValidToken();
+
+            // Actually delete the organization
+            const response = await axios.delete(`${API_BASE_URL}/api/users/organization/delete/`, {
+                headers: { Authorization: `Bearer ${token}` },
+                data: { final_confirmation: true }
+            });
+
+            if (response.data.message) {
+                toast.success('Organization deleted successfully. You will be logged out.');
+                setDeleteConfirmationOpen(false);
+
+                // Force logout after showing success message
+                setTimeout(() => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    window.location.href = '/login?deleted=true&message=Organization has been deleted';
+                }, 3000);
+            }
+
+        } catch (error) {
+            console.error('Delete failed:', error);
+            toast.error('Failed to delete organization. Please try again.');
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
     if (loading) {
         return (
             <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -577,6 +714,45 @@ function AccountPage() {
                                         )}
                                     </TableBody>
                                 </Table>
+                            </Box>
+                        </Box>
+
+                        {/* Data Management Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
+                            <Typography variant="h6" gutterBottom>
+                                <Storage sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                Data Management
+                            </Typography>
+                            
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => setExportDialogOpen(true)}
+                                    startIcon={<CloudDownload />}
+                                    fullWidth
+                                    color="primary"
+                                >
+                                    Export Organization Data
+                                </Button>
+                                
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => setDeleteDialogOpen(true)}
+                                    startIcon={<DeleteForever />}
+                                    fullWidth
+                                    color="error"
+                                    sx={{ mt: 1 }}
+                                >
+                                    Delete Organization
+                                </Button>
+                            </Box>
+                            
+                            <Box sx={{ mt: 2, p: 2, backgroundColor: '#fff3cd', borderRadius: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    <strong>Data Export:</strong> Download all your organization's data in JSON and/or CSV format.
+                                    <br />
+                                    <strong>Delete Organization:</strong> Permanently delete your organization and all associated data.
+                                </Typography>
                             </Box>
                         </Box>
                     </Box>
@@ -863,6 +1039,180 @@ function AccountPage() {
                     <Button onClick={() => setCancelAccountOpen(false)}>No, Keep Account</Button>
                     <Button onClick={handleCancelAccount} color="error" variant="contained">
                         Yes, Cancel Account
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Export Data Dialog */}
+            <Dialog open={exportDialogOpen} onClose={() => setExportDialogOpen(false)} maxWidth="md" fullWidth>
+                <DialogTitle>
+                    <CloudDownload sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    Export Organization Data
+                </DialogTitle>
+                <DialogContent>
+                    <Typography variant="body1" sx={{ mb: 3 }}>
+                        Select the data format and which data to include in your export.
+                    </Typography>
+
+                    {/* Format Selection */}
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="h6" gutterBottom>Data Format:</Typography>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Button
+                                variant={exportFormData.formats.includes('json') ? 'contained' : 'outlined'}
+                                onClick={() => {
+                                    const formats = exportFormData.formats.includes('json')
+                                        ? exportFormData.formats.filter(f => f !== 'json')
+                                        : [...exportFormData.formats, 'json'];
+                                    setExportFormData({ ...exportFormData, formats });
+                                }}
+                            >
+                                JSON Format
+                            </Button>
+                            <Button
+                                variant={exportFormData.formats.includes('csv') ? 'contained' : 'outlined'}
+                                onClick={() => {
+                                    const formats = exportFormData.formats.includes('csv')
+                                        ? exportFormData.formats.filter(f => f !== 'csv')
+                                        : [...exportFormData.formats, 'csv'];
+                                    setExportFormData({ ...exportFormData, formats });
+                                }}
+                            >
+                                CSV Format
+                            </Button>
+                        </Box>
+                    </Box>
+
+                    {/* Data Selection */}
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="h6" gutterBottom>Data to Include:</Typography>
+                        <Grid container spacing={2}>
+                            {Object.entries(exportFormData.include_data).map(([key, value]) => (
+                                <Grid item xs={6} key={key}>
+                                    <Button
+                                        variant={value ? 'contained' : 'outlined'}
+                                        fullWidth
+                                        onClick={() => {
+                                            setExportFormData({
+                                                ...exportFormData,
+                                                include_data: {
+                                                    ...exportFormData.include_data,
+                                                    [key]: !value
+                                                }
+                                            });
+                                        }}
+                                        startIcon={value ? <CheckBox /> : <Checkbox />}
+                                    >
+                                        {key.charAt(0).toUpperCase() + key.slice(1).replace('_', ' ')}
+                                    </Button>
+                                </Grid>
+                            ))}
+                        </Grid>
+                    </Box>
+
+                    <Alert severity="info" sx={{ mb: 2 }}>
+                        Export will be downloaded as a ZIP file containing the selected data formats.
+                    </Alert>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setExportDialogOpen(false)}>Cancel</Button>
+                    <Button 
+                        onClick={handleExportData} 
+                        variant="contained" 
+                        disabled={exportLoading || exportFormData.formats.length === 0}
+                        startIcon={<CloudDownload />}
+                    >
+                        {exportLoading ? 'Exporting...' : 'Export Data'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Delete Organization Dialog */}
+            <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    <DeleteForever color="error" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    Delete Organization
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="error" sx={{ mb: 3 }}>
+                        <strong>WARNING:</strong> This action will permanently delete your organization and ALL associated data including:
+                        <ul>
+                            <li>All user accounts</li>
+                            <li>All appointments</li>
+                            <li>All availability schedules</li>
+                            <li>All communication history</li>
+                            <li>All billing information</li>
+                        </ul>
+                        This action cannot be undone.
+                    </Alert>
+
+                    <Typography variant="body1" sx={{ mb: 2 }}>
+                        To confirm deletion, please type your organization name exactly:
+                        <strong> {accountData?.organization_name}</strong>
+                    </Typography>
+
+                    <TextField
+                        fullWidth
+                        label="Organization Name"
+                        value={deleteFormData.confirmation_name}
+                        onChange={(e) => setDeleteFormData({ 
+                            ...deleteFormData, 
+                            confirmation_name: e.target.value 
+                        })}
+                        placeholder={accountData?.organization_name}
+                        error={deleteFormData.confirmation_name && deleteFormData.confirmation_name !== accountData?.organization_name}
+                        helperText={deleteFormData.confirmation_name && deleteFormData.confirmation_name !== accountData?.organization_name 
+                            ? "Organization name does not match" 
+                            : ""
+                        }
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+                    <Button 
+                        onClick={handleDeleteOrganization} 
+                        color="error" 
+                        variant="contained"
+                        disabled={deleteLoading || deleteFormData.confirmation_name !== accountData?.organization_name}
+                        startIcon={<DeleteForever />}
+                    >
+                        {deleteLoading ? 'Preparing...' : 'Delete Organization'}
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Final Delete Confirmation Dialog */}
+            <Dialog open={deleteConfirmationOpen} onClose={() => setDeleteConfirmationOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>
+                    <Warning color="error" sx={{ mr: 1, verticalAlign: 'middle' }} />
+                    Final Confirmation
+                </DialogTitle>
+                <DialogContent>
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                        You are about to permanently delete <strong>{accountData?.organization_name}</strong>.
+                        This is your last chance to cancel.
+                    </Alert>
+                    
+                    <Typography variant="body1" color="error" sx={{ mb: 2 }}>
+                        Once deleted, you will be immediately logged out and will not be able to recover any data.
+                    </Typography>
+                    
+                    <Typography variant="body2">
+                        Are you absolutely sure you want to proceed?
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDeleteConfirmationOpen(false)} variant="outlined">
+                        No, Keep Organization
+                    </Button>
+                    <Button 
+                        onClick={handleFinalDeleteConfirmation} 
+                        color="error" 
+                        variant="contained"
+                        disabled={deleteLoading}
+                        startIcon={<DeleteForever />}
+                    >
+                        {deleteLoading ? 'Deleting...' : 'Yes, Delete Forever'}
                     </Button>
                 </DialogActions>
             </Dialog>
