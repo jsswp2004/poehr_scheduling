@@ -322,7 +322,7 @@ function EnvironmentProfilePage() {
       {tabKey === "clinic-events" && (
         <Box sx={{
           p: 2,
-          height: "500px",
+          height: "600px",
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden'

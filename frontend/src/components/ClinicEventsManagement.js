@@ -333,7 +333,13 @@ const ClinicEventsManagement = () => {
     };
 
     return (
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', maxHeight: '600px' }}>
+        <Box sx={{ 
+            height: '100%', 
+            display: 'flex', 
+            flexDirection: 'column',
+            overflow: 'hidden',
+            maxHeight: '100%'
+        }}>
             {/* Alert */}
             {alert.show && (
                 <Alert
@@ -346,15 +352,25 @@ const ClinicEventsManagement = () => {
             )}
 
             {/* Two-pane layout */}
-            <Grid container spacing={3} sx={{ flex: 1, minHeight: 0 }}>
+            <Grid container spacing={3} sx={{ 
+                flex: 1, 
+                minHeight: 0,
+                height: '100%',
+                overflow: 'hidden'
+            }}>
                 {/* Left Pane - Form */}
-                <Grid item xs={12} md={5} sx={{ display: 'flex', minHeight: 0 }}>
+                <Grid item xs={12} md={5} sx={{ 
+                    display: 'flex', 
+                    minHeight: 0,
+                    height: '100%'
+                }}>
                     <Paper sx={{
                         p: 3,
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        height: '100%'
                     }}>
                         <Typography variant="h6" gutterBottom sx={{ flexShrink: 0 }}>
                             {isEditing ? 'Edit Clinic Event' : 'Create Clinic Event'}
@@ -385,6 +401,7 @@ const ClinicEventsManagement = () => {
                             gap: 2,
                             overflow: 'auto',
                             minHeight: 0,
+                            maxHeight: 'calc(100% - 200px)',
                             pr: 1
                         }}>
                             <TextField
@@ -470,12 +487,17 @@ const ClinicEventsManagement = () => {
                 </Grid>
 
                 {/* Right Pane - Table */}
-                <Grid item xs={12} md={7} sx={{ display: 'flex', minHeight: 0 }}>
+                <Grid item xs={12} md={7} sx={{ 
+                    display: 'flex', 
+                    minHeight: 0,
+                    height: '100%'
+                }}>
                     <Paper sx={{
                         width: '100%',
                         display: 'flex',
                         flexDirection: 'column',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        height: '100%'
                     }}>
                         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
                             <Typography variant="h6">
@@ -483,7 +505,11 @@ const ClinicEventsManagement = () => {
                             </Typography>
                         </Box>
 
-                        <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
+                        <TableContainer sx={{ 
+                            flex: 1, 
+                            overflow: 'auto',
+                            maxHeight: 'calc(100% - 80px)'
+                        }}>
                             <Table stickyHeader size="small">
                                 <TableHead>
                                     <TableRow>
