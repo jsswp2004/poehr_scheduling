@@ -3089,3 +3089,61 @@ class OrganizationDeleteView(APIView):
         except Exception as e:
             logger.error(f"Organization deletion error: {str(e)}")
             return Response({"error": "Failed to delete organization"}, status=500)
+
+
+class OrganizationSearchView(APIView):
+    """
+    API endpoint for system admins to search organizations
+    """
+    permission_classes = [IsAuthenticated, IsAdminOrSystemAdmin]
+
+    def get(self, request):
+        """
+        Search organizations by name
+        Only accessible by system admins
+        """
+        try:
+            user = request.user
+            
+            # Only system admins can search all organizations
+            if user.role != 'system_admin':
+                return Response(
+                    {"error": "Only system administrators can search all organizations"}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            # Get search query parameter
+            search_query = request.GET.get('q', '').strip()
+            
+            # Base queryset - all organizations for system admin
+            queryset = Organization.objects.all()
+            
+            # Apply search filter if query provided
+            if search_query:
+                queryset = queryset.filter(
+                    Q(name__icontains=search_query) |
+                    Q(subscription_tier__icontains=search_query)
+                ).distinct()
+            
+            # Order by name for consistent results
+            queryset = queryset.order_by('name')
+            
+            # Limit results to prevent overwhelming response
+            limit = min(int(request.GET.get('limit', 20)), 50)
+            queryset = queryset[:limit]
+            
+            # Serialize the results
+            serializer = OrganizationSerializer(queryset, many=True)
+            
+            return Response({
+                'organizations': serializer.data,
+                'count': len(serializer.data),
+                'search_query': search_query
+            })
+            
+        except Exception as e:
+            logger.error(f"Organization search error: {str(e)}")
+            return Response(
+                {"error": f"Failed to search organizations: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
