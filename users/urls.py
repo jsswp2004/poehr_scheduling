@@ -120,10 +120,22 @@ urlpatterns = [
     # Debug endpoint for user deletion
     path("debug-delete/<int:user_id>/", debug_delete_user, name="debug-delete-user"),
     # Organization admin info endpoint
-    path("organization-admin-info/", get_organization_admin_info, name="organization-admin-info"),
+    path(
+        "organization-admin-info/",
+        get_organization_admin_info,
+        name="organization-admin-info",
+    ),
     # Organization data management endpoints
-    path("organization/export-data/", OrganizationDataExportView.as_view(), name="organization-export-data"),
-    path("organization/delete/", OrganizationDeleteView.as_view(), name="organization-delete"),
+    path(
+        "organization/export-data/",
+        OrganizationDataExportView.as_view(),
+        name="organization-export-data",
+    ),
+    path(
+        "organization/delete/",
+        OrganizationDeleteView.as_view(),
+        name="organization-delete",
+    ),
     # SMS Opt-out Management
     path(
         "sms-optout-management/",
