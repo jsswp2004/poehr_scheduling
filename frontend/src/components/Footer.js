@@ -13,8 +13,8 @@ export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" })
               <div className="footer-brand-name">POWER HEALTHCARE IT SYSTEMS</div>
             </div>
             <div className="footer-description">
-              POWER was created for the new ways healthcare teams work. We make
-              better scheduling solutions for clinics around the world.
+              POWER was built for the modern healthcare workforce.
+              We deliver intelligent scheduling solutions designed specifically for clinics, helping teams work more efficiently while meeting their unique needs.
             </div>
           </div>
 
