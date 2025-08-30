@@ -2731,11 +2731,6 @@ class OrganizationDataExportView(APIView):
                         if organization.created_at
                         else None
                     ),
-                    "updated_at": (
-                        organization.updated_at.isoformat()
-                        if organization.updated_at
-                        else None
-                    ),
                 }
 
                 # Users data
