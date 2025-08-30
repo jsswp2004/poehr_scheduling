@@ -8,23 +8,25 @@ def populate_clinic_event_organizations(apps, schema_editor):
     Duplicate existing clinic events for each organization.
     Since clinic events were previously global, we want them available to all organizations.
     """
-    ClinicEvent = apps.get_model('appointments', 'ClinicEvent')
-    Organization = apps.get_model('users', 'Organization')
-    
+    ClinicEvent = apps.get_model("appointments", "ClinicEvent")
+    Organization = apps.get_model("users", "Organization")
+
     # Get all existing clinic events (they should have organization=None)
     global_events = ClinicEvent.objects.filter(organization__isnull=True)
-    
+
     if not global_events.exists():
         return  # No global events to migrate
-    
+
     # Get all organizations
     organizations = Organization.objects.all()
-    
+
     if not organizations.exists():
         return  # No organizations to assign to
-    
-    print(f"Migrating {global_events.count()} clinic events to {organizations.count()} organizations...")
-    
+
+    print(
+        f"Migrating {global_events.count()} clinic events to {organizations.count()} organizations..."
+    )
+
     # For each organization, create copies of all global clinic events
     for org in organizations:
         for event in global_events:
@@ -33,10 +35,10 @@ def populate_clinic_event_organizations(apps, schema_editor):
                 name=event.name,
                 description=event.description,
                 is_active=event.is_active,
-                organization=org
+                organization=org,
             )
             print(f"Created '{event.name}' for {org.name}")
-    
+
     # Delete the original global events (organization=None)
     global_events.delete()
     print("Deleted original global clinic events")
@@ -47,11 +49,11 @@ def reverse_populate_clinic_event_organizations(apps, schema_editor):
     Reverse migration: Convert organization-specific events back to global events.
     This will keep only one copy of each unique event name.
     """
-    ClinicEvent = apps.get_model('appointments', 'ClinicEvent')
-    
+    ClinicEvent = apps.get_model("appointments", "ClinicEvent")
+
     # Get all unique event names
-    unique_names = ClinicEvent.objects.values_list('name', flat=True).distinct()
-    
+    unique_names = ClinicEvent.objects.values_list("name", flat=True).distinct()
+
     # For each unique name, keep one copy and make it global
     for name in unique_names:
         first_event = ClinicEvent.objects.filter(name=name).first()
@@ -61,9 +63,9 @@ def reverse_populate_clinic_event_organizations(apps, schema_editor):
                 name=first_event.name,
                 description=first_event.description,
                 is_active=first_event.is_active,
-                organization=None
+                organization=None,
             )
-    
+
     # Delete all organization-specific events
     ClinicEvent.objects.filter(organization__isnull=False).delete()
 
@@ -71,12 +73,12 @@ def reverse_populate_clinic_event_organizations(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('appointments', '0025_remove_unique_constraint_from_name'),
+        ("appointments", "0024_add_organization_to_clinicevent"),
     ]
 
     operations = [
         migrations.RunPython(
-            populate_clinic_event_organizations, 
-            reverse_populate_clinic_event_organizations
+            populate_clinic_event_organizations,
+            reverse_populate_clinic_event_organizations,
         ),
     ]

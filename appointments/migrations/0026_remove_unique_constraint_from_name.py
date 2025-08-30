@@ -6,14 +6,14 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('appointments', '0024_add_organization_to_clinicevent'),
+        ("appointments", "0025_populate_clinicevent_organizations"),
     ]
 
     operations = [
-        # First remove the unique constraint on name
+        # Remove the unique constraint on name to allow multiple organizations to have the same event name
         migrations.AlterField(
-            model_name='clinicevent',
-            name='name',
+            model_name="clinicevent",
+            name="name",
             field=models.CharField(max_length=255),
         ),
     ]
