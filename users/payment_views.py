@@ -120,18 +120,78 @@ def change_plan(request):
         data = request.data  # DRF automatically parses JSON
         new_plan = data.get("plan")
         user = request.user
+        organization_id = data.get("organization_id")
 
-        logger.info(f"📋 Plan change requested for user {user.username} to {new_plan}")
+        # Determine target organization for plan change
+        target_user = user  # Default to the requesting user
+        target_organization = user.organization  # Default to user's organization
+
+        # If system admin is changing plan for another organization
+        if user.role == "system_admin" and organization_id:
+            try:
+                from .models import Organization
+
+                target_organization = Organization.objects.get(id=organization_id)
+
+                # For organization plan changes, we need to find a user in that org to update
+                # or update the organization's subscription_tier directly
+                org_users = target_organization.customuser_set.filter(
+                    role__in=["admin", "system_admin"]
+                ).first()
+                if org_users:
+                    target_user = org_users
+                else:
+                    # If no admin users, just update the organization directly
+                    target_organization.subscription_tier = new_plan
+                    target_organization.save()
+
+                    logger.info(
+                        f"📋 Plan change requested by system admin {user.username} for organization {target_organization.name} to {new_plan}"
+                    )
+
+                    return Response(
+                        {
+                            "success": True,
+                            "message": f"Plan changed to {new_plan} successfully for {target_organization.name}",
+                            "new_plan": new_plan,
+                            "organization": target_organization.name,
+                        },
+                        status=status.HTTP_200_OK,
+                    )
+
+                logger.info(
+                    f"📋 Plan change requested by system admin {user.username} for organization {target_organization.name} (via user {target_user.username}) to {new_plan}"
+                )
+            except Organization.DoesNotExist:
+                return Response(
+                    {"success": False, "message": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            logger.info(
+                f"📋 Plan change requested for user {user.username} to {new_plan}"
+            )
 
         # Update Stripe subscription if exists
         try:
-            if user.stripe_subscription_id and new_plan:
-                stripe_result = StripeService.update_subscription_tier(user, new_plan)
+            if target_user.stripe_subscription_id and new_plan:
+                stripe_result = StripeService.update_subscription_tier(
+                    target_user, new_plan
+                )
                 logger.info(f"✅ Stripe subscription updated to {new_plan}")
             else:
                 # Update user's subscription tier directly if no Stripe subscription
-                user.subscription_tier = new_plan
-                user.save()
+                target_user.subscription_tier = new_plan
+                target_user.save()
+
+                # Also update the organization if it's different
+                if (
+                    target_organization
+                    and target_organization != target_user.organization
+                ):
+                    target_organization.subscription_tier = new_plan
+                    target_organization.save()
+
         except Exception as stripe_error:
             logger.error(f"❌ Stripe plan change failed: {stripe_error}")
             return JsonResponse(
@@ -142,13 +202,22 @@ def change_plan(request):
                 status=500,
             )
 
-        logger.info(f"✅ Plan changed successfully to {new_plan}")
+        # Prepare response message
+        org_context = (
+            f" for {target_organization.name}"
+            if target_organization != user.organization
+            else ""
+        )
+        logger.info(f"✅ Plan changed successfully to {new_plan}{org_context}")
 
         return Response(
             {
                 "success": True,
-                "message": f"Plan changed to {new_plan} successfully",
+                "message": f"Plan changed to {new_plan} successfully{org_context}",
                 "new_plan": new_plan,
+                "organization": (
+                    target_organization.name if target_organization else None
+                ),
             },
             status=status.HTTP_200_OK,
         )
@@ -167,9 +236,40 @@ def payment_methods(request):
     """Get user's payment methods"""
     try:
         user = request.user
-        
+        organization_id = request.GET.get("organization_id")
+
+        # Determine target user for payment methods
+        target_user = user
+
+        # If system admin is querying for another organization
+        if user.role == "system_admin" and organization_id:
+            try:
+                from .models import Organization
+
+                target_organization = Organization.objects.get(id=organization_id)
+
+                # Find an admin user in that organization for payment methods
+                org_admin = target_organization.customuser_set.filter(
+                    role__in=["admin", "system_admin"]
+                ).first()
+
+                if org_admin:
+                    target_user = org_admin
+                else:
+                    # No admin users with payment methods
+                    return Response(
+                        {"payment_methods": []},
+                        status=status.HTTP_200_OK,
+                    )
+
+            except Organization.DoesNotExist:
+                return Response(
+                    {"error": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
         # If user doesn't have a Stripe customer ID, return empty list
-        if not user.stripe_customer_id:
+        if not target_user.stripe_customer_id:
             return Response(
                 {"payment_methods": []},
                 status=status.HTTP_200_OK,
@@ -177,27 +277,31 @@ def payment_methods(request):
 
         # Retrieve payment methods from Stripe
         import stripe
-        
+
         payment_methods = stripe.PaymentMethod.list(
-            customer=user.stripe_customer_id,
+            customer=target_user.stripe_customer_id,
             type="card",
         )
-        
+
         # Get customer to check default payment method
-        customer = stripe.Customer.retrieve(user.stripe_customer_id)
-        default_payment_method = customer.get('invoice_settings', {}).get('default_payment_method')
-        
+        customer = stripe.Customer.retrieve(target_user.stripe_customer_id)
+        default_payment_method = customer.get("invoice_settings", {}).get(
+            "default_payment_method"
+        )
+
         # Format payment methods for frontend
         formatted_methods = []
         for pm in payment_methods.data:
             card = pm.card
-            formatted_methods.append({
-                "id": pm.id,
-                "type": card.brand.title(),  # visa -> Visa
-                "last4": card.last4,
-                "expires": f"{str(card.exp_month).zfill(2)}/{str(card.exp_year)[2:]}",
-                "isDefault": pm.id == default_payment_method,
-            })
+            formatted_methods.append(
+                {
+                    "id": pm.id,
+                    "type": card.brand.title(),  # visa -> Visa
+                    "last4": card.last4,
+                    "expires": f"{str(card.exp_month).zfill(2)}/{str(card.exp_year)[2:]}",
+                    "isDefault": pm.id == default_payment_method,
+                }
+            )
 
         return Response(
             {"payment_methods": formatted_methods},
@@ -218,9 +322,40 @@ def billing_history(request):
     """Get user's billing history"""
     try:
         user = request.user
+        organization_id = request.GET.get("organization_id")
+
+        # Determine target user for billing history
+        target_user = user
+
+        # If system admin is querying for another organization
+        if user.role == "system_admin" and organization_id:
+            try:
+                from .models import Organization
+
+                target_organization = Organization.objects.get(id=organization_id)
+
+                # Find an admin user in that organization for billing history
+                org_admin = target_organization.customuser_set.filter(
+                    role__in=["admin", "system_admin"]
+                ).first()
+
+                if org_admin:
+                    target_user = org_admin
+                else:
+                    # No admin users with billing history
+                    return Response(
+                        {"billing_history": []},
+                        status=status.HTTP_200_OK,
+                    )
+
+            except Organization.DoesNotExist:
+                return Response(
+                    {"error": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
         # If user doesn't have a Stripe customer ID, return empty list
-        if not user.stripe_customer_id:
+        if not target_user.stripe_customer_id:
             return Response(
                 {"billing_history": []},
                 status=status.HTTP_200_OK,
@@ -229,21 +364,21 @@ def billing_history(request):
         # Retrieve invoices from Stripe
         import stripe
         from datetime import datetime
-        
+
         invoices = stripe.Invoice.list(
-            customer=user.stripe_customer_id,
+            customer=target_user.stripe_customer_id,
             limit=50,  # Get last 50 invoices
         )
-        
+
         # Format billing history for frontend
         formatted_history = []
         for invoice in invoices.data:
             # Convert timestamp to readable date
-            invoice_date = datetime.fromtimestamp(invoice.created).strftime('%Y-%m-%d')
-            
+            invoice_date = datetime.fromtimestamp(invoice.created).strftime("%Y-%m-%d")
+
             # Format amount (Stripe amounts are in cents)
             amount = f"${invoice.amount_paid / 100:.2f}"
-            
+
             # Determine status
             status_text = "Paid" if invoice.paid else "Unpaid"
             if invoice.status == "open":
@@ -252,22 +387,24 @@ def billing_history(request):
                 status_text = "Draft"
             elif invoice.status == "void":
                 status_text = "Void"
-            
+
             # Get description from subscription or line items
             description = f"{user.subscription_tier} Plan - Monthly"
             if invoice.lines.data:
                 line_item = invoice.lines.data[0]
                 if line_item.description:
                     description = line_item.description
-            
-            formatted_history.append({
-                "id": invoice.id,
-                "date": invoice_date,
-                "amount": amount,
-                "status": status_text,
-                "description": description,
-                "invoice_url": invoice.hosted_invoice_url,  # URL to view/download invoice
-            })
+
+            formatted_history.append(
+                {
+                    "id": invoice.id,
+                    "date": invoice_date,
+                    "amount": amount,
+                    "status": status_text,
+                    "description": description,
+                    "invoice_url": invoice.hosted_invoice_url,  # URL to view/download invoice
+                }
+            )
 
         return Response(
             {"billing_history": formatted_history},
