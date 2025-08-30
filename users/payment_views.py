@@ -133,34 +133,18 @@ def change_plan(request):
 
                 target_organization = Organization.objects.get(id=organization_id)
 
-                # For organization plan changes, we need to find a user in that org to update
-                # or update the organization's subscription_tier directly
+                # For organization plan changes, find a user in that org to update
                 org_users = target_organization.users.filter(
                     role__in=["admin", "system_admin"]
                 ).first()
                 if org_users:
                     target_user = org_users
                 else:
-                    # If no admin users, just update the organization directly
-                    target_organization.subscription_tier = new_plan
-                    target_organization.save()
-
-                    logger.info(
-                        f"📋 Plan change requested by system admin {user.username} for organization {target_organization.name} to {new_plan}"
-                    )
-
-                    return Response(
-                        {
-                            "success": True,
-                            "message": f"Plan changed to {new_plan} successfully for {target_organization.name}",
-                            "new_plan": new_plan,
-                            "organization": target_organization.name,
-                        },
-                        status=status.HTTP_200_OK,
-                    )
+                    # If no admin users, use any user from the organization
+                    target_user = target_organization.users.first()
 
                 logger.info(
-                    f"📋 Plan change requested by system admin {user.username} for organization {target_organization.name} (via user {target_user.username}) to {new_plan}"
+                    f"📋 Plan change requested by system admin {user.username} for organization {target_organization.name} (via user {target_user.username if target_user else 'direct'}) to {new_plan}"
                 )
             except Organization.DoesNotExist:
                 return Response(
@@ -174,23 +158,22 @@ def change_plan(request):
 
         # Update Stripe subscription if exists
         try:
-            if target_user.stripe_subscription_id and new_plan:
+            if target_user and target_user.stripe_subscription_id and new_plan:
                 stripe_result = StripeService.update_subscription_tier(
                     target_user, new_plan
                 )
                 logger.info(f"✅ Stripe subscription updated to {new_plan}")
             else:
                 # Update user's subscription tier directly if no Stripe subscription
-                target_user.subscription_tier = new_plan
-                target_user.save()
+                if target_user:
+                    target_user.subscription_tier = new_plan
+                    target_user.save()
 
-                # Also update the organization if it's different
-                if (
-                    target_organization
-                    and target_organization != target_user.organization
-                ):
+                # Always update the organization subscription tier when system admin makes changes
+                if target_organization:
                     target_organization.subscription_tier = new_plan
                     target_organization.save()
+                    logger.info(f"✅ Organization {target_organization.name} subscription tier updated to {new_plan}")
 
         except Exception as stripe_error:
             logger.error(f"❌ Stripe plan change failed: {stripe_error}")
