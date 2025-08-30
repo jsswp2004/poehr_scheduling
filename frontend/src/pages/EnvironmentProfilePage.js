@@ -320,7 +320,13 @@ function EnvironmentProfilePage() {
       )}
 
       {tabKey === "clinic-events" && (
-        <Box sx={{ p: 2, height: "calc(100vh - 300px)" }}>
+        <Box sx={{
+          p: 2,
+          height: "500px",
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden'
+        }}>
           <ClinicEventsManagement />
         </Box>
       )}
