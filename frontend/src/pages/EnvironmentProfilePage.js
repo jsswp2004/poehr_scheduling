@@ -23,6 +23,7 @@ import axios from "axios";
 import { API_BASE_URL } from '../config/api';
 import HolidaysTab from "./HolidaysPage";
 import OrganizationManagement from "../components/OrganizationManagement";
+import ClinicEventsManagement from "../components/ClinicEventsManagement";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { getValidToken } from "../utils/auth";
@@ -208,6 +209,7 @@ function EnvironmentProfilePage() {
         }}
       >
         <Tab label="Default Blocked Days" value="blocked-days" />
+        <Tab label="Clinic Events" value="clinic-events" />
         <Tab label="Holidays" value="holidays" />
         <Tab label="Organization" value="organization" />
       </Tabs>
@@ -314,6 +316,12 @@ function EnvironmentProfilePage() {
               : " your organization's"} scheduling.
             This affects all clinic appointments and is separate from individual provider availability.
           </Typography>
+        </Box>
+      )}
+
+      {tabKey === "clinic-events" && (
+        <Box sx={{ p: 2, height: "calc(100vh - 300px)" }}>
+          <ClinicEventsManagement />
         </Box>
       )}
 
