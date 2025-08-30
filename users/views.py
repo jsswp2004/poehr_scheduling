@@ -2783,10 +2783,12 @@ class OrganizationDataExportView(APIView):
                             "doctor__username",
                             "doctor__first_name",
                             "doctor__last_name",
-                            "day_of_week",
                             "start_time",
                             "end_time",
-                            "is_available",
+                            "is_blocked",
+                            "recurrence",
+                            "recurrence_end_date",
+                            "block_type",
                             "created_at",
                         )
                     )
@@ -2794,15 +2796,15 @@ class OrganizationDataExportView(APIView):
 
                 # Clinic events data
                 if include_data.get("clinic_events", True):
-                    clinic_events = ClinicEvent.objects.filter(
-                        organization=organization
-                    ).values("id", "name", "description", "is_active")
+                    clinic_events = ClinicEvent.objects.all().values(
+                        "id", "name", "description", "is_active"
+                    )
                     export_data["clinic_events"] = list(clinic_events)
 
                 # Holidays data
                 if include_data.get("holidays", True):
                     holidays = Holiday.objects.filter(organization=organization).values(
-                        "id", "name", "date", "is_active", "created_at"
+                        "id", "name", "date", "is_recognized", "suppressed"
                     )
                     export_data["holidays"] = list(holidays)
 
