@@ -546,24 +546,24 @@ function AccountPage() {
                 </Typography>
             </Box>
 
-            <Grid container spacing={3} sx={{
-                height: 'calc(100% - 80px)',
-                alignItems: 'stretch'
-            }}>
+            {/* Two-Column Layout using CSS Grid */}
+            <Box
+                sx={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 4,
+                    alignItems: "start",
+                    height: 'calc(100% - 80px)'
+                }}
+            >
                 {/* LEFT PANE - Account & Billing */}
-                <Grid item xs={12} md={6} sx={{
-                    minHeight: '500px',
+                <Box sx={{
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    gap: 3,
+                    overflowY: 'auto',
+                    maxHeight: '100%'
                 }}>
-                    <Box sx={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        pr: 2,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 3
-                    }}>
 
                         {/* Account Details Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
@@ -732,23 +732,16 @@ function AccountPage() {
                         </Box>
 
 
-                    </Box>
-                </Grid>
+                </Box>
 
                 {/* RIGHT PANE - Plans & Data Management */}
-                <Grid item xs={12} md={6} sx={{
-                    minHeight: '500px',
+                <Box sx={{
                     display: 'flex',
-                    flexDirection: 'column'
+                    flexDirection: 'column',
+                    gap: 3,
+                    overflowY: 'auto',
+                    maxHeight: '100%'
                 }}>
-                    <Box sx={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        pl: 2,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 3
-                    }}>
                         {/* Current Plan Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
@@ -845,8 +838,8 @@ function AccountPage() {
                             </Box>
                         </Box>
                     </Box>
-                </Grid>
-            </Grid>
+                </Box>
+            </Box>
 
             {/* Edit Account Dialog */}
             <Dialog open={editAccountOpen} onClose={() => setEditAccountOpen(false)} maxWidth="sm" fullWidth>
