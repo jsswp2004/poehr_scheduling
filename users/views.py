@@ -20,6 +20,9 @@ from django.utils import timezone
 from twilio.rest import Client
 import os
 import csv
+import json
+import zipfile
+from io import StringIO, BytesIO
 import logging
 from django.db import transaction
 
@@ -30,6 +33,7 @@ from .serializers import (
     OrganizationSerializer,
     get_admin_emails,
 )
+from appointments.models import Appointment  # Add this import
 from .stripe_service import StripeService
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
@@ -2631,3 +2635,304 @@ def get_organization_admin_info(request):
             {"error": "Failed to get organization admin information"}, 
             status=500
         )
+
+
+class OrganizationDataExportView(APIView):
+    """
+    Export organization data in JSON and/or CSV formats as a ZIP file
+    """
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def post(self, request):
+        try:
+            user = request.user
+            
+            # Get organization
+            if user.role == "system_admin":
+                # System admin can export any organization if org_id is provided
+                org_id = request.data.get('organization_id')
+                if org_id:
+                    organization = Organization.objects.get(id=org_id)
+                else:
+                    return Response({"error": "Organization ID required for system admin"}, status=400)
+            else:
+                if not user.organization:
+                    return Response({"error": "User is not associated with any organization"}, status=400)
+                organization = user.organization
+
+            # Get export preferences
+            formats = request.data.get('formats', ['json'])  # Default to JSON
+            include_data = request.data.get('include_data', {
+                'users': True,
+                'appointments': True,
+                'availability': True,
+                'clinic_events': True,
+                'holidays': True,
+                'communications': False
+            })
+
+            # Validate formats
+            valid_formats = ['json', 'csv']
+            formats = [f for f in formats if f in valid_formats]
+            if not formats:
+                return Response({"error": "At least one valid format must be selected"}, status=400)
+
+            # Import required modules for export
+            import zipfile
+            import json
+            import csv
+            from io import StringIO, BytesIO
+            from django.utils import timezone
+            from appointments.models import Appointment, Availability, Holiday, ClinicEvent
+            from communicator.models import Message, EmailMessage, SMSMessage
+
+            # Create ZIP file in memory
+            zip_buffer = BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                # Collect all data
+                export_data = {}
+                
+                # Organization info
+                export_data['organization'] = {
+                    'id': organization.id,
+                    'name': organization.name,
+                    'organization_type': organization.organization_type,
+                    'subscription_tier': organization.subscription_tier,
+                    'subscription_status': organization.subscription_status,
+                    'created_at': organization.created_at.isoformat() if organization.created_at else None,
+                    'updated_at': organization.updated_at.isoformat() if organization.updated_at else None,
+                }
+
+                # Users data
+                if include_data.get('users', True):
+                    users = CustomUser.objects.filter(organization=organization).values(
+                        'id', 'username', 'email', 'first_name', 'last_name', 'role',
+                        'phone_number', 'is_active', 'date_joined', 'last_login'
+                    )
+                    export_data['users'] = list(users)
+
+                # Appointments data
+                if include_data.get('appointments', True):
+                    appointments = Appointment.objects.filter(organization=organization).select_related('patient').values(
+                        'id', 'patient__username', 'patient__first_name', 'patient__last_name',
+                        'title', 'description', 'appointment_datetime', 'duration_minutes',
+                        'status', 'recurrence', 'arrived', 'no_show', 'created_at', 'updated_at'
+                    )
+                    export_data['appointments'] = list(appointments)
+
+                # Availability data
+                if include_data.get('availability', True):
+                    availability = Availability.objects.filter(organization=organization).select_related('doctor').values(
+                        'id', 'doctor__username', 'doctor__first_name', 'doctor__last_name',
+                        'day_of_week', 'start_time', 'end_time', 'is_available', 'created_at'
+                    )
+                    export_data['availability'] = list(availability)
+
+                # Clinic events data
+                if include_data.get('clinic_events', True):
+                    clinic_events = ClinicEvent.objects.filter(organization=organization).values(
+                        'id', 'name', 'description', 'is_active'
+                    )
+                    export_data['clinic_events'] = list(clinic_events)
+
+                # Holidays data
+                if include_data.get('holidays', True):
+                    holidays = Holiday.objects.filter(organization=organization).values(
+                        'id', 'name', 'date', 'is_active', 'created_at'
+                    )
+                    export_data['holidays'] = list(holidays)
+
+                # Communications data (if requested)
+                if include_data.get('communications', False):
+                    # Get messages involving organization users
+                    org_user_ids = list(CustomUser.objects.filter(organization=organization).values_list('id', flat=True))
+                    
+                    messages = Message.objects.filter(
+                        Q(sender_id__in=org_user_ids) | Q(receiver_id__in=org_user_ids)
+                    ).values(
+                        'id', 'sender__username', 'receiver__username', 'content',
+                        'timestamp', 'is_read', 'message_type'
+                    )
+                    
+                    email_messages = EmailMessage.objects.filter(
+                        recipient_email__in=[user['email'] for user in export_data.get('users', [])]
+                    ).values(
+                        'id', 'recipient_email', 'subject', 'body', 'sent_at', 'status'
+                    )
+                    
+                    sms_messages = SMSMessage.objects.filter(
+                        recipient_phone__in=[user['phone_number'] for user in export_data.get('users', []) if user['phone_number']]
+                    ).values(
+                        'id', 'recipient_phone', 'message', 'sent_at', 'status'
+                    )
+                    
+                    export_data['communications'] = {
+                        'messages': list(messages),
+                        'emails': list(email_messages),
+                        'sms': list(sms_messages)
+                    }
+
+                # Create metadata
+                metadata = f"""Organization Data Export
+Organization: {organization.name}
+Exported by: {user.username} ({user.email})
+Export Date: {timezone.now().isoformat()}
+Formats: {', '.join(formats)}
+Data Included: {', '.join([k for k, v in include_data.items() if v])}
+
+Files in this export:
+"""
+
+                # Add JSON file if requested
+                if 'json' in formats:
+                    json_content = json.dumps(export_data, indent=2, default=str)
+                    zip_file.writestr('organization_data.json', json_content)
+                    metadata += "- organization_data.json (Complete data in JSON format)\n"
+
+                # Add CSV files if requested
+                if 'csv' in formats:
+                    for data_type, data_list in export_data.items():
+                        if data_type == 'organization':
+                            continue  # Skip single organization record for CSV
+                        
+                        if data_type == 'communications':
+                            # Handle nested communications data
+                            for comm_type, comm_data in data_list.items():
+                                if comm_data:
+                                    csv_content = self._create_csv_content(comm_data)
+                                    filename = f"{comm_type}.csv"
+                                    zip_file.writestr(filename, csv_content)
+                                    metadata += f"- {filename}\n"
+                        else:
+                            if data_list:  # Only create CSV if data exists
+                                csv_content = self._create_csv_content(data_list)
+                                filename = f"{data_type}.csv"
+                                zip_file.writestr(filename, csv_content)
+                                metadata += f"- {filename}\n"
+
+                # Add metadata file
+                zip_file.writestr('export_metadata.txt', metadata)
+
+            # Prepare response
+            zip_buffer.seek(0)
+            
+            # Create filename
+            timestamp = timezone.now().strftime('%Y-%m-%d_%H-%M-%S')
+            filename = f"{organization.name.replace(' ', '_')}_Export_{timestamp}.zip"
+            
+            # Log the export
+            logger.info(f"Organization data export: {organization.name} by {user.username}")
+            
+            response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+
+        except Organization.DoesNotExist:
+            return Response({"error": "Organization not found"}, status=404)
+        except Exception as e:
+            logger.error(f"Organization export error: {str(e)}")
+            return Response({"error": "Export failed"}, status=500)
+
+    def _create_csv_content(self, data_list):
+        """Helper method to create CSV content from list of dictionaries"""
+        if not data_list:
+            return ""
+        
+        output = StringIO()
+        writer = csv.DictWriter(output, fieldnames=data_list[0].keys())
+        writer.writeheader()
+        writer.writerows(data_list)
+        return output.getvalue()
+
+
+class OrganizationDeleteView(APIView):
+    """
+    Delete organization and all associated data (with confirmation)
+    """
+    permission_classes = [IsAdminOrSystemAdmin]
+
+    def post(self, request):
+        """Initiate organization deletion with confirmation"""
+        try:
+            user = request.user
+            
+            # Get organization
+            if user.role == "system_admin":
+                org_id = request.data.get('organization_id')
+                if org_id:
+                    organization = Organization.objects.get(id=org_id)
+                else:
+                    return Response({"error": "Organization ID required for system admin"}, status=400)
+            else:
+                if not user.organization:
+                    return Response({"error": "User is not associated with any organization"}, status=400)
+                organization = user.organization
+
+            # Get confirmation
+            confirmation_name = request.data.get('confirmation_name', '').strip()
+            if confirmation_name != organization.name:
+                return Response({
+                    "error": f"Please type the organization name '{organization.name}' exactly to confirm deletion"
+                }, status=400)
+
+            # Count related data
+            user_count = CustomUser.objects.filter(organization=organization).count()
+            appointment_count = Appointment.objects.filter(organization=organization).count()
+            
+            return Response({
+                "organization_name": organization.name,
+                "users_count": user_count,
+                "appointments_count": appointment_count,
+                "message": "Confirmation received. Organization is ready for deletion.",
+                "warning": "This action cannot be undone. All data will be permanently deleted."
+            })
+
+        except Organization.DoesNotExist:
+            return Response({"error": "Organization not found"}, status=404)
+        except Exception as e:
+            logger.error(f"Organization deletion preparation error: {str(e)}")
+            return Response({"error": "Failed to prepare organization deletion"}, status=500)
+
+    def delete(self, request):
+        """Actually delete the organization"""
+        try:
+            user = request.user
+            
+            # Get organization
+            if user.role == "system_admin":
+                org_id = request.data.get('organization_id')
+                if org_id:
+                    organization = Organization.objects.get(id=org_id)
+                else:
+                    return Response({"error": "Organization ID required for system admin"}, status=400)
+            else:
+                if not user.organization:
+                    return Response({"error": "User is not associated with any organization"}, status=400)
+                organization = user.organization
+
+            # Final confirmation
+            final_confirmation = request.data.get('final_confirmation', False)
+            if not final_confirmation:
+                return Response({"error": "Final confirmation required"}, status=400)
+
+            org_name = organization.name
+            
+            # Log before deletion
+            logger.warning(f"ORGANIZATION DELETION: {org_name} deleted by {user.username} ({user.email})")
+            
+            # Delete organization (CASCADE will handle related data)
+            with transaction.atomic():
+                organization.delete()
+            
+            return Response({
+                "message": f"Organization '{org_name}' has been permanently deleted.",
+                "deleted_by": user.username,
+                "deleted_at": timezone.now().isoformat()
+            })
+
+        except Organization.DoesNotExist:
+            return Response({"error": "Organization not found"}, status=404)
+        except Exception as e:
+            logger.error(f"Organization deletion error: {str(e)}")
+            return Response({"error": "Failed to delete organization"}, status=500)
