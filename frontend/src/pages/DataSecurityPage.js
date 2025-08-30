@@ -65,7 +65,7 @@ export const DataSecurityPage = ({ className }) => {
             Your data belongs to you, period. POWER ensures absolute data ownership with full transparency and control. We never share, sell, or access your patient information for any purpose other than providing our services. You have the unrestricted right to export all your data in industry-standard formats or request immediate deletion of all records.
           </p>
           <p className="section-text">
-            <strong>Your Rights Include:</strong> Instant data export in multiple formats, complete audit logs of all data access, immediate data deletion upon request, and seamless data migration support. Our commitment extends beyond HIPAA compliance to include GDPR and CCPA requirements, ensuring your practice meets all privacy regulations.
+            <strong>Your Rights Include:</strong> Instant data export in multiple formats, complete audit logs of all data access, immediate data deletion upon request, and seamless data migration support. Our commitment extends beyond HIPAA compliance ensuring your practice meets all privacy regulations.
           </p>
           <div className="security-features">
             <span className="feature-badge">📋 Complete Audit Trails</span>
