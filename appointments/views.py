@@ -360,9 +360,29 @@ def doctor_available_slots(request, doctor_id):
 
 
 class ClinicEventViewSet(viewsets.ModelViewSet):
-    queryset = ClinicEvent.objects.filter(is_active=True)
     serializer_class = ClinicEventSerializer
-    permission_classes = [permissions.IsAuthenticated]  # Or adjust as needed
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        # System admins can see clinic events from all organizations
+        if user.role == "system_admin":
+            return ClinicEvent.objects.filter(is_active=True).order_by('name')
+        
+        # Regular users only see clinic events from their organization
+        return ClinicEvent.objects.filter(
+            organization=user.organization,
+            is_active=True
+        ).order_by('name')
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        # Auto-assign the organization for non-system admins
+        if user.role != "system_admin":
+            serializer.save(organization=user.organization)
+        else:
+            # System admins can specify organization or it defaults to their own
+            serializer.save()
 
 
 class AvailabilityViewSet(viewsets.ModelViewSet):

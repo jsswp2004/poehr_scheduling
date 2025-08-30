@@ -3266,9 +3266,9 @@ class OrganizationAdminView(APIView):
                 )
 
             # Update admin user details
-            updateable_fields = ['first_name', 'last_name', 'email', 'phone_number']
+            updateable_fields = ["first_name", "last_name", "email", "phone_number"]
             updated_fields = []
-            
+
             for field in updateable_fields:
                 if field in request.data:
                     setattr(admin_user, field, request.data[field])
@@ -3276,7 +3276,9 @@ class OrganizationAdminView(APIView):
 
             if updated_fields:
                 admin_user.save()
-                logger.info(f"System admin {user.username} updated {organization.name} admin details: {updated_fields}")
+                logger.info(
+                    f"System admin {user.username} updated {organization.name} admin details: {updated_fields}"
+                )
 
             # Return updated admin user details
             return Response(
