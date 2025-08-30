@@ -846,7 +846,9 @@ function AccountPage() {
                         </Box>
                     </Box>
                 </Grid>
-            </Grid>            {/* Edit Account Dialog */}
+            </Grid>
+
+            {/* Edit Account Dialog */}
             <Dialog open={editAccountOpen} onClose={() => setEditAccountOpen(false)} maxWidth="sm" fullWidth>
                 <DialogTitle>Edit Account Details</DialogTitle>
                 <DialogContent>
