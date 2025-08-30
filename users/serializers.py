@@ -265,4 +265,4 @@ class PatientSerializer(serializers.ModelSerializer):
 class OrganizationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Organization
-        fields = ['id', 'name', 'logo', 'created_at']
+        fields = ['id', 'name', 'logo', 'created_at', 'subscription_status', 'subscription_tier', 'max_users', 'organization_type']
