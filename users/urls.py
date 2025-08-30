@@ -40,6 +40,7 @@ from .views import (
     # Organization management
     OrganizationDataExportView,
     OrganizationDeleteView,
+    OrganizationSearchView,
 )
 
 # Import payment views
@@ -135,6 +136,11 @@ urlpatterns = [
         "organization/delete/",
         OrganizationDeleteView.as_view(),
         name="organization-delete",
+    ),
+    path(
+        "organization/search/",
+        OrganizationSearchView.as_view(),
+        name="organization-search",
     ),
     # SMS Opt-out Management
     path(
