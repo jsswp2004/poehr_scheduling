@@ -173,7 +173,9 @@ def change_plan(request):
                 if target_organization:
                     target_organization.subscription_tier = new_plan
                     target_organization.save()
-                    logger.info(f"✅ Organization {target_organization.name} subscription tier updated to {new_plan}")
+                    logger.info(
+                        f"✅ Organization {target_organization.name} subscription tier updated to {new_plan}"
+                    )
 
         except Exception as stripe_error:
             logger.error(f"❌ Stripe plan change failed: {stripe_error}")

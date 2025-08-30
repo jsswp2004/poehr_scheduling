@@ -267,19 +267,64 @@ function AccountPage() {
         }, 300);
     };
 
+    const fetchOrganizationAdmin = async (organizationId) => {
+        try {
+            const token = await getValidToken();
+            
+            // Fetch the organization's admin user details
+            const response = await axios.get(
+                `${API_BASE_URL}/api/users/organization/${organizationId}/admin/`,
+                {
+                    headers: { Authorization: `Bearer ${token}` },
+                }
+            );
+            
+            return response.data;
+        } catch (error) {
+            console.error("Failed to fetch organization admin:", error);
+            return null;
+        }
+    };
+
     const selectOrganization = async (organization) => {
         try {
             setSelectedOrganization(organization);
             setOrganizationSearchQuery(organization.name);
             setShowSearchResults(false);
 
-            // Update account data to reflect selected organization
-            setAccountData({
-                ...accountData,
-                organization: organization.id,
-                organization_name: organization.name,
-                subscription_tier: organization.subscription_tier,
-            });
+            // For system admins, fetch the organization's admin user details
+            if (isSystemAdmin) {
+                const orgAdmin = await fetchOrganizationAdmin(organization.id);
+                if (orgAdmin) {
+                    // Update account data to show the organization's admin details
+                    setAccountData({
+                        ...orgAdmin,
+                        organization: organization.id,
+                        organization_name: organization.name,
+                        subscription_tier: organization.subscription_tier,
+                    });
+                } else {
+                    // Fallback: show organization info with placeholder user data
+                    setAccountData({
+                        first_name: "Organization",
+                        last_name: "Admin",
+                        email: "admin@" + organization.name.toLowerCase().replace(/\s+/g, '') + ".com",
+                        phone_number: "Not available",
+                        role: "admin",
+                        organization: organization.id,
+                        organization_name: organization.name,
+                        subscription_tier: organization.subscription_tier,
+                    });
+                }
+            } else {
+                // For regular admins, just update organization context
+                setAccountData({
+                    ...accountData,
+                    organization: organization.id,
+                    organization_name: organization.name,
+                    subscription_tier: organization.subscription_tier,
+                });
+            }
 
             setCurrentPlan(organization.subscription_tier || 'basic');
 

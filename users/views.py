@@ -3152,3 +3152,80 @@ class OrganizationSearchView(APIView):
                 {"error": f"Failed to search organizations: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class OrganizationAdminView(APIView):
+    """
+    API endpoint for system admins to get organization admin details
+    """
+
+    permission_classes = [IsAuthenticated, IsAdminOrSystemAdmin]
+
+    def get(self, request, organization_id):
+        """
+        Get the admin user details for a specific organization
+        Only accessible by system admins
+        """
+        try:
+            user = request.user
+
+            # Only system admins can access organization admin details
+            if user.role != "system_admin":
+                return Response(
+                    {
+                        "error": "Only system administrators can access organization admin details"
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # Get the organization
+            try:
+                organization = Organization.objects.get(id=organization_id)
+            except Organization.DoesNotExist:
+                return Response(
+                    {"error": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # Find the admin user for this organization
+            admin_user = organization.users.filter(role="admin").first()
+
+            if not admin_user:
+                # If no admin user, return a default structure
+                return Response(
+                    {
+                        "message": "No admin user found for this organization",
+                        "organization": {
+                            "id": organization.id,
+                            "name": organization.name,
+                            "subscription_tier": organization.subscription_tier,
+                        }
+                    },
+                    status=status.HTTP_200_OK,
+                )
+
+            # Return admin user details
+            return Response(
+                {
+                    "id": admin_user.id,
+                    "username": admin_user.username,
+                    "first_name": admin_user.first_name,
+                    "last_name": admin_user.last_name,
+                    "email": admin_user.email,
+                    "phone_number": admin_user.phone_number,
+                    "role": admin_user.role,
+                    "subscription_tier": admin_user.subscription_tier,
+                    "organization": organization.id,
+                    "organization_name": organization.name,
+                    "stripe_customer_id": admin_user.stripe_customer_id,
+                    "date_joined": admin_user.date_joined,
+                    "last_login": admin_user.last_login,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Organization admin fetch error: {str(e)}")
+            return Response(
+                {"error": f"Failed to fetch organization admin: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
