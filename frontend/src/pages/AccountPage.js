@@ -27,7 +27,8 @@ import {
     TableCell,
     TableHead,
     TableRow,
-    Alert
+    Alert,
+    Checkbox
 } from '@mui/material';
 import {
     ArrowBack,
@@ -44,7 +45,6 @@ import {
     CloudDownload,
     DeleteForever,
     Storage,
-    Checkbox,
     CheckBox
 } from '@mui/icons-material';
 
@@ -80,7 +80,7 @@ function AccountPage() {
         endDate: '',
         reason: ''
     });
-    
+
     // Data management states
     const [exportFormData, setExportFormData] = useState({
         formats: ['json'],
@@ -102,23 +102,23 @@ function AccountPage() {
 
     // Plan options (updated to match current subscription tiers)
     const planOptions = [
-        { 
-            value: 'basic', 
-            label: 'Professional', 
-            price: '$49.99/month', 
-            features: ['Basic scheduling', 'Basic calendar view', 'Email notifications', 'Basic reporting'] 
+        {
+            value: 'basic',
+            label: 'Professional',
+            price: '$49.99/month',
+            features: ['Basic scheduling', 'Basic calendar view', 'Email notifications', 'Basic reporting']
         },
-        { 
-            value: 'premium', 
-            label: 'Clinic', 
-            price: '$299.99/month', 
-            features: ['Up to 10 providers', 'Unlimited appointments', 'Advanced calendar features', 'SMS + Email notifications', 'Patient management system', 'Advanced reporting & analytics'] 
+        {
+            value: 'premium',
+            label: 'Clinic',
+            price: '$299.99/month',
+            features: ['Up to 10 providers', 'Unlimited appointments', 'Advanced calendar features', 'SMS + Email notifications', 'Patient management system', 'Advanced reporting & analytics']
         },
-        { 
-            value: 'enterprise', 
-            label: 'Group', 
-            price: 'Contact Sales', 
-            features: ['Unlimited users', 'Advanced analytics', 'Priority support', 'Custom integrations', 'Multi-organization support', 'Custom branding'] 
+        {
+            value: 'enterprise',
+            label: 'Group',
+            price: 'Contact Sales',
+            features: ['Unlimited users', 'Advanced analytics', 'Priority support', 'Custom integrations', 'Multi-organization support', 'Custom branding']
         }
     ];
 
@@ -165,14 +165,14 @@ function AccountPage() {
 
             setAccountData(userResponse.data);
             console.log('🔍 User subscription_tier from API:', userResponse.data.subscription_tier);
-            
+
             // Map old 'personal' tier to new 'basic' tier for backwards compatibility
             let userPlan = userResponse.data.subscription_tier || 'basic';
             if (userPlan.toLowerCase() === 'personal') {
                 console.log('🔧 Mapping "Personal" tier to "basic" (Professional Plan) for backwards compatibility');
                 userPlan = 'basic';
             }
-            
+
             console.log('🔍 Setting currentPlan to:', userPlan);
             setCurrentPlan(userPlan);
             setEditFormData({
@@ -414,7 +414,7 @@ function AccountPage() {
             const token = await getValidToken();
 
             const response = await axios.post(`${API_BASE_URL}/api/users/organization/export-data/`, exportFormData, {
-                headers: { 
+                headers: {
                     Authorization: `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
@@ -426,7 +426,7 @@ function AccountPage() {
             const url = window.URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            
+
             // Extract filename from response headers or create default
             const disposition = response.headers['content-disposition'];
             let filename = 'organization_export.zip';
@@ -436,7 +436,7 @@ function AccountPage() {
                     filename = filenameMatch[1];
                 }
             }
-            
+
             link.setAttribute('download', filename);
             document.body.appendChild(link);
             link.click();
@@ -598,12 +598,12 @@ function AccountPage() {
                             </Typography>
 
                             {paymentMethods.length === 0 ? (
-                                <Box sx={{ 
-                                    p: 3, 
-                                    backgroundColor: '#ffffff', 
-                                    borderRadius: 1, 
+                                <Box sx={{
+                                    p: 3,
+                                    backgroundColor: '#ffffff',
+                                    borderRadius: 1,
                                     textAlign: 'center',
-                                    mb: 2 
+                                    mb: 2
                                 }}>
                                     <Typography variant="body2" color="textSecondary">
                                         No payment methods found. Add a payment method to manage your subscription.
@@ -723,7 +723,7 @@ function AccountPage() {
                                 <Storage sx={{ mr: 1, verticalAlign: 'middle' }} />
                                 Data Management
                             </Typography>
-                            
+
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                 <Button
                                     variant="outlined"
@@ -734,7 +734,7 @@ function AccountPage() {
                                 >
                                     Export Organization Data
                                 </Button>
-                                
+
                                 <Button
                                     variant="outlined"
                                     onClick={() => setDeleteDialogOpen(true)}
@@ -746,7 +746,7 @@ function AccountPage() {
                                     Delete Organization
                                 </Button>
                             </Box>
-                            
+
                             <Box sx={{ mt: 2, p: 2, backgroundColor: '#fff3cd', borderRadius: 1 }}>
                                 <Typography variant="body2" color="text.secondary">
                                     <strong>Data Export:</strong> Download all your organization's data in JSON and/or CSV format.
@@ -1116,9 +1116,9 @@ function AccountPage() {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setExportDialogOpen(false)}>Cancel</Button>
-                    <Button 
-                        onClick={handleExportData} 
-                        variant="contained" 
+                    <Button
+                        onClick={handleExportData}
+                        variant="contained"
                         disabled={exportLoading || exportFormData.formats.length === 0}
                         startIcon={<CloudDownload />}
                     >
@@ -1155,23 +1155,23 @@ function AccountPage() {
                         fullWidth
                         label="Organization Name"
                         value={deleteFormData.confirmation_name}
-                        onChange={(e) => setDeleteFormData({ 
-                            ...deleteFormData, 
-                            confirmation_name: e.target.value 
+                        onChange={(e) => setDeleteFormData({
+                            ...deleteFormData,
+                            confirmation_name: e.target.value
                         })}
                         placeholder={accountData?.organization_name}
                         error={deleteFormData.confirmation_name && deleteFormData.confirmation_name !== accountData?.organization_name}
-                        helperText={deleteFormData.confirmation_name && deleteFormData.confirmation_name !== accountData?.organization_name 
-                            ? "Organization name does not match" 
+                        helperText={deleteFormData.confirmation_name && deleteFormData.confirmation_name !== accountData?.organization_name
+                            ? "Organization name does not match"
                             : ""
                         }
                     />
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-                    <Button 
-                        onClick={handleDeleteOrganization} 
-                        color="error" 
+                    <Button
+                        onClick={handleDeleteOrganization}
+                        color="error"
                         variant="contained"
                         disabled={deleteLoading || deleteFormData.confirmation_name !== accountData?.organization_name}
                         startIcon={<DeleteForever />}
@@ -1192,11 +1192,11 @@ function AccountPage() {
                         You are about to permanently delete <strong>{accountData?.organization_name}</strong>.
                         This is your last chance to cancel.
                     </Alert>
-                    
+
                     <Typography variant="body1" color="error" sx={{ mb: 2 }}>
                         Once deleted, you will be immediately logged out and will not be able to recover any data.
                     </Typography>
-                    
+
                     <Typography variant="body2">
                         Are you absolutely sure you want to proceed?
                     </Typography>
@@ -1205,9 +1205,9 @@ function AccountPage() {
                     <Button onClick={() => setDeleteConfirmationOpen(false)} variant="outlined">
                         No, Keep Organization
                     </Button>
-                    <Button 
-                        onClick={handleFinalDeleteConfirmation} 
-                        color="error" 
+                    <Button
+                        onClick={handleFinalDeleteConfirmation}
+                        color="error"
                         variant="contained"
                         disabled={deleteLoading}
                         startIcon={<DeleteForever />}
