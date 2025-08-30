@@ -546,11 +546,18 @@ function AccountPage() {
                 </Typography>
             </Box>
 
-            <Grid container spacing={3} sx={{ height: 'calc(100% - 80px)' }}>
+            <Grid container spacing={3} sx={{
+                height: 'calc(100% - 80px)',
+                alignItems: 'stretch'
+            }}>
                 {/* LEFT PANE - Account & Billing */}
-                <Grid item xs={12} lg={6} sx={{ height: '100%', overflow: 'hidden' }}>
+                <Grid item xs={12} md={6} sx={{
+                    minHeight: '500px',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
                     <Box sx={{
-                        height: '100%',
+                        flex: 1,
                         overflowY: 'auto',
                         pr: 2,
                         display: 'flex',
@@ -729,9 +736,13 @@ function AccountPage() {
                 </Grid>
 
                 {/* RIGHT PANE - Plans & Data Management */}
-                <Grid item xs={12} lg={6} sx={{ height: '100%', overflow: 'hidden' }}>
+                <Grid item xs={12} md={6} sx={{
+                    minHeight: '500px',
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
                     <Box sx={{
-                        height: '100%',
+                        flex: 1,
                         overflowY: 'auto',
                         pl: 2,
                         display: 'flex',
