@@ -135,7 +135,7 @@ def change_plan(request):
 
                 # For organization plan changes, we need to find a user in that org to update
                 # or update the organization's subscription_tier directly
-                org_users = target_organization.customuser_set.filter(
+                org_users = target_organization.users.filter(
                     role__in=["admin", "system_admin"]
                 ).first()
                 if org_users:
@@ -249,7 +249,7 @@ def payment_methods(request):
                 target_organization = Organization.objects.get(id=organization_id)
 
                 # Find an admin user in that organization for payment methods
-                org_admin = target_organization.customuser_set.filter(
+                org_admin = target_organization.users.filter(
                     role__in=["admin", "system_admin"]
                 ).first()
 
@@ -335,7 +335,7 @@ def billing_history(request):
                 target_organization = Organization.objects.get(id=organization_id)
 
                 # Find an admin user in that organization for billing history
-                org_admin = target_organization.customuser_set.filter(
+                org_admin = target_organization.users.filter(
                     role__in=["admin", "system_admin"]
                 ).first()
 
