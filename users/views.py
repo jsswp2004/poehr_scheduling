@@ -3014,6 +3014,59 @@ class OrganizationDeleteView(APIView):
 
             org_name = organization.name
 
+            # Count related data for email notification
+            user_count = CustomUser.objects.filter(organization=organization).count()
+            appointment_count = Appointment.objects.filter(
+                organization=organization
+            ).count()
+
+            # Send email notification to system admins BEFORE deletion
+            try:
+                system_admin_emails = (
+                    get_admin_emails()
+                )  # This gets system admin emails
+                if system_admin_emails:
+                    email_subject = f"🚨 Organization Deletion Alert: {org_name}"
+                    email_body = f"""
+                    <h2>Organization Deletion Notification</h2>
+                    <p><strong>Organization:</strong> {org_name}</p>
+                    <p><strong>Deleted by:</strong> {user.first_name} {user.last_name} ({user.email})</p>
+                    <p><strong>User Role:</strong> {user.role}</p>
+                    <p><strong>Deletion Time:</strong> {timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+                    
+                    <h3>Data Summary (before deletion):</h3>
+                    <ul>
+                        <li><strong>Total Users:</strong> {user_count}</li>
+                        <li><strong>Total Appointments:</strong> {appointment_count}</li>
+                    </ul>
+                    
+                    <p><em>This action was permanent and cannot be undone.</em></p>
+                    
+                    <hr>
+                    <p style="color: #666; font-size: 12px;">
+                        This is an automated notification from the Patient Scheduling System.
+                    </p>
+                    """
+
+                    # Send email to all system admins
+                    for admin_email in system_admin_emails:
+                        send_email(
+                            subject=email_subject,
+                            message=email_body,
+                            recipient_list=[admin_email],
+                            from_email=settings.DEFAULT_FROM_EMAIL,
+                            html_message=email_body,
+                        )
+
+                    logger.info(
+                        f"Organization deletion notification sent to {len(system_admin_emails)} system admins"
+                    )
+            except Exception as email_error:
+                logger.error(
+                    f"Failed to send organization deletion notification: {str(email_error)}"
+                )
+                # Continue with deletion even if email fails
+
             # Log before deletion
             logger.warning(
                 f"ORGANIZATION DELETION: {org_name} deleted by {user.username} ({user.email})"
