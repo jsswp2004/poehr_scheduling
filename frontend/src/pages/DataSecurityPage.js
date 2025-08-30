@@ -106,8 +106,8 @@ export const DataSecurityPage = ({ className }) => {
             </div>
           </div>
           <div className="contact-info">
-            {/*<p><strong>Security Team:</strong> security@powerehrsolutions.com</p>
-            <p><strong>Compliance Inquiries:</strong> compliance@powerehrsolutions.com</p>*/}
+            <p><strong>Email Team:</strong> info@powerhealthcareit.com</p>
+            {/*<p><strong>Compliance Inquiries:</strong> compliance@powerehrsolutions.com</p>*/}
             <p><strong>Data Requests:</strong> Available 24/7 through your account dashboard</p>
           </div>
         </div>
