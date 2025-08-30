@@ -531,7 +531,7 @@ function AccountPage() {
     console.log('🔍 Available plan labels:', planOptions.map(p => `${p.value} (${p.label})`));
 
     return (
-        <Container maxWidth={false} sx={{ mt: 4, mb: 4, px: 4 }}>
+        <Container maxWidth={false} sx={{ mt: 4, mb: 4, px: 4, height: 'calc(100vh - 100px)' }}>
             {/* Header with Back Button */}
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
                 <IconButton
@@ -546,10 +546,17 @@ function AccountPage() {
                 </Typography>
             </Box>
 
-            <Grid container spacing={4} sx={{ height: '100%' }}>
-                {/* LEFT PANE */}
-                <Grid item xs={12} lg={6}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <Grid container spacing={3} sx={{ height: 'calc(100% - 80px)' }}>
+                {/* LEFT PANE - Account & Billing */}
+                <Grid item xs={12} lg={6} sx={{ height: '100%', overflow: 'hidden' }}>
+                    <Box sx={{
+                        height: '100%',
+                        overflowY: 'auto',
+                        pr: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 3
+                    }}>
 
                         {/* Account Details Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
@@ -717,50 +724,20 @@ function AccountPage() {
                             </Box>
                         </Box>
 
-                        {/* Data Management Section */}
-                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
-                            <Typography variant="h6" gutterBottom>
-                                <Storage sx={{ mr: 1, verticalAlign: 'middle' }} />
-                                Data Management
-                            </Typography>
 
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => setExportDialogOpen(true)}
-                                    startIcon={<CloudDownload />}
-                                    fullWidth
-                                    color="primary"
-                                >
-                                    Export Organization Data
-                                </Button>
-
-                                <Button
-                                    variant="outlined"
-                                    onClick={() => setDeleteDialogOpen(true)}
-                                    startIcon={<DeleteForever />}
-                                    fullWidth
-                                    color="error"
-                                    sx={{ mt: 1 }}
-                                >
-                                    Delete Organization
-                                </Button>
-                            </Box>
-
-                            <Box sx={{ mt: 2, p: 2, backgroundColor: '#fff3cd', borderRadius: 1 }}>
-                                <Typography variant="body2" color="text.secondary">
-                                    <strong>Data Export:</strong> Download all your organization's data in JSON and/or CSV format.
-                                    <br />
-                                    <strong>Delete Organization:</strong> Permanently delete your organization and all associated data.
-                                </Typography>
-                            </Box>
-                        </Box>
                     </Box>
                 </Grid>
 
-                {/* RIGHT PANE */}
-                <Grid item xs={12} lg={6}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {/* RIGHT PANE - Plans & Data Management */}
+                <Grid item xs={12} lg={6} sx={{ height: '100%', overflow: 'hidden' }}>
+                    <Box sx={{
+                        height: '100%',
+                        overflowY: 'auto',
+                        pl: 2,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 3
+                    }}>
                         {/* Current Plan Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom>
@@ -798,6 +775,7 @@ function AccountPage() {
                                 Change Plan
                             </Button>
                         </Box>
+
                         {/* Cancellation Notice Section */}
                         <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
                             <Typography variant="h6" gutterBottom color="error">
@@ -815,6 +793,45 @@ function AccountPage() {
                             >
                                 Cancel Account
                             </Button>
+                        </Box>
+
+                        {/* Data Management Section */}
+                        <Box sx={{ backgroundColor: '#f9f9f9', p: 3, borderRadius: 2 }}>
+                            <Typography variant="h6" gutterBottom>
+                                <Storage sx={{ mr: 1, verticalAlign: 'middle' }} />
+                                Data Management
+                            </Typography>
+
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => setExportDialogOpen(true)}
+                                    startIcon={<CloudDownload />}
+                                    fullWidth
+                                    color="primary"
+                                >
+                                    Export Organization Data
+                                </Button>
+
+                                <Button
+                                    variant="outlined"
+                                    onClick={() => setDeleteDialogOpen(true)}
+                                    startIcon={<DeleteForever />}
+                                    fullWidth
+                                    color="error"
+                                    sx={{ mt: 1 }}
+                                >
+                                    Delete Organization
+                                </Button>
+                            </Box>
+
+                            <Box sx={{ mt: 2, p: 2, backgroundColor: '#fff3cd', borderRadius: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    <strong>Data Export:</strong> Download all your organization's data in JSON and/or CSV format.
+                                    <br />
+                                    <strong>Delete Organization:</strong> Permanently delete your organization and all associated data.
+                                </Typography>
+                            </Box>
                         </Box>
                     </Box>
                 </Grid>
