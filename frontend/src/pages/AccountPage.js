@@ -270,7 +270,7 @@ function AccountPage() {
     const fetchOrganizationAdmin = async (organizationId) => {
         try {
             const token = await getValidToken();
-            
+
             // Fetch the organization's admin user details
             const response = await axios.get(
                 `${API_BASE_URL}/api/users/organization/${organizationId}/admin/`,
@@ -278,7 +278,7 @@ function AccountPage() {
                     headers: { Authorization: `Bearer ${token}` },
                 }
             );
-            
+
             return response.data;
         } catch (error) {
             console.error("Failed to fetch organization admin:", error);
@@ -303,9 +303,18 @@ function AccountPage() {
                         organization_name: organization.name,
                         subscription_tier: organization.subscription_tier,
                     });
+
+                    // Update edit form data to show the organization's admin details
+                    setEditFormData({
+                        first_name: orgAdmin.first_name || "",
+                        last_name: orgAdmin.last_name || "",
+                        email: orgAdmin.email || "",
+                        phone_number: orgAdmin.phone_number || "",
+                        organization: organization.name || "",
+                    });
                 } else {
                     // Fallback: show organization info with placeholder user data
-                    setAccountData({
+                    const fallbackData = {
                         first_name: "Organization",
                         last_name: "Admin",
                         email: "admin@" + organization.name.toLowerCase().replace(/\s+/g, '') + ".com",
@@ -314,6 +323,16 @@ function AccountPage() {
                         organization: organization.id,
                         organization_name: organization.name,
                         subscription_tier: organization.subscription_tier,
+                    };
+                    setAccountData(fallbackData);
+
+                    // Update edit form data with fallback data
+                    setEditFormData({
+                        first_name: fallbackData.first_name || "",
+                        last_name: fallbackData.last_name || "",
+                        email: fallbackData.email || "",
+                        phone_number: fallbackData.phone_number || "",
+                        organization: organization.name || "",
                     });
                 }
             } else {
@@ -422,16 +441,41 @@ function AccountPage() {
                 phone_number: editFormData.phone_number,
             };
 
-            await axios.patch(`${API_BASE_URL}/api/users/me/`, updateData, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
+            // For system admins managing an organization, update the organization's admin
+            if (isSystemAdmin && selectedOrganization && accountData.id) {
+                await axios.patch(
+                    `${API_BASE_URL}/api/users/organization/${selectedOrganization.id}/admin/`,
+                    updateData,
+                    {
+                        headers: { Authorization: `Bearer ${token}` },
+                    }
+                );
 
-            toast.success("Account details updated successfully!");
+                // Update local accountData state
+                setAccountData({
+                    ...accountData,
+                    ...updateData,
+                });
+
+                toast.success(`Updated ${selectedOrganization.name} admin details successfully!`);
+            } else {
+                // For regular users or system admins not managing an organization
+                await axios.patch(`${API_BASE_URL}/api/users/me/`, updateData, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                toast.success("Account details updated successfully!");
+                await fetchAccountData();
+            }
+
             setEditAccountOpen(false);
-            await fetchAccountData();
         } catch (error) {
             console.error("Failed to update account:", error);
-            toast.error("Failed to update account details");
+            if (error.response?.status === 404) {
+                toast.error("Organization admin not found");
+            } else {
+                toast.error("Failed to update account details");
+            }
         }
     };
 
