@@ -333,9 +333,9 @@ const ClinicEventsManagement = () => {
     };
 
     return (
-        <Box sx={{ 
-            height: '100%', 
-            display: 'flex', 
+        <Box sx={{
+            height: '100%',
+            display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
             maxHeight: '100%'
@@ -352,15 +352,15 @@ const ClinicEventsManagement = () => {
             )}
 
             {/* Two-pane layout */}
-            <Grid container spacing={3} sx={{ 
-                flex: 1, 
+            <Grid container spacing={3} sx={{
+                flex: 1,
                 minHeight: 0,
                 height: '100%',
                 overflow: 'hidden'
             }}>
                 {/* Left Pane - Form */}
-                <Grid item xs={12} md={5} sx={{ 
-                    display: 'flex', 
+                <Grid item xs={12} md={5} sx={{
+                    display: 'flex',
                     minHeight: 0,
                     height: '100%'
                 }}>
@@ -487,8 +487,8 @@ const ClinicEventsManagement = () => {
                 </Grid>
 
                 {/* Right Pane - Table */}
-                <Grid item xs={12} md={7} sx={{ 
-                    display: 'flex', 
+                <Grid item xs={12} md={7} sx={{
+                    display: 'flex',
                     minHeight: 0,
                     height: '100%'
                 }}>
@@ -505,8 +505,8 @@ const ClinicEventsManagement = () => {
                             </Typography>
                         </Box>
 
-                        <TableContainer sx={{ 
-                            flex: 1, 
+                        <TableContainer sx={{
+                            flex: 1,
                             overflow: 'auto',
                             maxHeight: 'calc(100% - 80px)'
                         }}>

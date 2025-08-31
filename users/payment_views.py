@@ -366,13 +366,15 @@ def billing_history(request):
 
                 # Format amount (Stripe amounts are in cents)
                 # Use total if amount_paid is not available
-                amount_cents = getattr(invoice, 'amount_paid', None) or getattr(invoice, 'total', 0)
+                amount_cents = getattr(invoice, "amount_paid", None) or getattr(
+                    invoice, "total", 0
+                )
                 amount = f"${amount_cents / 100:.2f}"
 
                 # Determine status - safer property access
-                invoice_paid = getattr(invoice, 'paid', False)
-                invoice_status = getattr(invoice, 'status', 'unknown')
-                
+                invoice_paid = getattr(invoice, "paid", False)
+                invoice_status = getattr(invoice, "status", "unknown")
+
                 status_text = "Paid" if invoice_paid else "Unpaid"
                 if invoice_status == "paid":
                     status_text = "Paid"
@@ -387,13 +389,13 @@ def billing_history(request):
 
                 # Get description from subscription or line items
                 description = f"{target_user.subscription_tier} Plan - Monthly"
-                if hasattr(invoice, 'lines') and invoice.lines and invoice.lines.data:
+                if hasattr(invoice, "lines") and invoice.lines and invoice.lines.data:
                     line_item = invoice.lines.data[0]
-                    if hasattr(line_item, 'description') and line_item.description:
+                    if hasattr(line_item, "description") and line_item.description:
                         description = line_item.description
 
                 # Safely get invoice URL
-                invoice_url = getattr(invoice, 'hosted_invoice_url', None)
+                invoice_url = getattr(invoice, "hosted_invoice_url", None)
 
                 formatted_history.append(
                     {
@@ -407,11 +409,13 @@ def billing_history(request):
                 )
             except Exception as invoice_error:
                 # Get invoice ID safely
-                invoice_id = getattr(invoice, 'id', 'unknown')
+                invoice_id = getattr(invoice, "id", "unknown")
                 logger.error(
                     f"❌ Error processing invoice {invoice_id}: {type(invoice_error).__name__}: {invoice_error}"
                 )
-                logger.error(f"❌ Invoice status: {getattr(invoice, 'status', 'unknown')}")
+                logger.error(
+                    f"❌ Invoice status: {getattr(invoice, 'status', 'unknown')}"
+                )
                 logger.error(f"❌ Invoice paid: {getattr(invoice, 'paid', 'unknown')}")
                 # Continue processing other invoices instead of failing completely
                 continue

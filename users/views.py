@@ -1559,7 +1559,9 @@ class UploadProvidersCSV(APIView):
                         if org:
                             logger.info(f"🏢 Using user's organization: {org.name}")
                         else:
-                            logger.warning("⚠️ No organization specified and user has no organization")
+                            logger.warning(
+                                "⚠️ No organization specified and user has no organization"
+                            )
 
                     # Get provider (if specified)
                     provider = None
@@ -1790,7 +1792,9 @@ class UploadPatientsCSV(APIView):
                         if org:
                             logger.info(f"🏢 Using user's organization: {org.name}")
                         else:
-                            logger.warning("⚠️ No organization specified and user has no organization")
+                            logger.warning(
+                                "⚠️ No organization specified and user has no organization"
+                            )
 
                     # Create or update user (with patient role)
                     try:
