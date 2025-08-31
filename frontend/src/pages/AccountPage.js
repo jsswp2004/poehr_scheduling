@@ -844,6 +844,13 @@ function AccountPage() {
     const currentPlanData = planOptions.find(
         (plan) => plan.value === currentPlan
     );
+    
+    // Debug logging to help diagnose the "Loading..." issue
+    console.log('🔍 Account Page Debug:', {
+        currentPlan,
+        currentPlanData,
+        planOptions: planOptions.map(p => ({ value: p.value, label: p.label }))
+    });
 
     return (
         <Container
@@ -1246,7 +1253,7 @@ function AccountPage() {
                         <Typography variant="h6" gutterBottom>
                             <Business sx={{ mr: 1, verticalAlign: "middle" }} />
                             Current Plan:{" "}
-                            {currentPlanData ? currentPlanData.label : "Loading..."}
+                            {currentPlanData ? currentPlanData.label : `Loading... (${currentPlan || 'undefined'})`}
                             {isSystemAdmin && selectedOrganization && (
                                 <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
                                     - {selectedOrganization.name}
