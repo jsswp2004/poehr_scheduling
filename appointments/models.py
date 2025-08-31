@@ -13,16 +13,19 @@ class ClinicEvent(models.Model):
     description = models.TextField(blank=True, null=True)  # Optional
     is_active = models.BooleanField(default=True)  # Optional for hiding events
     organization = models.ForeignKey(
-        'users.Organization',
+        "users.Organization",
         on_delete=models.CASCADE,
-        related_name='clinic_events',
+        related_name="clinic_events",
         null=True,  # Make it nullable initially
         blank=True,
-        help_text="Organization this clinic event belongs to"
+        help_text="Organization this clinic event belongs to",
     )
 
     class Meta:
-        unique_together = ['name', 'organization']  # Unique clinic event name per organization
+        unique_together = [
+            "name",
+            "organization",
+        ]  # Unique clinic event name per organization
 
     def __str__(self):
         return self.name

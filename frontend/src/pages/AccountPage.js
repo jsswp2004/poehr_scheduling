@@ -358,7 +358,7 @@ function AccountPage() {
             } else if (orgPlan.toLowerCase() === "group") {
                 orgPlan = "enterprise";
             }
-            
+
             setCurrentPlan(orgPlan);
 
             // Fetch organization-specific data (payment methods, billing history, etc.)
@@ -858,7 +858,7 @@ function AccountPage() {
     const currentPlanData = planOptions.find(
         (plan) => plan.value === currentPlan
     );
-    
+
     // Debug logging to help diagnose the "Loading..." issue
     console.log('🔍 Account Page Debug:', {
         currentPlan,

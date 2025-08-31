@@ -367,13 +367,12 @@ class ClinicEventViewSet(viewsets.ModelViewSet):
         user = self.request.user
         # System admins can see clinic events from all organizations
         if user.role == "system_admin":
-            return ClinicEvent.objects.filter(is_active=True).order_by('name')
-        
+            return ClinicEvent.objects.filter(is_active=True).order_by("name")
+
         # Regular users only see clinic events from their organization
         return ClinicEvent.objects.filter(
-            organization=user.organization,
-            is_active=True
-        ).order_by('name')
+            organization=user.organization, is_active=True
+        ).order_by("name")
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -796,22 +795,52 @@ class UploadClinicEventsCSV(APIView):
                         skipped_count += 1
                         continue
 
-                    # Check if clinic event with this name already exists
-                    if ClinicEvent.objects.filter(name=name).exists():
-                        error_msg = f"Row {row_count}: Skipped - Clinic event '{name}' already exists"
+                    # Get user's organization
+                    user_organization = request.user.organization
+
+                    # For system admins, allow organization_id to be specified in CSV
+                    if request.user.role == "system_admin" and "organization_id" in row:
+                        try:
+                            org_id = int(row["organization_id"])
+                            from users.models import Organization
+
+                            user_organization = Organization.objects.get(id=org_id)
+                            logger.info(
+                                f"🔧 System admin uploading for organization: {user_organization.name}"
+                            )
+                        except (ValueError, Organization.DoesNotExist):
+                            logger.warning(
+                                f"⚠️ Invalid organization_id in row {row_count}, using user's organization"
+                            )
+
+                    if not user_organization:
+                        error_msg = f"Row {row_count}: Skipped - User has no organization assigned"
                         logger.warning(f"⚠️ {error_msg}")
                         errors.append(error_msg)
                         skipped_count += 1
                         continue
 
-                    # Create clinic event
+                    # Check if clinic event with this name already exists for this organization
+                    if ClinicEvent.objects.filter(
+                        name=name, organization=user_organization
+                    ).exists():
+                        error_msg = f"Row {row_count}: Skipped - Clinic event '{name}' already exists in your organization"
+                        logger.warning(f"⚠️ {error_msg}")
+                        errors.append(error_msg)
+                        skipped_count += 1
+                        continue
+
+                    # Create clinic event with organization
                     try:
                         clinic_event = ClinicEvent.objects.create(
-                            name=name, description=description, is_active=is_active
+                            name=name,
+                            description=description,
+                            is_active=is_active,
+                            organization=user_organization,
                         )
                         created_count += 1
                         logger.info(
-                            f"✅ Created clinic event: {name} (ID: {clinic_event.id})"
+                            f"✅ Created clinic event: {name} (ID: {clinic_event.id}) for organization: {user_organization.name}"
                         )
 
                     except Exception as e:

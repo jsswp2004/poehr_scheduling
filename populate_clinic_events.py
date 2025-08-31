@@ -60,7 +60,7 @@ def populate_clinic_event_organizations():
                 name=event.name,
                 description=event.description,
                 is_active=event.is_active,
-                organization=org
+                organization=org,
             )
             print(f"   ✅ Duplicated to {org.name}")
             duplicated_count += 1
