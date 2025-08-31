@@ -5,6 +5,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 def health_check(request):
     """
     Health check endpoint for Azure Container Apps
@@ -12,12 +13,12 @@ def health_check(request):
     """
     health_status = {
         "status": "healthy",
-        "timestamp": request.META.get('HTTP_X_FORWARDED_FOR', ''),
-        "checks": {}
+        "timestamp": request.META.get("HTTP_X_FORWARDED_FOR", ""),
+        "checks": {},
     }
-    
+
     is_healthy = True
-    
+
     # Check database connection
     try:
         with connection.cursor() as cursor:
@@ -27,12 +28,12 @@ def health_check(request):
         logger.error(f"Database health check failed: {e}")
         health_status["checks"]["database"] = "unhealthy"
         is_healthy = False
-    
+
     # Check cache (Redis) if configured
     try:
-        cache.set('health_check', 'ok', 10)
-        cache_value = cache.get('health_check')
-        if cache_value == 'ok':
+        cache.set("health_check", "ok", 10)
+        cache_value = cache.get("health_check")
+        if cache_value == "ok":
             health_status["checks"]["cache"] = "healthy"
         else:
             health_status["checks"]["cache"] = "unhealthy"
@@ -41,7 +42,7 @@ def health_check(request):
         logger.warning(f"Cache health check failed: {e}")
         health_status["checks"]["cache"] = "unavailable"
         # Cache is optional, don't mark as unhealthy
-    
+
     # Overall status
     if is_healthy:
         health_status["status"] = "healthy"

@@ -46,6 +46,23 @@ spec:
           resources:
             cpu: "1.0"
             memory: "2Gi"
+          probes:
+            - type: liveness
+              httpGet:
+                path: "/health/"
+                port: 8080
+              initialDelaySeconds: 30
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 3
+            - type: readiness
+              httpGet:
+                path: "/ready/"
+                port: 8080
+              initialDelaySeconds: 5
+              periodSeconds: 5
+              timeoutSeconds: 3
+              failureThreshold: 3
           env:
             # Azure-specific environment variables
             - name: AZURE_SUBSCRIPTION_ID
@@ -54,7 +71,7 @@ spec:
               value: "{resource-group}"
             - name: AZURE_KEYVAULT_NAME
               value: "{keyvault-name}"
-            
+
             # Django configuration
             - name: DJANGO_SETTINGS_MODULE
               value: "poehr_scheduling_backend.settings_azure"
@@ -62,7 +79,7 @@ spec:
               value: "False"
             - name: PORT
               value: "8080"
-            
+
             # Database configuration (Azure Database for PostgreSQL)
             - name: DB_NAME
               value: "poehr_db"
@@ -74,7 +91,7 @@ spec:
               value: "5432"
             - name: DB_PASSWORD
               secretRef: "database-password"
-            
+
             # Redis configuration (Azure Cache for Redis)
             - name: REDIS_HOST
               value: "{redis-cache-name}.redis.cache.windows.net"
@@ -82,7 +99,7 @@ spec:
               value: "6380"
             - name: REDIS_PASSWORD
               secretRef: "redis-connection-string"
-            
+
             # Application secrets
             - name: DJANGO_SECRET_KEY
               secretRef: "django-secret-key"
@@ -92,7 +109,7 @@ spec:
               secretRef: "twilio-auth-token"
             - name: STRIPE_SECRET_KEY
               secretRef: "stripe-secret-key"
-            
+
             # Other environment variables
             - name: EMAIL_HOST_USER
               value: "your-email@gmail.com"
@@ -102,7 +119,7 @@ spec:
               value: "+1234567890"
             - name: STRIPE_PUBLISHABLE_KEY
               value: "pk_live_your_publishable_key"
-      
+
       scale:
         minReplicas: 1
         maxReplicas: 10

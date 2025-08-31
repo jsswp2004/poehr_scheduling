@@ -1,0 +1,40 @@
+{
+  "properties": {
+    "template": {
+      "containers": [
+        {
+          "image": "poehrschedulingacr.azurecr.io/poehr-scheduling:78c8ecda67813b8df56585dd45106517e46905f3",
+          "name": "poehr-scheduling",
+          "resources": {
+            "cpu": 1.0,
+            "memory": "2Gi"
+          },
+          "probes": [
+            {
+              "type": "Liveness",
+              "httpGet": {
+                "path": "/health/",
+                "port": 8080
+              },
+              "initialDelaySeconds": 30,
+              "periodSeconds": 10,
+              "timeoutSeconds": 5,
+              "failureThreshold": 3
+            },
+            {
+              "type": "Readiness",
+              "httpGet": {
+                "path": "/ready/",
+                "port": 8080
+              },
+              "initialDelaySeconds": 5,
+              "periodSeconds": 5,
+              "timeoutSeconds": 3,
+              "failureThreshold": 3
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
