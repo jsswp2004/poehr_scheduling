@@ -358,38 +358,47 @@ def billing_history(request):
         # Format billing history for frontend
         formatted_history = []
         for invoice in invoices.data:
-            # Convert timestamp to readable date
-            invoice_date = datetime.fromtimestamp(invoice.created).strftime("%Y-%m-%d")
+            try:
+                # Convert timestamp to readable date
+                invoice_date = datetime.fromtimestamp(invoice.created).strftime("%Y-%m-%d")
 
-            # Format amount (Stripe amounts are in cents)
-            amount = f"${invoice.amount_paid / 100:.2f}"
+                # Format amount (Stripe amounts are in cents)
+                amount = f"${invoice.amount_paid / 100:.2f}"
 
-            # Determine status
-            status_text = "Paid" if invoice.paid else "Unpaid"
-            if invoice.status == "open":
-                status_text = "Pending"
-            elif invoice.status == "draft":
-                status_text = "Draft"
-            elif invoice.status == "void":
-                status_text = "Void"
+                # Determine status
+                status_text = "Paid" if invoice.paid else "Unpaid"
+                if invoice.status == "paid":
+                    status_text = "Paid"
+                elif invoice.status == "open":
+                    status_text = "Pending"
+                elif invoice.status == "draft":
+                    status_text = "Draft"
+                elif invoice.status == "void":
+                    status_text = "Void"
+                elif invoice.status == "uncollectible":
+                    status_text = "Uncollectible"
 
-            # Get description from subscription or line items
-            description = f"{user.subscription_tier} Plan - Monthly"
-            if invoice.lines.data:
-                line_item = invoice.lines.data[0]
-                if line_item.description:
-                    description = line_item.description
+                # Get description from subscription or line items
+                description = f"{target_user.subscription_tier} Plan - Monthly"
+                if invoice.lines.data:
+                    line_item = invoice.lines.data[0]
+                    if line_item.description:
+                        description = line_item.description
 
-            formatted_history.append(
-                {
-                    "id": invoice.id,
-                    "date": invoice_date,
-                    "amount": amount,
-                    "status": status_text,
-                    "description": description,
-                    "invoice_url": invoice.hosted_invoice_url,  # URL to view/download invoice
-                }
-            )
+                formatted_history.append(
+                    {
+                        "id": invoice.id,
+                        "date": invoice_date,
+                        "amount": amount,
+                        "status": status_text,
+                        "description": description,
+                        "invoice_url": invoice.hosted_invoice_url,  # URL to view/download invoice
+                    }
+                )
+            except Exception as invoice_error:
+                logger.error(f"❌ Error processing invoice {invoice.id}: {invoice_error}")
+                # Continue processing other invoices instead of failing completely
+                continue
 
         return Response(
             {"billing_history": formatted_history},
