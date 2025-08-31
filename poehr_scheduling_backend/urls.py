@@ -25,18 +25,18 @@ def health_check(request):
     from django.db import connection
     from django.core.cache import cache
     import logging
-    
+
     logger = logging.getLogger(__name__)
-    
+
     health_status = {
         "status": "healthy",
         "service": "poehr-scheduling",
         "version": "1.0.0",
-        "checks": {}
+        "checks": {},
     }
-    
+
     is_healthy = True
-    
+
     # Check database connection
     try:
         with connection.cursor() as cursor:
@@ -46,12 +46,12 @@ def health_check(request):
         logger.error(f"Database health check failed: {e}")
         health_status["checks"]["database"] = "unhealthy"
         is_healthy = False
-    
+
     # Check cache (Redis) if configured
     try:
-        cache.set('health_check', 'ok', 10)
-        cache_value = cache.get('health_check')
-        if cache_value == 'ok':
+        cache.set("health_check", "ok", 10)
+        cache_value = cache.get("health_check")
+        if cache_value == "ok":
             health_status["checks"]["cache"] = "healthy"
         else:
             health_status["checks"]["cache"] = "unhealthy"
@@ -59,7 +59,7 @@ def health_check(request):
         logger.warning(f"Cache health check failed: {e}")
         health_status["checks"]["cache"] = "unavailable"
         # Cache is optional, don't mark as unhealthy
-    
+
     # Overall status
     if is_healthy:
         health_status["status"] = "healthy"
@@ -73,7 +73,9 @@ def readiness_check(request):
     """Readiness check for Azure Container Apps startup"""
     try:
         # Simple check if Django is responding
-        return JsonResponse({"status": "ready", "service": "poehr-scheduling"}, status=200)
+        return JsonResponse(
+            {"status": "ready", "service": "poehr-scheduling"}, status=200
+        )
     except Exception as e:
         return JsonResponse({"status": "not ready", "error": str(e)}, status=503)
 
