@@ -21,10 +21,61 @@ def favicon_view(request):
 
 
 def health_check(request):
-    """Health check endpoint for Cloud Run"""
-    return JsonResponse(
-        {"status": "healthy", "service": "poehr-scheduling", "version": "1.0.0"}
-    )
+    """Enhanced health check endpoint for Azure Container Apps"""
+    from django.db import connection
+    from django.core.cache import cache
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    health_status = {
+        "status": "healthy",
+        "service": "poehr-scheduling",
+        "version": "1.0.0",
+        "checks": {}
+    }
+    
+    is_healthy = True
+    
+    # Check database connection
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+            health_status["checks"]["database"] = "healthy"
+    except Exception as e:
+        logger.error(f"Database health check failed: {e}")
+        health_status["checks"]["database"] = "unhealthy"
+        is_healthy = False
+    
+    # Check cache (Redis) if configured
+    try:
+        cache.set('health_check', 'ok', 10)
+        cache_value = cache.get('health_check')
+        if cache_value == 'ok':
+            health_status["checks"]["cache"] = "healthy"
+        else:
+            health_status["checks"]["cache"] = "unhealthy"
+    except Exception as e:
+        logger.warning(f"Cache health check failed: {e}")
+        health_status["checks"]["cache"] = "unavailable"
+        # Cache is optional, don't mark as unhealthy
+    
+    # Overall status
+    if is_healthy:
+        health_status["status"] = "healthy"
+        return JsonResponse(health_status, status=200)
+    else:
+        health_status["status"] = "unhealthy"
+        return JsonResponse(health_status, status=503)
+
+
+def readiness_check(request):
+    """Readiness check for Azure Container Apps startup"""
+    try:
+        # Simple check if Django is responding
+        return JsonResponse({"status": "ready", "service": "poehr-scheduling"}, status=200)
+    except Exception as e:
+        return JsonResponse({"status": "not ready", "error": str(e)}, status=503)
 
 
 @csrf_exempt
@@ -94,8 +145,9 @@ def create_admin_endpoint(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # Health check endpoint
+    # Health check endpoints for Azure Container Apps
     path("health/", health_check, name="health_check"),
+    path("ready/", readiness_check, name="readiness_check"),
     # Debug endpoint
     path("debug-frontend/", debug_frontend_files, name="debug_frontend"),
     # Emergency admin creation endpoint
