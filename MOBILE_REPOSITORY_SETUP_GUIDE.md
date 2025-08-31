@@ -5,12 +5,14 @@
 **RECOMMENDED: Two-Repository Approach**
 
 ### **Repository 1: `poehr_scheduling` (Current)**
+
 - ✅ Django REST API Backend
-- ✅ React Web Frontend  
+- ✅ React Web Frontend
 - ✅ Azure Infrastructure
 - ✅ Production Ready
 
 ### **Repository 2: `poehr_scheduling_mobile` (New)**
+
 - 📱 React Native iOS App
 - 🍎 App Store Assets
 - 📋 Mobile CI/CD
@@ -19,6 +21,7 @@
 ## 🚀 **Mobile Repository Setup Steps**
 
 ### **1. Create New Repository**
+
 ```bash
 # On GitHub, create new repo: poehr_scheduling_mobile
 git clone https://github.com/jsswp2004/poehr_scheduling_mobile.git
@@ -26,6 +29,7 @@ cd poehr_scheduling_mobile
 ```
 
 ### **2. Initialize React Native Project**
+
 ```bash
 # Install React Native CLI
 npm install -g @react-native-community/cli
@@ -38,6 +42,7 @@ cd POEHRSchedulingMobile
 ```
 
 ### **3. iOS Configuration**
+
 ```bash
 # Install iOS dependencies
 cd ios && pod install && cd ..
@@ -47,6 +52,7 @@ open ios/POEHRSchedulingMobile.xcworkspace
 ```
 
 ### **4. Core Dependencies for Healthcare App**
+
 ```bash
 npm install --save \
   @react-navigation/native \
@@ -62,11 +68,12 @@ npm install --save \
 ```
 
 ### **5. Production API Configuration**
+
 ```typescript
 // config/api.ts
 export const API_CONFIG = {
-  BASE_URL: 'https://www.powerhealthcareit.com/api',
-  WS_URL: 'wss://www.powerhealthcareit.com/ws',
+  BASE_URL: "https://www.powerhealthcareit.com/api",
+  WS_URL: "wss://www.powerhealthcareit.com/ws",
   TIMEOUT: 10000,
 };
 ```
@@ -74,6 +81,7 @@ export const API_CONFIG = {
 ## 🔐 **Security Considerations for Healthcare**
 
 ### **HIPAA Compliance Requirements:**
+
 - [ ] End-to-end encryption for patient data
 - [ ] Secure authentication token storage
 - [ ] SSL certificate pinning
@@ -82,6 +90,7 @@ export const API_CONFIG = {
 - [ ] Audit logging for data access
 
 ### **iOS Security Features:**
+
 - [ ] Keychain Services for token storage
 - [ ] App Transport Security (ATS)
 - [ ] TouchID/FaceID integration
@@ -91,24 +100,28 @@ export const API_CONFIG = {
 ## 📋 **Development Workflow**
 
 ### **Phase 1: Core Setup (Week 1)**
+
 1. Create mobile repository
 2. Initialize React Native project
 3. Configure development environment
 4. Set up navigation structure
 
 ### **Phase 2: API Integration (Week 2)**
+
 1. Implement authentication flow
 2. Connect to production API endpoints
 3. Test data synchronization
 4. Implement offline support
 
 ### **Phase 3: Healthcare Features (Week 3)**
+
 1. Appointment scheduling interface
 2. Patient data forms
 3. Real-time notifications
 4. Clinic events management
 
 ### **Phase 4: App Store Prep (Week 4)**
+
 1. App icons and assets
 2. App Store metadata
 3. TestFlight beta testing
@@ -125,4 +138,5 @@ export const API_CONFIG = {
 **Recommendation:** **Option A** - Healthcare apps benefit greatly from native iOS features like biometric authentication and secure keychain storage.
 
 ---
-*This approach ensures your healthcare app meets professional standards for both web and mobile platforms.*
+
+_This approach ensures your healthcare app meets professional standards for both web and mobile platforms._
