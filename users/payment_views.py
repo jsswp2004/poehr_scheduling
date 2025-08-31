@@ -360,30 +360,40 @@ def billing_history(request):
         for invoice in invoices.data:
             try:
                 # Convert timestamp to readable date
-                invoice_date = datetime.fromtimestamp(invoice.created).strftime("%Y-%m-%d")
+                invoice_date = datetime.fromtimestamp(invoice.created).strftime(
+                    "%Y-%m-%d"
+                )
 
                 # Format amount (Stripe amounts are in cents)
-                amount = f"${invoice.amount_paid / 100:.2f}"
+                # Use total if amount_paid is not available
+                amount_cents = getattr(invoice, 'amount_paid', None) or getattr(invoice, 'total', 0)
+                amount = f"${amount_cents / 100:.2f}"
 
-                # Determine status
-                status_text = "Paid" if invoice.paid else "Unpaid"
-                if invoice.status == "paid":
+                # Determine status - safer property access
+                invoice_paid = getattr(invoice, 'paid', False)
+                invoice_status = getattr(invoice, 'status', 'unknown')
+                
+                status_text = "Paid" if invoice_paid else "Unpaid"
+                if invoice_status == "paid":
                     status_text = "Paid"
-                elif invoice.status == "open":
+                elif invoice_status == "open":
                     status_text = "Pending"
-                elif invoice.status == "draft":
+                elif invoice_status == "draft":
                     status_text = "Draft"
-                elif invoice.status == "void":
+                elif invoice_status == "void":
                     status_text = "Void"
-                elif invoice.status == "uncollectible":
+                elif invoice_status == "uncollectible":
                     status_text = "Uncollectible"
 
                 # Get description from subscription or line items
                 description = f"{target_user.subscription_tier} Plan - Monthly"
-                if invoice.lines.data:
+                if hasattr(invoice, 'lines') and invoice.lines and invoice.lines.data:
                     line_item = invoice.lines.data[0]
-                    if line_item.description:
+                    if hasattr(line_item, 'description') and line_item.description:
                         description = line_item.description
+
+                # Safely get invoice URL
+                invoice_url = getattr(invoice, 'hosted_invoice_url', None)
 
                 formatted_history.append(
                     {
@@ -392,11 +402,17 @@ def billing_history(request):
                         "amount": amount,
                         "status": status_text,
                         "description": description,
-                        "invoice_url": invoice.hosted_invoice_url,  # URL to view/download invoice
+                        "invoice_url": invoice_url,  # URL to view/download invoice
                     }
                 )
             except Exception as invoice_error:
-                logger.error(f"❌ Error processing invoice {invoice.id}: {invoice_error}")
+                # Get invoice ID safely
+                invoice_id = getattr(invoice, 'id', 'unknown')
+                logger.error(
+                    f"❌ Error processing invoice {invoice_id}: {type(invoice_error).__name__}: {invoice_error}"
+                )
+                logger.error(f"❌ Invoice status: {getattr(invoice, 'status', 'unknown')}")
+                logger.error(f"❌ Invoice paid: {getattr(invoice, 'paid', 'unknown')}")
                 # Continue processing other invoices instead of failing completely
                 continue
 
