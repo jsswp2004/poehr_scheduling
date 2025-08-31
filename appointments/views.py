@@ -797,6 +797,7 @@ class UploadClinicEventsCSV(APIView):
 
                     # Get user's organization
                     user_organization = request.user.organization
+                    logger.info(f"👤 User organization: ID={user_organization.id if user_organization else 'None'}, Name='{user_organization.name if user_organization else 'None'}'")
 
                     # For system admins, allow organization_id to be specified in CSV
                     if request.user.role == "system_admin" and "organization_id" in row:
@@ -806,7 +807,7 @@ class UploadClinicEventsCSV(APIView):
 
                             user_organization = Organization.objects.get(id=org_id)
                             logger.info(
-                                f"🔧 System admin uploading for organization: {user_organization.name}"
+                                f"🔧 System admin uploading for organization: {user_organization.name} (ID: {user_organization.id})"
                             )
                         except (ValueError, Organization.DoesNotExist):
                             logger.warning(
@@ -821,9 +822,17 @@ class UploadClinicEventsCSV(APIView):
                         continue
 
                     # Check if clinic event with this name already exists for this organization
-                    if ClinicEvent.objects.filter(
-                        name=name, organization=user_organization
-                    ).exists():
+                    logger.info(f"🔍 Checking for duplicates: name='{name}', org_id={user_organization.id}, org_name='{user_organization.name}'")
+                    
+                    existing_events = ClinicEvent.objects.filter(
+                        name=name, organization_id=user_organization.id
+                    )
+                    existing_count = existing_events.count()
+                    
+                    logger.info(f"🔍 Found {existing_count} existing events with name '{name}' in organization {user_organization.id}")
+                    
+                    if existing_count > 0:
+                        logger.info(f"🔍 Existing events: {[e.id for e in existing_events]}")
                         error_msg = f"Row {row_count}: Skipped - Clinic event '{name}' already exists in your organization"
                         logger.warning(f"⚠️ {error_msg}")
                         errors.append(error_msg)
