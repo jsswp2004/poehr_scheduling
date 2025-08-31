@@ -1,0 +1,5 @@
+name,date,start_time,end_time,event_type,provider,description
+Test Appointment 1,2024-09-02,09:00,10:00,appointment,Dr. Test,Test appointment for organization assignment
+Test Session 2,2024-09-02,14:00,15:30,group_session,Dr. Test,Test group session  
+Test Event 3,2024-09-03,11:00,12:00,consultation,Dr. Test,Test consultation event
+Test Followup 4,2024-09-04,16:00,17:00,followup,Dr. Test,Test followup appointment
