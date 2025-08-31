@@ -176,10 +176,14 @@ function AccountPage() {
                 });
             }
 
-            // Map old 'personal' tier to new 'basic' tier for backwards compatibility
+            // Map old plan names to new plan values for backwards compatibility
             let userPlan = userResponse.data.subscription_tier || "basic";
             if (userPlan.toLowerCase() === "personal") {
                 userPlan = "basic";
+            } else if (userPlan.toLowerCase() === "clinic") {
+                userPlan = "premium";
+            } else if (userPlan.toLowerCase() === "group") {
+                userPlan = "enterprise";
             }
 
             setCurrentPlan(userPlan);
@@ -345,7 +349,17 @@ function AccountPage() {
                 });
             }
 
-            setCurrentPlan(organization.subscription_tier || 'basic');
+            // Map organization subscription tier with same logic
+            let orgPlan = organization.subscription_tier || 'basic';
+            if (orgPlan.toLowerCase() === "personal") {
+                orgPlan = "basic";
+            } else if (orgPlan.toLowerCase() === "clinic") {
+                orgPlan = "premium";
+            } else if (orgPlan.toLowerCase() === "group") {
+                orgPlan = "enterprise";
+            }
+            
+            setCurrentPlan(orgPlan);
 
             // Fetch organization-specific data (payment methods, billing history, etc.)
             await fetchOrganizationData(organization.id);
