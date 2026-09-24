@@ -25,7 +25,7 @@ services:
       - key: DJANGO_ALLOWED_HOSTS
         value: ".onrender.com"
       - key: DJANGO_CORS_ORIGINS
-        value: "https://www.powerhealthcareit.com,https://powerhealthcareit.com"
+        value: "https://www.powerhealthcareit.com,https://powerhealthcareit.com,https://poehr-scheduling.vercel.app"
       - key: PYTHON_VERSION
         value: "3.11.9"
       - key: DATABASE_URL
