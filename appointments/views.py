@@ -8,6 +8,7 @@ from .models import (
     AutoEmail,
     ClinicalNote,
     NoteTemplate,
+    Dictionary,
 )
 from .serializers import (
     AppointmentSerializer,
@@ -18,6 +19,8 @@ from .serializers import (
     AutoEmailSerializer,
     ClinicalNoteSerializer,
     NoteTemplateSerializer,
+    NoteTemplateAdminSerializer,
+    DictionaryAdminSerializer,
 )
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -43,7 +46,12 @@ import csv
 import logging
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
-from .permissions import IsAdminOrSystemAdmin, CanAccessClinicalNotes, CanAuthorClinicalNoteType
+from .permissions import (
+    IsAdminOrSystemAdmin,
+    CanAccessClinicalNotes,
+    CanAuthorClinicalNoteType,
+    IsNoteTemplateAdmin,
+)
 from appointments.cron import send_patient_reminders, send_patient_sms_reminders
 from rest_framework.permissions import IsAdminUser
 from django.db.models import Q  # Add Q import for complex queries
@@ -1396,11 +1404,12 @@ class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     Read-only definitions of structured (non-SOAP) note types -- e.g.
     Admission Note -- for the frontend to render a generic form from.
 
-    There is no create/update/delete here yet: templates are seeded via
-    data migration for now (Phase 1 of the note-builder engine). A future
-    configuration UI for admins to build/edit templates will add write
-    endpoints on top of this same model without changing how notes are
-    authored or rendered.
+    Only active templates, and no create/update/delete here: this is what
+    DynamicNoteForm reads when a doctor/nurse is filling out a note.
+    Building/editing templates goes through NoteTemplateAdminViewSet below
+    (Phase 2's note-builder configuration UI) instead -- keeping the two
+    apart means a template mid-edit, or one an admin has deliberately
+    deactivated, never shows up as a choice while writing a note.
     """
 
     queryset = NoteTemplate.objects.filter(is_active=True).prefetch_related(
@@ -1409,3 +1418,93 @@ class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = NoteTemplateSerializer
     permission_classes = [permissions.IsAuthenticated, CanAccessClinicalNotes]
     lookup_field = "code"
+
+
+class NoteTemplateAdminViewSet(viewsets.ModelViewSet):
+    """
+    Phase 2: full CRUD for NoteTemplate + its nested NoteFieldDefinition
+    rows, admin-only (see IsNoteTemplateAdmin). This is what the note-builder
+    configuration UI talks to -- the note-authoring form never touches it,
+    only the read-only NoteTemplateViewSet above.
+
+    Lists every template regardless of is_active, so an admin can find and
+    re-enable a deactivated one. Write validation, the version-bump diff,
+    and the depends_on client_id wiring all live in NoteTemplateAdminSerializer.
+    """
+
+    queryset = NoteTemplate.objects.all().prefetch_related(
+        "fields", "fields__dictionary", "fields__dictionary__items", "fields__depends_on"
+    )
+    permission_classes = [permissions.IsAuthenticated, IsNoteTemplateAdmin]
+    lookup_field = "code"
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return NoteTemplateAdminSerializer
+        return NoteTemplateSerializer
+
+    def _read_payload(self, template, version_bumped):
+        data = NoteTemplateSerializer(template).data
+        data["version_bumped"] = version_bumped
+        data["signed_notes_count"] = template.notes.filter(status="signed").count()
+        return data
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        template = serializer.save()
+        return Response(self._read_payload(template, version_bumped=False), status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        old_version = instance.version
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        template = serializer.save()
+        return Response(
+            self._read_payload(template, version_bumped=template.version != old_version),
+            status=status.HTTP_200_OK,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.notes.exists():
+            return Response(
+                {
+                    "detail": (
+                        "This template has notes on file and can't be deleted -- "
+                        "set it to inactive instead so it disappears from the "
+                        "Documentation Type list without breaking existing notes."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+class DictionaryAdminViewSet(viewsets.ModelViewSet):
+    """
+    Phase 2: full CRUD for Dictionary + its DictionaryItem rows, admin-only.
+    Backs the "Dictionaries" tab of the note-builder configuration UI, where
+    an admin manages the shared option lists that radio/dropdown/multiselect
+    fields point to.
+    """
+
+    queryset = Dictionary.objects.all().prefetch_related("items")
+    serializer_class = DictionaryAdminSerializer
+    permission_classes = [permissions.IsAuthenticated, IsNoteTemplateAdmin]
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.notefielddefinition_set.exists():
+            return Response(
+                {
+                    "detail": (
+                        "This dictionary is used by one or more template fields "
+                        "and can't be deleted -- remove it from those fields first."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)

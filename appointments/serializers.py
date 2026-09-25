@@ -189,6 +189,7 @@ class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
     # the frontend can evaluate visibility against structured_data purely
     # by key without a second lookup. None when always visible.
     depends_on_key = serializers.SerializerMethodField()
+    dictionary = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = NoteFieldDefinition
@@ -198,6 +199,12 @@ class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
             "key",
             "label",
             "field_type",
+            # Read-only numeric id of the linked Dictionary, if any. Ignored
+            # by DynamicNoteForm/DynamicNoteSummary (they only use `options`
+            # below) -- included so the note-builder configuration UI can
+            # preselect the right dictionary when an admin opens an existing
+            # field for editing.
+            "dictionary",
             "required",
             "sort_order",
             "help_text",
@@ -232,6 +239,278 @@ class NoteTemplateSerializer(serializers.ModelSerializer):
         fields = ["id", "code", "name", "version", "is_active", "fields"]
 
 
+# --- Phase 2: note-builder configuration UI (admin-only write access) -----
+# Everything below is used only by NoteTemplateAdminViewSet /
+# DictionaryAdminViewSet (appointments/views.py), gated by
+# IsNoteTemplateAdmin. The read-only serializers above are untouched and
+# keep serving DynamicNoteForm/ClinicalNoteSerializer exactly as before.
+
+
+class DictionaryItemAdminSerializer(serializers.ModelSerializer):
+    """A single writable option row within a Dictionary's item list."""
+
+    id = serializers.IntegerField(required=False)
+
+    class Meta:
+        model = DictionaryItem
+        fields = ["id", "value", "label", "sort_order"]
+
+
+class DictionaryAdminSerializer(serializers.ModelSerializer):
+    """
+    Full CRUD for a Dictionary and its items. Items are synced wholesale on
+    every save: an item without an id (or with an id not already on this
+    dictionary) is created, an item whose id matches an existing item is
+    updated in place, and any existing item missing from the payload is
+    deleted. Removing an option here never touches already-signed notes --
+    those render from ClinicalNote.template_snapshot, frozen at signing.
+    """
+
+    items = DictionaryItemAdminSerializer(many=True)
+    usage_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Dictionary
+        fields = ["id", "code", "name", "description", "items", "usage_count"]
+
+    def get_usage_count(self, obj):
+        return obj.notefielddefinition_set.count()
+
+    def create(self, validated_data):
+        items_data = validated_data.pop("items", [])
+        dictionary = Dictionary.objects.create(**validated_data)
+        for item_data in items_data:
+            item_data.pop("id", None)
+            DictionaryItem.objects.create(dictionary=dictionary, **item_data)
+        return dictionary
+
+    def update(self, instance, validated_data):
+        items_data = validated_data.pop("items", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if items_data is not None:
+            existing_ids = set(instance.items.values_list("id", flat=True))
+            seen_ids = set()
+            for item_data in items_data:
+                item_id = item_data.get("id")
+                if item_id and item_id in existing_ids:
+                    DictionaryItem.objects.filter(id=item_id, dictionary=instance).update(
+                        value=item_data["value"],
+                        label=item_data["label"],
+                        sort_order=item_data.get("sort_order", 0),
+                    )
+                    seen_ids.add(item_id)
+                else:
+                    new_item = DictionaryItem.objects.create(
+                        dictionary=instance,
+                        value=item_data["value"],
+                        label=item_data["label"],
+                        sort_order=item_data.get("sort_order", 0),
+                    )
+                    seen_ids.add(new_item.id)
+            instance.items.exclude(id__in=seen_ids).delete()
+        return instance
+
+
+class NoteFieldDefinitionAdminSerializer(serializers.Serializer):
+    """
+    Write-side representation of a single field within a template save.
+    A plain Serializer (not ModelSerializer): saving a whole template's
+    field list together -- with reordering, additions, removals, and
+    cross-field depends_on wiring all in one request -- needs the custom
+    two-pass logic in NoteTemplateAdminSerializer._save_fields, driven from
+    there rather than from a per-instance create()/update().
+
+    `client_id` identifies a field across the request: an existing field's
+    real database id (sent as a string) when editing, or any other string
+    (e.g. "new-<uuid>") for a brand new field. `depends_on_client_id`
+    references another field's client_id *within this same request*, so a
+    new field can depend on another new field before either has a database
+    id yet.
+    """
+
+    client_id = serializers.CharField()
+    section_label = serializers.CharField(allow_blank=True, required=False, default="")
+    key = serializers.SlugField(max_length=64)
+    label = serializers.CharField(max_length=200)
+    field_type = serializers.ChoiceField(choices=NoteFieldDefinition.FIELD_TYPE_CHOICES)
+    dictionary = serializers.PrimaryKeyRelatedField(
+        queryset=Dictionary.objects.all(), required=False, allow_null=True, default=None
+    )
+    required = serializers.BooleanField(required=False, default=False)
+    sort_order = serializers.IntegerField(required=False, default=0)
+    help_text = serializers.CharField(allow_blank=True, required=False, default="")
+    depends_on_client_id = serializers.CharField(required=False, allow_null=True, default=None)
+    depends_on_value = serializers.CharField(allow_blank=True, required=False, default="")
+
+    def validate(self, data):
+        field_type = data.get("field_type")
+        if field_type in ("radio", "dropdown", "multiselect") and not data.get("dictionary"):
+            raise serializers.ValidationError(
+                {"dictionary": f"A dictionary is required for field type '{field_type}'."}
+            )
+        return data
+
+
+class NoteTemplateAdminSerializer(serializers.ModelSerializer):
+    """
+    Create/update a NoteTemplate together with its complete field list in
+    one request. Field order in the submitted `fields` array IS the new
+    sort_order -- validate_fields() overwrites whatever sort_order values
+    were sent with index * 10, so the frontend's drag-and-drop list order is
+    always what gets saved.
+
+    A field's structural "signature" -- key, field_type, dictionary,
+    required, and depends_on wiring -- is diffed against what's currently
+    saved; any difference (a field added, removed, retyped, re-pointed at a
+    different dictionary, or its conditional logic changed) bumps
+    `version`. Cosmetic-only edits (label, help_text, section_label, pure
+    reordering) do not. Either way, already-signed notes are unaffected --
+    they always render from their own frozen ClinicalNote.template_snapshot,
+    never the live template.
+    """
+
+    fields = NoteFieldDefinitionAdminSerializer(many=True)
+
+    class Meta:
+        model = NoteTemplate
+        fields = ["id", "code", "name", "organization", "is_active", "version", "fields"]
+        read_only_fields = ["id", "version"]
+
+    def validate_fields(self, value):
+        if not value:
+            raise serializers.ValidationError("A template needs at least one field.")
+        keys = [f["key"] for f in value]
+        if len(keys) != len(set(keys)):
+            raise serializers.ValidationError("Field keys must be unique within a template.")
+        client_ids = [f["client_id"] for f in value]
+        if len(client_ids) != len(set(client_ids)):
+            raise serializers.ValidationError("Duplicate client_id in submitted fields.")
+        client_id_set = set(client_ids)
+        for f in value:
+            dep = f.get("depends_on_client_id")
+            if dep and dep not in client_id_set:
+                raise serializers.ValidationError(
+                    f"Field '{f['key']}' depends on an unknown field (client_id '{dep}')."
+                )
+            if dep == f["client_id"]:
+                raise serializers.ValidationError(f"Field '{f['key']}' cannot depend on itself.")
+        # The submitted order IS the new order -- ignore whatever sort_order
+        # values arrived and assign fresh ones, leaving room to insert
+        # between existing values later if ever needed.
+        for idx, f in enumerate(value):
+            f["sort_order"] = idx * 10
+        return value
+
+    @staticmethod
+    def _signature(key, field_type, dictionary_id, required, depends_on_key, depends_on_value):
+        return (key, field_type, dictionary_id, bool(required), depends_on_key, depends_on_value or "")
+
+    def _existing_signatures(self, template):
+        sigs = set()
+        for f in template.fields.all():
+            sigs.add(
+                self._signature(
+                    f.key,
+                    f.field_type,
+                    f.dictionary_id,
+                    f.required,
+                    f.depends_on.key if f.depends_on_id else None,
+                    f.depends_on_value,
+                )
+            )
+        return sigs
+
+    def _incoming_signatures(self, fields_data, client_id_to_key):
+        sigs = set()
+        for f in fields_data:
+            dep_client_id = f.get("depends_on_client_id")
+            dep_key = client_id_to_key.get(dep_client_id) if dep_client_id else None
+            sigs.add(
+                self._signature(
+                    f["key"],
+                    f["field_type"],
+                    f["dictionary"].id if f.get("dictionary") else None,
+                    f.get("required", False),
+                    dep_key,
+                    f.get("depends_on_value", ""),
+                )
+            )
+        return sigs
+
+    def _save_fields(self, template, fields_data):
+        client_id_to_key = {f["client_id"]: f["key"] for f in fields_data}
+
+        # Pass 1: create/update every field EXCEPT depends_on, so every
+        # client_id (new or existing) maps to a real database id before any
+        # depends_on FK is resolved in pass 2.
+        existing_ids = set(template.fields.values_list("id", flat=True))
+        client_id_to_pk = {}
+        seen_ids = set()
+
+        for f in fields_data:
+            client_id = f["client_id"]
+            real_id = (
+                int(client_id) if client_id.isdigit() and int(client_id) in existing_ids else None
+            )
+            common = dict(
+                section_label=f.get("section_label", ""),
+                key=f["key"],
+                label=f["label"],
+                field_type=f["field_type"],
+                dictionary=f.get("dictionary"),
+                required=f.get("required", False),
+                sort_order=f.get("sort_order", 0),
+                help_text=f.get("help_text", ""),
+                depends_on_value=f.get("depends_on_value", ""),
+            )
+            if real_id:
+                NoteFieldDefinition.objects.filter(id=real_id).update(**common)
+                client_id_to_pk[client_id] = real_id
+                seen_ids.add(real_id)
+            else:
+                obj = NoteFieldDefinition.objects.create(template=template, **common)
+                client_id_to_pk[client_id] = obj.id
+                seen_ids.add(obj.id)
+
+        # A field that existed on this template before but wasn't included
+        # in this save has been deleted by the admin -- remove it.
+        template.fields.exclude(id__in=seen_ids).delete()
+
+        # Pass 2: every client_id now maps to a real pk -- wire up depends_on.
+        for f in fields_data:
+            dep_client_id = f.get("depends_on_client_id")
+            depends_on_id = client_id_to_pk.get(dep_client_id) if dep_client_id else None
+            NoteFieldDefinition.objects.filter(id=client_id_to_pk[f["client_id"]]).update(
+                depends_on_id=depends_on_id
+            )
+
+        return client_id_to_key
+
+    def create(self, validated_data):
+        fields_data = validated_data.pop("fields")
+        template = NoteTemplate.objects.create(**validated_data)
+        self._save_fields(template, fields_data)
+        return template
+
+    def update(self, instance, validated_data):
+        fields_data = validated_data.pop("fields", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if fields_data is not None:
+            before = self._existing_signatures(instance)
+            client_id_to_key = self._save_fields(instance, fields_data)
+            after = self._incoming_signatures(fields_data, client_id_to_key)
+            if before != after:
+                instance.version += 1
+
+        instance.save()
+        return instance
+
+
 class ClinicalNoteSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     author_name = serializers.SerializerMethodField()
@@ -245,7 +524,13 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     # Full template definition (fields + dictionary options), included so
     # Note History can render a structured note without a second fetch.
     # None for legacy SOAP notes (template is null).
-    template_detail = NoteTemplateSerializer(source="template", read_only=True)
+    #
+    # Returns the FROZEN template_snapshot taken when this note was created,
+    # never the live template -- so editing a template later via the
+    # note-builder configuration UI (Phase 2) can never change how an
+    # already-signed note displays. Only falls back to the live template for
+    # legacy notes that predate template_snapshot existing at all.
+    template_detail = serializers.SerializerMethodField()
 
     class Meta:
         model = ClinicalNote
@@ -304,6 +589,13 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     def get_author_role(self, obj):
         return obj.author_role_at_signing or getattr(obj.author, "role", "")
 
+    def get_template_detail(self, obj):
+        if obj.template_snapshot:
+            return obj.template_snapshot
+        if obj.template_id:
+            return NoteTemplateSerializer(obj.template).data
+        return None
+
     def validate(self, data):
         # A note being created must always resolve patient/org from the
         # appointment, never trust a client-supplied patient/organization.
@@ -326,13 +618,12 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
         validated_data["author"] = user
         validated_data["author_role_at_signing"] = getattr(user, "role", "")
 
-        # Snapshot the template's current version at creation time so that
-        # editing the template later (via the future configuration UI) can
-        # never change how this note renders in Note History. Never
-        # recompute this from the live template after creation.
-        template = validated_data.get("template")
-        if template is not None:
-            validated_data["template_version"] = template.version
+        # Snapshot the template's current version AND full field definitions
+        # at creation time so that editing the template later (via the
+        # note-builder configuration UI) can never change how this note
+        # renders in Note History. Never recompute this from the live
+        # template after creation.
+        self._sync_template_snapshot(validated_data)
 
         return super().create(validated_data)
 
@@ -341,4 +632,16 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "This note is signed and locked. Create an addendum instead of editing it."
             )
+        # A draft can still switch documentation_type/template before it's
+        # signed (e.g. the author picked the wrong note type) -- re-snapshot
+        # whenever that happens so the note keeps tracking whichever
+        # template it's currently pointed at.
+        self._sync_template_snapshot(validated_data)
         return super().update(instance, validated_data)
+
+    @staticmethod
+    def _sync_template_snapshot(validated_data):
+        template = validated_data.get("template")
+        if template is not None:
+            validated_data["template_version"] = template.version
+            validated_data["template_snapshot"] = NoteTemplateSerializer(template).data

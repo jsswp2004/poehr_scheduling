@@ -63,6 +63,31 @@ class CanAccessClinicalNotes(permissions.BasePermission):
         return True
 
 
+class IsNoteTemplateAdmin(permissions.BasePermission):
+    """
+    Gates the note-builder configuration UI (Phase 2): creating, editing,
+    deleting, or reordering NoteTemplate/NoteFieldDefinition/Dictionary
+    rows. Deliberately narrower than CanAccessClinicalNotes -- doctors and
+    nurses author notes through the templates this controls, but must not
+    be able to redefine what a template *is*. Registrars are excluded too
+    (unlike IsAdminOrSystemAdmin above), since this touches clinical
+    documentation structure, not scheduling/messaging.
+
+    The read-only NoteTemplateViewSet (used by DynamicNoteForm to render the
+    note-taking form itself) is unaffected by this -- it keeps its own,
+    looser permission so doctors/nurses can still fill out notes.
+    """
+
+    ALLOWED_ROLES = ["admin", "system_admin"]
+
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_authenticated and (
+            getattr(user, "role", None) in self.ALLOWED_ROLES
+            or getattr(user, "is_superuser", False)
+        )
+
+
 class CanAuthorClinicalNoteType(permissions.BasePermission):
     """
     Enforces that a nurse can only author 'nursing_assessment' notes and a
