@@ -18,6 +18,7 @@ from .views import (
     update_appointment_status,
     CheckInSearchView,
     CheckInStatusUpdateView,
+    ClinicalNoteViewSet,
 )  # ⬅️ import the new SMS view and check-in views
 from .analytics_views import AnalyticsReportView, ExportReportView
 
@@ -159,6 +160,7 @@ router.register(r"appointments", AppointmentViewSet, basename="appointment")
 router.register(r"availability", AvailabilityViewSet, basename="availability")
 router.register(r"holidays", HolidayViewSet)
 router.register(r"auto-email", AutoEmailViewSet, basename="autoemail")
+router.register(r"clinical-notes", ClinicalNoteViewSet, basename="clinicalnote")
 
 urlpatterns = router.urls + [
     # ⬇️ custom endpoint for doctor availability

@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef, memo } from "react";
 import axios from "axios";
 import CreateAppointmentForm from "../components/CreateAppointmentForm";
+import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
 import {
   Box,
   Stack,
@@ -1418,6 +1419,11 @@ function PatientDetailPage() {
           />
         </div>
       )}
+
+      <ClinicalNotesPanel
+        patientId={patient.user_id}
+        patientName={`${patient.first_name} ${patient.last_name}`}
+      />
     </Box>
   );
 }

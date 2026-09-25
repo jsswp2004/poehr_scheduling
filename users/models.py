@@ -7,6 +7,7 @@ class CustomUser(AbstractUser):
     ROLE_CHOICES = (
         ("patient", "Patient"),
         ("doctor", "Doctor"),
+        ("nurse", "Nurse"),
         ("receptionist", "Receptionist"),
         ("admin", "Admin"),
         ("registrar", "Registrar"),
