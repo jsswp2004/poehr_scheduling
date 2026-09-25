@@ -127,7 +127,8 @@ function PatientsPage() {
           role !== "system_admin" &&
           role !== "doctor" &&
           role !== "registrar" &&
-          role !== "receptionist"
+          role !== "receptionist" &&
+          role !== "nurse"
         ) {
           console.error("❌ PatientsPage: Unauthorized role:", role);
           navigate("/");
