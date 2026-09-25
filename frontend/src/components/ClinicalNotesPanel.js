@@ -11,7 +11,8 @@ import {
   InputLabel,
   Chip,
   Stack,
-  Divider,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { jwtDecode } from "jwt-decode";
 import { api } from "../api/client";
@@ -67,6 +68,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [draftId, setDraftId] = useState(null); // id of the note being drafted/edited
   const [amendsId, setAmendsId] = useState(null); // set when writing an addendum
+  const [activeTab, setActiveTab] = useState("documentation");
 
   const loadData = useCallback(async () => {
     if (!patientId) return;
@@ -143,6 +145,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     });
     setDraftId(null);
     setAmendsId(note.id);
+    setActiveTab("documentation");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -200,6 +203,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
       await api.post(apiEndpoints.clinicalNoteSign(id), null, { headers });
       toast.success("Note signed and locked.");
       resetForm();
+      setActiveTab("history");
       await loadData();
     } catch (err) {
       console.error("Failed to sign clinical note:", err);
@@ -213,14 +217,28 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     }
   };
 
+  const showTabs = canAuthor; // viewers with no authoring rights just see history
+  const currentTab = showTabs ? activeTab : "history";
+
   return (
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>
         Clinical Documentation{patientName ? ` - ${patientName}` : ""}
       </Typography>
 
-      {canAuthor && (
-        <Box sx={{ mb: 3 }}>
+      {showTabs && (
+        <Tabs
+          value={currentTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab label="Documentation" value="documentation" />
+          <Tab label="Note History" value="history" />
+        </Tabs>
+      )}
+
+      {currentTab === "documentation" && canAuthor && (
+        <Box sx={{ mb: 1 }}>
           {amendsId && (
             <Chip
               label="Writing an addendum to a signed note"
@@ -332,88 +350,92 @@ function ClinicalNotesPanel({ patientId, patientName }) {
         </Box>
       )}
 
-      <Divider sx={{ my: 2 }} />
+      {currentTab === "history" && (
+        <Box>
+          {!showTabs && (
+            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+              Note History
+            </Typography>
+          )}
 
-      <Typography variant="subtitle1" sx={{ mb: 1 }}>
-        Note History
-      </Typography>
-
-      {loading ? (
-        <Typography variant="body2" color="text.secondary">
-          Loading notes...
-        </Typography>
-      ) : notes.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          No clinical notes yet for this patient.
-        </Typography>
-      ) : (
-        <Stack spacing={2}>
-          {notes.map((note) => (
-            <Paper
-              key={note.id}
-              variant="outlined"
-              sx={{ p: 2, borderRadius: 2 }}
-            >
-              <Stack
-                direction="row"
-                justifyContent="space-between"
-                alignItems="center"
-                sx={{ mb: 1 }}
-              >
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Chip
-                    label={note.note_type_display || NOTE_TYPE_LABELS[note.note_type]}
-                    size="small"
-                    color={note.note_type === "doctor_assessment" ? "primary" : "secondary"}
-                  />
-                  <Chip
-                    label={note.status === "signed" ? "Signed" : "Draft"}
-                    size="small"
-                    color={note.status === "signed" ? "success" : "default"}
-                  />
-                  {note.amends && <Chip label="Addendum" size="small" />}
-                </Stack>
-                <Typography variant="caption" color="text.secondary">
-                  {note.author_name} -{" "}
-                  {new Date(note.signed_at || note.created_at).toLocaleString()}
-                </Typography>
-              </Stack>
-
-              <Box sx={{ display: "grid", gap: 0.5 }}>
-                {note.subjective && (
-                  <Typography variant="body2">
-                    <strong>S:</strong> {note.subjective}
-                  </Typography>
-                )}
-                {note.objective && (
-                  <Typography variant="body2">
-                    <strong>O:</strong> {note.objective}
-                  </Typography>
-                )}
-                {note.assessment && (
-                  <Typography variant="body2">
-                    <strong>A:</strong> {note.assessment}
-                  </Typography>
-                )}
-                {note.plan && (
-                  <Typography variant="body2">
-                    <strong>P:</strong> {note.plan}
-                  </Typography>
-                )}
-              </Box>
-
-              {canAuthor && note.status === "signed" && (
-                <Button
-                  size="small"
-                  sx={{ mt: 1 }}
-                  onClick={() => startAddendum(note)}
+          {loading ? (
+            <Typography variant="body2" color="text.secondary">
+              Loading notes...
+            </Typography>
+          ) : notes.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No clinical notes yet for this patient.
+            </Typography>
+          ) : (
+            <Stack spacing={2}>
+              {notes.map((note) => (
+                <Paper
+                  key={note.id}
+                  variant="outlined"
+                  sx={{ p: 2, borderRadius: 2 }}
                 >
-                  Add Addendum
-                </Button>
-              )}
-            </Paper>
-          ))}
-        </Stack>
+                  <Stack
+                    direction="row"
+                    justifyContent="space-between"
+                    alignItems="center"
+                    sx={{ mb: 1 }}
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip
+                        label={note.note_type_display || NOTE_TYPE_LABELS[note.note_type]}
+                        size="small"
+                        color={note.note_type === "doctor_assessment" ? "primary" : "secondary"}
+                      />
+                      <Chip
+                        label={note.status === "signed" ? "Signed" : "Draft"}
+                        size="small"
+                        color={note.status === "signed" ? "success" : "default"}
+                      />
+                      {note.amends && <Chip label="Addendum" size="small" />}
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary">
+                      {note.author_name} -{" "}
+                      {new Date(note.signed_at || note.created_at).toLocaleString()}
+                    </Typography>
+                  </Stack>
+
+                  <Box sx={{ display: "grid", gap: 0.5 }}>
+                    {note.subjective && (
+                      <Typography variant="body2">
+                        <strong>S:</strong> {note.subjective}
+                      </Typography>
+                    )}
+                    {note.objective && (
+                      <Typography variant="body2">
+                        <strong>O:</strong> {note.objective}
+                      </Typography>
+                    )}
+                    {note.assessment && (
+                      <Typography variant="body2">
+                        <strong>A:</strong> {note.assessment}
+                      </Typography>
+                    )}
+                    {note.plan && (
+                      <Typography variant="body2">
+                        <strong>P:</strong> {note.plan}
+                      </Typography>
+                    )}
+                  </Box>
+
+                  {canAuthor && note.status === "signed" && (
+                    <Button
+                      size="small"
+                      sx={{ mt: 1 }}
+                      onClick={() => startAddendum(note)}
+                    >
+                      Add Addendum
+                    </Button>
+                  )}
+                </Paper>
+              ))}
+            </Stack>
+          )}
+        </Box>
       )}
     </Paper>
   );
