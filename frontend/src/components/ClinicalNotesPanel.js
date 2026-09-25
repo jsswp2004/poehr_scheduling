@@ -30,9 +30,20 @@ const NOTE_TYPE_LABELS = {
   nursing_assessment: "Nursing Assessment",
 };
 
+// Dictionary of documentation types available to the physician when
+// authoring a note. This is separate from note_type (which tracks the
+// author's clinical role -- doctor vs. nurse) -- it's a further
+// classification of the note itself. More types can be added here as
+// they're defined; only two exist for now.
+const DOCUMENTATION_TYPES = [
+  { value: "initial_assessment", label: "Initial Assessment" },
+  { value: "progress_note", label: "Progress Note" },
+];
+
 const EMPTY_FORM = {
   appointment: "",
   note_type: "",
+  documentation_type: DOCUMENTATION_TYPES[0].value,
   subjective: "",
   objective: "",
   assessment: "",
@@ -138,6 +149,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     setForm({
       appointment: note.appointment,
       note_type: note.note_type,
+      documentation_type: note.documentation_type || DOCUMENTATION_TYPES[0].value,
       subjective: "",
       objective: "",
       assessment: "",
@@ -249,23 +261,41 @@ function ClinicalNotesPanel({ patientId, patientName }) {
             />
           )}
           <Stack spacing={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="appt-select-label">Appointment / Registration</InputLabel>
-              <Select
-                labelId="appt-select-label"
-                label="Appointment / Registration"
-                value={form.appointment}
-                onChange={handleFieldChange("appointment")}
-                disabled={!!amendsId}
-              >
-                {appointments.map((a) => (
-                  <MenuItem key={a.id} value={a.id}>
-                    {a.title} -{" "}
-                    {new Date(a.appointment_datetime).toLocaleString()}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Stack direction="row" spacing={2}>
+              <FormControl size="small" sx={{ width: "50%" }}>
+                <InputLabel id="appt-select-label">Appointment / Registration</InputLabel>
+                <Select
+                  labelId="appt-select-label"
+                  label="Appointment / Registration"
+                  value={form.appointment}
+                  onChange={handleFieldChange("appointment")}
+                  disabled={!!amendsId}
+                >
+                  {appointments.map((a) => (
+                    <MenuItem key={a.id} value={a.id}>
+                      {a.title} -{" "}
+                      {new Date(a.appointment_datetime).toLocaleString()}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <FormControl size="small" sx={{ width: "50%" }}>
+                <InputLabel id="doc-type-select-label">Documentation Type</InputLabel>
+                <Select
+                  labelId="doc-type-select-label"
+                  label="Documentation Type"
+                  value={form.documentation_type}
+                  onChange={handleFieldChange("documentation_type")}
+                >
+                  {DOCUMENTATION_TYPES.map((dt) => (
+                    <MenuItem key={dt.value} value={dt.value}>
+                      {dt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Stack>
 
             {(userRole === "admin" || userRole === "system_admin") && !amendsId ? (
               <FormControl fullWidth size="small">
