@@ -478,6 +478,7 @@ class NoteFieldDefinition(models.Model):
         ("textarea", "Multi-line Text"),
         ("radio", "Radio Button (dictionary)"),
         ("dropdown", "Dropdown (dictionary)"),
+        ("multiselect", "Multi-select Checklist (dictionary)"),
         ("checkbox", "Checkbox (yes/no)"),
         ("numeric", "Numeric"),
         ("date", "Date"),
@@ -507,6 +508,23 @@ class NoteFieldDefinition(models.Model):
     required = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
     help_text = models.CharField(max_length=255, blank=True)
+
+    # --- Conditional visibility ---------------------------------------
+    # This field is only rendered/collected once `depends_on`'s current
+    # value (an array for 'multiselect', a scalar otherwise) contains/
+    # equals `depends_on_value`. Used for e.g. a Review-of-Systems body
+    # system's "negative findings" checklist, which only appears once its
+    # own status toggle has "negative_for" checked. Null `depends_on` means
+    # always visible.
+    depends_on = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="dependents",
+        help_text="Only show this field when depends_on's value contains depends_on_value",
+    )
+    depends_on_value = models.CharField(max_length=100, blank=True)
 
     class Meta:
         ordering = ["template", "sort_order"]
