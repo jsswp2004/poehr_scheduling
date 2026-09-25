@@ -21,6 +21,7 @@ import {
 import {
     Visibility as VisibilityIcon,
     Delete as DeleteIcon,
+    Assignment as AssignmentIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -159,6 +160,16 @@ function PatientsTable({
                                                     sx={{ color: 'primary.main' }}
                                                 >
                                                     <VisibilityIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+
+                                            <Tooltip title="Clinical Notes">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => navigate(`/patients/${patient.user_id}/notes`)}
+                                                    sx={{ color: 'secondary.main' }}
+                                                >
+                                                    <AssignmentIcon fontSize="small" />
                                                 </IconButton>
                                             </Tooltip>
 

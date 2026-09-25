@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState, useCallback, useRef, memo } from "react";
 import axios from "axios";
 import CreateAppointmentForm from "../components/CreateAppointmentForm";
-import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
+//import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
 import {
   Box,
   Stack,
@@ -1388,6 +1388,18 @@ function PatientDetailPage() {
               </Button>
               <Button
                 variant="outlined"
+                color="secondary"
+                onClick={() => navigate(`/patients/${patient.user_id || patient.id}/notes`)}
+              >
+                Clinical Notes
+              </Button>
+              <Button
+                variant="outlined"
+                color="warning"
+                onClick={handleResetPassword}
+
+              <Button
+                variant="outlined"
                 color="warning"
                 onClick={handleResetPassword}
                 sx={{
@@ -1419,11 +1431,6 @@ function PatientDetailPage() {
           />
         </div>
       )}
-
-      <ClinicalNotesPanel
-        patientId={patient.user_id || patient.id}
-        patientName={`${patient.first_name} ${patient.last_name}`}
-      />
     </Box>
   );
 }
