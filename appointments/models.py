@@ -256,3 +256,84 @@ class AutoEmail(models.Model):
     def __str__(self):
         org_name = self.organization.name if self.organization else "Global"
         return f"Auto Email ({org_name}) - {self.auto_message_frequency} on {self.get_auto_message_day_of_week_display()}"
+
+
+class ClinicalNote(models.Model):
+    """
+    A clinical documentation entry (nursing assessment or doctor assessment)
+    written about a patient, tied to a specific appointment/registration.
+
+    Once signed, a note is locked: it can never be edited or deleted, only
+    amended via a linked addendum (see `amends`). This mirrors how real EHRs
+    (including Sunrise) handle chart integrity for legal/clinical purposes.
+    """
+
+    NOTE_TYPE_CHOICES = [
+        ("nursing_assessment", "Nursing Assessment"),
+        ("doctor_assessment", "Doctor Assessment"),
+    ]
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("signed", "Signed"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="clinical_notes",
+        null=True,
+        blank=True,
+        help_text="Organization this note belongs to",
+    )
+    appointment = models.ForeignKey(
+        "appointments.Appointment",
+        on_delete=models.PROTECT,
+        related_name="clinical_notes",
+        help_text="The visit/registration this note documents",
+    )
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="clinical_notes_received",
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="clinical_notes_authored",
+    )
+    author_role_at_signing = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Snapshot of the author's role at the time of writing/signing",
+    )
+
+    note_type = models.CharField(max_length=30, choices=NOTE_TYPE_CHOICES)
+    status = models.CharField(
+        max_length=10, choices=STATUS_CHOICES, default="draft"
+    )
+
+    # SOAP fields
+    subjective = models.TextField(blank=True)
+    objective = models.TextField(blank=True)
+    assessment = models.TextField(blank=True)
+    plan = models.TextField(blank=True)
+
+    # Corrections to a signed note happen by creating a new note that
+    # references the original here — the original is never edited in place.
+    amends = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="addenda",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    signed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_note_type_display()} for {self.patient} ({self.status})"

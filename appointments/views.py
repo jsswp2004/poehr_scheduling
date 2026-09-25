@@ -1,6 +1,6 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
 from rest_framework import viewsets, permissions
-from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail
+from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail, ClinicalNote
 from .serializers import (
     AppointmentSerializer,
     AvailabilitySerializer,
@@ -8,13 +8,14 @@ from .serializers import (
     HolidaySerializer,
     ClinicEventSerializer,
     AutoEmailSerializer,
+    ClinicalNoteSerializer,
 )
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
 from django.conf import settings  # Import settings to access AUTH_USER_MODEL
 from django.utils.dateparse import parse_date
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from datetime import timedelta
@@ -33,7 +34,7 @@ import csv
 import logging
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
-from .permissions import IsAdminOrSystemAdmin
+from .permissions import IsAdminOrSystemAdmin, CanAccessClinicalNotes, CanAuthorClinicalNoteType
 from appointments.cron import send_patient_reminders, send_patient_sms_reminders
 from rest_framework.permissions import IsAdminUser
 from django.db.models import Q  # Add Q import for complex queries
@@ -84,8 +85,15 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(
                     provider=user
                 )  # optional: show only their own patients
-            elif user.role in ["registrar", "admin"]:
+            elif user.role in ["registrar", "admin", "nurse"]:
                 pass  # ✅ Allow access to all appointments for their org
+
+            # Optional explicit patient filter for staff roles (e.g. the
+            # patient detail page pulling a specific patient's visit
+            # history to attach a clinical note to).
+            patient_id = self.request.query_params.get("patient")
+            if patient_id and user.role != "patient":
+                queryset = queryset.filter(patient_id=patient_id)
 
         return queryset
 
@@ -1297,3 +1305,78 @@ class CheckInStatusUpdateView(APIView):
             )
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ClinicalNoteViewSet(viewsets.ModelViewSet):
+    """
+    Clinical documentation (SOAP-structured nursing/doctor assessments) tied
+    to a specific appointment. Doctors, nurses, admins, and system_admins can
+    author and view notes; patients have no access to this endpoint.
+
+    Signed notes are immutable — see CanAccessClinicalNotes.has_object_permission
+    and the `sign` / `addend` actions below.
+    """
+
+    serializer_class = ClinicalNoteSerializer
+    permission_classes = [
+        permissions.IsAuthenticated,
+        CanAccessClinicalNotes,
+        CanAuthorClinicalNoteType,
+    ]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == "system_admin":
+            queryset = ClinicalNote.objects.all()
+        else:
+            queryset = ClinicalNote.objects.filter(organization=user.organization)
+
+        appointment_id = self.request.query_params.get("appointment")
+        if appointment_id:
+            queryset = queryset.filter(appointment_id=appointment_id)
+
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+
+        return queryset.select_related("patient", "author", "appointment")
+
+    @action(detail=True, methods=["post"])
+    def sign(self, request, pk=None):
+        """Lock a draft note. Once signed it can never be edited again."""
+        note = self.get_object()
+        if note.status == "signed":
+            return Response(
+                {"detail": "This note is already signed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if note.author != request.user and request.user.role not in (
+            "admin",
+            "system_admin",
+        ):
+            return Response(
+                {"detail": "Only the authoring provider can sign this note."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        note.status = "signed"
+        note.signed_at = timezone.now()
+        note.save(update_fields=["status", "signed_at"])
+        return Response(ClinicalNoteSerializer(note).data)
+
+    @action(detail=True, methods=["post"])
+    def addend(self, request, pk=None):
+        """
+        Create a new draft note that references this (presumably signed) note
+        as a correction/addition, rather than editing the original in place.
+        """
+        original = self.get_object()
+        data = request.data.copy()
+        data["appointment"] = original.appointment_id
+        data["note_type"] = original.note_type
+        data["amends"] = original.id
+
+        serializer = ClinicalNoteSerializer(data=data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -88,6 +88,12 @@ export const apiEndpoints = {
     appointment: (id) => `${API_BASE_URL}/api/appointments/${id}/`,
     availableSlots: (doctorId, date) => `${API_BASE_URL}/api/doctors/${doctorId}/available-dates/`,
 
+    // Clinical notes endpoints
+    clinicalNotes: `${API_BASE_URL}/api/clinical-notes/`,
+    clinicalNote: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/`,
+    clinicalNoteSign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/sign/`,
+    clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
+
     // Authentication endpoints
     changePassword: `${API_BASE_URL}/api/auth/change-password/`,
     adminChangePassword: `${API_BASE_URL}/api/users/admin-change-password/`,

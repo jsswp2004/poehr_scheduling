@@ -26,3 +26,49 @@ class CanSendMessages(permissions.BasePermission):
             user.is_authenticated and 
             getattr(user, 'role', None) in ['admin', 'system_admin', 'registrar']
         )
+
+
+class CanAccessClinicalNotes(permissions.BasePermission):
+    """
+    Doctors, nurses, admins, and system_admins can view/author clinical notes.
+    Patients (and any other role) have no access — a patient-facing "view my
+    notes" feature is a separate, deliberate decision to make later.
+
+    A signed note can never be edited by anyone (object-level check below) —
+    corrections must go through the addendum endpoint instead.
+    """
+    ALLOWED_ROLES = ["doctor", "nurse", "admin", "system_admin"]
+
+    def has_permission(self, request, view):
+        user = request.user
+        return (
+            user.is_authenticated
+            and getattr(user, "role", None) in self.ALLOWED_ROLES
+        )
+
+    def has_object_permission(self, request, view, obj):
+        # Signed notes are read-only for everyone from this point forward.
+        if request.method not in permissions.SAFE_METHODS and obj.status == "signed":
+            return False
+        return True
+
+
+class CanAuthorClinicalNoteType(permissions.BasePermission):
+    """
+    Enforces that a nurse can only author 'nursing_assessment' notes and a
+    doctor can only author 'doctor_assessment' notes. Admins/system_admins
+    may author either (useful for demo/testing and correcting data).
+    """
+
+    def has_permission(self, request, view):
+        if request.method != "POST":
+            return True
+        user = request.user
+        note_type = request.data.get("note_type")
+        if getattr(user, "role", None) in ("admin", "system_admin"):
+            return True
+        expected = {
+            "nurse": "nursing_assessment",
+            "doctor": "doctor_assessment",
+        }.get(getattr(user, "role", None))
+        return expected is not None and note_type == expected

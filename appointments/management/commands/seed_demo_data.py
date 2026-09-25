@@ -13,9 +13,13 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from users.models import CustomUser, Organization, Patient
-from appointments.models import Appointment
+from appointments.models import Appointment, ClinicalNote
 
 DEMO_ORG_NAME = "Riverside Family Clinic (Demo)"
+
+NURSE_NAMES = [
+    ("Renee", "Okafor"),
+]
 
 DOCTOR_NAMES = [
     ("Amara", "Chen"),
@@ -114,6 +118,27 @@ class Command(BaseCommand):
             doctors.append(doc)
         self.stdout.write(self.style.SUCCESS(f"Doctors ready: {len(doctors)}"))
 
+        # --- Nurses -----------------------------------------------------
+        nurses = []
+        for i, (first, last) in enumerate(NURSE_NAMES, start=1):
+            username = f"nurse_{first.lower()}_{last.lower()}"
+            nurse, created = CustomUser.objects.get_or_create(
+                username=username,
+                defaults={
+                    "email": f"{username}@example.com",
+                    "first_name": first,
+                    "last_name": last,
+                    "role": "nurse",
+                    "organization": org,
+                    "registered": True,
+                },
+            )
+            if created:
+                nurse.set_password("DemoPass123!")
+                nurse.save()
+            nurses.append(nurse)
+        self.stdout.write(self.style.SUCCESS(f"Nurses ready: {len(nurses)}"))
+
         # --- Patients ---------------------------------------------------
         patients = []
         for i, (first, last) in enumerate(PATIENT_NAMES, start=1):
@@ -173,7 +198,55 @@ class Command(BaseCommand):
                     created_count += 1
         self.stdout.write(self.style.SUCCESS(f"Appointments created: {created_count}"))
 
+        # --- Clinical notes: a couple of signed SOAP notes on completed
+        # appointments, so the new documentation feature has something to
+        # show right away in the demo. -----------------------------------
+        notes_created = 0
+        completed_appts = list(
+            Appointment.objects.filter(organization=org, status="completed")[:2]
+        )
+        for appt in completed_appts:
+            if nurses:
+                _, created = ClinicalNote.objects.get_or_create(
+                    appointment=appt,
+                    note_type="nursing_assessment",
+                    defaults={
+                        "organization": org,
+                        "patient": appt.patient,
+                        "author": nurses[0],
+                        "author_role_at_signing": "nurse",
+                        "status": "signed",
+                        "signed_at": timezone.now(),
+                        "subjective": "Patient reports feeling well, no new complaints since last visit.",
+                        "objective": "Vitals stable: BP 118/76, HR 72, Temp 98.4F, RR 16, SpO2 99%.",
+                        "assessment": "No acute distress noted.",
+                        "plan": "Continue current care plan; follow up per provider recommendation.",
+                    },
+                )
+                if created:
+                    notes_created += 1
+            _, created = ClinicalNote.objects.get_or_create(
+                appointment=appt,
+                note_type="doctor_assessment",
+                defaults={
+                    "organization": org,
+                    "patient": appt.patient,
+                    "author": appt.provider,
+                    "author_role_at_signing": "doctor",
+                    "status": "signed",
+                    "signed_at": timezone.now(),
+                    "subjective": "Patient presents for scheduled visit, denies new symptoms.",
+                    "objective": "Exam unremarkable. Reviewed nursing assessment and vitals.",
+                    "assessment": "Stable, no acute findings.",
+                    "plan": "Continue current management; routine follow-up as scheduled.",
+                },
+            )
+            if created:
+                notes_created += 1
+        self.stdout.write(self.style.SUCCESS(f"Clinical notes created: {notes_created}"))
+
         self.stdout.write(self.style.SUCCESS("\nDemo data ready."))
         self.stdout.write("Login as admin:   demo_admin / DemoPass123!")
         self.stdout.write("Login as a doctor: dr_amara_chen / DemoPass123!")
+        self.stdout.write("Login as a nurse:  nurse_renee_okafor / DemoPass123!")
         self.stdout.write("Login as a patient: patient_taylor_whitfield / DemoPass123!")

@@ -6,6 +6,7 @@ from .models import (
     Holiday,
     ClinicEvent,
     AutoEmail,
+    ClinicalNote,
 )
 import logging
 
@@ -167,3 +168,80 @@ class AutoEmailSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutoEmail
         fields = "__all__"
+
+
+class ClinicalNoteSerializer(serializers.ModelSerializer):
+    patient_name = serializers.SerializerMethodField()
+    author_name = serializers.SerializerMethodField()
+    author_role = serializers.SerializerMethodField()
+    note_type_display = serializers.CharField(source="get_note_type_display", read_only=True)
+
+    class Meta:
+        model = ClinicalNote
+        fields = [
+            "id",
+            "organization",
+            "appointment",
+            "patient",
+            "patient_name",
+            "author",
+            "author_name",
+            "author_role",
+            "author_role_at_signing",
+            "note_type",
+            "note_type_display",
+            "status",
+            "subjective",
+            "objective",
+            "assessment",
+            "plan",
+            "amends",
+            "created_at",
+            "updated_at",
+            "signed_at",
+        ]
+        read_only_fields = [
+            "organization",
+            "patient",
+            "author",
+            "author_role_at_signing",
+            "status",
+            "signed_at",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_patient_name(self, obj):
+        return f"{obj.patient.first_name} {obj.patient.last_name}".strip() or obj.patient.username
+
+    def get_author_name(self, obj):
+        return f"{obj.author.first_name} {obj.author.last_name}".strip() or obj.author.username
+
+    def get_author_role(self, obj):
+        return obj.author_role_at_signing or getattr(obj.author, "role", "")
+
+    def validate(self, data):
+        # A note being created must always resolve patient/org from the
+        # appointment, never trust a client-supplied patient/organization.
+        appointment = data.get("appointment") or getattr(self.instance, "appointment", None)
+        if appointment is None:
+            raise serializers.ValidationError({"appointment": "This field is required."})
+        return data
+
+    def create(self, validated_data):
+        request = self.context["request"]
+        user = request.user
+        appointment = validated_data["appointment"]
+
+        validated_data["patient"] = appointment.patient
+        validated_data["organization"] = appointment.organization
+        validated_data["author"] = user
+        validated_data["author_role_at_signing"] = getattr(user, "role", "")
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if instance.status == "signed":
+            raise serializers.ValidationError(
+                "This note is signed and locked. Create an addendum instead of editing it."
+            )
+        return super().update(instance, validated_data)
