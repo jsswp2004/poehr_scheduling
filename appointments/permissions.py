@@ -47,7 +47,17 @@ class CanAccessClinicalNotes(permissions.BasePermission):
         )
 
     def has_object_permission(self, request, view, obj):
-        # Signed notes are read-only for everyone from this point forward.
+        # `sign` and `addend` are exempt from the signed-note lock below:
+        # `sign` re-checks status itself and returns a friendly 400 for an
+        # already-signed note, and `addend` operates BY DEFINITION on an
+        # already-signed note -- that IS the addendum feature. Without this
+        # exemption, DRF's automatic check_object_permissions() (triggered
+        # by get_object() inside those actions) blocks every addend call
+        # with a 403 before the view code ever runs.
+        if getattr(view, "action", None) in ("sign", "addend"):
+            return True
+        # Otherwise: signed notes are read-only for everyone from this
+        # point forward (plain update/partial_update/destroy).
         if request.method not in permissions.SAFE_METHODS and obj.status == "signed":
             return False
         return True
