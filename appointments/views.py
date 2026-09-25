@@ -1,6 +1,14 @@
 # filepath: c:\Users\jsswp\source\poehr_scheduling\poehr_scheduling\appointments\views.py
 from rest_framework import viewsets, permissions
-from .models import Appointment, EnvironmentSetting, Holiday, ClinicEvent, AutoEmail, ClinicalNote
+from .models import (
+    Appointment,
+    EnvironmentSetting,
+    Holiday,
+    ClinicEvent,
+    AutoEmail,
+    ClinicalNote,
+    NoteTemplate,
+)
 from .serializers import (
     AppointmentSerializer,
     AvailabilitySerializer,
@@ -9,6 +17,7 @@ from .serializers import (
     ClinicEventSerializer,
     AutoEmailSerializer,
     ClinicalNoteSerializer,
+    NoteTemplateSerializer,
 )
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -1380,3 +1389,23 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only definitions of structured (non-SOAP) note types -- e.g.
+    Admission Note -- for the frontend to render a generic form from.
+
+    There is no create/update/delete here yet: templates are seeded via
+    data migration for now (Phase 1 of the note-builder engine). A future
+    configuration UI for admins to build/edit templates will add write
+    endpoints on top of this same model without changing how notes are
+    authored or rendered.
+    """
+
+    queryset = NoteTemplate.objects.filter(is_active=True).prefetch_related(
+        "fields", "fields__dictionary", "fields__dictionary__items"
+    )
+    serializer_class = NoteTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated, CanAccessClinicalNotes]
+    lookup_field = "code"

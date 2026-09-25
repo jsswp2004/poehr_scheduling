@@ -93,6 +93,7 @@ export const apiEndpoints = {
     clinicalNote: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/`,
     clinicalNoteSign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/sign/`,
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
+    noteTemplate: (code) => `${API_BASE_URL}/api/note-templates/${code}/`,
 
     // Authentication endpoints
     changePassword: `${API_BASE_URL}/api/auth/change-password/`,

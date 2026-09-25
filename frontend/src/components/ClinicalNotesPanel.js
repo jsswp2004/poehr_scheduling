@@ -19,6 +19,7 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
+import DynamicNoteForm, { DynamicNoteSummary } from "./DynamicNoteForm";
 
 const NOTE_TYPE_BY_ROLE = {
   doctor: "doctor_assessment",
@@ -38,7 +39,15 @@ const NOTE_TYPE_LABELS = {
 const DOCUMENTATION_TYPES = [
   { value: "initial_assessment", label: "Initial Assessment" },
   { value: "progress_note", label: "Progress Note" },
+  { value: "admission_note", label: "Admission Note" },
 ];
+
+// documentation_type values that are rendered from a configurable
+// NoteTemplate (DynamicNoteForm) instead of the fixed SOAP fields below.
+// This is the only place a new structured note type needs to be listed on
+// the frontend -- its actual fields live entirely in the NoteTemplate /
+// NoteFieldDefinition rows on the backend.
+const TEMPLATE_DRIVEN_TYPES = new Set(["admission_note"]);
 
 const EMPTY_FORM = {
   appointment: "",
@@ -48,6 +57,8 @@ const EMPTY_FORM = {
   objective: "",
   assessment: "",
   plan: "",
+  template: null,
+  structured_data: {},
 };
 
 // The shared `api` axios instance (frontend/src/api/client.js) has no
@@ -80,6 +91,12 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   const [draftId, setDraftId] = useState(null); // id of the note being drafted/edited
   const [amendsId, setAmendsId] = useState(null); // set when writing an addendum
   const [activeTab, setActiveTab] = useState("documentation");
+
+  // NoteTemplate definitions for template-driven documentation types
+  // (see TEMPLATE_DRIVEN_TYPES), keyed by code and cached across selections
+  // so switching back and forth doesn't re-fetch.
+  const [templatesByCode, setTemplatesByCode] = useState({});
+  const [templateLoading, setTemplateLoading] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!patientId) return;
@@ -125,9 +142,62 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     loadData();
   }, [loadData]);
 
+  // Whenever the selected documentation type is template-driven, fetch its
+  // NoteTemplate definition (fields + dictionary options) so DynamicNoteForm
+  // can render it, and record the template's id on the form so the backend
+  // can snapshot its current version at creation time. Cached by code so
+  // switching between types repeatedly doesn't keep re-fetching.
+  useEffect(() => {
+    const code = form.documentation_type;
+    if (!TEMPLATE_DRIVEN_TYPES.has(code)) {
+      if (form.template !== null) {
+        setForm((f) => ({ ...f, template: null }));
+      }
+      return;
+    }
+    if (templatesByCode[code]) {
+      if (form.template !== templatesByCode[code].id) {
+        setForm((f) => ({ ...f, template: templatesByCode[code].id }));
+      }
+      return;
+    }
+
+    let cancelled = false;
+    const fetchTemplate = async () => {
+      setTemplateLoading(true);
+      try {
+        const headers = await authHeader();
+        const res = await api.get(apiEndpoints.noteTemplate(code), { headers });
+        if (cancelled) return;
+        setTemplatesByCode((prev) => ({ ...prev, [code]: res.data }));
+        setForm((f) => (f.documentation_type === code ? { ...f, template: res.data.id } : f));
+      } catch (err) {
+        console.error(`Failed to load note template "${code}":`, err);
+        toast.error("Could not load the form for this documentation type.");
+      } finally {
+        if (!cancelled) setTemplateLoading(false);
+      }
+    };
+    fetchTemplate();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.documentation_type]);
+
   const canAuthor = ["doctor", "nurse", "admin", "system_admin"].includes(
     userRole
   );
+
+  const isTemplateDriven = TEMPLATE_DRIVEN_TYPES.has(form.documentation_type);
+  const currentTemplate = templatesByCode[form.documentation_type] || null;
+
+  const handleStructuredFieldChange = (key, value) => {
+    setForm((f) => ({
+      ...f,
+      structured_data: { ...f.structured_data, [key]: value },
+    }));
+  };
 
   if (!canAuthor && !loading && notes.length === 0) {
     // Not a clinical role and nothing to show -- render nothing at all.
@@ -145,7 +215,28 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     setAmendsId(null);
   };
 
+  const validateTemplateRequiredFields = () => {
+    if (!isTemplateDriven || !currentTemplate) return true;
+    const missing = (currentTemplate.fields || []).filter(
+      (f) => f.required && !form.structured_data[f.key] && form.structured_data[f.key] !== false
+    );
+    if (missing.length > 0) {
+      toast.error(`Please complete: ${missing.map((f) => f.label).join(", ")}`);
+      return false;
+    }
+    return true;
+  };
+
   const startAddendum = (note) => {
+    // Seed the template cache from the note's own snapshot so the form
+    // renders immediately without waiting on a fetch, if this documentation
+    // type hasn't been loaded yet in this session.
+    if (note.template_detail && !templatesByCode[note.documentation_type]) {
+      setTemplatesByCode((prev) => ({
+        ...prev,
+        [note.documentation_type]: note.template_detail,
+      }));
+    }
     setForm({
       appointment: note.appointment,
       note_type: note.note_type,
@@ -154,6 +245,8 @@ function ClinicalNotesPanel({ patientId, patientName }) {
       objective: "",
       assessment: "",
       plan: "",
+      template: note.template || null,
+      structured_data: {},
     });
     setDraftId(null);
     setAmendsId(note.id);
@@ -196,6 +289,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   };
 
   const signNote = async () => {
+    if (!validateTemplateRequiredFields()) return;
     setSaving(true);
     try {
       const headers = await authHeader();
@@ -317,42 +411,59 @@ function ClinicalNotesPanel({ patientId, patientName }) {
               />
             )}
 
-            <TextField
-              label="Subjective"
-              multiline
-              minRows={2}
-              fullWidth
-              value={form.subjective}
-              onChange={handleFieldChange("subjective")}
-              placeholder="What the patient reports (symptoms, concerns, history)"
-            />
-            <TextField
-              label="Objective"
-              multiline
-              minRows={2}
-              fullWidth
-              value={form.objective}
-              onChange={handleFieldChange("objective")}
-              placeholder="Observable/measurable findings (vitals, exam findings)"
-            />
-            <TextField
-              label="Assessment"
-              multiline
-              minRows={2}
-              fullWidth
-              value={form.assessment}
-              onChange={handleFieldChange("assessment")}
-              placeholder="Clinical impression / diagnosis"
-            />
-            <TextField
-              label="Plan"
-              multiline
-              minRows={2}
-              fullWidth
-              value={form.plan}
-              onChange={handleFieldChange("plan")}
-              placeholder="Next steps, orders, follow-up"
-            />
+            {isTemplateDriven ? (
+              templateLoading && !currentTemplate ? (
+                <Typography variant="body2" color="text.secondary">
+                  Loading {DOCUMENTATION_TYPES.find((dt) => dt.value === form.documentation_type)?.label} form...
+                </Typography>
+              ) : (
+                <DynamicNoteForm
+                  template={currentTemplate}
+                  values={form.structured_data}
+                  onChange={handleStructuredFieldChange}
+                  disabled={saving}
+                />
+              )
+            ) : (
+              <>
+                <TextField
+                  label="Subjective"
+                  multiline
+                  minRows={2}
+                  fullWidth
+                  value={form.subjective}
+                  onChange={handleFieldChange("subjective")}
+                  placeholder="What the patient reports (symptoms, concerns, history)"
+                />
+                <TextField
+                  label="Objective"
+                  multiline
+                  minRows={2}
+                  fullWidth
+                  value={form.objective}
+                  onChange={handleFieldChange("objective")}
+                  placeholder="Observable/measurable findings (vitals, exam findings)"
+                />
+                <TextField
+                  label="Assessment"
+                  multiline
+                  minRows={2}
+                  fullWidth
+                  value={form.assessment}
+                  onChange={handleFieldChange("assessment")}
+                  placeholder="Clinical impression / diagnosis"
+                />
+                <TextField
+                  label="Plan"
+                  multiline
+                  minRows={2}
+                  fullWidth
+                  value={form.plan}
+                  onChange={handleFieldChange("plan")}
+                  placeholder="Next steps, orders, follow-up"
+                />
+              </>
+            )}
 
             <Stack direction="row" spacing={2}>
               <Button
@@ -440,28 +551,39 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                     </Typography>
                   </Stack>
 
-                  <Box sx={{ display: "grid", gap: 0.5 }}>
-                    {note.subjective && (
-                      <Typography variant="body2">
-                        <strong>S:</strong> {note.subjective}
-                      </Typography>
-                    )}
-                    {note.objective && (
-                      <Typography variant="body2">
-                        <strong>O:</strong> {note.objective}
-                      </Typography>
-                    )}
-                    {note.assessment && (
-                      <Typography variant="body2">
-                        <strong>A:</strong> {note.assessment}
-                      </Typography>
-                    )}
-                    {note.plan && (
-                      <Typography variant="body2">
-                        <strong>P:</strong> {note.plan}
-                      </Typography>
-                    )}
-                  </Box>
+                  {note.template_detail ? (
+                    // Structured note: render strictly against the field
+                    // definitions the note was signed against
+                    // (note.template_detail), never the live/current
+                    // template -- see ClinicalNote.template_version.
+                    <DynamicNoteSummary
+                      templateDetail={note.template_detail}
+                      structuredData={note.structured_data}
+                    />
+                  ) : (
+                    <Box sx={{ display: "grid", gap: 0.5 }}>
+                      {note.subjective && (
+                        <Typography variant="body2">
+                          <strong>S:</strong> {note.subjective}
+                        </Typography>
+                      )}
+                      {note.objective && (
+                        <Typography variant="body2">
+                          <strong>O:</strong> {note.objective}
+                        </Typography>
+                      )}
+                      {note.assessment && (
+                        <Typography variant="body2">
+                          <strong>A:</strong> {note.assessment}
+                        </Typography>
+                      )}
+                      {note.plan && (
+                        <Typography variant="body2">
+                          <strong>P:</strong> {note.plan}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
 
                   {canAuthor && note.status === "signed" && (
                     <Button

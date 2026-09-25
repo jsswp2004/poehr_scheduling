@@ -282,6 +282,7 @@ class ClinicalNote(models.Model):
     DOCUMENTATION_TYPE_CHOICES = [
         ("initial_assessment", "Initial Assessment"),
         ("progress_note", "Progress Note"),
+        ("admission_note", "Admission Note"),
     ]
 
     organization = models.ForeignKey(
@@ -323,11 +324,40 @@ class ClinicalNote(models.Model):
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="draft")
 
-    # SOAP fields
+    # SOAP fields -- used by the legacy hardcoded SOAP note UI. Left as real
+    # columns (not folded into structured_data) since they're already live
+    # in production and reported on as-is.
     subjective = models.TextField(blank=True)
     objective = models.TextField(blank=True)
     assessment = models.TextField(blank=True)
     plan = models.TextField(blank=True)
+
+    # --- Configurable/structured note support -----------------------------
+    # A note authored against a NoteTemplate (e.g. Admission Note) stores its
+    # field values here instead of the fixed SOAP columns above. Keyed by
+    # NoteFieldDefinition.key. Free-form by design -- the template defines
+    # the shape, not the database schema, so new note types don't need a
+    # migration.
+    template = models.ForeignKey(
+        "appointments.NoteTemplate",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="notes",
+        help_text="The structured template this note was authored against, if any",
+    )
+    # Snapshot of template.version at the moment this note was created.
+    # Note History must always render a note against the field definitions
+    # that existed at signing time -- a template edited later (renamed
+    # field, changed dropdown options, removed a field) must never change
+    # how an already-signed note displays. Never recompute this from the
+    # live template.
+    template_version = models.PositiveIntegerField(null=True, blank=True)
+    structured_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Field values for a template-driven note, keyed by field key",
+    )
 
     # Corrections to a signed note happen by creating a new note that
     # references the original here — the original is never edited in place.
@@ -348,3 +378,139 @@ class ClinicalNote(models.Model):
 
     def __str__(self):
         return f"{self.get_note_type_display()} for {self.patient} ({self.status})"
+
+
+class Dictionary(models.Model):
+    """
+    A reusable reference/lookup list (e.g. "ROS findings", "allergy
+    severity") that a NoteFieldDefinition of type 'radio' or 'dropdown'
+    can point to. Analogous to a Sunrise data dictionary.
+    """
+
+    code = models.SlugField(
+        max_length=64,
+        unique=True,
+        help_text="Stable machine key, e.g. 'ros_findings'",
+    )
+    name = models.CharField(max_length=128)
+    description = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name_plural = "Dictionaries"
+
+    def __str__(self):
+        return self.name
+
+
+class DictionaryItem(models.Model):
+    """A single selectable option belonging to a Dictionary."""
+
+    dictionary = models.ForeignKey(
+        Dictionary, on_delete=models.CASCADE, related_name="items"
+    )
+    value = models.CharField(
+        max_length=100, help_text="Stored value, e.g. 'penicillin'"
+    )
+    label = models.CharField(
+        max_length=200, help_text="Display label, e.g. 'Penicillin'"
+    )
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["dictionary", "sort_order", "label"]
+        unique_together = ["dictionary", "value"]
+
+    def __str__(self):
+        return f"{self.label} ({self.dictionary.code})"
+
+
+class NoteTemplate(models.Model):
+    """
+    Defines a structured (non-SOAP) clinical note type -- e.g. "Admission
+    Note" -- as an ordered set of NoteFieldDefinitions rather than a
+    hardcoded React form. Analogous to a Sunrise Clinical Manager
+    configuration-module document/observation-set definition.
+
+    `version` must be incremented whenever an existing field definition is
+    changed or removed (adding a new optional field at the end is usually
+    safe without a version bump, but bump it if in doubt). Notes store the
+    version they were created against in ClinicalNote.template_version so
+    that editing a template never changes how already-signed notes render.
+    """
+
+    code = models.SlugField(
+        max_length=64,
+        unique=True,
+        help_text="Stable machine key, matches ClinicalNote.documentation_type, e.g. 'admission_note'",
+    )
+    name = models.CharField(max_length=128, help_text="Display name, e.g. 'Admission Note'")
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="note_templates",
+        null=True,
+        blank=True,
+        help_text="Leave blank for a template available to all organizations",
+    )
+    version = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} (v{self.version})"
+
+
+class NoteFieldDefinition(models.Model):
+    """
+    A single configurable field within a NoteTemplate -- the equivalent of
+    a Sunrise observation item. `field_type` decides how the frontend
+    renders it and, for 'radio'/'dropdown', `dictionary` supplies the
+    selectable options.
+    """
+
+    FIELD_TYPE_CHOICES = [
+        ("text", "Single-line Text"),
+        ("textarea", "Multi-line Text"),
+        ("radio", "Radio Button (dictionary)"),
+        ("dropdown", "Dropdown (dictionary)"),
+        ("checkbox", "Checkbox (yes/no)"),
+        ("numeric", "Numeric"),
+        ("date", "Date"),
+    ]
+
+    template = models.ForeignKey(
+        NoteTemplate, on_delete=models.CASCADE, related_name="fields"
+    )
+    section_label = models.CharField(
+        max_length=128,
+        blank=True,
+        help_text="Groups fields under a heading in the rendered form, e.g. 'History'",
+    )
+    key = models.SlugField(
+        max_length=64,
+        help_text="Stable key this field's value is stored under in structured_data",
+    )
+    label = models.CharField(max_length=200)
+    field_type = models.CharField(max_length=20, choices=FIELD_TYPE_CHOICES)
+    dictionary = models.ForeignKey(
+        Dictionary,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Required when field_type is 'radio' or 'dropdown'",
+    )
+    required = models.BooleanField(default=False)
+    sort_order = models.PositiveIntegerField(default=0)
+    help_text = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["template", "sort_order"]
+        unique_together = ["template", "key"]
+
+    def __str__(self):
+        return f"{self.template.code}.{self.key}"

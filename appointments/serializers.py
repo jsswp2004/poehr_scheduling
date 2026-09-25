@@ -7,6 +7,10 @@ from .models import (
     ClinicEvent,
     AutoEmail,
     ClinicalNote,
+    Dictionary,
+    DictionaryItem,
+    NoteTemplate,
+    NoteFieldDefinition,
 )
 import logging
 
@@ -170,6 +174,54 @@ class AutoEmailSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class DictionaryItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DictionaryItem
+        fields = ["id", "value", "label", "sort_order"]
+
+
+class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
+    # Only relevant for field_type in ('radio', 'dropdown') -- the ordered
+    # list of selectable options from this field's linked Dictionary.
+    options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NoteFieldDefinition
+        fields = [
+            "id",
+            "section_label",
+            "key",
+            "label",
+            "field_type",
+            "required",
+            "sort_order",
+            "help_text",
+            "options",
+        ]
+
+    def get_options(self, obj):
+        if not obj.dictionary_id:
+            return []
+        return DictionaryItemSerializer(
+            obj.dictionary.items.all().order_by("sort_order", "label"), many=True
+        ).data
+
+
+class NoteTemplateSerializer(serializers.ModelSerializer):
+    """
+    Read-only definition of a structured note type, used by the frontend to
+    render a generic form. `fields` are pre-ordered by sort_order and each
+    dropdown/radio field carries its dictionary options inline so the
+    frontend never needs a second round trip per field.
+    """
+
+    fields = NoteFieldDefinitionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = NoteTemplate
+        fields = ["id", "code", "name", "version", "is_active", "fields"]
+
+
 class ClinicalNoteSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     author_name = serializers.SerializerMethodField()
@@ -180,6 +232,10 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     documentation_type_display = serializers.CharField(
         source="get_documentation_type_display", read_only=True
     )
+    # Full template definition (fields + dictionary options), included so
+    # Note History can render a structured note without a second fetch.
+    # None for legacy SOAP notes (template is null).
+    template_detail = NoteTemplateSerializer(source="template", read_only=True)
 
     class Meta:
         model = ClinicalNote
@@ -202,6 +258,10 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "objective",
             "assessment",
             "plan",
+            "template",
+            "template_detail",
+            "template_version",
+            "structured_data",
             "amends",
             "created_at",
             "updated_at",
@@ -213,6 +273,7 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "author",
             "author_role_at_signing",
             "status",
+            "template_version",
             "signed_at",
             "created_at",
             "updated_at",
@@ -254,6 +315,15 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
         validated_data["organization"] = appointment.organization
         validated_data["author"] = user
         validated_data["author_role_at_signing"] = getattr(user, "role", "")
+
+        # Snapshot the template's current version at creation time so that
+        # editing the template later (via the future configuration UI) can
+        # never change how this note renders in Note History. Never
+        # recompute this from the live template after creation.
+        template = validated_data.get("template")
+        if template is not None:
+            validated_data["template_version"] = template.version
+
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
