@@ -416,6 +416,17 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                         size="small"
                         color={note.note_type === "doctor_assessment" ? "primary" : "secondary"}
                       />
+                      {note.documentation_type && (
+                        <Chip
+                          label={
+                            note.documentation_type_display ||
+                            DOCUMENTATION_TYPES.find((dt) => dt.value === note.documentation_type)
+                              ?.label
+                          }
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
                       <Chip
                         label={note.status === "signed" ? "Signed" : "Draft"}
                         size="small"
