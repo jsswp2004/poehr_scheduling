@@ -55,7 +55,8 @@ function AppointmentsPage() {
         role !== "doctor" &&
         role !== "registrar" &&
         role !== "admin" &&
-        role !== "system_admin"
+        role !== "system_admin" &&
+        role !== "nurse"
       ) {
         navigate("/");
       }

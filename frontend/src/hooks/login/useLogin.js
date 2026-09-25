@@ -92,6 +92,9 @@ export const useLogin = () => {
             } else if (userRole === 'doctor') {
                 console.log('Login Debug - Doctor detected, going to /patients');
                 navigate('/patients');
+            } else if (userRole === 'nurse') {
+                console.log('Login Debug - Nurse detected, going to /patients');
+                navigate('/patients');
             } else if (userRole === 'registrar') {
                 console.log('Login Debug - Registrar detected, going to /patients');
                 navigate('/patients');

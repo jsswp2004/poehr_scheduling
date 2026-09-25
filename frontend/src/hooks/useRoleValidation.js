@@ -30,7 +30,8 @@ export const useRoleValidation = (navigate) => {
                     role !== "system_admin" &&
                     role !== "doctor" &&
                     role !== "registrar" &&
-                    role !== "receptionist"
+                    role !== "receptionist" &&
+                    role !== "nurse"
                 ) {
                     console.log(`❌ Access denied for role: ${role}`);
                     navigate('/');
@@ -83,7 +84,8 @@ export const useRoleValidation = (navigate) => {
                     role !== "system_admin" &&
                     role !== "doctor" &&
                     role !== "registrar" &&
-                    role !== "receptionist"
+                    role !== "receptionist" &&
+                    role !== "nurse"
                 ) {
                     console.log(`❌ Access denied for role: ${role}`);
                     navigate('/');
