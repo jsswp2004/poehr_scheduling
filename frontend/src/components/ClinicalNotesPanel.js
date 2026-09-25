@@ -38,6 +38,17 @@ const EMPTY_FORM = {
   plan: "",
 };
 
+// The shared `api` axios instance (frontend/src/api/client.js) has no
+// request interceptor of its own -- Authorization headers must be attached
+// explicitly per-call, matching the convention used by usePatientData,
+// useDoctorsData, and useOrganizationsData. Without this, every request
+// from this panel returns 401 even with a valid, freshly-issued token.
+const authHeader = async () => {
+  const token = await getValidToken();
+  if (!token) return {};
+  return { Authorization: `Bearer ${token.access_token || token}` };
+};
+
 /**
  * Clinical documentation panel for a single patient: SOAP-structured
  * nursing/doctor assessments tied to a specific appointment.
@@ -61,9 +72,10 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     if (!patientId) return;
     setLoading(true);
     try {
+      const headers = await authHeader();
       const [apptRes, notesRes] = await Promise.all([
-        api.get(`/api/appointments/?patient=${patientId}`),
-        api.get(`/api/clinical-notes/?patient=${patientId}`),
+        api.get(`/api/appointments/?patient=${patientId}`, { headers }),
+        api.get(`/api/clinical-notes/?patient=${patientId}`, { headers }),
       ]);
       const apptList = Array.isArray(apptRes.data)
         ? apptRes.data
@@ -141,16 +153,17 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     }
     setSaving(true);
     try {
+      const headers = await authHeader();
       if (amendsId) {
-        const res = await api.post(apiEndpoints.clinicalNoteAddend(amendsId), form);
+        const res = await api.post(apiEndpoints.clinicalNoteAddend(amendsId), form, { headers });
         setDraftId(res.data.id);
         toast.success("Addendum draft saved.");
       } else if (draftId) {
-        const res = await api.patch(apiEndpoints.clinicalNote(draftId), form);
+        const res = await api.patch(apiEndpoints.clinicalNote(draftId), form, { headers });
         setDraftId(res.data.id);
         toast.success("Draft updated.");
       } else {
-        const res = await api.post(apiEndpoints.clinicalNotes, form);
+        const res = await api.post(apiEndpoints.clinicalNotes, form, { headers });
         setDraftId(res.data.id);
         toast.success("Draft saved.");
       }
@@ -170,6 +183,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   const signNote = async () => {
     setSaving(true);
     try {
+      const headers = await authHeader();
       let id = draftId;
       if (!id) {
         // No draft saved yet -- create it first, then sign immediately.
@@ -179,11 +193,11 @@ function ClinicalNotesPanel({ patientId, patientName }) {
           return;
         }
         const createRes = amendsId
-          ? await api.post(apiEndpoints.clinicalNoteAddend(amendsId), form)
-          : await api.post(apiEndpoints.clinicalNotes, form);
+          ? await api.post(apiEndpoints.clinicalNoteAddend(amendsId), form, { headers })
+          : await api.post(apiEndpoints.clinicalNotes, form, { headers });
         id = createRes.data.id;
       }
-      await api.post(apiEndpoints.clinicalNoteSign(id));
+      await api.post(apiEndpoints.clinicalNoteSign(id), null, { headers });
       toast.success("Note signed and locked.");
       resetForm();
       await loadData();
