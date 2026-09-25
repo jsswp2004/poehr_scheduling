@@ -181,9 +181,14 @@ class DictionaryItemSerializer(serializers.ModelSerializer):
 
 
 class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
-    # Only relevant for field_type in ('radio', 'dropdown') -- the ordered
-    # list of selectable options from this field's linked Dictionary.
+    # Only relevant for field_type in ('radio', 'dropdown', 'multiselect')
+    # -- the ordered list of selectable options from this field's linked
+    # Dictionary.
     options = serializers.SerializerMethodField()
+    # The *key* (not the numeric id) of the field this one depends on, so
+    # the frontend can evaluate visibility against structured_data purely
+    # by key without a second lookup. None when always visible.
+    depends_on_key = serializers.SerializerMethodField()
 
     class Meta:
         model = NoteFieldDefinition
@@ -197,6 +202,8 @@ class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
             "sort_order",
             "help_text",
             "options",
+            "depends_on_key",
+            "depends_on_value",
         ]
 
     def get_options(self, obj):
@@ -205,6 +212,9 @@ class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
         return DictionaryItemSerializer(
             obj.dictionary.items.all().order_by("sort_order", "label"), many=True
         ).data
+
+    def get_depends_on_key(self, obj):
+        return obj.depends_on.key if obj.depends_on_id else None
 
 
 class NoteTemplateSerializer(serializers.ModelSerializer):

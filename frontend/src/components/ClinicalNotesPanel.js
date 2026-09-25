@@ -19,7 +19,7 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
-import DynamicNoteForm, { DynamicNoteSummary } from "./DynamicNoteForm";
+import DynamicNoteForm, { DynamicNoteSummary, isFieldVisible } from "./DynamicNoteForm";
 
 const NOTE_TYPE_BY_ROLE = {
   doctor: "doctor_assessment",
@@ -218,7 +218,11 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   const validateTemplateRequiredFields = () => {
     if (!isTemplateDriven || !currentTemplate) return true;
     const missing = (currentTemplate.fields || []).filter(
-      (f) => f.required && !form.structured_data[f.key] && form.structured_data[f.key] !== false
+      (f) =>
+        f.required &&
+        isFieldVisible(f, form.structured_data) &&
+        !form.structured_data[f.key] &&
+        form.structured_data[f.key] !== false
     );
     if (missing.length > 0) {
       toast.error(`Please complete: ${missing.map((f) => f.label).join(", ")}`);
