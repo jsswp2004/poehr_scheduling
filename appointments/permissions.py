@@ -58,10 +58,17 @@ class CanAuthorClinicalNoteType(permissions.BasePermission):
     Enforces that a nurse can only author 'nursing_assessment' notes and a
     doctor can only author 'doctor_assessment' notes. Admins/system_admins
     may author either (useful for demo/testing and correcting data).
+
+    This only applies to the ViewSet's `create` action (a plain POST to the
+    list endpoint, i.e. "save draft" / "sign immediately without a draft").
+    It must NOT run against the custom `sign` / `addend` @action POST
+    endpoints: `sign` sends no body at all (so note_type is always None,
+    which would deny every sign request for doctors/nurses), and `addend`
+    already forces note_type server-side from the original note.
     """
 
     def has_permission(self, request, view):
-        if request.method != "POST":
+        if getattr(view, "action", None) != "create":
             return True
         user = request.user
         note_type = request.data.get("note_type")
