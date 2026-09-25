@@ -1397,11 +1397,6 @@ function PatientDetailPage() {
                 variant="outlined"
                 color="warning"
                 onClick={handleResetPassword}
-
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={handleResetPassword}
                 sx={{
                   borderColor: "#ff9800",
                   color: "#ff9800",
