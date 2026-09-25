@@ -353,6 +353,16 @@ class ClinicalNote(models.Model):
     # how an already-signed note displays. Never recompute this from the
     # live template.
     template_version = models.PositiveIntegerField(null=True, blank=True)
+    # Frozen copy of the template's field definitions (same shape as
+    # NoteTemplateSerializer's output: sections, labels, field types,
+    # dictionary options, depends_on wiring) taken the moment this note was
+    # created. Note History renders against THIS, never the live template --
+    # so an admin editing the template later (via the note-builder
+    # configuration UI) can never change how an already-signed note
+    # displays, even if a field was renamed, retyped, or removed since.
+    # Empty for notes created before this field existed; those fall back to
+    # the live template in ClinicalNoteSerializer.get_template_detail.
+    template_snapshot = models.JSONField(default=dict, blank=True)
     structured_data = models.JSONField(
         default=dict,
         blank=True,

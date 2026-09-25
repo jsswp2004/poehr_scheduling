@@ -52,6 +52,14 @@ export const useAdminPage = () => {
             path: '/messages',
             color: 'warning',
             requiredRoles: ['admin', 'system_admin', 'registrar']
+        },
+        {
+            id: 'note-builder',
+            label: 'Note Builder',
+            icon: 'FaClipboardList',
+            path: '/note-builder',
+            color: 'primary',
+            requiredRoles: ['admin', 'system_admin']
         }
     ];
 

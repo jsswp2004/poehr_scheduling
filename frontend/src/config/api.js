@@ -95,6 +95,12 @@ export const apiEndpoints = {
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
     noteTemplate: (code) => `${API_BASE_URL}/api/note-templates/${code}/`,
 
+    // Note-builder configuration UI (Phase 2, admin-only)
+    noteTemplatesAdmin: `${API_BASE_URL}/api/admin/note-templates/`,
+    noteTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/note-templates/${code}/`,
+    dictionariesAdmin: `${API_BASE_URL}/api/admin/dictionaries/`,
+    dictionaryAdmin: (id) => `${API_BASE_URL}/api/admin/dictionaries/${id}/`,
+
     // Authentication endpoints
     changePassword: `${API_BASE_URL}/api/auth/change-password/`,
     adminChangePassword: `${API_BASE_URL}/api/users/admin-change-password/`,
