@@ -1421,7 +1421,7 @@ function PatientDetailPage() {
       )}
 
       <ClinicalNotesPanel
-        patientId={patient.user_id}
+        patientId={patient.user_id || patient.id}
         patientName={`${patient.first_name} ${patient.last_name}`}
       />
     </Box>
