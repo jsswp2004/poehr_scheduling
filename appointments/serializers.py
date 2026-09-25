@@ -174,7 +174,12 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     author_name = serializers.SerializerMethodField()
     author_role = serializers.SerializerMethodField()
-    note_type_display = serializers.CharField(source="get_note_type_display", read_only=True)
+    note_type_display = serializers.CharField(
+        source="get_note_type_display", read_only=True
+    )
+    documentation_type_display = serializers.CharField(
+        source="get_documentation_type_display", read_only=True
+    )
 
     class Meta:
         model = ClinicalNote
@@ -190,6 +195,8 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             "author_role_at_signing",
             "note_type",
             "note_type_display",
+            "documentation_type",
+            "documentation_type_display",
             "status",
             "subjective",
             "objective",
@@ -212,10 +219,16 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
         ]
 
     def get_patient_name(self, obj):
-        return f"{obj.patient.first_name} {obj.patient.last_name}".strip() or obj.patient.username
+        return (
+            f"{obj.patient.first_name} {obj.patient.last_name}".strip()
+            or obj.patient.username
+        )
 
     def get_author_name(self, obj):
-        return f"{obj.author.first_name} {obj.author.last_name}".strip() or obj.author.username
+        return (
+            f"{obj.author.first_name} {obj.author.last_name}".strip()
+            or obj.author.username
+        )
 
     def get_author_role(self, obj):
         return obj.author_role_at_signing or getattr(obj.author, "role", "")
@@ -223,9 +236,13 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     def validate(self, data):
         # A note being created must always resolve patient/org from the
         # appointment, never trust a client-supplied patient/organization.
-        appointment = data.get("appointment") or getattr(self.instance, "appointment", None)
+        appointment = data.get("appointment") or getattr(
+            self.instance, "appointment", None
+        )
         if appointment is None:
-            raise serializers.ValidationError({"appointment": "This field is required."})
+            raise serializers.ValidationError(
+                {"appointment": "This field is required."}
+            )
         return data
 
     def create(self, validated_data):

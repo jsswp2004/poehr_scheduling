@@ -276,6 +276,13 @@ class ClinicalNote(models.Model):
         ("draft", "Draft"),
         ("signed", "Signed"),
     ]
+    # Further classification of the note itself (distinct from note_type,
+    # which tracks the author's clinical role). Currently only used by
+    # physicians; more types can be added here as they're defined.
+    DOCUMENTATION_TYPE_CHOICES = [
+        ("initial_assessment", "Initial Assessment"),
+        ("progress_note", "Progress Note"),
+    ]
 
     organization = models.ForeignKey(
         Organization,
@@ -308,9 +315,13 @@ class ClinicalNote(models.Model):
     )
 
     note_type = models.CharField(max_length=30, choices=NOTE_TYPE_CHOICES)
-    status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, default="draft"
+    documentation_type = models.CharField(
+        max_length=30,
+        choices=DOCUMENTATION_TYPE_CHOICES,
+        blank=True,
+        help_text="Further classification of the note (e.g. Initial Assessment, Progress Note)",
     )
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="draft")
 
     # SOAP fields
     subjective = models.TextField(blank=True)
