@@ -714,16 +714,17 @@ def get_patients(request):
     """
     Returns a paginated list of patients:
     - If doctor: only assigned patients
-    - If registrar/admin: all patients in their org
+    - If nurse/registrar/admin: all patients in their org
     - If system_admin: all patients (all orgs)
     Supports search and provider filtering."""
+
     try:
         user = request.user
         logger.info(
             f"🔍 get_patients called by user: {user.username} (role: {user.role})"
         )
 
-        if user.role not in ["doctor", "registrar", "admin", "system_admin"]:
+        if user.role not in ["doctor", "nurse", "registrar", "admin", "system_admin"]:
             logger.warning(
                 f"❌ Access denied for user {user.username} with role {user.role}"
             )
@@ -738,7 +739,9 @@ def get_patients(request):
                 "user", "user__provider", "organization"
             ).all()
         else:
-            # registrar or admin
+            # nurse, registrar, or admin -- all patients in their org. Nurses
+            # aren't tied to one doctor's panel the way doctors are, so they
+            # get the same org-wide view as registrar/admin.
             patients = Patient.objects.select_related(
                 "user", "user__provider", "organization"
             ).filter(user__organization=user.organization)
