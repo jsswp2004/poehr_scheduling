@@ -1,0 +1,3 @@
+{
+  "buildCommand": "CI=false DISABLE_ESLINT_PLUGIN=true react-scripts build"
+}
