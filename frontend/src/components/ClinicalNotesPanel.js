@@ -392,7 +392,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
 
       {currentTab === "documentation" && canAuthor && (
         <Grid container spacing={3} sx={{ mb: 1 }}>
-        <Grid item xs={12} md={7}>
+        <Grid size={{ xs: 12, md: 7 }}>
           {amendsId && (
             <Chip
               label="Writing an addendum to a signed note"
@@ -538,7 +538,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
           </Stack>
         </Grid>
 
-        <Grid item xs={12} md={5}>
+        <Grid size={{ xs: 12, md: 5 }}>
           <NotePreviewPane title={previewTitle} meta={previewMeta} sections={previewSections} />
         </Grid>
         </Grid>
