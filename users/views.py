@@ -877,14 +877,18 @@ def search_users(request):
 
     query = request.GET.get("q", "")
 
-    # Base query filter for all searches
+    # Base query filter for all searches -- matches the user's OWN fields
+    # only. organization__name__icontains was here too, but that made a
+    # query matching the org's own name (e.g. "Demo" against "Riverside
+    # Family Clinic (Demo)") return every user in the org regardless of
+    # whether their own name/username/email/role had anything to do with
+    # the search term -- surprising, not a real search.
     search_filter = (
         Q(username__icontains=query)
         | Q(email__icontains=query)
         | Q(first_name__icontains=query)
         | Q(last_name__icontains=query)
         | Q(role__icontains=query)
-        | Q(organization__name__icontains=query)
     )
 
     # For system_admin, allow searching all users across organizations
