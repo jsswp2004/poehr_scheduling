@@ -174,7 +174,7 @@ function PatientsTable({
                                                 </IconButton>
                                             </Tooltip>
 
-                                            <Tooltip title="Vital Signs Flowsheet">
+                                            <Tooltip title="Flowsheet">
                                                 <IconButton
                                                     size="small"
                                                     onClick={() => navigate(`/patients/${patient.user_id}/flowsheet`)}
