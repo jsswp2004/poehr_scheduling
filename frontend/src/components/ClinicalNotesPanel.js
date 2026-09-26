@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Grid,
@@ -101,9 +102,14 @@ const authHeader = async () => {
  * role itself as a second line of defense.
  */
 function ClinicalNotesPanel({ patientId, patientName }) {
+  const navigate = useNavigate();
   const [userRole, setUserRole] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [notes, setNotes] = useState([]);
+  // Vital Signs Flowsheet instances for this patient -- merged into the same
+  // Note History table as clinical notes, per the requirement that every
+  // flowsheet also shows up there alongside SOAP/template notes.
+  const [flowsheets, setFlowsheets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -118,10 +124,11 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   const [templatesByCode, setTemplatesByCode] = useState({});
   const [templateLoading, setTemplateLoading] = useState(false);
 
-  // Note History: id of the row currently shown in the read-only preview
-  // pane, and the note (if any) pending delete confirmation.
-  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
-  const [deletingNote, setDeletingNote] = useState(null);
+  // Note History: key of the row currently shown in the read-only preview
+  // pane (e.g. "note-12" or "flowsheet-3"), and the history item (note or
+  // flowsheet, if any) pending delete confirmation.
+  const [selectedHistoryKey, setSelectedHistoryKey] = useState(null);
+  const [deletingHistoryItem, setDeletingHistoryItem] = useState(null); // { kind: "note" | "flowsheet", raw }
   const [deleteSaving, setDeleteSaving] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -129,9 +136,13 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     setLoading(true);
     try {
       const headers = await authHeader();
-      const [apptRes, notesRes] = await Promise.all([
+      const [apptRes, notesRes, flowsheetsRes] = await Promise.all([
         api.get(`/api/appointments/?patient=${patientId}`, { headers }),
         api.get(`/api/clinical-notes/?patient=${patientId}`, { headers }),
+        api.get(apiEndpoints.vitalSignsFlowsheets, {
+          headers,
+          params: { patient: patientId },
+        }),
       ]);
       const apptList = Array.isArray(apptRes.data)
         ? apptRes.data
@@ -139,8 +150,12 @@ function ClinicalNotesPanel({ patientId, patientName }) {
       const noteList = Array.isArray(notesRes.data)
         ? notesRes.data
         : notesRes.data?.results || [];
+      const flowsheetList = Array.isArray(flowsheetsRes.data)
+        ? flowsheetsRes.data
+        : flowsheetsRes.data?.results || [];
       setAppointments(apptList);
       setNotes(noteList);
+      setFlowsheets(flowsheetList);
     } catch (err) {
       console.error("Failed to load clinical notes data:", err);
       toast.error("Could not load clinical notes.");
@@ -255,18 +270,66 @@ function ClinicalNotesPanel({ patientId, patientName }) {
         },
       ];
 
-  // Note History: the row currently shown in the preview pane -- the
-  // selected row if it still exists in the loaded notes, otherwise the most
-  // recent note (notes arrive newest-first from the backend), so the pane
-  // is never blank while notes exist.
+  // Note History: notes and flowsheets merged into one newest-first list,
+  // each row tagged with a `kind` so the table and preview pane can render
+  // either shape. Sorted by the note's created_at / the flowsheet's most
+  // recent update, so an actively-charted flowsheet surfaces near the top
+  // just like a freshly drafted note would.
+  const historyRows = [
+    ...notes.map((n) => ({
+      key: `note-${n.id}`,
+      kind: "note",
+      sortTime: new Date(n.created_at).getTime(),
+      raw: n,
+    })),
+    ...flowsheets.map((f) => ({
+      key: `flowsheet-${f.id}`,
+      kind: "flowsheet",
+      sortTime: new Date(f.updated_at || f.created_at).getTime(),
+      raw: f,
+    })),
+  ].sort((a, b) => b.sortTime - a.sortTime);
+
+  // The row currently shown in the preview pane -- the selected row if it
+  // still exists in the loaded history, otherwise the most recent item, so
+  // the pane is never blank while there's anything to show.
+  const selectedHistoryRow =
+    historyRows.find((r) => r.key === selectedHistoryKey) || historyRows[0] || null;
   const selectedHistoryNote =
-    notes.find((n) => n.id === selectedHistoryId) || notes[0] || null;
+    selectedHistoryRow?.kind === "note" ? selectedHistoryRow.raw : null;
+  const selectedHistoryFlowsheet =
+    selectedHistoryRow?.kind === "flowsheet" ? selectedHistoryRow.raw : null;
+
+  const buildFlowsheetPreviewSections = (flowsheet) => {
+    const rowDefs = flowsheet.row_definitions || [];
+    const sortedCols = [...(flowsheet.columns || [])].sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+    );
+    const latestCol = sortedCols[sortedCols.length - 1];
+    return [
+      {
+        tabLabel: "",
+        sections: rowDefs.map((section) => ({
+          sectionLabel: section.section,
+          entries: section.rows.map((row) => {
+            const rawValue = latestCol
+              ? flowsheet.data?.[row.key]?.[latestCol.id]
+              : undefined;
+            const display = rawValue ? `${rawValue}${row.unit ? ` ${row.unit}` : ""}` : "";
+            return { label: row.label, display, empty: !display };
+          }),
+        })),
+      },
+    ];
+  };
 
   const historyPreviewTitle = selectedHistoryNote
     ? selectedHistoryNote.documentation_type_display ||
       DOCUMENTATION_TYPES.find((dt) => dt.value === selectedHistoryNote.documentation_type)
         ?.label ||
       "Clinical Note"
+    : selectedHistoryFlowsheet
+    ? "Vital Sign Flowsheet"
     : "Clinical Note";
 
   const historyPreviewMeta = selectedHistoryNote
@@ -282,6 +345,27 @@ function ClinicalNotesPanel({ patientId, patientName }) {
               selectedHistoryNote.created_at
             ).toLocaleString()}`,
       ]
+    : selectedHistoryFlowsheet
+    ? (() => {
+        const flowsheetAppointment = appointments.find(
+          (a) => a.id === selectedHistoryFlowsheet.appointment
+        );
+        const timeCount = (selectedHistoryFlowsheet.columns || []).length;
+        return [
+          patientName ? `Patient: ${patientName}` : null,
+          flowsheetAppointment
+            ? `${flowsheetAppointment.title} - ${new Date(
+                flowsheetAppointment.appointment_datetime
+              ).toLocaleString()}`
+            : null,
+          `${timeCount} time point${timeCount === 1 ? "" : "s"} charted`,
+          selectedHistoryFlowsheet.created_by_name
+            ? `Started by ${selectedHistoryFlowsheet.created_by_name} - ${new Date(
+                selectedHistoryFlowsheet.created_at
+              ).toLocaleString()}`
+            : null,
+        ];
+      })()
     : [];
 
   const historyPreviewSections = selectedHistoryNote
@@ -322,6 +406,8 @@ function ClinicalNotesPanel({ patientId, patientName }) {
             ],
           },
         ]
+    : selectedHistoryFlowsheet
+    ? buildFlowsheetPreviewSections(selectedHistoryFlowsheet)
     : [];
 
   // Loads an existing DRAFT note back into the documentation form for
@@ -354,27 +440,42 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const confirmDeleteNote = async () => {
-    if (!deletingNote) return;
+  const confirmDeleteHistoryItem = async () => {
+    if (!deletingHistoryItem) return;
+    const { kind, raw } = deletingHistoryItem;
     setDeleteSaving(true);
     try {
       const headers = await authHeader();
-      await api.delete(apiEndpoints.clinicalNote(deletingNote.id), { headers });
-      toast.success("Draft note deleted.");
-      if (draftId === deletingNote.id) resetForm();
-      if (selectedHistoryId === deletingNote.id) setSelectedHistoryId(null);
-      setDeletingNote(null);
+      if (kind === "flowsheet") {
+        await api.delete(apiEndpoints.vitalSignsFlowsheet(raw.id), { headers });
+        toast.success("Flowsheet deleted.");
+        if (selectedHistoryKey === `flowsheet-${raw.id}`) setSelectedHistoryKey(null);
+      } else {
+        await api.delete(apiEndpoints.clinicalNote(raw.id), { headers });
+        toast.success("Draft note deleted.");
+        if (draftId === raw.id) resetForm();
+        if (selectedHistoryKey === `note-${raw.id}`) setSelectedHistoryKey(null);
+      }
+      setDeletingHistoryItem(null);
       await loadData();
     } catch (err) {
-      console.error("Failed to delete clinical note:", err);
+      console.error("Failed to delete history item:", err);
       const detail =
         err?.response?.data?.detail ||
         JSON.stringify(err?.response?.data) ||
-        "Failed to delete note.";
+        `Failed to delete ${kind === "flowsheet" ? "flowsheet" : "note"}.`;
       toast.error(detail);
     } finally {
       setDeleteSaving(false);
     }
+  };
+
+  // Edit action for a flowsheet row: deep-links into the standalone
+  // Flowsheets page for this patient with the owning visit preselected,
+  // mirroring startEditDraft's role for note rows (which edits in place,
+  // since Clinical Notes' documentation form lives on this same page).
+  const editFlowsheet = (flowsheet) => {
+    navigate(`/patients/${patientId}/flowsheet?appointment=${flowsheet.appointment}`);
   };
 
   const handleStructuredFieldChange = (key, value) => {
@@ -384,7 +485,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     }));
   };
 
-  if (!canAuthor && !loading && notes.length === 0) {
+  if (!canAuthor && !loading && notes.length === 0 && flowsheets.length === 0) {
     // Not a clinical role and nothing to show -- render nothing at all.
     return null;
   }
@@ -698,7 +799,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
             <Typography variant="body2" color="text.secondary">
               Loading notes...
             </Typography>
-          ) : notes.length === 0 ? (
+          ) : historyRows.length === 0 ? (
             <Typography variant="body2" color="text.secondary">
               No clinical notes yet for this patient.
             </Typography>
@@ -718,9 +819,65 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {notes.map((note) => {
-                        const isSelected =
-                          (selectedHistoryNote && selectedHistoryNote.id) === note.id;
+                      {historyRows.map((row) => {
+                        const isSelected = selectedHistoryRow?.key === row.key;
+
+                        if (row.kind === "flowsheet") {
+                          const flowsheet = row.raw;
+                          const timeCount = (flowsheet.columns || []).length;
+                          return (
+                            <TableRow
+                              key={row.key}
+                              hover
+                              selected={isSelected}
+                              onClick={() => setSelectedHistoryKey(row.key)}
+                              sx={{ cursor: "pointer" }}
+                            >
+                              <TableCell>
+                                <Chip label="Flowsheet" size="small" color="info" />
+                              </TableCell>
+                              <TableCell>
+                                Vital Sign Flowsheet
+                                <Chip
+                                  label={`${timeCount} pt${timeCount === 1 ? "" : "s"}`}
+                                  size="small"
+                                  sx={{ ml: 1 }}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Chip label="Active" size="small" color="default" />
+                              </TableCell>
+                              <TableCell>
+                                {new Date(flowsheet.created_at).toLocaleDateString()}
+                              </TableCell>
+                              <TableCell>{flowsheet.created_by_name}</TableCell>
+                              {canAuthor && (
+                                <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                                  <Tooltip title="Edit this flowsheet">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => editFlowsheet(flowsheet)}
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete this flowsheet">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        setDeletingHistoryItem({ kind: "flowsheet", raw: flowsheet })
+                                      }
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </TableCell>
+                              )}
+                            </TableRow>
+                          );
+                        }
+
+                        const note = row.raw;
                         const isDraft = note.status !== "signed";
                         const documentLabel =
                           note.documentation_type_display ||
@@ -729,10 +886,10 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                           "Clinical Note";
                         return (
                           <TableRow
-                            key={note.id}
+                            key={row.key}
                             hover
                             selected={isSelected}
-                            onClick={() => setSelectedHistoryId(note.id)}
+                            onClick={() => setSelectedHistoryKey(row.key)}
                             sx={{ cursor: "pointer" }}
                           >
                             <TableCell>
@@ -793,7 +950,9 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                                     <IconButton
                                       size="small"
                                       disabled={!isDraft}
-                                      onClick={() => setDeletingNote(note)}
+                                      onClick={() =>
+                                        setDeletingHistoryItem({ kind: "note", raw: note })
+                                      }
                                     >
                                       <DeleteIcon fontSize="small" />
                                     </IconButton>
@@ -830,27 +989,56 @@ function ClinicalNotesPanel({ patientId, patientName }) {
         </Box>
       )}
 
-      <Dialog open={!!deletingNote} onClose={() => (deleteSaving ? null : setDeletingNote(null))}>
-        <DialogTitle>Delete this draft note?</DialogTitle>
+      <Dialog
+        open={!!deletingHistoryItem}
+        onClose={() => (deleteSaving ? null : setDeletingHistoryItem(null))}
+      >
+        <DialogTitle>
+          {deletingHistoryItem?.kind === "flowsheet"
+            ? "Delete this flowsheet?"
+            : "Delete this draft note?"}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            This permanently deletes this draft
-            {deletingNote
-              ? ` (${
-                  deletingNote.documentation_type_display ||
-                  DOCUMENTATION_TYPES.find((dt) => dt.value === deletingNote.documentation_type)
-                    ?.label ||
-                  "clinical note"
-                } created ${new Date(deletingNote.created_at).toLocaleDateString()})`
-              : ""}
-            . This cannot be undone.
+            {deletingHistoryItem?.kind === "flowsheet" ? (
+              <>
+                This permanently deletes this Vital Sign Flowsheet
+                {` (created ${new Date(
+                  deletingHistoryItem.raw.created_at
+                ).toLocaleDateString()}, ${(deletingHistoryItem.raw.columns || []).length} time point${
+                  (deletingHistoryItem.raw.columns || []).length === 1 ? "" : "s"
+                } charted)`}
+                . This cannot be undone.
+              </>
+            ) : (
+              <>
+                This permanently deletes this draft
+                {deletingHistoryItem
+                  ? ` (${
+                      deletingHistoryItem.raw.documentation_type_display ||
+                      DOCUMENTATION_TYPES.find(
+                        (dt) => dt.value === deletingHistoryItem.raw.documentation_type
+                      )?.label ||
+                      "clinical note"
+                    } created ${new Date(
+                      deletingHistoryItem.raw.created_at
+                    ).toLocaleDateString()})`
+                  : ""}
+                . This cannot be undone.
+              </>
+            )}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeletingNote(null)} disabled={deleteSaving}>
+          <Button onClick={() => setDeletingHistoryItem(null)} disabled={deleteSaving}>
             Cancel
           </Button>
-          <Button color="error" variant="contained" onClick={confirmDeleteNote} disabled={deleteSaving}>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={confirmDeleteHistoryItem}
+            disabled={deleteSaving}
+          >
             Delete
           </Button>
         </DialogActions>

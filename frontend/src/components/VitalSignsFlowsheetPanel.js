@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, Fragment } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Box,
   Paper,
@@ -44,6 +45,11 @@ const authHeader = async () => {
 
 const SECTION_HEADER_BG = "#0d1b4c"; // matches the Sunrise-style dark navy section bars
 
+// Only one flowsheet type exists today, but the selector is here from the
+// start so adding a new flowsheet type later (once the flowsheet-builder
+// lands) is just adding an entry here -- never a UI restructure.
+const FLOWSHEET_TYPES = [{ value: "vital_signs", label: "Vital Sign Flowsheet" }];
+
 /**
  * Vital Signs flowsheet: a time-columned chart for a single visit, one per
  * appointment. Rows (grouped into sections) come from the backend's
@@ -57,13 +63,24 @@ const SECTION_HEADER_BG = "#0d1b4c"; // matches the Sunrise-style dark navy sect
  * Clinical Notes' Save Draft works.
  */
 function VitalSignsFlowsheetPanel({ patientId, patientName }) {
+  const [searchParams] = useSearchParams();
+  // Deep-link support: Note History's Edit action for a flowsheet row
+  // navigates here with ?appointment=<id> so the correct visit's flowsheet
+  // opens directly, instead of defaulting to the most recent visit.
+  const requestedAppointmentIdRaw = searchParams.get("appointment");
+  const requestedAppointmentId =
+    requestedAppointmentIdRaw && !Number.isNaN(Number(requestedAppointmentIdRaw))
+      ? Number(requestedAppointmentIdRaw)
+      : null;
+
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState("");
 
   const [appointments, setAppointments] = useState([]);
-  const [appointmentId, setAppointmentId] = useState("");
+  const [appointmentId, setAppointmentId] = useState(requestedAppointmentId || "");
   const [loadingAppointments, setLoadingAppointments] = useState(true);
 
+  const [flowsheetType, setFlowsheetType] = useState(FLOWSHEET_TYPES[0].value);
   const [rowDefinitions, setRowDefinitions] = useState([]);
   const [flowsheetId, setFlowsheetId] = useState(null);
   const [columns, setColumns] = useState([]);
@@ -111,12 +128,21 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
       const res = await api.get(`/api/appointments/?patient=${patientId}`, { headers });
       const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
       setAppointments(list);
-      // Default to the most recent visit so the panel isn't blank on load.
+      // Default to the most recent visit so the panel isn't blank on load,
+      // unless a specific visit was requested via ?appointment= (a deep link
+      // from Note History's Edit action) and it's actually in this patient's
+      // list -- that request always wins over "most recent".
       if (list.length > 0) {
         const sorted = [...list].sort(
           (a, b) => new Date(b.appointment_datetime) - new Date(a.appointment_datetime)
         );
-        setAppointmentId((current) => current || sorted[0].id);
+        const requestedIsValid =
+          requestedAppointmentId != null &&
+          list.some((a) => a.id === requestedAppointmentId);
+        setAppointmentId((current) => {
+          if (requestedIsValid) return requestedAppointmentId;
+          return current || sorted[0].id;
+        });
       }
     } catch (err) {
       console.error("Failed to load appointments:", err);
@@ -124,7 +150,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
     } finally {
       setLoadingAppointments(false);
     }
-  }, [patientId]);
+  }, [patientId, requestedAppointmentId]);
 
   useEffect(() => {
     loadAppointments();
@@ -245,7 +271,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
         <Typography variant="h6">
-          Vital Signs Flowsheet{patientName ? ` - ${patientName}` : ""}
+          Flowsheets{patientName ? ` - ${patientName}` : ""}
         </Typography>
         <Stack direction="row" spacing={1}>
           <Button
@@ -262,22 +288,40 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
         </Stack>
       </Stack>
 
-      <FormControl size="small" sx={{ minWidth: 320, mb: 2 }}>
-        <InputLabel id="flowsheet-appt-label">Appointment / Registration</InputLabel>
-        <Select
-          labelId="flowsheet-appt-label"
-          label="Appointment / Registration"
-          value={appointmentId}
-          onChange={(e) => setAppointmentId(e.target.value)}
-          disabled={loadingAppointments}
-        >
-          {appointments.map((a) => (
-            <MenuItem key={a.id} value={a.id}>
-              {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        <FormControl size="small" sx={{ minWidth: 320 }}>
+          <InputLabel id="flowsheet-appt-label">Appointment / Registration</InputLabel>
+          <Select
+            labelId="flowsheet-appt-label"
+            label="Appointment / Registration"
+            value={appointmentId}
+            onChange={(e) => setAppointmentId(e.target.value)}
+            disabled={loadingAppointments}
+          >
+            {appointments.map((a) => (
+              <MenuItem key={a.id} value={a.id}>
+                {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 220 }}>
+          <InputLabel id="flowsheet-type-label">Flowsheet</InputLabel>
+          <Select
+            labelId="flowsheet-type-label"
+            label="Flowsheet"
+            value={flowsheetType}
+            onChange={(e) => setFlowsheetType(e.target.value)}
+          >
+            {FLOWSHEET_TYPES.map((ft) => (
+              <MenuItem key={ft.value} value={ft.value}>
+                {ft.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
 
       {loadingFlowsheet ? (
         <Typography variant="body2" color="text.secondary">

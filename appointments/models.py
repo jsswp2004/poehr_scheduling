@@ -470,6 +470,16 @@ class VitalSignsFlowsheet(models.Model):
         on_delete=models.PROTECT,
         related_name="vital_signs_flowsheets_received",
     )
+    # Who started this flowsheet (first Save) -- shown as "Created By" in
+    # Note History, alongside ClinicalNote's `author`. Nullable so it never
+    # blocks the flowsheet if the creating user is later deleted.
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vital_signs_flowsheets_created",
+    )
 
     # [{ "id": "col_<uuid4hex>", "timestamp": ISO 8601, "recorded_by": user id,
     #    "recorded_by_name": str }, ...] -- one entry per time column, in the

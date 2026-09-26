@@ -663,6 +663,7 @@ class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
     """
 
     patient_name = serializers.SerializerMethodField()
+    created_by_name = serializers.SerializerMethodField()
     row_definitions = serializers.SerializerMethodField()
 
     class Meta:
@@ -673,18 +674,34 @@ class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
             "appointment",
             "patient",
             "patient_name",
+            "created_by",
+            "created_by_name",
             "columns",
             "data",
             "row_definitions",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["organization", "patient", "created_at", "updated_at"]
+        read_only_fields = [
+            "organization",
+            "patient",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
 
     def get_patient_name(self, obj):
         return (
             f"{obj.patient.first_name} {obj.patient.last_name}".strip()
             or obj.patient.username
+        )
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return ""
+        return (
+            f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+            or obj.created_by.username
         )
 
     def get_row_definitions(self, obj):
@@ -704,4 +721,7 @@ class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
         appointment = validated_data["appointment"]
         validated_data["patient"] = appointment.patient
         validated_data["organization"] = appointment.organization
+        request = self.context.get("request")
+        if request is not None:
+            validated_data["created_by"] = request.user
         return super().create(validated_data)
