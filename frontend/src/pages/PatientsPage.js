@@ -538,6 +538,7 @@ function PatientsPage() {
               onSendText={handleSendText}
               onOpenEmailModal={handleOpenEmailModal}
               onDelete={handleDeletePatient}
+              userRole={userRole}
             />
           )}
 

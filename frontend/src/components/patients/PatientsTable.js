@@ -46,8 +46,17 @@ function PatientsTable({
     onSendText,
     onOpenEmailModal,
     onDelete,
+    userRole,
 }) {
     const navigate = useNavigate();
+    // Clinical Notes and the Flowsheet are gated server-side to
+    // doctor/nurse/admin/system_admin (see CanAccessClinicalNotes /
+    // CanAccessVitalSignsFlowsheets) -- schedulers/registrars and any other
+    // role would just hit a 403 if they clicked through, so their action
+    // icons are hidden here rather than shown and then denied.
+    const canAccessClinicalDocs = ["doctor", "nurse", "admin", "system_admin"].includes(
+        userRole
+    );
 
     if (loading) {
         return (
@@ -164,25 +173,29 @@ function PatientsTable({
                                                 </IconButton>
                                             </Tooltip>
 
-                                            <Tooltip title="Clinical Notes">
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => navigate(`/patients/${patient.user_id}/notes`)}
-                                                    sx={{ color: 'secondary.main' }}
-                                                >
-                                                    <AssignmentIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
+                                            {canAccessClinicalDocs && (
+                                                <>
+                                                    <Tooltip title="Clinical Notes">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => navigate(`/patients/${patient.user_id}/notes`)}
+                                                            sx={{ color: 'secondary.main' }}
+                                                        >
+                                                            <AssignmentIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
 
-                                            <Tooltip title="Flowsheet">
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => navigate(`/patients/${patient.user_id}/flowsheet`)}
-                                                    sx={{ color: '#c2185b' }}
-                                                >
-                                                    <MonitorHeartIcon fontSize="small" />
-                                                </IconButton>
-                                            </Tooltip>
+                                                    <Tooltip title="Flowsheet">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => navigate(`/patients/${patient.user_id}/flowsheet`)}
+                                                            sx={{ color: '#c2185b' }}
+                                                        >
+                                                            <MonitorHeartIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                </>
+                                            )}
 
                                             <Tooltip title="Send Email">
                                                 <IconButton
