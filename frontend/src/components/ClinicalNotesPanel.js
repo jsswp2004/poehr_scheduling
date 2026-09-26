@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import {
   Box,
+  Grid,
   Paper,
   Typography,
   Button,
@@ -19,7 +20,12 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
-import DynamicNoteForm, { DynamicNoteSummary, isFieldVisible } from "./DynamicNoteForm";
+import DynamicNoteForm, {
+  DynamicNoteSummary,
+  isFieldVisible,
+  buildNotePreviewSections,
+} from "./DynamicNoteForm";
+import NotePreviewPane from "./NotePreviewPane";
 
 const NOTE_TYPE_BY_ROLE = {
   doctor: "doctor_assessment",
@@ -192,6 +198,43 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   const isTemplateDriven = TEMPLATE_DRIVEN_TYPES.has(form.documentation_type);
   const currentTemplate = templatesByCode[form.documentation_type] || null;
 
+  // Feeds the live preview pane (and its Print button) alongside the form --
+  // built fresh on every render from whatever's currently in `form`, so it
+  // always mirrors exactly what the author has typed so far.
+  const selectedAppointment = appointments.find((a) => a.id === form.appointment);
+  const previewTitle =
+    DOCUMENTATION_TYPES.find((dt) => dt.value === form.documentation_type)?.label ||
+    "Clinical Note";
+  const previewMeta = [
+    patientName ? `Patient: ${patientName}` : null,
+    selectedAppointment
+      ? `${selectedAppointment.title} - ${new Date(
+          selectedAppointment.appointment_datetime
+        ).toLocaleString()}`
+      : null,
+    form.note_type ? NOTE_TYPE_LABELS[form.note_type] : null,
+  ];
+  const previewSections = isTemplateDriven
+    ? currentTemplate
+      ? buildNotePreviewSections(currentTemplate.fields, form.structured_data)
+      : []
+    : [
+        {
+          tabLabel: "",
+          sections: [
+            {
+              sectionLabel: "",
+              entries: [
+                { label: "Subjective", display: form.subjective || "", empty: !form.subjective },
+                { label: "Objective", display: form.objective || "", empty: !form.objective },
+                { label: "Assessment", display: form.assessment || "", empty: !form.assessment },
+                { label: "Plan", display: form.plan || "", empty: !form.plan },
+              ],
+            },
+          ],
+        },
+      ];
+
   const handleStructuredFieldChange = (key, value) => {
     setForm((f) => ({
       ...f,
@@ -348,7 +391,8 @@ function ClinicalNotesPanel({ patientId, patientName }) {
       )}
 
       {currentTab === "documentation" && canAuthor && (
-        <Box sx={{ mb: 1 }}>
+        <Grid container spacing={3} sx={{ mb: 1 }}>
+        <Grid item xs={12} md={7}>
           {amendsId && (
             <Chip
               label="Writing an addendum to a signed note"
@@ -492,7 +536,12 @@ function ClinicalNotesPanel({ patientId, patientName }) {
               )}
             </Stack>
           </Stack>
-        </Box>
+        </Grid>
+
+        <Grid item xs={12} md={5}>
+          <NotePreviewPane title={previewTitle} meta={previewMeta} sections={previewSections} />
+        </Grid>
+        </Grid>
       )}
 
       {currentTab === "history" && (
