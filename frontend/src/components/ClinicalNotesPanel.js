@@ -14,14 +14,28 @@ import {
   Stack,
   Tabs,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
 import { jwtDecode } from "jwt-decode";
 import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
 import DynamicNoteForm, {
-  DynamicNoteSummary,
   isFieldVisible,
   buildNotePreviewSections,
 } from "./DynamicNoteForm";
@@ -103,6 +117,12 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   // so switching back and forth doesn't re-fetch.
   const [templatesByCode, setTemplatesByCode] = useState({});
   const [templateLoading, setTemplateLoading] = useState(false);
+
+  // Note History: id of the row currently shown in the read-only preview
+  // pane, and the note (if any) pending delete confirmation.
+  const [selectedHistoryId, setSelectedHistoryId] = useState(null);
+  const [deletingNote, setDeletingNote] = useState(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!patientId) return;
@@ -234,6 +254,128 @@ function ClinicalNotesPanel({ patientId, patientName }) {
           ],
         },
       ];
+
+  // Note History: the row currently shown in the preview pane -- the
+  // selected row if it still exists in the loaded notes, otherwise the most
+  // recent note (notes arrive newest-first from the backend), so the pane
+  // is never blank while notes exist.
+  const selectedHistoryNote =
+    notes.find((n) => n.id === selectedHistoryId) || notes[0] || null;
+
+  const historyPreviewTitle = selectedHistoryNote
+    ? selectedHistoryNote.documentation_type_display ||
+      DOCUMENTATION_TYPES.find((dt) => dt.value === selectedHistoryNote.documentation_type)
+        ?.label ||
+      "Clinical Note"
+    : "Clinical Note";
+
+  const historyPreviewMeta = selectedHistoryNote
+    ? [
+        patientName ? `Patient: ${patientName}` : null,
+        selectedHistoryNote.note_type_display,
+        selectedHistoryNote.amends ? "Addendum" : null,
+        selectedHistoryNote.status === "signed"
+          ? `Signed by ${selectedHistoryNote.author_name} - ${new Date(
+              selectedHistoryNote.signed_at || selectedHistoryNote.created_at
+            ).toLocaleString()}`
+          : `Drafted by ${selectedHistoryNote.author_name} - ${new Date(
+              selectedHistoryNote.created_at
+            ).toLocaleString()}`,
+      ]
+    : [];
+
+  const historyPreviewSections = selectedHistoryNote
+    ? selectedHistoryNote.template_detail
+      ? buildNotePreviewSections(
+          selectedHistoryNote.template_detail.fields,
+          selectedHistoryNote.structured_data
+        )
+      : [
+          {
+            tabLabel: "",
+            sections: [
+              {
+                sectionLabel: "",
+                entries: [
+                  {
+                    label: "Subjective",
+                    display: selectedHistoryNote.subjective || "",
+                    empty: !selectedHistoryNote.subjective,
+                  },
+                  {
+                    label: "Objective",
+                    display: selectedHistoryNote.objective || "",
+                    empty: !selectedHistoryNote.objective,
+                  },
+                  {
+                    label: "Assessment",
+                    display: selectedHistoryNote.assessment || "",
+                    empty: !selectedHistoryNote.assessment,
+                  },
+                  {
+                    label: "Plan",
+                    display: selectedHistoryNote.plan || "",
+                    empty: !selectedHistoryNote.plan,
+                  },
+                ],
+              },
+            ],
+          },
+        ]
+    : [];
+
+  // Loads an existing DRAFT note back into the documentation form for
+  // editing in place (PATCHes the same note on save, via the existing
+  // draftId branch in saveDraft/signNote) -- distinct from startAddendum
+  // below, which creates a brand-new note referencing an already-signed
+  // one. Only ever wired to the Edit action for a draft row; signed notes
+  // are immutable (see CanAccessClinicalNotes on the backend).
+  const startEditDraft = (note) => {
+    if (note.template_detail && !templatesByCode[note.documentation_type]) {
+      setTemplatesByCode((prev) => ({
+        ...prev,
+        [note.documentation_type]: note.template_detail,
+      }));
+    }
+    setForm({
+      appointment: note.appointment,
+      note_type: note.note_type,
+      documentation_type: note.documentation_type || DOCUMENTATION_TYPES[0].value,
+      subjective: note.subjective || "",
+      objective: note.objective || "",
+      assessment: note.assessment || "",
+      plan: note.plan || "",
+      template: note.template || null,
+      structured_data: note.structured_data || {},
+    });
+    setDraftId(note.id);
+    setAmendsId(null);
+    setActiveTab("documentation");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const confirmDeleteNote = async () => {
+    if (!deletingNote) return;
+    setDeleteSaving(true);
+    try {
+      const headers = await authHeader();
+      await api.delete(apiEndpoints.clinicalNote(deletingNote.id), { headers });
+      toast.success("Draft note deleted.");
+      if (draftId === deletingNote.id) resetForm();
+      if (selectedHistoryId === deletingNote.id) setSelectedHistoryId(null);
+      setDeletingNote(null);
+      await loadData();
+    } catch (err) {
+      console.error("Failed to delete clinical note:", err);
+      const detail =
+        err?.response?.data?.detail ||
+        JSON.stringify(err?.response?.data) ||
+        "Failed to delete note.";
+      toast.error(detail);
+    } finally {
+      setDeleteSaving(false);
+    }
+  };
 
   const handleStructuredFieldChange = (key, value) => {
     setForm((f) => ({
@@ -561,98 +703,158 @@ function ClinicalNotesPanel({ patientId, patientName }) {
               No clinical notes yet for this patient.
             </Typography>
           ) : (
-            <Stack spacing={2}>
-              {notes.map((note) => (
-                <Paper
-                  key={note.id}
-                  variant="outlined"
-                  sx={{ p: 2, borderRadius: 2 }}
-                >
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{ mb: 1 }}
+            <Grid container spacing={3}>
+              <Grid size={{ xs: 12, md: 7 }}>
+                <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Type</TableCell>
+                        <TableCell>Document</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Date Created</TableCell>
+                        <TableCell>Created By</TableCell>
+                        {canAuthor && <TableCell align="right">Actions</TableCell>}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {notes.map((note) => {
+                        const isSelected =
+                          (selectedHistoryNote && selectedHistoryNote.id) === note.id;
+                        const isDraft = note.status !== "signed";
+                        const documentLabel =
+                          note.documentation_type_display ||
+                          DOCUMENTATION_TYPES.find((dt) => dt.value === note.documentation_type)
+                            ?.label ||
+                          "Clinical Note";
+                        return (
+                          <TableRow
+                            key={note.id}
+                            hover
+                            selected={isSelected}
+                            onClick={() => setSelectedHistoryId(note.id)}
+                            sx={{ cursor: "pointer" }}
+                          >
+                            <TableCell>
+                              <Chip
+                                label={
+                                  note.note_type_display || NOTE_TYPE_LABELS[note.note_type]
+                                }
+                                size="small"
+                                color={
+                                  note.note_type === "doctor_assessment" ? "primary" : "secondary"
+                                }
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {documentLabel}
+                              {note.amends && (
+                                <Chip label="Addendum" size="small" sx={{ ml: 1 }} />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={note.status === "signed" ? "Signed" : "Draft"}
+                                size="small"
+                                color={note.status === "signed" ? "success" : "default"}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              {new Date(note.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>{note.author_name}</TableCell>
+                            {canAuthor && (
+                              <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+                                <Tooltip
+                                  title={
+                                    isDraft
+                                      ? "Edit this draft"
+                                      : "Signed notes are locked and can't be edited"
+                                  }
+                                >
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      disabled={!isDraft}
+                                      onClick={() => startEditDraft(note)}
+                                    >
+                                      <EditIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                                <Tooltip
+                                  title={
+                                    isDraft
+                                      ? "Delete this draft"
+                                      : "Signed notes are locked and can't be deleted"
+                                  }
+                                >
+                                  <span>
+                                    <IconButton
+                                      size="small"
+                                      disabled={!isDraft}
+                                      onClick={() => setDeletingNote(note)}
+                                    >
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  </span>
+                                </Tooltip>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+
+              <Grid size={{ xs: 12, md: 5 }}>
+                <NotePreviewPane
+                  title={historyPreviewTitle}
+                  meta={historyPreviewMeta}
+                  sections={historyPreviewSections}
+                />
+                {canAuthor && selectedHistoryNote && selectedHistoryNote.status === "signed" && (
+                  <Button
+                    size="small"
+                    sx={{ mt: 1 }}
+                    onClick={() => startAddendum(selectedHistoryNote)}
                   >
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <Chip
-                        label={note.note_type_display || NOTE_TYPE_LABELS[note.note_type]}
-                        size="small"
-                        color={note.note_type === "doctor_assessment" ? "primary" : "secondary"}
-                      />
-                      {note.documentation_type && (
-                        <Chip
-                          label={
-                            note.documentation_type_display ||
-                            DOCUMENTATION_TYPES.find((dt) => dt.value === note.documentation_type)
-                              ?.label
-                          }
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
-                      <Chip
-                        label={note.status === "signed" ? "Signed" : "Draft"}
-                        size="small"
-                        color={note.status === "signed" ? "success" : "default"}
-                      />
-                      {note.amends && <Chip label="Addendum" size="small" />}
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      {note.author_name} -{" "}
-                      {new Date(note.signed_at || note.created_at).toLocaleString()}
-                    </Typography>
-                  </Stack>
-
-                  {note.template_detail ? (
-                    // Structured note: render strictly against the field
-                    // definitions the note was signed against
-                    // (note.template_detail), never the live/current
-                    // template -- see ClinicalNote.template_version.
-                    <DynamicNoteSummary
-                      templateDetail={note.template_detail}
-                      structuredData={note.structured_data}
-                    />
-                  ) : (
-                    <Box sx={{ display: "grid", gap: 0.5 }}>
-                      {note.subjective && (
-                        <Typography variant="body2">
-                          <strong>S:</strong> {note.subjective}
-                        </Typography>
-                      )}
-                      {note.objective && (
-                        <Typography variant="body2">
-                          <strong>O:</strong> {note.objective}
-                        </Typography>
-                      )}
-                      {note.assessment && (
-                        <Typography variant="body2">
-                          <strong>A:</strong> {note.assessment}
-                        </Typography>
-                      )}
-                      {note.plan && (
-                        <Typography variant="body2">
-                          <strong>P:</strong> {note.plan}
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-
-                  {canAuthor && note.status === "signed" && (
-                    <Button
-                      size="small"
-                      sx={{ mt: 1 }}
-                      onClick={() => startAddendum(note)}
-                    >
-                      Add Addendum
-                    </Button>
-                  )}
-                </Paper>
-              ))}
-            </Stack>
+                    Add Addendum
+                  </Button>
+                )}
+              </Grid>
+            </Grid>
           )}
         </Box>
       )}
+
+      <Dialog open={!!deletingNote} onClose={() => (deleteSaving ? null : setDeletingNote(null))}>
+        <DialogTitle>Delete this draft note?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This permanently deletes this draft
+            {deletingNote
+              ? ` (${
+                  deletingNote.documentation_type_display ||
+                  DOCUMENTATION_TYPES.find((dt) => dt.value === deletingNote.documentation_type)
+                    ?.label ||
+                  "clinical note"
+                } created ${new Date(deletingNote.created_at).toLocaleDateString()})`
+              : ""}
+            . This cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeletingNote(null)} disabled={deleteSaving}>
+            Cancel
+          </Button>
+          <Button color="error" variant="contained" onClick={confirmDeleteNote} disabled={deleteSaving}>
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 }
