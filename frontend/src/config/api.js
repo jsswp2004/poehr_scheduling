@@ -77,6 +77,10 @@ export const apiEndpoints = {
     userDelete: (id) => `${API_BASE_URL}/api/users/${id}/`,
     userSearch: (query) => `${API_BASE_URL}/api/users/search/?q=${query}`,
 
+    // Rights / permissions management (Security Settings, admin/system_admin only)
+    rightsCatalog: `${API_BASE_URL}/api/users/rights-catalog/`,
+    userRights: (userId) => `${API_BASE_URL}/api/users/${userId}/rights/`,
+
     // Organization endpoints
     organizations: `${API_BASE_URL}/api/users/organizations/`,
 

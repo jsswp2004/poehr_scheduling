@@ -16,6 +16,7 @@ import django_filters
 from .models import Contact, MessageLog
 from .serializers import ContactSerializer, MessageLogSerializer
 from .utils import send_sms, send_email
+from users.permissions import HasRight
 
 
 class MessageLogFilter(django_filters.FilterSet):
@@ -182,7 +183,7 @@ class BulkUploadView(APIView):
 
 
 class SendBulkMessageView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasRight("messages.send")]
 
     def post(self, request):
         message = request.data.get("message")

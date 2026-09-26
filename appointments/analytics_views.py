@@ -18,6 +18,7 @@ import io
 
 from .models import Appointment, Availability
 from users.models import CustomUser
+from users.permissions import HasRight
 
 
 class AnalyticsReportView(APIView):
@@ -25,7 +26,7 @@ class AnalyticsReportView(APIView):
     Main analytics view that generates data for various reports based on report_type.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasRight("analytics.view")]
 
     def get(self, request):
         report_type = request.query_params.get("report_type")
@@ -723,7 +724,7 @@ class ExportReportView(APIView):
     Export reports as CSV or PDF
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, HasRight("analytics.view")]
 
     def post(self, request):
         export_format = request.data.get("format")  # 'csv' or 'pdf'

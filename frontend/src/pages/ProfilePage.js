@@ -16,6 +16,9 @@ import {
   CircularProgress,
   Divider,
   Paper,
+  Checkbox,
+  FormGroup,
+  FormControlLabel,
 } from "@mui/material";
 import BackButton from "../components/BackButton";
 import EditIcon from "@mui/icons-material/Edit";
@@ -24,6 +27,7 @@ import CancelIcon from "@mui/icons-material/Cancel";
 import SearchIcon from "@mui/icons-material/Search";
 import LockResetIcon from "@mui/icons-material/LockReset";
 import DeleteIcon from "@mui/icons-material/Delete";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "../components/SimpleToast";
 import { useNavigate } from "react-router-dom";
@@ -61,6 +65,14 @@ function ProfilePage() {
   });
 
   const [organizations, setOrganizations] = useState([]);
+
+  // Rights / permissions management (Security Settings, admin & system_admin only)
+  const [showRightsPanel, setShowRightsPanel] = useState(false);
+  const [rightsLoading, setRightsLoading] = useState(false);
+  const [rightsCatalog, setRightsCatalog] = useState([]);
+  const [roleDefaultRights, setRoleDefaultRights] = useState([]);
+  const [serverOverrides, setServerOverrides] = useState({});
+  const [rightsChecked, setRightsChecked] = useState({});
 
   useEffect(() => {
     if (!token) return;
@@ -232,6 +244,115 @@ function ProfilePage() {
         toast.error("Authentication failed. Please log in again.");
       } else {
         toast.error("Failed to delete user. Please try again.");
+      }
+    }
+  };
+
+  const loadUserRights = async () => {
+    if (!user?.id || !token) return;
+    setRightsLoading(true);
+    try {
+      const [catalogRes, rightsRes] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/users/rights-catalog/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get(`${API_BASE_URL}/api/users/${user.id}/rights/`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      const catalog = catalogRes.data.categories || [];
+      setRightsCatalog(catalog);
+      setRoleDefaultRights(rightsRes.data.role_default_rights || []);
+      setServerOverrides(rightsRes.data.overrides || {});
+
+      const effectiveSet = new Set(rightsRes.data.effective_rights || []);
+      const initialChecked = {};
+      catalog.forEach((cat) => {
+        cat.rights.forEach((r) => {
+          initialChecked[r.code] = effectiveSet.has(r.code);
+        });
+      });
+      setRightsChecked(initialChecked);
+    } catch (err) {
+      console.error("Failed to load user rights", err);
+      toast.error(
+        err.response?.status === 403
+          ? "You don't have permission to manage rights for this user."
+          : "Failed to load rights."
+      );
+      setRightsCatalog([]);
+    } finally {
+      setRightsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (showRightsPanel) {
+      loadUserRights();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRightsPanel, user?.id]);
+
+  const handleSaveRights = async () => {
+    if (!user?.id) return;
+
+    // Only send an override for a right whose desired state actually
+    // differs from what the server currently has -- checked matching the
+    // role default means "no override" (null clears any existing one).
+    const overridesPayload = {};
+    rightsCatalog.forEach((cat) => {
+      cat.rights.forEach((r) => {
+        const code = r.code;
+        const isRoleDefault = roleDefaultRights.includes(code);
+        const desiredChecked = !!rightsChecked[code];
+        const newOverrideValue =
+          desiredChecked === isRoleDefault ? null : desiredChecked;
+        const hadOverride = Object.prototype.hasOwnProperty.call(
+          serverOverrides,
+          code
+        );
+        const currentOverrideValue = hadOverride ? serverOverrides[code] : null;
+        if (newOverrideValue !== currentOverrideValue) {
+          overridesPayload[code] = newOverrideValue;
+        }
+      });
+    });
+
+    if (Object.keys(overridesPayload).length === 0) {
+      toast.info("No changes to save.");
+      return;
+    }
+
+    try {
+      const res = await axios.put(
+        `${API_BASE_URL}/api/users/${user.id}/rights/`,
+        { overrides: overridesPayload },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setRoleDefaultRights(res.data.role_default_rights || []);
+      setServerOverrides(res.data.overrides || {});
+      const effectiveSet = new Set(res.data.effective_rights || []);
+      const updatedChecked = {};
+      rightsCatalog.forEach((cat) => {
+        cat.rights.forEach((r) => {
+          updatedChecked[r.code] = effectiveSet.has(r.code);
+        });
+      });
+      setRightsChecked(updatedChecked);
+      toast.success(
+        `Rights updated for ${user.first_name} ${user.last_name}.`
+      );
+    } catch (err) {
+      console.error("Failed to save rights", err);
+      if (err.response?.status === 403) {
+        toast.error(
+          "You don't have permission to change rights for this user."
+        );
+      } else if (err.response?.status === 400) {
+        toast.error(err.response.data?.error || "Invalid rights update.");
+      } else {
+        toast.error("Failed to save rights.");
       }
     }
   };
@@ -1256,6 +1377,172 @@ function ProfilePage() {
               </Paper>
             </Collapse>
           </Box>
+
+          {/* User Rights / Permissions Management - admin & system_admin only */}
+          {(loggedInUserRole === "admin" ||
+            loggedInUserRole === "system_admin") && (
+              <Box sx={{ mt: 4 }}>
+                <Divider sx={{ mb: 3 }} />
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 2,
+                  }}
+                >
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, color: "primary.main" }}
+                  >
+                    User Rights
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<VerifiedUserIcon />}
+                    onClick={() => setShowRightsPanel((v) => !v)}
+                    sx={{
+                      minWidth: 180,
+                      borderRadius: 2,
+                      textTransform: "none",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {showRightsPanel ? "Cancel" : "Manage Rights"}
+                  </Button>
+                </Box>
+                <Collapse in={showRightsPanel}>
+                  <Paper
+                    elevation={1}
+                    sx={{ p: 3, borderRadius: 2, bgcolor: "#f8f9fa" }}
+                  >
+                    {rightsLoading ? (
+                      <Box
+                        sx={{ display: "flex", justifyContent: "center", p: 3 }}
+                      >
+                        <CircularProgress size={28} />
+                      </Box>
+                    ) : rightsCatalog.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">
+                        Could not load the rights catalog.
+                      </Typography>
+                    ) : (
+                      <Stack spacing={2}>
+                        <Typography variant="body2" color="text.secondary">
+                          Rights for{" "}
+                          <strong>
+                            {user.first_name} {user.last_name}
+                          </strong>{" "}
+                          (role: <strong>{user.role}</strong>). Check or
+                          uncheck a box to grant or revoke that right for this
+                          user specifically -- this overrides what their role
+                          would normally give them.
+                        </Typography>
+                        {rightsCatalog.map((cat) => (
+                          <Box key={cat.category}>
+                            <Typography
+                              variant="subtitle2"
+                              sx={{ fontWeight: 700, mt: 1, mb: 0.5 }}
+                            >
+                              {cat.category}
+                            </Typography>
+                            <FormGroup>
+                              {cat.rights.map((r) => {
+                                const isRoleDefault = roleDefaultRights.includes(
+                                  r.code
+                                );
+                                const checked = !!rightsChecked[r.code];
+                                const isOverridden = checked !== isRoleDefault;
+                                return (
+                                  <FormControlLabel
+                                    key={r.code}
+                                    control={
+                                      <Checkbox
+                                        checked={checked}
+                                        onChange={(e) =>
+                                          setRightsChecked((prev) => ({
+                                            ...prev,
+                                            [r.code]: e.target.checked,
+                                          }))
+                                        }
+                                      />
+                                    }
+                                    label={
+                                      <Box component="span">
+                                        {r.label}
+                                        {isOverridden && (
+                                          <Typography
+                                            component="span"
+                                            variant="caption"
+                                            sx={{
+                                              ml: 1,
+                                              fontWeight: 600,
+                                              color: checked
+                                                ? "success.main"
+                                                : "error.main",
+                                            }}
+                                          >
+                                            {checked
+                                              ? "(granted override)"
+                                              : "(revoked)"}
+                                          </Typography>
+                                        )}
+                                        {!isOverridden && isRoleDefault && (
+                                          <Typography
+                                            component="span"
+                                            variant="caption"
+                                            sx={{ ml: 1, color: "text.secondary" }}
+                                          >
+                                            (role default)
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    }
+                                  />
+                                );
+                              })}
+                            </FormGroup>
+                          </Box>
+                        ))}
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "flex-end",
+                            gap: 2,
+                          }}
+                        >
+                          <Button
+                            variant="outlined"
+                            color="secondary"
+                            onClick={loadUserRights}
+                            sx={{
+                              borderRadius: 2,
+                              textTransform: "none",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Reset
+                          </Button>
+                          <Button
+                            variant="contained"
+                            color="success"
+                            onClick={handleSaveRights}
+                            sx={{
+                              borderRadius: 2,
+                              textTransform: "none",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Save Rights
+                          </Button>
+                        </Box>
+                      </Stack>
+                    )}
+                  </Paper>
+                </Collapse>
+              </Box>
+            )}
         </Box>
       </Paper>
     </Box>

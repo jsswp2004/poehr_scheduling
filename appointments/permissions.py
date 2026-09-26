@@ -1,5 +1,8 @@
 from rest_framework import permissions
 
+from users.rights import user_has_right
+
+
 class IsAdminOrSystemAdmin(permissions.BasePermission):
     """
     Allows access to users with role 'admin', 'system_admin', or 'registrar', or is_staff as fallback.
@@ -36,15 +39,23 @@ class CanAccessClinicalNotes(permissions.BasePermission):
 
     A signed note can never be edited by anyone (object-level check below) —
     corrections must go through the addendum endpoint instead.
+
+    The role gate itself now goes through the rights registry
+    (users.rights: "clinical_notes.view_author") instead of a hardcoded role
+    list, so it also reflects any per-user UserRightOverride an admin has
+    set from Security Settings.
     """
-    ALLOWED_ROLES = ["doctor", "nurse", "admin", "system_admin"]
 
     def has_permission(self, request, view):
         user = request.user
-        return (
-            user.is_authenticated
-            and getattr(user, "role", None) in self.ALLOWED_ROLES
-        )
+        if not (user.is_authenticated and user_has_right(user, "clinical_notes.view_author")):
+            return False
+        # Signing is its own, separately-revocable right -- a user can have
+        # base clinical-notes access without being allowed to sign (e.g. a
+        # student nurse drafting notes for review).
+        if getattr(view, "action", None) == "sign":
+            return user_has_right(user, "clinical_notes.sign")
+        return True
 
     def has_object_permission(self, request, view, obj):
         # `sign` and `addend` are exempt from the signed-note lock below:
@@ -70,16 +81,13 @@ class CanAccessVitalSignsFlowsheets(permissions.BasePermission):
     draft/signed lock (unlike ClinicalNote), so it must not share
     CanAccessClinicalNotes.has_object_permission, which reads obj.status and
     would raise AttributeError against a VitalSignsFlowsheet instance.
-    """
 
-    ALLOWED_ROLES = ["doctor", "nurse", "admin", "system_admin"]
+    Role gate goes through the rights registry ("flowsheets.chart").
+    """
 
     def has_permission(self, request, view):
         user = request.user
-        return (
-            user.is_authenticated
-            and getattr(user, "role", None) in self.ALLOWED_ROLES
-        )
+        return user.is_authenticated and user_has_right(user, "flowsheets.chart")
 
 
 class IsNoteTemplateAdmin(permissions.BasePermission):
@@ -95,14 +103,14 @@ class IsNoteTemplateAdmin(permissions.BasePermission):
     The read-only NoteTemplateViewSet (used by DynamicNoteForm to render the
     note-taking form itself) is unaffected by this -- it keeps its own,
     looser permission so doctors/nurses can still fill out notes.
-    """
 
-    ALLOWED_ROLES = ["admin", "system_admin"]
+    Role gate goes through the rights registry ("note_templates.manage").
+    """
 
     def has_permission(self, request, view):
         user = request.user
         return user.is_authenticated and (
-            getattr(user, "role", None) in self.ALLOWED_ROLES
+            user_has_right(user, "note_templates.manage")
             or getattr(user, "is_superuser", False)
         )
 
@@ -119,14 +127,14 @@ class IsFlowsheetTemplateAdmin(permissions.BasePermission):
     populate its type dropdown and render the grid) is unaffected by this --
     it keeps its own permission (CanAccessVitalSignsFlowsheets) so
     doctors/nurses can still chart.
-    """
 
-    ALLOWED_ROLES = ["admin", "system_admin"]
+    Role gate goes through the rights registry ("flowsheet_templates.manage").
+    """
 
     def has_permission(self, request, view):
         user = request.user
         return user.is_authenticated and (
-            getattr(user, "role", None) in self.ALLOWED_ROLES
+            user_has_right(user, "flowsheet_templates.manage")
             or getattr(user, "is_superuser", False)
         )
 

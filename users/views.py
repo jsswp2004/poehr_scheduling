@@ -26,13 +26,15 @@ from io import StringIO, BytesIO
 import logging
 from django.db import transaction
 
-from .models import CustomUser, Patient
+from .models import CustomUser, Patient, UserRightOverride
 from .serializers import (
     UserSerializer,
     PatientSerializer,
     OrganizationSerializer,
     get_admin_emails,
 )
+from .rights import RIGHTS, RIGHT_CODES, role_default_rights, effective_rights, user_has_right
+from .permissions import HasRight
 from appointments.models import Appointment  # Add this import
 from .stripe_service import StripeService
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -82,18 +84,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_update(self, serializer):
-        """Only allow admin and system_admin to update organizations"""
+        """Only users with the "organization.edit_own" right can update organizations"""
         user = self.request.user
-        if user.role not in ["admin", "system_admin"]:
+        if not (user_has_right(user, "organization.edit_own") or getattr(user, "is_superuser", False)):
             from rest_framework.exceptions import PermissionDenied
 
             raise PermissionDenied("You do not have permission to edit organizations.")
         serializer.save()
 
     def perform_destroy(self, instance):
-        """Only allow system_admin to delete organizations"""
+        """Only users with the "organization.delete" right can delete organizations"""
         user = self.request.user
-        if user.role != "system_admin":
+        if not (user_has_right(user, "organization.delete") or getattr(user, "is_superuser", False)):
             from rest_framework.exceptions import PermissionDenied
 
             raise PermissionDenied(
@@ -867,13 +869,9 @@ def change_password(request):
 
 
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, HasRight("users.search")])
 def search_users(request):
     user = request.user
-
-    # Only admin and system_admin can search users
-    if user.role not in ["admin", "system_admin"]:
-        return Response({"detail": "Access denied"}, status=403)
 
     query = request.GET.get("q", "")
 
@@ -900,6 +898,106 @@ def search_users(request):
 
     serializer = UserSerializer(users.distinct(), many=True)
     return Response(serializer.data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, HasRight("users.manage_rights")])
+def rights_catalog(request):
+    """
+    Every right the system knows about, grouped by category, for the
+    Security Settings checkbox screen to render. Doesn't depend on which
+    user is being edited -- the catalog is the same for everyone; only the
+    per-user grant state (see user_rights below) differs.
+    """
+    grouped = {}
+    for code, label, category in RIGHTS:
+        grouped.setdefault(category, []).append({"code": code, "label": label})
+    return Response(
+        {"categories": [{"category": cat, "rights": items} for cat, items in grouped.items()]}
+    )
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated, HasRight("users.manage_rights")])
+def user_rights(request, user_id):
+    """
+    GET: this user's role, their role's default rights, any explicit
+    per-user overrides on file, and the resulting effective right set --
+    everything the Security Settings screen needs to pre-check the right
+    boxes and show which ones are overridden.
+
+    PUT: apply a batch of override changes in one request. Body:
+        {"overrides": {"<right_code>": true | false | null, ...}}
+    true/false sets an explicit grant/revoke override; null clears any
+    override for that code, reverting it to the role default. Unknown right
+    codes are rejected with a 400 rather than silently ignored, so a typo
+    in the frontend doesn't fail silently.
+    """
+    target = generics.get_object_or_404(CustomUser, pk=user_id)
+
+    # A system_admin can manage rights for anyone; an admin only for users
+    # in their own organization -- matches the org-scoping every other
+    # admin-facing endpoint in this file applies.
+    if request.user.role != "system_admin" and target.organization_id != request.user.organization_id:
+        return Response(
+            {"detail": "You can only manage rights for users in your own organization."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    if request.method == "GET":
+        defaults = role_default_rights(target.role)
+        overrides = {
+            o.right_code: o.is_granted
+            for o in UserRightOverride.objects.filter(user=target)
+        }
+        return Response(
+            {
+                "user_id": target.id,
+                "role": target.role,
+                "role_default_rights": sorted(defaults),
+                "overrides": overrides,
+                "effective_rights": sorted(effective_rights(target)),
+            }
+        )
+
+    # PUT
+    payload = request.data.get("overrides")
+    if not isinstance(payload, dict):
+        return Response(
+            {"detail": "Expected a JSON object 'overrides' mapping right codes to true/false/null."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    unknown = [code for code in payload if code not in RIGHT_CODES]
+    if unknown:
+        return Response(
+            {"detail": f"Unknown right code(s): {', '.join(unknown)}"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    with transaction.atomic():
+        for code, value in payload.items():
+            if value is None:
+                UserRightOverride.objects.filter(user=target, right_code=code).delete()
+            else:
+                UserRightOverride.objects.update_or_create(
+                    user=target,
+                    right_code=code,
+                    defaults={"is_granted": bool(value), "updated_by": request.user},
+                )
+
+    defaults = role_default_rights(target.role)
+    overrides = {
+        o.right_code: o.is_granted for o in UserRightOverride.objects.filter(user=target)
+    }
+    return Response(
+        {
+            "user_id": target.id,
+            "role": target.role,
+            "role_default_rights": sorted(defaults),
+            "overrides": overrides,
+            "effective_rights": sorted(effective_rights(target)),
+        }
+    )
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -1427,7 +1525,7 @@ class PatientDeleteView(DestroyAPIView):
 
 
 class DownloadProvidersCSVTemplate(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_providers")]
 
     def get(self, request):
         response = HttpResponse(content_type="text/csv")
@@ -1452,7 +1550,7 @@ class DownloadProvidersCSVTemplate(APIView):
 
 
 class UploadProvidersCSV(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_providers")]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -1662,7 +1760,7 @@ class UploadProvidersCSV(APIView):
 
 
 class DownloadPatientsCSVTemplate(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_patients")]
 
     def get(self, request):
         response = HttpResponse(content_type="text/csv")
@@ -1686,7 +1784,7 @@ class DownloadPatientsCSVTemplate(APIView):
 
 
 class UploadPatientsCSV(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_patients")]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -2098,8 +2196,8 @@ def admin_change_password(request):
     """
     admin_user = request.user
 
-    # Only admins and system_admins can use this endpoint
-    if admin_user.role not in ["admin", "system_admin"]:
+    # Only users with the "users.change_password" right can use this endpoint
+    if not user_has_right(admin_user, "users.change_password"):
         print(
             f"❌ Access denied for user: {admin_user.username} (role: {admin_user.role})"
         )
@@ -2567,7 +2665,7 @@ def debug_delete_user(request, user_id):
             return Response({"error": f"User {user_id} not found"}, status=404)
 
         # Check permissions
-        if request.user.role not in ["admin", "system_admin"]:
+        if not user_has_right(request.user, "users.delete"):
             return Response(
                 {"error": f"Permission denied. Your role: {request.user.role}"},
                 status=403,
@@ -2676,7 +2774,7 @@ class OrganizationDataExportView(APIView):
     Export organization data in JSON and/or CSV formats as a ZIP file
     """
 
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("organization.export_data")]
 
     def post(self, request):
         try:
@@ -2950,7 +3048,7 @@ class OrganizationDeleteView(APIView):
     Delete organization and all associated data (with confirmation)
     """
 
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("organization.delete")]
 
     def post(self, request):
         """Initiate organization deletion with confirmation"""
@@ -3121,7 +3219,7 @@ class OrganizationSearchView(APIView):
     API endpoint for system admins to search organizations
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrSystemAdmin]
+    permission_classes = [IsAuthenticated, HasRight("organization.search_cross_org")]
 
     def get(self, request):
         """
@@ -3184,7 +3282,7 @@ class OrganizationAdminView(APIView):
     API endpoint for system admins to get organization admin details
     """
 
-    permission_classes = [IsAuthenticated, IsAdminOrSystemAdmin]
+    permission_classes = [IsAuthenticated, HasRight("organization.view_admin_details")]
 
     def get(self, request, organization_id):
         """

@@ -59,6 +59,8 @@ from .permissions import (
     CanAccessVitalSignsFlowsheets,
     IsFlowsheetTemplateAdmin,
 )
+from users.permissions import HasRight
+from users.rights import user_has_right
 from appointments.cron import send_patient_reminders, send_patient_sms_reminders
 from rest_framework.permissions import IsAdminUser
 from django.db.models import Q  # Add Q import for complex queries
@@ -186,7 +188,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         # Default patient logic
         user = self.request.user
         patient = user
-        if user.role in ["registrar", "admin", "system_admin"]:
+        if user_has_right(user, "appointments.create_for_others"):
             patient_id = self.request.data.get("patient")
             if patient_id:
                 try:
@@ -494,7 +496,7 @@ class EnvironmentSettingView(APIView):
     def get_permissions(self):
         if self.request.method == "GET":
             return [permissions.IsAuthenticated()]  # All logged-in users can read
-        return [IsAdminOrSystemAdmin()]  # Only admin or system_admin can edit
+        return [permissions.IsAuthenticated(), HasRight("settings.manage")()]
 
     def get(self, request):
         # Determine which organization to fetch settings for
@@ -676,6 +678,13 @@ class HolidayViewSet(viewsets.ModelViewSet):
     serializer_class = HolidaySerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        # Anyone authenticated can view the holiday calendar; only users
+        # with the "holidays.manage" right can create/edit/delete holidays.
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [permissions.IsAuthenticated(), HasRight("holidays.manage")()]
+        return [permissions.IsAuthenticated()]
+
     def get_queryset(self):
         user = self.request.user
 
@@ -752,7 +761,7 @@ class HolidayViewSet(viewsets.ModelViewSet):
 
 
 class DownloadClinicEventsTemplate(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_clinic_events")]
 
     def get(self, request):
         response = HttpResponse(content_type="text/csv")
@@ -767,7 +776,7 @@ class DownloadClinicEventsTemplate(APIView):
 
 
 class UploadClinicEventsCSV(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_clinic_events")]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -933,7 +942,7 @@ class UploadClinicEventsCSV(APIView):
 
 
 class DownloadAvailabilityTemplate(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_availability")]
 
     def get(self, request):
         response = HttpResponse(content_type="text/csv")
@@ -956,7 +965,7 @@ class DownloadAvailabilityTemplate(APIView):
 
 
 class UploadAvailabilityCSV(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("csv.upload_availability")]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -1133,7 +1142,7 @@ class RunWeeklyPatientRemindersView(APIView):
 
 
 class RunPatientRemindersNowView(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("reminders.trigger")]
 
     def post(self, request):
         try:
@@ -1150,7 +1159,7 @@ class RunPatientRemindersNowView(APIView):
 
 
 class RunPatientSMSRemindersNowView(APIView):
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("reminders.trigger")]
 
     def post(self, request):
         try:
@@ -1227,7 +1236,7 @@ class CheckInSearchView(APIView):
     Search today's appointments by patient name for check-in
     """
 
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("checkin.manage")]
 
     def get(self, request):
         search_query = request.GET.get("query", "").strip()
@@ -1293,7 +1302,7 @@ class CheckInStatusUpdateView(APIView):
     Update the arrived status for a specific appointment
     """
 
-    permission_classes = [IsAdminOrSystemAdmin]
+    permission_classes = [HasRight("checkin.manage")]
 
     def patch(self, request, appointment_id):
         try:
