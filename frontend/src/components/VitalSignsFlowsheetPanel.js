@@ -96,18 +96,29 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
 
   // Role + row layout: loaded once, independent of which appointment is
   // selected (the definition endpoint needs no appointment/instance).
+  //
+  // Every endpoint this panel touches is gated server-side to
+  // doctor/nurse/admin/system_admin -- a role outside that list (e.g.
+  // registrar) would get a 403 from all of them. Rather than firing those
+  // requests and surfacing a "Could not load..." toast for a role that was
+  // never going to see this panel anyway (canAuthor's check below renders
+  // nothing for it), skip the row-definitions fetch entirely once the role
+  // is known not to qualify.
   useEffect(() => {
     const init = async () => {
       const token = await getValidToken();
       if (!token) return;
+      let role = null;
       try {
         const decoded = jwtDecode(token.access_token || token);
-        setUserRole(decoded.role || null);
+        role = decoded.role || null;
+        setUserRole(role);
         const fullName = `${decoded.first_name || ""} ${decoded.last_name || ""}`.trim();
         setUserName(fullName || decoded.username || "");
       } catch (err) {
         console.error("Failed to decode token:", err);
       }
+      if (!["doctor", "nurse", "admin", "system_admin"].includes(role)) return;
       try {
         const headers = await authHeader();
         const res = await api.get(apiEndpoints.vitalSignsFlowsheetDefinition, { headers });
@@ -122,6 +133,15 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
 
   const loadAppointments = useCallback(async () => {
     if (!patientId) return;
+    // userRole is null for an instant while the token is still being
+    // decoded -- wait for it to resolve rather than treating "not known
+    // yet" the same as "not allowed" (this effect re-runs once userRole
+    // updates, since it's in the dependency array below).
+    if (userRole === null) return;
+    if (!canAuthor) {
+      setLoadingAppointments(false);
+      return;
+    }
     setLoadingAppointments(true);
     try {
       const headers = await authHeader();
@@ -150,14 +170,14 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
     } finally {
       setLoadingAppointments(false);
     }
-  }, [patientId, requestedAppointmentId]);
+  }, [patientId, requestedAppointmentId, userRole, canAuthor]);
 
   useEffect(() => {
     loadAppointments();
   }, [loadAppointments]);
 
   const loadFlowsheet = useCallback(async () => {
-    if (!appointmentId) {
+    if (!appointmentId || !canAuthor) {
       setFlowsheetId(null);
       setColumns([]);
       setCellData({});
@@ -189,7 +209,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
     } finally {
       setLoadingFlowsheet(false);
     }
-  }, [appointmentId]);
+  }, [appointmentId, canAuthor]);
 
   useEffect(() => {
     loadFlowsheet();
@@ -260,7 +280,16 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   };
 
   if (!canAuthor && userRole !== null) {
-    return null;
+    // Flowsheets are gated server-side to doctor/nurse/admin/system_admin --
+    // tell a role outside that list plainly why nothing loads here, instead
+    // of silently rendering nothing.
+    return (
+      <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
+        <Typography variant="body1" color="text.secondary">
+          You are not allowed to view this page.
+        </Typography>
+      </Paper>
+    );
   }
 
   const sortedColumns = [...columns].sort(
