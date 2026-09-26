@@ -195,6 +195,7 @@ class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
         model = NoteFieldDefinition
         fields = [
             "id",
+            "tab_label",
             "section_label",
             "key",
             "label",
@@ -332,6 +333,7 @@ class NoteFieldDefinitionAdminSerializer(serializers.Serializer):
     """
 
     client_id = serializers.CharField()
+    tab_label = serializers.CharField(allow_blank=True, required=False, default="")
     section_label = serializers.CharField(allow_blank=True, required=False, default="")
     key = serializers.SlugField(max_length=64)
     label = serializers.CharField(max_length=200)
@@ -456,6 +458,7 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
                 int(client_id) if client_id.isdigit() and int(client_id) in existing_ids else None
             )
             common = dict(
+                tab_label=f.get("tab_label", ""),
                 section_label=f.get("section_label", ""),
                 key=f["key"],
                 label=f["label"],

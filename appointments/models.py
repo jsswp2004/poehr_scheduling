@@ -497,10 +497,20 @@ class NoteFieldDefinition(models.Model):
     template = models.ForeignKey(
         NoteTemplate, on_delete=models.CASCADE, related_name="fields"
     )
+    # Groups fields into a top-level tab in the rendered form -- one level
+    # above section_label. Blank means "no tab" (the default, single-page
+    # layout used by every template before this existed): the frontend only
+    # shows a tab bar once a template actually uses more than one distinct
+    # tab_label, so adding this field never changes how an existing template
+    # renders until an admin opts a field into a named tab. Meant for
+    # templates that grow long (e.g. Review of Systems' 15 body systems) --
+    # split them across tabs like "History", "Review of Systems", "Vitals &
+    # Exam" instead of one long scroll.
+    tab_label = models.CharField(max_length=128, blank=True)
     section_label = models.CharField(
         max_length=128,
         blank=True,
-        help_text="Groups fields under a heading in the rendered form, e.g. 'History'",
+        help_text="Groups fields under a heading within a tab, e.g. 'History'",
     )
     key = models.SlugField(
         max_length=64,
