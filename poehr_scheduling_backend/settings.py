@@ -187,6 +187,19 @@ SIMPLE_JWT = {
 # CORS settings
 CORS_ALLOW_ALL_ORIGINS = True
 
+# django-cors-headers' default allowed request headers (accept,
+# accept-encoding, authorization, content-type, dnt, origin, user-agent,
+# x-csrftoken, x-requested-with) don't include cache-control/pragma --
+# ProfilePage's user-search request sends both to force a fresh lookup,
+# which the browser must preflight (OPTIONS) before the real GET. Without
+# these listed here, that preflight fails CORS entirely and the browser
+# blocks the request before it ever reaches the API (seen as "Request
+# header field cache-control is not allowed by Access-Control-Allow-Headers
+# in preflight response").
+from corsheaders.defaults import default_headers as _cors_default_headers
+
+CORS_ALLOW_HEADERS = list(_cors_default_headers) + ["cache-control", "pragma"]
+
 # Email settings
 # For development, use console backend to avoid SMTP authentication issues
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
