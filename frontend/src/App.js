@@ -27,6 +27,7 @@ import HolidaysTab from './pages/HolidaysPage';
 import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
 import AdminUserSearchPage from './pages/AdminUserSearchPage';
 import NoteTemplateBuilderPage from './pages/NoteTemplateBuilderPage';
+import FlowsheetBuilderPage from './pages/FlowsheetBuilderPage';
 import AccountPage from './pages/AccountPage';
 import EditAppointmentPage from './pages/EditAppointmentPage';
 import AppointmentsPage from './pages/AppointmentsPage';
@@ -209,6 +210,7 @@ function AppContent() {
         <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
         <Route path="/note-builder" element={<PrivateRoute><NoteTemplateBuilderPage /></PrivateRoute>} />
+        <Route path="/flowsheet-builder" element={<PrivateRoute><FlowsheetBuilderPage /></PrivateRoute>} />
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />        <Route path="/toast-test" element={<ToastTestPage />} />
         <Route path="/websocket-test" element={<WebSocketTest />} />
         <Route path="/websocket-direct-test" element={<WebSocketDirectTest />} />

@@ -45,22 +45,19 @@ const authHeader = async () => {
 
 const SECTION_HEADER_BG = "#0d1b4c"; // matches the Sunrise-style dark navy section bars
 
-// Only one flowsheet type exists today, but the selector is here from the
-// start so adding a new flowsheet type later (once the flowsheet-builder
-// lands) is just adding an entry here -- never a UI restructure.
-const FLOWSHEET_TYPES = [{ value: "vital_signs", label: "Vital Sign Flowsheet" }];
-
 /**
- * Vital Signs flowsheet: a time-columned chart for a single visit, one per
- * appointment. Rows (grouped into sections) come from the backend's
- * `row_definitions` -- this component never hardcodes the row layout, so a
- * future flowsheet-builder can swap the fixed VITAL_SIGNS_FLOWSHEET_SECTIONS
- * constant for a database-backed definition without a frontend change.
+ * Flowsheet panel: a time-columned chart for a single visit, one per
+ * (appointment, flowsheet type) pair -- a visit can be charted against more
+ * than one type (e.g. Vital Signs and Intake Screening) at once. The list of
+ * available types and each one's row layout (grouped into sections) come
+ * from the flowsheet-builder's FlowsheetTemplate/FlowsheetRowDefinition
+ * tables via GET /api/flowsheet-templates/ -- this component never
+ * hardcodes a row layout or a fixed list of types.
  *
- * A nurse/doctor picks the visit, adds a time column for each set of
- * readings taken, fills in the grid, and saves -- the whole columns/data
- * blob is written on Save (no per-keystroke autosave), mirroring how
- * Clinical Notes' Save Draft works.
+ * A nurse/doctor picks the visit and the flowsheet type, adds a time column
+ * for each set of readings taken, fills in the grid, and saves -- the whole
+ * columns/data blob is written on Save (no per-keystroke autosave),
+ * mirroring how Clinical Notes' Save Draft works.
  */
 function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   const [searchParams] = useSearchParams();
@@ -72,6 +69,13 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
     requestedAppointmentIdRaw && !Number.isNaN(Number(requestedAppointmentIdRaw))
       ? Number(requestedAppointmentIdRaw)
       : null;
+  // Same deep-link, for which flowsheet TYPE to open -- with more than one
+  // type possible per visit, ?appointment= alone no longer says which one.
+  const requestedTemplateIdRaw = searchParams.get("template");
+  const requestedTemplateId =
+    requestedTemplateIdRaw && !Number.isNaN(Number(requestedTemplateIdRaw))
+      ? Number(requestedTemplateIdRaw)
+      : null;
 
   const [userRole, setUserRole] = useState(null);
   const [userName, setUserName] = useState("");
@@ -80,8 +84,18 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   const [appointmentId, setAppointmentId] = useState(requestedAppointmentId || "");
   const [loadingAppointments, setLoadingAppointments] = useState(true);
 
-  const [flowsheetType, setFlowsheetType] = useState(FLOWSHEET_TYPES[0].value);
-  const [rowDefinitions, setRowDefinitions] = useState([]);
+  // Flowsheet types (templates) come from the flowsheet-builder now, not a
+  // hardcoded list -- an admin can add new types (e.g. "Intake Screening")
+  // without a frontend deploy. `selectedTemplateCode` drives which one is
+  // active; `rowDefinitions` always mirrors the selected template's own
+  // layout (already grouped by section, same shape the old hardcoded
+  // VITAL_SIGNS_FLOWSHEET_SECTIONS constant used to produce).
+  const [templates, setTemplates] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [selectedTemplateCode, setSelectedTemplateCode] = useState("");
+  const selectedTemplate = templates.find((t) => t.code === selectedTemplateCode) || null;
+  const rowDefinitions = selectedTemplate?.row_definitions || [];
+
   const [flowsheetId, setFlowsheetId] = useState(null);
   const [columns, setColumns] = useState([]);
   const [cellData, setCellData] = useState({});
@@ -94,16 +108,16 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
 
   const canAuthor = ["doctor", "nurse", "admin", "system_admin"].includes(userRole);
 
-  // Role + row layout: loaded once, independent of which appointment is
-  // selected (the definition endpoint needs no appointment/instance).
+  // Role + flowsheet types: loaded once, independent of which appointment is
+  // selected (the templates endpoint needs no appointment/instance).
   //
   // Every endpoint this panel touches is gated server-side to
   // doctor/nurse/admin/system_admin -- a role outside that list (e.g.
   // registrar) would get a 403 from all of them. Rather than firing those
   // requests and surfacing a "Could not load..." toast for a role that was
   // never going to see this panel anyway (canAuthor's check below renders
-  // nothing for it), skip the row-definitions fetch entirely once the role
-  // is known not to qualify.
+  // nothing for it), skip the templates fetch entirely once the role is
+  // known not to qualify.
   useEffect(() => {
     const init = async () => {
       const token = await getValidToken();
@@ -118,14 +132,26 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
       } catch (err) {
         console.error("Failed to decode token:", err);
       }
-      if (!["doctor", "nurse", "admin", "system_admin"].includes(role)) return;
+      if (!["doctor", "nurse", "admin", "system_admin"].includes(role)) {
+        setLoadingTemplates(false);
+        return;
+      }
       try {
         const headers = await authHeader();
-        const res = await api.get(apiEndpoints.vitalSignsFlowsheetDefinition, { headers });
-        setRowDefinitions(res.data.row_definitions || []);
+        const res = await api.get(apiEndpoints.flowsheetTemplates, { headers });
+        const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+        setTemplates(list);
+        if (list.length > 0) {
+          const requested = requestedTemplateId
+            ? list.find((t) => t.id === requestedTemplateId)
+            : null;
+          setSelectedTemplateCode((current) => current || requested?.code || list[0].code);
+        }
       } catch (err) {
-        console.error("Failed to load flowsheet row definitions:", err);
-        toast.error("Could not load the flowsheet layout.");
+        console.error("Failed to load flowsheet types:", err);
+        toast.error("Could not load the available flowsheet types.");
+      } finally {
+        setLoadingTemplates(false);
       }
     };
     init();
@@ -177,7 +203,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   }, [loadAppointments]);
 
   const loadFlowsheet = useCallback(async () => {
-    if (!appointmentId || !canAuthor) {
+    if (!appointmentId || !selectedTemplate || !canAuthor) {
       setFlowsheetId(null);
       setColumns([]);
       setCellData({});
@@ -188,7 +214,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
       const headers = await authHeader();
       const res = await api.get(apiEndpoints.vitalSignsFlowsheets, {
         headers,
-        params: { appointment: appointmentId },
+        params: { appointment: appointmentId, template: selectedTemplate.id },
       });
       const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
       if (list.length > 0) {
@@ -196,7 +222,6 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
         setFlowsheetId(sheet.id);
         setColumns(sheet.columns || []);
         setCellData(sheet.data || {});
-        if (sheet.row_definitions?.length) setRowDefinitions(sheet.row_definitions);
       } else {
         setFlowsheetId(null);
         setColumns([]);
@@ -204,12 +229,12 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
       }
       setDirty(false);
     } catch (err) {
-      console.error("Failed to load vital signs flowsheet:", err);
-      toast.error("Could not load the vital signs flowsheet for this visit.");
+      console.error("Failed to load flowsheet:", err);
+      toast.error("Could not load the flowsheet for this visit.");
     } finally {
       setLoadingFlowsheet(false);
     }
-  }, [appointmentId, canAuthor]);
+  }, [appointmentId, selectedTemplate, canAuthor]);
 
   useEffect(() => {
     loadFlowsheet();
@@ -255,10 +280,19 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
       toast.error("Please select a visit for this flowsheet.");
       return;
     }
+    if (!selectedTemplate) {
+      toast.error("Please select a flowsheet type.");
+      return;
+    }
     setSaving(true);
     try {
       const headers = await authHeader();
-      const payload = { appointment: appointmentId, columns, data: cellData };
+      const payload = {
+        appointment: appointmentId,
+        template: selectedTemplate.id,
+        columns,
+        data: cellData,
+      };
       if (flowsheetId) {
         await api.patch(apiEndpoints.vitalSignsFlowsheet(flowsheetId), payload, { headers });
       } else {
@@ -340,25 +374,34 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
           <Select
             labelId="flowsheet-type-label"
             label="Flowsheet"
-            value={flowsheetType}
-            onChange={(e) => setFlowsheetType(e.target.value)}
+            value={selectedTemplateCode}
+            onChange={(e) => setSelectedTemplateCode(e.target.value)}
+            disabled={loadingTemplates}
           >
-            {FLOWSHEET_TYPES.map((ft) => (
-              <MenuItem key={ft.value} value={ft.value}>
-                {ft.label}
+            {templates.map((t) => (
+              <MenuItem key={t.code} value={t.code}>
+                {t.name}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
       </Stack>
 
-      {loadingFlowsheet ? (
+      {loadingTemplates ? (
+        <Typography variant="body2" color="text.secondary">
+          Loading flowsheet types...
+        </Typography>
+      ) : templates.length === 0 ? (
+        <Typography variant="body2" color="text.secondary">
+          No flowsheet types are configured yet.
+        </Typography>
+      ) : loadingFlowsheet ? (
         <Typography variant="body2" color="text.secondary">
           Loading flowsheet...
         </Typography>
       ) : !appointmentId ? (
         <Typography variant="body2" color="text.secondary">
-          Select a visit to view or start its vital signs flowsheet.
+          Select a visit to view or start its flowsheet.
         </Typography>
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, maxHeight: "70vh" }}>

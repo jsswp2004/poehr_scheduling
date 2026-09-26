@@ -98,13 +98,21 @@ export const apiEndpoints = {
     // Vital Signs flowsheet endpoints
     vitalSignsFlowsheets: `${API_BASE_URL}/api/vital-signs-flowsheets/`,
     vitalSignsFlowsheet: (id) => `${API_BASE_URL}/api/vital-signs-flowsheets/${id}/`,
-    vitalSignsFlowsheetDefinition: `${API_BASE_URL}/api/vital-signs-flowsheets/definition/`,
+
+    // Flowsheet type (template) endpoints -- read-only, used by the
+    // flowsheet panel to populate its type dropdown and render the grid
+    flowsheetTemplates: `${API_BASE_URL}/api/flowsheet-templates/`,
+    flowsheetTemplate: (code) => `${API_BASE_URL}/api/flowsheet-templates/${code}/`,
 
     // Note-builder configuration UI (Phase 2, admin-only)
     noteTemplatesAdmin: `${API_BASE_URL}/api/admin/note-templates/`,
     noteTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/note-templates/${code}/`,
     dictionariesAdmin: `${API_BASE_URL}/api/admin/dictionaries/`,
     dictionaryAdmin: (id) => `${API_BASE_URL}/api/admin/dictionaries/${id}/`,
+
+    // Flowsheet-builder configuration UI (Phase 2, admin-only)
+    flowsheetTemplatesAdmin: `${API_BASE_URL}/api/admin/flowsheet-templates/`,
+    flowsheetTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/flowsheet-templates/${code}/`,
 
     // Authentication endpoints
     changePassword: `${API_BASE_URL}/api/auth/change-password/`,

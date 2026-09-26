@@ -10,7 +10,7 @@ from .models import (
     NoteTemplate,
     Dictionary,
     VitalSignsFlowsheet,
-    VITAL_SIGNS_FLOWSHEET_SECTIONS,
+    FlowsheetTemplate,
 )
 from .serializers import (
     AppointmentSerializer,
@@ -24,6 +24,8 @@ from .serializers import (
     NoteTemplateAdminSerializer,
     DictionaryAdminSerializer,
     VitalSignsFlowsheetSerializer,
+    FlowsheetTemplateSerializer,
+    FlowsheetTemplateAdminSerializer,
 )
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -55,6 +57,7 @@ from .permissions import (
     CanAuthorClinicalNoteType,
     IsNoteTemplateAdmin,
     CanAccessVitalSignsFlowsheets,
+    IsFlowsheetTemplateAdmin,
 )
 from appointments.cron import send_patient_reminders, send_patient_sms_reminders
 from rest_framework.permissions import IsAdminUser
@@ -1405,12 +1408,17 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
 
 class VitalSignsFlowsheetViewSet(viewsets.ModelViewSet):
     """
-    The one hardcoded Vital Signs flowsheet, one per appointment. Created
-    lazily -- GET /?appointment=<id> returns an empty list until the first
-    Save from the flowsheet panel POSTs it into existence, at which point
-    later saves PATCH that same row (enforced by the OneToOneField on
-    VitalSignsFlowsheet.appointment, which a second POST for the same
-    appointment would violate).
+    A flowsheet instance for a visit -- one per (appointment, template) pair.
+    Created lazily -- GET /?appointment=<id>&template=<id> returns an empty
+    list until the first Save from the flowsheet panel POSTs it into
+    existence, at which point later saves PATCH that same row (enforced by
+    VitalSignsFlowsheet.Meta.unique_together, which a second POST for the
+    same appointment+template would violate).
+
+    Despite the name (kept for backward compatibility), this now serves any
+    flowsheet type an admin has defined via the flowsheet-builder
+    (FlowsheetTemplateAdminViewSet below) -- `template` on each instance
+    says which one.
     """
 
     serializer_class = VitalSignsFlowsheetSerializer
@@ -1431,16 +1439,93 @@ class VitalSignsFlowsheetViewSet(viewsets.ModelViewSet):
         if patient_id:
             queryset = queryset.filter(patient_id=patient_id)
 
-        return queryset.select_related("patient", "appointment")
+        template_id = self.request.query_params.get("template")
+        if template_id:
+            queryset = queryset.filter(template_id=template_id)
 
-    @action(detail=False, methods=["get"])
-    def definition(self, request):
-        """
-        The row layout alone, with no appointment/instance required -- lets
-        the flowsheet panel render an empty grid for an appointment that has
-        no flowsheet row yet (before the first Save creates one).
-        """
-        return Response({"row_definitions": VITAL_SIGNS_FLOWSHEET_SECTIONS})
+        return queryset.select_related("patient", "appointment", "template")
+
+
+class FlowsheetTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Read-only definitions of flowsheet types -- e.g. "Vital Signs" -- for
+    the flowsheet panel to render its type dropdown and, once a type is
+    selected, its grid.
+
+    Only active templates, and no create/update/delete here: building/
+    editing flowsheet types goes through FlowsheetTemplateAdminViewSet below
+    (the flowsheet-builder configuration UI) instead -- same split as
+    NoteTemplateViewSet / NoteTemplateAdminViewSet.
+    """
+
+    queryset = FlowsheetTemplate.objects.filter(is_active=True).prefetch_related(
+        "rows", "rows__dictionary", "rows__dictionary__items"
+    )
+    serializer_class = FlowsheetTemplateSerializer
+    permission_classes = [permissions.IsAuthenticated, CanAccessVitalSignsFlowsheets]
+    lookup_field = "code"
+
+
+class FlowsheetTemplateAdminViewSet(viewsets.ModelViewSet):
+    """
+    Full CRUD for FlowsheetTemplate + its nested FlowsheetRowDefinition
+    rows, admin-only (see IsFlowsheetTemplateAdmin). This is what the
+    flowsheet-builder configuration UI talks to -- the flowsheet panel never
+    touches it, only the read-only FlowsheetTemplateViewSet above.
+
+    Lists every template regardless of is_active, so an admin can find and
+    re-enable a deactivated one.
+    """
+
+    queryset = FlowsheetTemplate.objects.all().prefetch_related(
+        "rows", "rows__dictionary", "rows__dictionary__items"
+    )
+    permission_classes = [permissions.IsAuthenticated, IsFlowsheetTemplateAdmin]
+    lookup_field = "code"
+
+    def get_serializer_class(self):
+        if self.action in ("create", "update", "partial_update"):
+            return FlowsheetTemplateAdminSerializer
+        return FlowsheetTemplateSerializer
+
+    def _read_payload(self, template, version_bumped):
+        data = FlowsheetTemplateSerializer(template).data
+        data["version_bumped"] = version_bumped
+        data["instances_count"] = template.instances.count()
+        return data
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        template = serializer.save()
+        return Response(self._read_payload(template, version_bumped=False), status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        old_version = instance.version
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        template = serializer.save()
+        return Response(
+            self._read_payload(template, version_bumped=template.version != old_version),
+            status=status.HTTP_200_OK,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.instances.exists():
+            return Response(
+                {
+                    "detail": (
+                        "This flowsheet type has charted instances on file and can't be "
+                        "deleted -- set it to inactive instead so it disappears from the "
+                        "Flowsheet dropdown without breaking existing flowsheets."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
