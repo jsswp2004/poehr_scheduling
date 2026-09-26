@@ -95,6 +95,11 @@ export const apiEndpoints = {
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
     noteTemplate: (code) => `${API_BASE_URL}/api/note-templates/${code}/`,
 
+    // Vital Signs flowsheet endpoints
+    vitalSignsFlowsheets: `${API_BASE_URL}/api/vital-signs-flowsheets/`,
+    vitalSignsFlowsheet: (id) => `${API_BASE_URL}/api/vital-signs-flowsheets/${id}/`,
+    vitalSignsFlowsheetDefinition: `${API_BASE_URL}/api/vital-signs-flowsheets/definition/`,
+
     // Note-builder configuration UI (Phase 2, admin-only)
     noteTemplatesAdmin: `${API_BASE_URL}/api/admin/note-templates/`,
     noteTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/note-templates/${code}/`,

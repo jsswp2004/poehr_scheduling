@@ -390,6 +390,106 @@ class ClinicalNote(models.Model):
         return f"{self.get_note_type_display()} for {self.patient} ({self.status})"
 
 
+# Row layout for the Vital Signs flowsheet -- deliberately a plain Python
+# constant, not a DB-backed template, since this is the one fixed flowsheet
+# type for now. Shaped the same way the future flowsheet-builder's rows will
+# be (grouped by section, each with a stable `key`, `label`, optional `unit`,
+# and `field_type`) so VitalSignsFlowsheetSerializer's row_definitions output
+# -- and the frontend grid that renders it -- can move to a database-backed
+# equivalent later without changing how a flowsheet's `data` is shaped or
+# how the grid consumes it.
+VITAL_SIGNS_FLOWSHEET_SECTIONS = [
+    {
+        "section": "Vital Signs",
+        "rows": [
+            {"key": "temperature_f", "label": "Temperature", "unit": "°F", "field_type": "numeric"},
+            {"key": "heart_rate", "label": "Heart Rate", "unit": "beats/min", "field_type": "numeric"},
+            {"key": "resp_rate", "label": "Respiratory Rate", "unit": "breaths/min", "field_type": "numeric"},
+            {"key": "spo2", "label": "SpO2", "unit": "%", "field_type": "numeric"},
+            {"key": "bp_systolic", "label": "Blood Pressure - Systolic", "unit": "mmHg", "field_type": "numeric"},
+            {"key": "bp_diastolic", "label": "Blood Pressure - Diastolic", "unit": "mmHg", "field_type": "numeric"},
+        ],
+    },
+    {
+        "section": "Pain Assessment",
+        "rows": [
+            {"key": "pain_score", "label": "Pain Score", "unit": "0-10", "field_type": "numeric"},
+            {"key": "pain_location", "label": "Pain Location", "unit": None, "field_type": "text"},
+            {"key": "pain_intervention", "label": "Pain Intervention", "unit": None, "field_type": "text"},
+        ],
+    },
+    {
+        "section": "Oxygen Therapy",
+        "rows": [
+            {"key": "o2_fio2", "label": "FiO2", "unit": "%", "field_type": "numeric"},
+            {"key": "o2_flow", "label": "Flow", "unit": "L/min", "field_type": "numeric"},
+            {"key": "o2_device", "label": "Device", "unit": None, "field_type": "text"},
+        ],
+    },
+    {
+        "section": "Body Measurements",
+        "rows": [
+            {"key": "height_in", "label": "Height", "unit": "in", "field_type": "numeric"},
+            {"key": "weight_lb", "label": "Weight", "unit": "lbs", "field_type": "numeric"},
+        ],
+    },
+]
+
+
+class VitalSignsFlowsheet(models.Model):
+    """
+    A time-columned vital signs chart for a single visit -- mirrors a
+    Sunrise-style flowsheet: rows are fixed clinical measures (grouped into
+    sections), columns are points in time a reading was taken, and `data`
+    holds the value at each (row, column) intersection.
+
+    One per appointment (created on first save from the flowsheet panel,
+    not automatically on appointment creation). This is the one hardcoded
+    "Vital Signs" flowsheet; a future flowsheet-builder (mirroring the
+    NoteTemplate/NoteFieldDefinition note-builder engine) will let admins
+    define additional flowsheet types the same way NoteTemplate lets them
+    define additional note types -- `columns`/`data`'s shape here is
+    designed to carry over unchanged when that lands.
+    """
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="vital_signs_flowsheets",
+        null=True,
+        blank=True,
+    )
+    appointment = models.OneToOneField(
+        "appointments.Appointment",
+        on_delete=models.CASCADE,
+        related_name="vital_signs_flowsheet",
+        help_text="The visit this flowsheet charts vitals for",
+    )
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="vital_signs_flowsheets_received",
+    )
+
+    # [{ "id": "col_<uuid4hex>", "timestamp": ISO 8601, "recorded_by": user id,
+    #    "recorded_by_name": str }, ...] -- one entry per time column, in the
+    # order they were added (a column is never re-sorted by its timestamp,
+    # since a nurse may add a late/backdated entry after later ones).
+    columns = models.JSONField(default=list, blank=True)
+    # { row_key: { column_id: value_string } } -- sparse; a cell with no
+    # entry simply has no key, rather than an empty string.
+    data = models.JSONField(default=dict, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Vital Signs Flowsheet for {self.patient} (appointment {self.appointment_id})"
+
+
 class Dictionary(models.Model):
     """
     A reusable reference/lookup list (e.g. "ROS findings", "allergy

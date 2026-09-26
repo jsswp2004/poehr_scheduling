@@ -22,6 +22,7 @@ import {
     Visibility as VisibilityIcon,
     Delete as DeleteIcon,
     Assignment as AssignmentIcon,
+    MonitorHeart as MonitorHeartIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -170,6 +171,16 @@ function PatientsTable({
                                                     sx={{ color: 'secondary.main' }}
                                                 >
                                                     <AssignmentIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+
+                                            <Tooltip title="Vital Signs Flowsheet">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => navigate(`/patients/${patient.user_id}/flowsheet`)}
+                                                    sx={{ color: '#c2185b' }}
+                                                >
+                                                    <MonitorHeartIcon fontSize="small" />
                                                 </IconButton>
                                             </Tooltip>
 

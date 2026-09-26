@@ -11,6 +11,8 @@ from .models import (
     DictionaryItem,
     NoteTemplate,
     NoteFieldDefinition,
+    VitalSignsFlowsheet,
+    VITAL_SIGNS_FLOWSHEET_SECTIONS,
 )
 import logging
 
@@ -648,3 +650,58 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
         if template is not None:
             validated_data["template_version"] = template.version
             validated_data["template_snapshot"] = NoteTemplateSerializer(template).data
+
+
+class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
+    """
+    The one hardcoded "Vital Signs" flowsheet (see VITAL_SIGNS_FLOWSHEET_SECTIONS
+    in models.py). `row_definitions` is included on every read so the
+    frontend grid renders purely from this response -- it never hardcodes
+    the row layout itself, which is what will let a future flowsheet-builder
+    swap this constant for a database-backed definition without a frontend
+    change.
+    """
+
+    patient_name = serializers.SerializerMethodField()
+    row_definitions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VitalSignsFlowsheet
+        fields = [
+            "id",
+            "organization",
+            "appointment",
+            "patient",
+            "patient_name",
+            "columns",
+            "data",
+            "row_definitions",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["organization", "patient", "created_at", "updated_at"]
+
+    def get_patient_name(self, obj):
+        return (
+            f"{obj.patient.first_name} {obj.patient.last_name}".strip()
+            or obj.patient.username
+        )
+
+    def get_row_definitions(self, obj):
+        return VITAL_SIGNS_FLOWSHEET_SECTIONS
+
+    def validate_columns(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("columns must be a list.")
+        return value
+
+    def validate_data(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("data must be an object.")
+        return value
+
+    def create(self, validated_data):
+        appointment = validated_data["appointment"]
+        validated_data["patient"] = appointment.patient
+        validated_data["organization"] = appointment.organization
+        return super().create(validated_data)

@@ -9,6 +9,8 @@ from .models import (
     ClinicalNote,
     NoteTemplate,
     Dictionary,
+    VitalSignsFlowsheet,
+    VITAL_SIGNS_FLOWSHEET_SECTIONS,
 )
 from .serializers import (
     AppointmentSerializer,
@@ -21,6 +23,7 @@ from .serializers import (
     NoteTemplateSerializer,
     NoteTemplateAdminSerializer,
     DictionaryAdminSerializer,
+    VitalSignsFlowsheetSerializer,
 )
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
@@ -51,6 +54,7 @@ from .permissions import (
     CanAccessClinicalNotes,
     CanAuthorClinicalNoteType,
     IsNoteTemplateAdmin,
+    CanAccessVitalSignsFlowsheets,
 )
 from appointments.cron import send_patient_reminders, send_patient_sms_reminders
 from rest_framework.permissions import IsAdminUser
@@ -1397,6 +1401,46 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class VitalSignsFlowsheetViewSet(viewsets.ModelViewSet):
+    """
+    The one hardcoded Vital Signs flowsheet, one per appointment. Created
+    lazily -- GET /?appointment=<id> returns an empty list until the first
+    Save from the flowsheet panel POSTs it into existence, at which point
+    later saves PATCH that same row (enforced by the OneToOneField on
+    VitalSignsFlowsheet.appointment, which a second POST for the same
+    appointment would violate).
+    """
+
+    serializer_class = VitalSignsFlowsheetSerializer
+    permission_classes = [permissions.IsAuthenticated, CanAccessVitalSignsFlowsheets]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == "system_admin":
+            queryset = VitalSignsFlowsheet.objects.all()
+        else:
+            queryset = VitalSignsFlowsheet.objects.filter(organization=user.organization)
+
+        appointment_id = self.request.query_params.get("appointment")
+        if appointment_id:
+            queryset = queryset.filter(appointment_id=appointment_id)
+
+        patient_id = self.request.query_params.get("patient")
+        if patient_id:
+            queryset = queryset.filter(patient_id=patient_id)
+
+        return queryset.select_related("patient", "appointment")
+
+    @action(detail=False, methods=["get"])
+    def definition(self, request):
+        """
+        The row layout alone, with no appointment/instance required -- lets
+        the flowsheet panel render an empty grid for an appointment that has
+        no flowsheet row yet (before the first Save creates one).
+        """
+        return Response({"row_definitions": VITAL_SIGNS_FLOWSHEET_SECTIONS})
 
 
 class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
