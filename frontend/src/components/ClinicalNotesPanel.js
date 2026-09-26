@@ -168,19 +168,32 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     const init = async () => {
       const token = await getValidToken();
       if (!token) return;
+      let role = null;
       try {
         const decoded = jwtDecode(token.access_token || token);
-        setUserRole(decoded.role || null);
-        const defaultType = NOTE_TYPE_BY_ROLE[decoded.role];
+        role = decoded.role || null;
+        setUserRole(role);
+        const defaultType = NOTE_TYPE_BY_ROLE[role];
         if (defaultType) {
           setForm((f) => ({ ...f, note_type: defaultType }));
         }
       } catch (err) {
         console.error("Failed to decode token:", err);
       }
+      // Clinical notes and flowsheets are both gated server-side to
+      // doctor/nurse/admin/system_admin -- any other role (e.g. registrar)
+      // would just get a 403 from every endpoint this panel touches. Rather
+      // than firing those requests and surfacing a "Could not load..." toast
+      // for a role that was never going to see this panel anyway (it
+      // renders nothing further down once loading finishes), skip the fetch
+      // entirely and let the empty-state gate below hide the panel quietly.
+      if (["doctor", "nurse", "admin", "system_admin"].includes(role)) {
+        loadData();
+      } else {
+        setLoading(false);
+      }
     };
     init();
-    loadData();
   }, [loadData]);
 
   // Whenever the selected documentation type is template-driven, fetch its
@@ -485,9 +498,19 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     }));
   };
 
-  if (!canAuthor && !loading && notes.length === 0 && flowsheets.length === 0) {
-    // Not a clinical role and nothing to show -- render nothing at all.
-    return null;
+  if (userRole !== null && !canAuthor) {
+    // Clinical notes/flowsheets are gated server-side to
+    // doctor/nurse/admin/system_admin -- tell a role outside that list
+    // plainly why nothing loads here, instead of silently rendering
+    // nothing (which used to also fire the fetches anyway and surface a
+    // confusing "Could not load..." toast).
+    return (
+      <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
+        <Typography variant="body1" color="text.secondary">
+          You are not allowed to view this page.
+        </Typography>
+      </Paper>
+    );
   }
 
   const handleFieldChange = (field) => (e) => {
