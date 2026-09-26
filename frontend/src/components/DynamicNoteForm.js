@@ -63,11 +63,33 @@ export function isFieldVisible(field, values) {
   return parentValue === field.depends_on_value;
 }
 
+// Turns one field's raw stored value into the string (or null, if empty)
+// that should be shown for it -- resolving dictionary values to their
+// display labels, formatting multiselect as a joined list, etc. Shared by
+// DynamicNoteSummary (Note History) and buildNotePreviewSections (the live
+// preview pane / print in ClinicalNotesPanel) so both show a field the same
+// way.
+export function formatFieldValue(field, rawValue) {
+  if (field.field_type === "multiselect") {
+    if (!Array.isArray(rawValue) || rawValue.length === 0) return null;
+    return rawValue
+      .map((v) => (field.options || []).find((o) => o.value === v)?.label || v)
+      .join(", ");
+  }
+  if (rawValue === undefined || rawValue === null || rawValue === "") return null;
+  if (field.field_type === "checkbox") return rawValue ? "Yes" : "No";
+  if (field.field_type === "dropdown" || field.field_type === "radio") {
+    const opt = (field.options || []).find((o) => o.value === rawValue);
+    return opt ? opt.label : rawValue;
+  }
+  return String(rawValue);
+}
+
 // Groups a flat, pre-sorted field list into { label, fields } buckets by
 // section_label, preserving first-appearance order (never re-sorts).
 // Shared by the live form (per-tab) and, indirectly, by the pattern used in
 // DynamicNoteSummary below.
-function groupBySection(fieldList) {
+export function groupBySection(fieldList) {
   const sections = [];
   const sectionIndex = {};
   fieldList.forEach((field) => {
@@ -88,7 +110,7 @@ function groupBySection(fieldList) {
 // A blank tab_label is its own group (labeled "General" when shown), so a
 // template that never sets tab_label produces exactly one group and no Tabs
 // bar is rendered -- zero visual change for existing templates.
-function groupByTab(fieldList) {
+export function groupByTab(fieldList) {
   const tabs = [];
   const tabIndex = {};
   fieldList.forEach((field) => {
@@ -359,28 +381,12 @@ export function DynamicNoteSummary({ templateDetail, structuredData }) {
 
   const fields = templateDetail.fields || [];
 
-  const formatValue = (field, rawValue) => {
-    if (field.field_type === "multiselect") {
-      if (!Array.isArray(rawValue) || rawValue.length === 0) return null;
-      return rawValue
-        .map((v) => (field.options || []).find((o) => o.value === v)?.label || v)
-        .join(", ");
-    }
-    if (rawValue === undefined || rawValue === null || rawValue === "") return null;
-    if (field.field_type === "checkbox") return rawValue ? "Yes" : "No";
-    if (field.field_type === "dropdown" || field.field_type === "radio") {
-      const opt = (field.options || []).find((o) => o.value === rawValue);
-      return opt ? opt.label : rawValue;
-    }
-    return String(rawValue);
-  };
-
   const renderFieldLine = (field) => {
     // A hidden dependent field's leftover value (if any predates the
     // stale-value cleanup in DynamicNoteForm) is never shown in
     // history -- only what was applicable when the note was signed.
     if (!isFieldVisible(field, structuredData)) return null;
-    const display = formatValue(field, structuredData[field.key]);
+    const display = formatFieldValue(field, structuredData[field.key]);
     if (display === null) return null;
     return (
       <Typography variant="body2" key={field.key}>
@@ -411,4 +417,32 @@ export function DynamicNoteSummary({ templateDetail, structuredData }) {
       ))}
     </Box>
   );
+}
+
+/**
+ * Builds the shared { tabLabel, sections: [{ sectionLabel, entries }] }
+ * shape consumed by NotePreviewPane for both the live preview pane and its
+ * Print button, so what's shown on screen while documenting is exactly what
+ * gets printed -- from the SAME template/field structure DynamicNoteForm
+ * itself renders (tab_label -> section_label -> fields).
+ *
+ * Unlike DynamicNoteSummary (Note History, which only shows what was
+ * actually filled in on a signed note), this keeps every visible field,
+ * marking an empty one with `empty: true` so the preview/print can show
+ * "Not yet documented" placeholders while the note is still being drafted.
+ */
+export function buildNotePreviewSections(fields, values) {
+  const tabGroups = groupByTab(fields || []);
+  return tabGroups.map((tab) => ({
+    tabLabel: tab.label,
+    sections: groupBySection(tab.fields).map((section) => ({
+      sectionLabel: section.label,
+      entries: section.fields
+        .filter((f) => isFieldVisible(f, values || {}))
+        .map((f) => {
+          const display = formatFieldValue(f, values ? values[f.key] : undefined);
+          return { label: f.label, display: display === null ? "" : display, empty: display === null };
+        }),
+    })),
+  }));
 }
