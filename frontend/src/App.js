@@ -15,6 +15,7 @@ import PrivateRoute from './components/PrivateRoute';
 import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import ClinicalNotesPage from './pages/ClinicalNotesPage';
+import VitalSignsFlowsheetPage from './pages/VitalSignsFlowsheetPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
@@ -196,6 +197,7 @@ function AppContent() {
         <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
         <Route path="/patients/:id" element={<PrivateRoute><PatientDetailPage /></PrivateRoute>} />
         <Route path="/patients/:id/notes" element={<PrivateRoute><ClinicalNotesPage /></PrivateRoute>} />
+        <Route path="/patients/:id/flowsheet" element={<PrivateRoute><VitalSignsFlowsheetPage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><AccountPage /></PrivateRoute>} />
         <Route path="/profile" element={<ProfilePage />} />

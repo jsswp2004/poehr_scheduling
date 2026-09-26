@@ -63,6 +63,25 @@ class CanAccessClinicalNotes(permissions.BasePermission):
         return True
 
 
+class CanAccessVitalSignsFlowsheets(permissions.BasePermission):
+    """
+    Same role gate as CanAccessClinicalNotes (doctor/nurse/admin/system_admin;
+    patients have no access), but its own class -- a flowsheet has no
+    draft/signed lock (unlike ClinicalNote), so it must not share
+    CanAccessClinicalNotes.has_object_permission, which reads obj.status and
+    would raise AttributeError against a VitalSignsFlowsheet instance.
+    """
+
+    ALLOWED_ROLES = ["doctor", "nurse", "admin", "system_admin"]
+
+    def has_permission(self, request, view):
+        user = request.user
+        return (
+            user.is_authenticated
+            and getattr(user, "role", None) in self.ALLOWED_ROLES
+        )
+
+
 class IsNoteTemplateAdmin(permissions.BasePermission):
     """
     Gates the note-builder configuration UI (Phase 2): creating, editing,
