@@ -473,3 +473,44 @@ class TypingIndicator(models.Model):
         """Update typing status"""
         self.is_typing = is_typing
         self.save(update_fields=["is_typing", "last_typing_time"])
+
+
+class UserRightOverride(models.Model):
+    """
+    A single per-user exception to what their role would otherwise grant --
+    the building block of the Security Settings "rights" checkboxes.
+
+    Absence of a row for (user, right_code) means "use the role default"
+    (see users.rights.role_default_rights). A row with is_granted=True adds
+    that right even if the user's role doesn't normally have it; is_granted
+    =False takes it away even if the role does. `right_code` is validated
+    against users.rights.RIGHT_CODES at the serializer layer, not here, so
+    this table has no hard FK to the (code-defined, not DB-defined) rights
+    registry -- the registry can gain/rename rights without a migration.
+    """
+
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="right_overrides"
+    )
+    right_code = models.CharField(max_length=64)
+    is_granted = models.BooleanField(
+        help_text="True grants this right beyond the user's role default; False revokes it."
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="right_overrides_made",
+        help_text="Which admin/system_admin last changed this override",
+    )
+
+    class Meta:
+        unique_together = ("user", "right_code")
+        verbose_name = "User Right Override"
+        verbose_name_plural = "User Right Overrides"
+
+    def __str__(self):
+        verb = "granted" if self.is_granted else "revoked"
+        return f"{self.user.username}: {self.right_code} {verb}"
