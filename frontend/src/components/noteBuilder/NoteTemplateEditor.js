@@ -25,6 +25,13 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
+import { getValidToken } from "../../utils/auth";
+
+// The shared `api` axios instance carries no Authorization header of its
+// own (App.js's interceptors are only wired to the default `axios` import,
+// not this instance) -- every call site attaches its own token, matching
+// the pattern used by useDoctorsData/useOrganizationsData/etc.
+const authConfig = async () => ({ headers: { Authorization: `Bearer ${await getValidToken()}` } });
 
 // Mirrors NoteFieldDefinition.FIELD_TYPE_CHOICES in appointments/models.py.
 const FIELD_TYPES = [
@@ -102,17 +109,22 @@ function NoteTemplateEditor({ templateCode, onBack }) {
     const dragIndex = useRef(null);
 
     useEffect(() => {
-        api
-            .get(apiEndpoints.dictionariesAdmin)
-            .then((res) => setDictionaries(res.data))
-            .catch(() => setError("Couldn't load dictionaries for the field editor."));
+        (async () => {
+            try {
+                const res = await api.get(apiEndpoints.dictionariesAdmin, await authConfig());
+                setDictionaries(res.data);
+            } catch (e) {
+                setError("Couldn't load dictionaries for the field editor.");
+            }
+        })();
     }, []);
 
     useEffect(() => {
         if (isNew) return;
-        api
-            .get(apiEndpoints.noteTemplateAdmin(templateCode))
-            .then((res) => {
+        (async () => {
+            try {
+                const config = await authConfig();
+                const res = await api.get(apiEndpoints.noteTemplateAdmin(templateCode), config);
                 const tpl = res.data;
                 setCode(tpl.code);
                 setName(tpl.name);
@@ -129,9 +141,12 @@ function NoteTemplateEditor({ templateCode, onBack }) {
                     delete f.dependsOnKey;
                 });
                 setFields(loaded);
-            })
-            .catch(() => setError("Couldn't load this template."))
-            .finally(() => setLoading(false));
+            } catch (e) {
+                setError("Couldn't load this template.");
+            } finally {
+                setLoading(false);
+            }
+        })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [templateCode]);
 
@@ -226,9 +241,10 @@ function NoteTemplateEditor({ templateCode, onBack }) {
 
         setSaving(true);
         try {
+            const config = await authConfig();
             const res = isNew
-                ? await api.post(apiEndpoints.noteTemplatesAdmin, payload)
-                : await api.put(apiEndpoints.noteTemplateAdmin(code), payload);
+                ? await api.post(apiEndpoints.noteTemplatesAdmin, payload, config)
+                : await api.put(apiEndpoints.noteTemplateAdmin(code), payload, config);
             const data = res.data;
             setVersion(data.version);
             if (isNew) {
