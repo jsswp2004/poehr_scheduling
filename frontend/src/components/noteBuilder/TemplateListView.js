@@ -21,6 +21,13 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
+import { getValidToken } from "../../utils/auth";
+
+// The shared `api` axios instance carries no Authorization header of its
+// own (App.js's interceptors are only wired to the default `axios` import,
+// not this instance) -- every call site attaches its own token, matching
+// the pattern used by useDoctorsData/useOrganizationsData/etc.
+const authConfig = async () => ({ headers: { Authorization: `Bearer ${await getValidToken()}` } });
 
 /**
  * Lists every NoteTemplate (active and inactive) for the note-builder
@@ -34,12 +41,14 @@ function TemplateListView({ onEdit, onNew }) {
     const [error, setError] = useState("");
     const [busyCode, setBusyCode] = useState(null);
 
-    const load = () => {
+    const load = async () => {
         setError("");
-        api
-            .get(apiEndpoints.noteTemplatesAdmin)
-            .then((res) => setTemplates(res.data))
-            .catch(() => setError("Couldn't load note templates."));
+        try {
+            const res = await api.get(apiEndpoints.noteTemplatesAdmin, await authConfig());
+            setTemplates(res.data);
+        } catch (e) {
+            setError("Couldn't load note templates.");
+        }
     };
 
     useEffect(() => {
@@ -50,9 +59,11 @@ function TemplateListView({ onEdit, onNew }) {
     const toggleActive = async (tpl) => {
         setBusyCode(tpl.code);
         try {
-            await api.patch(apiEndpoints.noteTemplateAdmin(tpl.code), {
-                is_active: !tpl.is_active,
-            });
+            await api.patch(
+                apiEndpoints.noteTemplateAdmin(tpl.code),
+                { is_active: !tpl.is_active },
+                await authConfig()
+            );
             load();
         } catch (e) {
             setError("Couldn't update that template's active status.");
@@ -71,7 +82,7 @@ function TemplateListView({ onEdit, onNew }) {
         }
         setBusyCode(tpl.code);
         try {
-            await api.delete(apiEndpoints.noteTemplateAdmin(tpl.code));
+            await api.delete(apiEndpoints.noteTemplateAdmin(tpl.code), await authConfig());
             load();
         } catch (e) {
             const detail = e?.response?.data?.detail;

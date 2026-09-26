@@ -20,6 +20,13 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
+import { getValidToken } from "../../utils/auth";
+
+// The shared `api` axios instance carries no Authorization header of its
+// own (App.js's interceptors are only wired to the default `axios` import,
+// not this instance) -- every call site attaches its own token, matching
+// the pattern used by useDoctorsData/useOrganizationsData/etc.
+const authConfig = async () => ({ headers: { Authorization: `Bearer ${await getValidToken()}` } });
 
 let tempIdCounter = 0;
 const nextTempId = () => `temp-${Date.now()}-${tempIdCounter++}`;
@@ -73,11 +80,12 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
             })),
         };
         try {
+            const config = await authConfig();
             if (dictionary.isNew) {
-                const res = await api.post(apiEndpoints.dictionariesAdmin, payload);
+                const res = await api.post(apiEndpoints.dictionariesAdmin, payload, config);
                 onSaved(res.data);
             } else {
-                const res = await api.put(apiEndpoints.dictionaryAdmin(dictionary.id), payload);
+                const res = await api.put(apiEndpoints.dictionaryAdmin(dictionary.id), payload, config);
                 onSaved(res.data);
             }
         } catch (e) {
@@ -99,7 +107,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
             return;
         }
         try {
-            await api.delete(apiEndpoints.dictionaryAdmin(dictionary.id));
+            await api.delete(apiEndpoints.dictionaryAdmin(dictionary.id), await authConfig());
             onDeleted();
         } catch (e) {
             const detail = e?.response?.data?.detail;
@@ -193,12 +201,14 @@ function DictionaryManager() {
     const [dictionaries, setDictionaries] = useState(null);
     const [error, setError] = useState("");
 
-    const load = () => {
+    const load = async () => {
         setError("");
-        api
-            .get(apiEndpoints.dictionariesAdmin)
-            .then((res) => setDictionaries(res.data))
-            .catch(() => setError("Couldn't load dictionaries."));
+        try {
+            const res = await api.get(apiEndpoints.dictionariesAdmin, await authConfig());
+            setDictionaries(res.data);
+        } catch (e) {
+            setError("Couldn't load dictionaries.");
+        }
     };
 
     useEffect(() => {
