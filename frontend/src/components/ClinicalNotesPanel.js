@@ -342,7 +342,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
         ?.label ||
       "Clinical Note"
     : selectedHistoryFlowsheet
-    ? "Vital Sign Flowsheet"
+    ? selectedHistoryFlowsheet.template_name || "Flowsheet"
     : "Clinical Note";
 
   const historyPreviewMeta = selectedHistoryNote
@@ -488,7 +488,11 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   // mirroring startEditDraft's role for note rows (which edits in place,
   // since Clinical Notes' documentation form lives on this same page).
   const editFlowsheet = (flowsheet) => {
-    navigate(`/patients/${patientId}/flowsheet?appointment=${flowsheet.appointment}`);
+    // Pass the template id too -- with multiple flowsheet types possible
+    // per visit, the appointment alone no longer identifies which one to
+    // open (the panel would otherwise default to the first active type).
+    const templateParam = flowsheet.template ? `&template=${flowsheet.template}` : "";
+    navigate(`/patients/${patientId}/flowsheet?appointment=${flowsheet.appointment}${templateParam}`);
   };
 
   const handleStructuredFieldChange = (key, value) => {
@@ -860,7 +864,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                                 <Chip label="Flowsheet" size="small" color="info" />
                               </TableCell>
                               <TableCell>
-                                Vital Sign Flowsheet
+                                {flowsheet.template_name || "Flowsheet"}
                                 <Chip
                                   label={`${timeCount} pt${timeCount === 1 ? "" : "s"}`}
                                   size="small"
@@ -1025,7 +1029,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
           <DialogContentText>
             {deletingHistoryItem?.kind === "flowsheet" ? (
               <>
-                This permanently deletes this Vital Sign Flowsheet
+                This permanently deletes this {deletingHistoryItem.raw.template_name || "Flowsheet"}
                 {` (created ${new Date(
                   deletingHistoryItem.raw.created_at
                 ).toLocaleDateString()}, ${(deletingHistoryItem.raw.columns || []).length} time point${

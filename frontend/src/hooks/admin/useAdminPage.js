@@ -60,6 +60,14 @@ export const useAdminPage = () => {
             path: '/note-builder',
             color: 'primary',
             requiredRoles: ['admin', 'system_admin']
+        },
+        {
+            id: 'flowsheet-builder',
+            label: 'Flowsheet Builder',
+            icon: 'FaTable',
+            path: '/flowsheet-builder',
+            color: 'primary',
+            requiredRoles: ['admin', 'system_admin']
         }
     ];
 

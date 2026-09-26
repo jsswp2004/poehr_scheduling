@@ -12,7 +12,8 @@ from .models import (
     NoteTemplate,
     NoteFieldDefinition,
     VitalSignsFlowsheet,
-    VITAL_SIGNS_FLOWSHEET_SECTIONS,
+    FlowsheetTemplate,
+    FlowsheetRowDefinition,
 )
 import logging
 
@@ -652,25 +653,265 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             validated_data["template_snapshot"] = NoteTemplateSerializer(template).data
 
 
+def _grouped_row_definitions(rows):
+    """
+    Groups an ordered iterable of FlowsheetRowDefinition rows into the
+    [{ "section": ..., "rows": [...] }, ...] shape the flowsheet panel's
+    grid renders from -- the same shape VITAL_SIGNS_FLOWSHEET_SECTIONS used
+    to hand it directly, before the flowsheet-builder existed. Rows must
+    already be ordered by sort_order (FlowsheetRowDefinition.Meta.ordering
+    guarantees this); rows sharing a section_label are grouped together in
+    the order that label first appears.
+    """
+    sections = []
+    section_by_label = {}
+    for row in rows:
+        section = section_by_label.get(row.section_label)
+        if section is None:
+            section = {"section": row.section_label, "rows": []}
+            section_by_label[row.section_label] = section
+            sections.append(section)
+        section["rows"].append(
+            {
+                "key": row.key,
+                "label": row.label,
+                "unit": row.unit or None,
+                "field_type": row.field_type,
+                "options": (
+                    DictionaryItemSerializer(
+                        row.dictionary.items.all().order_by("sort_order", "label"),
+                        many=True,
+                    ).data
+                    if row.field_type == "dropdown" and row.dictionary_id
+                    else []
+                ),
+            }
+        )
+    return sections
+
+
+class FlowsheetRowDefinitionSerializer(serializers.ModelSerializer):
+    """Read-only representation of a single row within a FlowsheetTemplate."""
+
+    options = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FlowsheetRowDefinition
+        fields = [
+            "id",
+            "section_label",
+            "key",
+            "label",
+            "unit",
+            "field_type",
+            "dictionary",
+            "sort_order",
+            "options",
+        ]
+
+    def get_options(self, obj):
+        if not obj.dictionary_id:
+            return []
+        return DictionaryItemSerializer(
+            obj.dictionary.items.all().order_by("sort_order", "label"), many=True
+        ).data
+
+
+class FlowsheetTemplateSerializer(serializers.ModelSerializer):
+    """
+    Read-only definition of a flowsheet type -- what the flowsheet panel's
+    "Flowsheet" type dropdown lists, and where a selected type's grid layout
+    comes from. `row_definitions` is pre-grouped by section (see
+    _grouped_row_definitions) so the frontend grid needs no changes from
+    when this data came from the hardcoded VITAL_SIGNS_FLOWSHEET_SECTIONS
+    constant.
+    """
+
+    row_definitions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = FlowsheetTemplate
+        fields = ["id", "code", "name", "version", "is_active", "sort_order", "row_definitions"]
+
+    def get_row_definitions(self, obj):
+        return _grouped_row_definitions(obj.rows.all())
+
+
+# --- Flowsheet builder configuration UI (admin-only write access) ---------
+# Mirrors NoteTemplateAdminSerializer/NoteFieldDefinitionAdminSerializer
+# above exactly, one level simpler (a flowsheet row has no tab_label or
+# depends_on conditional-visibility). Used only by
+# FlowsheetTemplateAdminViewSet, gated by IsFlowsheetTemplateAdmin. The
+# read-only serializers above are untouched and keep serving the flowsheet
+# panel exactly as before.
+
+
+class FlowsheetRowDefinitionAdminSerializer(serializers.Serializer):
+    """
+    Write-side representation of a single row within a template save. A
+    plain Serializer (not ModelSerializer): saving a whole template's row
+    list together -- with reordering, additions, and removals all in one
+    request -- needs the sync-by-client_id logic in
+    FlowsheetTemplateAdminSerializer._save_rows, driven from there rather
+    than from a per-instance create()/update().
+
+    `client_id` identifies a row across the request: an existing row's real
+    database id (sent as a string) when editing, or any other string (e.g.
+    "new-<uuid>") for a brand new row.
+    """
+
+    client_id = serializers.CharField()
+    section_label = serializers.CharField(max_length=128)
+    key = serializers.SlugField(max_length=64)
+    label = serializers.CharField(max_length=200)
+    unit = serializers.CharField(max_length=32, allow_blank=True, required=False, default="")
+    field_type = serializers.ChoiceField(choices=FlowsheetRowDefinition.FIELD_TYPE_CHOICES)
+    dictionary = serializers.PrimaryKeyRelatedField(
+        queryset=Dictionary.objects.all(), required=False, allow_null=True, default=None
+    )
+    sort_order = serializers.IntegerField(required=False, default=0)
+
+    def validate(self, data):
+        if data.get("field_type") == "dropdown" and not data.get("dictionary"):
+            raise serializers.ValidationError(
+                {"dictionary": "A dictionary is required for field type 'dropdown'."}
+            )
+        return data
+
+
+class FlowsheetTemplateAdminSerializer(serializers.ModelSerializer):
+    """
+    Create/update a FlowsheetTemplate together with its complete row list in
+    one request. Row order in the submitted `rows` array IS the new
+    sort_order -- validate_rows() overwrites whatever sort_order values were
+    sent with index * 10, so the builder UI's drag-and-drop order is always
+    what gets saved.
+
+    A row's structural "signature" -- key, field_type, and dictionary -- is
+    diffed against what's currently saved; any difference (a row added,
+    removed, retyped, or re-pointed at a different dictionary) bumps
+    `version`. Cosmetic-only edits (label, unit, section_label, pure
+    reordering) do not.
+    """
+
+    rows = FlowsheetRowDefinitionAdminSerializer(many=True)
+
+    class Meta:
+        model = FlowsheetTemplate
+        fields = ["id", "code", "name", "organization", "is_active", "sort_order", "version", "rows"]
+        read_only_fields = ["id", "version"]
+
+    def validate_rows(self, value):
+        if not value:
+            raise serializers.ValidationError("A flowsheet needs at least one row.")
+        keys = [r["key"] for r in value]
+        if len(keys) != len(set(keys)):
+            raise serializers.ValidationError("Row keys must be unique within a flowsheet.")
+        client_ids = [r["client_id"] for r in value]
+        if len(client_ids) != len(set(client_ids)):
+            raise serializers.ValidationError("Duplicate client_id in submitted rows.")
+        for idx, r in enumerate(value):
+            r["sort_order"] = idx * 10
+        return value
+
+    @staticmethod
+    def _signature(key, field_type, dictionary_id):
+        return (key, field_type, dictionary_id)
+
+    def _existing_signatures(self, template):
+        return {
+            self._signature(r.key, r.field_type, r.dictionary_id)
+            for r in template.rows.all()
+        }
+
+    def _incoming_signatures(self, rows_data):
+        return {
+            self._signature(r["key"], r["field_type"], r["dictionary"].id if r.get("dictionary") else None)
+            for r in rows_data
+        }
+
+    def _save_rows(self, template, rows_data):
+        existing_ids = set(template.rows.values_list("id", flat=True))
+        seen_ids = set()
+
+        for r in rows_data:
+            client_id = r["client_id"]
+            real_id = (
+                int(client_id) if client_id.isdigit() and int(client_id) in existing_ids else None
+            )
+            common = dict(
+                section_label=r["section_label"],
+                key=r["key"],
+                label=r["label"],
+                unit=r.get("unit", ""),
+                field_type=r["field_type"],
+                dictionary=r.get("dictionary"),
+                sort_order=r.get("sort_order", 0),
+            )
+            if real_id:
+                FlowsheetRowDefinition.objects.filter(id=real_id).update(**common)
+                seen_ids.add(real_id)
+            else:
+                obj = FlowsheetRowDefinition.objects.create(template=template, **common)
+                seen_ids.add(obj.id)
+
+        # A row that existed on this template before but wasn't included in
+        # this save has been deleted by the admin -- remove it.
+        template.rows.exclude(id__in=seen_ids).delete()
+
+    def create(self, validated_data):
+        rows_data = validated_data.pop("rows")
+        template = FlowsheetTemplate.objects.create(**validated_data)
+        self._save_rows(template, rows_data)
+        return template
+
+    def update(self, instance, validated_data):
+        rows_data = validated_data.pop("rows", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if rows_data is not None:
+            before = self._existing_signatures(instance)
+            self._save_rows(instance, rows_data)
+            after = self._incoming_signatures(rows_data)
+            if before != after:
+                instance.version += 1
+
+        instance.save()
+        return instance
+
+
 class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
     """
-    The one hardcoded "Vital Signs" flowsheet (see VITAL_SIGNS_FLOWSHEET_SECTIONS
-    in models.py). `row_definitions` is included on every read so the
-    frontend grid renders purely from this response -- it never hardcodes
-    the row layout itself, which is what will let a future flowsheet-builder
-    swap this constant for a database-backed definition without a frontend
-    change.
+    A single flowsheet instance for one visit. Despite the model's name
+    (kept for backward compatibility), this now serves ANY flowsheet type --
+    `template` says which FlowsheetTemplate defines this instance's rows.
+    `row_definitions` is included on every read (grouped exactly like
+    FlowsheetTemplateSerializer's, from this instance's own `template`) so
+    the flowsheet panel's grid renders purely from this response without a
+    second fetch.
     """
 
     patient_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
+    template_name = serializers.SerializerMethodField()
     row_definitions = serializers.SerializerMethodField()
+    # Explicit rather than the ForeignKey default so a flowsheet can only
+    # ever be created against a template that's currently active. Technically
+    # still writable on PATCH, but the flowsheet panel never resends it on
+    # save (only appointment/columns/data) -- changing an existing
+    # instance's template isn't a supported operation from the UI.
+    template = serializers.PrimaryKeyRelatedField(
+        queryset=FlowsheetTemplate.objects.filter(is_active=True)
+    )
 
     class Meta:
         model = VitalSignsFlowsheet
         fields = [
             "id",
             "organization",
+            "template",
+            "template_name",
             "appointment",
             "patient",
             "patient_name",
@@ -704,8 +945,13 @@ class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
             or obj.created_by.username
         )
 
+    def get_template_name(self, obj):
+        return obj.template.name if obj.template_id else ""
+
     def get_row_definitions(self, obj):
-        return VITAL_SIGNS_FLOWSHEET_SECTIONS
+        if not obj.template_id:
+            return []
+        return _grouped_row_definitions(obj.template.rows.all())
 
     def validate_columns(self, value):
         if not isinstance(value, list):

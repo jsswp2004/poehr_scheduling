@@ -107,6 +107,30 @@ class IsNoteTemplateAdmin(permissions.BasePermission):
         )
 
 
+class IsFlowsheetTemplateAdmin(permissions.BasePermission):
+    """
+    Gates the flowsheet-builder configuration UI (Phase 2 of the flowsheet
+    feature): creating, editing, deleting, or reordering
+    FlowsheetTemplate/FlowsheetRowDefinition rows. Mirrors IsNoteTemplateAdmin
+    exactly -- doctors and nurses chart against the templates this controls,
+    but must not be able to redefine what a flowsheet type *is*.
+
+    The read-only FlowsheetTemplateViewSet (used by the flowsheet panel to
+    populate its type dropdown and render the grid) is unaffected by this --
+    it keeps its own permission (CanAccessVitalSignsFlowsheets) so
+    doctors/nurses can still chart.
+    """
+
+    ALLOWED_ROLES = ["admin", "system_admin"]
+
+    def has_permission(self, request, view):
+        user = request.user
+        return user.is_authenticated and (
+            getattr(user, "role", None) in self.ALLOWED_ROLES
+            or getattr(user, "is_superuser", False)
+        )
+
+
 class CanAuthorClinicalNoteType(permissions.BasePermission):
     """
     Enforces that a nurse can only author 'nursing_assessment' notes and a

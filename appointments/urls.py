@@ -20,6 +20,8 @@ from .views import (
     CheckInStatusUpdateView,
     ClinicalNoteViewSet,
     VitalSignsFlowsheetViewSet,
+    FlowsheetTemplateViewSet,
+    FlowsheetTemplateAdminViewSet,
     NoteTemplateViewSet,
     NoteTemplateAdminViewSet,
     DictionaryAdminViewSet,
@@ -166,6 +168,8 @@ router.register(r"holidays", HolidayViewSet)
 router.register(r"auto-email", AutoEmailViewSet, basename="autoemail")
 router.register(r"clinical-notes", ClinicalNoteViewSet, basename="clinicalnote")
 router.register(r"vital-signs-flowsheets", VitalSignsFlowsheetViewSet, basename="vitalsignsflowsheet")
+router.register(r"flowsheet-templates", FlowsheetTemplateViewSet, basename="flowsheettemplate")
+router.register(r"admin/flowsheet-templates", FlowsheetTemplateAdminViewSet, basename="flowsheettemplateadmin")
 router.register(r"note-templates", NoteTemplateViewSet, basename="notetemplate")
 router.register(r"admin/note-templates", NoteTemplateAdminViewSet, basename="notetemplateadmin")
 router.register(r"admin/dictionaries", DictionaryAdminViewSet, basename="dictionaryadmin")

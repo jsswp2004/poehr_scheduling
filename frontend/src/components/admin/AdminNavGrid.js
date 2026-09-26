@@ -6,7 +6,8 @@ import {
     FaUserCog,
     FaSearch,
     FaEnvelope,
-    FaClipboardList
+    FaClipboardList,
+    FaTable
 } from 'react-icons/fa';
 
 /**
@@ -22,6 +23,7 @@ const AdminNavGrid = ({ navItems, onNavigate }) => {
         FaSearch: FaSearch,
         FaEnvelope: FaEnvelope,
         FaClipboardList: FaClipboardList,
+        FaTable: FaTable,
     };
 
     const renderIcon = (iconName) => {

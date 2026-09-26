@@ -438,18 +438,22 @@ VITAL_SIGNS_FLOWSHEET_SECTIONS = [
 
 class VitalSignsFlowsheet(models.Model):
     """
-    A time-columned vital signs chart for a single visit -- mirrors a
-    Sunrise-style flowsheet: rows are fixed clinical measures (grouped into
-    sections), columns are points in time a reading was taken, and `data`
-    holds the value at each (row, column) intersection.
+    A time-columned flowsheet instance for a single visit -- mirrors a
+    Sunrise-style flowsheet: rows are the clinical measures defined by this
+    instance's `template` (grouped into sections), columns are points in
+    time a reading was taken, and `data` holds the value at each (row,
+    column) intersection.
 
-    One per appointment (created on first save from the flowsheet panel,
-    not automatically on appointment creation). This is the one hardcoded
-    "Vital Signs" flowsheet; a future flowsheet-builder (mirroring the
-    NoteTemplate/NoteFieldDefinition note-builder engine) will let admins
-    define additional flowsheet types the same way NoteTemplate lets them
-    define additional note types -- `columns`/`data`'s shape here is
-    designed to carry over unchanged when that lands.
+    Despite the name (kept for backward compatibility -- this model
+    predates the flowsheet-builder), this is now the generic flowsheet
+    instance model for ANY flowsheet type: `template` (a FlowsheetTemplate,
+    see below) says which one. The "Vital Signs" flowsheet that used to be
+    hardcoded here is now itself just a seeded FlowsheetTemplate.
+
+    A visit can have at most one instance per template (see
+    Meta.unique_together) but, unlike before the flowsheet-builder, can now
+    have several flowsheets of different types at once -- so `appointment`
+    is a plain ForeignKey rather than the OneToOneField it used to be.
     """
 
     organization = models.ForeignKey(
@@ -459,11 +463,17 @@ class VitalSignsFlowsheet(models.Model):
         null=True,
         blank=True,
     )
-    appointment = models.OneToOneField(
+    template = models.ForeignKey(
+        "FlowsheetTemplate",
+        on_delete=models.PROTECT,
+        related_name="instances",
+        help_text="Which flowsheet type (row/section layout) this instance charts",
+    )
+    appointment = models.ForeignKey(
         "appointments.Appointment",
         on_delete=models.CASCADE,
-        related_name="vital_signs_flowsheet",
-        help_text="The visit this flowsheet charts vitals for",
+        related_name="vital_signs_flowsheets",
+        help_text="The visit this flowsheet charts readings for",
     )
     patient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -495,9 +505,10 @@ class VitalSignsFlowsheet(models.Model):
 
     class Meta:
         ordering = ["-updated_at"]
+        unique_together = ["appointment", "template"]
 
     def __str__(self):
-        return f"Vital Signs Flowsheet for {self.patient} (appointment {self.appointment_id})"
+        return f"{self.template.name if self.template_id else 'Vital Signs'} Flowsheet for {self.patient} (appointment {self.appointment_id})"
 
 
 class Dictionary(models.Model):
@@ -655,6 +666,98 @@ class NoteFieldDefinition(models.Model):
         help_text="Only show this field when depends_on's value contains depends_on_value",
     )
     depends_on_value = models.CharField(max_length=100, blank=True)
+
+    class Meta:
+        ordering = ["template", "sort_order"]
+        unique_together = ["template", "key"]
+
+    def __str__(self):
+        return f"{self.template.code}.{self.key}"
+
+
+class FlowsheetTemplate(models.Model):
+    """
+    Defines a flowsheet type -- e.g. "Vital Signs" -- as an ordered set of
+    FlowsheetRowDefinitions rather than a hardcoded row layout. Mirrors
+    NoteTemplate exactly, one level down: a VitalSignsFlowsheet instance is
+    to a FlowsheetTemplate what a ClinicalNote is to a NoteTemplate.
+
+    `version` is bumped whenever a row is added, removed, retyped, or
+    re-pointed at a different dictionary (see FlowsheetTemplateAdminSerializer)
+    -- unlike NoteTemplate, no flowsheet instance snapshots its template, so
+    this is informational only for now (there's nothing yet that would need
+    to keep rendering an old version), but it's kept for parity and in case
+    that changes later.
+    """
+
+    code = models.SlugField(
+        max_length=64,
+        unique=True,
+        help_text="Stable machine key, e.g. 'vital_signs'",
+    )
+    name = models.CharField(max_length=128, help_text="Display name, e.g. 'Vital Sign Flowsheet'")
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="flowsheet_templates",
+        null=True,
+        blank=True,
+        help_text="Leave blank for a template available to all organizations",
+    )
+    version = models.PositiveIntegerField(default=1)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(
+        default=0, help_text="Controls this type's position in the Flowsheet dropdown"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+
+    def __str__(self):
+        return f"{self.name} (v{self.version})"
+
+
+class FlowsheetRowDefinition(models.Model):
+    """
+    A single configurable row within a FlowsheetTemplate -- the equivalent
+    of a Sunrise flowsheet chart item (e.g. "Heart Rate"). `field_type`
+    decides how the frontend renders each cell in that row, and for
+    'dropdown', `dictionary` supplies the selectable options (the same
+    Dictionary model NoteFieldDefinition uses).
+    """
+
+    FIELD_TYPE_CHOICES = [
+        ("numeric", "Numeric"),
+        ("text", "Text"),
+        ("dropdown", "Dropdown (dictionary)"),
+    ]
+
+    template = models.ForeignKey(
+        FlowsheetTemplate, on_delete=models.CASCADE, related_name="rows"
+    )
+    section_label = models.CharField(
+        max_length=128,
+        help_text="Groups rows under a section header, e.g. 'Vital Signs'",
+    )
+    key = models.SlugField(
+        max_length=64,
+        help_text="Stable key this row's values are stored under in a flowsheet instance's data blob",
+    )
+    label = models.CharField(max_length=200)
+    unit = models.CharField(max_length=32, blank=True)
+    field_type = models.CharField(
+        max_length=20, choices=FIELD_TYPE_CHOICES, default="numeric"
+    )
+    dictionary = models.ForeignKey(
+        Dictionary,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        help_text="Required when field_type is 'dropdown'",
+    )
+    sort_order = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ["template", "sort_order"]
