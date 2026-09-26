@@ -56,6 +56,7 @@ function fieldFromApi(f) {
     return {
         clientId: String(f.id),
         realId: f.id,
+        tab_label: f.tab_label || "",
         section_label: f.section_label || "",
         key: f.key,
         label: f.label,
@@ -72,6 +73,7 @@ function blankField() {
     return {
         clientId: nextTempId(),
         realId: null,
+        tab_label: "",
         section_label: "",
         key: "",
         label: "",
@@ -105,6 +107,12 @@ function NoteTemplateEditor({ templateCode, onBack }) {
     const [version, setVersion] = useState(null);
     const [fields, setFields] = useState([]);
     const [dictionaries, setDictionaries] = useState([]);
+
+    // Bulk-assign tool: rather than hand-editing a "Tab" field on every one
+    // of a long template's fields (e.g. ~97 Review-of-Systems fields), pick
+    // an existing Section and give it a Tab name in one shot.
+    const [bulkSection, setBulkSection] = useState("");
+    const [bulkTabName, setBulkTabName] = useState("");
 
     const dragIndex = useRef(null);
 
@@ -193,6 +201,22 @@ function NoteTemplateEditor({ templateCode, onBack }) {
         return dic ? dic.items : [];
     };
 
+    const distinctSections = Array.from(
+        new Set(fields.map((f) => f.section_label).filter((s) => s && s.trim()))
+    );
+
+    const applyBulkTab = () => {
+        if (!bulkSection || !bulkTabName.trim()) return;
+        const tabValue = bulkTabName.trim();
+        setFields((prev) =>
+            prev.map((f) => (f.section_label === bulkSection ? { ...f, tab_label: tabValue } : f))
+        );
+        setBanner({
+            severity: "success",
+            text: `Assigned tab "${tabValue}" to every field in section "${bulkSection}". Review below, then Save.`,
+        });
+    };
+
     const save = async () => {
         setError("");
         setBanner(null);
@@ -227,6 +251,7 @@ function NoteTemplateEditor({ templateCode, onBack }) {
             is_active: isActive,
             fields: fields.map((f) => ({
                 client_id: f.clientId,
+                tab_label: f.tab_label || "",
                 section_label: f.section_label,
                 key: f.key,
                 label: f.label,
@@ -335,6 +360,58 @@ function NoteTemplateEditor({ templateCode, onBack }) {
                 particular value selected -- pick that under "Depends on".
             </Typography>
 
+            {distinctSections.length > 0 && (
+                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Move a whole section to a tab
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                        Long notes (e.g. a Review-of-Systems-heavy Admission Note) can be split
+                        across tabs. Pick a section and give it a tab name to assign every field
+                        in that section at once, instead of editing each field individually.
+                    </Typography>
+                    <Grid container spacing={2} alignItems="center">
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                select
+                                label="Section"
+                                fullWidth
+                                size="small"
+                                value={bulkSection}
+                                onChange={(e) => setBulkSection(e.target.value)}
+                            >
+                                <MenuItem value="">(choose a section)</MenuItem>
+                                {distinctSections.map((s) => (
+                                    <MenuItem key={s} value={s}>
+                                        {s} ({fields.filter((f) => f.section_label === s).length} fields)
+                                    </MenuItem>
+                                ))}
+                            </TextField>
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <TextField
+                                label="Tab name"
+                                fullWidth
+                                size="small"
+                                value={bulkTabName}
+                                onChange={(e) => setBulkTabName(e.target.value)}
+                                placeholder="e.g. Review of Systems"
+                            />
+                        </Grid>
+                        <Grid item xs={12} sm={4}>
+                            <Button
+                                variant="outlined"
+                                fullWidth
+                                disabled={!bulkSection || !bulkTabName.trim()}
+                                onClick={applyBulkTab}
+                            >
+                                Apply to all fields in this section
+                            </Button>
+                        </Grid>
+                    </Grid>
+                </Paper>
+            )}
+
             {fields.map((f, index) => {
                 const otherFields = fields.filter((of) => of.clientId !== f.clientId);
                 const dependsOnField = fields.find((of) => of.clientId === f.dependsOnClientId);
@@ -351,6 +428,7 @@ function NoteTemplateEditor({ templateCode, onBack }) {
                         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
                                 <DragIndicatorIcon fontSize="small" sx={{ cursor: "grab", opacity: 0.5 }} />
+                                {f.tab_label && <Chip size="small" color="secondary" label={f.tab_label} />}
                                 {f.section_label && <Chip size="small" label={f.section_label} />}
                                 <Typography sx={{ flexGrow: 1 }}>
                                     {f.label || <em>(untitled)</em>}{" "}
@@ -374,7 +452,16 @@ function NoteTemplateEditor({ templateCode, onBack }) {
                         </AccordionSummary>
                         <AccordionDetails>
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={4}>
+                                <Grid item xs={12} sm={3}>
+                                    <TextField
+                                        label="Tab"
+                                        fullWidth
+                                        value={f.tab_label}
+                                        onChange={(e) => updateField(f.clientId, { tab_label: e.target.value })}
+                                        helperText="Optional -- groups sections onto a tab, e.g. 'Review of Systems'"
+                                    />
+                                </Grid>
+                                <Grid item xs={12} sm={3}>
                                     <TextField
                                         label="Section"
                                         fullWidth
@@ -383,7 +470,7 @@ function NoteTemplateEditor({ templateCode, onBack }) {
                                         helperText="Groups fields under a heading, e.g. 'History'"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={4}>
+                                <Grid item xs={12} sm={3}>
                                     <TextField
                                         label="Key"
                                         fullWidth
@@ -392,7 +479,7 @@ function NoteTemplateEditor({ templateCode, onBack }) {
                                         helperText="Stable id this value is stored under"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={4}>
+                                <Grid item xs={12} sm={3}>
                                     <TextField
                                         label="Label"
                                         fullWidth

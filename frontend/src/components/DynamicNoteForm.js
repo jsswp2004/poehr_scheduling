@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Typography,
@@ -15,6 +15,8 @@ import {
   RadioGroup,
   Stack,
   Divider,
+  Tabs,
+  Tab,
 } from "@mui/material";
 
 /**
@@ -61,8 +63,48 @@ export function isFieldVisible(field, values) {
   return parentValue === field.depends_on_value;
 }
 
+// Groups a flat, pre-sorted field list into { label, fields } buckets by
+// section_label, preserving first-appearance order (never re-sorts).
+// Shared by the live form (per-tab) and, indirectly, by the pattern used in
+// DynamicNoteSummary below.
+function groupBySection(fieldList) {
+  const sections = [];
+  const sectionIndex = {};
+  fieldList.forEach((field) => {
+    const label = field.section_label || "";
+    if (!(label in sectionIndex)) {
+      sectionIndex[label] = sections.length;
+      sections.push({ label, fields: [] });
+    }
+    sections[sectionIndex[label]].fields.push(field);
+  });
+  return sections;
+}
+
+// Groups a flat, pre-sorted field list into { label, fields } buckets by
+// tab_label, preserving first-appearance order. `tab_label` is an optional
+// top-level grouping above section_label, meant for templates that grow too
+// long for a single scroll (e.g. a Review-of-Systems-heavy Admission Note).
+// A blank tab_label is its own group (labeled "General" when shown), so a
+// template that never sets tab_label produces exactly one group and no Tabs
+// bar is rendered -- zero visual change for existing templates.
+function groupByTab(fieldList) {
+  const tabs = [];
+  const tabIndex = {};
+  fieldList.forEach((field) => {
+    const label = field.tab_label || "";
+    if (!(label in tabIndex)) {
+      tabIndex[label] = tabs.length;
+      tabs.push({ label, fields: [] });
+    }
+    tabs[tabIndex[label]].fields.push(field);
+  });
+  return tabs;
+}
+
 function DynamicNoteForm({ template, values, onChange, disabled }) {
   const fields = template?.fields || [];
+  const [activeTab, setActiveTab] = useState(0);
 
   // If a field becomes hidden (its dependency no longer matches -- e.g. a
   // Review of Systems block switched from "negative for..." to "positive
@@ -100,18 +142,15 @@ function DynamicNoteForm({ template, values, onChange, disabled }) {
     );
   }
 
-  // Group fields by section_label, preserving the backend's sort_order
-  // (fields already arrive pre-sorted -- this only groups, never re-sorts).
-  const sections = [];
-  const sectionIndex = {};
-  fields.forEach((field) => {
-    const label = field.section_label || "";
-    if (!(label in sectionIndex)) {
-      sectionIndex[label] = sections.length;
-      sections.push({ label, fields: [] });
-    }
-    sections[sectionIndex[label]].fields.push(field);
-  });
+  // Group fields by tab_label first (only rendered as a Tabs bar when more
+  // than one distinct tab is in use), then by section_label within whichever
+  // tab is active. Fields already arrive pre-sorted from the backend -- this
+  // only groups, never re-sorts.
+  const tabGroups = groupByTab(fields);
+  const hasTabs = tabGroups.length > 1;
+  const safeActiveTab = Math.min(activeTab, tabGroups.length - 1);
+  const activeFields = hasTabs ? tabGroups[safeActiveTab].fields : fields;
+  const sections = groupBySection(activeFields);
 
   const renderField = (field) => {
     const value = values[field.key] ?? (field.field_type === "checkbox" ? false : "");
@@ -272,23 +311,38 @@ function DynamicNoteForm({ template, values, onChange, disabled }) {
   };
 
   return (
-    <Stack spacing={3}>
-      {sections.map((section, idx) => (
-        <Box key={section.label || `section-${idx}`}>
-          {section.label && (
-            <>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                {section.label}
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-            </>
-          )}
-          <Stack spacing={2}>
-            {section.fields.filter((f) => isFieldVisible(f, values)).map(renderField)}
-          </Stack>
-        </Box>
-      ))}
-    </Stack>
+    <Box>
+      {hasTabs && (
+        <Tabs
+          value={safeActiveTab}
+          onChange={(e, newValue) => setActiveTab(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+        >
+          {tabGroups.map((tab, idx) => (
+            <Tab key={tab.label || `tab-${idx}`} label={tab.label || "General"} />
+          ))}
+        </Tabs>
+      )}
+      <Stack spacing={3}>
+        {sections.map((section, idx) => (
+          <Box key={section.label || `section-${idx}`}>
+            {section.label && (
+              <>
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                  {section.label}
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+              </>
+            )}
+            <Stack spacing={2}>
+              {section.fields.filter((f) => isFieldVisible(f, values)).map(renderField)}
+            </Stack>
+          </Box>
+        ))}
+      </Stack>
+    </Box>
   );
 }
 
@@ -321,21 +375,40 @@ export function DynamicNoteSummary({ templateDetail, structuredData }) {
     return String(rawValue);
   };
 
+  const renderFieldLine = (field) => {
+    // A hidden dependent field's leftover value (if any predates the
+    // stale-value cleanup in DynamicNoteForm) is never shown in
+    // history -- only what was applicable when the note was signed.
+    if (!isFieldVisible(field, structuredData)) return null;
+    const display = formatValue(field, structuredData[field.key]);
+    if (display === null) return null;
+    return (
+      <Typography variant="body2" key={field.key}>
+        <strong>{field.label}:</strong> {display}
+      </Typography>
+    );
+  };
+
+  // Tab headings are purely for readability here (no interactive Tabs bar --
+  // this is a read-only summary), so only add them once a template actually
+  // uses more than one tab; otherwise render exactly as before.
+  const tabGroups = groupByTab(fields);
+  if (tabGroups.length <= 1) {
+    return <Box sx={{ display: "grid", gap: 0.5 }}>{fields.map(renderFieldLine)}</Box>;
+  }
+
   return (
-    <Box sx={{ display: "grid", gap: 0.5 }}>
-      {fields.map((field) => {
-        // A hidden dependent field's leftover value (if any predates the
-        // stale-value cleanup in DynamicNoteForm) is never shown in
-        // history -- only what was applicable when the note was signed.
-        if (!isFieldVisible(field, structuredData)) return null;
-        const display = formatValue(field, structuredData[field.key]);
-        if (display === null) return null;
-        return (
-          <Typography variant="body2" key={field.key}>
-            <strong>{field.label}:</strong> {display}
+    <Box sx={{ display: "grid", gap: 1.5 }}>
+      {tabGroups.map((tab, idx) => (
+        <Box key={tab.label || `tab-${idx}`}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: "uppercase" }}>
+            {tab.label || "General"}
           </Typography>
-        );
-      })}
+          <Box sx={{ display: "grid", gap: 0.5, mt: 0.5 }}>
+            {tab.fields.map(renderFieldLine)}
+          </Box>
+        </Box>
+      ))}
     </Box>
   );
 }
