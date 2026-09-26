@@ -93,5 +93,6 @@ RUN echo "=== STATIC FILES CHECK ===" && \
 # Expose port
 EXPOSE 8080
 
-# Try direct uvicorn command instead of script
-CMD ["uvicorn", "poehr_scheduling_backend.asgi:application", "--host", "0.0.0.0", "--port", "8080", "--log-level", "info"]
+# Run the Azure startup script so migrations (and other startup fixes)
+# are applied automatically on every deploy before the server starts.
+CMD ["/code/startup-azure.sh"]
