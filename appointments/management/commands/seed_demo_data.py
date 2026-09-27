@@ -183,7 +183,7 @@ class Command(BaseCommand):
                 doctor = random.choice(doctors)
                 when = day.replace(hour=slot_hour)
                 status = "completed" if day_offset < 0 else "scheduled"
-                _, created = Appointment.objects.get_or_create(
+                _, created = Appointment.all_objects.get_or_create(
                     organization=org,
                     patient=patient,
                     provider=doctor,
@@ -203,7 +203,7 @@ class Command(BaseCommand):
         # show right away in the demo. -----------------------------------
         notes_created = 0
         completed_appts = list(
-            Appointment.objects.filter(organization=org, status="completed")[:2]
+            Appointment.all_objects.filter(organization=org, status="completed")[:2]
         )
         for appt in completed_appts:
             if nurses:

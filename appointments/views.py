@@ -83,7 +83,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
         # === ADDED: System Admin sees all organizations ===
         if user.role == "system_admin":
-            queryset = Appointment.objects.all().order_by("appointment_datetime")
+            queryset = Appointment.all_objects.all().order_by("appointment_datetime")
         else:
             # Start by limiting to the user's organization
             queryset = Appointment.objects.filter(
@@ -1198,7 +1198,7 @@ def update_appointment_status(request, appointment_id):
         user = request.user
         # Get the appointment
         if user.role == "system_admin":
-            appointment = Appointment.objects.get(id=appointment_id)
+            appointment = Appointment.all_objects.get(id=appointment_id)
         else:
             appointment = Appointment.objects.get(
                 id=appointment_id, organization=user.organization
@@ -1258,7 +1258,7 @@ class CheckInSearchView(APIView):
 
         # Build base queryset for today's appointments
         if user.role == "system_admin":
-            queryset = Appointment.objects.filter(appointment_datetime__date=today)
+            queryset = Appointment.all_objects.filter(appointment_datetime__date=today)
         else:
             queryset = Appointment.objects.filter(
                 appointment_datetime__date=today, organization=user.organization
@@ -1310,7 +1310,7 @@ class CheckInStatusUpdateView(APIView):
 
             # Get the appointment
             if user.role == "system_admin":
-                appointment = Appointment.objects.get(id=appointment_id)
+                appointment = Appointment.all_objects.get(id=appointment_id)
             else:
                 appointment = Appointment.objects.get(
                     id=appointment_id, organization=user.organization

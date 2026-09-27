@@ -2913,7 +2913,7 @@ class OrganizationDataExportView(APIView):
                 # Appointments data
                 if include_data.get("appointments", True):
                     appointments = (
-                        Appointment.objects.filter(organization=organization)
+                        Appointment.all_objects.filter(organization=organization)
                         .select_related("patient")
                         .values(
                             "id",
@@ -3123,7 +3123,7 @@ class OrganizationDeleteView(APIView):
 
             # Count related data
             user_count = CustomUser.objects.filter(organization=organization).count()
-            appointment_count = Appointment.objects.filter(
+            appointment_count = Appointment.all_objects.filter(
                 organization=organization
             ).count()
 
@@ -3177,7 +3177,7 @@ class OrganizationDeleteView(APIView):
 
             # Count related data for email notification
             user_count = CustomUser.objects.filter(organization=organization).count()
-            appointment_count = Appointment.objects.filter(
+            appointment_count = Appointment.all_objects.filter(
                 organization=organization
             ).count()
 
