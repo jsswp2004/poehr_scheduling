@@ -6,6 +6,7 @@ from .models import (
     Holiday,
     ClinicEvent,
     AutoEmail,
+    AutoSMS,
     ClinicalNote,
     NoteTemplate,
     Dictionary,
@@ -19,6 +20,7 @@ from .serializers import (
     HolidaySerializer,
     ClinicEventSerializer,
     AutoEmailSerializer,
+    AutoSMSSerializer,
     ClinicalNoteSerializer,
     NoteTemplateSerializer,
     NoteTemplateAdminSerializer,
@@ -708,6 +710,144 @@ class EnvironmentSettingView(APIView):
         if "auto_email_serializer" in locals():
             response_data.update(auto_email_serializer.data)
         return Response(response_data)
+
+
+class SMSSettingView(APIView):
+    """
+    Fully independent settings endpoint for automatic SMS reminders.
+
+    This is deliberately separate from EnvironmentSettingView / AutoEmail:
+    Email and SMS auto-reminders used to share a single AutoEmail row per
+    organization, which meant toggling "Enabled" (or changing the
+    frequency/day/start date) on one channel silently changed the other.
+    This endpoint reads/writes its own AutoSMS row per organization, so
+    the SMS schedule and its "Enabled" toggle are fully independent of
+    email's.
+    """
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [permissions.IsAuthenticated()]  # All logged-in users can read
+        return [permissions.IsAuthenticated(), HasRight("settings.manage")()]
+
+    def _resolve_organization(self, request, org_id_source):
+        target_organization = None
+
+        if hasattr(request.user, "role") and request.user.role == "system_admin":
+            org_id = org_id_source.get("organization_id")
+            if org_id:
+                from users.models import Organization
+
+                try:
+                    target_organization = Organization.objects.get(id=org_id)
+                except Organization.DoesNotExist:
+                    return None, Response(
+                        {"error": "Organization not found"},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+
+        if not target_organization:
+            target_organization = request.user.organization
+
+        if not target_organization:
+            from users.models import Organization
+
+            default_org, created = Organization.objects.get_or_create(
+                name="Default Organization",
+                defaults={
+                    "address": "123 Main St",
+                    "city": "Default City",
+                    "state": "CA",
+                    "zipcode": "12345",
+                },
+            )
+            request.user.organization = default_org
+            request.user.save()
+            target_organization = default_org
+
+        return target_organization, None
+
+    def get(self, request):
+        target_organization, error_response = self._resolve_organization(
+            request, request.query_params
+        )
+        if error_response:
+            return error_response
+        if not target_organization:
+            return Response(
+                {"error": "No organization found"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get auto SMS settings for the target organization
+        auto_sms_obj = AutoSMS.objects.filter(
+            organization=target_organization
+        ).first()
+
+        # If no organization-specific settings, try to get global settings
+        if not auto_sms_obj:
+            auto_sms_obj = AutoSMS.objects.filter(organization__isnull=True).first()
+
+        # If no settings at all, create default settings
+        if not auto_sms_obj:
+            auto_sms_obj = AutoSMS.objects.create(
+                organization=target_organization,
+                auto_message_frequency="weekly",
+                auto_message_day_of_week=1,  # Monday
+                auto_message_start_date=timezone.now().date() + timedelta(days=1),
+            )
+
+        auto_sms_serializer = AutoSMSSerializer(auto_sms_obj)
+        return Response(auto_sms_serializer.data)
+
+    def post(self, request):
+        target_organization, error_response = self._resolve_organization(
+            request, request.data
+        )
+        if error_response:
+            return error_response
+        if not target_organization:
+            return Response(
+                {"error": "No organization found"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        auto_sms_data = {
+            k: v
+            for k, v in request.data.items()
+            if k
+            in [
+                "auto_message_frequency",
+                "auto_message_day_of_week",
+                "auto_message_start_date",
+                "is_active",
+            ]
+        }
+
+        auto_sms_obj = AutoSMS.objects.filter(
+            organization=target_organization
+        ).first()
+
+        if not auto_sms_obj:
+            auto_sms_obj, created = AutoSMS.objects.get_or_create(
+                organization=target_organization,
+                defaults={
+                    "auto_message_frequency": "weekly",
+                    "auto_message_day_of_week": 1,  # Monday
+                    "auto_message_start_date": timezone.now().date()
+                    + timedelta(days=1),
+                },
+            )
+
+        auto_sms_serializer = AutoSMSSerializer(
+            auto_sms_obj, data=auto_sms_data, partial=True
+        )
+        if auto_sms_serializer.is_valid():
+            auto_sms_serializer.save()
+        else:
+            return Response(
+                auto_sms_serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(auto_sms_serializer.data)
 
 
 class HolidayViewSet(viewsets.ModelViewSet):

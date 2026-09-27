@@ -274,6 +274,71 @@ class AutoEmail(models.Model):
         return f"Auto Email ({org_name}) - {self.auto_message_frequency} on {self.get_auto_message_day_of_week_display()}"
 
 
+class AutoSMS(models.Model):
+    """
+    Model for configuring automated SMS (text message) reminder settings.
+
+    This is intentionally a fully separate model/table from AutoEmail --
+    email and SMS reminders each get their own independent "Enabled"
+    toggle, frequency, day of week, and start date, so turning one
+    channel on/off (or changing its schedule) never affects the other.
+    """
+
+    FREQUENCY_CHOICES = [
+        ("daily", "Daily"),
+        ("weekly", "Weekly"),
+        ("bi-weekly", "Bi-weekly"),
+        ("monthly", "Monthly"),
+    ]
+
+    DAY_OF_WEEK_CHOICES = [
+        (0, "Sunday"),
+        (1, "Monday"),
+        (2, "Tuesday"),
+        (3, "Wednesday"),
+        (4, "Thursday"),
+        (5, "Friday"),
+        (6, "Saturday"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="auto_sms_settings",
+        null=True,
+        blank=True,
+        help_text="Organization this auto SMS setting belongs to",
+    )
+
+    auto_message_frequency = models.CharField(
+        max_length=20,
+        choices=FREQUENCY_CHOICES,
+        default="weekly",
+        help_text="How often automated SMS reminders should be sent",
+    )
+
+    auto_message_day_of_week = models.IntegerField(
+        choices=DAY_OF_WEEK_CHOICES,
+        default=1,  # Monday
+        help_text="Day of the week when automated SMS reminders should be sent",
+    )
+
+    auto_message_start_date = models.DateField(
+        null=True, blank=True, help_text="When to start sending automated SMS reminders"
+    )
+
+    is_active = models.BooleanField(
+        default=True, help_text="Whether automated SMS reminders are enabled"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        org_name = self.organization.name if self.organization else "Global"
+        return f"Auto SMS ({org_name}) - {self.auto_message_frequency} on {self.get_auto_message_day_of_week_display()}"
+
+
 class ClinicalNote(models.Model):
     """
     A clinical documentation entry (nursing assessment or doctor assessment)

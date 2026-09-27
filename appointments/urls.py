@@ -4,6 +4,7 @@ from .views import (
     DownloadClinicEventsTemplate,
     UploadClinicEventsCSV,
     EnvironmentSettingView,
+    SMSSettingView,
     AppointmentViewSet,
     doctor_available_slots,
     AvailabilityViewSet,
@@ -32,7 +33,7 @@ from .analytics_views import AnalyticsReportView, ExportReportView
 from django.http import JsonResponse
 from django.utils import timezone
 from datetime import timedelta
-from .models import Appointment, AutoEmail
+from .models import Appointment, AutoEmail, AutoSMS
 from users.models import Organization
 from django.contrib.auth import get_user_model
 
@@ -93,8 +94,10 @@ def debug_sms_data(request):
             "current_weekday": timezone.now().weekday(),
         }
 
-        # Check AutoEmail configs
-        active_configs = AutoEmail.objects.filter(is_active=True)
+        # Check AutoSMS configs (this debug endpoint is specifically about
+        # SMS, which since the fully-separate-configs change has its own
+        # AutoSMS model independent of AutoEmail)
+        active_configs = AutoSMS.objects.filter(is_active=True)
         data["active_configs"] = []
 
         for config in active_configs:
@@ -190,6 +193,11 @@ urlpatterns = router.urls + [
         "settings/environment/",
         EnvironmentSettingView.as_view(),
         name="environment-setting",
+    ),
+    path(
+        "settings/sms/",
+        SMSSettingView.as_view(),
+        name="sms-setting",
     ),
     path(
         "upload/clinic-events/template/",

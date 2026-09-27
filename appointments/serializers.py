@@ -6,6 +6,7 @@ from .models import (
     Holiday,
     ClinicEvent,
     AutoEmail,
+    AutoSMS,
     ClinicalNote,
     Dictionary,
     DictionaryItem,
@@ -174,6 +175,12 @@ class ClinicEventSerializer(serializers.ModelSerializer):
 class AutoEmailSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutoEmail
+        fields = "__all__"
+
+
+class AutoSMSSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutoSMS
         fields = "__all__"
 
 
