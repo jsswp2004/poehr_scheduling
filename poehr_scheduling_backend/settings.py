@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "communicator",
     "poehr_scheduling_backend.core",
     "django_cron",
+    "anymail",
 ]
 
 # Conditionally add storages if available (for Azure blob storage)
@@ -209,22 +210,40 @@ from corsheaders.defaults import default_headers as _cors_default_headers
 CORS_ALLOW_HEADERS = list(_cors_default_headers) + ["cache-control", "pragma"]
 
 # Email settings
-# For development, use console backend to avoid SMTP authentication issues
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Re-enabled SMTP with updated credentials
-EMAIL_HOST = "mail.privateemail.com"  # Private email server
-EMAIL_PORT = 465
-EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-# Without this, smtplib has NO timeout at all and will hang indefinitely if
-# the SMTP host is unreachable/slow (observed on Render: outbound to this
-# host stalls, hanging gunicorn's single sync worker until its own 30s
-# worker-timeout kills the whole process -- taking down every other
-# in-flight request with it). send_mail() calls already pass
-# fail_silently=True, so a fast timeout here just means "give up and let the
-# appointment/action succeed anyway" instead of "freeze the app for 30s".
-EMAIL_TIMEOUT = 10
+#
+# Previously plain SMTP against mail.privateemail.com:465. That can never
+# work from Render: Render blocks outbound traffic to SMTP ports (25/465/587)
+# on ALL web services, free or paid -- it's a platform-level firewall rule
+# to cut down spam abuse, not something fixable with credentials, TLS mode,
+# or timeouts (see
+# https://render.com/changelog/free-web-services-will-no-longer-allow-outbound-traffic-to-smtp-ports).
+# Every send_mail() call was hanging (later timing out) at the TCP connect
+# step, before ever reaching SMTP auth.
+#
+# Fix: send over a plain HTTPS API instead of raw SMTP, via Resend +
+# django-anymail. send_mail()/EmailMultiAlternatives calls elsewhere in the
+# codebase (appointments/views.py, users/views.py) are unchanged -- anymail
+# is a drop-in Django EMAIL_BACKEND, so only settings change here.
+EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+ANYMAIL = {
+    "RESEND_API_KEY": os.getenv("RESEND_API_KEY"),
+}
+# Old SMTP settings, kept only for local/dev reference -- unused now that
+# EMAIL_BACKEND is anymail's Resend backend. Flip EMAIL_BACKEND back to the
+# smtp backend below if testing locally against a real mailbox that isn't
+# behind a cloud-host SMTP block.
+# EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+# EMAIL_HOST = "mail.privateemail.com"
+# EMAIL_PORT = 465
+# EMAIL_USE_SSL = True
+# EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+# EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+# EMAIL_TIMEOUT = 10
+#
+# DEFAULT_FROM_EMAIL must be on a domain verified in the Resend dashboard
+# (Domains -> Add Domain -> add the DNS records Resend gives you for
+# powerhealthcareit.com). Until that domain is verified, Resend will only
+# deliver mail sent From onboarding@resend.dev.
 DEFAULT_FROM_EMAIL = "info@powerhealthcareit.com"  # Updated from EMAIL_HOST_USER
 ADMIN_EMAIL = "jsswp2004@outlook.com"  # 👈 where the notification goes
 
