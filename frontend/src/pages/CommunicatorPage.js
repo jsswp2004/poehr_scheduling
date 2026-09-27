@@ -20,6 +20,8 @@ import {
 } from "../components/communicator";
 import BackButton from "../components/BackButton";
 import { toast } from "../components/SimpleToast";
+import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
+import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
 
 /**
  * Refactored CommunicatorPage with modular components and hooks
@@ -34,6 +36,7 @@ import { toast } from "../components/SimpleToast";
  */
 function CommunicatorPage() {
   const [tab, setTab] = useState("contacts");
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const token = localStorage.getItem("access_token");
 
@@ -49,6 +52,10 @@ function CommunicatorPage() {
       if (role !== "admin" && role !== "system_admin" && role !== "registrar") {
         navigate("/");
       }
+      // The Email/SMS auto-messaging setup tabs are admin-only -- registrars
+      // can use Contacts/Send Message but not touch the automated
+      // email/SMS schedule (same settings the Messages page controls).
+      setIsAdmin(role === "admin" || role === "system_admin");
     } catch (err) {
       navigate("/login");
     }
@@ -172,6 +179,7 @@ function CommunicatorPage() {
         currentTab={tab}
         contactsCount={contacts.contacts.length}
         onTabChange={setTab}
+        isAdmin={isAdmin}
       />
 
       {/* Back Button */}
@@ -207,6 +215,12 @@ function CommunicatorPage() {
           onSendMessage={handleSendBulkMessage}
         />
       )}
+
+      {/* Email Tab (admin-only, same auto-messaging setup as the Messages page) */}
+      {tab === "email" && isAdmin && <AutoEmailSetUpPage />}
+
+      {/* SMS Tab (admin-only, same auto-messaging setup as the Messages page) */}
+      {tab === "sms" && isAdmin && <AutoSMSSetUpPage />}
 
       {/* Contact Form Dialog */}
       <ContactFormDialog

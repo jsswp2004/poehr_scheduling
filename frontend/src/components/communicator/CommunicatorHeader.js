@@ -6,7 +6,7 @@ import {
     Tab,
     Chip
 } from '@mui/material';
-import { Send as SendIcon } from '@mui/icons-material';
+import { Send as SendIcon, Email as EmailIcon, Sms as SmsIcon } from '@mui/icons-material';
 
 /**
  * Page header with title, description, and tabs
@@ -14,7 +14,11 @@ import { Send as SendIcon } from '@mui/icons-material';
 const CommunicatorHeader = ({
     currentTab,
     contactsCount,
-    onTabChange
+    onTabChange,
+    // Only admins/system_admins get the Email and SMS auto-messaging setup
+    // tabs here (same settings as the Messages page) -- registrars still see
+    // just Contacts/Send Message.
+    isAdmin = false
 }) => {
     return (
         <Box>
@@ -49,6 +53,30 @@ const CommunicatorHeader = ({
                         }
                         value="message"
                     />
+
+                    {isAdmin && (
+                        <Tab
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <EmailIcon fontSize="small" />
+                                    <span>Email</span>
+                                </Box>
+                            }
+                            value="email"
+                        />
+                    )}
+
+                    {isAdmin && (
+                        <Tab
+                            label={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <SmsIcon fontSize="small" />
+                                    <span>SMS</span>
+                                </Box>
+                            }
+                            value="sms"
+                        />
+                    )}
                 </Tabs>
             </Box>
         </Box>
