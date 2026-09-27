@@ -44,6 +44,18 @@ services:
       # EMAIL_HOST_USER / EMAIL_HOST_PASSWORD are no longer used (kept set
       # in the Render dashboard already, but safe to remove whenever) --
       # left out of this file now that nothing reads them.
+      #
+      # Twilio SMS (communicator/utils.py send_sms, users/views.py send_sms).
+      # Unlike SMTP, Twilio's SDK calls api.twilio.com over plain HTTPS, which
+      # Render does NOT block -- these just need to actually be set. sync:
+      # false again means Render won't read a value from this file; set it
+      # in the dashboard's Environment tab instead.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_PHONE_NUMBER
+        sync: false
 
 databases:
   - name: poehr-scheduling-db
