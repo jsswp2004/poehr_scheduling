@@ -121,6 +121,27 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             if patient_id and user.role != "patient":
                 queryset = queryset.filter(patient_id=patient_id)
 
+        # Optional free-text search (?search=...), used by the admin
+        # appointment-search page. This used to be done by fetching every
+        # appointment in the organization to the browser and filtering with
+        # Array.filter() client-side -- fine with a handful of demo rows,
+        # but it means every search re-downloads the entire appointments
+        # table (hundreds of KB and growing) and runs it through gunicorn's
+        # single worker, which is slow and was the direct cause of a stale
+        # request being able to clobber a newer one's results. Filtering
+        # here means only matching rows ever leave the database.
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search)
+                | Q(description__icontains=search)
+                | Q(status__icontains=search)
+                | Q(patient__first_name__icontains=search)
+                | Q(patient__last_name__icontains=search)
+                | Q(provider__first_name__icontains=search)
+                | Q(provider__last_name__icontains=search)
+            ).distinct()
+
         return queryset
 
     def perform_create(self, serializer):

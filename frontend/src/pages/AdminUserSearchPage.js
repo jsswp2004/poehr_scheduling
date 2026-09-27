@@ -55,54 +55,33 @@ function AdminUserSearchPage() {
   }, [navigate]);
 
   // Guards against a slow, stale request clobbering a newer one's results.
-  // Both the mount-time load and every click on Search call fetchAppointments,
-  // and each one hits a slow endpoint (the full appointment list) -- without
-  // this, whichever request happens to finish LAST wins, even if it was
-  // issued first with an empty/different search term. That produced exactly
-  // this bug: click Search with "je", see "everything" (the mount fetch
-  // landing late) or nothing (a still-in-flight older search resolving after
-  // the real one). Now only the response to the most recently issued request
-  // is ever applied.
+  // Both the mount-time load and every click on Search call fetchAppointments
+  // -- without this, whichever request happens to finish LAST wins, even if
+  // it was issued first with an empty/different search term. Now only the
+  // response to the most recently issued request is ever applied.
   const latestRequestId = useRef(0);
 
+  // The backend now does the filtering (?search=...) -- see
+  // AppointmentViewSet.get_queryset() in appointments/views.py. This used to
+  // fetch every appointment in the organization and filter it in the
+  // browser with Array.filter(), which meant every search re-downloaded the
+  // entire appointments table (hundreds of KB and growing) through a single
+  // slow backend worker. Now only matching rows ever come back, so search is
+  // both correct (no more stale-response races from slow full-table fetches)
+  // and fast regardless of how large the appointments table gets.
   const fetchAppointments = async (searchText = "") => {
     const requestId = ++latestRequestId.current;
     try {
       const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
         headers: { Authorization: `Bearer ${token}` },
+        params: searchText.trim() ? { search: searchText.trim() } : {},
       });
       if (requestId !== latestRequestId.current) {
         // A newer search/fetch was issued while this one was in flight --
         // this response is stale, ignore it.
         return;
       }
-      const lowerQuery = searchText.trim().toLowerCase();
-      const filtered = res.data.filter((appt) => {
-        const patientName =
-          appt.patient_name ||
-          (appt.patient
-            ? `${appt.patient.first_name} ${appt.patient.last_name}`
-            : "");
-        const providerName =
-          appt.provider_name ||
-          (appt.provider
-            ? `Dr. ${appt.provider.first_name || ""} ${
-                appt.provider.last_name || ""
-              }`.trim()
-            : "");
-        const dateTime = appt.appointment_datetime
-          ? new Date(appt.appointment_datetime).toLocaleString()
-          : "";
-        const description = appt.description || "";
-        const duration = appt.duration_minutes
-          ? appt.duration_minutes.toString()
-          : "";
-        const status = appt.status || "";
-        const combined =
-          `${patientName} ${providerName} ${dateTime} ${description} ${duration} ${status}`.toLowerCase();
-        return combined.includes(lowerQuery);
-      });
-      setResults(filtered);
+      setResults(res.data);
     } catch (err) {
       if (requestId === latestRequestId.current) {
         console.error("Fetch failed", err);
