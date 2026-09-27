@@ -32,6 +32,16 @@ services:
         fromDatabase:
           name: poehr-scheduling-db
           property: connectionString
+      # SMTP credentials for the info@powerhealthcareit.com mailbox
+      # (mail.privateemail.com, see EMAIL_HOST in settings.py). sync: false
+      # means Render will NOT read a value from this file for these -- it
+      # just marks them as required and prompts for them once in the
+      # dashboard (Environment tab), where they're stored encrypted. That
+      # keeps the actual password out of git entirely.
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
 
 databases:
   - name: poehr-scheduling-db
