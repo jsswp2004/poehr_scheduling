@@ -135,26 +135,17 @@ export const useCalendarData = () => {
         }
     }, [token]);
 
-    // Initial token fetch and data load
+    // Initial data load. fetchAllData already resolves a fresh token and
+    // sets userRole/token internally, so this only needs to run once on
+    // mount -- previously this effect also depended on `fetchAllData`,
+    // which is recreated whenever `token` changes (fetchAllData sets the
+    // token itself), causing the effect to fire a second time and the
+    // entire 6-request fetch to run twice on every calendar load.
     useEffect(() => {
-        let mounted = true;
-        (async () => {
-            const initialToken = await getValidToken();
-            if (!mounted) return;
-            if (initialToken) {
-                setToken(initialToken);
-                try {
-                    const decoded = jwtDecode(initialToken);
-                    setUserRole(decoded.role);
-                } catch (err) {
-                    console.error("Failed to decode token:", err);
-                }
-            }
-            console.log('🔄 useCalendarData: Starting data fetch...');
-            fetchAllData();
-        })();
-        return () => { mounted = false; };
-    }, [fetchAllData]);
+        console.log('🔄 useCalendarData: Starting data fetch...');
+        fetchAllData();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Memoized filtered events to prevent unnecessary re-calculations
     const filteredEvents = useMemo(() => {
