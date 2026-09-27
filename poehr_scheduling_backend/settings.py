@@ -217,6 +217,14 @@ EMAIL_PORT = 465
 EMAIL_USE_SSL = True  # Use SSL instead of TLS for port 465
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+# Without this, smtplib has NO timeout at all and will hang indefinitely if
+# the SMTP host is unreachable/slow (observed on Render: outbound to this
+# host stalls, hanging gunicorn's single sync worker until its own 30s
+# worker-timeout kills the whole process -- taking down every other
+# in-flight request with it). send_mail() calls already pass
+# fail_silently=True, so a fast timeout here just means "give up and let the
+# appointment/action succeed anyway" instead of "freeze the app for 30s".
+EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = "info@powerhealthcareit.com"  # Updated from EMAIL_HOST_USER
 ADMIN_EMAIL = "jsswp2004@outlook.com"  # 👈 where the notification goes
 
