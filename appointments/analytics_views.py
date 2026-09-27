@@ -54,7 +54,7 @@ class AnalyticsReportView(APIView):
         # Filter by organization
         user = request.user
         if user.role == "system_admin":
-            appointments = Appointment.objects.all()
+            appointments = Appointment.all_objects.all()
             availabilities = Availability.objects.all()
         else:
             appointments = Appointment.objects.filter(organization=user.organization)

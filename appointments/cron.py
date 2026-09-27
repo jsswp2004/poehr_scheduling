@@ -77,7 +77,7 @@ def send_patient_reminders():
         # Get appointments for next week
         next_week = today + timedelta(days=7)
         if config.organization:
-            appointments = Appointment.objects.filter(
+            appointments = Appointment.all_objects.filter(
                 appointment_datetime__date__gte=today,
                 appointment_datetime__date__lte=next_week,
                 organization=config.organization,
@@ -86,7 +86,7 @@ def send_patient_reminders():
                 f"Processing {appointments.count()} appointments for organization: {config.organization.name}"
             )
         else:
-            appointments = Appointment.objects.filter(
+            appointments = Appointment.all_objects.filter(
                 appointment_datetime__date__gte=today,
                 appointment_datetime__date__lte=next_week,
             ).select_related("patient")
@@ -198,7 +198,7 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
         # Get appointments for next week
         next_week = today + timedelta(days=7)
         if config.organization:
-            appointments = Appointment.objects.filter(
+            appointments = Appointment.all_objects.filter(
                 appointment_datetime__date__gte=today,
                 appointment_datetime__date__lte=next_week,
                 organization=config.organization,
@@ -207,7 +207,7 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
                 f"Processing {appointments.count()} SMS appointments for organization: {config.organization.name}"
             )
         else:
-            appointments = Appointment.objects.filter(
+            appointments = Appointment.all_objects.filter(
                 appointment_datetime__date__gte=today,
                 appointment_datetime__date__lte=next_week,
             ).select_related("patient")

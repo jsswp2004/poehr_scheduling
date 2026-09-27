@@ -4,6 +4,7 @@ from django.contrib.postgres.fields import ArrayField
 from users.models import (
     Organization,
 )  # Assuming Organization is defined in users/models.py
+from poehr_scheduling_backend.tenancy import TenantScopedManager
 
 
 class ClinicEvent(models.Model):
@@ -93,6 +94,21 @@ class Appointment(models.Model):
     no_show = models.BooleanField(
         default=False, help_text="Whether the patient was a no-show for the appointment"
     )
+
+    # Tenant isolation (see poehr_scheduling_backend/tenancy.py):
+    # `objects` is scoped to the current request's organization by default
+    # and returns nothing outside a scoped web request. `all_objects` is the
+    # plain, unscoped manager for code that legitimately needs explicit
+    # cross-organization access (system_admin views, cron.py, management
+    # commands) -- audited and converted to use it where needed.
+    objects = TenantScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        # Reverse relations (organization.appointments, patient.appointments,
+        # doctor.provider_appointments) should behave exactly as before --
+        # tenant scoping only guards the model's own `.objects` entry point.
+        base_manager_name = "all_objects"
 
     def __str__(self):
         return f"{self.title} - {self.appointment_datetime}"

@@ -70,6 +70,10 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Records the current request's organization so tenant-scoped models'
+    # default managers can filter by it automatically. Must come after
+    # AuthenticationMiddleware (needs request.user resolved).
+    "poehr_scheduling_backend.tenancy.TenantScopeMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]

@@ -114,13 +114,13 @@ def debug_sms_data(request):
 
             # Get appointments for this config
             if config.organization:
-                appointments = Appointment.objects.filter(
+                appointments = Appointment.all_objects.filter(
                     appointment_datetime__date__gte=today,
                     appointment_datetime__date__lte=next_week,
                     organization=config.organization,
                 ).select_related("patient")
             else:
-                appointments = Appointment.objects.filter(
+                appointments = Appointment.all_objects.filter(
                     appointment_datetime__date__gte=today,
                     appointment_datetime__date__lte=next_week,
                 ).select_related("patient")
@@ -145,7 +145,7 @@ def debug_sms_data(request):
             data["active_configs"].append(config_data)
 
         # Check total appointments in database
-        all_appointments = Appointment.objects.all()
+        all_appointments = Appointment.all_objects.all()
         data["total_appointments"] = all_appointments.count()
 
         # Check patients with phone numbers
