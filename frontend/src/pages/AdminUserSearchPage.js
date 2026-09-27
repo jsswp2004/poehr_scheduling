@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
 import {
@@ -54,11 +54,28 @@ function AdminUserSearchPage() {
     }
   }, [navigate]);
 
+  // Guards against a slow, stale request clobbering a newer one's results.
+  // Both the mount-time load and every click on Search call fetchAppointments,
+  // and each one hits a slow endpoint (the full appointment list) -- without
+  // this, whichever request happens to finish LAST wins, even if it was
+  // issued first with an empty/different search term. That produced exactly
+  // this bug: click Search with "je", see "everything" (the mount fetch
+  // landing late) or nothing (a still-in-flight older search resolving after
+  // the real one). Now only the response to the most recently issued request
+  // is ever applied.
+  const latestRequestId = useRef(0);
+
   const fetchAppointments = async (searchText = "") => {
+    const requestId = ++latestRequestId.current;
     try {
       const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (requestId !== latestRequestId.current) {
+        // A newer search/fetch was issued while this one was in flight --
+        // this response is stale, ignore it.
+        return;
+      }
       const lowerQuery = searchText.trim().toLowerCase();
       const filtered = res.data.filter((appt) => {
         const patientName =
@@ -87,7 +104,9 @@ function AdminUserSearchPage() {
       });
       setResults(filtered);
     } catch (err) {
-      console.error("Fetch failed", err);
+      if (requestId === latestRequestId.current) {
+        console.error("Fetch failed", err);
+      }
     }
   };
 
