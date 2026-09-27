@@ -32,16 +32,18 @@ services:
         fromDatabase:
           name: poehr-scheduling-db
           property: connectionString
-      # SMTP credentials for the info@powerhealthcareit.com mailbox
-      # (mail.privateemail.com, see EMAIL_HOST in settings.py). sync: false
-      # means Render will NOT read a value from this file for these -- it
-      # just marks them as required and prompts for them once in the
-      # dashboard (Environment tab), where they're stored encrypted. That
-      # keeps the actual password out of git entirely.
-      - key: EMAIL_HOST_USER
+      # Outbound email now goes through Resend's HTTPS API (see EMAIL_BACKEND
+      # in settings.py) instead of raw SMTP, because Render blocks outbound
+      # SMTP ports on web services entirely -- no combination of
+      # EMAIL_HOST_USER/EMAIL_HOST_PASSWORD could ever have worked here.
+      # sync: false means Render won't read a value from this file for this
+      # key -- it just marks it required and prompts for it once in the
+      # dashboard (Environment tab), where it's stored encrypted.
+      - key: RESEND_API_KEY
         sync: false
-      - key: EMAIL_HOST_PASSWORD
-        sync: false
+      # EMAIL_HOST_USER / EMAIL_HOST_PASSWORD are no longer used (kept set
+      # in the Render dashboard already, but safe to remove whenever) --
+      # left out of this file now that nothing reads them.
 
 databases:
   - name: poehr-scheduling-db

@@ -24,6 +24,7 @@ constantly==23.10.4
 cron-descriptor==1.4.5
 cryptography==45.0.4
 Django==4.2
+django-anymail[resend]==11.1
 django-celery-beat==2.6.0
 django-cors-headers==4.7.0
 django-cron==0.6.0
