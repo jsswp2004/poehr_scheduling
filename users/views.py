@@ -423,8 +423,46 @@ class RegisterView(generics.CreateAPIView):
         if request.user.is_authenticated:
             # User is logged in, use their organization
             organization = request.user.organization
+        elif is_enrollment:
+            # New clinic/practice enrollment: ALWAYS create a brand-new
+            # Organization row. Never look one up by name.
+            #
+            # Previously this used Organization.objects.get_or_create(name=...),
+            # which meant two unrelated clinics entering the same (or blank,
+            # falling back to the literal "Default Organization") name would
+            # collide into the SAME Organization row -- silently making the
+            # second clinic's admin a co-admin of the first clinic's patients,
+            # appointments, and notes. A human-typed name is not a safe
+            # uniqueness key for a tenant, so enrollment must never reuse an
+            # existing org and must require a real name.
+            org_name = (data.get("organization_name") or "").strip()
+            if not org_name:
+                return Response(
+                    {"organization_name": ["Organization name is required."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            org_type = data.get("organization_type", "personal")
+            print(
+                f"🏢 Creating new organization for enrollment: '{org_name}' (type: {org_type})"
+            )
+            organization = Organization.objects.create(
+                name=org_name,
+                organization_type=org_type,
+                subscription_tier="basic",  # Start with basic tier
+                subscription_status="trial",
+                max_users=1,  # Will be updated based on selected tier
+            )
+            print(
+                f"✅ Created new organization: {organization.name} (id: {organization.id})"
+            )
         else:
-            # User is not logged in, use the organization_name from the form or default
+            # Non-enrollment, unauthenticated registration (e.g. a patient
+            # joining an existing clinic by typing its name). This path
+            # intentionally still looks organizations up by name for now --
+            # see the note above about names not being a safe uniqueness key.
+            # If this flow is used with real patient data, it should require
+            # an explicit organization id / invite code instead of a
+            # free-typed name.
             org_name = data.get("organization_name") or "Default Organization"
             org_type = data.get("organization_type", "personal")
             print(f"🏢 Creating/getting organization: '{org_name}' (type: {org_type})")
