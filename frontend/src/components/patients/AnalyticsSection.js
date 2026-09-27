@@ -203,21 +203,21 @@ function AnalyticsSection({
               Applied Filters:
             </Typography>
             <Grid container spacing={2}>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Typography variant="body2" color="text.secondary">
                   <strong>Date Range:</strong>
                   <br />
                   {formatDate(reportStartDate)} - {formatDate(reportEndDate)}
                 </Typography>
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Typography variant="body2" color="text.secondary">
                   <strong>Provider:</strong>
                   <br />
                   {getProviderName()}
                 </Typography>
               </Grid>
-              <Grid item xs={12} sm={4}>
+              <Grid size={{ xs: 12, sm: 4 }}>
                 <Typography variant="body2" color="text.secondary">
                   <strong>Total Records:</strong>
                   <br />
@@ -982,7 +982,7 @@ function AnalyticsSection({
               </Typography>
 
               <Grid container spacing={3} alignItems="center">
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <DatePicker
                     label="Start Date"
                     value={reportStartDate}
@@ -996,7 +996,7 @@ function AnalyticsSection({
                   />
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <DatePicker
                     label="End Date"
                     value={reportEndDate}
@@ -1010,7 +1010,7 @@ function AnalyticsSection({
                   />
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <FormControl size="small" fullWidth>
                     <InputLabel>Provider</InputLabel>
                     <MUISelect
@@ -1028,7 +1028,7 @@ function AnalyticsSection({
                   </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <Typography variant="body2" color="text.secondary">
                     <strong>Current Filters:</strong>
                     <br />
@@ -1043,7 +1043,7 @@ function AnalyticsSection({
             {/* Bottom Panel - Left: Reports Table, Right: Preview */}
             <Grid container spacing={3}>
               {/* Left Panel - Reports Table */}
-              <Grid item xs={12} md={5}>
+              <Grid size={{ xs: 12, md: 5 }}>
                 <Paper
                   sx={{
                     p: 3,
@@ -1165,7 +1165,7 @@ function AnalyticsSection({
               </Grid>
 
               {/* Right Panel - Report Preview */}
-              <Grid item xs={12} md={7}>
+              <Grid size={{ xs: 12, md: 7 }}>
                 <Paper
                   sx={{
                     p: 3,
@@ -1202,7 +1202,7 @@ function AnalyticsSection({
                   </Typography>
 
                   <Grid container spacing={3} alignItems="center">
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                       <DatePicker
                         label="Start Date"
                         value={reportStartDate}
@@ -1216,7 +1216,7 @@ function AnalyticsSection({
                       />
                     </Grid>
 
-                    <Grid item xs={12} sm={6} md={3}>
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                       <DatePicker
                         label="End Date"
                         value={reportEndDate}
@@ -1230,7 +1230,7 @@ function AnalyticsSection({
                   />
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <FormControl size="small" fullWidth>
                     <InputLabel>Provider</InputLabel>
                     <MUISelect
@@ -1248,7 +1248,7 @@ function AnalyticsSection({
                   </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
                   <Typography variant="body2" color="text.secondary">
                     <strong>Current Filters:</strong>
                     <br />
@@ -1263,7 +1263,7 @@ function AnalyticsSection({
             {/* Bottom Panel - Left: Reports Table, Right: Preview */}
             <Grid container spacing={3}>
               {/* Left Panel - Reports Table */}
-              <Grid item xs={12} md={5}>
+              <Grid size={{ xs: 12, md: 5 }}>
                 <Paper
                   sx={{
                     p: 3,
@@ -1385,7 +1385,7 @@ function AnalyticsSection({
               </Grid>
 
               {/* Right Panel - Report Preview */}
-              <Grid item xs={12} md={7}>
+              <Grid size={{ xs: 12, md: 7 }}>
                 <Paper
                   sx={{
                     p: 3,
