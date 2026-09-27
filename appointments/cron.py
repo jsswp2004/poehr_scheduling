@@ -4,7 +4,7 @@ from django.core.mail import send_mail
 from communicator.utils import send_email, send_sms
 from django.core.cache import cache
 from datetime import timedelta
-from .models import Appointment, AutoEmail
+from .models import Appointment, AutoEmail, AutoSMS
 
 
 def send_patient_reminders():
@@ -121,7 +121,11 @@ def send_patient_reminders():
 
 
 def send_patient_sms_reminders(ignore_day_restrictions=False):
-    """Send patient SMS reminders based on AutoEmail configuration.
+    """Send patient SMS reminders based on AutoSMS configuration.
+
+    AutoSMS is a fully independent config from AutoEmail -- SMS has its
+    own "Enabled" flag, frequency, day of week, and start date, so
+    toggling email on/off (or changing its schedule) never affects SMS.
 
     Args:
         ignore_day_restrictions (bool): If True, ignores day-of-week restrictions for manual execution
@@ -129,11 +133,11 @@ def send_patient_sms_reminders(ignore_day_restrictions=False):
     today = timezone.now().date()
     current_weekday = timezone.now().weekday()  # 0=Monday, 6=Sunday
 
-    # Get all active AutoEmail configurations
-    active_configs = AutoEmail.objects.filter(is_active=True)
+    # Get all active AutoSMS configurations
+    active_configs = AutoSMS.objects.filter(is_active=True)
 
     if not active_configs.exists():
-        print("No active AutoEmail configurations found.")
+        print("No active AutoSMS configurations found.")
         return
 
     sms_sent_patients = cache.get("sms_sent_patients_today", set())

@@ -12,8 +12,9 @@ import {
   Alert,
   CircularProgress,
   Stack,
-  TextField,
 } from "@mui/material";
+import Switch from "@mui/material/Switch";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import MessageLogTable from "../components/MessageLogTable";
@@ -27,6 +28,7 @@ function AutoSMSSetUpPage() {
   const [loading, setLoading] = useState(true);
   const [runNowStatus, setRunNowStatus] = useState("");
   const [monthlySMSTotal, setMonthlySMSTotal] = useState(0);
+  const [enabled, setEnabled] = useState(true);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -34,13 +36,14 @@ function AutoSMSSetUpPage() {
       try {
         const token = localStorage.getItem("access_token");
         const res = await axios.get(
-          `${API_BASE_URL}/api/settings/environment/`,
+          `${API_BASE_URL}/api/settings/sms/`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
         setFrequency(res.data.auto_message_frequency || "weekly");
         setDayOfWeek(res.data.auto_message_day_of_week || 1);
+        setEnabled(typeof res.data.is_active === 'boolean' ? res.data.is_active : true);
 
         // Handle start date from API response
         if (res.data.auto_message_start_date) {
@@ -97,11 +100,12 @@ function AutoSMSSetUpPage() {
       const formattedDate = startDate.toISOString().split("T")[0];
 
       await axios.post(
-        `${API_BASE_URL}/api/settings/environment/`,
+        `${API_BASE_URL}/api/settings/sms/`,
         {
           auto_message_frequency: frequency,
           auto_message_day_of_week: dayOfWeek,
           auto_message_start_date: formattedDate,
+          is_active: enabled,
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -139,6 +143,8 @@ function AutoSMSSetUpPage() {
         bgcolor: "background.paper",
         p: 3,
         height: "100%",
+        maxHeight: "90vh",
+        overflowY: "auto", // Enable scrolling if content overflows
       }}
     >
       <Box sx={{ display: "flex", gap: 3, height: "100%" }}>
@@ -182,6 +188,10 @@ function AutoSMSSetUpPage() {
                 <MenuItem value="monthly">Monthly</MenuItem>
               </Select>
             </FormControl>
+            <FormControlLabel
+              control={<Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />}
+              label="Enabled"
+            />
             <FormControl fullWidth>
               <InputLabel id="day-label">Day of Week</InputLabel>
               <Select
