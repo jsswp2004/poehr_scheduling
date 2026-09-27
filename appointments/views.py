@@ -142,6 +142,22 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 | Q(provider__last_name__icontains=search)
             ).distinct()
 
+        # Optional cap (?limit=...), used by the admin appointment-search
+        # page's initial load: rather than loading the entire org's
+        # appointments table when the page first opens (the same
+        # full-table-download problem the search box used to have), it
+        # asks for just the most recent N rows. Only takes effect when no
+        # search term was given -- a search should still return every
+        # matching row, not just the newest 50 of them.
+        limit = self.request.query_params.get("limit")
+        if limit and not search:
+            try:
+                limit = int(limit)
+                if limit > 0:
+                    queryset = queryset.order_by("-appointment_datetime")[:limit]
+            except (TypeError, ValueError):
+                pass
+
         return queryset
 
     def perform_create(self, serializer):

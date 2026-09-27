@@ -25,7 +25,13 @@ import { jwtDecode } from "jwt-decode";
 import Pagination from "@mui/material/Pagination";
 import BackButton from "../components/BackButton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEye, faTrash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faEye,
+  faTrash,
+  faSort,
+  faSortUp,
+  faSortDown,
+} from "@fortawesome/free-solid-svg-icons";
 
 function AdminUserSearchPage() {
   const [query, setQuery] = useState("");
@@ -33,6 +39,12 @@ function AdminUserSearchPage() {
   const [page, setPage] = useState(1);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // Sortable columns: which field the table is currently sorted by, and
+  // which direction. Defaults to newest-first by date, matching the old
+  // hardcoded behavior, but the user can click any column header to
+  // re-sort by it instead.
+  const [sortField, setSortField] = useState("appointment_datetime");
+  const [sortDirection, setSortDirection] = useState("desc");
   const token = localStorage.getItem("access_token");
   const navigate = useNavigate();
   const rowsPerPage = 10;
@@ -74,7 +86,13 @@ function AdminUserSearchPage() {
     try {
       const res = await axios.get(`${API_BASE_URL}/api/appointments/`, {
         headers: { Authorization: `Bearer ${token}` },
-        params: searchText.trim() ? { search: searchText.trim() } : {},
+        // No search text: ask the backend for just the most recent 50
+        // appointments (?limit=50) instead of the entire org's table --
+        // this is what runs on initial page load. A real search still
+        // asks for every matching row.
+        params: searchText.trim()
+          ? { search: searchText.trim() }
+          : { limit: 50 },
       });
       if (requestId !== latestRequestId.current) {
         // A newer search/fetch was issued while this one was in flight --
@@ -99,10 +117,73 @@ function AdminUserSearchPage() {
     fetchAppointments(query);
   };
 
-  const sortedResults = [...results].sort(
-    (a, b) =>
-      new Date(b.appointment_datetime) - new Date(a.appointment_datetime)
-  );
+  // Pulls the value to compare for a given column out of an appointment,
+  // matching whatever the corresponding table cell actually displays (see
+  // the patient/provider fallback logic in the row rendering below).
+  const getSortValue = (appt, field) => {
+    switch (field) {
+      case "title":
+        return (appt.title || "").toLowerCase();
+      case "patient":
+        return (
+          appt.patient_name ||
+          (appt.patient &&
+            `${appt.patient.first_name || ""} ${appt.patient.last_name || ""}`) ||
+          ""
+        )
+          .toString()
+          .toLowerCase();
+      case "provider":
+        return (
+          appt.provider_name ||
+          (appt.provider &&
+            `${appt.provider.first_name || ""} ${appt.provider.last_name || ""}`) ||
+          ""
+        )
+          .toString()
+          .toLowerCase();
+      case "appointment_datetime":
+        return appt.appointment_datetime
+          ? new Date(appt.appointment_datetime).getTime()
+          : 0;
+      case "description":
+        return (appt.description || "").toLowerCase();
+      case "duration_minutes":
+        return Number(appt.duration_minutes) || 0;
+      case "status":
+        return (appt.status || "").toLowerCase();
+      default:
+        return "";
+    }
+  };
+
+  // Clicking a column header sorts by it; clicking the same header again
+  // flips the direction instead of doing nothing.
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const renderSortIcon = (field) => {
+    if (sortField !== field) {
+      return <FontAwesomeIcon icon={faSort} style={{ opacity: 0.35 }} />;
+    }
+    return (
+      <FontAwesomeIcon icon={sortDirection === "asc" ? faSortUp : faSortDown} />
+    );
+  };
+
+  const sortedResults = [...results].sort((a, b) => {
+    const aVal = getSortValue(a, sortField);
+    const bVal = getSortValue(b, sortField);
+    if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
+    if (aVal > bVal) return sortDirection === "asc" ? 1 : -1;
+    return 0;
+  });
   const paginatedResults = sortedResults.slice(
     (page - 1) * rowsPerPage,
     page * rowsPerPage
@@ -133,7 +214,7 @@ function AdminUserSearchPage() {
       >
         <TextField
           type="text"
-          label="Search by patient, provider, date or description"
+          label="Search by patient, provider or clinic event"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           fullWidth
@@ -154,26 +235,47 @@ function AdminUserSearchPage() {
         >
           <TableHead sx={{ bgcolor: "#e3f2fd" }}>
             <TableRow>
-              <TableCell>
-                <b>Clinic Event</b>
+              <TableCell
+                onClick={() => handleSort("title")}
+                sx={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                <b>Clinic Event</b> {renderSortIcon("title")}
               </TableCell>
-              <TableCell>
-                <b>Patient</b>
+              <TableCell
+                onClick={() => handleSort("patient")}
+                sx={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                <b>Patient</b> {renderSortIcon("patient")}
               </TableCell>
-              <TableCell>
-                <b>Provider</b>
+              <TableCell
+                onClick={() => handleSort("provider")}
+                sx={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                <b>Provider</b> {renderSortIcon("provider")}
               </TableCell>
-              <TableCell>
-                <b>Date & Time</b>
+              <TableCell
+                onClick={() => handleSort("appointment_datetime")}
+                sx={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                <b>Date & Time</b> {renderSortIcon("appointment_datetime")}
               </TableCell>
-              <TableCell>
-                <b>Description</b>
+              <TableCell
+                onClick={() => handleSort("description")}
+                sx={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                <b>Description</b> {renderSortIcon("description")}
               </TableCell>
-              <TableCell>
-                <b>Duration (min)</b>
+              <TableCell
+                onClick={() => handleSort("duration_minutes")}
+                sx={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                <b>Duration (min)</b> {renderSortIcon("duration_minutes")}
               </TableCell>
-              <TableCell>
-                <b>Status</b>
+              <TableCell
+                onClick={() => handleSort("status")}
+                sx={{ cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
+              >
+                <b>Status</b> {renderSortIcon("status")}
               </TableCell>
               <TableCell>
                 <b>Actions</b>
