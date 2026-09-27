@@ -171,7 +171,11 @@ AUTHENTICATION_BACKENDS = [
 # DRF & JWT settings
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        # TenantAwareJWTAuthentication wraps the stock JWTAuthentication to
+        # also record the authenticated user's organization for
+        # TenantScopedManager (see poehr_scheduling_backend/tenancy.py) --
+        # it behaves identically otherwise.
+        "poehr_scheduling_backend.tenancy.TenantAwareJWTAuthentication",
     ),
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
