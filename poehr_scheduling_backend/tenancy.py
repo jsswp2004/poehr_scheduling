@@ -39,6 +39,7 @@ import threading
 
 from django.db import models
 from django.utils.deprecation import MiddlewareMixin
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 _local = threading.local()
 
@@ -77,10 +78,32 @@ def clear_current_organization():
 
 class TenantScopeMiddleware(MiddlewareMixin):
     """
-    Records the requesting user's organization for the duration of the
-    request, so TenantScopedManager can filter by it automatically. Must
-    sit after AuthenticationMiddleware (needs request.user resolved) in
-    MIDDLEWARE.
+    Guarantees a clean organization context for every request and clears it
+    afterwards. This does NOT set the organization from `request.user`:
+    this app authenticates via JWT bearer tokens (rest_framework_simplejwt),
+    and `request.user` is only resolved by DRF's authentication classes
+    *inside* view dispatch -- which runs after every regular Django
+    middleware's process_request/process_view. By the time this middleware
+    would see it, `request.user` is still whatever AuthenticationMiddleware
+    set from the (nonexistent, for a stateless JWT client) session --
+    i.e. always AnonymousUser. Reading it here would silently and
+    permanently scope every JWT-authenticated request to "no organization",
+    which fails closed (empty results) rather than open, but defeats the
+    entire point of tenant scoping.
+
+    The organization is instead set by TenantAwareJWTAuthentication (below),
+    which runs at the point DRF actually resolves the user -- early enough
+    that it's in place before any view's get_queryset()/create() executes.
+    This middleware's job is just the safety net: reset at the start of
+    every request (so a worker thread reused across requests never carries
+    a stale value into one that never authenticates), and clear at the end.
+
+    Must still sit after AuthenticationMiddleware in MIDDLEWARE for Django
+    admin / session-authenticated requests, which don't go through DRF at
+    all -- for those, request.user IS reliably resolved by that point, so
+    we set from it as a courtesy (harmless no-op for JWT API requests,
+    since TenantAwareJWTAuthentication overwrites it moments later inside
+    the view).
     """
 
     def process_request(self, request):
@@ -88,7 +111,7 @@ class TenantScopeMiddleware(MiddlewareMixin):
         if user is not None and getattr(user, "is_authenticated", False):
             set_current_organization(getattr(user, "organization", None))
         else:
-            set_current_organization(None)
+            clear_current_organization()
 
     def process_response(self, request, response):
         clear_current_organization()
@@ -97,6 +120,27 @@ class TenantScopeMiddleware(MiddlewareMixin):
     def process_exception(self, request, exception):
         clear_current_organization()
         return None
+
+
+class TenantAwareJWTAuthentication(JWTAuthentication):
+    """
+    Drop-in replacement for rest_framework_simplejwt's JWTAuthentication
+    that also records the authenticated user's organization for
+    TenantScopedManager, at the point DRF actually authenticates the
+    request (APIView.initial() -> perform_authentication -- before
+    get_queryset()/create() run). See TenantScopeMiddleware's docstring for
+    why this can't be done from ordinary Django middleware for a JWT API.
+
+    Set as DEFAULT_AUTHENTICATION_CLASSES in settings.py in place of the
+    stock JWTAuthentication.
+    """
+
+    def authenticate(self, request):
+        result = super().authenticate(request)
+        if result is not None:
+            user, _validated_token = result
+            set_current_organization(getattr(user, "organization", None))
+        return result
 
 
 class TenantScopedManager(models.Manager):
