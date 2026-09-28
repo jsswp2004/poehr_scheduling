@@ -56,6 +56,25 @@ services:
         sync: false
       - key: TWILIO_PHONE_NUMBER
         sync: false
+      # Metered overage billing for automatic email/SMS reminders (see
+      # users/messaging_stripe.py). Empty/unset until you run the
+      # setup_messaging_meters management command and get real price IDs
+      # back -- the code raises a clear error rather than silently no-op'ing
+      # if you try to use these before they're set.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_EMAIL_OVERAGE_PRICE_ID
+        sync: false
+      - key: STRIPE_SMS_OVERAGE_PRICE_ID
+        sync: false
+      # Base subscription tier prices (Basic/Premium checkout). Also empty
+      # until you run the setup_base_tier_prices management command.
+      - key: STRIPE_BASIC_PRICE_ID
+        sync: false
+      - key: STRIPE_PREMIUM_PRICE_ID
+        sync: false
+      - key: STRIPE_ENTERPRISE_PRICE_ID
+        sync: false
 
 databases:
   - name: poehr-scheduling-db
