@@ -181,10 +181,16 @@ const CustomToolbar = memo(function CustomToolbar({
                 view === viewName ? "btn-primary" : "btn-outline-secondary"
               }`}
               onClick={() => onView(viewName)}
-              style={{ textDecoration: "none" }}
-              onFocus={(e) => { e.target.style.textDecoration = "none"; }}
             >
-              {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
+              {/* react-big-calendar's built-in view names use underscores
+                  (e.g. "work_week"), so capitalizing just the first letter
+                  produced labels like "Work_week" -- the underscore itself
+                  is what looked like an underline under the text. Replace
+                  underscores with spaces and title-case every word instead. */}
+              {viewName
+                .split("_")
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ")}
             </button>
           ))}
         </span>
