@@ -20,11 +20,12 @@ import {
   TableBody,
   IconButton,
   Tooltip,
-  Divider,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash, faPen } from "@fortawesome/free-solid-svg-icons";
@@ -56,6 +57,7 @@ function StaffingAssignTab() {
   const [patterns, setPatterns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
+  const [assignTab, setAssignTab] = useState("assign");
 
   const [coverageRequirements, setCoverageRequirements] = useState([]);
   const [covShiftType, setCovShiftType] = useState("day");
@@ -319,9 +321,17 @@ function StaffingAssignTab() {
 
   return (
     <Box sx={{ maxWidth: 900 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Assign a Schedule
-      </Typography>
+      <Tabs
+        value={assignTab}
+        onChange={(e, newValue) => setAssignTab(newValue)}
+        sx={{ mb: 3 }}
+      >
+        <Tab label="Assign a Schedule" value="assign" />
+        <Tab label="Coverage Requirements" value="coverage" />
+      </Tabs>
+
+      {assignTab === "assign" && (
+        <Box>
 
       <Stack spacing={2} sx={{ mb: 3 }}>
         <FormControl size="small" sx={{ minWidth: 260 }}>
@@ -620,17 +630,16 @@ function StaffingAssignTab() {
           </Button>
         </DialogActions>
       </Dialog>
+        </Box>
+      )}
 
-      <Divider sx={{ my: 4 }} />
-
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Coverage Requirements (understaffing alerts)
-      </Typography>
+      {assignTab === "coverage" && (
+        <Box>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Mark which shift types need guaranteed coverage. If fewer than the
-        minimum number of staff are assigned to a covered shift type/date
-        combination 24 hours before it starts, an email alert is sent to
-        this organization's admins automatically.
+        Mark which shift types need guaranteed coverage (understaffing
+        alerts). If fewer than the minimum number of staff are assigned to
+        a covered shift type/date combination 24 hours before it starts, an
+        email alert is sent to this organization's admins automatically.
       </Typography>
 
       <Stack spacing={2} sx={{ mb: 3, maxWidth: 900 }}>
@@ -757,6 +766,8 @@ function StaffingAssignTab() {
             ))}
           </TableBody>
         </Table>
+      )}
+        </Box>
       )}
     </Box>
   );
