@@ -569,3 +569,80 @@ def messaging_usage(request):
 
     usage = compute_messaging_usage(target_organization, year=year, month=month)
     return Response(usage, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def stripe_billing_diagnostic(request):
+    """
+    TEMPORARY diagnostic endpoint. Read-only -- does not talk to Stripe.
+
+    Reports whether an organization (and its admin) has Stripe subscription
+    fields populated, so we know whether attach_messaging_billing has a
+    subscription to attach the overage prices to.
+
+    Query params:
+      - organization_id (system_admin only): look up a different org
+    """
+    from .models import Organization
+
+    user = request.user
+
+    if user.role not in ("admin", "system_admin"):
+        return Response(
+            {"error": "You do not have permission to view this."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    target_organization = user.organization
+
+    organization_id = request.GET.get("organization_id")
+    if user.role == "system_admin" and organization_id:
+        try:
+            target_organization = Organization.objects.get(id=organization_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+    if not target_organization:
+        return Response(
+            {"error": "No organization found for this user."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    admin_user = (
+        target_organization.users.filter(role__in=["admin", "system_admin"])
+        .exclude(stripe_customer_id="")
+        .exclude(stripe_customer_id__isnull=True)
+        .first()
+    )
+
+    return Response(
+        {
+            "organization_id": target_organization.id,
+            "organization_name": target_organization.name,
+            "organization_subscription_tier": getattr(
+                target_organization, "subscription_tier", None
+            ),
+            "organization_stripe_subscription_id": target_organization.stripe_subscription_id
+            or None,
+            "admin_user": admin_user.username if admin_user else None,
+            "admin_stripe_customer_id": getattr(
+                admin_user, "stripe_customer_id", None
+            )
+            if admin_user
+            else None,
+            "admin_stripe_subscription_id": getattr(
+                admin_user, "stripe_subscription_id", None
+            )
+            if admin_user
+            else None,
+            "admin_subscription_status": getattr(
+                admin_user, "subscription_status", None
+            )
+            if admin_user
+            else None,
+        },
+        status=status.HTTP_200_OK,
+    )
