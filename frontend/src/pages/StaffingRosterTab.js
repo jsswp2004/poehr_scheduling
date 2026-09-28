@@ -50,6 +50,16 @@ function StaffingRosterTab({ isAdmin = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Facility-wide messaging kill switch (Organization.staffing_messaging_enabled).
+  // Turning this off stops the hourly automated jobs (shift reminders +
+  // understaffing coverage alerts) from sending anything for this org; it
+  // does not affect the ad-hoc SMS/Email buttons below, which are a
+  // deliberate action taken by an admin.
+  const [orgId, setOrgId] = useState(null);
+  const [facilityMessagingEnabled, setFacilityMessagingEnabled] = useState(true);
+  const [facilityMessagingLoading, setFacilityMessagingLoading] = useState(true);
+  const [facilityMessagingSaving, setFacilityMessagingSaving] = useState(false);
+
   // Edit dialog state
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState(EMPTY_EDIT_FORM);
@@ -79,9 +89,51 @@ function StaffingRosterTab({ isAdmin = false }) {
     }
   }, [token]);
 
+  const fetchFacilityMessaging = useCallback(async () => {
+    setFacilityMessagingLoading(true);
+    try {
+      const res = await axios.get(apiEndpoints.organizations, {
+        headers: getAuthHeaders(token),
+      });
+      const rows = res.data.results || res.data || [];
+      const org = rows[0];
+      if (org) {
+        setOrgId(org.id);
+        setFacilityMessagingEnabled(org.staffing_messaging_enabled !== false);
+      }
+    } catch (err) {
+      console.error("Failed to load facility messaging setting", err);
+    } finally {
+      setFacilityMessagingLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchStaff();
-  }, [fetchStaff]);
+    fetchFacilityMessaging();
+  }, [fetchStaff, fetchFacilityMessaging]);
+
+  const handleToggleFacilityMessaging = async () => {
+    if (!orgId) return;
+    const next = !facilityMessagingEnabled;
+    // Optimistic update.
+    setFacilityMessagingEnabled(next);
+    setFacilityMessagingSaving(true);
+    try {
+      await axios.patch(
+        apiEndpoints.organizationDetail(orgId),
+        { staffing_messaging_enabled: next },
+        { headers: getAuthHeaders(token) }
+      );
+    } catch (err) {
+      console.error("Failed to update facility messaging setting", err);
+      setError("Failed to update Facility Messaging.");
+      // Revert on failure.
+      setFacilityMessagingEnabled(!next);
+    } finally {
+      setFacilityMessagingSaving(false);
+    }
+  };
 
   const handleDeactivate = async (id) => {
     if (!window.confirm("Remove this staff member from the roster?")) return;
@@ -228,9 +280,41 @@ function StaffingRosterTab({ isAdmin = false }) {
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Staff Roster ({staff.length})
-      </Typography>
+      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2, flexWrap: "wrap" }}>
+        <Typography variant="h6">
+          Staff Roster ({staff.length})
+        </Typography>
+
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            Facility Messaging
+          </Typography>
+          {isAdmin ? (
+            <Tooltip
+              title={
+                facilityMessagingEnabled
+                  ? "SMS/email shift reminders and understaffing alerts are ON for this facility"
+                  : "SMS/email shift reminders and understaffing alerts are OFF for this facility -- the automated jobs will not send anything"
+              }
+            >
+              <span>
+                <Switch
+                  checked={!!facilityMessagingEnabled}
+                  onChange={handleToggleFacilityMessaging}
+                  disabled={facilityMessagingLoading || facilityMessagingSaving || !orgId}
+                />
+              </span>
+            </Tooltip>
+          ) : (
+            <Chip
+              size="small"
+              label={facilityMessagingEnabled ? "On" : "Off"}
+              color={facilityMessagingEnabled ? "success" : "default"}
+              variant="outlined"
+            />
+          )}
+        </Stack>
+      </Stack>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>

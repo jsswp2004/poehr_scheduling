@@ -319,4 +319,5 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "subscription_tier",
             "max_users",
             "organization_type",
+            "staffing_messaging_enabled",
         ]

@@ -83,6 +83,7 @@ export const apiEndpoints = {
 
     // Organization endpoints
     organizations: `${API_BASE_URL}/api/users/organizations/`,
+    organizationDetail: (id) => `${API_BASE_URL}/api/users/organizations/${id}/`,
 
     // Doctor endpoints
     doctors: `${API_BASE_URL}/api/users/doctors/`,
