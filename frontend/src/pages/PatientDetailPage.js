@@ -1393,21 +1393,24 @@ function PatientDetailPage() {
               >
                 Clinical Notes
               </Button>
-              <Button
-                variant="outlined"
-                color="warning"
-                onClick={handleResetPassword}
-                sx={{
-                  borderColor: "#ff9800",
-                  color: "#ff9800",
-                  "&:hover": {
-                    borderColor: "#f57c00",
-                    backgroundColor: "#fff3e0",
-                  },
-                }}
-              >
-                Reset Password
-              </Button>
+              {(roleValidation.userRole === "admin" ||
+                roleValidation.userRole === "system_admin") && (
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  onClick={handleResetPassword}
+                  sx={{
+                    borderColor: "#ff9800",
+                    color: "#ff9800",
+                    "&:hover": {
+                      borderColor: "#f57c00",
+                      backgroundColor: "#fff3e0",
+                    },
+                  }}
+                >
+                  Reset Password
+                </Button>
+              )}
             </Stack>
           </Paper>
         </form>
