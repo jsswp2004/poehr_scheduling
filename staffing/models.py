@@ -31,6 +31,14 @@ class Staff(models.Model):
     email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    reminders_enabled = models.BooleanField(
+        default=True,
+        help_text=(
+            "Master on/off switch for this staff member's automatic SMS/"
+            "email shift reminders (sent ~3 hours before a shift starts). "
+            "Toggled from the Messaging column on the Roster tab."
+        ),
+    )
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -174,6 +182,15 @@ class StaffShift(models.Model):
             "without deleting the row, so the override stays visible."
         ),
     )
+    reminder_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "When the ~3-hours-before-shift SMS/email reminder was sent "
+            "to this staff member. Null means not sent yet; used to make "
+            "the hourly reminder job idempotent."
+        ),
+    )
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -184,3 +201,85 @@ class StaffShift(models.Model):
 
     def __str__(self):
         return f"{self.staff} - {self.date} ({self.get_shift_type_display()})"
+
+
+class ShiftCoverageRequirement(models.Model):
+    """
+    An admin-defined coverage obligation -- "every Mon/Wed/Fri there must be
+    at least 1 night-shift staff member on duty" -- independent of which
+    specific staff member(s) actually end up assigned. This is the
+    "schedule type setting" configured from the Assign Schedule tab that
+    the 24-hours-before understaffing alert checks against: it lets an org
+    mark which shift types actually need coverage (so the alert isn't
+    firing for shift types nobody is tracking), separate from an actual
+    StaffShift assignment.
+    """
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="staffing_coverage_requirements",
+    )
+    shift_type = models.CharField(
+        max_length=20, choices=SHIFT_TYPE_CHOICES, default="day"
+    )
+    days_of_week = models.JSONField(
+        default=list,
+        help_text="List of day codes this coverage requirement applies on, e.g. ['mon','wed','fri'].",
+    )
+    min_staff_required = models.PositiveIntegerField(
+        default=1,
+        help_text="Minimum number of distinct staff that must be assigned/covering for this shift type on an applicable date.",
+    )
+    start_date = models.DateField()
+    end_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Leave blank for an ongoing/open-ended requirement.",
+    )
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        days = ", ".join(self.days_of_week or [])
+        return f"{self.get_shift_type_display()} coverage ({days}) - min {self.min_staff_required}"
+
+    def applies_on(self, a_date):
+        """True if this coverage requirement is in force on the given calendar date."""
+        if not self.is_active:
+            return False
+        if a_date < self.start_date:
+            return False
+        if self.end_date and a_date > self.end_date:
+            return False
+        day_code = DAY_OF_WEEK_CHOICES[a_date.weekday()][0]
+        return day_code in (self.days_of_week or [])
+
+
+class CoverageAlert(models.Model):
+    """
+    A log of understaffing alert emails already sent for a given
+    (requirement, date) pair, so the hourly job never emails the admin
+    twice for the same upcoming gap.
+    """
+
+    requirement = models.ForeignKey(
+        ShiftCoverageRequirement,
+        on_delete=models.CASCADE,
+        related_name="alerts_sent",
+    )
+    date = models.DateField()
+    staff_assigned_count = models.PositiveIntegerField(default=0)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ["requirement", "date"]
+        ordering = ["-sent_at"]
+
+    def __str__(self):
+        return f"Coverage alert: {self.requirement} on {self.date}"

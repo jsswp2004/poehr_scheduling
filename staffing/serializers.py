@@ -1,6 +1,12 @@
 from rest_framework import serializers
 
-from .models import Staff, StaffRecurringPattern, StaffShift, VALID_DAY_CODES
+from .models import (
+    Staff,
+    StaffRecurringPattern,
+    StaffShift,
+    ShiftCoverageRequirement,
+    VALID_DAY_CODES,
+)
 
 
 class StaffSerializer(serializers.ModelSerializer):
@@ -23,6 +29,7 @@ class StaffSerializer(serializers.ModelSerializer):
             "email",
             "phone_number",
             "is_active",
+            "reminders_enabled",
             "notes",
             "created_at",
             "updated_at",
@@ -117,3 +124,50 @@ class StaffCSVRowResultSerializer(serializers.Serializer):
     created = serializers.IntegerField()
     updated = serializers.IntegerField()
     errors = serializers.ListField(child=serializers.CharField())
+
+
+class ShiftCoverageRequirementSerializer(serializers.ModelSerializer):
+    shift_type_display = serializers.CharField(
+        source="get_shift_type_display", read_only=True
+    )
+
+    class Meta:
+        model = ShiftCoverageRequirement
+        fields = [
+            "id",
+            "organization",
+            "shift_type",
+            "shift_type_display",
+            "days_of_week",
+            "min_staff_required",
+            "start_date",
+            "end_date",
+            "is_active",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["organization", "created_at", "updated_at"]
+
+    def validate_days_of_week(self, value):
+        if not isinstance(value, list) or not value:
+            raise serializers.ValidationError(
+                "days_of_week must be a non-empty list of day codes."
+            )
+        bad = [code for code in value if code not in VALID_DAY_CODES]
+        if bad:
+            raise serializers.ValidationError(
+                f"Invalid day code(s): {bad}. Valid codes: {sorted(VALID_DAY_CODES)}."
+            )
+        return value
+
+    def validate(self, attrs):
+        start_date = attrs.get(
+            "start_date", getattr(self.instance, "start_date", None)
+        )
+        end_date = attrs.get("end_date", getattr(self.instance, "end_date", None))
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError(
+                {"end_date": "end_date cannot be before start_date."}
+            )
+        return attrs

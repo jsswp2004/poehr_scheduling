@@ -134,6 +134,9 @@ export const apiEndpoints = {
     staffingRecurringPatternDetail: (id) => `${API_BASE_URL}/api/staffing/recurring-patterns/${id}/`,
     staffingShifts: `${API_BASE_URL}/api/staffing/shifts/`,
     staffingShiftDetail: (id) => `${API_BASE_URL}/api/staffing/shifts/${id}/`,
+    staffingStaffSendMessage: (id) => `${API_BASE_URL}/api/staffing/staff/${id}/send-message/`,
+    staffingCoverageRequirements: `${API_BASE_URL}/api/staffing/coverage-requirements/`,
+    staffingCoverageRequirementDetail: (id) => `${API_BASE_URL}/api/staffing/coverage-requirements/${id}/`,
 
     // Media endpoints
     profilePicture: (id) => `${API_BASE_URL}/api/users/${id}/`,
