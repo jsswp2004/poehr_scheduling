@@ -618,6 +618,10 @@ def stripe_billing_diagnostic(request):
         .first()
     )
 
+    all_admins = list(
+        target_organization.users.filter(role__in=["admin", "system_admin"])
+    )
+
     return Response(
         {
             "organization_id": target_organization.id,
@@ -643,6 +647,16 @@ def stripe_billing_diagnostic(request):
             )
             if admin_user
             else None,
+            "all_admin_users": [
+                {
+                    "id": u.id,
+                    "username": u.username,
+                    "role": u.role,
+                    "email": u.email,
+                    "stripe_customer_id": u.stripe_customer_id or None,
+                }
+                for u in all_admins
+            ],
         },
         status=status.HTTP_200_OK,
     )
