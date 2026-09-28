@@ -4,6 +4,8 @@ import Footer from "../components/Footer";
 import schedulerImage from "../assets/dashboard_scheduling.jpg";
 import communicatorImage from "../assets/communicator.png";
 import portalImage from "../assets/Portal.png";
+import documentationImage from "../assets/documentation.png";
+import staffingImage from "../assets/dashboard_clinician.png";
 
 export const OverviewPage = ({ className }) => {
   return (
@@ -144,6 +146,99 @@ export const OverviewPage = ({ className }) => {
               <div className="highlight-item">
                 <span className="highlight-icon">📱</span>
                 <span className="highlight-text">Mobile-responsive design</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* POWER Documentation Panel */}
+        <div className="application-panel">
+          <div className="panel-image">
+            <img
+              src={documentationImage}
+              alt="POWER Documentation Interface"
+              className="app-image"
+            />
+          </div>
+          <div className="panel-content">
+            <h2 className="app-title">POWER Documentation</h2>
+            <p className="app-description">
+              Centralized knowledge base for clinical and operational
+              documentation, giving providers and staff instant access to
+              guides, policies, and reference material whenever they need
+              it.
+            </p>
+
+            <div className="feature-highlights">
+              <div className="highlight-item">
+                <span className="highlight-icon">📚</span>
+                <span className="highlight-text">
+                  Searchable clinical knowledge base
+                </span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">📝</span>
+                <span className="highlight-text">
+                  Guides, SOPs, and policy references
+                </span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">🔍</span>
+                <span className="highlight-text">
+                  Instant search across all articles
+                </span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">🔄</span>
+                <span className="highlight-text">
+                  Always current, centrally maintained content
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* POWER Staffing Panel */}
+        <div className="application-panel">
+          <div className="panel-image">
+            <img
+              src={staffingImage}
+              alt="POWER Staffing Dashboard"
+              className="app-image"
+            />
+          </div>
+          <div className="panel-content">
+            <h2 className="app-title">POWER Staffing</h2>
+            <p className="app-description">
+              Dedicated duty-roster management for nurses and physicians,
+              giving clinics an easy way to build recurring schedules,
+              cover shifts, and keep staff coverage visible at a glance.
+            </p>
+
+            <div className="feature-highlights">
+              <div className="highlight-item">
+                <span className="highlight-icon">🗓️</span>
+                <span className="highlight-text">
+                  Recurring and one-time shift scheduling
+                </span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">👩‍⚕️</span>
+                <span className="highlight-text">
+                  Nurse and physician roster management
+                </span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">📊</span>
+                <span className="highlight-text">
+                  Calendar view of daily staff coverage
+                </span>
+              </div>
+              <div className="highlight-item">
+                <span className="highlight-icon">📤</span>
+                <span className="highlight-text">
+                  Bulk staff upload via CSV
+                </span>
               </div>
             </div>
           </div>
