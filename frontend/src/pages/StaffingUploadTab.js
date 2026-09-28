@@ -19,7 +19,7 @@ import { getAccessToken } from "../utils/tokenManager";
 
 const TEMPLATE_HEADER = "first_name,last_name,profession,email,phone_number\n";
 const TEMPLATE_EXAMPLE =
-  "Jane,Doe,nurse,jane.doe@example.com,555-0100\nJohn,Smith,physician,john.smith@example.com,555-0101\n";
+  "Jane,Doe,Nurse,jane.doe@example.com,555-0100\nJohn,Smith,Physician,john.smith@example.com,555-0101\n";
 
 function StaffingUploadTab() {
   const [file, setFile] = useState(null);
@@ -70,10 +70,11 @@ function StaffingUploadTab() {
         Staff Roster CSV Upload
       </Typography>
       <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
-        Upload a CSV with columns: <strong>first_name, last_name, profession
-        (nurse or physician), email</strong> (optional), <strong>phone_number</strong>{" "}
-        (optional). Re-uploading the same names updates their record rather
-        than creating duplicates.
+        Upload a CSV with columns: <strong>first_name, last_name, profession,
+        email</strong> (optional), <strong>phone_number</strong>{" "}
+        (optional). Profession is free text -- Nurse, Physician, CNA, Tech,
+        or whatever roles your organization schedules. Re-uploading the
+        same names updates their record rather than creating duplicates.
       </Typography>
 
       <Stack direction="row" spacing={2} alignItems="center" sx={{ my: 2 }}>

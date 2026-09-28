@@ -3,6 +3,7 @@ import { Box, Tabs, Tab, Typography } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
+import { getAccessToken } from "../utils/tokenManager";
 import StaffingCalendarTab from "./StaffingCalendarTab";
 import StaffingUploadTab from "./StaffingUploadTab";
 import StaffingAssignTab from "./StaffingAssignTab";
@@ -17,7 +18,7 @@ function StaffingPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
+    const token = getAccessToken();
     if (!token) {
       navigate("/login?redirect=staffing");
       return;
@@ -55,7 +56,7 @@ function StaffingPage() {
         {isAdmin && <Tab value="assign" label="Assign Schedule" />}
       </Tabs>
 
-      {tab === "calendar" && <StaffingCalendarTab />}
+      {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} />}
       {tab === "roster" && <StaffingRosterTab />}
       {tab === "upload" && isAdmin && <StaffingUploadTab />}
       {tab === "assign" && isAdmin && <StaffingAssignTab />}

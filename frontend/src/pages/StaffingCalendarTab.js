@@ -16,7 +16,7 @@ const SHIFT_COLORS = {
   custom: "#546e7a",
 };
 
-function StaffingCalendarTab() {
+function StaffingCalendarTab({ isAdmin = false }) {
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -55,6 +55,24 @@ function StaffingCalendarTab() {
     fetchShifts(range.start, range.end);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleSelectEvent = async (event) => {
+    if (!isAdmin) return;
+    const shift = event.resource;
+    const label = `${shift.staff_name} - ${shift.date} (${shift.shift_type_display || shift.shift_type})`;
+    if (!window.confirm(`Remove this shift from the calendar?\n\n${label}`)) {
+      return;
+    }
+    try {
+      await axios.delete(apiEndpoints.staffingShiftDetail(shift.id), {
+        headers: getAuthHeaders(token),
+      });
+      fetchShifts(range.start, range.end);
+    } catch (err) {
+      console.error("Failed to delete shift", err);
+      setError("Failed to delete that shift.");
+    }
+  };
 
   const handleRangeChange = (rangeInfo) => {
     let start, end;
@@ -107,6 +125,11 @@ function StaffingCalendarTab() {
         ))}
         {loading && <CircularProgress size={18} sx={{ ml: 1 }} />}
       </Stack>
+      {isAdmin && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+          Click a shift on the calendar to remove it.
+        </Typography>
+      )}
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
           {error}
@@ -128,8 +151,9 @@ function StaffingCalendarTab() {
           events={events}
           startAccessor="start"
           endAccessor="end"
-          style={{ height: "100%" }}
+          style={{ height: "100%", cursor: isAdmin ? "pointer" : "default" }}
           onRangeChange={handleRangeChange}
+          onSelectEvent={handleSelectEvent}
           eventPropGetter={eventPropGetter}
           popup
         />

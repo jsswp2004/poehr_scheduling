@@ -123,6 +123,17 @@ class StaffRecurringPatternViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSe
         pattern = serializer.save()
         generate_shifts_for_pattern(pattern)
 
+    def perform_destroy(self, instance):
+        # StaffShift.recurring_pattern uses on_delete=SET_NULL (by design,
+        # so a shift already worked keeps existing if its pattern is later
+        # removed) -- but that means deleting a pattern would otherwise
+        # leave its generated shifts behind as orphaned "ghost" entries
+        # still showing on the calendar. Explicitly delete them here so
+        # removing a mistaken schedule actually clears it from the
+        # calendar, not just the pattern itself.
+        instance.generated_shifts.all().delete()
+        instance.delete()
+
 
 class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
     """
@@ -159,10 +170,11 @@ class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
 class UploadStaffCSV(APIView):
     """
     CSV upload for the staff roster. Expected columns: first_name,
-    last_name, profession (nurse|physician), email (optional),
-    phone_number (optional). Matches existing rows by
-    (organization, first_name, last_name, profession) -- re-uploading the
-    same file updates rather than duplicates.
+    last_name, profession (free text -- nurse, physician, CNA, tech,
+    whatever the org uses), email (optional), phone_number (optional).
+    Matches existing rows by (organization, first_name, last_name,
+    profession) -- re-uploading the same file updates rather than
+    duplicates.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -198,7 +210,7 @@ class UploadStaffCSV(APIView):
             try:
                 first_name = (row.get("first_name") or "").strip()
                 last_name = (row.get("last_name") or "").strip()
-                profession = (row.get("profession") or "").strip().lower()
+                profession = (row.get("profession") or "").strip()
                 email = (row.get("email") or "").strip() or None
                 phone_number = (row.get("phone_number") or "").strip() or None
 
@@ -206,10 +218,8 @@ class UploadStaffCSV(APIView):
                     errors.append(f"Row {row_num}: first_name and last_name are required.")
                     continue
 
-                if profession not in ("nurse", "physician"):
-                    errors.append(
-                        f"Row {row_num}: profession must be 'nurse' or 'physician', got {profession!r}."
-                    )
+                if not profession:
+                    errors.append(f"Row {row_num}: profession is required.")
                     continue
 
                 staff, created = Staff.objects.update_or_create(
