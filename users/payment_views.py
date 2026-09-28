@@ -660,3 +660,145 @@ def stripe_billing_diagnostic(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def setup_test_subscription(request):
+    """
+    TEMPORARY setup endpoint. Creates a real Stripe TEST-MODE subscription
+    for an organization's admin, using Stripe's own published test payment
+    method (pm_card_visa) -- no real card, no real money, test keys only.
+
+    This exists purely to give a pre-launch demo organization a real
+    subscription to test the messaging-overage billing pipeline
+    (attach_messaging_billing / report_messaging_usage) against, since the
+    org currently has none.
+
+    Query params:
+      - organization_id (system_admin only): look up a different org
+
+    Safe to call more than once -- if the organization already has a
+    stripe_subscription_id, this is a no-op (skipped=True).
+    """
+    import stripe
+    from django.conf import settings
+
+    from .models import Organization
+
+    user = request.user
+
+    if user.role not in ("admin", "system_admin"):
+        return Response(
+            {"error": "You do not have permission to do this."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    target_organization = user.organization
+
+    organization_id = request.GET.get("organization_id")
+    if user.role == "system_admin" and organization_id:
+        try:
+            target_organization = Organization.objects.get(id=organization_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+    if not target_organization:
+        return Response(
+            {"error": "No organization found for this user."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if target_organization.stripe_subscription_id:
+        return Response(
+            {
+                "skipped": True,
+                "reason": "Organization already has a Stripe subscription.",
+                "organization_stripe_subscription_id": target_organization.stripe_subscription_id,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    admin_user = target_organization.users.filter(
+        role__in=["admin", "system_admin"]
+    ).first()
+    if not admin_user:
+        return Response(
+            {"error": "Organization has no admin user to attach a subscription to."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    tier = getattr(target_organization, "subscription_tier", "basic") or "basic"
+    price_map = {
+        "basic": getattr(settings, "STRIPE_BASIC_PRICE_ID", ""),
+        "premium": getattr(settings, "STRIPE_PREMIUM_PRICE_ID", ""),
+        "enterprise": getattr(settings, "STRIPE_ENTERPRISE_PRICE_ID", ""),
+    }
+    price_id = price_map.get(tier, "")
+    if not price_id or price_id.startswith("price_test_"):
+        return Response(
+            {
+                "error": (
+                    f"No real Stripe price configured for tier '{tier}'. "
+                    "Run setup_base_tier_prices locally and set the resulting "
+                    "STRIPE_BASIC_PRICE_ID / STRIPE_PREMIUM_PRICE_ID env vars "
+                    "on this Render service first."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    stripe.api_key = getattr(settings, "STRIPE_SECRET_KEY", "")
+    if not stripe.api_key:
+        return Response(
+            {"error": "STRIPE_SECRET_KEY is not configured on this service."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    customer = stripe.Customer.create(
+        email=admin_user.email or None,
+        name=f"{target_organization.name} (test)",
+        metadata={"organization_id": target_organization.id},
+    )
+
+    # Stripe's officially published test-mode payment method -- not a real
+    # card, only usable with test-mode secret keys.
+    stripe.PaymentMethod.attach(
+        "pm_card_visa",
+        customer=customer.id,
+    )
+    stripe.Customer.modify(
+        customer.id,
+        invoice_settings={"default_payment_method": "pm_card_visa"},
+    )
+
+    subscription = stripe.Subscription.create(
+        customer=customer.id,
+        items=[{"price": price_id}],
+        metadata={"organization_id": target_organization.id},
+    )
+
+    admin_user.stripe_customer_id = customer.id
+    admin_user.stripe_subscription_id = subscription.id
+    admin_user.subscription_status = "active"
+    admin_user.save(
+        update_fields=["stripe_customer_id", "stripe_subscription_id", "subscription_status"]
+    )
+
+    target_organization.stripe_subscription_id = subscription.id
+    target_organization.save(update_fields=["stripe_subscription_id"])
+
+    return Response(
+        {
+            "skipped": False,
+            "organization_id": target_organization.id,
+            "admin_user": admin_user.username,
+            "stripe_customer_id": customer.id,
+            "stripe_subscription_id": subscription.id,
+            "tier": tier,
+            "price_id": price_id,
+        },
+        status=status.HTTP_200_OK,
+    )
