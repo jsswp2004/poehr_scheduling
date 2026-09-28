@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Staff, StaffRecurringPattern, StaffShift
+from .shift_generation import generate_shifts_for_pattern
 from .serializers import (
     StaffRecurringPatternSerializer,
     StaffSerializer,
@@ -110,9 +111,17 @@ class StaffRecurringPatternViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSe
     def perform_create(self, serializer):
         user = self.request.user
         if user.role == "system_admin" and self.request.data.get("organization"):
-            serializer.save()
+            pattern = serializer.save()
         else:
-            serializer.save(organization=user.organization)
+            pattern = serializer.save(organization=user.organization)
+        # Generate this pattern's shifts immediately so the schedule shows
+        # up on the calendar right away, rather than waiting for the next
+        # daily automated generate_shifts_from_patterns() run.
+        generate_shifts_for_pattern(pattern)
+
+    def perform_update(self, serializer):
+        pattern = serializer.save()
+        generate_shifts_for_pattern(pattern)
 
 
 class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
