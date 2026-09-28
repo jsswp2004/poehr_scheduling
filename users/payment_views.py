@@ -829,41 +829,42 @@ def attach_messaging_billing_endpoint(request):
     Query params:
       - organization_id (system_admin only): look up a different org
     """
-    from .messaging_stripe import attach_messaging_billing_items
-    from .models import Organization
+    try:
+        from .messaging_stripe import attach_messaging_billing_items
+        from .models import Organization
 
-    user = request.user
+        user = request.user
 
-    if user.role not in ("admin", "system_admin"):
-        return Response(
-            {"error": "You do not have permission to do this."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
-
-    target_organization = user.organization
-
-    organization_id = request.GET.get("organization_id")
-    if user.role == "system_admin" and organization_id:
-        try:
-            target_organization = Organization.objects.get(id=organization_id)
-        except Organization.DoesNotExist:
+        if user.role not in ("admin", "system_admin"):
             return Response(
-                {"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+                {"error": "You do not have permission to do this."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
-    if not target_organization:
-        return Response(
-            {"error": "No organization found for this user."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        target_organization = user.organization
 
-    try:
+        organization_id = request.GET.get("organization_id")
+        if user.role == "system_admin" and organization_id:
+            try:
+                target_organization = Organization.objects.get(id=organization_id)
+            except Organization.DoesNotExist:
+                return Response(
+                    {"error": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        if not target_organization:
+            return Response(
+                {"error": "No organization found for this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         result = attach_messaging_billing_items(target_organization)
     except Exception as exc:
-        logger.exception("attach_messaging_billing_items failed")
+        logger.exception("attach_messaging_billing_endpoint failed")
         return Response(
             {
-                "error": "attach_messaging_billing_items failed",
+                "error": "attach_messaging_billing_endpoint failed",
                 "exception_type": type(exc).__name__,
                 "exception_message": str(exc),
             },
