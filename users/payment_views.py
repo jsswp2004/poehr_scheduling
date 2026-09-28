@@ -872,3 +872,72 @@ def attach_messaging_billing_endpoint(request):
         )
 
     return Response(result, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def report_messaging_usage_endpoint(request):
+    """
+    TEMPORARY setup endpoint. Wraps
+    messaging_stripe.report_monthly_messaging_usage() so it can be run
+    against the production database from Postman.
+
+    Query params:
+      - organization_id (system_admin only): look up a different org
+      - year, month: which calendar month to report on (defaults to now)
+      - dry_run: defaults to "true". Pass dry_run=false to actually send
+        meter events to Stripe.
+    """
+    try:
+        from .messaging_stripe import report_monthly_messaging_usage
+        from .models import Organization
+
+        user = request.user
+
+        if user.role not in ("admin", "system_admin"):
+            return Response(
+                {"error": "You do not have permission to do this."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        target_organization = user.organization
+
+        organization_id = request.GET.get("organization_id")
+        if user.role == "system_admin" and organization_id:
+            try:
+                target_organization = Organization.objects.get(id=organization_id)
+            except Organization.DoesNotExist:
+                return Response(
+                    {"error": "Organization not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        if not target_organization:
+            return Response(
+                {"error": "No organization found for this user."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        year = request.GET.get("year")
+        month = request.GET.get("month")
+        year = int(year) if year else None
+        month = int(month) if month else None
+
+        dry_run_param = request.GET.get("dry_run", "true")
+        dry_run = dry_run_param.lower() != "false"
+
+        result = report_monthly_messaging_usage(
+            target_organization, year=year, month=month, dry_run=dry_run
+        )
+    except Exception as exc:
+        logger.exception("report_messaging_usage_endpoint failed")
+        return Response(
+            {
+                "error": "report_messaging_usage_endpoint failed",
+                "exception_type": type(exc).__name__,
+                "exception_message": str(exc),
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return Response(result, status=status.HTTP_200_OK)
