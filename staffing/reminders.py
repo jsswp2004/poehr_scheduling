@@ -75,6 +75,7 @@ def send_shift_reminders(now=None):
             date__lte=(window_end + datetime.timedelta(days=1)).date(),
             staff__reminders_enabled=True,
             staff__is_active=True,
+            organization__staffing_messaging_enabled=True,
         )
         .select_related("staff", "organization")
     )
@@ -162,7 +163,9 @@ def send_coverage_alerts(now=None):
     alerts_sent = 0
     errors = []
 
-    requirements = ShiftCoverageRequirement.objects.filter(is_active=True).select_related("organization")
+    requirements = ShiftCoverageRequirement.objects.filter(
+        is_active=True, organization__staffing_messaging_enabled=True
+    ).select_related("organization")
     for req in requirements:
         checked += 1
         if not req.applies_on(target_date):

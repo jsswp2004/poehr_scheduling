@@ -276,6 +276,16 @@ class Organization(models.Model):
         ],
         help_text="Type of organization"
     )
+    staffing_messaging_enabled = models.BooleanField(
+        default=True,
+        help_text=(
+            "Master on/off switch for this organization's automatic Staffing SMS/email "
+            "messaging -- shift reminders and understaffing coverage alerts. Turning this "
+            "off stops the hourly automated jobs from sending anything for this "
+            "organization; it does not affect ad-hoc messages an admin sends manually from "
+            "the Roster tab."
+        ),
+    )
 
     def __str__(self):
         return self.name
