@@ -5,9 +5,10 @@ from .models import Staff, StaffRecurringPattern, StaffShift, VALID_DAY_CODES
 
 class StaffSerializer(serializers.ModelSerializer):
     full_name = serializers.ReadOnlyField()
-    profession_display = serializers.CharField(
-        source="get_profession_display", read_only=True
-    )
+    # profession is free text now (no fixed choices), so "display" is just
+    # the value itself -- kept as a field so existing frontend code that
+    # reads profession_display keeps working unchanged.
+    profession_display = serializers.CharField(source="profession", read_only=True)
 
     class Meta:
         model = Staff

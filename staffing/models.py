@@ -6,15 +6,16 @@ class Staff(models.Model):
     """
     A lightweight staff-roster entry for the Staffing module. Deliberately
     NOT tied to CustomUser / login accounts -- per design decision, this is
-    a separate roster of nurses/physicians who may or may not ever log in
-    to the app themselves. An org's front-desk/admin staff maintain this
+    a separate roster of staff (nurses, physicians, techs, or any other
+    role a clinic schedules duty coverage for) who may or may not ever log
+    in to the app themselves. An org's front-desk/admin staff maintain this
     roster (by hand or via CSV upload) purely to schedule duty coverage.
-    """
 
-    PROFESSION_CHOICES = [
-        ("nurse", "Nurse"),
-        ("physician", "Physician"),
-    ]
+    `profession` is deliberately free text, not a fixed choice list --
+    organizations schedule all kinds of roles (nurse, physician, CNA,
+    tech, etc.) and shouldn't be limited to a hardcoded set just because
+    this module started out with nurses/physicians in mind.
+    """
 
     organization = models.ForeignKey(
         Organization,
@@ -23,7 +24,10 @@ class Staff(models.Model):
     )
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
-    profession = models.CharField(max_length=20, choices=PROFESSION_CHOICES)
+    profession = models.CharField(
+        max_length=100,
+        help_text="Free-text role, e.g. Nurse, Physician, CNA, Tech -- whatever the org's roster uses.",
+    )
     email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -35,7 +39,7 @@ class Staff(models.Model):
         ordering = ["last_name", "first_name"]
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.get_profession_display()})"
+        return f"{self.first_name} {self.last_name} ({self.profession})"
 
     @property
     def full_name(self):
