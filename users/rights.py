@@ -34,6 +34,7 @@ RIGHTS = [
 
     # Scheduling & Patients
     ("appointments.create_for_others", "Create appointments on behalf of other patients", "Scheduling & Patients"),
+    ("appointments.manage_requests", "Approve or deny patient-submitted appointment requests", "Scheduling & Patients"),
     ("holidays.manage", "Manage holidays", "Scheduling & Patients"),
     ("checkin.manage", "Check-in search & update arrival status", "Scheduling & Patients"),
 
@@ -95,6 +96,7 @@ _FRONT_OFFICE_RIGHTS = {
     "organization.search_cross_org",
     "organization.view_admin_details",
     "appointments.create_for_others",
+    "appointments.manage_requests",
 }
 
 _ORG_ADMIN_RIGHTS = _FRONT_OFFICE_RIGHTS | {

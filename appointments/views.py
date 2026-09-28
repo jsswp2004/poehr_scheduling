@@ -237,9 +237,15 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 except User.DoesNotExist:
                     raise ValueError("Patient not found.")
 
-        appointment = serializer.save(
-            patient=patient, provider=provider, organization=organization
-        )
+        # Patient-submitted appointments start as a request awaiting admin
+        # approval, rather than going live immediately. Staff-created
+        # appointments (registrar/admin/doctor/nurse booking on a patient's
+        # behalf) keep the existing default of going straight to "scheduled".
+        is_patient_request = self.request.user.role == "patient"
+        save_kwargs = {"patient": patient, "provider": provider, "organization": organization}
+        if is_patient_request:
+            save_kwargs["status"] = "pending"
+        appointment = serializer.save(**save_kwargs)
 
         # ✅ Send email notification to organization and system admins
         # Import here to avoid circular imports
@@ -265,22 +271,35 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             # Determine who created the appointment for better messaging
             if self.request.user.role == "patient":
                 created_by_text = f"by {self.request.user.get_full_name()}"
-                subject = f"📅 New Appointment from {self.request.user.get_full_name()}"
+                subject = f"📅 New Appointment Request from {self.request.user.get_full_name()}"
             else:
                 created_by_text = f"by {self.request.user.get_full_name()} ({self.request.user.role}) for {patient_name}"
                 subject = (
                     f"📅 New Appointment Created by {self.request.user.role.title()}"
                 )
 
-            message = (
-                f"A new appointment has been scheduled {created_by_text}:\n\n"
-                f"Patient: {patient_name}\n"
-                f"Title: {appointment.title}\n"
-                f"Date & Time: {appointment.appointment_datetime}\n"
-                f"Doctor: {provider_name}\n"
-                f"Organization: {org_name}\n"
-                f"Description: {appointment.description or 'N/A'}"
-            )
+            if is_patient_request:
+                message = (
+                    f"A new appointment REQUEST has been submitted {created_by_text} "
+                    f"and is awaiting your approval:\n\n"
+                    f"Patient: {patient_name}\n"
+                    f"Title: {appointment.title}\n"
+                    f"Requested Date & Time: {appointment.appointment_datetime}\n"
+                    f"Doctor: {provider_name}\n"
+                    f"Organization: {org_name}\n"
+                    f"Description: {appointment.description or 'N/A'}\n\n"
+                    f"Review it under Pending Requests to approve or deny."
+                )
+            else:
+                message = (
+                    f"A new appointment has been scheduled {created_by_text}:\n\n"
+                    f"Patient: {patient_name}\n"
+                    f"Title: {appointment.title}\n"
+                    f"Date & Time: {appointment.appointment_datetime}\n"
+                    f"Doctor: {provider_name}\n"
+                    f"Organization: {org_name}\n"
+                    f"Description: {appointment.description or 'N/A'}"
+                )
             send_mail(
                 subject,
                 message,
@@ -365,6 +384,15 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             raise Exception(f"Error in appointment recurrence logic: {e}")
 
     def perform_update(self, serializer):
+        # A patient must never be able to move their own appointment out of
+        # "pending" by PATCHing status directly -- the only sanctioned way
+        # out of "pending" is the approve/deny actions below, which are
+        # gated to staff with the appointments.manage_requests right. Strip
+        # any status the patient tries to send and leave the current value
+        # untouched.
+        if self.request.user.role == "patient" and "status" in serializer.validated_data:
+            serializer.validated_data.pop("status", None)
+
         # IMPORTANT: this must only touch provider/organization when the
         # request actually included a "provider" field (e.g. the full
         # Edit Appointment form, which lets staff reassign the provider).
@@ -392,6 +420,81 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         else:
             updated = serializer.save()
         print(f"✅ Saved duration_minutes: {updated.duration_minutes}")
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[HasRight("appointments.manage_requests")],
+    )
+    def approve(self, request, pk=None):
+        """Approve a pending patient appointment request: pending -> scheduled."""
+        appointment = self.get_object()
+        if appointment.status != "pending":
+            return Response(
+                {"error": f"Only pending requests can be approved (current status: {appointment.status})."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        appointment.status = "scheduled"
+        appointment.save(update_fields=["status"])
+
+        if appointment.patient and appointment.patient.email:
+            provider_name = (
+                f"Dr. {appointment.provider.first_name} {appointment.provider.last_name}"
+                if appointment.provider
+                else "TBD"
+            )
+            send_mail(
+                "✅ Your appointment request has been approved",
+                (
+                    f"Good news -- your appointment request has been approved and is now confirmed:\n\n"
+                    f"Title: {appointment.title}\n"
+                    f"Date & Time: {appointment.appointment_datetime}\n"
+                    f"Doctor: {provider_name}\n"
+                    f"Description: {appointment.description or 'N/A'}"
+                ),
+                settings.DEFAULT_FROM_EMAIL,
+                [appointment.patient.email],
+                fail_silently=True,
+            )
+
+        serializer = self.get_serializer(appointment)
+        return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[HasRight("appointments.manage_requests")],
+    )
+    def deny(self, request, pk=None):
+        """Deny a pending patient appointment request: pending -> cancelled."""
+        appointment = self.get_object()
+        if appointment.status != "pending":
+            return Response(
+                {"error": f"Only pending requests can be denied (current status: {appointment.status})."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        reason = request.data.get("reason", "").strip()
+        appointment.status = "cancelled"
+        appointment.save(update_fields=["status"])
+
+        if appointment.patient and appointment.patient.email:
+            reason_text = f"\n\nReason: {reason}" if reason else ""
+            send_mail(
+                "Your appointment request was not approved",
+                (
+                    f"Your requested appointment could not be approved:\n\n"
+                    f"Title: {appointment.title}\n"
+                    f"Requested Date & Time: {appointment.appointment_datetime}\n"
+                    f"{reason_text}\n\n"
+                    f"Please contact us or submit a new request for a different time."
+                ),
+                settings.DEFAULT_FROM_EMAIL,
+                [appointment.patient.email],
+                fail_silently=True,
+            )
+
+        serializer = self.get_serializer(appointment)
+        return Response(serializer.data)
 
 
 @api_view(["GET"])
