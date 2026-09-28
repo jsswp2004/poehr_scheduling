@@ -365,18 +365,32 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             raise Exception(f"Error in appointment recurrence logic: {e}")
 
     def perform_update(self, serializer):
-        provider_id = self.request.data.get("provider")
-        organization = None
-        provider = None
-        if provider_id:
-            try:
-                provider = User.objects.get(id=provider_id)
-                organization = provider.organization
-            except User.DoesNotExist:
-                pass
-        updated = serializer.save(
-            provider=provider if provider else None, organization=organization
-        )
+        # IMPORTANT: this must only touch provider/organization when the
+        # request actually included a "provider" field (e.g. the full
+        # Edit Appointment form, which lets staff reassign the provider).
+        # A partial PATCH that omits "provider" -- like the Today's
+        # Appointments status dropdown, which only sends {status: ...} --
+        # used to fall into the "else" branch below and unconditionally
+        # save(provider=None, organization=None), silently NULLing out the
+        # appointment's organization. Since Appointment.objects is tenant-
+        # scoped to organization=<current org>, that made the appointment
+        # vanish from every future list for that org even though the row
+        # still existed in the database. Only reassign provider/organization
+        # when "provider" was actually part of this request; otherwise leave
+        # both fields exactly as they already are.
+        if "provider" in self.request.data:
+            provider_id = self.request.data.get("provider")
+            provider = None
+            organization = None
+            if provider_id:
+                try:
+                    provider = User.objects.get(id=provider_id)
+                    organization = provider.organization
+                except User.DoesNotExist:
+                    pass
+            updated = serializer.save(provider=provider, organization=organization)
+        else:
+            updated = serializer.save()
         print(f"✅ Saved duration_minutes: {updated.duration_minutes}")
 
 
