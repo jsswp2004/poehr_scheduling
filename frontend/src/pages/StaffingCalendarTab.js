@@ -96,7 +96,7 @@ function StaffingCalendarTab() {
 
   return (
     <Box>
-      <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 2 }} alignItems="center">
         {Object.entries(SHIFT_COLORS).map(([type, color]) => (
           <Chip
             key={type}
@@ -105,30 +105,35 @@ function StaffingCalendarTab() {
             sx={{ bgcolor: color, color: "white", textTransform: "capitalize" }}
           />
         ))}
+        {loading && <CircularProgress size={18} sx={{ ml: 1 }} />}
       </Stack>
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
           {error}
         </Typography>
       )}
-      {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-        <Box sx={{ height: 650, bgcolor: "background.paper", p: 1, borderRadius: 2 }}>
-          <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            style={{ height: "100%" }}
-            onRangeChange={handleRangeChange}
-            eventPropGetter={eventPropGetter}
-            popup
-          />
-        </Box>
-      )}
+      {/*
+        IMPORTANT: the Calendar must stay mounted at all times. react-big-calendar
+        tracks its own current month/view internally (it's an uncontrolled
+        component here); conditionally swapping it out for a loading spinner
+        while a fetch is in flight would unmount and remount it on every
+        navigation click, silently resetting it back to today's month every
+        time -- which is exactly the "won't advance to October" bug this
+        comment is guarding against. Loading state is shown as a small inline
+        spinner next to the legend instead (above), never by hiding the grid.
+      */}
+      <Box sx={{ height: 650, bgcolor: "background.paper", p: 1, borderRadius: 2 }}>
+        <Calendar
+          localizer={localizer}
+          events={events}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: "100%" }}
+          onRangeChange={handleRangeChange}
+          eventPropGetter={eventPropGetter}
+          popup
+        />
+      </Box>
     </Box>
   );
 }
