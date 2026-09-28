@@ -167,6 +167,7 @@ urlpatterns = [
     path("api/users/", include("users.urls")),  # Keep all user routes under /api/users/
     # API routes
     path("api/", include("appointments.urls")),
+    path("api/staffing/", include("staffing.urls")),
     path("api/sms/", include("users.urls")),  # or sms.urls
     path("api/messages/", include("users.urls")),
     path("api/communicator/", include("communicator.urls")),

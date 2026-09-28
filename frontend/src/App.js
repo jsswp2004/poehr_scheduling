@@ -52,6 +52,7 @@ import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
 import SimpleFooter from './components/SimpleFooter';
 import CheckInPage from './pages/CheckInPage';
+import StaffingPage from './pages/StaffingPage';
 
 function AppContent() {
   const location = useLocation();
@@ -218,6 +219,7 @@ function AppContent() {
         <Route path="/debug-availability" element={<PrivateRoute><DebugAvailability /></PrivateRoute>} />
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
         <Route path="/check-in" element={<PrivateRoute><CheckInPage /></PrivateRoute>} />
+        <Route path="/staffing" element={<PrivateRoute><StaffingPage /></PrivateRoute>} />
       </Routes>
       {showNavbar && <SimpleFooter />}
     </>

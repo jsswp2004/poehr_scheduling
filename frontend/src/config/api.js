@@ -126,6 +126,15 @@ export const apiEndpoints = {
     sendEmail: `${API_BASE_URL}/api/auth/send-email/`,
     sendSMS: `${API_BASE_URL}/api/auth/send-sms/`,
 
+    // Staffing module endpoints
+    staffingStaff: `${API_BASE_URL}/api/staffing/staff/`,
+    staffingStaffDetail: (id) => `${API_BASE_URL}/api/staffing/staff/${id}/`,
+    staffingStaffUploadCsv: `${API_BASE_URL}/api/staffing/staff/upload-csv/`,
+    staffingRecurringPatterns: `${API_BASE_URL}/api/staffing/recurring-patterns/`,
+    staffingRecurringPatternDetail: (id) => `${API_BASE_URL}/api/staffing/recurring-patterns/${id}/`,
+    staffingShifts: `${API_BASE_URL}/api/staffing/shifts/`,
+    staffingShiftDetail: (id) => `${API_BASE_URL}/api/staffing/shifts/${id}/`,
+
     // Media endpoints
     profilePicture: (id) => `${API_BASE_URL}/api/users/${id}/`,
     mediaUrl: (path) => path?.startsWith(`http`) ? path : `${API_BASE_URL}${path}`,

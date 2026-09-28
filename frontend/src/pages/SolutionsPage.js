@@ -7,6 +7,7 @@ import SchedulerImage from "../assets/Scheduler.png";
 import CommunicatorImage from "../assets/communicator.png";
 import PortalImage from "../assets/Portal.png";
 import CheckInImage from "../assets/check_in.png";
+import StaffingImage from "../assets/dashboard_clinician.png";
 
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();
@@ -25,6 +26,10 @@ export const SolutionsPage = ({ className }) => {
   const handleCheckInClick = () => {
     // Always navigate to login with check-in redirect (to dashboard)
     navigate("/login?redirect=check-in");
+  };
+  const handleStaffingClick = () => {
+    // Always navigate to login with staffing redirect
+    navigate("/login?redirect=staffing");
   };
   return (
     <div className={`solutions-page ${className || ""}`}>
@@ -69,6 +74,14 @@ export const SolutionsPage = ({ className }) => {
         >
           <img src={CheckInImage} alt="Check In" className="solution-image" />
           <div className="solution-label">Check-In</div>
+        </div>
+        <div
+          className="solution-button"
+          onClick={handleStaffingClick}
+          style={{ cursor: "pointer" }}
+        >
+          <img src={StaffingImage} alt="Staffing" className="solution-image" />
+          <div className="solution-label">Staffing</div>
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
