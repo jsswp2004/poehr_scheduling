@@ -1195,12 +1195,29 @@ function AnalyticsSection({
                     overflow: "hidden",
                   }}
                 >
-                  <Typography
-                    variant="h6"
-                    sx={{ mb: 2, color: "primary.main", flexShrink: 0 }}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 2,
+                      flexShrink: 0,
+                    }}
                   >
-                    Report Preview
-                  </Typography>
+                    <Typography variant="h6" sx={{ color: "primary.main" }}>
+                      Report Preview
+                    </Typography>
+                    {previewData && !previewLoading && !previewError && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<FontAwesomeIcon icon={faPrint} size="sm" />}
+                        onClick={() => handlePrintReport(selectedReportName)}
+                      >
+                        Print
+                      </Button>
+                    )}
+                  </Box>
                   <Box sx={{ flex: 1, minHeight: 0 }}>
                     {renderReportPreview()}
                   </Box>
@@ -1435,12 +1452,29 @@ function AnalyticsSection({
                     overflow: "hidden",
                   }}
                 >
-                  <Typography
-                    variant="h6"
-                    sx={{ mb: 2, color: "primary.main", flexShrink: 0 }}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      mb: 2,
+                      flexShrink: 0,
+                    }}
                   >
-                    Report Preview
-                  </Typography>
+                    <Typography variant="h6" sx={{ color: "primary.main" }}>
+                      Report Preview
+                    </Typography>
+                    {previewData && !previewLoading && !previewError && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        startIcon={<FontAwesomeIcon icon={faPrint} size="sm" />}
+                        onClick={() => handlePrintReport(selectedReportName)}
+                      >
+                        Print
+                      </Button>
+                    )}
+                  </Box>
                   <Box sx={{ flex: 1, minHeight: 0 }}>
                     {renderReportPreview()}
                   </Box>
