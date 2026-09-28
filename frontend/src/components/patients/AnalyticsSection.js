@@ -411,20 +411,53 @@ function AnalyticsSection({
       const reportData = result.data;
 
       // Handle different data structures returned by the API
+      const buildFilters = () => ({
+        startDate:
+          reportStartDate?.toISOString().split("T")[0] || "Not set",
+        endDate: reportEndDate?.toISOString().split("T")[0] || "Not set",
+        provider:
+          reportProvider === "all" ? "All Providers" : reportProvider,
+      });
+
       if (Array.isArray(reportData)) {
         return {
           summary: {
             totalRecords: reportData.length,
             reportGenerated: new Date().toISOString(),
-            filters: {
-              startDate:
-                reportStartDate?.toISOString().split("T")[0] || "Not set",
-              endDate: reportEndDate?.toISOString().split("T")[0] || "Not set",
-              provider:
-                reportProvider === "all" ? "All Providers" : reportProvider,
-            },
+            filters: buildFilters(),
           },
           records: reportData,
+        };
+      } else if (reportType === "Provider Schedule Report") {
+        // Backend groups this report by provider name instead of returning
+        // a flat list: { "Dr. Smith": [ {...appt}, ... ], "Dr. Jones": [...] }
+        // Flatten it into one record array (tagging each row with its
+        // provider) so the preview table -- which only knows how to render
+        // previewData.records -- actually shows the data.
+        const flatRecords = Object.entries(reportData || {}).flatMap(
+          ([providerName, appts]) =>
+            (appts || []).map((apt) => ({ provider: providerName, ...apt }))
+        );
+        return {
+          summary: {
+            totalRecords: flatRecords.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records: flatRecords,
+        };
+      } else if (reportType === "Appointment Status Report") {
+        // Backend returns { summary: [ {status, count, percentage}, ... ], total }
+        // rather than a "records" array. Use the status breakdown itself as
+        // the preview table's records so it's not left empty.
+        const statusRecords = reportData?.summary || [];
+        return {
+          summary: {
+            totalRecords: reportData?.total ?? statusRecords.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records: statusRecords,
         };
       } else if (typeof reportData === "object" && reportData !== null) {
         // Handle object data (like status reports with summary)
