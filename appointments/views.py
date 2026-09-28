@@ -1446,6 +1446,59 @@ class RunScheduledJobsView(APIView):
         return Response(results, status=status.HTTP_200_OK)
 
 
+class RunStaffingHourlyJobsView(APIView):
+    """
+    Hourly companion to RunScheduledJobsView, for Staffing automation that
+    needs finer-than-daily resolution:
+
+      1. Staff shift reminders -- SMS/email ~3 hours before a shift
+         starts, gated by each staff member's reminders_enabled toggle
+         (Roster tab). See staffing.reminders.send_shift_reminders.
+      2. Understaffing coverage alerts -- emails org admins when a shift
+         type configured as needing coverage (Assign Schedule tab) is
+         short-staffed for a date 24 hours out. See
+         staffing.reminders.send_coverage_alerts.
+
+    Auth: same shared-secret pattern as RunScheduledJobsView (there is no
+    logged-in user for a scheduled job). Triggered by a separate,
+    once-an-hour GitHub Actions workflow
+    (.github/workflows/staffing-hourly-jobs.yml) rather than folded into
+    the once-daily job, since that one only runs once a day and both of
+    these need to catch their target windows on the hour.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        expected_secret = getattr(settings, "SCHEDULED_JOBS_SECRET", "")
+        provided_secret = request.headers.get("X-Scheduled-Job-Secret", "")
+        if not expected_secret or not secrets.compare_digest(
+            provided_secret, expected_secret
+        ):
+            return Response(
+                {"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        results = {}
+
+        try:
+            from staffing.reminders import send_shift_reminders
+
+            results["staff_shift_reminders"] = send_shift_reminders()
+        except Exception as exc:
+            results["staff_shift_reminders"] = f"error: {exc}"
+
+        try:
+            from staffing.reminders import send_coverage_alerts
+
+            results["coverage_alerts"] = send_coverage_alerts()
+        except Exception as exc:
+            results["coverage_alerts"] = f"error: {exc}"
+
+        return Response(results, status=status.HTTP_200_OK)
+
+
 class AutoEmailViewSet(viewsets.ModelViewSet):
     serializer_class = AutoEmailSerializer
     permission_classes = [permissions.IsAuthenticated]

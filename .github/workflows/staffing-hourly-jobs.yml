@@ -1,0 +1,35 @@
+name: Staffing hourly jobs (shift reminders + coverage alerts)
+
+# Triggers the app's hourly Staffing job endpoint, which:
+#   - sends SMS/email reminders to staff ~3 hours before their shift
+#     starts (only for staff with the Messaging toggle enabled)
+#   - emails org admins about shifts marked as needing coverage that are
+#     understaffed ~24 hours out
+#
+# See appointments/views.py -> RunStaffingHourlyJobsView for the actual
+# logic. This workflow just pokes the endpoint; it does no work itself.
+# Runs hourly (rather than daily, like daily-scheduled-jobs.yml) because
+# both of these are time-window checks that need better than daily
+# resolution to fire close to their target time.
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab
+
+jobs:
+  trigger-staffing-hourly-jobs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/run-staffing-hourly-jobs/
+        run: |
+          response=$(curl -s -o response.json -w "%{http_code}" -X POST \
+            "https://poehr-scheduling-api.onrender.com/api/run-staffing-hourly-jobs/" \
+            -H "X-Scheduled-Job-Secret: ${{ secrets.SCHEDULED_JOBS_SECRET }}")
+          echo "HTTP status: $response"
+          echo "Response body:"
+          cat response.json
+          if [ "$response" -ge 400 ]; then
+            echo "::error::Staffing hourly jobs endpoint returned HTTP $response"
+            exit 1
+          fi

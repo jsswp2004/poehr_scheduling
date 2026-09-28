@@ -57,7 +57,7 @@ function StaffingPage() {
       </Tabs>
 
       {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} />}
-      {tab === "roster" && <StaffingRosterTab />}
+      {tab === "roster" && <StaffingRosterTab isAdmin={isAdmin} />}
       {tab === "upload" && isAdmin && <StaffingUploadTab />}
       {tab === "assign" && isAdmin && <StaffingAssignTab />}
     </Box>

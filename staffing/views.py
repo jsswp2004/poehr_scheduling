@@ -7,12 +7,13 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Staff, StaffRecurringPattern, StaffShift
+from .models import Staff, StaffRecurringPattern, StaffShift, ShiftCoverageRequirement
 from .shift_generation import generate_shifts_for_pattern
 from .serializers import (
     StaffRecurringPatternSerializer,
     StaffSerializer,
     StaffShiftSerializer,
+    ShiftCoverageRequirementSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -248,3 +249,102 @@ class UploadStaffCSV(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ShiftCoverageRequirementViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
+    """
+    Admin-configured coverage obligations, e.g. "night shift needs at
+    least 1 person every Mon/Wed/Fri". Managed from the Assign Schedule
+    tab. This is the "schedule type setting" that the 24-hours-before
+    understaffing alert (staffing.reminders.send_coverage_alerts) checks
+    against -- it only alerts for shift types an admin has explicitly
+    marked as needing coverage, not literally every shift ever created.
+    """
+
+    serializer_class = ShiftCoverageRequirementSerializer
+
+    def get_queryset(self):
+        qs = _org_queryset(ShiftCoverageRequirement, self.request)
+        active_only = self.request.query_params.get("active_only")
+        if active_only in ("1", "true", "True"):
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == "system_admin" and self.request.data.get("organization"):
+            serializer.save()
+        else:
+            serializer.save(organization=user.organization)
+
+
+class SendStaffMessageView(APIView):
+    """
+    Admin-triggered ad-hoc SMS or email to a single roster staff member --
+    powers the SMS/Email buttons on the Roster tab. Distinct from the
+    automatic 3-hours-before-shift reminder job (staffing.reminders): this
+    is a manual, one-off send, and it deliberately bypasses the
+    CustomUser SMS opt-out check since staff-roster entries aren't login
+    accounts and that consent system is for patients/contacts.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, staff_id):
+        if request.user.role not in ADMIN_ROLES:
+            return Response(
+                {"error": "Only admins can message staff."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        try:
+            staff = _org_queryset(Staff, request).get(pk=staff_id)
+        except Staff.DoesNotExist:
+            return Response({"error": "Staff member not found."}, status=404)
+
+        channel = (request.data.get("channel") or "").strip().lower()
+        message = (request.data.get("message") or "").strip()
+        if channel not in ("sms", "email"):
+            return Response(
+                {"error": "channel must be 'sms' or 'email'."}, status=400
+            )
+        if not message:
+            return Response({"error": "message is required."}, status=400)
+
+        from communicator.utils import send_sms, send_email
+
+        if channel == "sms":
+            if not staff.phone_number:
+                return Response(
+                    {"error": f"{staff.full_name} has no phone number on file."},
+                    status=400,
+                )
+            try:
+                send_sms(
+                    staff.phone_number,
+                    message,
+                    user=request.user,
+                    organization=staff.organization,
+                    bypass_opt_out=True,
+                )
+            except Exception as exc:
+                return Response({"error": f"Failed to send SMS: {exc}"}, status=502)
+        else:
+            if not staff.email:
+                return Response(
+                    {"error": f"{staff.full_name} has no email on file."},
+                    status=400,
+                )
+            subject = (request.data.get("subject") or "").strip() or "Schedule message"
+            try:
+                send_email(
+                    staff.email,
+                    subject,
+                    message,
+                    user=request.user,
+                    organization=staff.organization,
+                )
+            except Exception as exc:
+                return Response({"error": f"Failed to send email: {exc}"}, status=502)
+
+        return Response({"ok": True}, status=status.HTTP_200_OK)
