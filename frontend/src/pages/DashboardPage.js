@@ -6,6 +6,7 @@ import { API_BASE_URL } from "../config/api";
 import CalendarView from "../components/CalendarView";
 import AnnouncementDisplay from "../components/AnnouncementDisplay";
 import { toast } from "react-toastify";
+import { getAccessToken } from "../utils/tokenManager";
 import {
   Box,
   Stack,
@@ -114,7 +115,16 @@ function DashboardPage() {
     confirmPassword: "",
   });
 
-  const token = localStorage.getItem("access_token");
+  // Use the centralized token helper -- tokenManager.js stores access_token
+  // JSON-wrapped ({"token": "..."}) for extension compatibility, and a raw
+  // localStorage.getItem("access_token") read (as this used to do) returns
+  // that wrapped JSON string instead of the JWT itself, producing a malformed
+  // "Bearer {\"token\":...}" Authorization header that the backend rejects
+  // with 401 -- e.g. the doctor dropdown silently failed to populate because
+  // its GET /api/users/doctors/ call fires on mount, before App.js's axios
+  // interceptor (which patches this same malformed header, but only once it
+  // has mounted) is registered.
+  const token = getAccessToken();
   const [tab, setTab] = useState("myinfo");
 
   useEffect(() => {
