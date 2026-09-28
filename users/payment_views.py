@@ -508,3 +508,64 @@ def set_default_payment_method(request, method_id):
             },
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def messaging_usage(request):
+    """
+    Report an organization's automatic email/SMS usage and overage cost
+    for a given month (defaults to the current month).
+
+    This is a read-only calculator over the existing MessageLog table --
+    it does NOT talk to Stripe or charge anyone. It's meant to let admins
+    see, before anything is ever billed, what a subscriber's overage
+    would look like under the flat per-message rates in
+    users/messaging_billing.py.
+
+    Query params:
+      - organization_id (system_admin only): look up a different org
+      - year, month: which calendar month to report on (defaults to now)
+    """
+    from .messaging_billing import compute_messaging_usage
+    from .models import Organization
+
+    user = request.user
+
+    # Only admins should see an organization's billing/cost data.
+    if user.role not in ("admin", "system_admin"):
+        return Response(
+            {"error": "You do not have permission to view messaging usage."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    target_organization = user.organization
+
+    organization_id = request.GET.get("organization_id")
+    if user.role == "system_admin" and organization_id:
+        try:
+            target_organization = Organization.objects.get(id=organization_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+    if not target_organization:
+        return Response(
+            {"error": "No organization found for this user."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    year = request.GET.get("year")
+    month = request.GET.get("month")
+    try:
+        year = int(year) if year else None
+        month = int(month) if month else None
+    except (TypeError, ValueError):
+        return Response(
+            {"error": "year and month must be integers."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    usage = compute_messaging_usage(target_organization, year=year, month=month)
+    return Response(usage, status=status.HTTP_200_OK)
