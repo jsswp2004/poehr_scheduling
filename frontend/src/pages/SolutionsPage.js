@@ -8,7 +8,7 @@ import CommunicatorImage from "../assets/communicator.png";
 import PortalImage from "../assets/Portal.png";
 import CheckInImage from "../assets/check_in.png";
 import StaffingImage from "../assets/dashboard_clinician.png";
-import DocumentationImage from "../assets/dashboard_overview.png";
+import DocumentationImage from "../assets/documentation.png";
 
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();
