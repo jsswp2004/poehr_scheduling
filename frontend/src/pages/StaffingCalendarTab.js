@@ -89,14 +89,27 @@ function StaffingCalendarTab({ isAdmin = false }) {
 
   const events = useMemo(
     () =>
-      shifts.map((shift) => ({
-        id: shift.id,
-        title: `${shift.staff_name} (${shift.shift_type_display || shift.shift_type})`,
-        start: new Date(`${shift.date}T${shift.start_time || "00:00:00"}`),
-        end: new Date(`${shift.date}T${shift.end_time || "23:59:59"}`),
-        allDay: !shift.start_time,
-        resource: shift,
-      })),
+      shifts.map((shift) => {
+        const start = new Date(`${shift.date}T${shift.start_time || "00:00:00"}`);
+        let end = new Date(`${shift.date}T${shift.end_time || "23:59:59"}`);
+        // Overnight shifts (e.g. 7:00 PM - 7:00 AM) have an end clock-time
+        // earlier than (or equal to) the start clock-time on the same
+        // calendar date -- without this, react-big-calendar sees a
+        // negative-duration event and renders it as a sliver instead of
+        // spanning from the start time down to midnight. Bump the end
+        // onto the next day whenever that happens.
+        if (shift.start_time && shift.end_time && end <= start) {
+          end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+        }
+        return {
+          id: shift.id,
+          title: `${shift.staff_name} (${shift.shift_type_display || shift.shift_type})`,
+          start,
+          end,
+          allDay: !shift.start_time,
+          resource: shift,
+        };
+      }),
     [shifts]
   );
 
