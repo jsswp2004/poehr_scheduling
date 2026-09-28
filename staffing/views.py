@@ -1,5 +1,7 @@
 import csv
+import datetime
 import logging
+import re
 
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -7,7 +9,15 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Staff, StaffRecurringPattern, StaffShift, ShiftCoverageRequirement
+from .models import (
+    Staff,
+    StaffRecurringPattern,
+    StaffShift,
+    ShiftCoverageRequirement,
+    SHIFT_TYPE_CHOICES,
+    DAY_OF_WEEK_CHOICES,
+    VALID_DAY_CODES,
+)
 from .shift_generation import generate_shifts_for_pattern
 from .serializers import (
     StaffRecurringPatternSerializer,
@@ -168,14 +178,95 @@ class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
             serializer.save(organization=user.organization, source="manual")
 
 
+_DAY_NAME_TO_CODE = {label.lower(): code for code, label in DAY_OF_WEEK_CHOICES}
+_VALID_SHIFT_TYPES = {code for code, _label in SHIFT_TYPE_CHOICES}
+
+
+def _parse_shift_type_cell(raw):
+    """Returns a valid shift_type code, or raises ValueError with a helpful message."""
+    value = (raw or "").strip().lower()
+    if value not in _VALID_SHIFT_TYPES:
+        valid = ", ".join(sorted(_VALID_SHIFT_TYPES))
+        raise ValueError(f"invalid shift '{raw}' (must be one of: {valid})")
+    return value
+
+
+def _parse_days_of_week_cell(raw):
+    """
+    Accepts day codes ('mon', 'Tue') or full names ('Monday', 'wednesday'),
+    separated by comma, semicolon, pipe, or whitespace -- e.g.
+    "mon,wed,fri" or "Monday; Wednesday; Friday". Returns a list of valid
+    day codes, or raises ValueError with a helpful message.
+    """
+    raw = (raw or "").strip()
+    if not raw:
+        raise ValueError("days is required when shift/start/end are given")
+    tokens = [t.strip() for t in re.split(r"[,;|/\s]+", raw) if t.strip()]
+    codes = []
+    bad = []
+    for token in tokens:
+        lower = token.lower()
+        if lower in VALID_DAY_CODES:
+            codes.append(lower)
+        elif lower in _DAY_NAME_TO_CODE:
+            codes.append(_DAY_NAME_TO_CODE[lower])
+        else:
+            bad.append(token)
+    if bad:
+        raise ValueError(
+            f"invalid day(s) {bad} (use mon, tue, wed, thu, fri, sat, sun or full day names)"
+        )
+    # De-dupe while preserving first-seen order.
+    seen = set()
+    unique_codes = []
+    for code in codes:
+        if code not in seen:
+            seen.add(code)
+            unique_codes.append(code)
+    return unique_codes
+
+
+def _parse_time_cell(raw, field_label):
+    """Accepts 'HH:MM' or 'HH:MM:SS' (24-hour). Raises ValueError otherwise."""
+    raw = (raw or "").strip()
+    for fmt in ("%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.datetime.strptime(raw, fmt).time()
+        except ValueError:
+            continue
+    raise ValueError(f"invalid {field_label} '{raw}' (expected 24-hour HH:MM, e.g. 19:00)")
+
+
+def _parse_date_cell(raw, field_label):
+    raw = (raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError(f"invalid {field_label} '{raw}' (expected YYYY-MM-DD)")
+
+
 class UploadStaffCSV(APIView):
     """
-    CSV upload for the staff roster. Expected columns: first_name,
+    CSV upload for the staff roster. Required columns: first_name,
     last_name, profession (free text -- nurse, physician, CNA, tech,
-    whatever the org uses), email (optional), phone_number (optional).
-    Matches existing rows by (organization, first_name, last_name,
-    profession) -- re-uploading the same file updates rather than
-    duplicates.
+    whatever the org uses). Optional: email, phone_number.
+
+    Also optionally accepts a recurring-schedule block per row: shift
+    (day/evening/night/custom), days (e.g. "mon,wed,fri" or full day
+    names), start (HH:MM), end (HH:MM), and optionally start_date /
+    end_date (YYYY-MM-DD, start_date defaults to today, end_date blank =
+    ongoing). When shift/days/start/end are all present for a row, a
+    StaffRecurringPattern is created or updated for that staff member and
+    its shifts are generated immediately (same as creating one by hand on
+    the Assign Schedule tab), so the schedule shows up on the calendar
+    right away rather than waiting for the daily/hourly automation.
+
+    Staff rows match existing rows by (organization, first_name,
+    last_name, profession); schedule rows match by (organization, staff,
+    shift_type) -- re-uploading the same file updates rather than
+    duplicates either one.
     """
 
     permission_classes = [permissions.IsAuthenticated]
@@ -205,6 +296,8 @@ class UploadStaffCSV(APIView):
         organization = request.user.organization
         created_count = 0
         updated_count = 0
+        schedules_created_count = 0
+        schedules_updated_count = 0
         errors = []
 
         for row_num, row in enumerate(reader, start=2):
@@ -238,6 +331,62 @@ class UploadStaffCSV(APIView):
                     created_count += 1
                 else:
                     updated_count += 1
+
+                # Optional recurring-schedule columns: shift, days, start,
+                # end (start_date/end_date optional too). A row with none
+                # of these is just a plain roster entry -- nothing else to
+                # do. A row with SOME but not all of shift/days/start/end
+                # is a mistake worth flagging rather than silently
+                # skipping or guessing.
+                shift_raw = (row.get("shift") or "").strip()
+                days_raw = (row.get("days") or "").strip()
+                start_raw = (row.get("start") or "").strip()
+                end_raw = (row.get("end") or "").strip()
+                schedule_cells = [shift_raw, days_raw, start_raw, end_raw]
+
+                if not any(schedule_cells):
+                    continue
+
+                if not all(schedule_cells):
+                    errors.append(
+                        f"Row {row_num}: staff saved, but schedule needs shift, "
+                        f"days, start, and end all filled in to create a "
+                        f"schedule -- skipped the schedule for this row."
+                    )
+                    continue
+
+                shift_type = _parse_shift_type_cell(shift_raw)
+                days_of_week = _parse_days_of_week_cell(days_raw)
+                start_time = _parse_time_cell(start_raw, "start")
+                end_time = _parse_time_cell(end_raw, "end")
+                start_date = _parse_date_cell(row.get("start_date"), "start_date") or timezone.now().date()
+                end_date = _parse_date_cell(row.get("end_date"), "end_date")
+
+                pattern, pattern_created = StaffRecurringPattern.objects.update_or_create(
+                    organization=organization,
+                    staff=staff,
+                    shift_type=shift_type,
+                    defaults={
+                        "days_of_week": days_of_week,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "is_active": True,
+                    },
+                )
+                if pattern_created:
+                    schedules_created_count += 1
+                else:
+                    schedules_updated_count += 1
+
+                # Generate this pattern's shifts immediately, same as
+                # creating/editing one by hand on the Assign Schedule tab,
+                # so it shows up on the calendar right away instead of
+                # waiting for the next automated generation run.
+                generate_shifts_for_pattern(pattern)
+            except ValueError as e:
+                errors.append(f"Row {row_num}: {e}")
             except Exception as e:
                 errors.append(f"Row {row_num}: {e}")
 
@@ -245,6 +394,8 @@ class UploadStaffCSV(APIView):
             {
                 "created": created_count,
                 "updated": updated_count,
+                "schedules_created": schedules_created_count,
+                "schedules_updated": schedules_updated_count,
                 "errors": errors,
             },
             status=status.HTTP_200_OK,

@@ -17,9 +17,12 @@ import axios from "axios";
 import { apiEndpoints, getAuthHeadersForUpload } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 
-const TEMPLATE_HEADER = "first_name,last_name,profession,email,phone_number\n";
+const TEMPLATE_HEADER =
+  "first_name,last_name,profession,email,phone_number,shift,days,start,end\n";
 const TEMPLATE_EXAMPLE =
-  "Jane,Doe,Nurse,jane.doe@example.com,555-0100\nJohn,Smith,Physician,john.smith@example.com,555-0101\n";
+  "Jane,Doe,Nurse,jane.doe@example.com,555-0100,day,\"mon,wed,fri\",07:00,15:00\n" +
+  "John,Smith,Physician,john.smith@example.com,555-0101,night,\"tue,thu,sat,sun\",19:00,07:00\n" +
+  "Pat,Lee,CNA,,,,,,\n";
 
 function StaffingUploadTab() {
   const [file, setFile] = useState(null);
@@ -70,11 +73,23 @@ function StaffingUploadTab() {
         Staff Roster CSV Upload
       </Typography>
       <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
-        Upload a CSV with columns: <strong>first_name, last_name, profession,
-        email</strong> (optional), <strong>phone_number</strong>{" "}
-        (optional). Profession is free text -- Nurse, Physician, CNA, Tech,
-        or whatever roles your organization schedules. Re-uploading the
-        same names updates their record rather than creating duplicates.
+        Required columns: <strong>first_name, last_name, profession</strong>.
+        Profession is free text -- Nurse, Physician, CNA, Tech, or whatever
+        roles your organization schedules. Optional: <strong>email</strong>,{" "}
+        <strong>phone_number</strong>. Re-uploading the same names updates
+        their record rather than creating duplicates.
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
+        To also assign a recurring schedule while uploading, fill in all
+        four of: <strong>shift</strong> (day, evening, night, or custom),{" "}
+        <strong>days</strong> (e.g. "mon,wed,fri" -- mon/tue/wed/thu/fri/sat/sun,
+        full day names also work), <strong>start</strong> and{" "}
+        <strong>end</strong> (24-hour time, e.g. 19:00). The schedule shows
+        up on the calendar immediately after upload. Leave all four blank
+        to just add the person to the roster with no schedule. Optional{" "}
+        <strong>start_date</strong>/<strong>end_date</strong> columns
+        (YYYY-MM-DD) can also be added -- start_date defaults to today,
+        and a blank end_date means an ongoing schedule.
       </Typography>
 
       <Stack direction="row" spacing={2} alignItems="center" sx={{ my: 2 }}>
@@ -100,6 +115,10 @@ function StaffingUploadTab() {
       {status && status.ok && (
         <Alert severity={status.errors && status.errors.length ? "warning" : "success"} sx={{ mt: 2 }}>
           Created {status.created}, updated {status.updated}.
+          {(status.schedules_created > 0 || status.schedules_updated > 0) && (
+            <> Schedules created {status.schedules_created || 0}, updated{" "}
+            {status.schedules_updated || 0}.</>
+          )}
           {status.errors && status.errors.length > 0 && (
             <List dense>
               {status.errors.map((err, idx) => (
