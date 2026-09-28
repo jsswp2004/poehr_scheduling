@@ -264,6 +264,14 @@ STRIPE_ENTERPRISE_PRICE_ID = os.getenv(
     "STRIPE_ENTERPRISE_PRICE_ID", "price_test_enterprise"
 )
 
+# Metered overage prices for automatic email/SMS reminders (see
+# users/messaging_stripe.py). Empty until setup_messaging_meters has been
+# run and the resulting price IDs are set as env vars -- attach_messaging_billing
+# and report_messaging_usage raise a clear error if these are missing rather
+# than silently doing nothing.
+STRIPE_EMAIL_OVERAGE_PRICE_ID = os.getenv("STRIPE_EMAIL_OVERAGE_PRICE_ID", "")
+STRIPE_SMS_OVERAGE_PRICE_ID = os.getenv("STRIPE_SMS_OVERAGE_PRICE_ID", "")
+
 # Django Cron Settings
 CRON_CLASSES = [
     "appointments.cron.BlastPatientReminderCronJob",
