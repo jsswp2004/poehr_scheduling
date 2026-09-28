@@ -16,9 +16,10 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
+import { getAccessToken } from "../utils/tokenManager";
 
 function StaffingRosterTab() {
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
 

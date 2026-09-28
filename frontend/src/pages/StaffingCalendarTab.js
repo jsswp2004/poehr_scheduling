@@ -5,6 +5,7 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 import { Box, Typography, CircularProgress, Chip, Stack } from "@mui/material";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
+import { getAccessToken } from "../utils/tokenManager";
 
 const localizer = momentLocalizer(moment);
 
@@ -25,7 +26,7 @@ function StaffingCalendarTab() {
     return { start, end };
   });
 
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
 
   const fetchShifts = useCallback(
     async (start, end) => {
