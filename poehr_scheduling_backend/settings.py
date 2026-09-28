@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "users",
     "appointments",
     "communicator",
+    "staffing",
     "poehr_scheduling_backend.core",
     "django_cron",
     "anymail",

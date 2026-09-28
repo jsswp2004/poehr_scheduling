@@ -73,6 +73,15 @@ export const useLogin = () => {
                 toast.error('Access denied. Check-in system requires admin privileges.');
                 navigate('/dashboard');
             }
+        } else if (redirectTo === 'staffing') {
+            console.log('Login Debug - Redirecting to staffing path');
+            // Check if user has admin/clinical-staff privileges for the Staffing module
+            if (['admin', 'system_admin', 'doctor', 'nurse', 'registrar'].includes(userRole)) {
+                navigate('/staffing');
+            } else {
+                toast.error('Access denied. Staffing requires admin or clinical staff privileges.');
+                navigate('/dashboard');
+            }
         } else if (redirectTo === 'portal') {
             console.log('Login Debug - Portal redirect requested, but checking role first');
             // For portal redirect, still respect admin/system_admin roles

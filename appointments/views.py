@@ -1407,6 +1407,13 @@ class RunScheduledJobsView(APIView):
         except Exception as exc:
             results["sms_reminders"] = f"error: {exc}"
 
+        try:
+            from staffing.shift_generation import generate_shifts_from_patterns
+
+            results["staffing_shift_generation"] = generate_shifts_from_patterns()
+        except Exception as exc:
+            results["staffing_shift_generation"] = f"error: {exc}"
+
         today = timezone.now().date()
         if today.day == 1:
             from users.messaging_stripe import report_monthly_messaging_usage
