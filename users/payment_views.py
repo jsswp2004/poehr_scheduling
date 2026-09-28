@@ -757,38 +757,49 @@ def setup_test_subscription(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    customer = stripe.Customer.create(
-        email=admin_user.email or None,
-        name=f"{target_organization.name} (test)",
-        metadata={"organization_id": target_organization.id},
-    )
+    try:
+        customer = stripe.Customer.create(
+            email=admin_user.email or None,
+            name=f"{target_organization.name} (test)",
+            metadata={"organization_id": target_organization.id},
+        )
 
-    # Stripe's officially published test-mode payment method -- not a real
-    # card, only usable with test-mode secret keys.
-    stripe.PaymentMethod.attach(
-        "pm_card_visa",
-        customer=customer.id,
-    )
-    stripe.Customer.modify(
-        customer.id,
-        invoice_settings={"default_payment_method": "pm_card_visa"},
-    )
+        # Stripe's officially published test-mode payment method -- not a
+        # real card, only usable with test-mode secret keys.
+        stripe.PaymentMethod.attach(
+            "pm_card_visa",
+            customer=customer.id,
+        )
+        stripe.Customer.modify(
+            customer.id,
+            invoice_settings={"default_payment_method": "pm_card_visa"},
+        )
 
-    subscription = stripe.Subscription.create(
-        customer=customer.id,
-        items=[{"price": price_id}],
-        metadata={"organization_id": target_organization.id},
-    )
+        subscription = stripe.Subscription.create(
+            customer=customer.id,
+            items=[{"price": price_id}],
+            metadata={"organization_id": target_organization.id},
+        )
 
-    admin_user.stripe_customer_id = customer.id
-    admin_user.stripe_subscription_id = subscription.id
-    admin_user.subscription_status = "active"
-    admin_user.save(
-        update_fields=["stripe_customer_id", "stripe_subscription_id", "subscription_status"]
-    )
+        admin_user.stripe_customer_id = customer.id
+        admin_user.stripe_subscription_id = subscription.id
+        admin_user.subscription_status = "active"
+        admin_user.save(
+            update_fields=["stripe_customer_id", "stripe_subscription_id", "subscription_status"]
+        )
 
-    target_organization.stripe_subscription_id = subscription.id
-    target_organization.save(update_fields=["stripe_subscription_id"])
+        target_organization.stripe_subscription_id = subscription.id
+        target_organization.save(update_fields=["stripe_subscription_id"])
+    except Exception as exc:
+        logger.exception("setup_test_subscription failed")
+        return Response(
+            {
+                "error": "setup_test_subscription failed",
+                "exception_type": type(exc).__name__,
+                "exception_message": str(exc),
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
     return Response(
         {
