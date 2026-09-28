@@ -1365,26 +1365,30 @@ function DashboardPage() {
                       </Typography>
                     ))}
                   </Box>
-                  <Button
-                    variant="contained"
-                    onClick={handleSendMessage}
-                    sx={{
-                      borderRadius: 2,
-                      textTransform: "none",
-                      fontWeight: 600,
-                      py: 1.5,
-                    }}
-                  >
-                    Send Email
-                  </Button>
                 </Stack>
+                <Button
+                  variant="contained"
+                  onClick={handleSendMessage}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                    py: 1.5,
+                    mt: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  Send Email
+                </Button>
               </Box>{" "}
               {/* Right Pane - SMS */}
               <Box
                 sx={{
                   display: "flex",
                   flexDirection: "column",
-                  maxHeight: "70vh",
+                  height: "70vh",
+                  overflow: "hidden",
                 }}
               >
                 <Typography
@@ -1399,7 +1403,7 @@ function DashboardPage() {
                     will respond to you as soon as possible.
                   </Alert>
                 )}
-                <Stack spacing={2.5} sx={{ flex: 1 }}>
+                <Stack spacing={2.5} sx={{ flex: 1, overflow: "auto" }}>
                   <TextField
                     label="Admin/Provider Phone Number"
                     value={smsForm.phone}
@@ -1423,23 +1427,23 @@ function DashboardPage() {
                     }}
                     helperText="Your message will be prefixed with your name automatically"
                   />
-                  <Box sx={{ mt: 3 }}>
-                    <Button
-                      variant="contained"
-                      color="secondary"
-                      onClick={handleSendSMS}
-                      fullWidth
-                      sx={{
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: 600,
-                        py: 1.5,
-                      }}
-                    >
-                      Send Text Message
-                    </Button>
-                  </Box>
                 </Stack>
+                <Button
+                  variant="contained"
+                  color="secondary"
+                  onClick={handleSendSMS}
+                  fullWidth
+                  sx={{
+                    borderRadius: 2,
+                    textTransform: "none",
+                    fontWeight: 600,
+                    py: 1.5,
+                    mt: 2,
+                    flexShrink: 0,
+                  }}
+                >
+                  Send Text Message
+                </Button>
               </Box>
             </Box>
           )}
