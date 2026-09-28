@@ -466,7 +466,11 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         permission_classes=[HasRight("appointments.manage_requests")],
     )
     def deny(self, request, pk=None):
-        """Deny a pending patient appointment request: pending -> cancelled."""
+        """Deny a pending patient appointment request. Rather than leaving a
+        "cancelled" row behind (which still showed up on the Calendar View
+        and other appointment lists), a denied request is deleted outright
+        -- it was never a real appointment, just a request that didn't get
+        approved."""
         appointment = self.get_object()
         if appointment.status != "pending":
             return Response(
@@ -474,27 +478,32 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         reason = request.data.get("reason", "").strip()
-        appointment.status = "cancelled"
-        appointment.save(update_fields=["status"])
 
-        if appointment.patient and appointment.patient.email:
+        # Capture what we need for the email/response before deleting.
+        appointment_id = appointment.id
+        patient_email = appointment.patient.email if appointment.patient else None
+        title = appointment.title
+        appointment_datetime = appointment.appointment_datetime
+
+        appointment.delete()
+
+        if patient_email:
             reason_text = f"\n\nReason: {reason}" if reason else ""
             send_mail(
                 "Your appointment request was not approved",
                 (
                     f"Your requested appointment could not be approved:\n\n"
-                    f"Title: {appointment.title}\n"
-                    f"Requested Date & Time: {appointment.appointment_datetime}\n"
+                    f"Title: {title}\n"
+                    f"Requested Date & Time: {appointment_datetime}\n"
                     f"{reason_text}\n\n"
                     f"Please contact us or submit a new request for a different time."
                 ),
                 settings.DEFAULT_FROM_EMAIL,
-                [appointment.patient.email],
+                [patient_email],
                 fail_silently=True,
             )
 
-        serializer = self.get_serializer(appointment)
-        return Response(serializer.data)
+        return Response({"id": appointment_id, "deleted": True})
 
 
 @api_view(["GET"])
