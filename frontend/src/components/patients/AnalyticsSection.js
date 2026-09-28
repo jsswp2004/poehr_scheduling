@@ -1049,6 +1049,26 @@ function AnalyticsSection({
                     p: 3,
                     height: "calc(70vh - 100px)",
                     overflowY: "auto",
+                    // Thin, unobtrusive scrollbar instead of the browser's
+                    // default boxed track (which showed as a visible
+                    // rectangular "boundary" between this panel and Report
+                    // Preview whenever the report list was tall enough to
+                    // scroll).
+                    "&::-webkit-scrollbar": {
+                      width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      backgroundColor: "transparent",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      backgroundColor: "#c1c1c1",
+                      borderRadius: "3px",
+                    },
+                    "&::-webkit-scrollbar-thumb:hover": {
+                      backgroundColor: "#a8a8a8",
+                    },
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#c1c1c1 transparent",
                   }}
                 >
                   <Typography
@@ -1269,6 +1289,26 @@ function AnalyticsSection({
                     p: 3,
                     height: "calc(70vh - 100px)",
                     overflowY: "auto",
+                    // Thin, unobtrusive scrollbar instead of the browser's
+                    // default boxed track (which showed as a visible
+                    // rectangular "boundary" between this panel and Report
+                    // Preview whenever the report list was tall enough to
+                    // scroll).
+                    "&::-webkit-scrollbar": {
+                      width: "6px",
+                    },
+                    "&::-webkit-scrollbar-track": {
+                      backgroundColor: "transparent",
+                    },
+                    "&::-webkit-scrollbar-thumb": {
+                      backgroundColor: "#c1c1c1",
+                      borderRadius: "3px",
+                    },
+                    "&::-webkit-scrollbar-thumb:hover": {
+                      backgroundColor: "#a8a8a8",
+                    },
+                    scrollbarWidth: "thin",
+                    scrollbarColor: "#c1c1c1 transparent",
                   }}
                 >
                   <Typography
