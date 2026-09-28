@@ -8,6 +8,7 @@ import StaffingCalendarTab from "./StaffingCalendarTab";
 import StaffingUploadTab from "./StaffingUploadTab";
 import StaffingAssignTab from "./StaffingAssignTab";
 import StaffingRosterTab from "./StaffingRosterTab";
+import StaffingReportsTab from "./StaffingReportsTab";
 
 const ADMIN_ROLES = ["admin", "system_admin"];
 const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
@@ -54,12 +55,14 @@ function StaffingPage() {
         <Tab value="roster" label="Roster" />
         {isAdmin && <Tab value="upload" label="Upload CSV" />}
         {isAdmin && <Tab value="assign" label="Assign Schedule" />}
+        <Tab value="reports" label="Reports" />
       </Tabs>
 
       {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} />}
       {tab === "roster" && <StaffingRosterTab isAdmin={isAdmin} />}
       {tab === "upload" && isAdmin && <StaffingUploadTab />}
       {tab === "assign" && isAdmin && <StaffingAssignTab />}
+      {tab === "reports" && <StaffingReportsTab />}
     </Box>
   );
 }

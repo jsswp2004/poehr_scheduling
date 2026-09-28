@@ -8,6 +8,11 @@ from .views import (
     ShiftCoverageRequirementViewSet,
     UploadStaffCSV,
     SendStaffMessageView,
+    UnscheduledStaffReportView,
+    LaborHoursReportView,
+    CoverageComplianceReportView,
+    MessageDeliveryLogReportView,
+    ShiftDistributionReportView,
 )
 
 router = DefaultRouter()
@@ -31,5 +36,30 @@ urlpatterns = [
         "staff/<int:staff_id>/send-message/",
         SendStaffMessageView.as_view(),
         name="staffing-staff-send-message",
+    ),
+    path(
+        "reports/unscheduled/",
+        UnscheduledStaffReportView.as_view(),
+        name="staffing-report-unscheduled",
+    ),
+    path(
+        "reports/labor-hours/",
+        LaborHoursReportView.as_view(),
+        name="staffing-report-labor-hours",
+    ),
+    path(
+        "reports/coverage-compliance/",
+        CoverageComplianceReportView.as_view(),
+        name="staffing-report-coverage-compliance",
+    ),
+    path(
+        "reports/message-log/",
+        MessageDeliveryLogReportView.as_view(),
+        name="staffing-report-message-log",
+    ),
+    path(
+        "reports/shift-distribution/",
+        ShiftDistributionReportView.as_view(),
+        name="staffing-report-shift-distribution",
     ),
 ] + router.urls
