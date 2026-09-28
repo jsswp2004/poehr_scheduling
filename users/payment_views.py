@@ -764,15 +764,17 @@ def setup_test_subscription(request):
             metadata={"organization_id": target_organization.id},
         )
 
-        # Stripe's officially published test-mode payment method -- not a
-        # real card, only usable with test-mode secret keys.
-        stripe.PaymentMethod.attach(
+        # Stripe's officially published test-mode payment method token --
+        # not a real card, only usable with test-mode secret keys. Attaching
+        # it creates a real PaymentMethod with its own new ID; we must reuse
+        # THAT id afterward, not the literal "pm_card_visa" token again.
+        attached_pm = stripe.PaymentMethod.attach(
             "pm_card_visa",
             customer=customer.id,
         )
         stripe.Customer.modify(
             customer.id,
-            invoice_settings={"default_payment_method": "pm_card_visa"},
+            invoice_settings={"default_payment_method": attached_pm.id},
         )
 
         subscription = stripe.Subscription.create(
