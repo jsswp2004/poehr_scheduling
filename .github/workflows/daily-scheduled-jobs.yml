@@ -1,0 +1,33 @@
+name: Daily scheduled jobs (reminders + monthly billing)
+
+# Triggers the app's single daily job endpoint, which:
+#   - sends email/SMS patient reminders (every day)
+#   - reports last month's messaging overage to Stripe (only on the 1st)
+#
+# See appointments/views.py -> RunScheduledJobsView for the actual logic.
+# This workflow just pokes the endpoint; it does no work itself.
+
+on:
+  schedule:
+    # 12:00 UTC = 8:00am Eastern during EDT (UTC-4), 7:00am during EST
+    # (UTC-5). GitHub does not guarantee exact timing for scheduled
+    # workflows -- runs can be delayed, especially during high load.
+    - cron: "0 12 * * *"
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab
+
+jobs:
+  trigger-scheduled-jobs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /api/run-scheduled-jobs/
+        run: |
+          response=$(curl -s -o response.json -w "%{http_code}" -X POST \
+            "https://poehr-scheduling-api.onrender.com/api/run-scheduled-jobs/" \
+            -H "X-Scheduled-Job-Secret: ${{ secrets.SCHEDULED_JOBS_SECRET }}")
+          echo "HTTP status: $response"
+          echo "Response body:"
+          cat response.json
+          if [ "$response" -ge 400 ]; then
+            echo "::error::Scheduled jobs endpoint returned HTTP $response"
+            exit 1
+          fi
