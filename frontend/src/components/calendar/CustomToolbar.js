@@ -181,6 +181,8 @@ const CustomToolbar = memo(function CustomToolbar({
                 view === viewName ? "btn-primary" : "btn-outline-secondary"
               }`}
               onClick={() => onView(viewName)}
+              style={{ textDecoration: "none" }}
+              onFocus={(e) => { e.target.style.textDecoration = "none"; }}
             >
               {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
             </button>
