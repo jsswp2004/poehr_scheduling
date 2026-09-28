@@ -25,6 +25,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
+import { getAccessToken } from "../utils/tokenManager";
 
 const DAYS = [
   { code: "mon", label: "Mon" },
@@ -44,7 +45,7 @@ const SHIFT_TYPES = [
 ];
 
 function StaffingAssignTab() {
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
 
   const [staffList, setStaffList] = useState([]);
   const [patterns, setPatterns] = useState([]);

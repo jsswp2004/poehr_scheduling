@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import { apiEndpoints, getAuthHeadersForUpload } from "../config/api";
+import { getAccessToken } from "../utils/tokenManager";
 
 const TEMPLATE_HEADER = "first_name,last_name,profession,email,phone_number\n";
 const TEMPLATE_EXAMPLE =
@@ -23,7 +24,7 @@ const TEMPLATE_EXAMPLE =
 function StaffingUploadTab() {
   const [file, setFile] = useState(null);
   const [status, setStatus] = useState(null); // { ok, created, updated, errors }
-  const token = localStorage.getItem("access_token");
+  const token = getAccessToken();
 
   const handleDownloadTemplate = () => {
     const blob = new Blob([TEMPLATE_HEADER + TEMPLATE_EXAMPLE], {
