@@ -815,3 +815,59 @@ def setup_test_subscription(request):
         },
         status=status.HTTP_200_OK,
     )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def attach_messaging_billing_endpoint(request):
+    """
+    TEMPORARY setup endpoint. Wraps
+    messaging_stripe.attach_messaging_billing_items() so it can be run
+    against the production database from Postman, since local dev
+    machines can't reach this database directly.
+
+    Query params:
+      - organization_id (system_admin only): look up a different org
+    """
+    from .messaging_stripe import attach_messaging_billing_items
+    from .models import Organization
+
+    user = request.user
+
+    if user.role not in ("admin", "system_admin"):
+        return Response(
+            {"error": "You do not have permission to do this."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    target_organization = user.organization
+
+    organization_id = request.GET.get("organization_id")
+    if user.role == "system_admin" and organization_id:
+        try:
+            target_organization = Organization.objects.get(id=organization_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+    if not target_organization:
+        return Response(
+            {"error": "No organization found for this user."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        result = attach_messaging_billing_items(target_organization)
+    except Exception as exc:
+        logger.exception("attach_messaging_billing_items failed")
+        return Response(
+            {
+                "error": "attach_messaging_billing_items failed",
+                "exception_type": type(exc).__name__,
+                "exception_message": str(exc),
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+    return Response(result, status=status.HTTP_200_OK)
