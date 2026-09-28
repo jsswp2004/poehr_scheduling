@@ -21,7 +21,7 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload } from "@fortawesome/free-solid-svg-icons";
+import { faDownload, faPrint } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -37,6 +37,11 @@ const REPORT_TYPES = [
 
 const SHIFT_TYPE_ORDER = ["day", "evening", "night", "custom"];
 const SHIFT_TYPE_LABELS = { day: "Day", evening: "Evening", night: "Night", custom: "Custom" };
+
+const REPORT_LABELS = REPORT_TYPES.reduce((acc, r) => {
+  acc[r.value] = r.label;
+  return acc;
+}, {});
 
 function formatLocalDate(d) {
   const year = d.getFullYear();
@@ -261,13 +266,26 @@ function StaffingReportsTab() {
     );
   };
 
+  const handlePrint = () => window.print();
+
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 2 }}>
+      <style>{`
+        @media print {
+          body * { visibility: hidden; }
+          .print-area, .print-area * { visibility: visible; }
+          .print-area { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          .print-only-header { display: block !important; margin-bottom: 12px; }
+        }
+        .print-only-header { display: none; }
+      `}</style>
+
+      <Typography variant="h6" sx={{ mb: 2 }} className="no-print">
         Reports
       </Typography>
 
-      <Stack spacing={2} sx={{ mb: 3, maxWidth: 1000 }}>
+      <Stack spacing={2} sx={{ mb: 3, maxWidth: 1000 }} className="no-print">
         <FormControl size="small" sx={{ minWidth: 280 }}>
           <InputLabel id="report-type-label">Report</InputLabel>
           <Select
@@ -356,16 +374,25 @@ function StaffingReportsTab() {
       </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} className="no-print">
           {error}
         </Alert>
       )}
 
       {loading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }} className="no-print">
           <CircularProgress />
         </Box>
       )}
+
+      <Box className="print-area">
+      <Typography variant="h6" className="print-only-header">
+        {REPORT_LABELS[reportType]} — {startDate} to {endDate}
+        <br />
+        <Typography component="span" variant="body2" color="text.secondary">
+          Printed {new Date().toLocaleString()}
+        </Typography>
+      </Typography>
 
       {!loading && reportType === "schedule" && (
         <>
@@ -373,9 +400,14 @@ function StaffingReportsTab() {
             <Typography variant="body2" color="text.secondary">
               {shifts.length} shift{shifts.length === 1 ? "" : "s"} from {startDate} to {endDate}
             </Typography>
-            <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportSchedule} disabled={shifts.length === 0}>
-              Export CSV
-            </Button>
+            <Stack direction="row" spacing={1} className="no-print">
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportSchedule} disabled={shifts.length === 0}>
+                Export CSV
+              </Button>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={shifts.length === 0}>
+                Print
+              </Button>
+            </Stack>
           </Stack>
           <Table size="small">
             <TableHead>
@@ -410,9 +442,14 @@ function StaffingReportsTab() {
             <Typography variant="body2" color="text.secondary">
               {unscheduled.length} active staff member{unscheduled.length === 1 ? "" : "s"} with no shifts from {startDate} to {endDate}
             </Typography>
-            <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportUnscheduled} disabled={unscheduled.length === 0}>
-              Export CSV
-            </Button>
+            <Stack direction="row" spacing={1} className="no-print">
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportUnscheduled} disabled={unscheduled.length === 0}>
+                Export CSV
+              </Button>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={unscheduled.length === 0}>
+                Print
+              </Button>
+            </Stack>
           </Stack>
           <Table size="small">
             <TableHead>
@@ -443,9 +480,14 @@ function StaffingReportsTab() {
             <Typography variant="body2" color="text.secondary">
               Total scheduled hours from {startDate} to {endDate}
             </Typography>
-            <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportLaborHours} disabled={laborRows.length === 0}>
-              Export CSV
-            </Button>
+            <Stack direction="row" spacing={1} className="no-print">
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportLaborHours} disabled={laborRows.length === 0}>
+                Export CSV
+              </Button>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={laborRows.length === 0}>
+                Print
+              </Button>
+            </Stack>
           </Stack>
           <Table size="small">
             <TableHead>
@@ -479,9 +521,14 @@ function StaffingReportsTab() {
                 : ""}{" "}
               from {startDate} to {endDate}
             </Typography>
-            <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportCompliance} disabled={complianceRows.length === 0}>
-              Export CSV
-            </Button>
+            <Stack direction="row" spacing={1} className="no-print">
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportCompliance} disabled={complianceRows.length === 0}>
+                Export CSV
+              </Button>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={complianceRows.length === 0}>
+                Print
+              </Button>
+            </Stack>
           </Stack>
           <Table size="small">
             <TableHead>
@@ -524,9 +571,14 @@ function StaffingReportsTab() {
               {messageRows.length} message{messageRows.length === 1 ? "" : "s"} from {startDate} to {endDate}
               {messageTruncated ? " (showing the most recent 1000 -- narrow the date range for the full list)" : ""}
             </Typography>
-            <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportMessageLog} disabled={messageRows.length === 0}>
-              Export CSV
-            </Button>
+            <Stack direction="row" spacing={1} className="no-print">
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportMessageLog} disabled={messageRows.length === 0}>
+                Export CSV
+              </Button>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={messageRows.length === 0}>
+                Print
+              </Button>
+            </Stack>
           </Stack>
           <Table size="small">
             <TableHead>
@@ -566,9 +618,14 @@ function StaffingReportsTab() {
                 ? ` — org totals: ${SHIFT_TYPE_ORDER.map((t) => `${SHIFT_TYPE_LABELS[t]} ${distributionTotals[t] || 0}`).join(", ")}`
                 : ""}
             </Typography>
-            <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportDistribution} disabled={distributionRows.length === 0}>
-              Export CSV
-            </Button>
+            <Stack direction="row" spacing={1} className="no-print">
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportDistribution} disabled={distributionRows.length === 0}>
+                Export CSV
+              </Button>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={distributionRows.length === 0}>
+                Print
+              </Button>
+            </Stack>
           </Stack>
           <Table size="small">
             <TableHead>
@@ -600,6 +657,7 @@ function StaffingReportsTab() {
           </Table>
         </>
       )}
+      </Box>
     </Box>
   );
 }
