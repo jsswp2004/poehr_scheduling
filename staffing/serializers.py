@@ -123,6 +123,8 @@ class StaffCSVRowResultSerializer(serializers.Serializer):
 
     created = serializers.IntegerField()
     updated = serializers.IntegerField()
+    schedules_created = serializers.IntegerField()
+    schedules_updated = serializers.IntegerField()
     errors = serializers.ListField(child=serializers.CharField())
 
 
