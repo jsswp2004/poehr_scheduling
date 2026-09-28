@@ -137,6 +137,11 @@ export const apiEndpoints = {
     staffingStaffSendMessage: (id) => `${API_BASE_URL}/api/staffing/staff/${id}/send-message/`,
     staffingCoverageRequirements: `${API_BASE_URL}/api/staffing/coverage-requirements/`,
     staffingCoverageRequirementDetail: (id) => `${API_BASE_URL}/api/staffing/coverage-requirements/${id}/`,
+    staffingReportUnscheduled: `${API_BASE_URL}/api/staffing/reports/unscheduled/`,
+    staffingReportLaborHours: `${API_BASE_URL}/api/staffing/reports/labor-hours/`,
+    staffingReportCoverageCompliance: `${API_BASE_URL}/api/staffing/reports/coverage-compliance/`,
+    staffingReportMessageLog: `${API_BASE_URL}/api/staffing/reports/message-log/`,
+    staffingReportShiftDistribution: `${API_BASE_URL}/api/staffing/reports/shift-distribution/`,
 
     // Media endpoints
     profilePicture: (id) => `${API_BASE_URL}/api/users/${id}/`,
