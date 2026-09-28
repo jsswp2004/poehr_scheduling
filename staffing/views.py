@@ -3,6 +3,7 @@ import datetime
 import logging
 import re
 
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.parsers import MultiPartParser
@@ -165,6 +166,9 @@ class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
         staff_id = self.request.query_params.get("staff")
         if staff_id:
             qs = qs.filter(staff_id=staff_id)
+        profession = self.request.query_params.get("profession")
+        if profession:
+            qs = qs.filter(staff__profession=profession)
         include_cancelled = self.request.query_params.get("include_cancelled")
         if include_cancelled not in ("1", "true", "True"):
             qs = qs.filter(is_cancelled=False)
@@ -499,3 +503,391 @@ class SendStaffMessageView(APIView):
                 return Response({"error": f"Failed to send email: {exc}"}, status=502)
 
         return Response({"ok": True}, status=status.HTTP_200_OK)
+
+
+class UnscheduledStaffReportView(APIView):
+    """
+    Reports tab -- "No Schedule" report: active staff members who have
+    zero non-cancelled StaffShift rows anywhere in [start, end]. Lets an
+    admin quickly see who hasn't been put on the calendar for a given
+    week/month, as opposed to StaffShiftViewSet which reports shifts that
+    DO exist.
+
+    GET /api/staffing/reports/unscheduled/?start=YYYY-MM-DD&end=YYYY-MM-DD
+    Both params are optional; defaults to the current week (today ..
+    today + 6 days) if omitted, so a bare GET is still meaningful.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.now().date()
+        start_raw = request.query_params.get("start")
+        end_raw = request.query_params.get("end")
+        try:
+            start = _parse_date_cell(start_raw, "start") if start_raw else today
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+        try:
+            end = _parse_date_cell(end_raw, "end") if end_raw else start + datetime.timedelta(days=6)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        staff_qs = _org_queryset(Staff, request).filter(is_active=True)
+        profession = request.query_params.get("profession")
+        if profession:
+            staff_qs = staff_qs.filter(profession=profession)
+
+        scheduled_staff_ids = (
+            StaffShift.objects.filter(
+                staff__in=staff_qs,
+                date__gte=start,
+                date__lte=end,
+                is_cancelled=False,
+            )
+            .values_list("staff_id", flat=True)
+            .distinct()
+        )
+
+        unscheduled = staff_qs.exclude(id__in=scheduled_staff_ids).order_by(
+            "last_name", "first_name"
+        )
+
+        return Response(
+            {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "count": unscheduled.count(),
+                "staff": StaffSerializer(unscheduled, many=True).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+def _shift_duration_hours(shift):
+    """
+    Hours between a shift's start_time and end_time, handling overnight
+    shifts (end clock-time earlier than/equal to start clock-time means it
+    crosses midnight, same convention as the calendar rendering fix in
+    StaffingCalendarTab.js). Returns None if either time is missing.
+    """
+    if not shift.start_time or not shift.end_time:
+        return None
+    start_dt = datetime.datetime.combine(shift.date, shift.start_time)
+    end_dt = datetime.datetime.combine(shift.date, shift.end_time)
+    if end_dt <= start_dt:
+        end_dt += datetime.timedelta(days=1)
+    return (end_dt - start_dt).total_seconds() / 3600.0
+
+
+class LaborHoursReportView(APIView):
+    """
+    Reports tab -- "Labor Hours Summary": total scheduled hours per staff
+    member over a date range, from non-cancelled StaffShift rows with
+    both a start_time and end_time set. Useful for a quick payroll
+    cross-check or spotting who's creeping into overtime.
+
+    GET /api/staffing/reports/labor-hours/?start=YYYY-MM-DD&end=YYYY-MM-DD&profession=...
+    Both start/end default to the current week if omitted.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.now().date()
+        start_raw = request.query_params.get("start")
+        end_raw = request.query_params.get("end")
+        try:
+            start = _parse_date_cell(start_raw, "start") if start_raw else today - datetime.timedelta(days=today.weekday())
+            end = _parse_date_cell(end_raw, "end") if end_raw else start + datetime.timedelta(days=6)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        shifts = _org_queryset(StaffShift, request).filter(
+            date__gte=start,
+            date__lte=end,
+            is_cancelled=False,
+            start_time__isnull=False,
+            end_time__isnull=False,
+        ).select_related("staff")
+
+        profession = request.query_params.get("profession")
+        if profession:
+            shifts = shifts.filter(staff__profession=profession)
+
+        totals = {}
+        for shift in shifts:
+            hours = _shift_duration_hours(shift)
+            if hours is None:
+                continue
+            key = shift.staff_id
+            entry = totals.setdefault(
+                key,
+                {
+                    "staff_id": shift.staff_id,
+                    "full_name": shift.staff.full_name,
+                    "profession": shift.staff.profession,
+                    "shift_count": 0,
+                    "total_hours": 0.0,
+                },
+            )
+            entry["shift_count"] += 1
+            entry["total_hours"] += hours
+
+        rows = sorted(totals.values(), key=lambda r: r["total_hours"], reverse=True)
+        for row in rows:
+            row["total_hours"] = round(row["total_hours"], 2)
+
+        return Response(
+            {"start": start.isoformat(), "end": end.isoformat(), "rows": rows},
+            status=status.HTTP_200_OK,
+        )
+
+
+class CoverageComplianceReportView(APIView):
+    """
+    Reports tab -- "Coverage Compliance": for every active
+    ShiftCoverageRequirement, walks each date in the range it applies to
+    and reports whether that date/shift-type combination was actually met
+    (enough distinct staff assigned) or understaffed, plus whether the
+    understaffing alert email already fired for it. Turns the
+    once-per-gap CoverageAlert log into a full picture of the period,
+    including the days that WERE covered, not just the misses.
+
+    GET /api/staffing/reports/coverage-compliance/?start=YYYY-MM-DD&end=YYYY-MM-DD
+    Defaults to the current week if omitted. The range is capped at 62
+    days to keep the per-day requirement walk bounded.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    MAX_RANGE_DAYS = 62
+
+    def get(self, request):
+        today = timezone.now().date()
+        start_raw = request.query_params.get("start")
+        end_raw = request.query_params.get("end")
+        try:
+            start = _parse_date_cell(start_raw, "start") if start_raw else today - datetime.timedelta(days=today.weekday())
+            end = _parse_date_cell(end_raw, "end") if end_raw else start + datetime.timedelta(days=6)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        if (end - start).days > self.MAX_RANGE_DAYS:
+            return Response(
+                {"error": f"Date range too large for this report (max {self.MAX_RANGE_DAYS} days)."},
+                status=400,
+            )
+
+        requirements = _org_queryset(ShiftCoverageRequirement, request).filter(is_active=True)
+
+        rows = []
+        understaffed_count = 0
+        for req in requirements:
+            a_date = start
+            while a_date <= end:
+                if req.applies_on(a_date):
+                    assigned = (
+                        StaffShift.objects.filter(
+                            organization=req.organization,
+                            date=a_date,
+                            shift_type=req.shift_type,
+                            is_cancelled=False,
+                        )
+                        .values("staff_id")
+                        .distinct()
+                        .count()
+                    )
+                    met = assigned >= req.min_staff_required
+                    if not met:
+                        understaffed_count += 1
+                    rows.append(
+                        {
+                            "requirement_id": req.id,
+                            "shift_type": req.shift_type,
+                            "shift_type_display": req.get_shift_type_display(),
+                            "date": a_date.isoformat(),
+                            "required": req.min_staff_required,
+                            "assigned": assigned,
+                            "status": "Met" if met else "Understaffed",
+                            "alert_sent": CoverageAlert.objects.filter(
+                                requirement=req, date=a_date
+                            ).exists(),
+                        }
+                    )
+                a_date += datetime.timedelta(days=1)
+
+        rows.sort(key=lambda r: (r["date"], r["shift_type"]))
+
+        return Response(
+            {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "understaffed_count": understaffed_count,
+                "checked_count": len(rows),
+                "rows": rows,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class MessageDeliveryLogReportView(APIView):
+    """
+    Reports tab -- "Message Delivery Log": every SMS/email this
+    organization's Staffing module has sent in the date range --
+    automated shift reminders, ad-hoc messages sent from the Roster tab's
+    SMS/Email buttons, and understaffing alert emails to admins -- pulled
+    from communicator.models.MessageLog and matched back to a staff
+    member (or flagged as an admin alert) so it reads like a Staffing
+    report rather than a raw message log.
+
+    GET /api/staffing/reports/message-log/?start=YYYY-MM-DD&end=YYYY-MM-DD&staff=<id>
+    Defaults to the current week if omitted. Capped at 1000 rows.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+    MAX_ROWS = 1000
+
+    def get(self, request):
+        from communicator.models import MessageLog
+        from communicator.utils import format_phone_to_international
+
+        today = timezone.now().date()
+        start_raw = request.query_params.get("start")
+        end_raw = request.query_params.get("end")
+        try:
+            start = _parse_date_cell(start_raw, "start") if start_raw else today - datetime.timedelta(days=today.weekday())
+            end = _parse_date_cell(end_raw, "end") if end_raw else start + datetime.timedelta(days=6)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        staff_qs = _org_queryset(Staff, request)
+        staff_id = request.query_params.get("staff")
+        if staff_id:
+            staff_qs = staff_qs.filter(id=staff_id)
+
+        phone_to_staff = {}
+        email_to_staff = {}
+        for s in staff_qs:
+            if s.phone_number:
+                phone_to_staff[format_phone_to_international(s.phone_number)] = s
+                phone_to_staff[s.phone_number] = s
+            if s.email:
+                email_to_staff[s.email.strip().lower()] = s
+
+        if request.user.role == "system_admin":
+            org_filter = {}
+        else:
+            org_filter = {"organization": request.user.organization}
+
+        base_qs = MessageLog.objects.filter(
+            created_at__date__gte=start,
+            created_at__date__lte=end,
+            **org_filter,
+        ).filter(
+            Q(recipient__in=phone_to_staff.keys())
+            | Q(recipient__in=email_to_staff.keys())
+            | Q(subject__startswith="Staffing alert:")
+        )
+        total_matching = base_qs.count()
+        logs = base_qs.order_by("-created_at")[: self.MAX_ROWS]
+
+        rows = []
+        for log in logs:
+            staff_match = phone_to_staff.get(log.recipient) or email_to_staff.get(
+                log.recipient.strip().lower()
+            )
+            if log.body.startswith("Reminder: you have a"):
+                category = "Automated Shift Reminder"
+            elif log.subject.startswith("Staffing alert:"):
+                category = "Coverage Alert (to admin)"
+            else:
+                category = "Manual Message"
+
+            # Skip a coverage-alert row if staff filtering was requested --
+            # those go to admins, not a specific staff member.
+            if staff_id and category == "Coverage Alert (to admin)":
+                continue
+
+            rows.append(
+                {
+                    "sent_at": log.created_at.isoformat(),
+                    "channel": log.message_type,
+                    "category": category,
+                    "recipient": log.recipient,
+                    "staff_name": staff_match.full_name if staff_match else None,
+                    "subject": log.subject,
+                    "status": log.status,
+                }
+            )
+
+        return Response(
+            {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "truncated": total_matching > self.MAX_ROWS,
+                "rows": rows,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ShiftDistributionReportView(APIView):
+    """
+    Reports tab -- "Shift-Type Distribution": how day/evening/night/custom
+    shifts break down per staff member over a date range, to spot
+    workload imbalance (e.g. one person getting every night shift).
+
+    GET /api/staffing/reports/shift-distribution/?start=YYYY-MM-DD&end=YYYY-MM-DD&profession=...
+    Defaults to the current week if omitted.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        today = timezone.now().date()
+        start_raw = request.query_params.get("start")
+        end_raw = request.query_params.get("end")
+        try:
+            start = _parse_date_cell(start_raw, "start") if start_raw else today - datetime.timedelta(days=today.weekday())
+            end = _parse_date_cell(end_raw, "end") if end_raw else start + datetime.timedelta(days=6)
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+
+        shifts = _org_queryset(StaffShift, request).filter(
+            date__gte=start, date__lte=end, is_cancelled=False
+        ).select_related("staff")
+
+        profession = request.query_params.get("profession")
+        if profession:
+            shifts = shifts.filter(staff__profession=profession)
+
+        shift_type_codes = [code for code, _label in SHIFT_TYPE_CHOICES]
+        by_staff = {}
+        totals = {code: 0 for code in shift_type_codes}
+
+        for shift in shifts:
+            totals[shift.shift_type] = totals.get(shift.shift_type, 0) + 1
+            entry = by_staff.setdefault(
+                shift.staff_id,
+                {
+                    "staff_id": shift.staff_id,
+                    "full_name": shift.staff.full_name,
+                    "profession": shift.staff.profession,
+                    "total": 0,
+                    **{code: 0 for code in shift_type_codes},
+                },
+            )
+            entry[shift.shift_type] = entry.get(shift.shift_type, 0) + 1
+            entry["total"] += 1
+
+        rows = sorted(by_staff.values(), key=lambda r: r["total"], reverse=True)
+
+        return Response(
+            {
+                "start": start.isoformat(),
+                "end": end.isoformat(),
+                "totals": totals,
+                "rows": rows,
+            },
+            status=status.HTTP_200_OK,
+        )
