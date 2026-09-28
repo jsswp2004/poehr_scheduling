@@ -59,6 +59,7 @@ from .payment_views import (
     stripe_billing_diagnostic,
     setup_test_subscription,
     attach_messaging_billing_endpoint,
+    report_messaging_usage_endpoint,
 )
 
 router = DefaultRouter()
@@ -185,6 +186,7 @@ urlpatterns = [
     path("payments/stripe-billing-diagnostic/", stripe_billing_diagnostic, name="stripe-billing-diagnostic"),
     path("payments/setup-test-subscription/", setup_test_subscription, name="setup-test-subscription"),
     path("payments/attach-messaging-billing/", attach_messaging_billing_endpoint, name="attach-messaging-billing"),
+    path("payments/report-messaging-usage/", report_messaging_usage_endpoint, name="report-messaging-usage"),
 ]
 
 # ✅ Append viewset routes
