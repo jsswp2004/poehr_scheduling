@@ -264,6 +264,11 @@ STRIPE_ENTERPRISE_PRICE_ID = os.getenv(
     "STRIPE_ENTERPRISE_PRICE_ID", "price_test_enterprise"
 )
 
+# Shared secret an external daily scheduler (GitHub Actions) must send
+# in the X-Scheduled-Job-Secret header to hit /api/run-scheduled-jobs/.
+# No default -- an empty value means the endpoint always returns 403.
+SCHEDULED_JOBS_SECRET = os.getenv("SCHEDULED_JOBS_SECRET", "")
+
 # Metered overage prices for automatic email/SMS reminders (see
 # users/messaging_stripe.py). Empty until setup_messaging_meters has been
 # run and the resulting price IDs are set as env vars -- attach_messaging_billing

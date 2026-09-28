@@ -75,6 +75,11 @@ services:
         sync: false
       - key: STRIPE_ENTERPRISE_PRICE_ID
         sync: false
+      # Shared secret the GitHub Actions daily scheduler sends to
+      # /api/run-scheduled-jobs/ -- generate a long random value and set
+      # the SAME value as a GitHub repo secret (SCHEDULED_JOBS_SECRET).
+      - key: SCHEDULED_JOBS_SECRET
+        sync: false
 
 databases:
   - name: poehr-scheduling-db

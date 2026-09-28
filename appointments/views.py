@@ -37,6 +37,8 @@ from django.utils.dateparse import parse_date
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny
+import secrets
 from datetime import timedelta
 from django.utils import timezone
 from django.utils.timezone import make_aware
@@ -1351,6 +1353,90 @@ class RunPatientSMSRemindersNowView(APIView):
                 {"error": f"Failed to send patient SMS reminders: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class RunScheduledJobsView(APIView):
+    """
+    Single daily entry point for an external scheduler (e.g. a GitHub
+    Actions cron workflow) to trigger everything that should happen once
+    a day, without needing a logged-in user:
+
+      1. Email reminders -- respects each organization's AutoEmail
+         day-of-week/frequency settings (does NOT ignore day
+         restrictions, unlike the manual "Run Now" button).
+      2. SMS reminders -- respects each organization's AutoSMS settings
+         the same way.
+      3. Messaging overage billing -- ONLY on the 1st of the month,
+         reports the month that just ended to Stripe for every
+         organization that has a Stripe subscription. This runs once
+         a month, not daily, because report_monthly_messaging_usage's
+         Stripe meter-event identifier is per org/channel/month and
+         Stripe only accepts it once -- running this daily would lock
+         in partial usage on whatever day it first ran and silently
+         miss everything reported after that.
+
+    Auth: a shared secret in the X-Scheduled-Job-Secret header
+    (SCHEDULED_JOBS_SECRET env var), not a user JWT -- there is no
+    logged-in user for a scheduled job.
+    """
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        expected_secret = getattr(settings, "SCHEDULED_JOBS_SECRET", "")
+        provided_secret = request.headers.get("X-Scheduled-Job-Secret", "")
+        if not expected_secret or not secrets.compare_digest(
+            provided_secret, expected_secret
+        ):
+            return Response(
+                {"error": "Forbidden"}, status=status.HTTP_403_FORBIDDEN
+            )
+
+        results = {}
+
+        try:
+            send_patient_reminders()
+            results["email_reminders"] = "ok"
+        except Exception as exc:
+            results["email_reminders"] = f"error: {exc}"
+
+        try:
+            send_patient_sms_reminders(ignore_day_restrictions=False)
+            results["sms_reminders"] = "ok"
+        except Exception as exc:
+            results["sms_reminders"] = f"error: {exc}"
+
+        today = timezone.now().date()
+        if today.day == 1:
+            from users.messaging_stripe import report_monthly_messaging_usage
+            from users.models import Organization
+
+            last_day_prev_month = today.replace(day=1) - timedelta(days=1)
+            prev_year = last_day_prev_month.year
+            prev_month = last_day_prev_month.month
+
+            billing_results = {}
+            orgs_with_subscriptions = Organization.objects.exclude(
+                stripe_subscription_id__isnull=True
+            ).exclude(stripe_subscription_id="")
+
+            for org in orgs_with_subscriptions:
+                try:
+                    billing_results[org.id] = report_monthly_messaging_usage(
+                        org, year=prev_year, month=prev_month, dry_run=False
+                    )
+                except Exception as exc:
+                    billing_results[org.id] = {"error": str(exc)}
+
+            results["messaging_billing"] = {
+                "period": f"{prev_year}-{prev_month:02d}",
+                "organizations": billing_results,
+            }
+        else:
+            results["messaging_billing"] = "skipped (only runs on the 1st of the month)"
+
+        return Response(results, status=status.HTTP_200_OK)
 
 
 class AutoEmailViewSet(viewsets.ModelViewSet):
