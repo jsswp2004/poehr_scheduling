@@ -941,3 +941,96 @@ def report_messaging_usage_endpoint(request):
         )
 
     return Response(result, status=status.HTTP_200_OK)
+
+
+TEST_SEED_MARKER = "TEST_SEED_OVERAGE"
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def seed_test_messaging_logs(request):
+    """
+    TEMPORARY test-data endpoint. Creates fake, clearly-marked SMS
+    MessageLog rows (status="sent") for an organization, dated within the
+    current month, so we can push a demo org over its free SMS allowance
+    and verify the real Stripe meter-event reporting path actually fires.
+
+    Body (JSON, optional): {"count": 320}  -- defaults to 320.
+
+    Rows are marked with provider_id="TEST_SEED_OVERAGE" so they can be
+    cleanly deleted afterward via DELETE on this same endpoint.
+    """
+    from communicator.models import MessageLog
+    from django.utils import timezone
+
+    user = request.user
+    if user.role not in ("admin", "system_admin"):
+        return Response(
+            {"error": "You do not have permission to do this."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    target_organization = user.organization
+    organization_id = request.GET.get("organization_id")
+    if user.role == "system_admin" and organization_id:
+        from .models import Organization
+        try:
+            target_organization = Organization.objects.get(id=organization_id)
+        except Organization.DoesNotExist:
+            return Response(
+                {"error": "Organization not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+    if not target_organization:
+        return Response(
+            {"error": "No organization found for this user."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        count = int((request.data or {}).get("count", 320))
+    except (TypeError, ValueError):
+        count = 320
+
+    now = timezone.now()
+    rows = [
+        MessageLog(
+            organization=target_organization,
+            recipient="+10000000000",
+            subject="",
+            body="TEST SEED -- overage billing verification",
+            message_type="sms",
+            status="sent",
+            provider_id=TEST_SEED_MARKER,
+        )
+        for _ in range(count)
+    ]
+    MessageLog.objects.bulk_create(rows)
+
+    return Response(
+        {"created": count, "organization_id": target_organization.id},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def cleanup_test_messaging_logs(request):
+    """
+    TEMPORARY. Deletes all MessageLog rows created by
+    seed_test_messaging_logs (identified by provider_id="TEST_SEED_OVERAGE").
+    """
+    from communicator.models import MessageLog
+
+    user = request.user
+    if user.role not in ("admin", "system_admin"):
+        return Response(
+            {"error": "You do not have permission to do this."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    deleted_count, _ = MessageLog.objects.filter(
+        provider_id=TEST_SEED_MARKER
+    ).delete()
+
+    return Response({"deleted": deleted_count}, status=status.HTTP_200_OK)
