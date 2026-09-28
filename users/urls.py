@@ -55,6 +55,7 @@ from .payment_views import (
     add_payment_method,
     delete_payment_method,
     set_default_payment_method,
+    messaging_usage,
 )
 
 router = DefaultRouter()
@@ -177,6 +178,7 @@ urlpatterns = [
     ),
     path("payments/history/", billing_history, name="billing-history"),
     path("payments/add-method/", add_payment_method, name="add-payment-method"),
+    path("payments/messaging-usage/", messaging_usage, name="messaging-usage"),
 ]
 
 # ✅ Append viewset routes
