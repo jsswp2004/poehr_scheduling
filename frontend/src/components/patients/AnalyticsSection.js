@@ -459,6 +459,191 @@ function AnalyticsSection({
           },
           records: statusRecords,
         };
+      } else if (reportType === "Appointment Duration Summary") {
+        // Backend returns { statistics: {...}, distribution: {...} } -- pure
+        // aggregate numbers, no list. Flatten into Metric/Value rows.
+        const stats = reportData?.statistics || {};
+        const distribution = reportData?.distribution || {};
+        const records = [
+          { metric: "Average Duration (min)", value: stats.average_duration ?? "N/A" },
+          { metric: "Total Duration (hours)", value: stats.total_duration_hours ?? "N/A" },
+          { metric: "Min Duration (min)", value: stats.min_duration ?? "N/A" },
+          { metric: "Max Duration (min)", value: stats.max_duration ?? "N/A" },
+          { metric: "Total Appointments", value: stats.total_appointments ?? "N/A" },
+          ...Object.entries(distribution).map(([range, count]) => ({
+            metric: range,
+            value: count,
+          })),
+        ];
+        return {
+          summary: {
+            totalRecords: records.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records,
+        };
+      } else if (reportType === "Appointment Volume Trends") {
+        // Backend returns { trend_data: [ {date, count}, ... ], total_appointments, average_daily }
+        const trendRecords = reportData?.trend_data || [];
+        return {
+          summary: {
+            totalRecords: trendRecords.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+            totalAppointments: reportData?.total_appointments,
+            averageDaily: reportData?.average_daily,
+          },
+          records: trendRecords,
+        };
+      } else if (reportType === "No-Show & Cancellation Rate") {
+        // Backend returns { totals: {...}, rates: {...} } -- pure aggregate,
+        // no list. Flatten into Metric/Value rows.
+        const totals = reportData?.totals || {};
+        const rates = reportData?.rates || {};
+        const records = [
+          { metric: "Total Appointments", value: totals.total_appointments ?? "N/A" },
+          { metric: "Scheduled", value: totals.scheduled ?? "N/A" },
+          { metric: "Completed", value: totals.completed ?? "N/A" },
+          { metric: "Cancelled", value: totals.cancelled ?? "N/A" },
+          { metric: "No Show", value: totals.no_show ?? "N/A" },
+          { metric: "Completion Rate", value: `${rates.completion_rate ?? "N/A"}%` },
+          { metric: "Cancellation Rate", value: `${rates.cancellation_rate ?? "N/A"}%` },
+          { metric: "No-Show Rate", value: `${rates.no_show_rate ?? "N/A"}%` },
+          { metric: "Scheduled Rate", value: `${rates.scheduled_rate ?? "N/A"}%` },
+        ];
+        return {
+          summary: {
+            totalRecords: records.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records,
+        };
+      } else if (reportType === "Provider Utilization Report") {
+        // Backend returns { provider_utilization: [ {...}, ... ] }
+        const providerRecords = reportData?.provider_utilization || [];
+        return {
+          summary: {
+            totalRecords: providerRecords.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records: providerRecords,
+        };
+      } else if (reportType === "Patient Visit Frequency") {
+        // Backend returns { frequency_distribution: {...}, top_frequent_patients: [...], total_unique_patients }
+        const distribution = reportData?.frequency_distribution || {};
+        const topPatients = reportData?.top_frequent_patients || [];
+        const records = [
+          ...Object.entries(distribution).map(([range, count]) => ({
+            category: "Visit Frequency",
+            label: range,
+            value: count,
+          })),
+          ...topPatients.map((p) => ({
+            category: "Top Patient",
+            label: p.patient_name,
+            value: p.visit_count,
+          })),
+        ];
+        return {
+          summary: {
+            totalRecords: records.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+            totalUniquePatients: reportData?.total_unique_patients,
+          },
+          records,
+        };
+      } else if (reportType === "New vs. Returning Patients") {
+        // Backend returns { new_patients: {count, patients:[...]}, returning_patients: {count, patients:[...]}, ratio }
+        const newPatients = reportData?.new_patients?.patients || [];
+        const returningPatients = reportData?.returning_patients?.patients || [];
+        const records = [
+          ...newPatients.map((p) => ({
+            type: "New",
+            patient_id: p.patient_id,
+            appointment_info: `First appt ${p.first_appointment}, ${p.total_appointments} total`,
+          })),
+          ...returningPatients.map((p) => ({
+            type: "Returning",
+            patient_id: p.patient_id,
+            appointment_info: `${p.appointments_in_period} appointment(s) in period`,
+          })),
+        ];
+        return {
+          summary: {
+            totalRecords: records.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+            newPercentage: reportData?.ratio?.new_percentage,
+            returningPercentage: reportData?.ratio?.returning_percentage,
+          },
+          records,
+        };
+      } else if (reportType === "Appointment Lead Time Analysis") {
+        // Backend returns { average_lead_time_days, lead_time_distribution: {...}, total_analyzed } -- pure aggregate, no list.
+        const distribution = reportData?.lead_time_distribution || {};
+        const records = [
+          { metric: "Average Lead Time (days)", value: reportData?.average_lead_time_days ?? "N/A" },
+          { metric: "Total Analyzed", value: reportData?.total_analyzed ?? "N/A" },
+          ...Object.entries(distribution).map(([range, count]) => ({
+            metric: range,
+            value: count,
+          })),
+        ];
+        return {
+          summary: {
+            totalRecords: records.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records,
+        };
+      } else if (reportType === "Patient Demographic Breakdown") {
+        // Backend returns { total_patients, age_distribution: {...}, appointment_frequency: {...} } -- pure aggregate, no list.
+        const ageDistribution = reportData?.age_distribution || {};
+        const apptFrequency = reportData?.appointment_frequency || {};
+        const records = [
+          { metric: "Total Patients", value: reportData?.total_patients ?? "N/A" },
+          ...Object.entries(ageDistribution).map(([range, count]) => ({
+            metric: `Age: ${range}`,
+            value: count,
+          })),
+          { metric: "Single Visit Patients", value: apptFrequency.single_visit ?? "N/A" },
+          { metric: "Multiple Visit Patients", value: apptFrequency.multiple_visits ?? "N/A" },
+        ];
+        return {
+          summary: {
+            totalRecords: records.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records,
+        };
+      } else if (reportType === "Blocked vs. Booked Time Comparison") {
+        // Backend returns { booked_time: {...}, blocked_time: {...}, total_time_hours, efficiency_ratio } -- pure aggregate, no list.
+        const booked = reportData?.booked_time || {};
+        const blocked = reportData?.blocked_time || {};
+        const records = [
+          { metric: "Booked Minutes", value: booked.minutes ?? "N/A" },
+          { metric: "Booked Hours", value: booked.hours ?? "N/A" },
+          { metric: "Booked %", value: `${booked.percentage ?? "N/A"}%` },
+          { metric: "Blocked Minutes", value: blocked.minutes ?? "N/A" },
+          { metric: "Blocked Hours", value: blocked.hours ?? "N/A" },
+          { metric: "Blocked %", value: `${blocked.percentage ?? "N/A"}%` },
+          { metric: "Total Time (hours)", value: reportData?.total_time_hours ?? "N/A" },
+          { metric: "Efficiency Ratio", value: reportData?.efficiency_ratio ?? "N/A" },
+        ];
+        return {
+          summary: {
+            totalRecords: records.length,
+            reportGenerated: new Date().toISOString(),
+            filters: buildFilters(),
+          },
+          records,
+        };
       } else if (typeof reportData === "object" && reportData !== null) {
         // Handle object data (like status reports with summary)
         return {
