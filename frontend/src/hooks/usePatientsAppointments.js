@@ -166,15 +166,21 @@ export const usePatientsAppointments = () => {
 
     const handleDenyRequest = async (appointmentId, token, reason = '') => {
         try {
-            const res = await axios.post(
+            await axios.post(
                 `${API_BASE_URL}/api/appointments/${appointmentId}/deny/`,
                 { reason },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
+            // Denying deletes the appointment server-side (it was never a
+            // real booking, just an unapproved request), so remove it from
+            // every local list rather than updating its status -- otherwise
+            // it would keep showing up on the Calendar View / All Appointments
+            // tabs even though the row no longer exists.
             setAppointmentsResults((prev) =>
-                prev.map((appt) =>
-                    appt.id === appointmentId ? { ...appt, ...res.data } : appt
-                )
+                prev.filter((appt) => appt.id !== appointmentId)
+            );
+            setTodaysAppointments((prev) =>
+                prev.filter((appt) => appt.id !== appointmentId)
             );
             toast.success('Appointment request denied');
         } catch (err) {
