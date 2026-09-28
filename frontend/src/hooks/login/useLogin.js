@@ -55,7 +55,17 @@ export const useLogin = () => {
         console.log('Login Debug - User role:', userRole);
         console.log('Login Debug - Redirect parameter:', redirectTo);
 
-        if (redirectTo === 'communicator') {
+        if (redirectTo === 'scheduler') {
+            console.log('Login Debug - Redirecting to scheduler path (Appointments tab)');
+            // The Scheduler solutions-page button always wants the
+            // Appointments tab (which itself opens on "Today's Appointments")
+            // rather than whatever tab/page a plain login would land on.
+            if (['admin', 'system_admin', 'doctor', 'nurse', 'registrar'].includes(userRole)) {
+                navigate('/patients?tab=appointments');
+            } else {
+                navigate('/dashboard');
+            }
+        } else if (redirectTo === 'communicator') {
             console.log('Login Debug - Redirecting to communicator path');
             // Check if user has admin privileges for communicator
             if (userRole === 'admin' || userRole === 'system_admin' || userRole === 'registrar') {

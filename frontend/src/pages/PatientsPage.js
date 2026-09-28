@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Box, Typography, Tabs, Tab, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "react-toastify";
 import { getAccessToken } from "../utils/tokenManager";
@@ -37,8 +37,12 @@ import { API_BASE_URL } from "../config/api";
 function PatientsPage() {
   const navigate = useNavigate();
 
-  // Main tab state
-  const [tab, setTab] = useState("patients");
+  // Main tab state -- honors ?tab=appointments (etc.) on initial load, e.g.
+  // from the Scheduler solutions-page button, which sends users straight to
+  // the Appointments tab (whose own sub-tab already defaults to "today").
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "patients";
+  const [tab, setTab] = useState(initialTab);
   const [token, setToken] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
