@@ -21,9 +21,13 @@ import {
   IconButton,
   Tooltip,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faTrash, faPen } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -75,6 +79,11 @@ function StaffingAssignTab() {
   const [endDate, setEndDate] = useState("");
   const [oneTimeOnly, setOneTimeOnly] = useState(false);
   const [notes, setNotes] = useState("");
+
+  const [editPatternOpen, setEditPatternOpen] = useState(false);
+  const [editPatternForm, setEditPatternForm] = useState(null);
+  const [editPatternSaving, setEditPatternSaving] = useState(false);
+  const [editPatternError, setEditPatternError] = useState("");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -182,6 +191,75 @@ function StaffingAssignTab() {
       fetchData();
     } catch (err) {
       setStatus({ ok: false, message: "Failed to delete pattern." });
+    }
+  };
+
+  const openEditPattern = (p) => {
+    setEditPatternForm({
+      id: p.id,
+      staff: p.staff,
+      shift_type: p.shift_type,
+      start_time: (p.start_time || "").slice(0, 5) || "07:00",
+      end_time: (p.end_time || "").slice(0, 5) || "15:00",
+      days_of_week: p.days_of_week || [],
+      start_date: p.start_date,
+      end_date: p.end_date || "",
+      notes: p.notes || "",
+    });
+    setEditPatternError("");
+    setEditPatternOpen(true);
+  };
+
+  const closeEditPattern = () => {
+    if (editPatternSaving) return;
+    setEditPatternOpen(false);
+    setEditPatternForm(null);
+  };
+
+  const toggleEditPatternDay = (code) => {
+    setEditPatternForm((f) => ({
+      ...f,
+      days_of_week: f.days_of_week.includes(code)
+        ? f.days_of_week.filter((d) => d !== code)
+        : [...f.days_of_week, code],
+    }));
+  };
+
+  const handleEditPatternSave = async () => {
+    if (!editPatternForm.staff) {
+      setEditPatternError("Please choose a staff member.");
+      return;
+    }
+    if (editPatternForm.days_of_week.length === 0) {
+      setEditPatternError("Choose at least one day of the week.");
+      return;
+    }
+    setEditPatternSaving(true);
+    setEditPatternError("");
+    try {
+      await axios.patch(
+        apiEndpoints.staffingRecurringPatternDetail(editPatternForm.id),
+        {
+          staff: editPatternForm.staff,
+          shift_type: editPatternForm.shift_type,
+          start_time: editPatternForm.start_time,
+          end_time: editPatternForm.end_time,
+          days_of_week: editPatternForm.days_of_week,
+          start_date: editPatternForm.start_date,
+          end_date: editPatternForm.end_date || null,
+          notes: editPatternForm.notes,
+        },
+        { headers: getAuthHeaders(token) }
+      );
+      setEditPatternOpen(false);
+      setEditPatternForm(null);
+      fetchData();
+    } catch (err) {
+      setEditPatternError(
+        JSON.stringify(err.response?.data) || err.message || "Failed to save changes."
+      );
+    } finally {
+      setEditPatternSaving(false);
     }
   };
 
@@ -395,6 +473,11 @@ function StaffingAssignTab() {
                 <TableCell>{p.start_date}</TableCell>
                 <TableCell>{p.end_date || "Ongoing"}</TableCell>
                 <TableCell>
+                  <Tooltip title="Edit schedule">
+                    <IconButton size="small" onClick={() => openEditPattern(p)}>
+                      <FontAwesomeIcon icon={faPen} />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title="Delete schedule">
                     <IconButton size="small" color="error" onClick={() => handleDeletePattern(p.id)}>
                       <FontAwesomeIcon icon={faTrash} />
@@ -406,6 +489,137 @@ function StaffingAssignTab() {
           </TableBody>
         </Table>
       )}
+
+      {/* Edit recurring schedule dialog */}
+      <Dialog open={editPatternOpen} onClose={closeEditPattern} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Recurring Schedule</DialogTitle>
+        <DialogContent>
+          {editPatternForm && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {editPatternError && <Alert severity="error">{editPatternError}</Alert>}
+              <FormControl size="small" fullWidth>
+                <InputLabel id="edit-staff-label">Staff Member</InputLabel>
+                <Select
+                  labelId="edit-staff-label"
+                  label="Staff Member"
+                  value={editPatternForm.staff}
+                  onChange={(e) =>
+                    setEditPatternForm((f) => ({ ...f, staff: e.target.value }))
+                  }
+                >
+                  {staffList.map((s) => (
+                    <MenuItem key={s.id} value={s.id}>
+                      {s.full_name} ({s.profession_display || s.profession})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+
+              <Stack direction="row" spacing={2}>
+                <FormControl size="small" sx={{ minWidth: 160 }}>
+                  <InputLabel id="edit-shift-type-label">Shift Type</InputLabel>
+                  <Select
+                    labelId="edit-shift-type-label"
+                    label="Shift Type"
+                    value={editPatternForm.shift_type}
+                    onChange={(e) =>
+                      setEditPatternForm((f) => ({ ...f, shift_type: e.target.value }))
+                    }
+                  >
+                    {SHIFT_TYPES.map((s) => (
+                      <MenuItem key={s.value} value={s.value}>
+                        {s.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <TextField
+                  label="Start Time"
+                  type="time"
+                  size="small"
+                  value={editPatternForm.start_time}
+                  onChange={(e) =>
+                    setEditPatternForm((f) => ({ ...f, start_time: e.target.value }))
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="End Time"
+                  type="time"
+                  size="small"
+                  value={editPatternForm.end_time}
+                  onChange={(e) =>
+                    setEditPatternForm((f) => ({ ...f, end_time: e.target.value }))
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Stack>
+
+              <Box>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  Days of the Week
+                </Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  {DAYS.map((d) => (
+                    <FormControlLabel
+                      key={d.code}
+                      control={
+                        <Checkbox
+                          checked={editPatternForm.days_of_week.includes(d.code)}
+                          onChange={() => toggleEditPatternDay(d.code)}
+                        />
+                      }
+                      label={d.label}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Start Date"
+                  type="date"
+                  size="small"
+                  value={editPatternForm.start_date}
+                  onChange={(e) =>
+                    setEditPatternForm((f) => ({ ...f, start_date: e.target.value }))
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  label="End Date (optional)"
+                  type="date"
+                  size="small"
+                  value={editPatternForm.end_date}
+                  onChange={(e) =>
+                    setEditPatternForm((f) => ({ ...f, end_date: e.target.value }))
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Stack>
+
+              <TextField
+                label="Notes (optional)"
+                size="small"
+                multiline
+                minRows={2}
+                value={editPatternForm.notes}
+                onChange={(e) =>
+                  setEditPatternForm((f) => ({ ...f, notes: e.target.value }))
+                }
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeEditPattern} disabled={editPatternSaving}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleEditPatternSave} disabled={editPatternSaving}>
+            {editPatternSaving ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Divider sx={{ my: 4 }} />
 
