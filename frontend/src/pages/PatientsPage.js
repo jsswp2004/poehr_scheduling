@@ -575,6 +575,12 @@ function PatientsPage() {
               onStatusUpdate={handleStatusUpdate}
               onViewDetails={handleViewAppointmentDetails}
               onAppointmentStatusUpdate={handleAppointmentStatusUpdate}
+              onApproveRequest={(appointmentId) =>
+                appointments.handleApproveRequest(appointmentId, token)
+              }
+              onDenyRequest={(appointmentId, reason) =>
+                appointments.handleDenyRequest(appointmentId, token, reason)
+              }
             />
           )}
 

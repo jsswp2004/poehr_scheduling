@@ -123,11 +123,20 @@ function AppointmentsSection({
     onStatusUpdate,
     onViewDetails,
     onAppointmentStatusUpdate, // New prop for handling appointment status changes
+    onApproveRequest,
+    onDenyRequest,
     loading = false,
 }) {
     const [selectedAppointment, setSelectedAppointment] = useState(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
+    const [denyDialogAppointment, setDenyDialogAppointment] = useState(null);
+    const [denyReason, setDenyReason] = useState('');
     const navigate = useNavigate();
+
+    const pendingRequests = useMemo(
+        () => appointmentsResults.filter((a) => a.status === 'pending'),
+        [appointmentsResults]
+    );
 
     // Sorting + per-column filtering for the "Today's Appointments" table.
     // These are local UI state only -- they never refetch from the server,
@@ -245,6 +254,10 @@ function AppointmentsSection({
                 <Tab label="Calendar View" value="calendar" />
                 <Tab label="Today's Appointments" value="today" />
                 <Tab label="All Appointments" value="all" />
+                <Tab
+                    label={`Pending Requests${pendingRequests.length ? ` (${pendingRequests.length})` : ''}`}
+                    value="pending"
+                />
             </Tabs>
 
             {/* Today's Appointments */}
@@ -459,6 +472,78 @@ function AppointmentsSection({
             {appointmentsTab === 'calendar' && (
                 <Box>
                     <CalendarView showBackButton={false} />
+                </Box>
+            )}
+
+            {/* Pending Requests */}
+            {appointmentsTab === 'pending' && (
+                <Box>
+                    <Typography variant="h6" sx={{ color: 'primary.main', mb: 2 }}>
+                        Pending Appointment Requests
+                    </Typography>
+                    {pendingRequests.length === 0 ? (
+                        <Paper sx={{ p: 3, textAlign: 'center' }}>
+                            <Typography color="text.secondary">
+                                No pending requests right now.
+                            </Typography>
+                        </Paper>
+                    ) : (
+                        <TableContainer
+                            component={Paper}
+                            sx={{ borderRadius: 2, boxShadow: 2, minWidth: 900 }}
+                        >
+                            <Table size="small">
+                                <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                                    <TableRow>
+                                        <TableCell><b>Patient</b></TableCell>
+                                        <TableCell><b>Provider</b></TableCell>
+                                        <TableCell><b>Requested Date & Time</b></TableCell>
+                                        <TableCell><b>Visit</b></TableCell>
+                                        <TableCell><b>Description</b></TableCell>
+                                        <TableCell><b>Actions</b></TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {pendingRequests.map((appointment) => (
+                                        <TableRow key={appointment.id} hover>
+                                            <TableCell>{getPatientName(appointment) || '-'}</TableCell>
+                                            <TableCell>{getProviderName(appointment) || '-'}</TableCell>
+                                            <TableCell>
+                                                {appointment.appointment_datetime
+                                                    ? new Date(appointment.appointment_datetime).toLocaleString()
+                                                    : '-'}
+                                            </TableCell>
+                                            <TableCell>{appointment.title || '-'}</TableCell>
+                                            <TableCell>{appointment.description || '-'}</TableCell>
+                                            <TableCell>
+                                                <Stack direction="row" spacing={1}>
+                                                    <Button
+                                                        size="small"
+                                                        variant="contained"
+                                                        color="success"
+                                                        onClick={() => onApproveRequest && onApproveRequest(appointment.id)}
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                    <Button
+                                                        size="small"
+                                                        variant="outlined"
+                                                        color="error"
+                                                        onClick={() => {
+                                                            setDenyReason('');
+                                                            setDenyDialogAppointment(appointment);
+                                                        }}
+                                                    >
+                                                        Deny
+                                                    </Button>
+                                                </Stack>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
+                    )}
                 </Box>
             )}
 
@@ -690,6 +775,50 @@ function AppointmentsSection({
                         }}
                     >
                         Edit
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Deny Request Dialog */}
+            <Dialog
+                open={!!denyDialogAppointment}
+                onClose={() => setDenyDialogAppointment(null)}
+                maxWidth="sm"
+                fullWidth
+            >
+                <DialogTitle>Deny Appointment Request</DialogTitle>
+                <DialogContent dividers>
+                    <Typography sx={{ mb: 2 }}>
+                        Deny the request from{' '}
+                        <b>{denyDialogAppointment ? getPatientName(denyDialogAppointment) : ''}</b>{' '}
+                        for{' '}
+                        {denyDialogAppointment?.appointment_datetime
+                            ? new Date(denyDialogAppointment.appointment_datetime).toLocaleString()
+                            : ''}
+                        ?
+                    </Typography>
+                    <TextField
+                        label="Reason (optional, included in the patient's email)"
+                        value={denyReason}
+                        onChange={(e) => setDenyReason(e.target.value)}
+                        multiline
+                        rows={2}
+                        fullWidth
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDenyDialogAppointment(null)}>Cancel</Button>
+                    <Button
+                        color="error"
+                        variant="contained"
+                        onClick={() => {
+                            if (onDenyRequest && denyDialogAppointment) {
+                                onDenyRequest(denyDialogAppointment.id, denyReason);
+                            }
+                            setDenyDialogAppointment(null);
+                        }}
+                    >
+                        Deny Request
                     </Button>
                 </DialogActions>
             </Dialog>

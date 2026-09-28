@@ -500,7 +500,7 @@ function DashboardPage() {
         await axios.post(`${API_BASE_URL}/api/appointments/`, payload, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        toast.success("Appointment created!");
+        toast.success("Appointment request submitted!");
       }
 
       const refreshed = await axios.get(`${API_BASE_URL}/api/appointments/`, {
@@ -1070,46 +1070,6 @@ function DashboardPage() {
                         fullWidth
                         required
                       />
-                      <TextField
-                        label="Duration (minutes)"
-                        name="duration_minutes"
-                        type="number"
-                        value={formData.duration_minutes}
-                        onChange={handleChange}
-                        fullWidth
-                        required
-                      />
-                      <FormControl fullWidth>
-                        <InputLabel id="recurrence-label">
-                          Recurrence
-                        </InputLabel>
-                        <MUISelect
-                          labelId="recurrence-label"
-                          name="recurrence"
-                          value={formData.recurrence}
-                          onChange={handleChange}
-                          label="Recurrence"
-                        >
-                          <MenuItem value="none">None</MenuItem>
-                          <MenuItem value="daily">Daily</MenuItem>
-                          <MenuItem value="weekly">Weekly</MenuItem>
-                          <MenuItem value="monthly">Monthly</MenuItem>
-                        </MUISelect>
-                      </FormControl>
-                      {formData.recurrence !== "none" && (
-                        <TextField
-                          fullWidth
-                          label="Recurrence End Date"
-                          name="recurrence_end_date"
-                          type="date"
-                          value={formData.recurrence_end_date}
-                          onChange={handleChange}
-                          InputLabelProps={{
-                            shrink: true,
-                          }}
-                          required
-                        />
-                      )}
                       <Box>
                         <Typography variant="subtitle2" sx={{ mb: 1 }}>
                           Select Doctor
@@ -1137,7 +1097,7 @@ function DashboardPage() {
                         >
                           {editMode
                             ? "Update Appointment"
-                            : "Create Appointment"}
+                            : "Request Appointment"}
                         </Button>
                         <Button
                           variant="outlined"
@@ -1216,6 +1176,7 @@ function DashboardPage() {
                         <TableRow>
                           <TableCell>Visit</TableCell>
                           <TableCell>Date & Time</TableCell>
+                          <TableCell>Status</TableCell>
                           <TableCell align="right">Actions</TableCell>
                         </TableRow>
                       </TableHead>
@@ -1229,6 +1190,29 @@ function DashboardPage() {
                                     a.appointment_datetime
                                   ).toLocaleString()
                                 : "Unknown"}
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={
+                                  a.status === "pending"
+                                    ? "Pending"
+                                    : a.status === "cancelled"
+                                    ? "Cancelled"
+                                    : a.status === "completed"
+                                    ? "Completed"
+                                    : "Scheduled"
+                                }
+                                color={
+                                  a.status === "pending"
+                                    ? "warning"
+                                    : a.status === "cancelled"
+                                    ? "default"
+                                    : a.status === "completed"
+                                    ? "success"
+                                    : "info"
+                                }
+                              />
                             </TableCell>
                             <TableCell align="right">
                               <Tooltip title="Edit appointment">

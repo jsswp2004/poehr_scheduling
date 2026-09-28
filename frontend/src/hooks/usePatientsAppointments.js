@@ -139,6 +139,52 @@ export const usePatientsAppointments = () => {
         }
     };
 
+    // Approve or deny a pending patient appointment request. Updates the
+    // already-fetched appointmentsResults in place so the Pending Requests
+    // tab (which just filters appointmentsResults client-side) refreshes
+    // immediately without a second round-trip.
+    const handleApproveRequest = async (appointmentId, token) => {
+        try {
+            const res = await axios.post(
+                `${API_BASE_URL}/api/appointments/${appointmentId}/approve/`,
+                {},
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setAppointmentsResults((prev) =>
+                prev.map((appt) =>
+                    appt.id === appointmentId ? { ...appt, ...res.data } : appt
+                )
+            );
+            toast.success('Appointment request approved');
+        } catch (err) {
+            console.error('Failed to approve appointment request:', err);
+            toast.error(
+                err.response?.data?.error || 'Failed to approve appointment request'
+            );
+        }
+    };
+
+    const handleDenyRequest = async (appointmentId, token, reason = '') => {
+        try {
+            const res = await axios.post(
+                `${API_BASE_URL}/api/appointments/${appointmentId}/deny/`,
+                { reason },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            setAppointmentsResults((prev) =>
+                prev.map((appt) =>
+                    appt.id === appointmentId ? { ...appt, ...res.data } : appt
+                )
+            );
+            toast.success('Appointment request denied');
+        } catch (err) {
+            console.error('Failed to deny appointment request:', err);
+            toast.error(
+                err.response?.data?.error || 'Failed to deny appointment request'
+            );
+        }
+    };
+
     return {
         appointmentsQuery,
         setAppointmentsQuery,
@@ -157,5 +203,7 @@ export const usePatientsAppointments = () => {
         fetchAppointments,
         fetchTodaysAppointments,
         handleStatusUpdate,
+        handleApproveRequest,
+        handleDenyRequest,
     };
 };
