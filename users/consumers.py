@@ -46,6 +46,14 @@ class PresenceConsumer(AsyncWebsocketConsumer):
             f"WebSocket connection accepted - User: {getattr(self.user, 'username', 'unknown')} (ID: {getattr(self.user, 'id', 'unknown')})"
         )
 
+        # Roster-staff ("My Shifts") logins have no chat/presence access.
+        # Presence broadcasts and the online-users list expose other users'
+        # names, emails and roles, so refuse the socket before joining any group.
+        if getattr(self.user, "role", None) == "staff":
+            self.rejected = True
+            await self.close(code=4403)
+            return
+
         # Join user to their personal presence group
         self.user_group_name = f"user_{self.user.id}"
         await self.channel_layer.group_add(self.user_group_name, self.channel_name)
@@ -80,6 +88,8 @@ class PresenceConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """Handle WebSocket disconnection"""
+        if getattr(self, "rejected", False):
+            return
         # Cancel heartbeat task
         if hasattr(self, "heartbeat_task"):
             self.heartbeat_task.cancel()
