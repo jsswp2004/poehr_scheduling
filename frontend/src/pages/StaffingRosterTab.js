@@ -29,6 +29,7 @@ import {
   faPen,
   faCommentSms,
   faEnvelope,
+  faUserPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
@@ -49,6 +50,7 @@ function StaffingRosterTab({ isAdmin = false }) {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   // Facility-wide messaging kill switch (Organization.staffing_messaging_enabled).
   // Turning this off stops the hourly automated jobs (shift reminders +
@@ -170,6 +172,25 @@ function StaffingRosterTab({ isAdmin = false }) {
           row.id === s.id ? { ...row, reminders_enabled: s.reminders_enabled } : row
         )
       );
+    }
+  };
+
+  const handleInvite = async (s) => {
+    const verb = s.has_login ? "Resend the invite to" : "Send an app invite to";
+    if (!window.confirm(`${verb} ${s.full_name} (${s.email})?`)) return;
+    setError("");
+    setNotice("");
+    try {
+      await axios.post(
+        apiEndpoints.staffingStaffInvite(s.id),
+        {},
+        { headers: getAuthHeaders(token) }
+      );
+      setNotice(`Invite emailed to ${s.email}. Ask them to check spam the first time.`);
+      fetchStaff();
+    } catch (err) {
+      const msg = err?.response?.data?.detail || err?.response?.data?.error;
+      setError(msg || `Failed to invite ${s.full_name}.`);
     }
   };
 
@@ -316,6 +337,11 @@ function StaffingRosterTab({ isAdmin = false }) {
         </Stack>
       </Stack>
 
+      {notice && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice("")}>
+          {notice}
+        </Alert>
+      )}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
           {error}
@@ -400,6 +426,26 @@ function StaffingRosterTab({ isAdmin = false }) {
                         onClick={() => openMessageDialog(s, "email")}
                       >
                         <FontAwesomeIcon icon={faEnvelope} />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                  <Tooltip
+                    title={
+                      !s.email
+                        ? "Add an email to invite"
+                        : s.has_login
+                        ? "Resend app invite"
+                        : "Invite to POWER Staffing app"
+                    }
+                  >
+                    <span>
+                      <IconButton
+                        size="small"
+                        color={s.has_login ? "success" : "primary"}
+                        disabled={!s.email || !s.is_active}
+                        onClick={() => handleInvite(s)}
+                      >
+                        <FontAwesomeIcon icon={faUserPlus} />
                       </IconButton>
                     </span>
                   </Tooltip>

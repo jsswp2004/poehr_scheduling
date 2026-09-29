@@ -130,6 +130,7 @@ export const apiEndpoints = {
     // Staffing module endpoints
     staffingStaff: `${API_BASE_URL}/api/staffing/staff/`,
     staffingStaffDetail: (id) => `${API_BASE_URL}/api/staffing/staff/${id}/`,
+    staffingStaffInvite: (id) => `${API_BASE_URL}/api/staffing/staff/${id}/invite/`,
     staffingStaffUploadCsv: `${API_BASE_URL}/api/staffing/staff/upload-csv/`,
     staffingRecurringPatterns: `${API_BASE_URL}/api/staffing/recurring-patterns/`,
     staffingRecurringPatternDetail: (id) => `${API_BASE_URL}/api/staffing/recurring-patterns/${id}/`,
