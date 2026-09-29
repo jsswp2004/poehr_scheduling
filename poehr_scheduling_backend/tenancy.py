@@ -139,8 +139,31 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
         result = super().authenticate(request)
         if result is not None:
             user, _validated_token = result
+            if getattr(user, "role", None) == "staff":
+                self._enforce_staff_scope(request)
             set_current_organization(getattr(user, "organization", None))
         return result
+
+    # Roster-staff logins ("My Shifts") may only touch these API prefixes.
+    # Everything else (patients, appointments, users, billing, ...) is
+    # refused here, centrally, so a view that only checks IsAuthenticated
+    # and scopes by organization cannot leak data to a staff account.
+    STAFF_ALLOWED_PREFIXES = (
+        "/api/staffing/",
+        "/api/users/me/",
+        "/api/auth/me/",
+        "/api/users/change-password/",
+        "/api/auth/change-password/",
+        "/api/users/token/refresh/",
+        "/api/auth/token/refresh/",
+    )
+
+    def _enforce_staff_scope(self, request):
+        from rest_framework.exceptions import PermissionDenied
+
+        path = request.path or ""
+        if not path.startswith(self.STAFF_ALLOWED_PREFIXES):
+            raise PermissionDenied("Staff accounts cannot access this resource.")
 
 
 class TenantScopedManager(models.Manager):
