@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from users.models import Organization
 
@@ -30,6 +31,18 @@ class Staff(models.Model):
     )
     email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staff_profile",
+        help_text=(
+            "Optional app login for this roster entry (role 'staff'), created "
+            "via the Invite flow. Lets the staff member see the schedule in "
+            "the mobile app. Null means no login."
+        ),
+    )
     is_active = models.BooleanField(default=True)
     reminders_enabled = models.BooleanField(
         default=True,

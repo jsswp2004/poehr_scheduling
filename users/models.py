@@ -13,6 +13,7 @@ class CustomUser(AbstractUser):
         ("registrar", "Registrar"),
         ("none", "None"),  # For non-patients, use 'None' or leave blank
         ("system_admin", "System Admin"),  # For superusers or system admins
+        ("staff", "Staff"),  # Staffing-module roster staff with an app login (My Shifts)
     )
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="none"
