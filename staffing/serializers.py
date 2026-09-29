@@ -15,6 +15,7 @@ class StaffSerializer(serializers.ModelSerializer):
     # the value itself -- kept as a field so existing frontend code that
     # reads profession_display keeps working unchanged.
     profession_display = serializers.CharField(source="profession", read_only=True)
+    has_login = serializers.SerializerMethodField()
 
     class Meta:
         model = Staff
@@ -30,11 +31,15 @@ class StaffSerializer(serializers.ModelSerializer):
             "phone_number",
             "is_active",
             "reminders_enabled",
+            "has_login",
             "notes",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["organization", "created_at", "updated_at"]
+
+    def get_has_login(self, obj):
+        return obj.user_id is not None
 
 
 class StaffRecurringPatternSerializer(serializers.ModelSerializer):

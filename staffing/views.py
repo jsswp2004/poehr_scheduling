@@ -15,6 +15,7 @@ from .models import (
     StaffRecurringPattern,
     StaffShift,
     ShiftCoverageRequirement,
+    CoverageAlert,
     SHIFT_TYPE_CHOICES,
     DAY_OF_WEEK_CHOICES,
     VALID_DAY_CODES,
@@ -30,6 +31,33 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 ADMIN_ROLES = ("admin", "system_admin")
+# Roles allowed to use the manager side of Staffing (same list as the web
+# StaffingPage). Read access used to be open to ANY authenticated user in the
+# organization -- including patient accounts -- which exposed the roster's
+# phone numbers/emails and every shift.
+MANAGER_ROLES = ("admin", "system_admin", "doctor", "nurse", "registrar")
+# Roster staff with an app login (Staff.user) get read-only access to the
+# shared shift calendar only (they may see coworkers), never to roster
+# contact details, patterns, coverage settings, reports or messaging.
+STAFF_LOGIN_ROLE = "staff"
+
+
+class IsStaffingManager(permissions.BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and user.role in MANAGER_ROLES)
+
+
+class IsStaffingManagerOrStaffReadOnly(permissions.BasePermission):
+    """Managers: as before. Role 'staff': safe (read) methods only."""
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not (user and user.is_authenticated):
+            return False
+        if user.role in MANAGER_ROLES:
+            return True
+        return user.role == STAFF_LOGIN_ROLE and request.method in permissions.SAFE_METHODS
 
 
 class StaffingAdminWriteMixin:
@@ -43,7 +71,7 @@ class StaffingAdminWriteMixin:
     been applied/deployed yet -- see claude/rights-permissions-system.md.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
 
     def _require_admin(self, request):
         if request.user.role not in ADMIN_ROLES:
@@ -106,6 +134,14 @@ class StaffViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
         else:
             serializer.save(organization=user.organization)
 
+    def perform_update(self, serializer):
+        staff = serializer.save()
+        # Keep the linked app login in step with the roster entry: a
+        # deactivated staff member must not be able to keep signing in.
+        if staff.user_id and staff.user.is_active != staff.is_active:
+            staff.user.is_active = staff.is_active
+            staff.user.save(update_fields=["is_active"])
+
 
 class StaffRecurringPatternViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
     serializer_class = StaffRecurringPatternSerializer
@@ -154,6 +190,7 @@ class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
     """
 
     serializer_class = StaffShiftSerializer
+    permission_classes = [IsStaffingManagerOrStaffReadOnly]
 
     def get_queryset(self):
         qs = _org_queryset(StaffShift, self.request)
@@ -273,7 +310,7 @@ class UploadStaffCSV(APIView):
     duplicates either one.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -443,7 +480,7 @@ class SendStaffMessageView(APIView):
     accounts and that consent system is for patients/contacts.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
 
     def post(self, request, staff_id):
         if request.user.role not in ADMIN_ROLES:
@@ -518,7 +555,7 @@ class UnscheduledStaffReportView(APIView):
     today + 6 days) if omitted, so a bare GET is still meaningful.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
 
     def get(self, request):
         today = timezone.now().date()
@@ -591,7 +628,7 @@ class LaborHoursReportView(APIView):
     Both start/end default to the current week if omitted.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
 
     def get(self, request):
         today = timezone.now().date()
@@ -659,7 +696,7 @@ class CoverageComplianceReportView(APIView):
     days to keep the per-day requirement walk bounded.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
     MAX_RANGE_DAYS = 62
 
     def get(self, request):
@@ -744,7 +781,7 @@ class MessageDeliveryLogReportView(APIView):
     Defaults to the current week if omitted. Capped at 1000 rows.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
     MAX_ROWS = 1000
 
     def get(self, request):
@@ -841,7 +878,7 @@ class ShiftDistributionReportView(APIView):
     Defaults to the current week if omitted.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsStaffingManager]
 
     def get(self, request):
         today = timezone.now().date()
@@ -891,3 +928,234 @@ class ShiftDistributionReportView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ---------------------------------------------------------------------------
+# "My Shifts": app login for roster staff
+# ---------------------------------------------------------------------------
+
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.http import HttpResponse
+from django.utils.encoding import force_bytes, force_str
+from django.utils.html import escape
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+
+
+def _staff_for_login(request):
+    """The Staff row linked to the requesting user, or None."""
+    return getattr(request.user, "staff_profile", None)
+
+
+class IsStaffLogin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.role == STAFF_LOGIN_ROLE
+            and getattr(user, "staff_profile", None) is not None
+        )
+
+
+class MyStaffProfileView(APIView):
+    """
+    GET/PATCH /api/staffing/me/ -- the signed-in staff member's own roster
+    entry. Only reminders_enabled and phone_number are editable.
+    """
+
+    permission_classes = [IsStaffLogin]
+
+    def _payload(self, staff):
+        org = staff.organization
+        return {
+            "id": staff.id,
+            "full_name": staff.full_name,
+            "first_name": staff.first_name,
+            "last_name": staff.last_name,
+            "profession": staff.profession,
+            "phone_number": staff.phone_number,
+            "reminders_enabled": staff.reminders_enabled,
+            "organization_name": org.name,
+            "messaging_enabled": bool(getattr(org, "staffing_messaging_enabled", False)),
+        }
+
+    def get(self, request):
+        return Response(self._payload(_staff_for_login(request)))
+
+    def patch(self, request):
+        staff = _staff_for_login(request)
+        fields = []
+        if "reminders_enabled" in request.data:
+            value = request.data["reminders_enabled"]
+            if not isinstance(value, bool):
+                return Response({"error": "reminders_enabled must be true or false."}, status=400)
+            staff.reminders_enabled = value
+            fields.append("reminders_enabled")
+        if "phone_number" in request.data:
+            phone = (request.data["phone_number"] or "").strip() or None
+            if phone and len(phone) > 20:
+                return Response({"error": "phone_number is too long."}, status=400)
+            staff.phone_number = phone
+            fields.append("phone_number")
+        if fields:
+            staff.save(update_fields=fields + ["updated_at"])
+        return Response(self._payload(staff))
+
+
+class MyShiftsView(APIView):
+    """GET /api/staffing/me/shifts/?start=&end= -- only the caller's own shifts."""
+
+    permission_classes = [IsStaffLogin]
+
+    def get(self, request):
+        staff = _staff_for_login(request)
+        qs = StaffShift.objects.filter(staff=staff, is_cancelled=False)
+        try:
+            start = _parse_date_cell(request.query_params.get("start"), "start")
+            end = _parse_date_cell(request.query_params.get("end"), "end")
+        except ValueError as e:
+            return Response({"error": str(e)}, status=400)
+        if start:
+            qs = qs.filter(date__gte=start)
+        if end:
+            qs = qs.filter(date__lte=end)
+        return Response(StaffShiftSerializer(qs, many=True).data)
+
+
+def _invite_url(request, user):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    base = request.build_absolute_uri("/")
+    host = request.get_host()
+    if not settings.DEBUG and not host.startswith(("localhost", "127.")):
+        base = base.replace("http://", "https://", 1)
+    return f"{base}api/staffing/accept-invite/{uid}/{token}/"
+
+
+class InviteStaffView(APIView):
+    """
+    POST /api/staffing/staff/<id>/invite/ (admin only). Creates the staff
+    member's app login (role 'staff', username = email) if they don't have
+    one yet, links it to the roster entry, and emails a set-password link.
+    Safe to call again to resend the link.
+    """
+
+    permission_classes = [IsStaffingManager]
+
+    def post(self, request, staff_id):
+        if request.user.role not in ADMIN_ROLES:
+            return Response({"error": "Only admins can invite staff."}, status=403)
+        try:
+            staff = _org_queryset(Staff, request).select_related("organization", "user").get(pk=staff_id)
+        except Staff.DoesNotExist:
+            return Response({"error": "Staff member not found."}, status=404)
+        if not staff.is_active:
+            return Response({"error": "Reactivate this staff member before inviting them."}, status=400)
+        email = (staff.email or "").strip().lower()
+        if not email:
+            return Response({"error": f"{staff.full_name} has no email on file."}, status=400)
+
+        User = get_user_model()
+        created = False
+        user = staff.user
+        if user is None:
+            if User.objects.filter(username__iexact=email).exists() or User.objects.filter(email__iexact=email).exists():
+                return Response(
+                    {"error": "An account with this email already exists. Use a different email for this staff member or contact support."},
+                    status=409,
+                )
+            user = User(
+                username=email,
+                email=email,
+                first_name=staff.first_name,
+                last_name=staff.last_name,
+                role=STAFF_LOGIN_ROLE,
+                organization=staff.organization,
+                phone_number=staff.phone_number,
+                is_active=True,
+            )
+            if hasattr(user, "registered"):
+                user.registered = True
+            user.set_unusable_password()
+            user.save()
+            staff.user = user
+            staff.save(update_fields=["user", "updated_at"])
+            created = True
+
+        link = _invite_url(request, user)
+        from communicator.utils import send_email
+
+        org_name = staff.organization.name
+        body = (
+            f"Hello {staff.first_name},\n\n"
+            f"{org_name} has invited you to POWER Staffing, where you can see your schedule.\n\n"
+            f"Set your password here (the link expires in a few days):\n{link}\n\n"
+            f"Your username is: {user.username}\n\n"
+            "Then sign in to the POWER Staffing app with that username and password."
+        )
+        try:
+            send_email(email, f"You're invited to POWER Staffing ({org_name})", body,
+                       user=request.user, organization=staff.organization)
+        except Exception as exc:
+            return Response({"error": f"Account created but the email failed to send: {exc}"}, status=502)
+
+        return Response({"ok": True, "created": created, "username": user.username})
+
+
+_ACCEPT_PAGE = """<!doctype html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>POWER Staffing</title>
+<style>body{{font-family:-apple-system,Segoe UI,sans-serif;max-width:420px;margin:40px auto;padding:0 16px}}
+input,button{{width:100%;padding:12px;margin:6px 0;font-size:16px;box-sizing:border-box}}
+button{{background:#1976d2;color:#fff;border:0;border-radius:8px}}.err{{color:#c62828}}.ok{{color:#2e7d32}}</style></head>
+<body><h2>POWER Staffing</h2>{content}</body></html>"""
+
+
+class AcceptStaffInviteView(APIView):
+    """Public set-password page for an invite link (no web-app page needed)."""
+
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def _user(self, uidb64, token):
+        User = get_user_model()
+        try:
+            user = User.objects.get(pk=force_str(urlsafe_base64_decode(uidb64)))
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+            return None
+        if user.role != STAFF_LOGIN_ROLE or not default_token_generator.check_token(user, token):
+            return None
+        return user
+
+    def _page(self, content, status=200):
+        return HttpResponse(_ACCEPT_PAGE.format(content=content), status=status)
+
+    def get(self, request, uidb64, token):
+        user = self._user(uidb64, token)
+        if not user:
+            return self._page('<p class="err">This link is invalid or has expired. Ask your administrator to resend the invite.</p>', 400)
+        return self._page(
+            f"<p>Set a password for <b>{escape(user.username)}</b>.</p>"
+            '<form method="post"><input type="password" name="password" placeholder="New password" required>'
+            '<input type="password" name="confirm" placeholder="Confirm password" required>'
+            "<button type=\"submit\">Save password</button></form>"
+        )
+
+    def post(self, request, uidb64, token):
+        user = self._user(uidb64, token)
+        if not user:
+            return self._page('<p class="err">This link is invalid or has expired. Ask your administrator to resend the invite.</p>', 400)
+        pw = request.POST.get("password", "")
+        if pw != request.POST.get("confirm", ""):
+            return self._page('<p class="err">Passwords do not match.</p><p><a href="">Try again</a></p>', 400)
+        try:
+            validate_password(pw, user)
+        except DjangoValidationError as e:
+            msg = escape(" ".join(e.messages))
+            return self._page(f'<p class="err">{msg}</p><p><a href="">Try again</a></p>', 400)
+        user.set_password(pw)
+        user.save(update_fields=["password"])
+        return self._page('<p class="ok">Password saved. Open the POWER Staffing app and sign in with your username and this password.</p>')
