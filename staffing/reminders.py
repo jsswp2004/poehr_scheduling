@@ -152,6 +152,8 @@ def send_coverage_alerts(now=None):
     from communicator.utils import send_email
     from users.models import CustomUser
 
+    from .coverage import assigned_staff_count, effective_requirement
+
     now = now or timezone.now()
     # The 24-hours-out calendar date is what actually matters here (a
     # requirement applies per-date, not per-instant) -- the
@@ -165,7 +167,7 @@ def send_coverage_alerts(now=None):
 
     requirements = ShiftCoverageRequirement.objects.filter(
         is_active=True, organization__staffing_messaging_enabled=True
-    ).select_related("organization")
+    ).select_related("organization", "unit")
     for req in requirements:
         checked += 1
         if not req.applies_on(target_date):
@@ -173,14 +175,11 @@ def send_coverage_alerts(now=None):
         if CoverageAlert.objects.filter(requirement=req, date=target_date).exists():
             continue  # already alerted for this requirement/date
 
-        assigned_count = StaffShift.objects.filter(
-            organization=req.organization,
-            date=target_date,
-            shift_type=req.shift_type,
-            is_cancelled=False,
-        ).values("staff_id").distinct().count()
+        assigned_count = assigned_staff_count(req, target_date)
+        eff = effective_requirement(req, target_date)
+        required_count = eff.required_staff
 
-        if assigned_count >= req.min_staff_required:
+        if assigned_count >= required_count:
             continue
 
         admins = CustomUser.objects.filter(
@@ -191,7 +190,7 @@ def send_coverage_alerts(now=None):
         subject = f"Staffing alert: {req.get_shift_type_display()} shift understaffed for {target_date}"
         body = (
             f"The {req.get_shift_type_display()} shift on {target_date.strftime('%b %d, %Y')} "
-            f"(about 24 hours from now) requires at least {req.min_staff_required} staff "
+            f"(about 24 hours from now) requires at least {required_count} staff "
             f"but only has {assigned_count} assigned. Please review the Assign Schedule "
             f"tab in Staffing and cover this shift."
         )

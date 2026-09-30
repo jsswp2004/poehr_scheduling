@@ -20,6 +20,7 @@ from .models import (
     DAY_OF_WEEK_CHOICES,
     VALID_DAY_CODES,
 )
+from .coverage import assigned_staff_count, effective_requirement
 from .shift_generation import generate_shifts_for_pattern
 from .serializers import (
     StaffRecurringPatternSerializer,
@@ -715,7 +716,7 @@ class CoverageComplianceReportView(APIView):
                 status=400,
             )
 
-        requirements = _org_queryset(ShiftCoverageRequirement, request).filter(is_active=True)
+        requirements = _org_queryset(ShiftCoverageRequirement, request).filter(is_active=True).select_related("unit")
 
         rows = []
         understaffed_count = 0
@@ -723,18 +724,9 @@ class CoverageComplianceReportView(APIView):
             a_date = start
             while a_date <= end:
                 if req.applies_on(a_date):
-                    assigned = (
-                        StaffShift.objects.filter(
-                            organization=req.organization,
-                            date=a_date,
-                            shift_type=req.shift_type,
-                            is_cancelled=False,
-                        )
-                        .values("staff_id")
-                        .distinct()
-                        .count()
-                    )
-                    met = assigned >= req.min_staff_required
+                    assigned = assigned_staff_count(req, a_date)
+                    eff = effective_requirement(req, a_date)
+                    met = assigned >= eff.required_staff
                     if not met:
                         understaffed_count += 1
                     rows.append(
@@ -743,7 +735,15 @@ class CoverageComplianceReportView(APIView):
                             "shift_type": req.shift_type,
                             "shift_type_display": req.get_shift_type_display(),
                             "date": a_date.isoformat(),
-                            "required": req.min_staff_required,
+                            "required": eff.required_staff,
+                            "mode": eff.mode,
+                            "unit_id": req.unit_id,
+                            "unit_name": req.unit.name if req.unit_id else None,
+                            "census": eff.census,
+                            "census_source": eff.census_source,
+                            "required_hours": eff.required_hours,
+                            "required_rn": eff.required_rn,
+                            "note": eff.note,
                             "assigned": assigned,
                             "status": "Met" if met else "Understaffed",
                             "alert_sent": CoverageAlert.objects.filter(
