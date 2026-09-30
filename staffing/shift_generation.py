@@ -51,6 +51,7 @@ def generate_shifts_for_pattern(pattern, window_days=DEFAULT_WINDOW_DAYS):
                 recurring_pattern=pattern,
                 defaults={
                     "organization": pattern.organization,
+                    "unit_id": pattern.unit_id,
                     "start_time": pattern.start_time,
                     "end_time": pattern.end_time,
                     "source": "recurring",
