@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from users.models import CustomUser, Organization
 
-from .models import ShiftCoverageRequirement, Staff, Unit, UnitCensus
+from .models import ShiftCoverageRequirement, Staff, StaffShift, Unit, UnitCensus
 
 D = datetime.date(2026, 10, 5)
 BASE = "/api/staffing"
@@ -130,6 +130,25 @@ class CensusApiTests(Base):
         allrows = client_for(self.nurse).get(f"{BASE}/census/").json()
         allrows = allrows["results"] if isinstance(allrows, dict) else allrows
         self.assertNotIn(99, [x["census"] for x in allrows])
+
+
+class ShiftUnitFilterTests(Base):
+    def test_calendar_unit_filter(self):
+        staff = Staff.objects.create(organization=self.org, first_name="A", last_name="B", profession="Nurse")
+        other_unit = Unit.objects.create(organization=self.org, name="ICU")
+        for unit in (self.unit, other_unit, None):
+            StaffShift.objects.create(organization=self.org, staff=staff, unit=unit,
+                                      date=D, shift_type="day")
+        c = client_for(self.nurse)
+
+        def units_in(params):
+            r = c.get(f"{BASE}/shifts/", params).json()
+            rows = r["results"] if isinstance(r, dict) else r
+            return sorted((x["unit_name"] or "-") for x in rows)
+
+        self.assertEqual(units_in({}), ["-", "2 West", "ICU"])
+        self.assertEqual(units_in({"unit": "all"}), ["-", "2 West", "ICU"])
+        self.assertEqual(units_in({"unit": self.unit.id}), ["2 West"])
 
 
 class NewFieldsTests(Base):

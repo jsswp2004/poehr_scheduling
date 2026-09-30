@@ -2,7 +2,17 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import { Box, Typography, CircularProgress, Chip, Stack } from "@mui/material";
+import {
+  Box,
+  Typography,
+  CircularProgress,
+  Chip,
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from "@mui/material";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -18,6 +28,9 @@ const SHIFT_COLORS = {
 
 function StaffingCalendarTab({ isAdmin = false }) {
   const [shifts, setShifts] = useState([]);
+  const [units, setUnits] = useState([]);
+  // "" means All Units (the original, unfiltered view).
+  const [unitId, setUnitId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [range, setRange] = useState(() => {
@@ -38,6 +51,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           params: {
             start: start.format("YYYY-MM-DD"),
             end: end.format("YYYY-MM-DD"),
+            ...(unitId ? { unit: unitId } : {}),
           },
         });
         setShifts(res.data.results || res.data || []);
@@ -48,13 +62,25 @@ function StaffingCalendarTab({ isAdmin = false }) {
         setLoading(false);
       }
     },
-    [token]
+    [token, unitId]
   );
 
+  // Loads on mount and again whenever the unit dropdown changes, keeping
+  // the month/week the user is currently looking at.
   useEffect(() => {
     fetchShifts(range.start, range.end);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [unitId]);
+
+  useEffect(() => {
+    axios
+      .get(apiEndpoints.staffingUnits, {
+        headers: getAuthHeaders(token),
+        params: { active_only: 1 },
+      })
+      .then((res) => setUnits(res.data.results || res.data || []))
+      .catch((err) => console.error("Failed to load units", err));
+  }, [token]);
 
   const handleSelectEvent = async (event) => {
     if (!isAdmin) return;
@@ -137,6 +163,23 @@ function StaffingCalendarTab({ isAdmin = false }) {
           />
         ))}
         {loading && <CircularProgress size={18} sx={{ ml: 1 }} />}
+        <Box sx={{ flexGrow: 1 }} />
+        <FormControl size="small" sx={{ minWidth: 200 }}>
+          <InputLabel id="calendar-unit-label">Unit</InputLabel>
+          <Select
+            labelId="calendar-unit-label"
+            label="Unit"
+            value={unitId}
+            onChange={(e) => setUnitId(e.target.value)}
+          >
+            <MenuItem value="">All Units</MenuItem>
+            {units.map((u) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
       </Stack>
       {isAdmin && (
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
