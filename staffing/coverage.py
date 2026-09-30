@@ -15,7 +15,7 @@ and says why in `note`, instead of silently reporting nothing.
 """
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 from . import hppd
@@ -118,3 +118,98 @@ def assigned_staff_count(req, a_date) -> int:
     if req.unit_id:
         qs = qs.filter(unit_id=req.unit_id)
     return qs.values("staff_id").distinct().count()
+
+
+DEFAULT_SHIFT_HOURS = 8.0
+
+
+def shift_hours(shift, default_hours=DEFAULT_SHIFT_HOURS) -> float:
+    """
+    Hours worked on a StaffShift. Uses start/end times (an end at or before the
+    start means the shift crosses midnight); if either is missing, falls back
+    to `default_hours` (the unit pattern's shift length).
+    """
+    if shift.start_time and shift.end_time:
+        start = datetime.combine(shift.date, shift.start_time)
+        end = datetime.combine(shift.date, shift.end_time)
+        if end <= start:
+            end += timedelta(days=1)
+        return (end - start).total_seconds() / 3600.0
+    return default_hours
+
+
+@dataclass(frozen=True)
+class RequirementStatus:
+    requirement: EffectiveRequirement
+    assigned: int                        # heads counted (RN/LPN/CNA only in hppd mode)
+    hours_scheduled: Optional[float]     # hppd mode only
+    rn_scheduled: Optional[int]          # hppd mode only
+    met: bool
+    shortfalls: Tuple[str, ...] = ()
+
+
+def _pattern_shift_hours(req) -> float:
+    if req.unit_id:
+        for s in hppd.get_pattern(req.unit.shift_pattern):
+            if s.shift_type == req.shift_type:
+                return float(s.hours)
+    return DEFAULT_SHIFT_HOURS
+
+
+def evaluate_requirement(req, a_date) -> RequirementStatus:
+    """
+    Does the schedule meet `req` on `a_date`?
+
+      * fixed mode: distinct staff scheduled >= min_staff_required (as before).
+      * hppd mode : scheduled care hours >= required hours, RN/LPN/CNA heads
+                    >= the 1:15 ratio, and at least the required RNs. Only staff
+                    whose nursing_role is rn/lpn/cna count.
+    """
+    eff = effective_requirement(req, a_date)
+
+    qs = StaffShift.objects.filter(
+        organization=req.organization,
+        date=a_date,
+        shift_type=req.shift_type,
+        is_cancelled=False,
+    ).select_related("staff")
+    if req.unit_id:
+        qs = qs.filter(unit_id=req.unit_id)
+    shifts = list(qs)
+
+    if eff.mode != MODE_HPPD:
+        heads = len({s.staff_id for s in shifts})
+        met = heads >= eff.required_staff
+        shortfalls = () if met else (f"Short {eff.required_staff - heads} staff",)
+        return RequirementStatus(eff, heads, None, None, met, shortfalls)
+
+    default_hours = _pattern_shift_hours(req)
+    per_staff = {}  # one entry per person; if they hold two rows, keep the longer
+    for s in shifts:
+        hrs = shift_hours(s, default_hours)
+        if s.staff_id not in per_staff or hrs > per_staff[s.staff_id][1]:
+            per_staff[s.staff_id] = (s.staff.nursing_role, hrs)
+
+    hreq = hppd.ShiftRequirement(
+        shift_name=req.get_shift_type_display(),
+        shift_type=req.shift_type,
+        shift_hours=default_hours,
+        required_hours=eff.required_hours or 0.0,
+        staff_by_hours=0,
+        staff_by_ratio=eff.staff_by_ratio,
+        required_staff=eff.required_staff,
+        required_rn=eff.required_rn,
+    )
+    c = hppd.evaluate_shift(hreq, per_staff.values())
+
+    shortfalls = []
+    if not c.hours_ok:
+        shortfalls.append(f"Short {c.hours_short:g} care hours")
+    if not c.ratio_ok:
+        shortfalls.append(f"Short {c.staff_short} staff for the 1:15 ratio")
+    if not c.rn_ok:
+        shortfalls.append(f"Need {eff.required_rn} RN, have {c.rn_scheduled}")
+
+    return RequirementStatus(
+        eff, c.heads_scheduled, c.hours_scheduled, c.rn_scheduled, c.compliant, tuple(shortfalls)
+    )

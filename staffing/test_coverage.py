@@ -13,6 +13,8 @@ from .coverage import (
     MAX_CARRY_FORWARD_DAYS,
     assigned_staff_count,
     effective_requirement,
+    evaluate_requirement,
+    shift_hours,
 )
 from .models import ShiftCoverageRequirement, Staff, StaffShift, Unit, UnitCensus
 
@@ -96,3 +98,139 @@ class AssignedCountTests(TestCase):
             organization=org, unit=u1, shift_type="day", days_of_week=["mon"], start_date=D)
         self.assertEqual(assigned_staff_count(org_wide, D), 2)   # unit-less: whole org, cancelled excluded
         self.assertEqual(assigned_staff_count(unit_a, D), 1)     # only unit A
+
+
+T = datetime.time
+
+
+class EvaluateRequirementTests(TestCase):
+    """Census 40 on an 8h unit -> Day needs 48 care hours, ratio 3, 1 RN."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name="Test Org")
+        self.unit = Unit.objects.create(organization=self.org, name="2 West", shift_pattern="8h")
+        UnitCensus.objects.create(unit=self.unit, date=D, census=40)
+        self.req = ShiftCoverageRequirement.objects.create(
+            organization=self.org, unit=self.unit, shift_type="day", mode="hppd",
+            days_of_week=["mon"], start_date=D, min_staff_required=1,
+        )
+        self.n = 0
+
+    def add(self, role, start=T(7, 0), end=T(15, 0), **kw):
+        self.n += 1
+        st = Staff.objects.create(
+            organization=self.org, first_name="S", last_name=str(self.n),
+            profession=role.upper(), nursing_role=role,
+        )
+        StaffShift.objects.create(
+            organization=self.org, staff=st, unit=self.unit, date=D,
+            shift_type="day", start_time=start, end_time=end, **kw,
+        )
+        return st
+
+    def test_met(self):
+        for role in ("rn", "lpn", "cna", "cna", "cna", "cna"):
+            self.add(role)
+        r = evaluate_requirement(self.req, D)
+        self.assertTrue(r.met)
+        self.assertEqual((r.assigned, r.hours_scheduled, r.rn_scheduled), (6, 48, 1))
+        self.assertEqual(r.shortfalls, ())
+
+    def test_short_hours(self):
+        for role in ("rn", "lpn", "cna", "cna", "cna"):     # 40 h
+            self.add(role)
+        r = evaluate_requirement(self.req, D)
+        self.assertFalse(r.met)
+        self.assertEqual(r.shortfalls, ("Short 8 care hours",))
+
+    def test_no_rn(self):
+        for role in ("lpn", "lpn", "cna", "cna", "cna", "cna"):
+            self.add(role)
+        r = evaluate_requirement(self.req, D)
+        self.assertFalse(r.met)
+        self.assertEqual(r.shortfalls, ("Need 1 RN, have 0",))
+
+    def test_other_role_does_not_count(self):
+        for role in ("rn", "lpn", "cna", "cna", "cna", "other"):
+            self.add(role)
+        r = evaluate_requirement(self.req, D)
+        self.assertEqual(r.assigned, 5)
+        self.assertFalse(r.met)
+
+    def test_12h_person_supplies_more_hours(self):
+        # 4 x 12h = 48 h with only 4 heads: hours met, ratio (3) met, RN present
+        self.add("rn", T(7, 0), T(19, 0))
+        for _ in range(3):
+            self.add("cna", T(7, 0), T(19, 0))
+        r = evaluate_requirement(self.req, D)
+        self.assertTrue(r.met)
+        self.assertEqual(r.hours_scheduled, 48)
+
+    def test_missing_times_use_pattern_length(self):
+        for role in ("rn", "lpn", "cna", "cna", "cna", "cna"):
+            self.add(role, start=None, end=None)
+        r = evaluate_requirement(self.req, D)
+        self.assertEqual(r.hours_scheduled, 48)
+        self.assertTrue(r.met)
+
+    def test_cancelled_shift_ignored(self):
+        for role in ("rn", "lpn", "cna", "cna", "cna"):
+            self.add(role)
+        self.add("cna", is_cancelled=True)
+        self.assertFalse(evaluate_requirement(self.req, D).met)
+
+    def test_fixed_mode_still_counts_heads(self):
+        fixed = ShiftCoverageRequirement.objects.create(
+            organization=self.org, shift_type="day", days_of_week=["mon"],
+            start_date=D, min_staff_required=2,
+        )
+        self.add("other")
+        self.assertFalse(evaluate_requirement(fixed, D).met)
+        self.add("other")
+        r = evaluate_requirement(fixed, D)
+        self.assertTrue(r.met)
+        self.assertIsNone(r.hours_scheduled)
+
+    def test_shift_hours_overnight(self):
+        class S:
+            date = D
+            start_time, end_time = T(19, 0), T(7, 0)
+        self.assertEqual(shift_hours(S), 12)
+
+
+class ComplianceReportEndpointTests(TestCase):
+    """The compliance report reports HPPD requirements and keeps the old fields."""
+
+    def test_report_rows(self):
+        from rest_framework.test import APIClient
+        from users.models import CustomUser
+
+        org = Organization.objects.create(name="Test Org")
+        admin = CustomUser.objects.create_user(
+            username="rep_admin", password="x", role="admin", organization=org
+        )
+        unit = Unit.objects.create(organization=org, name="2 West", shift_pattern="8h")
+        UnitCensus.objects.create(unit=unit, date=D, census=40)
+        ShiftCoverageRequirement.objects.create(
+            organization=org, unit=unit, shift_type="day", mode="hppd",
+            days_of_week=["mon"], start_date=D)
+        ShiftCoverageRequirement.objects.create(
+            organization=org, shift_type="night", days_of_week=["mon"],
+            start_date=D, min_staff_required=1)
+
+        client = APIClient()
+        client.force_authenticate(admin)
+        resp = client.get(
+            "/api/staffing/reports/coverage-compliance/", {"start": D.isoformat(), "end": D.isoformat()}
+        )
+        self.assertEqual(resp.status_code, 200, resp.content)
+        rows = {r["shift_type"]: r for r in resp.json()["rows"]}
+        day, night = rows["day"], rows["night"]
+        self.assertEqual((day["mode"], day["required"], day["required_hours"], day["unit_name"]),
+                         ("hppd", 6, 48, "2 West"))
+        self.assertEqual(day["status"], "Understaffed")
+        self.assertIn("Need 1 RN, have 0", day["shortfalls"])
+        # fixed row keeps the original shape and meaning
+        self.assertEqual((night["mode"], night["required"], night["assigned"]), ("fixed", 1, 0))
+        self.assertEqual(night["status"], "Understaffed")
+        self.assertEqual(resp.json()["understaffed_count"], 2)

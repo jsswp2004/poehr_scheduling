@@ -152,7 +152,7 @@ def send_coverage_alerts(now=None):
     from communicator.utils import send_email
     from users.models import CustomUser
 
-    from .coverage import assigned_staff_count, effective_requirement
+    from .coverage import evaluate_requirement
 
     now = now or timezone.now()
     # The 24-hours-out calendar date is what actually matters here (a
@@ -175,11 +175,11 @@ def send_coverage_alerts(now=None):
         if CoverageAlert.objects.filter(requirement=req, date=target_date).exists():
             continue  # already alerted for this requirement/date
 
-        assigned_count = assigned_staff_count(req, target_date)
-        eff = effective_requirement(req, target_date)
-        required_count = eff.required_staff
+        result = evaluate_requirement(req, target_date)
+        assigned_count = result.assigned
+        required_count = result.requirement.required_staff
 
-        if assigned_count >= required_count:
+        if result.met:
             continue
 
         admins = CustomUser.objects.filter(
@@ -194,6 +194,8 @@ def send_coverage_alerts(now=None):
             f"but only has {assigned_count} assigned. Please review the Assign Schedule "
             f"tab in Staffing and cover this shift."
         )
+        if result.requirement.mode == "hppd" and result.shortfalls:
+            body += " Shortfall: " + "; ".join(result.shortfalls) + "."
 
         sent_to_any = False
         for admin in admins:
