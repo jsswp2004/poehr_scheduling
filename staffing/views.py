@@ -208,6 +208,10 @@ class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
         staff_id = self.request.query_params.get("staff")
         if staff_id:
             qs = qs.filter(staff_id=staff_id)
+        # Calendar unit filter; omit (or "all") for every unit.
+        unit_id = self.request.query_params.get("unit")
+        if unit_id and unit_id != "all":
+            qs = qs.filter(unit_id=unit_id)
         profession = self.request.query_params.get("profession")
         if profession:
             qs = qs.filter(staff__profession=profession)
