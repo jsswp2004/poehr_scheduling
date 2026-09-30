@@ -2,6 +2,24 @@ from django.conf import settings
 from django.db import models
 from users.models import Organization
 
+# --- HPPD (hours per patient day) staffing support -------------------------
+NURSING_ROLE_CHOICES = [
+    ("rn", "RN"),
+    ("lpn", "LPN"),
+    ("cna", "CNA / support"),
+    ("other", "Other (not counted toward HPPD)"),
+]
+
+SHIFT_PATTERN_CHOICES = [
+    ("8h", "8-hour shifts (Day / Evening / Night)"),
+    ("12h", "12-hour shifts (Day / Night)"),
+]
+
+COVERAGE_MODE_CHOICES = [
+    ("fixed", "Fixed minimum staff"),
+    ("hppd", "Calculated from census (HPPD)"),
+]
+
 
 class Staff(models.Model):
     """
@@ -28,6 +46,15 @@ class Staff(models.Model):
     profession = models.CharField(
         max_length=100,
         help_text="Free-text role, e.g. Nurse, Physician, CNA, Tech -- whatever the org's roster uses.",
+    )
+    nursing_role = models.CharField(
+        max_length=10,
+        choices=NURSING_ROLE_CHOICES,
+        default="other",
+        help_text=(
+            "Direct-care role used by the HPPD checks. Only RN, LPN and CNA "
+            "count toward required hours and staff ratios; 'other' does not."
+        ),
     )
     email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
@@ -108,6 +135,14 @@ class StaffRecurringPattern(models.Model):
         on_delete=models.CASCADE,
         related_name="recurring_patterns",
     )
+    unit = models.ForeignKey(
+        "Unit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recurring_patterns",
+        help_text="Unit this duty pattern covers. Blank = not tied to a unit.",
+    )
     shift_type = models.CharField(
         max_length=20, choices=SHIFT_TYPE_CHOICES, default="day"
     )
@@ -174,6 +209,14 @@ class StaffShift(models.Model):
         on_delete=models.CASCADE,
         related_name="shifts",
     )
+    unit = models.ForeignKey(
+        "Unit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="shifts",
+        help_text="Unit this shift is worked on. Blank = not tied to a unit.",
+    )
     date = models.DateField()
     shift_type = models.CharField(
         max_length=20, choices=SHIFT_TYPE_CHOICES, default="day"
@@ -232,6 +275,23 @@ class ShiftCoverageRequirement(models.Model):
         Organization,
         on_delete=models.CASCADE,
         related_name="staffing_coverage_requirements",
+    )
+    unit = models.ForeignKey(
+        "Unit",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="coverage_requirements",
+        help_text="Unit this requirement applies to. Blank = whole organization (existing behavior).",
+    )
+    mode = models.CharField(
+        max_length=10,
+        choices=COVERAGE_MODE_CHOICES,
+        default="fixed",
+        help_text=(
+            "'fixed' uses min_staff_required as typed. 'hppd' calculates the "
+            "requirement from the unit's census (Maryland hours + 1:15 ratio + RN)."
+        ),
     )
     shift_type = models.CharField(
         max_length=20, choices=SHIFT_TYPE_CHOICES, default="day"
@@ -296,3 +356,69 @@ class CoverageAlert(models.Model):
 
     def __str__(self):
         return f"Coverage alert: {self.requirement} on {self.date}"
+
+
+class Unit(models.Model):
+    """
+    A care unit within an organization (e.g. "2 West"). Holds the census that
+    drives the HPPD staffing requirement and the 8h/12h shift-pattern toggle.
+    """
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="staffing_units",
+    )
+    name = models.CharField(max_length=100)
+    shift_pattern = models.CharField(
+        max_length=10,
+        choices=SHIFT_PATTERN_CHOICES,
+        default="8h",
+        help_text="8-hour (Day/Evening/Night) or 12-hour (Day/Night) shifts for this unit.",
+    )
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ["organization", "name"]
+
+    def __str__(self):
+        return self.name
+
+
+class UnitCensus(models.Model):
+    """
+    The number of residents/patients on a unit for a given day, entered by
+    hand. One row per unit per date.
+    """
+
+    unit = models.ForeignKey(
+        Unit,
+        on_delete=models.CASCADE,
+        related_name="census_entries",
+    )
+    date = models.DateField()
+    census = models.PositiveIntegerField(
+        help_text="Occupied beds / residents on this unit for this date.",
+    )
+    entered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date"]
+        unique_together = ["unit", "date"]
+        verbose_name_plural = "unit census entries"
+
+    def __str__(self):
+        return f"{self.unit} - {self.date}: {self.census}"
