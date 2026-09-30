@@ -42,10 +42,10 @@ function StaffingPage() {
 
   return (
     <Box sx={{ height: "100%", p: 2, bgcolor: "background.paper", borderRadius: 2 }}>
-      <BackButton to="/solutions" />
-      <Typography variant="h5" sx={{ mb: 2, mt: 1 }}>
-        Staffing
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+        <BackButton to="/solutions" sx={{ mb: 0 }} />
+        <Typography variant="h5">Staffing</Typography>
+      </Box>
 
       <Tabs
         value={tab}
