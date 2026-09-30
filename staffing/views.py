@@ -16,6 +16,8 @@ from .models import (
     StaffShift,
     ShiftCoverageRequirement,
     CoverageAlert,
+    Unit,
+    UnitCensus,
     SHIFT_TYPE_CHOICES,
     DAY_OF_WEEK_CHOICES,
     VALID_DAY_CODES,
@@ -27,6 +29,8 @@ from .serializers import (
     StaffSerializer,
     StaffShiftSerializer,
     ShiftCoverageRequirementSerializer,
+    UnitSerializer,
+    UnitCensusSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -469,6 +473,116 @@ class ShiftCoverageRequirementViewSet(StaffingAdminWriteMixin, viewsets.ModelVie
             serializer.save()
         else:
             serializer.save(organization=user.organization)
+
+
+class UnitViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
+    """
+    Nursing units (e.g. "2 West"). Each has a shift pattern toggle
+    (8h = Day/Evening/Night, 12h = Day/Night) that drives HPPD staffing
+    requirements. Managers can read; only admins can change.
+    """
+
+    serializer_class = UnitSerializer
+
+    def get_queryset(self):
+        qs = _org_queryset(Unit, self.request)
+        active_only = self.request.query_params.get("active_only")
+        if active_only in ("1", "true", "True"):
+            qs = qs.filter(is_active=True)
+        return qs.order_by("name")
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        # One query for every unit's most recent census, instead of one each.
+        latest = {}
+        qs = _org_queryset_for_census(self.request).order_by("unit_id", "-date")
+        for entry in qs:
+            latest.setdefault(entry.unit_id, entry)
+        ctx["latest_census"] = latest
+        return ctx
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == "system_admin" and self.request.data.get("organization"):
+            serializer.save(organization_id=self.request.data.get("organization"))
+        else:
+            serializer.save(organization=user.organization)
+
+    def destroy(self, request, *args, **kwargs):
+        denied = self._require_admin(request)
+        if denied:
+            return denied
+        unit = self.get_object()
+        # Deleting would cascade to the unit's census history and coverage
+        # requirements, silently removing staffing rules. Deactivate instead.
+        if unit.coverage_requirements.exists() or unit.census_entries.exists():
+            return Response(
+                {
+                    "error": "This unit has census history or coverage "
+                    "requirements. Mark it inactive instead of deleting it."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().destroy(request, *args, **kwargs)
+
+
+def _org_queryset_for_census(request):
+    user = request.user
+    qs = UnitCensus.objects.all()
+    if user.role != "system_admin":
+        qs = qs.filter(unit__organization=user.organization)
+    return qs
+
+
+class UnitCensusViewSet(viewsets.ModelViewSet):
+    """
+    Daily census per unit. Open to every staffing manager role (charge
+    nurses enter census, not just admins). Entering a census for a unit and
+    date that already has one updates it rather than erroring, so the
+    daily grid can simply save what is on screen.
+
+    GET /api/staffing/census/?unit=<id>&start=YYYY-MM-DD&end=YYYY-MM-DD
+    """
+
+    serializer_class = UnitCensusSerializer
+    permission_classes = [IsStaffingManager]
+
+    def get_queryset(self):
+        qs = _org_queryset_for_census(self.request).select_related(
+            "unit", "entered_by"
+        )
+        unit_id = self.request.query_params.get("unit")
+        if unit_id:
+            qs = qs.filter(unit_id=unit_id)
+        start = self.request.query_params.get("start")
+        end = self.request.query_params.get("end")
+        if start:
+            qs = qs.filter(date__gte=start)
+        if end:
+            qs = qs.filter(date__lte=end)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        entry, created = UnitCensus.objects.update_or_create(
+            unit=data["unit"],
+            date=data["date"],
+            defaults={
+                "census": data["census"],
+                "notes": data.get("notes", ""),
+                "entered_by": request.user,
+            },
+        )
+        out = self.get_serializer(entry)
+        return Response(
+            out.data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def perform_update(self, serializer):
+        serializer.save(entered_by=self.request.user)
 
 
 class SendStaffMessageView(APIView):

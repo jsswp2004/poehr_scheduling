@@ -59,7 +59,11 @@ function StaffingAssignTab() {
   const [status, setStatus] = useState(null);
   const [assignTab, setAssignTab] = useState("assign");
 
+  const [units, setUnits] = useState([]);
+  const [unitId, setUnitId] = useState("");
   const [coverageRequirements, setCoverageRequirements] = useState([]);
+  const [covMode, setCovMode] = useState("fixed");
+  const [covUnitId, setCovUnitId] = useState("");
   const [covShiftType, setCovShiftType] = useState("day");
   const [covDays, setCovDays] = useState([]);
   const [covMinStaff, setCovMinStaff] = useState(1);
@@ -90,7 +94,7 @@ function StaffingAssignTab() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [staffRes, patternsRes, coverageRes] = await Promise.all([
+      const [staffRes, patternsRes, coverageRes, unitsRes] = await Promise.all([
         axios.get(apiEndpoints.staffingStaff, {
           headers: getAuthHeaders(token),
           params: { active_only: 1 },
@@ -101,7 +105,12 @@ function StaffingAssignTab() {
         axios.get(apiEndpoints.staffingCoverageRequirements, {
           headers: getAuthHeaders(token),
         }),
+        axios.get(apiEndpoints.staffingUnits, {
+          headers: getAuthHeaders(token),
+          params: { active_only: 1 },
+        }),
       ]);
+      setUnits(unitsRes.data.results || unitsRes.data || []);
       setStaffList(staffRes.data.results || staffRes.data || []);
       setPatterns(patternsRes.data.results || patternsRes.data || []);
       setCoverageRequirements(coverageRes.data.results || coverageRes.data || []);
@@ -148,6 +157,7 @@ function StaffingAssignTab() {
           apiEndpoints.staffingShifts,
           {
             staff: staffId,
+            unit: unitId || null,
             date: startDate,
             shift_type: shiftType,
             start_time: startTime,
@@ -162,6 +172,7 @@ function StaffingAssignTab() {
           apiEndpoints.staffingRecurringPatterns,
           {
             staff: staffId,
+            unit: unitId || null,
             shift_type: shiftType,
             start_time: startTime,
             end_time: endTime,
@@ -200,6 +211,7 @@ function StaffingAssignTab() {
     setEditPatternForm({
       id: p.id,
       staff: p.staff,
+      unit: p.unit || "",
       shift_type: p.shift_type,
       start_time: (p.start_time || "").slice(0, 5) || "07:00",
       end_time: (p.end_time || "").slice(0, 5) || "15:00",
@@ -243,6 +255,7 @@ function StaffingAssignTab() {
         apiEndpoints.staffingRecurringPatternDetail(editPatternForm.id),
         {
           staff: editPatternForm.staff,
+          unit: editPatternForm.unit || null,
           shift_type: editPatternForm.shift_type,
           start_time: editPatternForm.start_time,
           end_time: editPatternForm.end_time,
@@ -274,6 +287,8 @@ function StaffingAssignTab() {
   const resetCovForm = () => {
     setCovDays([]);
     setCovMinStaff(1);
+    setCovMode("fixed");
+    setCovUnitId("");
     setCovEndDate("");
     setCovNotes("");
   };
@@ -283,11 +298,20 @@ function StaffingAssignTab() {
       setCovStatus({ ok: false, message: "Choose at least one day of the week." });
       return;
     }
+    if (covMode === "hppd" && !covUnitId) {
+      setCovStatus({
+        ok: false,
+        message: "Choose a unit: HPPD staffing is calculated from that unit's census.",
+      });
+      return;
+    }
     try {
       await axios.post(
         apiEndpoints.staffingCoverageRequirements,
         {
           shift_type: covShiftType,
+          mode: covMode,
+          unit: covUnitId || null,
           days_of_week: covDays,
           min_staff_required: covMinStaff,
           start_date: covStartDate,
@@ -345,6 +369,25 @@ function StaffingAssignTab() {
             {staffList.map((s) => (
               <MenuItem key={s.id} value={s.id}>
                 {s.full_name} ({s.profession_display || s.profession})
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" sx={{ minWidth: 260 }}>
+          <InputLabel id="assign-unit-label">Unit (optional)</InputLabel>
+          <Select
+            labelId="assign-unit-label"
+            label="Unit (optional)"
+            value={unitId}
+            onChange={(e) => setUnitId(e.target.value)}
+          >
+            <MenuItem value="">
+              <em>No unit</em>
+            </MenuItem>
+            {units.map((u) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.name}
               </MenuItem>
             ))}
           </Select>
@@ -467,6 +510,7 @@ function StaffingAssignTab() {
           <TableHead>
             <TableRow>
               <TableCell>Staff</TableCell>
+              <TableCell>Unit</TableCell>
               <TableCell>Shift</TableCell>
               <TableCell>Days</TableCell>
               <TableCell>Start</TableCell>
@@ -478,6 +522,7 @@ function StaffingAssignTab() {
             {patterns.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{p.staff_name}</TableCell>
+                <TableCell>{p.unit_name || "-"}</TableCell>
                 <TableCell>{p.shift_type_display || p.shift_type}</TableCell>
                 <TableCell>{(p.days_of_week || []).join(", ")}</TableCell>
                 <TableCell>{p.start_date}</TableCell>
@@ -524,6 +569,25 @@ function StaffingAssignTab() {
                   ))}
                 </Select>
               </FormControl>
+
+        <FormControl size="small" fullWidth>
+          <InputLabel id="edit-unit-label">Unit (optional)</InputLabel>
+          <Select
+            labelId="edit-unit-label"
+            label="Unit (optional)"
+            value={editPatternForm.unit}
+            onChange={(e) => setEditPatternForm((f) => ({ ...f, unit: e.target.value }))}
+          >
+            <MenuItem value="">
+              <em>No unit</em>
+            </MenuItem>
+            {units.map((u) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
               <Stack direction="row" spacing={2}>
                 <FormControl size="small" sx={{ minWidth: 160 }}>
@@ -643,6 +707,48 @@ function StaffingAssignTab() {
       </Typography>
 
       <Stack spacing={2} sx={{ mb: 3, maxWidth: 900 }}>
+        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <InputLabel id="cov-mode-label">Requirement Type</InputLabel>
+            <Select
+              labelId="cov-mode-label"
+              label="Requirement Type"
+              value={covMode}
+              onChange={(e) => setCovMode(e.target.value)}
+            >
+              <MenuItem value="fixed">Fixed minimum staff</MenuItem>
+              <MenuItem value="hppd">HPPD (from unit census)</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <InputLabel id="cov-unit-label">
+              {covMode === "hppd" ? "Unit" : "Unit (optional)"}
+            </InputLabel>
+            <Select
+              labelId="cov-unit-label"
+              label={covMode === "hppd" ? "Unit" : "Unit (optional)"}
+              value={covUnitId}
+              onChange={(e) => setCovUnitId(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>No unit</em>
+              </MenuItem>
+              {units.map((u) => (
+                <MenuItem key={u.id} value={u.id}>
+                  {u.name} ({u.shift_pattern === "12h" ? "12h" : "8h"})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Stack>
+        {covMode === "hppd" && (
+          <Typography variant="body2" color="text.secondary">
+            Maryland: 3.0 nursing hours per resident per day (RN + LPN + CNA),
+            at least 1 staff per 15 residents, and at least 1 RN every shift.
+            Staff counted toward this requirement must be assigned to this
+            unit and have a nursing role set on the Roster tab.
+          </Typography>
+        )}
         <Stack direction="row" spacing={2}>
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel id="cov-shift-type-label">Shift Type</InputLabel>
@@ -659,15 +765,17 @@ function StaffingAssignTab() {
               ))}
             </Select>
           </FormControl>
-          <TextField
-            label="Minimum Staff Required"
-            type="number"
-            size="small"
-            inputProps={{ min: 1 }}
-            value={covMinStaff}
-            onChange={(e) => setCovMinStaff(Math.max(1, Number(e.target.value) || 1))}
-            sx={{ width: 220 }}
-          />
+          {covMode === "fixed" && (
+            <TextField
+              label="Minimum Staff Required"
+              type="number"
+              size="small"
+              inputProps={{ min: 1 }}
+              value={covMinStaff}
+              onChange={(e) => setCovMinStaff(Math.max(1, Number(e.target.value) || 1))}
+              sx={{ width: 220 }}
+            />
+          )}
         </Stack>
 
         <Box>
@@ -735,9 +843,10 @@ function StaffingAssignTab() {
         <Table size="small">
           <TableHead>
             <TableRow>
+              <TableCell>Unit</TableCell>
               <TableCell>Shift</TableCell>
               <TableCell>Days</TableCell>
-              <TableCell>Min Staff</TableCell>
+              <TableCell>Requirement</TableCell>
               <TableCell>Start</TableCell>
               <TableCell>End</TableCell>
               <TableCell />
@@ -746,9 +855,12 @@ function StaffingAssignTab() {
           <TableBody>
             {coverageRequirements.map((r) => (
               <TableRow key={r.id}>
+                <TableCell>{r.unit_name || "-"}</TableCell>
                 <TableCell>{r.shift_type_display || r.shift_type}</TableCell>
                 <TableCell>{(r.days_of_week || []).join(", ")}</TableCell>
-                <TableCell>{r.min_staff_required}</TableCell>
+                <TableCell>
+                  {r.mode === "hppd" ? "HPPD (census-based)" : `Min ${r.min_staff_required}`}
+                </TableCell>
                 <TableCell>{r.start_date}</TableCell>
                 <TableCell>{r.end_date || "Ongoing"}</TableCell>
                 <TableCell>

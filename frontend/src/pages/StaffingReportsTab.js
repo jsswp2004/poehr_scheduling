@@ -245,8 +245,21 @@ function StaffingReportsTab() {
   const handleExportCompliance = () => {
     downloadCsv(
       `staffing_coverage_compliance_${startDate}_to_${endDate}.csv`,
-      ["Date", "Shift", "Required", "Assigned", "Status", "Alert Sent"],
-      complianceRows.map((r) => [r.date, r.shift_type_display, r.required, r.assigned, r.status, r.alert_sent ? "Yes" : "No"])
+      ["Date", "Unit", "Shift", "Type", "Census", "Required Staff", "Assigned", "Required Care Hours", "Scheduled Care Hours", "Status", "Details", "Alert Sent"],
+      complianceRows.map((r) => [
+        r.date,
+        r.unit_name || "",
+        r.shift_type_display,
+        r.mode === "hppd" ? "HPPD" : "Fixed",
+        r.mode === "hppd" ? r.census ?? "" : "",
+        r.required,
+        r.assigned,
+        r.mode === "hppd" ? r.required_hours : "",
+        r.mode === "hppd" ? r.hours_scheduled : "",
+        r.status,
+        [...(r.shortfalls || []), r.note].filter(Boolean).join("; "),
+        r.alert_sent ? "Yes" : "No",
+      ])
     );
   };
 
@@ -534,10 +547,14 @@ function StaffingReportsTab() {
             <TableHead>
               <TableRow>
                 <TableCell>Date</TableCell>
+                <TableCell>Unit</TableCell>
                 <TableCell>Shift</TableCell>
+                <TableCell align="right">Census</TableCell>
                 <TableCell align="right">Required</TableCell>
                 <TableCell align="right">Assigned</TableCell>
+                <TableCell align="right">Care Hours (sched / req)</TableCell>
                 <TableCell>Status</TableCell>
+                <TableCell>Details</TableCell>
                 <TableCell>Alert Sent</TableCell>
               </TableRow>
             </TableHead>
@@ -545,11 +562,25 @@ function StaffingReportsTab() {
               {complianceRows.map((r, idx) => (
                 <TableRow key={idx}>
                   <TableCell>{r.date}</TableCell>
+                  <TableCell>{r.unit_name || "—"}</TableCell>
                   <TableCell>{r.shift_type_display}</TableCell>
+                  <TableCell align="right">
+                    {r.mode === "hppd" && r.census != null
+                      ? `${r.census}${r.census_source === "carried_forward" ? "*" : ""}`
+                      : "—"}
+                  </TableCell>
                   <TableCell align="right">{r.required}</TableCell>
                   <TableCell align="right">{r.assigned}</TableCell>
+                  <TableCell align="right">
+                    {r.mode === "hppd"
+                      ? `${Number(r.hours_scheduled ?? 0).toFixed(1)} / ${Number(r.required_hours ?? 0).toFixed(1)}`
+                      : "—"}
+                  </TableCell>
                   <TableCell>
                     <Chip size="small" label={r.status} color={r.status === "Met" ? "success" : "error"} />
+                  </TableCell>
+                  <TableCell sx={{ maxWidth: 320 }}>
+                    {[...(r.shortfalls || []), r.note].filter(Boolean).join("; ") || "—"}
                   </TableCell>
                   <TableCell>{r.alert_sent ? "Yes" : "—"}</TableCell>
                 </TableRow>
@@ -559,6 +590,11 @@ function StaffingReportsTab() {
           {complianceRows.length === 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
               No active Coverage Requirements apply to this date range. Add one on the Assign Schedule tab to see compliance data here.
+            </Typography>
+          )}
+          {complianceRows.some((r) => r.census_source === "carried_forward") && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+              * Census carried forward from the most recent entry (no census was entered for that date).
             </Typography>
           )}
         </>
