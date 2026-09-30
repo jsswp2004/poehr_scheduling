@@ -20,7 +20,7 @@ from .models import (
     DAY_OF_WEEK_CHOICES,
     VALID_DAY_CODES,
 )
-from .coverage import assigned_staff_count, effective_requirement
+from .coverage import evaluate_requirement
 from .shift_generation import generate_shifts_for_pattern
 from .serializers import (
     StaffRecurringPatternSerializer,
@@ -724,9 +724,10 @@ class CoverageComplianceReportView(APIView):
             a_date = start
             while a_date <= end:
                 if req.applies_on(a_date):
-                    assigned = assigned_staff_count(req, a_date)
-                    eff = effective_requirement(req, a_date)
-                    met = assigned >= eff.required_staff
+                    result = evaluate_requirement(req, a_date)
+                    eff = result.requirement
+                    assigned = result.assigned
+                    met = result.met
                     if not met:
                         understaffed_count += 1
                     rows.append(
@@ -744,6 +745,9 @@ class CoverageComplianceReportView(APIView):
                             "required_hours": eff.required_hours,
                             "required_rn": eff.required_rn,
                             "note": eff.note,
+                            "hours_scheduled": result.hours_scheduled,
+                            "rn_scheduled": result.rn_scheduled,
+                            "shortfalls": list(result.shortfalls),
                             "assigned": assigned,
                             "status": "Met" if met else "Understaffed",
                             "alert_sent": CoverageAlert.objects.filter(
