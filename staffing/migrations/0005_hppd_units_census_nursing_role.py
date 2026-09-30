@@ -3,6 +3,24 @@ from django.conf import settings
 from django.db import migrations, models
 
 
+def keep_db_defaults(apps, schema_editor):
+    """
+    Django drops the column default after AddField, so the NOT NULL columns
+    added below would reject INSERTs from the previously deployed code (which
+    does not know about them) between running this migration and deploying the
+    new code. Re-adding a database-level default keeps old and new code both
+    working. Postgres only; SQLite (tests) does not need it.
+    """
+    if schema_editor.connection.vendor != "postgresql":
+        return
+    schema_editor.execute(
+        "ALTER TABLE staffing_staff ALTER COLUMN nursing_role SET DEFAULT 'other'"
+    )
+    schema_editor.execute(
+        "ALTER TABLE staffing_shiftcoveragerequirement ALTER COLUMN mode SET DEFAULT 'fixed'"
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -156,4 +174,5 @@ class Migration(migrations.Migration):
                 max_length=10,
             ),
         ),
+        migrations.RunPython(keep_db_defaults, migrations.RunPython.noop),
     ]
