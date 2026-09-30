@@ -22,6 +22,7 @@ import {
   Checkbox,
   Alert,
   Button,
+  MenuItem,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -40,10 +41,19 @@ const EMPTY_EDIT_FORM = {
   first_name: "",
   last_name: "",
   profession: "",
+  nursing_role: "other",
   email: "",
   phone_number: "",
   is_active: true,
 };
+
+// Only RN / LPN / CNA count toward HPPD (nursing hours per patient day).
+const NURSING_ROLES = [
+  { value: "rn", label: "RN" },
+  { value: "lpn", label: "LPN" },
+  { value: "cna", label: "CNA / Nursing assistant" },
+  { value: "other", label: "Other (not counted toward HPPD)" },
+];
 
 function StaffingRosterTab({ isAdmin = false }) {
   const token = getAccessToken();
@@ -200,6 +210,7 @@ function StaffingRosterTab({ isAdmin = false }) {
       first_name: s.first_name,
       last_name: s.last_name,
       profession: s.profession,
+      nursing_role: s.nursing_role || "other",
       email: s.email || "",
       phone_number: s.phone_number || "",
       is_active: s.is_active,
@@ -228,6 +239,7 @@ function StaffingRosterTab({ isAdmin = false }) {
           first_name: editForm.first_name.trim(),
           last_name: editForm.last_name.trim(),
           profession: editForm.profession.trim(),
+          nursing_role: editForm.nursing_role,
           email: editForm.email.trim() || null,
           phone_number: editForm.phone_number.trim() || null,
           is_active: editForm.is_active,
@@ -353,6 +365,7 @@ function StaffingRosterTab({ isAdmin = false }) {
           <TableRow>
             <TableCell>Name</TableCell>
             <TableCell>Profession</TableCell>
+            <TableCell>Nursing Role</TableCell>
             <TableCell>Email</TableCell>
             <TableCell>Phone</TableCell>
             <TableCell>Status</TableCell>
@@ -365,6 +378,7 @@ function StaffingRosterTab({ isAdmin = false }) {
             <TableRow key={s.id}>
               <TableCell>{s.full_name}</TableCell>
               <TableCell>{s.profession_display || s.profession}</TableCell>
+              <TableCell>{s.nursing_role_display || "—"}</TableCell>
               <TableCell>{s.email || "—"}</TableCell>
               <TableCell>{s.phone_number || "—"}</TableCell>
               <TableCell>
@@ -488,6 +502,20 @@ function StaffingRosterTab({ isAdmin = false }) {
               onChange={(e) => setEditForm((f) => ({ ...f, profession: e.target.value }))}
               helperText="Free text -- Nurse, Physician, CNA, Tech, etc."
             />
+            <TextField
+              select
+              label="Nursing Role"
+              fullWidth
+              value={editForm.nursing_role}
+              onChange={(e) => setEditForm((f) => ({ ...f, nursing_role: e.target.value }))}
+              helperText="Used for HPPD staffing requirements: only RN, LPN and CNA hours are counted."
+            >
+              {NURSING_ROLES.map((r) => (
+                <MenuItem key={r.value} value={r.value}>
+                  {r.label}
+                </MenuItem>
+              ))}
+            </TextField>
             <TextField
               label="Email"
               type="email"

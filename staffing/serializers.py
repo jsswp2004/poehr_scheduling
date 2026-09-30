@@ -5,8 +5,29 @@ from .models import (
     StaffRecurringPattern,
     StaffShift,
     ShiftCoverageRequirement,
+    Unit,
+    UnitCensus,
     VALID_DAY_CODES,
 )
+
+
+class UnitOrgValidationMixin:
+    """
+    Reject a ``unit`` that belongs to another organization. Without this an
+    admin could attach their data to any unit id they guessed. System admins
+    are exempt (they work across organizations).
+    """
+
+    def validate_unit(self, value):
+        if value is None:
+            return value
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user is None or getattr(user, "role", None) == "system_admin":
+            return value
+        if value.organization_id != getattr(user, "organization_id", None):
+            raise serializers.ValidationError("Unit not found.")
+        return value
 
 
 class StaffSerializer(serializers.ModelSerializer):
@@ -16,6 +37,9 @@ class StaffSerializer(serializers.ModelSerializer):
     # reads profession_display keeps working unchanged.
     profession_display = serializers.CharField(source="profession", read_only=True)
     has_login = serializers.SerializerMethodField()
+    nursing_role_display = serializers.CharField(
+        source="get_nursing_role_display", read_only=True
+    )
 
     class Meta:
         model = Staff
@@ -27,6 +51,8 @@ class StaffSerializer(serializers.ModelSerializer):
             "full_name",
             "profession",
             "profession_display",
+            "nursing_role",
+            "nursing_role_display",
             "email",
             "phone_number",
             "is_active",
@@ -42,8 +68,11 @@ class StaffSerializer(serializers.ModelSerializer):
         return obj.user_id is not None
 
 
-class StaffRecurringPatternSerializer(serializers.ModelSerializer):
+class StaffRecurringPatternSerializer(UnitOrgValidationMixin, serializers.ModelSerializer):
     staff_name = serializers.CharField(source="staff.full_name", read_only=True)
+    unit_name = serializers.CharField(
+        source="unit.name", read_only=True, allow_null=True, default=None
+    )
     shift_type_display = serializers.CharField(
         source="get_shift_type_display", read_only=True
     )
@@ -55,6 +84,8 @@ class StaffRecurringPatternSerializer(serializers.ModelSerializer):
             "organization",
             "staff",
             "staff_name",
+            "unit",
+            "unit_name",
             "shift_type",
             "shift_type_display",
             "start_time",
@@ -93,8 +124,11 @@ class StaffRecurringPatternSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class StaffShiftSerializer(serializers.ModelSerializer):
+class StaffShiftSerializer(UnitOrgValidationMixin, serializers.ModelSerializer):
     staff_name = serializers.CharField(source="staff.full_name", read_only=True)
+    unit_name = serializers.CharField(
+        source="unit.name", read_only=True, allow_null=True, default=None
+    )
     profession = serializers.CharField(source="staff.profession", read_only=True)
     shift_type_display = serializers.CharField(
         source="get_shift_type_display", read_only=True
@@ -108,6 +142,8 @@ class StaffShiftSerializer(serializers.ModelSerializer):
             "staff",
             "staff_name",
             "profession",
+            "unit",
+            "unit_name",
             "date",
             "shift_type",
             "shift_type_display",
@@ -133,9 +169,12 @@ class StaffCSVRowResultSerializer(serializers.Serializer):
     errors = serializers.ListField(child=serializers.CharField())
 
 
-class ShiftCoverageRequirementSerializer(serializers.ModelSerializer):
+class ShiftCoverageRequirementSerializer(UnitOrgValidationMixin, serializers.ModelSerializer):
     shift_type_display = serializers.CharField(
         source="get_shift_type_display", read_only=True
+    )
+    unit_name = serializers.CharField(
+        source="unit.name", read_only=True, allow_null=True, default=None
     )
 
     class Meta:
@@ -143,6 +182,9 @@ class ShiftCoverageRequirementSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "organization",
+            "unit",
+            "unit_name",
+            "mode",
             "shift_type",
             "shift_type_display",
             "days_of_week",
@@ -177,4 +219,108 @@ class ShiftCoverageRequirementSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"end_date": "end_date cannot be before start_date."}
             )
+        mode = attrs.get("mode", getattr(self.instance, "mode", "fixed"))
+        unit = attrs.get("unit", getattr(self.instance, "unit", None))
+        if mode == "hppd" and unit is None:
+            raise serializers.ValidationError(
+                {"unit": "Pick a unit: HPPD requirements are calculated from a unit's census."}
+            )
         return attrs
+
+
+class UnitSerializer(serializers.ModelSerializer):
+    shift_pattern_display = serializers.CharField(
+        source="get_shift_pattern_display", read_only=True
+    )
+    # Filled from one batched lookup in UnitViewSet, so the Units screen can
+    # show the latest census without a query per unit.
+    latest_census = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Unit
+        fields = [
+            "id",
+            "organization",
+            "name",
+            "shift_pattern",
+            "shift_pattern_display",
+            "is_active",
+            "notes",
+            "latest_census",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["organization", "created_at", "updated_at"]
+
+    def get_latest_census(self, obj):
+        entry = (self.context.get("latest_census") or {}).get(obj.id)
+        if not entry:
+            return None
+        return {"date": entry.date.isoformat(), "census": entry.census}
+
+    def validate_name(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Name is required.")
+        return value
+
+    def validate(self, attrs):
+        # organization is server-set, so the model's unique_together is not
+        # enforced by DRF automatically; check it here for a clean 400.
+        request = self.context.get("request")
+        name = attrs.get("name", getattr(self.instance, "name", None))
+        org_id = getattr(self.instance, "organization_id", None)
+        if org_id is None and request is not None:
+            user = request.user
+            if user.role == "system_admin" and request.data.get("organization"):
+                org_id = request.data.get("organization")
+            else:
+                org_id = user.organization_id
+        if name and org_id:
+            qs = Unit.objects.filter(organization_id=org_id, name__iexact=name)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError(
+                    {"name": "A unit with this name already exists."}
+                )
+        return attrs
+
+
+class UnitCensusSerializer(serializers.ModelSerializer):
+    unit_name = serializers.CharField(source="unit.name", read_only=True)
+    entered_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = UnitCensus
+        fields = [
+            "id",
+            "unit",
+            "unit_name",
+            "date",
+            "census",
+            "notes",
+            "entered_by",
+            "entered_by_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["entered_by", "created_at", "updated_at"]
+        # A second entry for the same unit+date is an update (handled as an
+        # upsert in the view), not a validation error.
+        validators = []
+
+    def get_entered_by_name(self, obj):
+        user = obj.entered_by
+        if user is None:
+            return None
+        return user.get_full_name() or user.get_username()
+
+    def validate_unit(self, value):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user is None or getattr(user, "role", None) == "system_admin":
+            return value
+        if value.organization_id != getattr(user, "organization_id", None):
+            raise serializers.ValidationError("Unit not found.")
+        return value

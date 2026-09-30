@@ -6,6 +6,8 @@ from .views import (
     StaffShiftViewSet,
     StaffViewSet,
     ShiftCoverageRequirementViewSet,
+    UnitViewSet,
+    UnitCensusViewSet,
     UploadStaffCSV,
     SendStaffMessageView,
     InviteStaffView,
@@ -25,6 +27,8 @@ router.register(
     r"recurring-patterns", StaffRecurringPatternViewSet, basename="staffing-recurring-pattern"
 )
 router.register(r"shifts", StaffShiftViewSet, basename="staffing-shift")
+router.register(r"units", UnitViewSet, basename="staffing-unit")
+router.register(r"census", UnitCensusViewSet, basename="staffing-census")
 router.register(
     r"coverage-requirements", ShiftCoverageRequirementViewSet, basename="staffing-coverage-requirement"
 )
