@@ -18,8 +18,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
-from . import hppd
-from .models import StaffShift, UnitCensus
+from . import hppd, state_rules
+from django.db.models import Q
+
+from .models import StaffShift, StaffTimeOffRequest, UnitCensus
 
 # How far back a census entry is carried forward when no entry exists for the
 # date. Beyond this the census is treated as missing (stale data is worse than
@@ -84,7 +86,20 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
     if req.shift_type == "custom":
         return _fixed(req, "Custom shifts have no HPPD pattern; using the fixed minimum.")
 
-    for shift in hppd.required_staff_by_shift(census, unit.shift_pattern):
+    # The clinic's state decides the numbers (hours, ratio, RN). No active
+    # rule for the state -> fixed minimum, with the reason in `note`.
+    resolved = state_rules.resolve_rule(req.organization.state)
+    if resolved.rule is None:
+        return _fixed(req, resolved.warning)
+    rule = resolved.rule
+
+    for shift in hppd.required_staff_by_shift(
+        census,
+        unit.shift_pattern,
+        hppd=rule.hppd_min,
+        max_residents_per_staff=rule.max_residents_per_staff,
+        min_rn=rule.min_rn_per_shift,
+    ):
         if shift.shift_type == req.shift_type:
             note = "Census carried forward from an earlier day." if source == "carried_forward" else ""
             return EffectiveRequirement(
@@ -107,6 +122,27 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
     )
 
 
+
+def _exclude_out(qs, organization, a_date):
+    """
+    Drop shifts belonging to people who are OUT that day: approved time off, or an
+    emergency call-out (open or resolved). Keeps this report / the 24-hour alert
+    consistent with the calendar colors (staffing.coverage_status).
+    """
+    out = StaffTimeOffRequest.objects.filter(
+        organization=organization, start_date__lte=a_date, end_date__gte=a_date
+    ).filter(
+        Q(kind="off_request", status="approved")
+        | Q(kind="emergency", status__in=["open", "resolved"])
+    )
+    staff_ids = list(out.filter(shift__isnull=True).values_list("staff_id", flat=True))
+    shift_ids = list(out.filter(shift__isnull=False).values_list("shift_id", flat=True))
+    if staff_ids:
+        qs = qs.exclude(staff_id__in=staff_ids)
+    if shift_ids:
+        qs = qs.exclude(pk__in=shift_ids)
+    return qs
+
 def assigned_staff_count(req, a_date) -> int:
     """Distinct staff with a non-cancelled shift matching the requirement (and unit, if set)."""
     qs = StaffShift.objects.filter(
@@ -117,6 +153,7 @@ def assigned_staff_count(req, a_date) -> int:
     )
     if req.unit_id:
         qs = qs.filter(unit_id=req.unit_id)
+    qs = _exclude_out(qs, req.organization, a_date)
     return qs.values("staff_id").distinct().count()
 
 
@@ -175,6 +212,7 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
     ).select_related("staff")
     if req.unit_id:
         qs = qs.filter(unit_id=req.unit_id)
+    qs = _exclude_out(qs, req.organization, a_date)
     shifts = list(qs)
 
     if eff.mode != MODE_HPPD:

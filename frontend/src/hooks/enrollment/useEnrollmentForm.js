@@ -55,6 +55,10 @@ export const useEnrollmentForm = () => {
         phone_number: '',
         organization_name: '',
         organization_type: getInitialOrgType(),
+    address_line1: '',
+    city: '',
+    state: '',
+    postal_code: '',
         subscription_tier: getInitialTier(),
     });
 

@@ -1,6 +1,15 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
+from .compliance_views import CoverageStatusView, OrgLocationView
+from .timeoff_views import (
+    MyTimeOffView,
+    MyTimeOffCancelView,
+    TimeOffListCreateView,
+    TimeOffDecideView,
+    TimeOffResolveView,
+    TimeOffCoverCandidatesView,
+)
 from .views import (
     StaffRecurringPatternViewSet,
     StaffShiftViewSet,
@@ -54,6 +63,18 @@ urlpatterns = [
         "accept-invite/<str:uidb64>/<str:token>/",
         AcceptStaffInviteView.as_view(),
         name="staffing-accept-invite",
+    ),
+    path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
+    path("location/", OrgLocationView.as_view(), name="staffing-location"),
+    path("me/time-off/", MyTimeOffView.as_view(), name="staffing-me-time-off"),
+    path("me/time-off/<int:pk>/cancel/", MyTimeOffCancelView.as_view(), name="staffing-me-time-off-cancel"),
+    path("time-off/", TimeOffListCreateView.as_view(), name="staffing-time-off"),
+    path("time-off/<int:pk>/decide/", TimeOffDecideView.as_view(), name="staffing-time-off-decide"),
+    path("time-off/<int:pk>/resolve/", TimeOffResolveView.as_view(), name="staffing-time-off-resolve"),
+    path(
+        "time-off/<int:pk>/cover-candidates/",
+        TimeOffCoverCandidatesView.as_view(),
+        name="staffing-time-off-cover-candidates",
     ),
     path("me/", MyStaffProfileView.as_view(), name="staffing-me"),
     path("me/shifts/", MyShiftsView.as_view(), name="staffing-me-shifts"),

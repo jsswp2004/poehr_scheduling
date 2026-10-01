@@ -4,6 +4,7 @@ import {
     TextField,
     MenuItem
 } from '@mui/material';
+import { US_STATES } from '../../constants/usStates';
 
 /**
  * AccountDetailsStep Component
@@ -36,6 +37,48 @@ const AccountDetailsStep = ({
                 <MenuItem value="clinic">Clinic</MenuItem>
                 <MenuItem value="group">Group</MenuItem>
             </TextField>
+            <TextField
+              label="Clinic Address"
+              name="address_line1"
+              value={formData.address_line1 || ''}
+              onChange={onChange}
+              size="small"
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="City"
+                name="city"
+                value={formData.city || ''}
+                onChange={onChange}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                select
+                label="State"
+                name="state"
+                value={formData.state || ''}
+                onChange={onChange}
+                size="small"
+                sx={{ minWidth: 150 }}
+                helperText="Sets the staffing rules that apply"
+              >
+                <MenuItem value="">Select</MenuItem>
+                {US_STATES.map((s) => (
+                  <MenuItem key={s.code} value={s.code}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="ZIP"
+                name="postal_code"
+                value={formData.postal_code || ''}
+                onChange={onChange}
+                size="small"
+                sx={{ minWidth: 110 }}
+              />
+            </Stack>
             <TextField
                 label="First Name"
                 name="first_name"

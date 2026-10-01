@@ -37,3 +37,14 @@ class UnitCensusAdmin(admin.ModelAdmin):
     list_display = ("unit", "date", "census", "entered_by")
     list_filter = ("unit__organization", "unit")
     date_hierarchy = "date"
+
+
+from .models import StaffTimeOffRequest  # noqa: E402
+
+
+@admin.register(StaffTimeOffRequest)
+class StaffTimeOffRequestAdmin(admin.ModelAdmin):
+    list_display = ("staff", "kind", "status", "start_date", "end_date", "organization", "alert_sent_at")
+    list_filter = ("organization", "kind", "status")
+    search_fields = ("staff__first_name", "staff__last_name", "reason")
+    date_hierarchy = "start_date"
