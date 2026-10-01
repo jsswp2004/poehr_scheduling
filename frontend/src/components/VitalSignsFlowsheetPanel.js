@@ -28,6 +28,9 @@ import AddAlarmIcon from "@mui/icons-material/AddAlarm";
 import DeleteIcon from "@mui/icons-material/Delete";
 import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import DateRangeIcon from "@mui/icons-material/DateRange";
+import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
+import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
 import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { jwtDecode } from "jwt-decode";
@@ -115,6 +118,18 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
 
   const [addTimeOpen, setAddTimeOpen] = useState(false);
   const [newColumnTime, setNewColumnTime] = useState(new Date());
+
+  // Add Time Range: generates several evenly-spaced time columns at once
+  // (e.g. "every 15 minutes for the next 2 hours") instead of adding one
+  // column at a time via the dialog above.
+  const [addRangeOpen, setAddRangeOpen] = useState(false);
+  const [rangeStart, setRangeStart] = useState(new Date());
+  const [rangeIntervalChoice, setRangeIntervalChoice] = useState(60); // minutes, or "custom"
+  const [rangeCustomMinutes, setRangeCustomMinutes] = useState(60);
+  const [rangeCount, setRangeCount] = useState(4);
+  const effectiveIntervalMinutes =
+    rangeIntervalChoice === "custom" ? Number(rangeCustomMinutes) || 0 : rangeIntervalChoice;
+  const clampedRangeCount = Math.max(1, Math.min(50, Number(rangeCount) || 0));
 
   const canAuthor = ["doctor", "nurse", "admin", "system_admin"].includes(userRole);
 
@@ -285,6 +300,40 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
     setDirty(true);
   };
 
+  const confirmAddRange = () => {
+    const intervalMs = Math.max(0, effectiveIntervalMinutes) * 60 * 1000;
+    if (clampedRangeCount > 1 && intervalMs <= 0) {
+      toast.error("Enter an interval greater than 0 minutes for more than one column.");
+      return;
+    }
+    const newColumns = Array.from({ length: clampedRangeCount }, (_, i) => ({
+      id: `col_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: new Date(rangeStart.getTime() + i * intervalMs).toISOString(),
+      recorded_by_name: userName,
+    }));
+    setColumns((prev) => [...prev, ...newColumns]);
+    setDirty(true);
+    setAddRangeOpen(false);
+  };
+
+  // Collapse/Expand All: a section is "collapsed" when every section is
+  // currently collapsed, so the one button toggles cleanly between the two
+  // extremes rather than tracking a separate boolean that can drift out of
+  // sync with collapsedSections.
+  const allSectionsCollapsed =
+    rowDefinitions.length > 0 && rowDefinitions.every((section) => collapsedSections[section.section]);
+  const toggleAllSections = () => {
+    if (allSectionsCollapsed) {
+      setCollapsedSections({});
+    } else {
+      const next = {};
+      rowDefinitions.forEach((section) => {
+        next[section.section] = true;
+      });
+      setCollapsedSections(next);
+    }
+  };
+
   const handleSave = async () => {
     if (!appointmentId) {
       toast.error("Please select a visit for this flowsheet.");
@@ -346,7 +395,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
         <Typography variant="h6">
           Flowsheets{patientName ? ` - ${patientName}` : ""}
         </Typography>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button
             variant="outlined"
             startIcon={<AddAlarmIcon />}
@@ -354,6 +403,22 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
             disabled={!appointmentId || saving}
           >
             Add Time
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DateRangeIcon />}
+            onClick={() => setAddRangeOpen(true)}
+            disabled={!appointmentId || saving}
+          >
+            Add Time Range
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={allSectionsCollapsed ? <UnfoldMoreIcon /> : <UnfoldLessIcon />}
+            onClick={toggleAllSections}
+            disabled={rowDefinitions.length === 0}
+          >
+            {allSectionsCollapsed ? "Expand All" : "Collapse All"}
           </Button>
           <Button variant="contained" onClick={handleSave} disabled={!appointmentId || !dirty || saving}>
             {saving ? "Saving..." : "Save"}
@@ -552,6 +617,70 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
           <Button onClick={() => setAddTimeOpen(false)}>Cancel</Button>
           <Button variant="contained" onClick={confirmAddTime}>
             Add
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={addRangeOpen} onClose={() => setAddRangeOpen(false)}>
+        <DialogTitle>Add a Time Range</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1, minWidth: 320 }}>
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <DateTimePicker
+                label="Start time"
+                value={rangeStart}
+                onChange={(value) => value && setRangeStart(value)}
+              />
+            </LocalizationProvider>
+            <FormControl size="small" fullWidth>
+              <InputLabel id="range-interval-label">Interval</InputLabel>
+              <Select
+                labelId="range-interval-label"
+                label="Interval"
+                value={rangeIntervalChoice}
+                onChange={(e) => setRangeIntervalChoice(e.target.value)}
+              >
+                <MenuItem value={15}>Every 15 minutes</MenuItem>
+                <MenuItem value={30}>Every 30 minutes</MenuItem>
+                <MenuItem value={60}>Every hour</MenuItem>
+                <MenuItem value={120}>Every 2 hours</MenuItem>
+                <MenuItem value={240}>Every 4 hours</MenuItem>
+                <MenuItem value={480}>Every 8 hours</MenuItem>
+                <MenuItem value="custom">Custom...</MenuItem>
+              </Select>
+            </FormControl>
+            {rangeIntervalChoice === "custom" && (
+              <TextField
+                label="Custom interval (minutes)"
+                type="number"
+                size="small"
+                value={rangeCustomMinutes}
+                onChange={(e) => setRangeCustomMinutes(e.target.value)}
+                inputProps={{ min: 1 }}
+              />
+            )}
+            <TextField
+              label="Number of columns"
+              type="number"
+              size="small"
+              value={rangeCount}
+              onChange={(e) => setRangeCount(e.target.value)}
+              inputProps={{ min: 1, max: 50 }}
+              helperText="Up to 50 columns at a time"
+            />
+            <Typography variant="caption" color="text.secondary">
+              {clampedRangeCount > 1
+                ? `Adds ${clampedRangeCount} columns, from ${rangeStart.toLocaleString()} to ${new Date(
+                    rangeStart.getTime() + (clampedRangeCount - 1) * effectiveIntervalMinutes * 60000
+                  ).toLocaleString()}.`
+                : `Adds 1 column at ${rangeStart.toLocaleString()}.`}
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAddRangeOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={confirmAddRange}>
+            Add Columns
           </Button>
         </DialogActions>
       </Dialog>
