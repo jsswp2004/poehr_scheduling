@@ -37,6 +37,7 @@ RIGHTS = [
     ("appointments.manage_requests", "Approve or deny patient-submitted appointment requests", "Scheduling & Patients"),
     ("holidays.manage", "Manage holidays", "Scheduling & Patients"),
     ("checkin.manage", "Check-in search & update arrival status", "Scheduling & Patients"),
+    ("patients.delete", "Delete a patient record", "Scheduling & Patients"),
 
     # Messaging
     ("messages.send", "Send SMS/email messages", "Messaging"),
@@ -85,6 +86,7 @@ _CLINICAL_STAFF_RIGHTS = {
 _FRONT_OFFICE_RIGHTS = {
     "holidays.manage",
     "checkin.manage",
+    "patients.delete",
     "messages.send",
     "messages.view_logs",
     "csv.upload_providers",

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import Select from "react-select";
 import {
@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import PrintIcon from "@mui/icons-material/Print";
 import { toast } from "react-toastify";
 import { getValidToken } from "../../utils/auth";
 import { API_BASE_URL, apiEndpoints } from "../../config/api";
@@ -91,7 +92,7 @@ const EMPTY_VISIT_FIELDS = {
   attending_provider: "",
 };
 
-function FullRegistrationForm({ doctors = [] }) {
+function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonce }) {
   const [mode, setMode] = useState("new"); // "new" | "existing"
   const [activeSubTab, setActiveSubTab] = useState("identity");
 
@@ -155,6 +156,18 @@ function FullRegistrationForm({ doctors = [] }) {
     setVisitNumber(null);
     setLegalFiles({});
   };
+
+  // Loads a patient passed in from the right-pane patients table's Edit
+  // icon (see RegisterPage.js) into this form's "Existing Patient" flow.
+  // Keyed off the nonce (not just the patient) so clicking Edit again on
+  // the same patient still re-syncs the form if it was changed in between.
+  useEffect(() => {
+    if (!initialPatient) return;
+    setMode("existing");
+    setActiveSubTab("identity");
+    resetForActivePatient(initialPatient);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPatientNonce]);
 
   const handlePatientSearch = async (inputValue) => {
     if (!inputValue || inputValue.length < 2) {
@@ -310,6 +323,124 @@ function FullRegistrationForm({ doctors = [] }) {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Opens a print-friendly summary of everything captured for this patient's
+  // registration (Identity/Emergency Contact/Financial/Reason for
+  // Visit/Legal Documents/Logistics) in a new window and triggers the
+  // browser's print dialog. Prints whatever is currently in the form
+  // (saved or not), so a registrar can hand the patient a paper copy before
+  // or after hitting Save.
+  const handlePrint = () => {
+    if (!activePatient) {
+      toast.error("Select or create a patient first.");
+      return;
+    }
+    const esc = (v) => (v === null || v === undefined || v === "" ? "--" : String(v));
+    const attendingDoctor = doctors.find(
+      (d) => String(d.id) === String(visitFields.attending_provider)
+    );
+    const attendingName = attendingDoctor
+      ? `Dr. ${attendingDoctor.first_name} ${attendingDoctor.last_name}`
+      : "--";
+    const legalRows = LEGAL_DOCS.map(
+      (doc) =>
+        `<tr><td class="label">${doc.label}</td><td>${
+          patientFields[doc.key] ? "Acknowledged" : "Not acknowledged"
+        }</td></tr>`
+    ).join("");
+
+    const html = `
+      <html>
+        <head>
+          <title>Registration -- ${esc(activePatient.first_name)} ${esc(activePatient.last_name)}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111; }
+            h1 { font-size: 20px; margin-bottom: 0; }
+            h2 { font-size: 14px; margin: 20px 0 8px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+            .sub { color: #555; margin-top: 4px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+            td { padding: 4px 8px; font-size: 13px; vertical-align: top; }
+            td.label { font-weight: bold; width: 220px; color: #333; }
+            .chips { margin-top: 4px; }
+            .chip { display: inline-block; border: 1px solid #999; border-radius: 12px; padding: 2px 10px; margin-right: 8px; font-size: 12px; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>Patient Registration</h1>
+          <div class="sub">${esc(activePatient.first_name)} ${esc(activePatient.last_name)}</div>
+          <div class="chips">
+            <span class="chip">MRN: ${esc(mrn)}</span>
+            <span class="chip">Visit #: ${esc(visitNumber)}</span>
+          </div>
+
+          <h2>Patient Identity</h2>
+          <table>
+            <tr><td class="label">Legal Name</td><td>${esc(activePatient.first_name)} ${esc(activePatient.last_name)}</td></tr>
+            <tr><td class="label">Date of Birth</td><td>${esc(patientFields.date_of_birth)}</td></tr>
+            <tr><td class="label">Address</td><td>${esc(patientFields.address)}</td></tr>
+            <tr><td class="label">Phone Number</td><td>${esc(patientFields.phone_number)}</td></tr>
+            <tr><td class="label">Legal Sex</td><td>${esc(patientFields.legal_sex)}</td></tr>
+            <tr><td class="label">SSN (last 4)</td><td>${esc(patientFields.ssn_last4)}</td></tr>
+            <tr><td class="label">Preferred Language</td><td>${esc(patientFields.preferred_language)}</td></tr>
+            <tr><td class="label">Email</td><td>${esc(patientFields.email)}</td></tr>
+          </table>
+
+          <h2>Emergency Contact</h2>
+          <table>
+            <tr><td class="label">Contact Name</td><td>${esc(patientFields.emergency_contact_name)}</td></tr>
+            <tr><td class="label">Relationship</td><td>${esc(patientFields.emergency_contact_relationship)}</td></tr>
+            <tr><td class="label">Phone Number</td><td>${esc(patientFields.emergency_contact_phone)}</td></tr>
+            <tr><td class="label">Address</td><td>${esc(patientFields.emergency_contact_address)}</td></tr>
+          </table>
+
+          <h2>Financial Information</h2>
+          <table>
+            <tr><td class="label">Insurance Payer Name</td><td>${esc(patientFields.insurance_payer_name)}</td></tr>
+            <tr><td class="label">Member ID</td><td>${esc(patientFields.insurance_member_id)}</td></tr>
+            <tr><td class="label">Group Number</td><td>${esc(patientFields.insurance_group_number)}</td></tr>
+            <tr><td class="label">Policyholder Name</td><td>${esc(patientFields.policyholder_name)}</td></tr>
+            <tr><td class="label">Policyholder DOB</td><td>${esc(patientFields.policyholder_dob)}</td></tr>
+            <tr><td class="label">Copay / Deductible Status</td><td>${esc(patientFields.copay_deductible_status)}</td></tr>
+            <tr><td class="label">Authorization Requirements</td><td>${esc(patientFields.authorization_requirements)}</td></tr>
+            <tr><td class="label">Secondary Insurance</td><td>${esc(patientFields.secondary_insurance)}</td></tr>
+          </table>
+
+          <h2>Reason for Visit</h2>
+          <table>
+            <tr><td class="label">Reason for Visit</td><td>${esc(visitFields.reason_for_visit)}</td></tr>
+            <tr><td class="label">Presenting Problem</td><td>${esc(visitFields.presenting_problem)}</td></tr>
+            <tr><td class="label">Scheduled Procedure</td><td>${esc(visitFields.scheduled_procedure)}</td></tr>
+            <tr><td class="label">Referring Physician</td><td>${esc(visitFields.referring_physician)}</td></tr>
+            <tr><td class="label">Medical History</td><td>${esc(activePatient.medical_history)}</td></tr>
+            <tr><td class="label">Current Diagnoses</td><td>${esc(visitFields.current_diagnoses)}</td></tr>
+          </table>
+
+          <h2>Legal Documents</h2>
+          <table>${legalRows}</table>
+
+          <h2>Logistics</h2>
+          <table>
+            <tr><td class="label">Admission Type</td><td>${esc(visitFields.admission_type)}</td></tr>
+            <tr><td class="label">Arrival Time</td><td>${esc(visitFields.arrival_time)}</td></tr>
+            <tr><td class="label">Assigned Location</td><td>${esc(visitFields.assigned_location)}</td></tr>
+            <tr><td class="label">Attending Provider</td><td>${attendingName}</td></tr>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank", "width=850,height=1100");
+    if (!printWindow) {
+      toast.error("Could not open the print window -- check your browser's pop-up blocker.");
+      return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    // Give the new document a moment to finish laying out before printing.
+    setTimeout(() => printWindow.print(), 250);
   };
 
   return (
@@ -812,15 +943,24 @@ function FullRegistrationForm({ doctors = [] }) {
             )}
           </Box>
 
-          <Button
-            variant="contained"
-            size="large"
-            onClick={handleSave}
-            disabled={saving}
-            sx={{ mt: 2 }}
-          >
-            {saving ? "Saving..." : "Save Registration"}
-          </Button>
+          <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Registration"}
+            </Button>
+            <Button
+              variant="outlined"
+              size="large"
+              startIcon={<PrintIcon />}
+              onClick={handlePrint}
+            >
+              Print Registration
+            </Button>
+          </Stack>
         </>
       )}
     </Box>

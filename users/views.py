@@ -2514,6 +2514,15 @@ class PatientMobileView(RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     lookup_field = "pk"  # Use Patient primary key, not user_id
 
+    def get_permissions(self):
+        # Deleting a patient record is gated by the "patients.delete" right
+        # (default: admin/system_admin/registrar -- see users/rights.py).
+        # GET/PUT/PATCH stay at plain IsAuthenticated since this view is also
+        # used by patients updating their own profile.
+        if self.request.method == "DELETE":
+            return [HasRight("patients.delete")()]
+        return [permission() for permission in self.permission_classes]
+
     def update(self, request, *args, **kwargs):
         # Print the incoming data to debug
         print("Mobile Patient Update Data:", request.data)
