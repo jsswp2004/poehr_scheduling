@@ -202,6 +202,37 @@ class OnlineUser(models.Model):
         return f"{self.user.username} is {'online' if self.is_online else 'offline'}"
 
 
+LEGAL_SEX_CHOICES = [
+    ("M", "Male"),
+    ("F", "Female"),
+    ("X", "Unspecified/Other"),
+]
+
+
+def legal_document_upload_path(instance, filename, field_name):
+    return f"legal_documents/{instance.pk or 'new'}/{field_name}/{filename}"
+
+
+def consent_to_treat_upload_path(instance, filename):
+    return legal_document_upload_path(instance, filename, "consent_to_treat")
+
+
+def privacy_acknowledgment_upload_path(instance, filename):
+    return legal_document_upload_path(instance, filename, "privacy_acknowledgment")
+
+
+def financial_responsibility_upload_path(instance, filename):
+    return legal_document_upload_path(instance, filename, "financial_responsibility")
+
+
+def assignment_of_benefits_upload_path(instance, filename):
+    return legal_document_upload_path(instance, filename, "assignment_of_benefits")
+
+
+def release_of_information_upload_path(instance, filename):
+    return legal_document_upload_path(instance, filename, "release_of_information")
+
+
 class Patient(models.Model):
     user = models.OneToOneField(
         "CustomUser", on_delete=models.CASCADE, related_name="patient_profile"
@@ -220,6 +251,76 @@ class Patient(models.Model):
         blank=True,
         related_name="patients",
     )
+
+    # -- Patient Identity (full Registration tab) ---------------------------
+    # "Legal name" and date of birth/address/phone above already cover most
+    # of Patient Identity; these fill in the rest. Full legal name itself
+    # stays on CustomUser.first_name/last_name -- no separate field here.
+    legal_sex = models.CharField(
+        max_length=1, choices=LEGAL_SEX_CHOICES, blank=True
+    )
+    # Deliberately NOT a full SSN -- registration workflows commonly only
+    # need the last 4 digits for identity verification, so that's all we
+    # store (avoids holding a full SSN at rest).
+    ssn_last4 = models.CharField(max_length=4, blank=True)
+    preferred_language = models.CharField(max_length=100, blank=True)
+    # System-generated Medical Record Number, assigned once on first save
+    # (see save() below). Format: MRN-000001.
+    mrn = models.CharField(max_length=20, unique=True, null=True, blank=True)
+
+    # -- Emergency Contact ----------------------------------------------
+    emergency_contact_name = models.CharField(max_length=255, blank=True)
+    emergency_contact_relationship = models.CharField(max_length=100, blank=True)
+    emergency_contact_phone = models.CharField(max_length=15, blank=True)
+    emergency_contact_address = models.CharField(max_length=255, blank=True)
+
+    # -- Financial Information / Insurance -------------------------------
+    insurance_payer_name = models.CharField(max_length=255, blank=True)
+    insurance_member_id = models.CharField(max_length=100, blank=True)
+    insurance_group_number = models.CharField(max_length=100, blank=True)
+    policyholder_name = models.CharField(max_length=255, blank=True)
+    policyholder_dob = models.DateField(null=True, blank=True)
+    copay_deductible_status = models.CharField(max_length=255, blank=True)
+    authorization_requirements = models.TextField(blank=True)
+    secondary_insurance = models.TextField(blank=True)
+
+    # -- Legal Documents ---------------------------------------------------
+    # Each document is a checkbox + the timestamp it was acknowledged, plus
+    # an optional scanned copy (photo or PDF of the signed paper form).
+    consent_to_treat = models.BooleanField(default=False)
+    consent_to_treat_at = models.DateTimeField(null=True, blank=True)
+    consent_to_treat_file = models.FileField(
+        upload_to=consent_to_treat_upload_path, null=True, blank=True
+    )
+    privacy_acknowledgment = models.BooleanField(default=False)
+    privacy_acknowledgment_at = models.DateTimeField(null=True, blank=True)
+    privacy_acknowledgment_file = models.FileField(
+        upload_to=privacy_acknowledgment_upload_path, null=True, blank=True
+    )
+    financial_responsibility_agreement = models.BooleanField(default=False)
+    financial_responsibility_agreement_at = models.DateTimeField(null=True, blank=True)
+    financial_responsibility_agreement_file = models.FileField(
+        upload_to=financial_responsibility_upload_path, null=True, blank=True
+    )
+    assignment_of_benefits = models.BooleanField(default=False)
+    assignment_of_benefits_at = models.DateTimeField(null=True, blank=True)
+    assignment_of_benefits_file = models.FileField(
+        upload_to=assignment_of_benefits_upload_path, null=True, blank=True
+    )
+    release_of_information = models.BooleanField(default=False)
+    release_of_information_at = models.DateTimeField(null=True, blank=True)
+    release_of_information_file = models.FileField(
+        upload_to=release_of_information_upload_path, null=True, blank=True
+    )
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.mrn:
+            # MRN depends on the auto-incremented pk, so it can only be
+            # assigned after the first save -- do one more lightweight
+            # save (update_fields keeps this to a single-column UPDATE).
+            self.mrn = f"MRN-{self.pk:06d}"
+            super().save(update_fields=["mrn"])
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"
@@ -525,3 +626,83 @@ class UserRightOverride(models.Model):
     def __str__(self):
         verb = "granted" if self.is_granted else "revoked"
         return f"{self.user.username}: {self.right_code} {verb}"
+
+
+class Registration(models.Model):
+    """
+    A single visit-level registration/intake record -- Reason for Visit and
+    Logistics live here (per-visit data), distinct from the patient-level
+    Identity/Emergency Contact/Financial/Legal Documents fields on Patient
+    itself (those rarely change visit to visit). A patient can have many
+    Registrations over time (one per visit/encounter).
+    """
+
+    ADMISSION_TYPE_CHOICES = [
+        ("scheduled", "Scheduled"),
+        ("emergency", "Emergency"),
+        ("direct", "Direct"),
+    ]
+
+    patient = models.ForeignKey(
+        Patient, on_delete=models.CASCADE, related_name="registrations"
+    )
+    appointment = models.ForeignKey(
+        "appointments.Appointment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="registration",
+    )
+    organization = models.ForeignKey(
+        "Organization",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="registrations",
+    )
+    # System-generated Visit Number, assigned once on first save (see
+    # save() below). Format: VN-000001.
+    visit_number = models.CharField(max_length=20, unique=True, null=True, blank=True)
+
+    # -- Reason for Visit --------------------------------------------------
+    reason_for_visit = models.TextField(blank=True)
+    presenting_problem = models.TextField(blank=True)
+    scheduled_procedure = models.CharField(max_length=255, blank=True)
+    referring_physician = models.CharField(max_length=255, blank=True)
+    current_diagnoses = models.TextField(blank=True)
+
+    # -- Logistics -----------------------------------------------------
+    admission_type = models.CharField(
+        max_length=20, choices=ADMISSION_TYPE_CHOICES, blank=True
+    )
+    arrival_time = models.DateTimeField(null=True, blank=True)
+    # "Unit, room, bed" as one free-text field, matching how front-office
+    # staff actually write it (e.g. "3 West, Rm 312, Bed B").
+    assigned_location = models.CharField(max_length=255, blank=True)
+    attending_provider = models.ForeignKey(
+        "CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={"role": "doctor"},
+        related_name="attending_registrations",
+    )
+
+    registered_by = models.ForeignKey(
+        "CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="registrations_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.visit_number:
+            self.visit_number = f"VN-{self.pk:06d}"
+            super().save(update_fields=["visit_number"])
+
+    def __str__(self):
+        return f"{self.visit_number or 'unsaved'} - {self.patient}"

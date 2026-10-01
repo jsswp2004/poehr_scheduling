@@ -126,6 +126,12 @@ function PatientsPage() {
         console.log("⏰ Token expiry:", new Date(decoded.exp * 1000));
         setUserRole(role);
 
+        // Registrars live on the Register tab -- default them there unless
+        // a link already pointed at a specific tab (e.g. ?tab=appointments).
+        if (role === "registrar" && !searchParams.get("tab")) {
+          setTab("register");
+        }
+
         if (
           role !== "admin" &&
           role !== "system_admin" &&

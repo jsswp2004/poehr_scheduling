@@ -23,6 +23,7 @@ from .views import (
     send_trial_reminders,  # Add trial reminders function
     PatientDeleteView,
     OrganizationViewSet,  # ✅
+    RegistrationViewSet,
     SMSOptOutManagementView,
     SMSPreferencesView,
     DownloadProvidersCSVTemplate,
@@ -60,6 +61,7 @@ from .payment_views import (
 
 router = DefaultRouter()
 router.register(r"organizations", OrganizationViewSet, basename="organization")
+router.register(r"registrations", RegistrationViewSet, basename="registration")
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
