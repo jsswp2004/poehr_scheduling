@@ -1,6 +1,9 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MaxValueValidator
 from django.db import models
 from django.utils import timezone
+
+from .us_states import US_STATE_CHOICES
 
 
 class CustomUser(AbstractUser):
@@ -386,6 +389,29 @@ class Organization(models.Model):
             "off stops the hourly automated jobs from sending anything for this "
             "organization; it does not affect ad-hoc messages an admin sends manually from "
             "the Roster tab."
+        ),
+    )
+
+    # Clinic location. The STATE drives which state staffing rules the
+    # Staffing module applies (see staffing/state_rules.py).
+    address_line1 = models.CharField(max_length=255, blank=True, default="")
+    address_line2 = models.CharField(max_length=255, blank=True, default="")
+    city = models.CharField(max_length=100, blank=True, default="")
+    state = models.CharField(
+        max_length=2,
+        blank=True,
+        default="",
+        choices=US_STATE_CHOICES,
+        help_text="Two-letter state of the clinic; selects the state staffing rules.",
+    )
+    postal_code = models.CharField(max_length=10, blank=True, default="")
+    staffing_spare_buffer = models.PositiveSmallIntegerField(
+        default=1,
+        validators=[MaxValueValidator(2)],
+        help_text=(
+            "Calendar 'at risk' buffer: a covered shift turns amber when losing this "
+            "many staff would break coverage. 0 = amber only for pending off requests "
+            "or open call-outs."
         ),
     )
 

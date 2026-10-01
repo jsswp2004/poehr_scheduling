@@ -422,3 +422,121 @@ class UnitCensus(models.Model):
 
     def __str__(self):
         return f"{self.unit} - {self.date}: {self.census}"
+
+
+class StaffTimeOffRequest(models.Model):
+    """
+    A staff member's request to be off, or an emergency call-out.
+
+    off_request : planned time off. pending -> approved | denied (or cancelled
+                  by the staff member while still pending). Only an APPROVED
+                  request takes the person off the schedule for coverage math;
+                  a PENDING one turns affected calendar days amber.
+    emergency   : "I can't make my shift" -- takes effect immediately (the
+                  person is treated as out for coverage), alerts admins at once,
+                  and stays `open` until an admin arranges cover (`resolved`)
+                  or dismisses it (`cancelled`).
+    """
+
+    KIND_OFF_REQUEST = "off_request"
+    KIND_EMERGENCY = "emergency"
+    KIND_CHOICES = [
+        (KIND_OFF_REQUEST, "Time-off request"),
+        (KIND_EMERGENCY, "Emergency / call-out"),
+    ]
+
+    STATUS_PENDING = "pending"
+    STATUS_APPROVED = "approved"
+    STATUS_DENIED = "denied"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_OPEN = "open"
+    STATUS_RESOLVED = "resolved"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_APPROVED, "Approved"),
+        (STATUS_DENIED, "Denied"),
+        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_OPEN, "Open (needs cover)"),
+        (STATUS_RESOLVED, "Resolved (cover arranged)"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="staffing_time_off_requests",
+    )
+    staff = models.ForeignKey(
+        Staff,
+        on_delete=models.CASCADE,
+        related_name="time_off_requests",
+    )
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    shift = models.ForeignKey(
+        StaffShift,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="time_off_requests",
+        help_text="Specific shift a call-out is for. Blank = every shift in the date range.",
+    )
+    reason = models.TextField(blank=True, default="")
+    reported_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text="Who entered it: the staff member, or an admin on their behalf (phone call-out).",
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    admin_note = models.TextField(blank=True, default="")
+    cover_staff = models.ForeignKey(
+        Staff,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="covering_requests",
+        help_text="Who is covering (set when an emergency is resolved).",
+    )
+    alert_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the emergency alert went to admins. Null = not sent.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "start_date", "end_date"], name="staffing_to_org_dates_idx"),
+            models.Index(fields=["organization", "status"], name="staffing_to_org_status_idx"),
+        ]
+
+    def __str__(self):
+        return f"{self.staff} - {self.get_kind_display()} {self.start_date}..{self.end_date} ({self.status})"
+
+    @property
+    def is_emergency(self):
+        return self.kind == self.KIND_EMERGENCY
+
+    @property
+    def takes_staff_out(self):
+        """True when this request removes the person from coverage math."""
+        if self.kind == self.KIND_EMERGENCY:
+            return self.status in (self.STATUS_OPEN, self.STATUS_RESOLVED)
+        return self.status == self.STATUS_APPROVED
+
+    @property
+    def is_pending_off(self):
+        return self.kind == self.KIND_OFF_REQUEST and self.status == self.STATUS_PENDING

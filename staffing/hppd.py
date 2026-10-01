@@ -123,7 +123,12 @@ def required_staff_by_shift(
 
     shifts = get_pattern(pattern_key)
     daily_hours = census * hppd
-    by_ratio = _ceil(census / max_residents_per_staff) if census else 0
+    # A rule with no ratio (max_residents_per_staff falsy) skips the ratio check.
+    by_ratio = (
+        _ceil(census / max_residents_per_staff)
+        if census and max_residents_per_staff
+        else 0
+    )
     rn_needed = min_rn if census else 0
 
     result = []

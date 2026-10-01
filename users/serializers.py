@@ -422,4 +422,10 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "max_users",
             "organization_type",
             "staffing_messaging_enabled",
+            "address_line1",
+            "address_line2",
+            "city",
+            "state",
+            "postal_code",
+            "staffing_spare_buffer",
         ]

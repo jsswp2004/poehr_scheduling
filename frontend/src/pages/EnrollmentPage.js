@@ -22,6 +22,7 @@ import {
   Divider
 } from '@mui/material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { US_STATES } from '../constants/usStates';
 
 function EnrollmentPage() {
   const navigate = useNavigate();
@@ -79,6 +80,10 @@ function EnrollmentPage() {
     phone_number: '',
     organization_name: '',
     organization_type: getInitialOrgType(),
+    address_line1: '',
+    city: '',
+    state: '',
+    postal_code: '',
     subscription_tier: getInitialTier(),
   });
 
@@ -191,6 +196,48 @@ function EnrollmentPage() {
               <MenuItem value="clinic">Clinic</MenuItem>
               <MenuItem value="group">Group</MenuItem>
             </TextField>
+            <TextField
+              label="Clinic Address"
+              name="address_line1"
+              value={formData.address_line1 || ''}
+              onChange={handleChange}
+              size="small"
+            />
+            <Stack direction="row" spacing={2}>
+              <TextField
+                label="City"
+                name="city"
+                value={formData.city || ''}
+                onChange={handleChange}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                select
+                label="State"
+                name="state"
+                value={formData.state || ''}
+                onChange={handleChange}
+                size="small"
+                sx={{ minWidth: 150 }}
+                helperText="Sets the staffing rules that apply"
+              >
+                <MenuItem value="">Select</MenuItem>
+                {US_STATES.map((s) => (
+                  <MenuItem key={s.code} value={s.code}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="ZIP"
+                name="postal_code"
+                value={formData.postal_code || ''}
+                onChange={handleChange}
+                size="small"
+                sx={{ minWidth: 110 }}
+              />
+            </Stack>
             <TextField
               label="First Name"
               name="first_name"

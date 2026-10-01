@@ -41,6 +41,7 @@ from .stripe_service import StripeService
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
 from .models import Organization
+from .us_states import normalize_state
 from rest_framework import permissions
 from appointments.permissions import IsAdminOrSystemAdmin
 from communicator.utils import send_email
@@ -496,6 +497,12 @@ class RegisterView(generics.CreateAPIView):
                 subscription_tier="basic",  # Start with basic tier
                 subscription_status="trial",
                 max_users=1,  # Will be updated based on selected tier
+                # Clinic location -- the state selects the staffing rules.
+                address_line1=(data.get("address_line1") or "").strip()[:255],
+                address_line2=(data.get("address_line2") or "").strip()[:255],
+                city=(data.get("city") or "").strip()[:100],
+                state=normalize_state(data.get("state")),
+                postal_code=(data.get("postal_code") or "").strip()[:10],
             )
             print(
                 f"✅ Created new organization: {organization.name} (id: {organization.id})"
