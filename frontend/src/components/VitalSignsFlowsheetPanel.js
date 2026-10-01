@@ -26,6 +26,8 @@ import {
 } from "@mui/material";
 import AddAlarmIcon from "@mui/icons-material/AddAlarm";
 import DeleteIcon from "@mui/icons-material/Delete";
+import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { jwtDecode } from "jwt-decode";
@@ -102,6 +104,14 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   const [loadingFlowsheet, setLoadingFlowsheet] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  // Which section headers are collapsed (hiding their rows), keyed by
+  // section name. Collapsed is per-component-instance only -- it resets on
+  // reload/visit change, same as the rest of this panel's UI state.
+  const [collapsedSections, setCollapsedSections] = useState({});
+  const toggleSection = (sectionName) => {
+    setCollapsedSections((prev) => ({ ...prev, [sectionName]: !prev[sectionName] }));
+  };
 
   const [addTimeOpen, setAddTimeOpen] = useState(false);
   const [newColumnTime, setNewColumnTime] = useState(new Date());
@@ -452,11 +462,14 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rowDefinitions.map((section) => (
+              {rowDefinitions.map((section) => {
+                const isCollapsed = !!collapsedSections[section.section];
+                return (
                 <Fragment key={section.section}>
                   <TableRow>
                     <TableCell
                       colSpan={Math.max(sortedColumns.length, 1) + 1}
+                      onClick={() => toggleSection(section.section)}
                       sx={{
                         bgcolor: SECTION_HEADER_BG,
                         color: "#fff",
@@ -464,12 +477,22 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
                         py: 0.75,
                         position: "sticky",
                         left: 0,
+                        cursor: "pointer",
+                        userSelect: "none",
+                        "&:hover": { bgcolor: "#13266b" },
                       }}
                     >
-                      {section.section.toUpperCase()}
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        {isCollapsed ? (
+                          <KeyboardArrowRightIcon fontSize="small" />
+                        ) : (
+                          <KeyboardArrowDownIcon fontSize="small" />
+                        )}
+                        <span>{section.section.toUpperCase()}</span>
+                      </Stack>
                     </TableCell>
                   </TableRow>
-                  {section.rows.map((row) => (
+                  {!isCollapsed && section.rows.map((row) => (
                     <TableRow key={row.key} hover>
                       <TableCell
                         sx={{
@@ -506,7 +529,8 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
                     </TableRow>
                   ))}
                 </Fragment>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </TableContainer>
