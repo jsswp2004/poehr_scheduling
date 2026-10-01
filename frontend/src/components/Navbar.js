@@ -340,7 +340,7 @@ function Navbar() {
               ? `${organizationName || "POWER"} Communicator`
               : location.pathname === "/dashboard"
               ? `${organizationName || "POWER"} Portal`
-              : `${organizationName || "POWER"} Scheduler`}
+              : `${organizationName || "POWER"}`}
           </Typography>
           {/*{organizationName && (
             <Typography
