@@ -19,6 +19,7 @@ import {
   Tab,
 } from "@mui/material";
 import Select from "react-select";
+import { jwtDecode } from "jwt-decode";
 import { getValidToken } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
 import FullRegistrationForm from "../components/registration/FullRegistrationForm";
@@ -27,11 +28,23 @@ import PatientsRegisterTable from "../components/registration/PatientsRegisterTa
 function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = false }) {
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
   const [doctors, setDoctors] = useState([]);
+  const [userRole, setUserRole] = useState(null);
 
   // Which left-pane tab is active: the original single-step Quick Register
   // form, or the full multi-tab Registration (Identity/Emergency
   // Contact/Financial/Reason for Visit/Legal Documents/Logistics).
   const [leftTab, setLeftTab] = useState("quick");
+
+  // Set when the right-pane table's Edit icon is clicked -- tells the
+  // Registration tab's FullRegistrationForm which patient to load into its
+  // "Existing Patient" flow. The nonce forces the form to react even if the
+  // same patient object is clicked twice in a row.
+  const [editRequest, setEditRequest] = useState(null);
+
+  const handleEditPatient = (patient) => {
+    setEditRequest({ patient, nonce: Date.now() });
+    setLeftTab("registration");
+  };
 
   const navigate = useNavigate();
 
@@ -98,8 +111,22 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       }
     };
 
+    // Decode the current user's role from their token, used to gate the
+    // Delete icon in the right-pane patients table (PatientsRegisterTable).
+    const loadUserRole = async () => {
+      try {
+        const token = await getValidToken();
+        if (!token) return;
+        const decoded = jwtDecode(token);
+        setUserRole(decoded.role || "");
+      } catch (err) {
+        console.error("Failed to decode user role:", err);
+      }
+    };
+
     fetchDoctors();
     fetchCurrentUserOrg();
+    loadUserRole();
   }, []);
   const handleChange = (e) => {
     setFormData({
@@ -490,13 +517,17 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
 
           {leftTab === "registration" && (
             <Box sx={{ flex: 1, overflowY: "auto", pr: 1, minHeight: 0 }}>
-              <FullRegistrationForm doctors={doctors} />
+              <FullRegistrationForm
+                doctors={doctors}
+                initialPatient={editRequest?.patient}
+                initialPatientNonce={editRequest?.nonce}
+              />
             </Box>
           )}
         </Box>
         {/* Right Pane - All Registered Patients (first 50) */}
         <Box sx={{ flex: '1 1 65%', minWidth: 0, pl: 2 }}>
-          <PatientsRegisterTable />
+          <PatientsRegisterTable userRole={userRole} onEdit={handleEditPatient} />
         </Box>
       </Paper>
     </Box>
