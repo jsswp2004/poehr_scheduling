@@ -53,6 +53,7 @@ const LEGAL_DOCS = [
 ];
 
 const EMPTY_PATIENT_FIELDS = {
+  email: "",
   legal_sex: "",
   ssn_last4: "",
   preferred_language: "",
@@ -124,6 +125,7 @@ function FullRegistrationForm({ doctors = [] }) {
     setActivePatient(patient);
     setMrn(patient.mrn || null);
     setPatientFields({
+      email: patient.email || "",
       legal_sex: patient.legal_sex || "",
       ssn_last4: patient.ssn_last4 || "",
       preferred_language: patient.preferred_language || "",
@@ -263,7 +265,14 @@ function FullRegistrationForm({ doctors = [] }) {
         if (file) patientForm.append(`${key}_file`, file);
       });
 
-      const patientRes = await axios.put(
+      // PATCH, not PUT: PatientUpdateView's serializer requires
+      // username/email/first_name/last_name on a full (PUT) update since
+      // they're plain (non-optional) fields sourced from the related user
+      // record. A PATCH is treated as a partial update by DRF, so existing
+      // patients -- who already have those fields set from their original
+      // registration -- don't need to resend them just to save
+      // Identity/Emergency Contact/Financial/Legal Document edits here.
+      const patientRes = await axios.patch(
         `${API_BASE_URL}/api/users/patients/by-user/${activePatient.user_id}/edit/`,
         patientForm,
         { headers: { ...headers, "Content-Type": "multipart/form-data" } }
@@ -506,9 +515,8 @@ function FullRegistrationForm({ doctors = [] }) {
                   label="Email"
                   size="small"
                   fullWidth
-                  value={activePatient.email || ""}
-                  disabled
-                  helperText="Edit from the patient's account record"
+                  value={patientFields.email}
+                  onChange={(e) => handlePatientFieldChange("email", e.target.value)}
                 />
               </Stack>
             )}
