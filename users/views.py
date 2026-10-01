@@ -26,11 +26,12 @@ from io import StringIO, BytesIO
 import logging
 from django.db import transaction
 
-from .models import CustomUser, Patient, UserRightOverride
+from .models import CustomUser, Patient, UserRightOverride, Registration
 from .serializers import (
     UserSerializer,
     PatientSerializer,
     OrganizationSerializer,
+    RegistrationSerializer,
     get_admin_emails,
 )
 from .rights import RIGHTS, RIGHT_CODES, role_default_rights, effective_rights, user_has_right
@@ -47,6 +48,50 @@ from communicator.utils import send_email
 logger = logging.getLogger(__name__)
 
 # Remove global Twilio client - will create clients locally when needed
+
+
+class RegistrationViewSet(viewsets.ModelViewSet):
+    """
+    Visit-level Registration records (Reason for Visit + Logistics), created
+    from the Registration tab's "Support both" flow -- for a brand-new
+    patient (created in the same request via `new_patient`, see below) or
+    for an existing patient picked from the patients table.
+    """
+
+    serializer_class = RegistrationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [MultiPartParser, JSONParser]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == "system_admin":
+            return Registration.objects.select_related(
+                "patient__user", "attending_provider", "organization"
+            ).all()
+        if user.role not in ["doctor", "nurse", "registrar", "admin"]:
+            return Registration.objects.none()
+        if user.role == "doctor":
+            return Registration.objects.select_related(
+                "patient__user", "attending_provider", "organization"
+            ).filter(patient__user__provider=user)
+        return Registration.objects.select_related(
+            "patient__user", "attending_provider", "organization"
+        ).filter(organization=user.organization)
+
+    def perform_create(self, serializer):
+        if self.request.user.role not in [
+            "doctor",
+            "nurse",
+            "registrar",
+            "admin",
+            "system_admin",
+        ]:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied(
+                "You do not have permission to create a registration."
+            )
+        serializer.save()
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):

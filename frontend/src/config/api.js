@@ -119,6 +119,14 @@ export const apiEndpoints = {
     flowsheetTemplatesAdmin: `${API_BASE_URL}/api/admin/flowsheet-templates/`,
     flowsheetTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/flowsheet-templates/${code}/`,
 
+    // Full patient Registration (Identity/Emergency Contact/Financial/Reason
+    // for Visit/Legal Documents/Logistics) -- the "Registration" tab on the
+    // Patients page's Register sub-tab.
+    patients: `${API_BASE_URL}/api/users/patients/`,
+    patient: (id) => `${API_BASE_URL}/api/users/patients/${id}/`,
+    registrations: `${API_BASE_URL}/api/users/registrations/`,
+    registration: (id) => `${API_BASE_URL}/api/users/registrations/${id}/`,
+
     // Authentication endpoints
     changePassword: `${API_BASE_URL}/api/auth/change-password/`,
     adminChangePassword: `${API_BASE_URL}/api/users/admin-change-password/`,

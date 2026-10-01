@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CustomUser, Patient, Organization
+from .models import CustomUser, Patient, Organization, Registration
 from django.core.mail import send_mail
 from django.conf import settings
 from appointments.models import Appointment
@@ -240,9 +240,50 @@ class PatientSerializer(serializers.ModelSerializer):
             "medical_history",
             "last_appointment_date",
             "organization",
+            # Patient Identity
+            "legal_sex",
+            "ssn_last4",
+            "preferred_language",
+            "mrn",
+            # Emergency Contact
+            "emergency_contact_name",
+            "emergency_contact_relationship",
+            "emergency_contact_phone",
+            "emergency_contact_address",
+            # Financial Information
+            "insurance_payer_name",
+            "insurance_member_id",
+            "insurance_group_number",
+            "policyholder_name",
+            "policyholder_dob",
+            "copay_deductible_status",
+            "authorization_requirements",
+            "secondary_insurance",
+            # Legal Documents (checkbox + timestamp + optional scanned file)
+            "consent_to_treat",
+            "consent_to_treat_at",
+            "consent_to_treat_file",
+            "privacy_acknowledgment",
+            "privacy_acknowledgment_at",
+            "privacy_acknowledgment_file",
+            "financial_responsibility_agreement",
+            "financial_responsibility_agreement_at",
+            "financial_responsibility_agreement_file",
+            "assignment_of_benefits",
+            "assignment_of_benefits_at",
+            "assignment_of_benefits_file",
+            "release_of_information",
+            "release_of_information_at",
+            "release_of_information_file",
         ]
         extra_kwargs = {
             "medical_history": {"allow_null": True, "required": False},
+            "mrn": {"read_only": True},
+            "consent_to_treat_at": {"read_only": True},
+            "privacy_acknowledgment_at": {"read_only": True},
+            "financial_responsibility_agreement_at": {"read_only": True},
+            "assignment_of_benefits_at": {"read_only": True},
+            "release_of_information_at": {"read_only": True},
         }
 
     def get_last_appointment_date(self, obj):
@@ -300,11 +341,72 @@ class PatientSerializer(serializers.ModelSerializer):
         user.save()
 
         # Handle patient fields
+        legal_doc_flags = [
+            "consent_to_treat",
+            "privacy_acknowledgment",
+            "financial_responsibility_agreement",
+            "assignment_of_benefits",
+            "release_of_information",
+        ]
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+            if attr in legal_doc_flags:
+                from django.utils import timezone
+
+                setattr(instance, f"{attr}_at", timezone.now() if value else None)
         instance.save()
 
         return instance
+
+
+class RegistrationSerializer(serializers.ModelSerializer):
+    patient_name = serializers.SerializerMethodField()
+    attending_provider_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Registration
+        fields = [
+            "id",
+            "patient",
+            "patient_name",
+            "appointment",
+            "organization",
+            "visit_number",
+            "reason_for_visit",
+            "presenting_problem",
+            "scheduled_procedure",
+            "referring_physician",
+            "current_diagnoses",
+            "admission_type",
+            "arrival_time",
+            "assigned_location",
+            "attending_provider",
+            "attending_provider_name",
+            "registered_by",
+            "created_at",
+            "updated_at",
+        ]
+        extra_kwargs = {
+            "visit_number": {"read_only": True},
+            "registered_by": {"read_only": True},
+            "organization": {"required": False, "allow_null": True},
+        }
+
+    def get_patient_name(self, obj):
+        return f"{obj.patient.user.first_name} {obj.patient.user.last_name}"
+
+    def get_attending_provider_name(self, obj):
+        if obj.attending_provider:
+            return f"Dr. {obj.attending_provider.first_name} {obj.attending_provider.last_name}"
+        return None
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if request and request.user.is_authenticated:
+            validated_data["registered_by"] = request.user
+            if not validated_data.get("organization"):
+                validated_data["organization"] = request.user.organization
+        return super().create(validated_data)
 
 
 class OrganizationSerializer(serializers.ModelSerializer):

@@ -15,34 +15,23 @@ import {
   FormControlLabel,
   Radio,
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  MenuItem,
-  InputLabel,
-  Select as MUISelect,
-  IconButton,
-  Tooltip,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import Select from "react-select";
-import EditIcon from "@mui/icons-material/Edit";
-import SaveIcon from "@mui/icons-material/Save";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CancelIcon from "@mui/icons-material/Cancel";
-import { getValidToken, clearAuthData } from "../utils/auth";
+import { getValidToken } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
+import FullRegistrationForm from "../components/registration/FullRegistrationForm";
+import PatientsRegisterTable from "../components/registration/PatientsRegisterTable";
 
 function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = false }) {
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
   const [doctors, setDoctors] = useState([]);
-  const [organizations, setOrganizations] = useState([]);
 
-  // New state for patient information display
-  const [registeredPatient, setRegisteredPatient] = useState(null);
-  const [editMode, setEditMode] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [patientEditData, setPatientEditData] = useState({});
+  // Which left-pane tab is active: the original single-step Quick Register
+  // form, or the full multi-tab Registration (Identity/Emergency
+  // Contact/Financial/Reason for Visit/Legal Documents/Logistics).
+  const [leftTab, setLeftTab] = useState("quick");
 
   const navigate = useNavigate();
 
@@ -77,25 +66,6 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       } catch (err) {
         console.error("Failed to load doctors:", err);
       }
-    }; // Function to fetch organizations with valid token
-    const fetchOrganizations = async () => {
-      try {
-        const token = await getValidToken();
-        if (!token) {
-          console.log("No valid token available for fetching organizations");
-          return;
-        }
-
-        const res = await axios.get(
-          `${API_BASE_URL}/api/users/organizations/`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        setOrganizations(res.data);
-      } catch (err) {
-        console.error("Failed to load organizations:", err);
-      }
     };
 
     // Function to fetch current user info if logged in
@@ -129,7 +99,6 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
     };
 
     fetchDoctors();
-    fetchOrganizations();
     fetchCurrentUserOrg();
   }, []);
   const handleChange = (e) => {
@@ -139,12 +108,6 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
     });
   };
 
-  const handlePatientEditChange = (e) => {
-    setPatientEditData({
-      ...patientEditData,
-      [e.target.name]: e.target.value,
-    });
-  };
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -206,49 +169,41 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       console.log("Registration response:", response.data);
       toast.success("Registration successful!");
 
-      // If in admin mode, fetch the created patient data and display it
+      // If in admin mode, fetch the created patient so a modal caller (e.g.
+      // the calendar's quick-register flow) gets the full record -- the
+      // right pane here is now the all-patients table, not a single-patient
+      // display, so there's nothing else to populate.
       if (adminMode && token) {
-        try {
-          // Use the same valid token for fetching patient data
-          const patientResponse = await axios.get(
-            `${API_BASE_URL}/api/users/patients/`,
-            {
-              headers: { Authorization: `Bearer ${token}` },
-              params: { search: formData.username },
+        if (modalMode && onPatientRegistered) {
+          try {
+            const patientResponse = await axios.get(
+              `${API_BASE_URL}/api/users/patients/`,
+              {
+                headers: { Authorization: `Bearer ${token}` },
+                params: { search: formData.username },
+              }
+            );
+            if (patientResponse.data.results && patientResponse.data.results.length > 0) {
+              onPatientRegistered(patientResponse.data.results[0]);
             }
-          );
-
-          if (
-            patientResponse.data.results &&
-            patientResponse.data.results.length > 0
-          ) {
-            const newPatient = patientResponse.data.results[0];
-
-            setRegisteredPatient(newPatient);
-            setPatientEditData(newPatient);
-
-            // If in modal mode and callback is provided, call it with the new patient data
-            if (modalMode && onPatientRegistered) {
-              onPatientRegistered(newPatient);
-              // Don't return early - let the patient info display in the modal
-            } else {
-              // Clear the registration form (only in normal admin mode)
-              setFormData({
-                username: "",
-                email: "",
-                password: "",
-                first_name: "",
-                last_name: "",
-                role: adminMode ? "patient" : "patient",
-                assigned_doctor: "",
-                phone_number: "",
-                organization_name: "",
-              });
-              setHasProvider(null);
-            }
+          } catch (fetchError) {
+            console.error("Failed to fetch registered patient:", fetchError);
           }
-        } catch (fetchError) {
-          console.error("Failed to fetch registered patient:", fetchError);
+        } else {
+          // Clear the Quick Register form so the registrar can start the
+          // next patient right away.
+          setFormData({
+            username: "",
+            email: "",
+            password: "",
+            first_name: "",
+            last_name: "",
+            role: adminMode ? "patient" : "patient",
+            assigned_doctor: "",
+            phone_number: "",
+            organization_name: "",
+          });
+          setHasProvider(null);
         }
       } else if (!adminMode) {
         // Only navigate to login for non-admin mode
@@ -313,68 +268,6 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
     }
   };
 
-  const handlePatientEdit = () => {
-    setEditMode(true);
-  };
-  const handlePatientSave = async () => {
-    try {
-      const token = await getValidToken();
-      if (!token) {
-        toast.error("Session expired. Please log in again.");
-        clearAuthData();
-        navigate("/login");
-        return;
-      }
-
-      const updateData = {
-        ...patientEditData,
-        provider_id: patientEditData.provider,
-      };
-
-      await axios.put(
-        `${API_BASE_URL}/api/users/patients/by-user/${registeredPatient.user_id}/edit/`,
-        updateData,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setRegisteredPatient(patientEditData);
-      setEditMode(false);
-      toast.success("Patient information updated successfully!");
-    } catch (error) {
-      console.error("Update error:", error);
-      toast.error("Failed to update patient information.");
-    }
-  };
-
-  const handlePatientCancel = () => {
-    setPatientEditData(registeredPatient);
-    setEditMode(false);
-  };
-  const handlePatientDelete = async () => {
-    try {
-      const token = await getValidToken();
-      if (!token) {
-        toast.error("Session expired. Please log in again.");
-        clearAuthData();
-        navigate("/login");
-        return;
-      }
-
-      await axios.delete(
-        `${API_BASE_URL}/api/users/patients/${registeredPatient.id}/`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setRegisteredPatient(null);
-      setPatientEditData({});
-      setDeleteDialogOpen(false);
-      toast.success("Patient deleted successfully!");
-    } catch (error) {
-      console.error("Delete error:", error);
-      toast.error("Failed to delete patient.");
-    }
-  };
-
   const formatPhoneNumber = (value) => {
     const digits = value.replace(/\D/g, "");
     if (digits.length <= 3) return digits;
@@ -411,10 +304,21 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           flexDirection: 'column',
           height: '100%'
         }}>
-          <Typography variant="h5" fontWeight={700} sx={{ mb: 2, flexShrink: 0 }}>
-            Quick Register
-          </Typography>
+          <Tabs
+            value={leftTab}
+            onChange={(e, v) => setLeftTab(v)}
+            sx={{
+              mb: 2,
+              flexShrink: 0,
+              minHeight: 36,
+              "& .MuiTab-root": { minHeight: 36, textTransform: "none" },
+            }}
+          >
+            <Tab label="Quick Register" value="quick" />
+            <Tab label="Registration" value="registration" />
+          </Tabs>
 
+          {leftTab === "quick" && (
           <Box sx={{
             flex: 1,
             overflowY: 'auto',
@@ -582,294 +486,19 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
               </Stack>
             </form>
           </Box>
-        </Box>
-        {/* Right Pane - Patient Information Display */}
-        <Box sx={{ flex: '1 1 65%', minWidth: 0, pl: 2 }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 3,
-            }}
-          >
-            <Typography
-              variant="h5"
-              fontWeight={700}
-              color={registeredPatient ? "primary.main" : "text.secondary"}
-            >
-              Patient Information
-            </Typography>
+          )}
 
-            {registeredPatient && (
-              <Box sx={{ display: "flex", gap: 1 }}>
-                {editMode ? (
-                  <>
-                    <Tooltip title="Save Changes">
-                      <IconButton
-                        onClick={handlePatientSave}
-                        color="primary"
-                        size="small"
-                      >
-                        <SaveIcon />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Cancel">
-                      <IconButton
-                        onClick={handlePatientCancel}
-                        color="secondary"
-                        size="small"
-                      >
-                        <CancelIcon />
-                      </IconButton>
-                    </Tooltip>
-                  </>
-                ) : (
-                  <Tooltip title="Edit Patient">
-                    <IconButton
-                      onClick={handlePatientEdit}
-                      color="primary"
-                      size="small"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Tooltip title="Delete Patient">
-                  <IconButton
-                    onClick={() => setDeleteDialogOpen(true)}
-                    color="error"
-                    size="small"
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            )}
-          </Box>
-
-          {registeredPatient ? (
-            <Stack spacing={3}>
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <TextField
-                  label="First Name"
-                  name="first_name"
-                  value={patientEditData.first_name || ""}
-                  onChange={handlePatientEditChange}
-                  fullWidth
-                  disabled={!editMode}
-                  InputProps={
-                    !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
-                      : {}
-                  }
-                />
-                <TextField
-                  label="Last Name"
-                  name="last_name"
-                  value={patientEditData.last_name || ""}
-                  onChange={handlePatientEditChange}
-                  fullWidth
-                  disabled={!editMode}
-                  InputProps={
-                    !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
-                      : {}
-                  }
-                />
-              </Box>
-
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <TextField
-                  label="Username"
-                  name="username"
-                  value={patientEditData.username || ""}
-                  onChange={handlePatientEditChange}
-                  fullWidth
-                  disabled={!editMode}
-                  InputProps={
-                    !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
-                      : {}
-                  }
-                />
-                <TextField
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={patientEditData.email || ""}
-                  onChange={handlePatientEditChange}
-                  fullWidth
-                  disabled={!editMode}
-                  InputProps={
-                    !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
-                      : {}
-                  }
-                />
-              </Box>
-
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <FormControl fullWidth disabled={!editMode}>
-                  <InputLabel>Provider</InputLabel>
-                  <MUISelect
-                    name="provider"
-                    value={patientEditData.provider || ""}
-                    onChange={handlePatientEditChange}
-                    label="Provider"
-                    sx={
-                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
-                    }
-                  >
-                    <MenuItem value="">Select a provider</MenuItem>
-                    {doctors.map((doc) => (
-                      <MenuItem key={doc.id} value={doc.id}>
-                        Dr. {doc.first_name} {doc.last_name}
-                      </MenuItem>
-                    ))}
-                  </MUISelect>
-                </FormControl>
-
-                <FormControl fullWidth disabled={!editMode}>
-                  <InputLabel>Organization</InputLabel>
-                  <MUISelect
-                    name="organization"
-                    value={patientEditData.organization || ""}
-                    onChange={handlePatientEditChange}
-                    label="Organization"
-                    sx={
-                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
-                    }
-                  >
-                    <MenuItem value="">Select an organization</MenuItem>
-                    {organizations.map((org) => (
-                      <MenuItem key={org.id} value={org.id}>
-                        {org.name}
-                      </MenuItem>
-                    ))}
-                  </MUISelect>
-                </FormControl>
-              </Box>
-
-              <Box sx={{ display: "flex", gap: 2 }}>
-                <TextField
-                  label="Phone Number"
-                  name="phone_number"
-                  value={
-                    editMode
-                      ? formatPhoneNumber(patientEditData.phone_number || "")
-                      : patientEditData.phone_number || ""
-                  }
-                  onChange={(e) => {
-                    const raw = e.target.value.replace(/\D/g, "");
-                    setPatientEditData((prev) => ({
-                      ...prev,
-                      phone_number: raw,
-                    }));
-                  }}
-                  fullWidth
-                  disabled={!editMode}
-                  InputProps={
-                    !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
-                      : {}
-                  }
-                />
-                <TextField
-                  label="Date of Birth"
-                  name="date_of_birth"
-                  type="date"
-                  value={patientEditData.date_of_birth || ""}
-                  onChange={handlePatientEditChange}
-                  fullWidth
-                  disabled={!editMode}
-                  InputLabelProps={{ shrink: true }}
-                  InputProps={
-                    !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
-                      : {}
-                  }
-                />
-              </Box>
-
-              <TextField
-                label="Address"
-                name="address"
-                value={patientEditData.address || ""}
-                onChange={handlePatientEditChange}
-                fullWidth
-                disabled={!editMode}
-                InputProps={
-                  !editMode
-                    ? { style: { color: "#333", background: "#f5f5f5" } }
-                    : {}
-                }
-              />
-
-              <TextField
-                label="Notes / Medical History"
-                name="medical_history"
-                value={patientEditData.medical_history || ""}
-                onChange={handlePatientEditChange}
-                fullWidth
-                disabled={!editMode}
-                multiline
-                rows={4}
-                InputProps={
-                  !editMode
-                    ? { style: { color: "#333", background: "#f5f5f5" } }
-                    : {}
-                }
-              />
-            </Stack>
-          ) : (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                minHeight: "40vh",
-                textAlign: "center",
-              }}
-            >
-              <Typography variant="h6" color="text.secondary" gutterBottom>
-                Patient information will appear here after registration
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Complete the registration form on the left to see patient
-                details and management options.
-              </Typography>
+          {leftTab === "registration" && (
+            <Box sx={{ flex: 1, overflowY: "auto", pr: 1, minHeight: 0 }}>
+              <FullRegistrationForm doctors={doctors} />
             </Box>
           )}
         </Box>
+        {/* Right Pane - All Registered Patients (first 50) */}
+        <Box sx={{ flex: '1 1 65%', minWidth: 0, pl: 2 }}>
+          <PatientsRegisterTable />
+        </Box>
       </Paper>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={() => setDeleteDialogOpen(false)}
-      >
-        <DialogTitle>Confirm Delete</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Are you sure you want to delete this patient? This action cannot be
-            undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
-            Cancel
-          </Button>
-          <Button
-            onClick={handlePatientDelete}
-            color="error"
-            variant="contained"
-          >
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
