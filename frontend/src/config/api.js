@@ -99,6 +99,14 @@ export const apiEndpoints = {
     clinicalNoteSign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/sign/`,
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
     noteTemplates: `${API_BASE_URL}/api/note-templates/`,
+
+    // Orders
+    orders: `${API_BASE_URL}/api/orders/`,
+    order: (id) => `${API_BASE_URL}/api/orders/${id}/`,
+    ordersSign: `${API_BASE_URL}/api/orders/sign/`,
+    orderAction: (id, action) => `${API_BASE_URL}/api/orders/${id}/${action}/`,
+    orderables: `${API_BASE_URL}/api/orderables/`,
+    orderSets: `${API_BASE_URL}/api/order-sets/`,
     noteTemplate: (code) => `${API_BASE_URL}/api/note-templates/${code}/`,
 
     // Vital Signs flowsheet endpoints
