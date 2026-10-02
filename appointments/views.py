@@ -15,6 +15,7 @@ from .models import (
     Orderable,
     OrderSet,
     Order,
+    ORDER_PRIORITY_CHOICES,
 )
 from .serializers import (
     AppointmentSerializer,
@@ -39,6 +40,7 @@ from .serializers import (
     OrderInterfaceUpdateSerializer,
 )
 from . import orders_workflow as ow
+from .orders_csv import parse_orderable_csv, export_orderable_csv, sample_orderable_csv
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
@@ -62,6 +64,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework import status
 import holidays as pyholidays
 import csv
+import re
 import logging
 from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
@@ -2151,6 +2154,10 @@ class NoteTemplateAdminViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        if result["created"] and request.query_params.get("kind") == "order_detail":
+            result["template"].kind = "order_detail"
+            result["template"].save(update_fields=["kind"])
+
         data = self._read_payload(result["template"], version_bumped=result["version_bumped"])
         data["created"] = result["created"]
         return Response(
@@ -2372,6 +2379,13 @@ class _CatalogAdminMixin:
     def get_queryset(self):
         return _org_scoped(self.model.objects.all(), self.request.user, allow_global=True)
 
+    def _check_editable(self, obj):
+        # Entries shared by all organizations can be seen but only changed by a system admin.
+        if obj.organization_id is None and self.request.user.role != "system_admin":
+            raise ow.OrderWorkflowError(
+                "This entry is shared by all organizations and can only be changed by a system administrator.", 403
+            )
+
     def perform_create(self, serializer):
         user = self.request.user
         if user.role == "system_admin":
@@ -2380,15 +2394,22 @@ class _CatalogAdminMixin:
             serializer.save(organization=user.organization)
 
     def perform_update(self, serializer):
+        self._check_editable(serializer.instance)
         user = self.request.user
         if user.role == "system_admin":
             serializer.save()
         else:
             serializer.save(organization=user.organization)
 
+    def handle_exception(self, exc):
+        if isinstance(exc, ow.OrderWorkflowError):
+            return Response({"detail": exc.message}, status=exc.status_code)
+        return super().handle_exception(exc)
+
     def destroy(self, request, *args, **kwargs):
         from django.db.models import ProtectedError
 
+        self._check_editable(self.get_object())
         try:
             return super().destroy(request, *args, **kwargs)
         except ProtectedError:
@@ -2401,6 +2422,108 @@ class _CatalogAdminMixin:
 class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
     model = Orderable
     serializer_class = OrderableAdminSerializer
+
+    # CSV: same all-or-nothing approach as the note template upload (see
+    # appointments/orders_csv.py for the format).
+
+    @action(detail=False, methods=["get"], url_path="sample-csv")
+    def sample_csv(self, request):
+        response = HttpResponse(sample_orderable_csv(), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="orderables_upload_template.csv"'
+        return response
+
+    @action(detail=False, methods=["get"], url_path="download-csv")
+    def download_csv(self, request):
+        # Only the entries an upload would write back to: the user's own
+        # organization (or, for a system admin, the shared catalog).
+        org_id = None if request.user.role == "system_admin" else request.user.organization_id
+        qs = (
+            Orderable.objects.filter(organization_id=org_id)
+            .select_related("detail_template")
+            .order_by("category", "name")
+        )
+        response = HttpResponse(export_orderable_csv(qs), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="orderables.csv"'
+        return response
+
+    @action(detail=False, methods=["post"], url_path="upload-csv", parser_classes=[MultiPartParser])
+    def upload_csv(self, request):
+        from django.db import transaction
+
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"detail": "No file was uploaded. Send the CSV as multipart form field 'file'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if upload.size > 2 * 1024 * 1024:
+            return Response({"detail": "That file is larger than 2 MB."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        is_sysadmin = user.role == "system_admin"
+        rows, errors = parse_orderable_csv(
+            decode_upload(upload.read()),
+            [c[0] for c in Orderable.CATEGORY_CHOICES],
+            [c[0] for c in Orderable.CODE_SYSTEM_CHOICES],
+            [c[0] for c in ORDER_PRIORITY_CHOICES],
+        )
+
+        # Checks that need the database: detail forms and who owns each code.
+        org_id = None if is_sysadmin else user.organization_id
+        if rows:
+            forms = {
+                t.code: t
+                for t in _org_scoped(
+                    NoteTemplate.objects.filter(kind="order_detail"), user, allow_global=True
+                )
+            }
+            code_filter = Q()
+            for r in rows:
+                code_filter |= Q(code__iexact=r["code"])
+            existing = {o.code.lower(): o for o in Orderable.objects.filter(code_filter)} if rows else {}
+            for r in rows:
+                form_code = r["detail_form_code"]
+                if form_code and form_code not in forms:
+                    errors.append({
+                        "row": r["_row"], "column": "detail_form_code",
+                        "message": f"No Order detail form with code '{form_code}'.",
+                    })
+                current = existing.get(r["code"].lower())
+                if current is not None and current.organization_id != org_id:
+                    errors.append({
+                        "row": r["_row"], "column": "code",
+                        "message": "That code already belongs to another organization or to the shared catalog.",
+                    })
+        if errors:
+            return Response(
+                {"detail": f"The CSV has {len(errors)} problem(s). Nothing was saved.", "errors": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = updated = 0
+        with transaction.atomic():
+            for r in rows:
+                fields = {
+                    "name": r["name"],
+                    "category": r["category"],
+                    "code_system": r["code_system"],
+                    "external_code": r["external_code"],
+                    "description": r["description"],
+                    "default_priority": r["default_priority"],
+                    "requires_cosign": r["requires_cosign"],
+                    "is_active": r["is_active"],
+                    "detail_template": forms.get(r["detail_form_code"]) if r["detail_form_code"] else None,
+                }
+                current = existing.get(r["code"].lower())
+                if current is None:
+                    Orderable.objects.create(code=r["code"], organization_id=org_id, **fields)
+                    created += 1
+                else:
+                    for k, val in fields.items():
+                        setattr(current, k, val)
+                    current.save()
+                    updated += 1
+        return Response({"created": created, "updated": updated, "total": created + updated})
 
 
 class OrderSetAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):

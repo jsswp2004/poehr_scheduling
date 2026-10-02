@@ -7,6 +7,7 @@ import {
     FaSearch,
     FaEnvelope,
     FaClipboardList,
+    FaClipboardCheck,
     FaTable
 } from 'react-icons/fa';
 
@@ -24,6 +25,7 @@ const AdminNavGrid = ({ navItems, onNavigate }) => {
         FaEnvelope: FaEnvelope,
         FaClipboardList: FaClipboardList,
         FaTable: FaTable,
+        FaClipboardCheck: FaClipboardCheck,
     };
 
     const renderIcon = (iconName) => {

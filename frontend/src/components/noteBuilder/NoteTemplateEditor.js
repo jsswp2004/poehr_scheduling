@@ -94,7 +94,7 @@ function blankField() {
  * how additions/removals/reordering/depends_on wiring and the
  * cosmetic-vs-structural version bump are resolved server-side.
  */
-function NoteTemplateEditor({ templateCode, onBack }) {
+function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
     const isNew = templateCode === null;
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
@@ -249,6 +249,8 @@ function NoteTemplateEditor({ templateCode, onBack }) {
             code,
             name,
             is_active: isActive,
+            // Only set when creating: a template's kind never changes afterwards.
+            ...(isNew ? { kind } : {}),
             fields: fields.map((f) => ({
                 client_id: f.clientId,
                 tab_label: f.tab_label || "",
