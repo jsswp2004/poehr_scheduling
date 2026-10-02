@@ -531,9 +531,7 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     note_type_display = serializers.CharField(
         source="get_note_type_display", read_only=True
     )
-    documentation_type_display = serializers.CharField(
-        source="get_documentation_type_display", read_only=True
-    )
+    documentation_type_display = serializers.SerializerMethodField()
     # Full template definition (fields + dictionary options), included so
     # Note History can render a structured note without a second fetch.
     # None for legacy SOAP notes (template is null).
@@ -602,6 +600,23 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     def get_author_role(self, obj):
         return obj.author_role_at_signing or getattr(obj.author, "role", "")
 
+    def get_documentation_type_display(self, obj):
+        """
+        Human label for documentation_type: a built-in type's label, else the
+        name of the note's template (or of the template with that code), else
+        the raw code so a note never shows a blank type.
+        """
+        code = obj.documentation_type
+        if not code:
+            return ""
+        legacy = dict(ClinicalNote.DOCUMENTATION_TYPE_CHOICES)
+        if code in legacy:
+            return legacy[code]
+        if obj.template_id and obj.template.code == code:
+            return obj.template.name
+        template = NoteTemplate.objects.filter(code=code).first()
+        return template.name if template else code
+
     def get_template_detail(self, obj):
         if obj.template_snapshot:
             return obj.template_snapshot
@@ -619,6 +634,27 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"appointment": "This field is required."}
             )
+
+        # documentation_type is a built-in type or the code of an active
+        # NoteTemplate (uploaded/built in the Note Builder). When it names a
+        # template, point the note at that template so the right form,
+        # version and snapshot are used no matter what the client sent.
+        if "documentation_type" in data:
+            code = data["documentation_type"]
+            current = getattr(self.instance, "documentation_type", "")
+            if code:
+                template = NoteTemplate.objects.filter(code=code, is_active=True).first()
+                if template is not None:
+                    data["template"] = template
+                elif code not in dict(ClinicalNote.DOCUMENTATION_TYPE_CHOICES) and code != current:
+                    raise serializers.ValidationError(
+                        {
+                            "documentation_type": (
+                                f"'{code}' is not a valid documentation type. "
+                                "Choose a built-in type or an active note template."
+                            )
+                        }
+                    )
         return data
 
     def create(self, validated_data):
