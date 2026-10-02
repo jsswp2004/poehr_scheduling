@@ -359,7 +359,8 @@ const ClinicEventsManagement = () => {
                 overflow: 'hidden'
             }}>
                 {/* Left Pane - Form */}
-                <Grid item xs={12} md={5} sx={{
+                <Grid size={{ xs: 12, md: 6 }} sx={{
+                    minWidth: 0,
                     display: 'flex',
                     minHeight: 0,
                     height: '100%'
@@ -487,7 +488,8 @@ const ClinicEventsManagement = () => {
                 </Grid>
 
                 {/* Right Pane - Table */}
-                <Grid item xs={12} md={7} sx={{
+                <Grid size={{ xs: 12, md: 6 }} sx={{
+                    minWidth: 0,
                     display: 'flex',
                     minHeight: 0,
                     height: '100%'

@@ -486,7 +486,11 @@ function MaintenancePage() {
               {/* Availability Section */}
               <Box
                 sx={{
-                  flex: 1,
+                  // Equal halves: a zero flex-basis plus minWidth 0 stops either
+                  // table's content (e.g. the longer Blocked rows) from widening it.
+                  flex: "1 1 0",
+                  width: 0,
+                  minWidth: 0,
                   display: "flex",
                   flexDirection: "column",
                   minHeight: 0,
@@ -616,7 +620,11 @@ function MaintenancePage() {
               {/* Blocked Section */}
               <Box
                 sx={{
-                  flex: 1,
+                  // Equal halves: a zero flex-basis plus minWidth 0 stops either
+                  // table's content (e.g. the longer Blocked rows) from widening it.
+                  flex: "1 1 0",
+                  width: 0,
+                  minWidth: 0,
                   display: "flex",
                   flexDirection: "column",
                   minHeight: 0,
