@@ -20,6 +20,7 @@ from .models import (
     UnitCensus,
     SHIFT_TYPE_CHOICES,
     DAY_OF_WEEK_CHOICES,
+    NURSING_ROLE_CHOICES,
     VALID_DAY_CODES,
 )
 from .coverage import evaluate_requirement
@@ -297,11 +298,64 @@ def _parse_date_cell(raw, field_label):
         raise ValueError(f"invalid {field_label} '{raw}' (expected YYYY-MM-DD)")
 
 
+# Spellings accepted in the CSV "nursing_role" column. Matching ignores case,
+# punctuation and extra spaces. Deliberately NO guessing from "profession": a
+# bare "Nurse" could be an RN or an LPN, and this value drives compliance math.
+_NURSING_ROLE_ALIASES = {
+    "rn": "rn",
+    "registered nurse": "rn",
+    "lpn": "lpn",
+    "lvn": "lpn",
+    "licensed practical nurse": "lpn",
+    "licensed vocational nurse": "lpn",
+    "cna": "cna",
+    "gna": "cna",
+    "cna support": "cna",
+    "certified nursing assistant": "cna",
+    "geriatric nursing assistant": "cna",
+    "nursing assistant": "cna",
+    "nurse assistant": "cna",
+    "nurse aide": "cna",
+    "nurses aide": "cna",
+    "aide": "cna",
+    "support": "cna",
+    "other": "other",
+}
+_VALID_NURSING_ROLES = {code for code, _label in NURSING_ROLE_CHOICES}
+
+
+def _parse_nursing_role_cell(raw):
+    """
+    Returns a nursing_role code (rn/lpn/cna/other), or None when the cell is
+    blank (meaning: don't touch the role). Raises ValueError for anything
+    unrecognised so the row can be reported instead of silently guessed.
+    """
+    value = (raw or "").strip()
+    if not value:
+        return None
+    key = re.sub(r"[^a-z0-9]+", " ", value.lower()).strip()
+    code = _NURSING_ROLE_ALIASES.get(key)
+    if code is None and key in _VALID_NURSING_ROLES:
+        code = key
+    if code is None:
+        raise ValueError(
+            f"nursing_role '{raw}' not recognised (use rn, lpn, cna or other)"
+        )
+    return code
+
+
 class UploadStaffCSV(APIView):
     """
     CSV upload for the staff roster. Required columns: first_name,
     last_name, profession (free text -- nurse, physician, CNA, tech,
-    whatever the org uses). Optional: email, phone_number.
+    whatever the org uses). Optional: email, phone_number, nursing_role.
+
+    nursing_role (rn / lpn / cna / other, see _NURSING_ROLE_ALIASES for the
+    accepted spellings) is the direct-care role the staffing compliance
+    checks count; "other" does not count toward hours, ratio or RN rules. A
+    blank or missing cell never changes an existing person's role (new
+    people start as "other"); an unrecognised value is reported per row and
+    the role is left as it was.
 
     Also optionally accepts a recurring-schedule block per row: shift
     (day/evening/night/custom), days (e.g. "mon,wed,fri" or full day
@@ -348,6 +402,8 @@ class UploadStaffCSV(APIView):
         updated_count = 0
         schedules_created_count = 0
         schedules_updated_count = 0
+        roles_set_count = 0
+        not_counted_count = 0
         errors = []
 
         for row_num, row in enumerate(reader, start=2):
@@ -366,21 +422,45 @@ class UploadStaffCSV(APIView):
                     errors.append(f"Row {row_num}: profession is required.")
                     continue
 
+                # Optional nursing_role column. Blank/missing -> leave the
+                # role alone; unrecognised -> still save the person, report
+                # the row, and keep whatever role they already had.
+                nursing_role = None
+                nursing_role_error = None
+                try:
+                    nursing_role = _parse_nursing_role_cell(row.get("nursing_role"))
+                except ValueError as e:
+                    nursing_role_error = str(e)
+
+                defaults = {
+                    "email": email,
+                    "phone_number": phone_number,
+                    "is_active": True,
+                }
+                if nursing_role:
+                    defaults["nursing_role"] = nursing_role
+
                 staff, created = Staff.objects.update_or_create(
                     organization=organization,
                     first_name=first_name,
                     last_name=last_name,
                     profession=profession,
-                    defaults={
-                        "email": email,
-                        "phone_number": phone_number,
-                        "is_active": True,
-                    },
+                    defaults=defaults,
                 )
                 if created:
                     created_count += 1
                 else:
                     updated_count += 1
+
+                if nursing_role:
+                    roles_set_count += 1
+                if nursing_role_error:
+                    errors.append(
+                        f"Row {row_num}: staff saved, but {nursing_role_error} -- "
+                        f"role left as {staff.get_nursing_role_display()}."
+                    )
+                if staff.nursing_role not in ("rn", "lpn", "cna"):
+                    not_counted_count += 1
 
                 # Optional recurring-schedule columns: shift, days, start,
                 # end (start_date/end_date optional too). A row with none
@@ -446,6 +526,8 @@ class UploadStaffCSV(APIView):
                 "updated": updated_count,
                 "schedules_created": schedules_created_count,
                 "schedules_updated": schedules_updated_count,
+                "nursing_roles_set": roles_set_count,
+                "not_counted": not_counted_count,
                 "errors": errors,
             },
             status=status.HTTP_200_OK,

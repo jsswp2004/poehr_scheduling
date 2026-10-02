@@ -18,11 +18,11 @@ import { apiEndpoints, getAuthHeadersForUpload } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 
 const TEMPLATE_HEADER =
-  "first_name,last_name,profession,email,phone_number,shift,days,start,end\n";
+  "first_name,last_name,profession,nursing_role,email,phone_number,shift,days,start,end\n";
 const TEMPLATE_EXAMPLE =
-  "Jane,Doe,Nurse,jane.doe@example.com,555-0100,day,\"mon,wed,fri\",07:00,15:00\n" +
-  "John,Smith,Physician,john.smith@example.com,555-0101,night,\"tue,thu,sat,sun\",19:00,07:00\n" +
-  "Pat,Lee,CNA,,,,,,\n";
+  "Jane,Doe,Nurse,rn,jane.doe@example.com,555-0100,day,\"mon,wed,fri\",07:00,15:00\n" +
+  "John,Smith,Physician,other,john.smith@example.com,555-0101,night,\"tue,thu,sat,sun\",19:00,07:00\n" +
+  "Pat,Lee,CNA,cna,,,,,,\n";
 
 function StaffingUploadTab() {
   const [file, setFile] = useState(null);
@@ -80,6 +80,16 @@ function StaffingUploadTab() {
         their record rather than creating duplicates.
       </Typography>
       <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
+        <strong>nursing_role</strong> (optional) is what the staffing
+        compliance checks count: <strong>rn</strong>, <strong>lpn</strong>,{" "}
+        <strong>cna</strong> (CNA / GNA / nursing assistant), or{" "}
+        <strong>other</strong>. Only RN, LPN and CNA count toward care hours,
+        the staff ratio and the RN requirement. Profession is just a label
+        and is never used for this. Leave nursing_role blank to keep a
+        person's current role; new people with a blank role start as Other
+        and can be changed on the Roster tab.
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 1, color: "text.secondary" }}>
         To also assign a recurring schedule while uploading, fill in all
         four of: <strong>shift</strong> (day, evening, night, or custom),{" "}
         <strong>days</strong> (e.g. "mon,wed,fri" -- mon/tue/wed/thu/fri/sat/sun,
@@ -113,8 +123,13 @@ function StaffingUploadTab() {
       </Stack>
 
       {status && status.ok && (
-        <Alert severity={status.errors && status.errors.length ? "warning" : "success"} sx={{ mt: 2 }}>
+        <Alert severity={(status.errors && status.errors.length) || status.not_counted > 0 ? "warning" : "success"} sx={{ mt: 2 }}>
           Created {status.created}, updated {status.updated}.
+          {status.not_counted > 0 && (
+            <> {status.not_counted} of these {status.not_counted === 1 ? "person has" : "people have"} the
+            role Other, which does not count toward staffing compliance until
+            a Nursing Role (RN, LPN or CNA) is set.</>
+          )}
           {(status.schedules_created > 0 || status.schedules_updated > 0) && (
             <> Schedules created {status.schedules_created || 0}, updated{" "}
             {status.schedules_updated || 0}.</>
