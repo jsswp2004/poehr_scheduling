@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -52,22 +52,24 @@ const NOTE_TYPE_LABELS = {
   nursing_assessment: "Nursing Assessment",
 };
 
-// Dictionary of documentation types available to the physician when
-// authoring a note. This is separate from note_type (which tracks the
-// author's clinical role -- doctor vs. nurse) -- it's a further
-// classification of the note itself. More types can be added here as
-// they're defined; only two exist for now.
+// Built-in documentation types available when authoring a note. This is
+// separate from note_type (which tracks the author's clinical role --
+// doctor vs. nurse) -- it's a further classification of the note itself.
+//
+// Every ACTIVE NoteTemplate (built or uploaded in the Note Builder) is added
+// to the dropdown automatically from /api/note-templates/ -- nothing needs
+// to be listed here for a new template. This constant is the fallback used
+// until (or if) that list can't be loaded, so the dropdown is never empty.
 const DOCUMENTATION_TYPES = [
   { value: "initial_assessment", label: "Initial Assessment" },
   { value: "progress_note", label: "Progress Note" },
   { value: "admission_note", label: "Admission Note" },
 ];
 
-// documentation_type values that are rendered from a configurable
-// NoteTemplate (DynamicNoteForm) instead of the fixed SOAP fields below.
-// This is the only place a new structured note type needs to be listed on
-// the frontend -- its actual fields live entirely in the NoteTemplate /
-// NoteFieldDefinition rows on the backend.
+// documentation_type values that are ALWAYS rendered from a configurable
+// NoteTemplate (DynamicNoteForm) instead of the fixed SOAP fields below,
+// even before the template list has loaded. Any other active template code
+// is detected from the loaded list (see isTemplateType in the component).
 const TEMPLATE_DRIVEN_TYPES = new Set(["admission_note"]);
 
 const EMPTY_FORM = {
@@ -123,6 +125,9 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   // so switching back and forth doesn't re-fetch.
   const [templatesByCode, setTemplatesByCode] = useState({});
   const [templateLoading, setTemplateLoading] = useState(false);
+  // Active NoteTemplates ({ code, name }) that feed the Documentation Type
+  // dropdown; null until /api/note-templates/ has loaded.
+  const [activeTemplates, setActiveTemplates] = useState(null);
 
   // Note History: key of the row currently shown in the read-only preview
   // pane (e.g. "note-12" or "flowsheet-3"), and the history item (note or
@@ -196,6 +201,66 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     init();
   }, [loadData]);
 
+  // Load the active note templates so every one of them (not just the
+  // built-ins) shows up in the Documentation Type dropdown. Only the code and
+  // name are kept here -- a template's full definition is fetched on demand
+  // when it's selected (see the effect below).
+  useEffect(() => {
+    if (!["doctor", "nurse", "admin", "system_admin"].includes(userRole)) return undefined;
+    let cancelled = false;
+    const loadTemplateList = async () => {
+      try {
+        const headers = await authHeader();
+        const res = await api.get(apiEndpoints.noteTemplates, { headers });
+        if (cancelled) return;
+        const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+        setActiveTemplates(list.map((t) => ({ code: t.code, name: t.name })));
+      } catch (err) {
+        // Keep the built-in types; the dropdown just won't list extra templates.
+        console.error("Failed to load note templates:", err);
+      }
+    };
+    loadTemplateList();
+    return () => {
+      cancelled = true;
+    };
+  }, [userRole]);
+
+  // True when `code` is rendered from a NoteTemplate rather than the SOAP form.
+  const isTemplateType = (code) =>
+    TEMPLATE_DRIVEN_TYPES.has(code) ||
+    !!templatesByCode[code] ||
+    (activeTemplates || []).some((t) => t.code === code);
+
+  // Dropdown options: the non-template built-ins plus every active template.
+  // The currently selected value is always present (e.g. a draft whose
+  // template was deactivated since) so the Select never shows a blank.
+  const documentationTypeOptions = useMemo(() => {
+    let options;
+    if (activeTemplates === null) {
+      options = [...DOCUMENTATION_TYPES];
+    } else {
+      options = [
+        ...DOCUMENTATION_TYPES.filter((dt) => !TEMPLATE_DRIVEN_TYPES.has(dt.value)),
+        ...activeTemplates.map((t) => ({ value: t.code, label: t.name })),
+      ];
+    }
+    const current = form.documentation_type;
+    if (current && !options.some((o) => o.value === current)) {
+      options.push({
+        value: current,
+        label:
+          templatesByCode[current]?.name ||
+          DOCUMENTATION_TYPES.find((dt) => dt.value === current)?.label ||
+          current,
+      });
+    }
+    return options;
+  }, [activeTemplates, templatesByCode, form.documentation_type]);
+
+  const documentationTypeLabel = (code) =>
+    documentationTypeOptions.find((o) => o.value === code)?.label || "";
+
   // Whenever the selected documentation type is template-driven, fetch its
   // NoteTemplate definition (fields + dictionary options) so DynamicNoteForm
   // can render it, and record the template's id on the form so the backend
@@ -203,7 +268,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   // switching between types repeatedly doesn't keep re-fetching.
   useEffect(() => {
     const code = form.documentation_type;
-    if (!TEMPLATE_DRIVEN_TYPES.has(code)) {
+    if (!isTemplateType(code)) {
       if (form.template !== null) {
         setForm((f) => ({ ...f, template: null }));
       }
@@ -243,16 +308,14 @@ function ClinicalNotesPanel({ patientId, patientName }) {
     userRole
   );
 
-  const isTemplateDriven = TEMPLATE_DRIVEN_TYPES.has(form.documentation_type);
+  const isTemplateDriven = isTemplateType(form.documentation_type);
   const currentTemplate = templatesByCode[form.documentation_type] || null;
 
   // Feeds the live preview pane (and its Print button) alongside the form --
   // built fresh on every render from whatever's currently in `form`, so it
   // always mirrors exactly what the author has typed so far.
   const selectedAppointment = appointments.find((a) => a.id === form.appointment);
-  const previewTitle =
-    DOCUMENTATION_TYPES.find((dt) => dt.value === form.documentation_type)?.label ||
-    "Clinical Note";
+  const previewTitle = documentationTypeLabel(form.documentation_type) || "Clinical Note";
   const previewMeta = [
     patientName ? `Patient: ${patientName}` : null,
     selectedAppointment
@@ -700,7 +763,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                   value={form.documentation_type}
                   onChange={handleFieldChange("documentation_type")}
                 >
-                  {DOCUMENTATION_TYPES.map((dt) => (
+                  {documentationTypeOptions.map((dt) => (
                     <MenuItem key={dt.value} value={dt.value}>
                       {dt.label}
                     </MenuItem>
@@ -732,7 +795,7 @@ function ClinicalNotesPanel({ patientId, patientName }) {
             {isTemplateDriven ? (
               templateLoading && !currentTemplate ? (
                 <Typography variant="body2" color="text.secondary">
-                  Loading {DOCUMENTATION_TYPES.find((dt) => dt.value === form.documentation_type)?.label} form...
+                  Loading {documentationTypeLabel(form.documentation_type)} form...
                 </Typography>
               ) : (
                 <DynamicNoteForm

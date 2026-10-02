@@ -98,6 +98,7 @@ export const apiEndpoints = {
     clinicalNote: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/`,
     clinicalNoteSign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/sign/`,
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
+    noteTemplates: `${API_BASE_URL}/api/note-templates/`,
     noteTemplate: (code) => `${API_BASE_URL}/api/note-templates/${code}/`,
 
     // Vital Signs flowsheet endpoints

@@ -357,9 +357,11 @@ class ClinicalNote(models.Model):
         ("draft", "Draft"),
         ("signed", "Signed"),
     ]
-    # Further classification of the note itself (distinct from note_type,
-    # which tracks the author's clinical role). Currently only used by
-    # physicians; more types can be added here as they're defined.
+    # Built-in documentation types. This is no longer an exhaustive list:
+    # documentation_type may also be the `code` of any active NoteTemplate
+    # (e.g. one uploaded through the Note Builder), so it is deliberately not
+    # enforced as `choices` on the field -- ClinicalNoteSerializer validates
+    # it instead (a legacy value below, or an active template code).
     DOCUMENTATION_TYPE_CHOICES = [
         ("initial_assessment", "Initial Assessment"),
         ("progress_note", "Progress Note"),
@@ -398,10 +400,12 @@ class ClinicalNote(models.Model):
 
     note_type = models.CharField(max_length=30, choices=NOTE_TYPE_CHOICES)
     documentation_type = models.CharField(
-        max_length=30,
-        choices=DOCUMENTATION_TYPE_CHOICES,
+        max_length=64,
         blank=True,
-        help_text="Further classification of the note (e.g. Initial Assessment, Progress Note)",
+        help_text=(
+            "Further classification of the note: a built-in type (e.g. initial_assessment, "
+            "progress_note) or the code of a NoteTemplate (e.g. admission_note)"
+        ),
     )
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="draft")
 
