@@ -303,12 +303,8 @@ function MaintenancePage() {
       >
         {/* LEFT: Schedule Maintenance Form */}
         <Grid
-          item
-          xs={12}
-          md={6}
-          lg={6}
-          xl={6}
-          sx={{ pl: 0, display: "flex", flexDirection: "column" }}
+          size={{ xs: 12, md: 6 }}
+          sx={{ pl: 0, minWidth: 0, display: "flex", flexDirection: "column" }}
         >
           <Box
             sx={{
@@ -459,7 +455,7 @@ function MaintenancePage() {
           </Box>
         </Grid>
         {/* RIGHT: Schedule Overview */}
-        <Grid item xs={12} md={6} lg={6} xl={6}>
+        <Grid size={{ xs: 12, md: 6 }} sx={{ minWidth: 0 }}>
           <Box
             sx={{
               p: 1,
