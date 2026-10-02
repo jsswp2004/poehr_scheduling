@@ -140,6 +140,10 @@ export const apiEndpoints = {
     // Flowsheet-builder configuration UI (Phase 2, admin-only)
     flowsheetTemplatesAdmin: `${API_BASE_URL}/api/admin/flowsheet-templates/`,
     flowsheetTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/flowsheet-templates/${code}/`,
+    // CSV download / upload for flowsheet templates
+    flowsheetTemplatesSampleCsv: `${API_BASE_URL}/api/admin/flowsheet-templates/sample-csv/`,
+    flowsheetTemplatesUploadCsv: `${API_BASE_URL}/api/admin/flowsheet-templates/upload-csv/`,
+    flowsheetTemplateDownloadCsv: (code) => `${API_BASE_URL}/api/admin/flowsheet-templates/${code}/download-csv/`,
 
     // Full patient Registration (Identity/Emergency Contact/Financial/Reason
     // for Visit/Legal Documents/Logistics) -- the "Registration" tab on the
