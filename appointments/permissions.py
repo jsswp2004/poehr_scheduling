@@ -165,3 +165,35 @@ class CanAuthorClinicalNoteType(permissions.BasePermission):
             "doctor": "doctor_assessment",
         }.get(getattr(user, "role", None))
         return expected is not None and note_type == expected
+
+class CanAccessOrders(permissions.BasePermission):
+    """
+    Orders go through the rights registry (users.rights, "orders.*"), one
+    right per kind of action, so an admin can grant e.g. cosign or complete
+    separately from placing. Anything not listed needs orders.view.
+    """
+
+    ACTION_RIGHTS = {
+        "list": "orders.view",
+        "retrieve": "orders.view",
+        "create": "orders.place",
+        "update": "orders.place",
+        "partial_update": "orders.place",
+        "destroy": "orders.place",
+        "discontinue": "orders.place",
+        "replace": "orders.place",
+        "place": "orders.place",
+        "sign": "orders.sign",
+        "sign_many": "orders.sign",
+        "cosign": "orders.cosign",
+        "complete": "orders.complete",
+        "interface_update": "orders.interface",
+        "interface_queue": "orders.interface",
+    }
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user.is_authenticated:
+            return False
+        right = self.ACTION_RIGHTS.get(getattr(view, "action", None), "orders.view")
+        return user_has_right(user, right)

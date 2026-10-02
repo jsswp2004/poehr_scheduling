@@ -669,6 +669,15 @@ class NoteTemplate(models.Model):
         blank=True,
         help_text="Leave blank for a template available to all organizations",
     )
+    # "note" templates are clinical note types (they appear in the
+    # Documentation Type dropdown). "order_detail" templates are the
+    # question forms attached to an Orderable (dose, specimen, laterality...)
+    # -- built in the same Note Builder, but never offered as a note type.
+    KIND_CHOICES = [
+        ("note", "Clinical note"),
+        ("order_detail", "Order detail form"),
+    ]
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, default="note")
     version = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -850,3 +859,288 @@ class FlowsheetRowDefinition(models.Model):
 
     def __str__(self):
         return f"{self.template.code}.{self.key}"
+
+
+# ---------------------------------------------------------------------------
+# Orders module
+#
+# Catalog:  Orderable (what can be ordered) and OrderSet/OrderSetItem
+#           (named bundles). Configured by admins.
+# Patient:  Order (one placed order) and OrderEvent (append-only audit log).
+#
+# An Order follows the same rule as ClinicalNote: editable only while draft;
+# once signed it is locked, and a change is made by discontinuing it and
+# placing a replacement. Everything a signed order needs to display later is
+# FROZEN onto the order itself (name, codes, detail-form snapshot), so
+# editing the catalog afterwards never changes an existing order.
+#
+# Interface readiness: every order has a stable placer_order_number, an
+# optional filler_order_number, an interface_status, and a result store, and
+# every status change is logged with its source ("user" / "interface" /
+# "system") -- so an HL7/FHIR engine can later send orders out and post
+# status/results back without schema changes. Statuses and codes line up
+# with HL7 ORM/ORU order control and OBR-4 universal service id.
+# ---------------------------------------------------------------------------
+
+ORDER_PRIORITY_CHOICES = [
+    ("routine", "Routine"),
+    ("urgent", "Urgent"),
+    ("stat", "STAT"),
+]
+
+
+class Orderable(models.Model):
+    """One thing that can be ordered (a lab test, an imaging study, ...)."""
+
+    CATEGORY_CHOICES = [
+        ("laboratory", "Laboratory"),
+        ("imaging", "Imaging"),
+        ("procedure", "Procedure"),
+        ("referral", "Referral"),
+        ("nursing", "Nursing"),
+        ("medication", "Medication"),
+        ("other", "Other"),
+    ]
+    CODE_SYSTEM_CHOICES = [
+        ("local", "Local"),
+        ("loinc", "LOINC"),
+        ("hcpcs", "HCPCS"),
+        ("icd10pcs", "ICD-10-PCS"),
+        ("snomed", "SNOMED CT"),
+        ("rxnorm", "RxNorm"),
+        ("cpt", "CPT (entered by the clinic)"),
+    ]
+
+    code = models.SlugField(max_length=64, unique=True, help_text="Stable machine key, e.g. 'cbc_with_diff'")
+    name = models.CharField(max_length=255, help_text="Display name, e.g. 'CBC with differential'")
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default="laboratory")
+    code_system = models.CharField(max_length=20, choices=CODE_SYSTEM_CHOICES, default="local")
+    external_code = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Code in code_system (e.g. the LOINC code). Copied onto each order, never looked up live.",
+    )
+    description = models.TextField(blank=True)
+    default_priority = models.CharField(max_length=10, choices=ORDER_PRIORITY_CHOICES, default="routine")
+    requires_cosign = models.BooleanField(
+        default=False,
+        help_text="Always needs a physician cosign, whoever places it",
+    )
+    detail_template = models.ForeignKey(
+        "appointments.NoteTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orderables",
+        help_text="Optional question form (a NoteTemplate of kind 'order_detail') shown when ordering",
+    )
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="orderables",
+        null=True,
+        blank=True,
+        help_text="Leave blank for an orderable available to all organizations",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
+class OrderSet(models.Model):
+    """A named bundle of orderables placed together (e.g. 'Admission labs')."""
+
+    code = models.SlugField(max_length=64, unique=True)
+    name = models.CharField(max_length=128)
+    description = models.TextField(blank=True)
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="order_sets",
+        null=True,
+        blank=True,
+        help_text="Leave blank for an order set available to all organizations",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class OrderSetItem(models.Model):
+    order_set = models.ForeignKey(OrderSet, on_delete=models.CASCADE, related_name="items")
+    orderable = models.ForeignKey(Orderable, on_delete=models.PROTECT, related_name="order_set_items")
+    sort_order = models.PositiveIntegerField(default=0)
+    default_priority = models.CharField(
+        max_length=10, choices=ORDER_PRIORITY_CHOICES, blank=True,
+        help_text="Leave blank to use the orderable's default priority",
+    )
+    default_detail = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["order_set", "sort_order"]
+        unique_together = ["order_set", "orderable"]
+
+
+class Order(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("pending_cosign", "Pending cosign"),
+        ("active", "Active"),
+        ("in_progress", "In progress"),
+        ("completed", "Completed"),
+        ("discontinued", "Discontinued"),
+    ]
+    INTERFACE_STATUS_CHOICES = [
+        ("not_sent", "Not sent"),
+        ("queued", "Queued"),
+        ("sent", "Sent"),
+        ("acknowledged", "Acknowledged"),
+        ("error", "Error"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="orders", null=True, blank=True
+    )
+    appointment = models.ForeignKey(
+        "appointments.Appointment",
+        on_delete=models.PROTECT,
+        related_name="orders",
+        help_text="The visit/registration this order was placed during",
+    )
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders_received"
+    )
+    ordering_provider = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="orders_placed"
+    )
+    orderable = models.ForeignKey(Orderable, on_delete=models.PROTECT, related_name="orders")
+
+    # --- Frozen copy of the orderable (never recomputed from the catalog once signed)
+    orderable_name = models.CharField(max_length=255)
+    orderable_category = models.CharField(max_length=20)
+    code_system = models.CharField(max_length=20, blank=True)
+    external_code = models.CharField(max_length=64, blank=True)
+    detail_template = models.ForeignKey(
+        "appointments.NoteTemplate",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+    )
+    detail_template_version = models.PositiveIntegerField(null=True, blank=True)
+    detail_template_snapshot = models.JSONField(default=dict, blank=True)
+
+    # --- What was ordered
+    detail = models.JSONField(
+        default=dict, blank=True, help_text="Answers to the detail form, keyed by field key"
+    )
+    priority = models.CharField(max_length=10, choices=ORDER_PRIORITY_CHOICES, default="routine")
+    indication = models.TextField(blank=True, help_text="Reason for the order")
+    diagnosis_codes = models.JSONField(
+        default=list, blank=True, help_text="[{'code': 'I10', 'description': '...'}]"
+    )
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+    order_set = models.ForeignKey(
+        OrderSet, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
+    )
+    clinical_note = models.ForeignKey(
+        "appointments.ClinicalNote",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+        help_text="The note this order was placed from, if any",
+    )
+    # A signed order is never edited; it is discontinued and replaced.
+    replaces = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="replaced_by"
+    )
+
+    # --- Signing / cosign
+    cosign_required = models.BooleanField(default=False)
+    signed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="orders_signed"
+    )
+    signed_at = models.DateTimeField(null=True, blank=True)
+    cosigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="orders_cosigned"
+    )
+    cosigned_at = models.DateTimeField(null=True, blank=True)
+
+    # --- Completion / results
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="orders_completed"
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    result_text = models.TextField(blank=True)
+    result_data = models.JSONField(default=dict, blank=True)
+
+    # --- Discontinuation
+    discontinued_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="orders_discontinued"
+    )
+    discontinued_at = models.DateTimeField(null=True, blank=True)
+    discontinue_reason = models.TextField(blank=True)
+
+    # --- Interface readiness (HL7 ORM/ORU or FHIR ServiceRequest later)
+    placer_order_number = models.CharField(max_length=32, unique=True, null=True, blank=True)
+    filler_order_number = models.CharField(max_length=64, blank=True)
+    interface_status = models.CharField(max_length=20, choices=INTERFACE_STATUS_CHOICES, default="not_sent")
+    interface_message = models.TextField(blank=True)
+    interface_updated_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "patient"]),
+            models.Index(fields=["status", "interface_status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.orderable_name} for {self.patient} ({self.status})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.placer_order_number:
+            self.placer_order_number = f"ORD-{self.pk:08d}"
+            type(self).objects.filter(pk=self.pk).update(placer_order_number=self.placer_order_number)
+
+
+class OrderEvent(models.Model):
+    """Append-only audit log of everything that happens to an order."""
+
+    SOURCE_CHOICES = [
+        ("user", "User"),
+        ("interface", "Interface"),
+        ("system", "System"),
+    ]
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="events")
+    event_type = models.CharField(max_length=30)
+    from_status = models.CharField(max_length=20, blank=True)
+    to_status = models.CharField(max_length=20, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="order_events"
+    )
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="user")
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]

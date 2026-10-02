@@ -15,6 +15,11 @@ from .models import (
     VitalSignsFlowsheet,
     FlowsheetTemplate,
     FlowsheetRowDefinition,
+    Orderable,
+    OrderSet,
+    OrderSetItem,
+    Order,
+    OrderEvent,
 )
 import logging
 
@@ -388,7 +393,7 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = NoteTemplate
-        fields = ["id", "code", "name", "organization", "is_active", "version", "fields"]
+        fields = ["id", "code", "name", "kind", "organization", "is_active", "version", "fields"]
         read_only_fields = ["id", "version"]
 
     def validate_fields(self, value):
@@ -643,7 +648,7 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
             code = data["documentation_type"]
             current = getattr(self.instance, "documentation_type", "")
             if code:
-                template = NoteTemplate.objects.filter(code=code, is_active=True).first()
+                template = NoteTemplate.objects.filter(code=code, is_active=True, kind="note").first()
                 if template is not None:
                     data["template"] = template
                 elif code not in dict(ClinicalNote.DOCUMENTATION_TYPE_CHOICES) and code != current:
@@ -1014,3 +1019,315 @@ class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
         if request is not None:
             validated_data["created_by"] = request.user
         return super().create(validated_data)
+
+
+# --- Orders -----------------------------------------------------------------
+# Catalog serializers (Orderable, OrderSet) and the Order serializer. Order
+# CREATE/UPDATE go through appointments/orders_workflow.py so the same rules
+# apply however an order is made; the transitions (sign, cosign, complete,
+# discontinue, replace) are actions on OrderViewSet that call the workflow
+# directly.
+
+
+class OrderableSerializer(serializers.ModelSerializer):
+    """Read-only catalog entry for the ordering screen."""
+
+    category_display = serializers.CharField(source="get_category_display", read_only=True)
+    code_system_display = serializers.CharField(source="get_code_system_display", read_only=True)
+    detail_template_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Orderable
+        fields = [
+            "id",
+            "code",
+            "name",
+            "category",
+            "category_display",
+            "code_system",
+            "code_system_display",
+            "external_code",
+            "description",
+            "default_priority",
+            "requires_cosign",
+            "detail_template",
+            "detail_template_detail",
+            "organization",
+            "is_active",
+        ]
+
+    def get_detail_template_detail(self, obj):
+        if not obj.detail_template_id:
+            return None
+        return NoteTemplateSerializer(obj.detail_template).data
+
+
+class OrderableAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Orderable
+        fields = [
+            "id",
+            "code",
+            "name",
+            "category",
+            "code_system",
+            "external_code",
+            "description",
+            "default_priority",
+            "requires_cosign",
+            "detail_template",
+            "organization",
+            "is_active",
+        ]
+        read_only_fields = ["id"]
+
+    def validate_detail_template(self, value):
+        if value is not None and value.kind != "order_detail":
+            raise serializers.ValidationError(
+                "Choose a template whose Kind is 'Order detail form' -- clinical note templates can't be used here."
+            )
+        return value
+
+
+class OrderSetItemSerializer(serializers.ModelSerializer):
+    orderable_name = serializers.CharField(source="orderable.name", read_only=True)
+    orderable_category = serializers.CharField(source="orderable.category", read_only=True)
+
+    class Meta:
+        model = OrderSetItem
+        fields = [
+            "id",
+            "orderable",
+            "orderable_name",
+            "orderable_category",
+            "sort_order",
+            "default_priority",
+            "default_detail",
+        ]
+
+
+class OrderSetSerializer(serializers.ModelSerializer):
+    items = OrderSetItemSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OrderSet
+        fields = ["id", "code", "name", "description", "organization", "is_active", "items"]
+
+
+class OrderSetItemAdminSerializer(serializers.Serializer):
+    orderable = serializers.PrimaryKeyRelatedField(queryset=Orderable.objects.all())
+    default_priority = serializers.ChoiceField(
+        choices=[c for c in OrderSetItem._meta.get_field("default_priority").choices],
+        required=False,
+        allow_blank=True,
+    )
+    default_detail = serializers.DictField(required=False)
+
+
+class OrderSetAdminSerializer(serializers.ModelSerializer):
+    """Create/update an order set together with its complete item list (list order = sort order)."""
+
+    items = OrderSetItemAdminSerializer(many=True)
+
+    class Meta:
+        model = OrderSet
+        fields = ["id", "code", "name", "description", "organization", "is_active", "items"]
+        read_only_fields = ["id"]
+
+    def validate_items(self, value):
+        if not value:
+            raise serializers.ValidationError("An order set needs at least one item.")
+        ids = [i["orderable"].pk for i in value]
+        if len(ids) != len(set(ids)):
+            raise serializers.ValidationError("The same orderable can't be in an order set twice.")
+        return value
+
+    def _save_items(self, order_set, items):
+        order_set.items.all().delete()
+        for index, item in enumerate(items):
+            OrderSetItem.objects.create(
+                order_set=order_set,
+                orderable=item["orderable"],
+                sort_order=index * 10,
+                default_priority=item.get("default_priority", ""),
+                default_detail=item.get("default_detail", {}),
+            )
+
+    def create(self, validated_data):
+        items = validated_data.pop("items")
+        order_set = OrderSet.objects.create(**validated_data)
+        self._save_items(order_set, items)
+        return order_set
+
+    def update(self, instance, validated_data):
+        items = validated_data.pop("items", None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        if items is not None:
+            self._save_items(instance, items)
+        return instance
+
+    def to_representation(self, instance):
+        return OrderSetSerializer(instance).data
+
+
+class OrderEventSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = OrderEvent
+        fields = ["id", "event_type", "from_status", "to_status", "user", "user_name", "source", "detail", "created_at"]
+
+    def get_user_name(self, obj):
+        if not obj.user_id:
+            return "Interface" if obj.source == "interface" else ""
+        return f"{obj.user.first_name} {obj.user.last_name}".strip() or obj.user.username
+
+
+def _person_name(user):
+    if user is None:
+        return None
+    return f"{user.first_name} {user.last_name}".strip() or user.username
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    patient_name = serializers.SerializerMethodField()
+    ordering_provider_name = serializers.SerializerMethodField()
+    signed_by_name = serializers.SerializerMethodField()
+    cosigned_by_name = serializers.SerializerMethodField()
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    priority_display = serializers.CharField(source="get_priority_display", read_only=True)
+    events = OrderEventSerializer(many=True, read_only=True)
+
+    # The only fields a client may send (on create; on a draft update only
+    # priority / indication / diagnosis_codes / detail are applied).
+    WRITABLE = (
+        "appointment",
+        "orderable",
+        "priority",
+        "indication",
+        "diagnosis_codes",
+        "detail",
+        "order_set",
+        "clinical_note",
+    )
+
+    class Meta:
+        model = Order
+        fields = [
+            "id",
+            "placer_order_number",
+            "organization",
+            "appointment",
+            "patient",
+            "patient_name",
+            "ordering_provider",
+            "ordering_provider_name",
+            "orderable",
+            "orderable_name",
+            "orderable_category",
+            "code_system",
+            "external_code",
+            "detail_template",
+            "detail_template_version",
+            "detail_template_snapshot",
+            "detail",
+            "priority",
+            "priority_display",
+            "indication",
+            "diagnosis_codes",
+            "status",
+            "status_display",
+            "order_set",
+            "clinical_note",
+            "replaces",
+            "cosign_required",
+            "signed_by",
+            "signed_by_name",
+            "signed_at",
+            "cosigned_by",
+            "cosigned_by_name",
+            "cosigned_at",
+            "completed_by",
+            "completed_at",
+            "result_text",
+            "result_data",
+            "discontinued_by",
+            "discontinued_at",
+            "discontinue_reason",
+            "filler_order_number",
+            "interface_status",
+            "interface_message",
+            "interface_updated_at",
+            "created_at",
+            "updated_at",
+            "events",
+        ]
+        read_only_fields = [
+            f
+            for f in fields
+            if f
+            not in (
+                "appointment",
+                "orderable",
+                "priority",
+                "indication",
+                "diagnosis_codes",
+                "detail",
+                "order_set",
+                "clinical_note",
+                "events",
+            )
+        ]
+
+    def get_patient_name(self, obj):
+        return _person_name(obj.patient)
+
+    def get_ordering_provider_name(self, obj):
+        return _person_name(obj.ordering_provider)
+
+    def get_signed_by_name(self, obj):
+        return _person_name(obj.signed_by)
+
+    def get_cosigned_by_name(self, obj):
+        return _person_name(obj.cosigned_by)
+
+    def create(self, validated_data):
+        from .orders_workflow import create_draft_order
+
+        return create_draft_order(
+            self.context["request"].user,
+            validated_data["appointment"],
+            validated_data["orderable"],
+            priority=validated_data.get("priority"),
+            detail=validated_data.get("detail"),
+            indication=validated_data.get("indication", ""),
+            diagnosis_codes=validated_data.get("diagnosis_codes"),
+            order_set=validated_data.get("order_set"),
+            clinical_note=validated_data.get("clinical_note"),
+        )
+
+    def update(self, instance, validated_data):
+        from .orders_workflow import update_draft_order
+
+        changes = {
+            k: v
+            for k, v in validated_data.items()
+            if k in ("priority", "indication", "diagnosis_codes", "detail")
+        }
+        return update_draft_order(instance, self.context["request"].user, **changes)
+
+
+class OrderInterfaceUpdateSerializer(serializers.Serializer):
+    """Body of POST /orders/<id>/interface-update/ -- what an interface reports back."""
+
+    filler_order_number = serializers.CharField(max_length=64, required=False, allow_blank=True)
+    interface_status = serializers.ChoiceField(choices=Order.INTERFACE_STATUS_CHOICES, required=False)
+    status = serializers.ChoiceField(
+        choices=[("in_progress", "in_progress"), ("completed", "completed"), ("discontinued", "discontinued")],
+        required=False,
+    )
+    result_text = serializers.CharField(required=False, allow_blank=True)
+    result_data = serializers.DictField(required=False)
+    message = serializers.CharField(required=False, allow_blank=True)

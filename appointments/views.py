@@ -12,6 +12,9 @@ from .models import (
     Dictionary,
     VitalSignsFlowsheet,
     FlowsheetTemplate,
+    Orderable,
+    OrderSet,
+    Order,
 )
 from .serializers import (
     AppointmentSerializer,
@@ -62,6 +65,7 @@ from .permissions import (
     IsNoteTemplateAdmin,
     CanAccessVitalSignsFlowsheets,
     IsFlowsheetTemplateAdmin,
+    CanAccessOrders,
 )
 from users.permissions import HasRight
 from users.rights import user_has_right
@@ -2001,7 +2005,7 @@ class NoteTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     deactivated, never shows up as a choice while writing a note.
     """
 
-    queryset = NoteTemplate.objects.filter(is_active=True).prefetch_related(
+    queryset = NoteTemplate.objects.filter(is_active=True, kind="note").prefetch_related(
         "fields", "fields__dictionary", "fields__dictionary__items"
     )
     serializer_class = NoteTemplateSerializer
@@ -2173,3 +2177,225 @@ class DictionaryAdminViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
+
+
+
+# ---------------------------------------------------------------------------
+# Orders
+# ---------------------------------------------------------------------------
+
+def _org_scoped(queryset, user, allow_global=False):
+    if user.role == "system_admin":
+        return queryset
+    q = Q(organization=user.organization)
+    if allow_global:
+        q |= Q(organization__isnull=True)
+    return queryset.filter(q)
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    """
+    Patient orders. State changes happen only through the actions below,
+    which delegate to orders_workflow; a signed order is never edited.
+    """
+
+    serializer_class = OrderSerializer
+    permission_classes = [permissions.IsAuthenticated, CanAccessOrders]
+    http_method_names = ["get", "post", "patch", "delete", "head", "options"]
+
+    def handle_exception(self, exc):
+        if isinstance(exc, ow.OrderWorkflowError):
+            body = {"detail": exc.message}
+            if exc.errors:
+                body["errors"] = exc.errors
+            return Response(body, status=exc.status_code)
+        return super().handle_exception(exc)
+
+    def get_queryset(self):
+        qs = _org_scoped(Order.objects.all(), self.request.user)
+        p = self.request.query_params
+        for param, lookup in (
+            ("appointment", "appointment_id"),
+            ("patient", "patient_id"),
+            ("status", "status"),
+            ("category", "orderable_category"),
+            ("interface_status", "interface_status"),
+            ("order_set", "order_set_id"),
+        ):
+            value = p.get(param)
+            if value:
+                qs = qs.filter(**{lookup: value})
+        return qs.select_related(
+            "patient", "ordering_provider", "signed_by", "cosigned_by"
+        ).prefetch_related("events").order_by("-created_at")
+
+    def perform_destroy(self, instance):
+        if instance.status != "draft":
+            raise ow.OrderWorkflowError(
+                "Only a draft can be deleted -- discontinue a signed order instead."
+            )
+        instance.delete()
+
+    @action(detail=True, methods=["post"])
+    def sign(self, request, pk=None):
+        order = ow.sign_order(self.get_object(), request.user)
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=False, methods=["post"], url_path="sign")
+    def sign_many(self, request):
+        ids = request.data.get("ids") or []
+        if not isinstance(ids, list) or not ids:
+            raise ow.OrderWorkflowError("Send {\"ids\": [...]} with at least one order.")
+        orders = list(self.get_queryset().filter(pk__in=ids))
+        if len(orders) != len(set(ids)):
+            raise ow.OrderWorkflowError("One or more orders were not found.", 404)
+        signed = ow.sign_orders(orders, request.user)
+        return Response(self.get_serializer(signed, many=True).data)
+
+    @action(detail=True, methods=["post"])
+    def cosign(self, request, pk=None):
+        order = ow.cosign_order(self.get_object(), request.user)
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=True, methods=["post"])
+    def complete(self, request, pk=None):
+        order = ow.complete_order(
+            self.get_object(),
+            request.user,
+            result_text=request.data.get("result_text", ""),
+            result_data=request.data.get("result_data"),
+        )
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=True, methods=["post"])
+    def discontinue(self, request, pk=None):
+        order = ow.discontinue_order(
+            self.get_object(), request.user, request.data.get("reason", "")
+        )
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=True, methods=["post"])
+    def replace(self, request, pk=None):
+        _old, new = ow.replace_order(self.get_object(), request.user, request.data.get("reason", ""))
+        return Response(self.get_serializer(new).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path="interface-update")
+    def interface_update(self, request, pk=None):
+        ser = OrderInterfaceUpdateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        order = ow.apply_interface_update(self.get_object(), request.user, **ser.validated_data)
+        return Response(self.get_serializer(order).data)
+
+    @action(detail=False, methods=["get"], url_path="interface-queue")
+    def interface_queue(self, request):
+        qs = self.get_queryset().filter(
+            status__in=("active", "in_progress"),
+            interface_status__in=("not_sent", "queued"),
+        )
+        return Response(self.get_serializer(qs, many=True).data)
+
+
+class OrderableViewSet(viewsets.ReadOnlyModelViewSet):
+    """Orderable catalog for pickers: active entries, global or the user's org."""
+
+    serializer_class = OrderableSerializer
+    permission_classes = [permissions.IsAuthenticated, CanAccessOrders]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = _org_scoped(Orderable.objects.filter(is_active=True), self.request.user, allow_global=True)
+        category = self.request.query_params.get("category")
+        if category:
+            qs = qs.filter(category=category)
+        q = (self.request.query_params.get("q") or "").strip()
+        for term in q.split():
+            qs = qs.filter(
+                Q(name__icontains=term) | Q(code__icontains=term)
+                | Q(external_code__icontains=term) | Q(description__icontains=term)
+            )
+        qs = qs.select_related("detail_template").order_by("category", "name")
+        try:
+            limit = int(self.request.query_params.get("limit", 0))
+        except ValueError:
+            limit = 0
+        return qs[:limit] if limit > 0 and self.action == "list" else qs
+
+
+class OrderSetViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = OrderSetSerializer
+    permission_classes = [permissions.IsAuthenticated, CanAccessOrders]
+    lookup_field = "code"
+    pagination_class = None
+
+    def handle_exception(self, exc):
+        if isinstance(exc, ow.OrderWorkflowError):
+            return Response({"detail": exc.message}, status=exc.status_code)
+        return super().handle_exception(exc)
+
+    def get_queryset(self):
+        return _org_scoped(
+            OrderSet.objects.filter(is_active=True), self.request.user, allow_global=True
+        ).prefetch_related("items", "items__orderable")
+
+    @action(detail=True, methods=["post"])
+    def place(self, request, code=None):
+        order_set = self.get_object()
+        appointment = _org_scoped(Appointment.objects.all(), request.user).filter(
+            pk=request.data.get("appointment")
+        ).first()
+        if appointment is None:
+            raise ow.OrderWorkflowError("Appointment not found.", 404)
+        orders = ow.place_order_set(
+            request.user,
+            order_set,
+            appointment,
+            clinical_note=None,
+            item_ids=request.data.get("item_ids"),
+        )
+        return Response(
+            OrderSerializer(orders, many=True, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class _CatalogAdminMixin:
+    permission_classes = [permissions.IsAuthenticated, HasRight("orders.manage_catalog")]
+    pagination_class = None
+
+    def get_queryset(self):
+        return _org_scoped(self.model.objects.all(), self.request.user, allow_global=True)
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role == "system_admin":
+            serializer.save()
+        else:
+            serializer.save(organization=user.organization)
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if user.role == "system_admin":
+            serializer.save()
+        else:
+            serializer.save(organization=user.organization)
+
+    def destroy(self, request, *args, **kwargs):
+        from django.db.models import ProtectedError
+
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "This entry is used by existing orders; deactivate it instead."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
+    model = Orderable
+    serializer_class = OrderableAdminSerializer
+
+
+class OrderSetAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
+    model = OrderSet
+    serializer_class = OrderSetAdminSerializer
