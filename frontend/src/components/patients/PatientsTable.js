@@ -23,6 +23,7 @@ import {
     Delete as DeleteIcon,
     Assignment as AssignmentIcon,
     MonitorHeart as MonitorHeartIcon,
+    PlaylistAddCheck as OrdersIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -192,6 +193,16 @@ function PatientsTable({
                                                             sx={{ color: '#c2185b' }}
                                                         >
                                                             <MonitorHeartIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+
+                                                    <Tooltip title="Orders">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => navigate(`/patients/${patient.user_id}/orders`)}
+                                                            sx={{ color: '#2e7d32' }}
+                                                        >
+                                                            <OrdersIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
                                                 </>
