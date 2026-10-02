@@ -18,9 +18,66 @@ import Tooltip from "@mui/material/Tooltip";
 import useForceUpdate from "../utils/useForceUpdate";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
+import DescriptionIcon from "@mui/icons-material/Description";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
+import GroupsIcon from "@mui/icons-material/Groups";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
+
+// Roles that can use the clinical/staff modules (matches the login redirects
+// and the Staffing page guard).
+const STAFF_MODULE_ROLES = [
+  "admin",
+  "system_admin",
+  "doctor",
+  "nurse",
+  "registrar",
+];
+
+// Module links shown in the header. `to` is where the link goes; `isActive`
+// decides which one is highlighted for the current URL. Patients page tabs are
+// kept in ?tab=, so Documentation and Scheduler share /patients and are told
+// apart by that parameter.
+const MODULE_LINKS = [
+  {
+    key: "documentation",
+    label: "Documentation",
+    to: "/patients",
+    Icon: DescriptionIcon,
+    roles: STAFF_MODULE_ROLES,
+    isActive: (path, tab) =>
+      path.startsWith("/patients") &&
+      !(path === "/patients" && tab === "appointments"),
+  },
+  {
+    key: "scheduler",
+    label: "Scheduler",
+    to: "/patients?tab=appointments",
+    Icon: CalendarMonthIcon,
+    roles: STAFF_MODULE_ROLES,
+    isActive: (path, tab) =>
+      (path === "/patients" && tab === "appointments") ||
+      path.startsWith("/appointments"),
+  },
+  {
+    key: "portal",
+    label: "Patient Portal",
+    to: "/dashboard",
+    Icon: MedicalInformationIcon,
+    roles: null, // every signed-in user
+    isActive: (path) => path === "/dashboard",
+  },
+  {
+    key: "staffing",
+    label: "Staffing",
+    to: "/staffing",
+    Icon: GroupsIcon,
+    roles: STAFF_MODULE_ROLES,
+    isActive: (path) => path.startsWith("/staffing"),
+  },
+];
 
 function Navbar() {
   const navigate = useNavigate();
@@ -284,6 +341,12 @@ function Navbar() {
 
   const isSystemAdmin = role === "system_admin";
 
+  // Module links this user may see, with the current page flagged.
+  const currentTab = new URLSearchParams(location.search).get("tab");
+  const moduleLinks = MODULE_LINKS.filter(
+    (m) => !m.roles || m.roles.includes(role)
+  ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab) }));
+
   // Add greeting function
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -364,6 +427,50 @@ function Navbar() {
         <Box sx={{ display: "flex", alignItems: "center" }}>
           {isAuthenticated && (
             <>
+              {/* Module links: Documentation, Scheduler, Patient Portal, Staffing */}
+              {role && moduleLinks.length > 0 && (
+                <Box
+                  component="nav"
+                  aria-label="Modules"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    mr: 1,
+                    pr: 1,
+                    borderRight: "1px solid rgba(255,255,255,0.35)",
+                  }}
+                >
+                  {moduleLinks.map(({ key, label, to, Icon, active }) => (
+                    <Tooltip key={key} title={label}>
+                      <IconButton
+                        color="inherit"
+                        sx={{
+                          mr: 0.5,
+                          borderRadius: 1,
+                          bgcolor: active
+                            ? "rgba(255,255,255,0.22)"
+                            : "transparent",
+                          boxShadow: active
+                            ? "inset 0 -3px 0 0 #fff"
+                            : "none",
+                          "&:hover": {
+                            bgcolor: active
+                              ? "rgba(255,255,255,0.28)"
+                              : "rgba(255,255,255,0.12)",
+                          },
+                        }}
+                        onClick={() => navigate(to)}
+                        aria-label={label}
+                        aria-current={active ? "page" : undefined}
+                        data-testid={`nav-module-${key}`}
+                      >
+                        <Icon sx={{ color: "white" }} />
+                      </IconButton>
+                    </Tooltip>
+                  ))}
+                </Box>
+              )}
+
               {/* Communicator Icon Link - only for system_admin, admin, and registrar roles */}
               {(role === "system_admin" ||
                 role === "admin" ||

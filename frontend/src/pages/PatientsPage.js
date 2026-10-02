@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Box, Typography, Tabs, Tab, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -40,9 +40,28 @@ function PatientsPage() {
   // Main tab state -- honors ?tab=appointments (etc.) on initial load, e.g.
   // from the Scheduler solutions-page button, which sends users straight to
   // the Appointments tab (whose own sub-tab already defaults to "today").
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") || "patients";
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const initialTab = tabParam || "patients";
   const [tab, setTab] = useState(initialTab);
+
+  // Header module links (Documentation / Scheduler) change ?tab= while this
+  // page is already mounted, so follow the URL after the first render.
+  const lastTabParam = useRef(tabParam);
+  useEffect(() => {
+    if (lastTabParam.current === tabParam) return;
+    lastTabParam.current = tabParam;
+    setTab(tabParam || "patients");
+  }, [tabParam]);
+
+  // Keep the URL in step with the tab the user picks so the header can show
+  // which module (Documentation vs Scheduler) is current.
+  const handleTabChange = (e, newVal) => {
+    setTab(newVal);
+    setSearchParams(newVal === "patients" ? {} : { tab: newVal }, {
+      replace: true,
+    });
+  };
   const [token, setToken] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -427,7 +446,7 @@ function PatientsPage() {
         >
           <Tabs
             value={tab}
-            onChange={(e, newVal) => setTab(newVal)}
+            onChange={handleTabChange}
             sx={{
               flex: 1,
               minHeight: 40,
