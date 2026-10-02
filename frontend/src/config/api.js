@@ -112,6 +112,10 @@ export const apiEndpoints = {
     // Note-builder configuration UI (Phase 2, admin-only)
     noteTemplatesAdmin: `${API_BASE_URL}/api/admin/note-templates/`,
     noteTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/note-templates/${code}/`,
+    // CSV download / upload for note templates
+    noteTemplatesSampleCsv: `${API_BASE_URL}/api/admin/note-templates/sample-csv/`,
+    noteTemplatesUploadCsv: `${API_BASE_URL}/api/admin/note-templates/upload-csv/`,
+    noteTemplateDownloadCsv: (code) => `${API_BASE_URL}/api/admin/note-templates/${code}/download-csv/`,
     dictionariesAdmin: `${API_BASE_URL}/api/admin/dictionaries/`,
     dictionaryAdmin: (id) => `${API_BASE_URL}/api/admin/dictionaries/${id}/`,
 

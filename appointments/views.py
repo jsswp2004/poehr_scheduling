@@ -65,6 +65,8 @@ from .permissions import (
 )
 from users.permissions import HasRight
 from users.rights import user_has_right
+from .note_template_csv import decode_upload, parse_template_csv
+from .note_template_import import apply_template_import, export_template_csv
 from appointments.cron import send_patient_reminders, send_patient_sms_reminders
 from rest_framework.permissions import IsAdminUser
 from django.db.models import Q  # Add Q import for complex queries
@@ -2068,6 +2070,82 @@ class NoteTemplateAdminViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().destroy(request, *args, **kwargs)
+
+    # --- CSV download / upload ----------------------------------------------
+    # File format + validation rules: appointments/note_template_csv.py.
+    # Persistence (templates, fields, dictionaries, version bump):
+    # appointments/note_template_import.py. All three actions inherit this
+    # viewset's IsNoteTemplateAdmin permission.
+
+    @action(detail=False, methods=["get"], url_path="sample-csv")
+    def sample_csv(self, request):
+        """Download the Admission Note sample as a ready-to-edit upload template."""
+        from pathlib import Path
+
+        content = (Path(__file__).resolve().parent / "note_template_sample.csv").read_bytes()
+        response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = 'attachment; filename="note_template_upload_template.csv"'
+        return response
+
+    @action(detail=True, methods=["get"], url_path="download-csv")
+    def download_csv(self, request, code=None):
+        """Download an existing template in the upload CSV format."""
+        template = self.get_object()
+        try:
+            text = export_template_csv(template)
+        except ValueError as exc:
+            return Response(
+                {"detail": f"This template can't be exported to CSV: {exc}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        response = HttpResponse(text, content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{template.code}_template.csv"'
+        return response
+
+    @action(detail=False, methods=["post"], url_path="upload-csv", parser_classes=[MultiPartParser])
+    def upload_csv(self, request):
+        """
+        Create or update a note template from an uploaded CSV. Validates the
+        whole file first and saves nothing unless every row is valid; on
+        success the whole template is written in one transaction.
+        """
+        upload = request.FILES.get("file")
+        if upload is None:
+            return Response(
+                {"detail": "No file was uploaded. Send the CSV as multipart form field 'file'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if upload.size > 2 * 1024 * 1024:
+            return Response(
+                {"detail": "That file is larger than 2 MB. A note template CSV should be far smaller."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        parsed, errors = parse_template_csv(decode_upload(upload.read()))
+        if errors:
+            return Response(
+                {
+                    "detail": f"The CSV has {len(errors)} problem(s). Nothing was saved.",
+                    "errors": errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = apply_template_import(parsed)
+        except Exception:
+            logging.getLogger(__name__).exception("Note template CSV import failed for code %s", parsed["code"])
+            return Response(
+                {"detail": "The CSV was valid but the template couldn't be saved. Nothing was changed."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        data = self._read_payload(result["template"], version_bumped=result["version_bumped"])
+        data["created"] = result["created"]
+        return Response(
+            data,
+            status=status.HTTP_201_CREATED if result["created"] else status.HTTP_200_OK,
+        )
 
 
 class DictionaryAdminViewSet(viewsets.ModelViewSet):
