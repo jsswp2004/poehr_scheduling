@@ -249,3 +249,119 @@ class ApiTests(OrdersBase):
         self.assertEqual([x["status"] for x in r.json()], ["active", "active"])
         r = c.post(f"/api/orders/{a.pk}/replace/", {"reason": "Wrong"}, format="json")
         self.assertEqual((r.status_code, r.json()["status"], r.json()["replaces"]), (201, "draft", a.pk))
+
+
+class CatalogAdminTests(OrdersBase):
+    CSV = (
+        "code,name,category,code_system,external_code,default_priority,requires_cosign,detail_form_code\n"
+        "cbc_diff,CBC with differential,laboratory,loinc,57021-8,routine,no,\n"
+        "chest_xr,Chest X-ray,imaging,local,,urgent,yes,xr_form\n"
+    )
+
+    def setUp(self):
+        super().setUp()
+        self.admin = make_user("adm", "admin", self.org)
+        self.client_admin = APIClient()
+        self.client_admin.force_authenticate(self.admin)
+        NoteTemplate.objects.create(code="xr_form", name="XR form", kind="order_detail")
+
+    def upload(self, text, client=None):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        f = SimpleUploadedFile("o.csv", text.encode("utf-8"), content_type="text/csv")
+        return (client or self.client_admin).post("/api/admin/orderables/upload-csv/", {"file": f}, format="multipart")
+
+    def test_upload_creates_then_updates(self):
+        r = self.upload(self.CSV)
+        self.assertEqual((r.status_code, r.json()["created"], r.json()["updated"]), (200, 2, 0), r.content)
+        xr = Orderable.objects.get(code="chest_xr")
+        self.assertEqual((xr.organization, xr.default_priority, xr.requires_cosign), (self.org, "urgent", True))
+        self.assertEqual(xr.detail_template.code, "xr_form")
+        r = self.upload(self.CSV.replace("Chest X-ray", "Chest XR 2 view"))
+        self.assertEqual((r.json()["created"], r.json()["updated"]), (0, 2))
+        self.assertEqual(Orderable.objects.get(code="chest_xr").name, "Chest XR 2 view")
+
+    def test_bad_csv_saves_nothing_and_lists_problems(self):
+        bad = self.CSV + "x y,Bad code,nope,local,,routine,maybe,missing_form\n"
+        r = self.upload(bad)
+        self.assertEqual(r.status_code, 400)
+        cols = {e["column"] for e in r.json()["errors"]}
+        self.assertTrue({"code", "category", "requires_cosign", "detail_form_code"} <= cols, r.json())
+        self.assertFalse(Orderable.objects.filter(code="cbc_diff").exists())
+
+    def test_cannot_take_over_other_orgs_or_shared_code(self):
+        Orderable.objects.create(code="cbc_diff", name="Theirs", organization=self.other_org)
+        r = self.upload(self.CSV)
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(Orderable.objects.get(code="cbc_diff").name, "Theirs")
+        self.assertEqual(Orderable.objects.get(code="cbc_diff").organization, self.other_org)
+        # the shared catalog entry (self.cbc has no organization) is also off limits
+        r = self.upload("code,name\ncbc,Mine\n")
+        self.assertEqual(r.status_code, 400)
+
+    def test_org_admin_cannot_edit_or_delete_shared_entry_but_can_see_it(self):
+        listing = self.client_admin.get("/api/admin/orderables/").json()
+        self.assertIn("cbc", [o["code"] for o in (listing if isinstance(listing, list) else listing["results"])])
+        r = self.client_admin.patch(f"/api/admin/orderables/{self.cbc.pk}/", {"name": "Hacked"}, format="json")
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(self.client_admin.delete(f"/api/admin/orderables/{self.cbc.pk}/").status_code, 403)
+        self.cbc.refresh_from_db()
+        self.assertEqual(self.cbc.name, "CBC")
+
+    def test_create_forces_own_org_and_rejects_note_template_as_detail_form(self):
+        note_tpl = NoteTemplate.objects.create(code="soap2", name="Note", kind="note")
+        r = self.client_admin.post(
+            "/api/admin/orderables/",
+            {"code": "ua", "name": "Urinalysis", "organization": self.other_org.pk},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(Orderable.objects.get(code="ua").organization, self.org)
+        r = self.client_admin.post(
+            "/api/admin/orderables/",
+            {"code": "ua2", "name": "UA2", "detail_template": note_tpl.pk},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_used_orderable_delete_is_refused_with_message(self):
+        mine = Orderable.objects.create(code="mine", name="Mine", organization=self.org)
+        self.draft(orderable=mine)
+        r = self.client_admin.delete(f"/api/admin/orderables/{mine.pk}/")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("deactivate", r.json()["detail"])
+
+    def test_doctor_cannot_use_admin_catalog(self):
+        c = APIClient()
+        c.force_authenticate(self.doctor)
+        self.assertEqual(c.get("/api/admin/orderables/").status_code, 403)
+
+    def test_sample_and_download_csv_round_trip(self):
+        self.upload(self.CSV)
+        self.assertEqual(self.client_admin.get("/api/admin/orderables/sample-csv/").status_code, 200)
+        r = self.client_admin.get("/api/admin/orderables/download-csv/")
+        text = r.content.decode()
+        self.assertIn("cbc_diff", text)
+        self.assertIn("xr_form", text)
+        # re-uploading the export is accepted (round trip)
+        self.assertEqual(self.upload(text).status_code, 200)
+
+    def test_order_set_admin_replaces_items(self):
+        a = Orderable.objects.create(code="a", name="A", organization=self.org)
+        b = Orderable.objects.create(code="b", name="B", organization=self.org)
+        r = self.client_admin.post(
+            "/api/admin/order-sets/",
+            {"code": "adm", "name": "Admission", "items": [{"orderable": a.pk}, {"orderable": b.pk, "default_priority": "stat"}]},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        sid = r.json()["id"]
+        r = self.client_admin.put(
+            f"/api/admin/order-sets/{sid}/",
+            {"code": "adm", "name": "Admission", "items": [{"orderable": b.pk}]},
+            format="json",
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        s = OrderSet.objects.get(pk=sid)
+        self.assertEqual([i.orderable_id for i in s.items.order_by("sort_order")], [b.pk])
+        self.assertEqual(s.organization, self.org)

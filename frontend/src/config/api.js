@@ -107,6 +107,15 @@ export const apiEndpoints = {
     orderAction: (id, action) => `${API_BASE_URL}/api/orders/${id}/${action}/`,
     orderables: `${API_BASE_URL}/api/orderables/`,
     orderSets: `${API_BASE_URL}/api/order-sets/`,
+
+    // Order Builder (admin)
+    orderablesAdmin: `${API_BASE_URL}/api/admin/orderables/`,
+    orderableAdmin: (id) => `${API_BASE_URL}/api/admin/orderables/${id}/`,
+    orderablesSampleCsv: `${API_BASE_URL}/api/admin/orderables/sample-csv/`,
+    orderablesDownloadCsv: `${API_BASE_URL}/api/admin/orderables/download-csv/`,
+    orderablesUploadCsv: `${API_BASE_URL}/api/admin/orderables/upload-csv/`,
+    orderSetsAdmin: `${API_BASE_URL}/api/admin/order-sets/`,
+    orderSetAdmin: (id) => `${API_BASE_URL}/api/admin/order-sets/${id}/`,
     noteTemplate: (code) => `${API_BASE_URL}/api/note-templates/${code}/`,
 
     // Vital Signs flowsheet endpoints

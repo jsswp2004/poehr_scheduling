@@ -68,6 +68,14 @@ export const useAdminPage = () => {
             path: '/flowsheet-builder',
             color: 'primary',
             requiredRoles: ['admin', 'system_admin']
+        },
+        {
+            id: 'order-builder',
+            label: 'Order Builder',
+            icon: 'FaClipboardCheck',
+            path: '/order-builder',
+            color: 'primary',
+            requiredRoles: ['admin', 'system_admin']
         }
     ];
 

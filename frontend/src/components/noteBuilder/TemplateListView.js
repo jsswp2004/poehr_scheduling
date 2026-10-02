@@ -46,7 +46,8 @@ const authConfig = async () => ({ headers: { Authorization: `Bearer ${await getV
  * message} that is shown below. See appointments/note_template_csv.py for
  * the format.
  */
-function TemplateListView({ onEdit, onNew }) {
+function TemplateListView({ onEdit, onNew, kind = "note" }) {
+    const isOrderForm = kind === "order_detail";
     const [templates, setTemplates] = useState(null);
     const [error, setError] = useState("");
     const [busyCode, setBusyCode] = useState(null);
@@ -93,7 +94,11 @@ function TemplateListView({ onEdit, onNew }) {
         try {
             const form = new FormData();
             form.append("file", file);
-            const res = await api.post(apiEndpoints.noteTemplatesUploadCsv, form, await authConfig());
+            const res = await api.post(
+                isOrderForm ? `${apiEndpoints.noteTemplatesUploadCsv}?kind=order_detail` : apiEndpoints.noteTemplatesUploadCsv,
+                form,
+                await authConfig()
+            );
             const d = res.data;
             let text;
             if (d.created) {
@@ -126,7 +131,8 @@ function TemplateListView({ onEdit, onNew }) {
         setError("");
         try {
             const res = await api.get(apiEndpoints.noteTemplatesAdmin, await authConfig());
-            setTemplates(res.data);
+            // Note types and order detail forms share one table; each builder shows its own kind.
+            setTemplates(res.data.filter((t) => (t.kind || "note") === kind));
         } catch (e) {
             setError("Couldn't load note templates.");
         }
@@ -236,7 +242,7 @@ function TemplateListView({ onEdit, onNew }) {
                 </Button>
                 <input ref={fileInputRef} type="file" accept=".csv,text/csv" hidden onChange={handleUploadFile} />
                 <Button variant="contained" startIcon={<AddIcon />} onClick={onNew}>
-                    New Template
+                    {isOrderForm ? "New Detail Form" : "New Template"}
                 </Button>
             </Box>
             <TableContainer component={Paper}>
@@ -302,7 +308,7 @@ function TemplateListView({ onEdit, onNew }) {
                             <TableRow>
                                 <TableCell colSpan={6}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                                        No templates yet -- click "New Template" to build one.
+                                        {isOrderForm ? 'No detail forms yet -- click "New Detail Form" to build one.' : 'No templates yet -- click "New Template" to build one.'}
                                     </Typography>
                                 </TableCell>
                             </TableRow>
