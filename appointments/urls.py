@@ -28,6 +28,11 @@ from .views import (
     NoteTemplateViewSet,
     NoteTemplateAdminViewSet,
     DictionaryAdminViewSet,
+    OrderViewSet,
+    OrderableViewSet,
+    OrderSetViewSet,
+    OrderableAdminViewSet,
+    OrderSetAdminViewSet,
 )  # ⬅️ import the new SMS view and check-in views
 from .analytics_views import AnalyticsReportView, ExportReportView
 
@@ -178,6 +183,11 @@ router.register(r"admin/flowsheet-templates", FlowsheetTemplateAdminViewSet, bas
 router.register(r"note-templates", NoteTemplateViewSet, basename="notetemplate")
 router.register(r"admin/note-templates", NoteTemplateAdminViewSet, basename="notetemplateadmin")
 router.register(r"admin/dictionaries", DictionaryAdminViewSet, basename="dictionaryadmin")
+router.register(r"orders", OrderViewSet, basename="order")
+router.register(r"orderables", OrderableViewSet, basename="orderable")
+router.register(r"order-sets", OrderSetViewSet, basename="orderset")
+router.register(r"admin/orderables", OrderableAdminViewSet, basename="orderableadmin")
+router.register(r"admin/order-sets", OrderSetAdminViewSet, basename="ordersetadmin")
 
 urlpatterns = router.urls + [
     # ⬇️ custom endpoint for doctor availability

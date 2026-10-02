@@ -32,6 +32,15 @@ RIGHTS = [
     ("note_templates.manage", "Manage note templates (Note Builder)", "Clinical Documentation"),
     ("flowsheet_templates.manage", "Manage flowsheet templates (Flowsheet Builder)", "Clinical Documentation"),
 
+    # Orders
+    ("orders.view", "View orders", "Orders"),
+    ("orders.place", "Place, edit draft, discontinue and replace orders", "Orders"),
+    ("orders.sign", "Sign orders", "Orders"),
+    ("orders.cosign", "Cosign orders placed by nurses / flagged for cosign", "Orders"),
+    ("orders.complete", "Mark orders completed and enter results", "Orders"),
+    ("orders.manage_catalog", "Manage the orderables catalog and order sets", "Orders"),
+    ("orders.interface", "Interface access: read the outbound order queue and post status/results", "Orders"),
+
     # Scheduling & Patients
     ("appointments.create_for_others", "Create appointments on behalf of other patients", "Scheduling & Patients"),
     ("appointments.manage_requests", "Approve or deny patient-submitted appointment requests", "Scheduling & Patients"),
@@ -83,6 +92,18 @@ _CLINICAL_STAFF_RIGHTS = {
     "flowsheets.chart",
 }
 
+# Orders: every clinical role can see, place, sign and complete orders.
+# Orders placed by a nurse (or flagged requires_cosign) wait for a cosign,
+# which only a physician (or an admin) can give. Catalog management is
+# admin-only; interface access is never granted by role (only to
+# system_admin, or by an explicit per-user override for a service account).
+_ORDER_STAFF_RIGHTS = {
+    "orders.view",
+    "orders.place",
+    "orders.sign",
+    "orders.complete",
+}
+
 _FRONT_OFFICE_RIGHTS = {
     "holidays.manage",
     "checkin.manage",
@@ -116,8 +137,8 @@ _ORG_ADMIN_RIGHTS = _FRONT_OFFICE_RIGHTS | {
 ROLE_DEFAULT_RIGHTS = {
     "patient": set(),
     "none": set(),
-    "doctor": _CLINICAL_STAFF_RIGHTS | {"analytics.view"},
-    "nurse": _CLINICAL_STAFF_RIGHTS | {"analytics.view"},
+    "doctor": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | {"orders.cosign", "analytics.view"},
+    "nurse": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | {"analytics.view"},
     "receptionist": {"checkin.manage", "messages.send"},
     "registrar": _FRONT_OFFICE_RIGHTS | {"analytics.view"},
     # Admins manage note/flowsheet template structure in addition to the
@@ -126,7 +147,13 @@ ROLE_DEFAULT_RIGHTS = {
     # "system_admin"), which doctors/nurses were deliberately excluded from.
     "admin": _CLINICAL_STAFF_RIGHTS
     | _ORG_ADMIN_RIGHTS
-    | {"note_templates.manage", "flowsheet_templates.manage"},
+    | _ORDER_STAFF_RIGHTS
+    | {
+        "note_templates.manage",
+        "flowsheet_templates.manage",
+        "orders.cosign",
+        "orders.manage_catalog",
+    },
     "system_admin": _ALL_RIGHTS,
 }
 
