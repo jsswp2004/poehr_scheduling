@@ -78,8 +78,7 @@ function StaffingPage() {
   return (
     <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
-        <BackButton to="/solutions" sx={{ mb: 0 }} />
-        <Typography variant="h5">Staffing</Typography>
+        <Typography variant="h5">Staffing Center</Typography>
         <Box
           ref={tab === "calendar" ? setShiftSlot : null}
           sx={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}
@@ -88,6 +87,7 @@ function StaffingPage() {
           ref={tab === "calendar" ? setLegendSlot : null}
           sx={{ display: "flex", justifyContent: "flex-end" }}
         />
+        <BackButton to="/solutions" sx={{ mb: 0, ml: 1 }} />
       </Box>
 
       {timeOffCounts.open_emergencies > 0 && tab !== "timeoff" && (
