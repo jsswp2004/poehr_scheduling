@@ -282,9 +282,12 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
                         continue
                     need = _hppd_need(rule, unit, sdef.shift_type, value)
                     note = "Census carried forward from an earlier day." if source == "carried_forward" else ""
-                    items.append(
-                        build_item(d, unit, sdef.shift_type, sdef.name, "state_rule", need, float(sdef.hours), note)
+                    item = build_item(
+                        d, unit, sdef.shift_type, sdef.name, "state_rule", need, float(sdef.hours), note
                     )
+                    item["census"] = value
+                    item["census_source"] = source
+                    items.append(item)
 
         evaluated = [i["status"] for i in items if i["status"] in (MET, AT_RISK, NOT_MET)]
         day_status = worst(evaluated)

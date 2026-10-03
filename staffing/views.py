@@ -892,6 +892,13 @@ class CoverageComplianceReportView(APIView):
     once-per-gap CoverageAlert log into a full picture of the period,
     including the days that WERE covered, not just the misses.
 
+    It also includes the AUTOMATIC state-rule requirements, the same ones
+    that color the calendar: every active unit with a census is checked
+    against the state's hours / ratio / RN rule for each shift of its
+    pattern, so the report works without any requirement rows. Those rows
+    are marked source="state_rule". A slot that is staffed today but would
+    break if a pending time-off request is approved is reported "At risk".
+
     GET /api/staffing/reports/coverage-compliance/?start=YYYY-MM-DD&end=YYYY-MM-DD
     Defaults to the current week if omitted. The range is capped at 62
     days to keep the per-day requirement walk bounded.
@@ -957,14 +964,83 @@ class CoverageComplianceReportView(APIView):
                     )
                 a_date += datetime.timedelta(days=1)
 
-        rows.sort(key=lambda r: (r["date"], r["shift_type"]))
+        # ---- automatic state-rule coverage (same engine as the calendar) --------
+        warnings = []
+        at_risk_count = 0
+        user = request.user
+        org = getattr(user, "organization", None)
+        if user.role == "system_admin" and request.query_params.get("organization"):
+            from users.models import Organization
+
+            org = Organization.objects.filter(pk=request.query_params["organization"]).first()
+
+        if org is not None:
+            from .coverage_core import AT_RISK, MET, NOT_MET
+            from .coverage_status import UNKNOWN, compute_coverage_status
+
+            snap = compute_coverage_status(org, start, end)
+            warnings.extend(snap.get("warnings") or [])
+            labels = {MET: "Met", AT_RISK: "At risk", NOT_MET: "Understaffed"}
+            # An explicit hppd requirement already covers its own unit/shift/day.
+            explicit_hppd = {
+                (r["unit_id"], r["shift_type"], r["date"]) for r in rows if r["mode"] == "hppd"
+            }
+            no_census = {}
+            for day, info in snap["days"].items():
+                for it in info["items"]:
+                    if it.get("source") != "state_rule":
+                        continue
+                    if it["status"] == UNKNOWN:
+                        no_census[it["unit_name"]] = no_census.get(it["unit_name"], 0) + 1
+                        continue
+                    if it["status"] not in labels:
+                        continue
+                    if (it["unit_id"], it["shift_type"], day) in explicit_hppd:
+                        continue
+                    if it["status"] == NOT_MET:
+                        understaffed_count += 1
+                    elif it["status"] == AT_RISK:
+                        at_risk_count += 1
+                    rows.append(
+                        {
+                            "requirement_id": None,
+                            "source": "state_rule",
+                            "shift_type": it["shift_type"],
+                            "shift_type_display": it["shift_label"],
+                            "date": day,
+                            "required": it["required"],
+                            "mode": it["mode"],
+                            "unit_id": it["unit_id"],
+                            "unit_name": it["unit_name"],
+                            "census": it.get("census"),
+                            "census_source": it.get("census_source"),
+                            "required_hours": it["required_hours"],
+                            "required_rn": it["required_rn"],
+                            "note": it["note"],
+                            "hours_scheduled": it["hours_scheduled"],
+                            "rn_scheduled": it["rn_scheduled"],
+                            "shortfalls": list(it["reasons"]),
+                            "assigned": it["assigned"],
+                            "status": labels[it["status"]],
+                            "alert_sent": False,
+                        }
+                    )
+            for unit_name, n in sorted(no_census.items()):
+                warnings.append(
+                    f"No census on file for {unit_name} ({n} day{'s' if n != 1 else ''} in this range "
+                    f"could not be checked). Enter a census on the Units & Census tab."
+                )
+
+        rows.sort(key=lambda r: (r["date"], r["unit_name"] or "", r["shift_type"]))
 
         return Response(
             {
                 "start": start.isoformat(),
                 "end": end.isoformat(),
                 "understaffed_count": understaffed_count,
+                "at_risk_count": at_risk_count,
                 "checked_count": len(rows),
+                "warnings": warnings,
                 "rows": rows,
             },
             status=status.HTTP_200_OK,
