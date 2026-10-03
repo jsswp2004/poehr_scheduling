@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -36,7 +37,10 @@ const SHIFT_COLORS = {
   custom: "#546e7a",
 };
 
-function StaffingCalendarTab({ isAdmin = false }) {
+// Render into a slot in the page header when one is provided; otherwise inline.
+const intoSlot = (el, node) => (el ? createPortal(node, el) : node);
+
+function StaffingCalendarTab({ isAdmin = false, shiftSlot = null, legendSlot = null }) {
   const [shifts, setShifts] = useState([]);
   const [coverage, setCoverage] = useState(null);
   const [location, setLocation] = useState(null);
@@ -306,28 +310,52 @@ function StaffingCalendarTab({ isAdmin = false }) {
         </Alert>
       )}
 
-      <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center" flexWrap="wrap" useFlexGap>
-        {Object.entries(COVERAGE_STATUS).map(([key, m]) => (
-          <Chip
-            key={key}
-            size="small"
-            label={`${m.icon} ${m.label}`}
-            sx={{ bgcolor: m.bg, color: m.color, fontWeight: 600, border: `1px solid ${m.color}55` }}
-          />
-        ))}
-        {coverage && (
-          <Typography variant="caption" color="text.secondary">
-            In view: {coverage.summary.not_met} not met, {coverage.summary.at_risk} at risk,{" "}
-            {coverage.summary.met} covered
+      {intoSlot(
+        legendSlot,
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ justifyContent: "flex-end", mb: legendSlot ? 0 : 1 }}>
+          {Object.entries(COVERAGE_STATUS).map(([key, m]) => (
+            <Chip
+              key={key}
+              size="small"
+              label={`${m.icon} ${m.label}`}
+              sx={{ bgcolor: m.bg, color: m.color, fontWeight: 600, border: `1px solid ${m.color}55` }}
+            />
+          ))}
+          {coverage && (
+            <Typography variant="caption" color="text.secondary">
+              In view: {coverage.summary.not_met} not met, {coverage.summary.at_risk} at risk,{" "}
+              {coverage.summary.met} covered
+            </Typography>
+          )}
+        </Stack>
+      )}
+      {intoSlot(
+        shiftSlot,
+        <Box sx={{ textAlign: "center", mb: shiftSlot ? 0 : 1 }}>
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+            {Object.entries(SHIFT_COLORS).map(([type, color]) => (
+              <Chip
+                key={type}
+                label={type}
+                size="small"
+                sx={{ bgcolor: color, color: "white", textTransform: "capitalize" }}
+              />
+            ))}
+          </Stack>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+            Click a day for its coverage details.
+            {isAdmin ? " Click a shift to remove it." : ""}
           </Typography>
-        )}
+        </Box>
+      )}
+      <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
         <Box sx={{ flexGrow: 1 }} />
         {loading && <CircularProgress size={18} />}
         <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel id="calendar-unit-label">Unit</InputLabel>
+          <InputLabel id="calendar-unit-label">All Units</InputLabel>
           <Select
             labelId="calendar-unit-label"
-            label="Unit"
+            label="All Units"
             value={unitId}
             onChange={(e) => setUnitId(e.target.value)}
           >
@@ -340,20 +368,6 @@ function StaffingCalendarTab({ isAdmin = false }) {
           </Select>
         </FormControl>
       </Stack>
-      <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
-        {Object.entries(SHIFT_COLORS).map(([type, color]) => (
-          <Chip
-            key={type}
-            label={type}
-            size="small"
-            sx={{ bgcolor: color, color: "white", textTransform: "capitalize" }}
-          />
-        ))}
-      </Stack>
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
-        Click a day for its coverage details.
-        {isAdmin ? " Click a shift to remove it." : ""}
-      </Typography>
       {coverage?.warnings?.map((w) => (
         <Alert key={w} severity="warning" sx={{ mb: 1 }}>
           {w}
