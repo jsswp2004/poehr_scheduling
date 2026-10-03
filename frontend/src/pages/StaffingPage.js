@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Alert, Badge, Box, Button, Tabs, Tab, Typography } from "@mui/material";
+import { Alert, Box, Button, Tabs, Tab, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -109,13 +109,22 @@ function StaffingPage() {
         <Tab
           value="timeoff"
           label={
-            <Badge
-              color={timeOffCounts.open_emergencies > 0 ? "error" : "warning"}
-              badgeContent={timeOffCounts.open_emergencies + timeOffCounts.pending_requests}
-              sx={{ "& .MuiBadge-badge": { right: -14, top: 2 } }}
-            >
+            <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 0.75 }}>
               Time Off
-            </Badge>
+              {timeOffCounts.open_emergencies + timeOffCounts.pending_requests > 0 && (
+                <Box
+                  component="span"
+                  sx={{
+                    minWidth: 20, height: 20, px: 0.75, borderRadius: 10,
+                    display: "inline-flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 12, fontWeight: 700, lineHeight: 1, color: "#fff",
+                    bgcolor: timeOffCounts.open_emergencies > 0 ? "error.main" : "warning.dark",
+                  }}
+                >
+                  {timeOffCounts.open_emergencies + timeOffCounts.pending_requests}
+                </Box>
+              )}
+            </Box>
           }
         />
         {isAdmin && <Tab value="upload" label="Upload CSV" />}
