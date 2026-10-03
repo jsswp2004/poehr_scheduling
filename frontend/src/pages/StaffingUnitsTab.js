@@ -316,7 +316,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
   );
 
   return (
-    <Box sx={{ maxWidth: 900 }}>
+    <Box sx={{ maxWidth: sub === "units" ? 900 : "none" }}>
       <Tabs
         value={sub}
         onChange={(e, v) => {
@@ -336,7 +336,15 @@ function StaffingUnitsTab({ isAdmin = false }) {
       )}
 
       {sub === "census" && (
-        <>
+        <Box
+          sx={{
+            display: "grid",
+            gap: 3,
+            alignItems: "start",
+            gridTemplateColumns: { xs: "1fr", md: "minmax(300px, 2fr) minmax(0, 3fr)" },
+          }}
+        >
+          <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
             Enter the number of residents on each unit. HPPD staffing requirements
             use this number. If a day has no census entered, the most recent entry
@@ -399,9 +407,15 @@ function StaffingUnitsTab({ isAdmin = false }) {
             </Table>
           )}
 
+          </Box>
+
+          <Box sx={{ minWidth: 0, overflowX: "auto" }}>
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-            Last {PAGE_LIMIT} census entries
-            {historyTotal > PAGE_LIMIT ? ` (of ${historyTotal})` : ""}
+            Census
+            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+              last {PAGE_LIMIT}
+              {historyTotal > PAGE_LIMIT ? ` of ${historyTotal}` : ""}
+            </Typography>
           </Typography>
           <Table size="small">
             <TableHead>
@@ -462,7 +476,8 @@ function StaffingUnitsTab({ isAdmin = false }) {
               })}
             </TableBody>
           </Table>
-        </>
+          </Box>
+        </Box>
       )}
 
       {sub === "units" && (
