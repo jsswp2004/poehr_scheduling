@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -26,6 +26,7 @@ import {
   DialogActions,
   Tabs,
   Tab,
+  TablePagination,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash, faPen } from "@fortawesome/free-solid-svg-icons";
@@ -49,6 +50,29 @@ const SHIFT_TYPES = [
   { value: "night", label: "Night" },
   { value: "custom", label: "Custom" },
 ];
+
+const DAY_NAMES = {
+  mon: "monday",
+  tue: "tuesday",
+  wed: "wednesday",
+  thu: "thursday",
+  fri: "friday",
+  sat: "saturday",
+  sun: "sunday",
+};
+
+const ROWS_PER_PAGE = 20;
+
+const daysHaystack = (codes) =>
+  (codes || []).map((c) => `${c} ${DAY_NAMES[c] || ""}`).join(" ");
+
+// Every whitespace-separated term must appear somewhere in the haystack.
+const matchesTerms = (haystack, search) => {
+  const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return true;
+  const hay = haystack.toLowerCase();
+  return terms.every((t) => hay.includes(t));
+};
 
 function StaffingAssignTab() {
   const token = getAccessToken();
@@ -85,6 +109,18 @@ function StaffingAssignTab() {
   const [endDate, setEndDate] = useState("");
   const [oneTimeOnly, setOneTimeOnly] = useState(false);
   const [notes, setNotes] = useState("");
+
+  const [patSearch, setPatSearch] = useState("");
+  const [patStatus, setPatStatus] = useState("active");
+  const [patUnit, setPatUnit] = useState("");
+  const [patShift, setPatShift] = useState("");
+  const [patPage, setPatPage] = useState(0);
+
+  const [covSearch, setCovSearch] = useState("");
+  const [covFilterUnit, setCovFilterUnit] = useState("");
+  const [covFilterShift, setCovFilterShift] = useState("");
+  const [covFilterMode, setCovFilterMode] = useState("");
+  const [covPage, setCovPage] = useState(0);
 
   const [editPatternOpen, setEditPatternOpen] = useState(false);
   const [editPatternForm, setEditPatternForm] = useState(null);
@@ -343,8 +379,76 @@ function StaffingAssignTab() {
     }
   };
 
+  const filteredPatterns = useMemo(
+    () =>
+      patterns.filter((p) => {
+        const isActive = p.is_active !== false;
+        if (patStatus === "active" && !isActive) return false;
+        if (patStatus === "inactive" && isActive) return false;
+        if (patUnit === "none" && p.unit) return false;
+        if (patUnit && patUnit !== "none" && String(p.unit) !== String(patUnit)) return false;
+        if (patShift && p.shift_type !== patShift) return false;
+        const hay = [
+          p.staff_name,
+          p.unit_name,
+          p.shift_type_display,
+          p.shift_type,
+          daysHaystack(p.days_of_week),
+          p.start_date,
+          p.end_date || "ongoing",
+          p.notes,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return matchesTerms(hay, patSearch);
+      }),
+    [patterns, patSearch, patStatus, patUnit, patShift]
+  );
+
+  const filteredCoverage = useMemo(
+    () =>
+      coverageRequirements.filter((r) => {
+        if (covFilterUnit === "none" && r.unit) return false;
+        if (covFilterUnit && covFilterUnit !== "none" && String(r.unit) !== String(covFilterUnit))
+          return false;
+        if (covFilterShift && r.shift_type !== covFilterShift) return false;
+        if (covFilterMode && r.mode !== covFilterMode) return false;
+        const hay = [
+          r.unit_name,
+          r.shift_type_display,
+          r.shift_type,
+          daysHaystack(r.days_of_week),
+          r.mode === "hppd" ? "hppd census-based census" : `fixed minimum min ${r.min_staff_required}`,
+          r.start_date,
+          r.end_date || "ongoing",
+          r.notes,
+        ]
+          .filter(Boolean)
+          .join(" ");
+        return matchesTerms(hay, covSearch);
+      }),
+    [coverageRequirements, covSearch, covFilterUnit, covFilterShift, covFilterMode]
+  );
+
+  const patFiltersActive =
+    patSearch.trim() !== "" || patStatus !== "active" || patUnit !== "" || patShift !== "";
+  const covFiltersActive =
+    covSearch.trim() !== "" || covFilterUnit !== "" || covFilterShift !== "" || covFilterMode !== "";
+
+  const patPageSafe = Math.min(patPage, Math.max(0, Math.ceil(filteredPatterns.length / ROWS_PER_PAGE) - 1));
+  const covPageSafe = Math.min(covPage, Math.max(0, Math.ceil(filteredCoverage.length / ROWS_PER_PAGE) - 1));
+  const pagedPatterns = filteredPatterns.slice(patPageSafe * ROWS_PER_PAGE, (patPageSafe + 1) * ROWS_PER_PAGE);
+  const pagedCoverage = filteredCoverage.slice(covPageSafe * ROWS_PER_PAGE, (covPageSafe + 1) * ROWS_PER_PAGE);
+
+  const twoPaneSx = {
+    display: "grid",
+    gridTemplateColumns: { xs: "1fr", lg: "minmax(380px, 2fr) 3fr" },
+    gap: 3,
+    alignItems: "start",
+  };
+
   return (
-    <Box sx={{ maxWidth: 900 }}>
+    <Box>
       <Tabs
         value={assignTab}
         onChange={(e, newValue) => setAssignTab(newValue)}
@@ -356,7 +460,8 @@ function StaffingAssignTab() {
 
       {assignTab === "assign" && (
         <Box>
-
+      <Box sx={twoPaneSx}>
+      <Box sx={{ minWidth: 0 }}>
       <Stack spacing={1.5} sx={{ mb: 1.5 }}>
         <FormControl size="small" sx={{ minWidth: 260 }}>
           <InputLabel id="staff-label">Staff Member</InputLabel>
@@ -403,7 +508,7 @@ function StaffingAssignTab() {
           label="One-time assignment (single date, no recurrence)"
         />
 
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel id="shift-type-label">Shift Type</InputLabel>
             <Select
@@ -459,7 +564,7 @@ function StaffingAssignTab() {
           </Box>
         )}
 
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           <TextField
             label={oneTimeOnly ? "Date" : "Start Date"}
             type="date"
@@ -502,10 +607,101 @@ function StaffingAssignTab() {
         </Alert>
       )}
 
+      </Box>
+
+      <Box sx={{ minWidth: 0 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
         Active Recurring Schedules
       </Typography>
+      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+        <TextField
+          size="small"
+          label="Search schedules"
+          placeholder="Name, unit, shift, day..."
+          value={patSearch}
+          onChange={(e) => {
+            setPatSearch(e.target.value);
+            setPatPage(0);
+          }}
+          sx={{ minWidth: 220, flex: 1 }}
+        />
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel id="pat-status-label">Status</InputLabel>
+          <Select
+            labelId="pat-status-label"
+            label="Status"
+            value={patStatus}
+            onChange={(e) => {
+              setPatStatus(e.target.value);
+              setPatPage(0);
+            }}
+          >
+            <MenuItem value="active">Active</MenuItem>
+            <MenuItem value="inactive">Inactive</MenuItem>
+            <MenuItem value="all">All</MenuItem>
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel id="pat-unit-label">Unit</InputLabel>
+          <Select
+            labelId="pat-unit-label"
+            label="Unit"
+            value={patUnit}
+            onChange={(e) => {
+              setPatUnit(e.target.value);
+              setPatPage(0);
+            }}
+          >
+            <MenuItem value="">All units</MenuItem>
+            <MenuItem value="none">
+              <em>No unit</em>
+            </MenuItem>
+            {units.map((u) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 130 }}>
+          <InputLabel id="pat-shift-label">Shift</InputLabel>
+          <Select
+            labelId="pat-shift-label"
+            label="Shift"
+            value={patShift}
+            onChange={(e) => {
+              setPatShift(e.target.value);
+              setPatPage(0);
+            }}
+          >
+            <MenuItem value="">All shifts</MenuItem>
+            {SHIFT_TYPES.map((st) => (
+              <MenuItem key={st.value} value={st.value}>
+                {st.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Typography variant="body2" color="text.secondary">
+          Showing {filteredPatterns.length} of {patterns.length}
+        </Typography>
+        {patFiltersActive && (
+          <Button
+            size="small"
+            onClick={() => {
+              setPatSearch("");
+              setPatStatus("active");
+              setPatUnit("");
+              setPatShift("");
+              setPatPage(0);
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </Stack>
       {!loading && (
+        <Box sx={{ overflowX: "auto" }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -519,7 +715,16 @@ function StaffingAssignTab() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {patterns.map((p) => (
+            {filteredPatterns.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 3 }}>
+                  {patterns.length === 0
+                    ? "No recurring schedules yet."
+                    : "No schedules match your search or filters."}
+                </TableCell>
+              </TableRow>
+            )}
+            {pagedPatterns.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{p.staff_name}</TableCell>
                 <TableCell>{p.unit_name || "-"}</TableCell>
@@ -527,7 +732,7 @@ function StaffingAssignTab() {
                 <TableCell>{(p.days_of_week || []).join(", ")}</TableCell>
                 <TableCell>{p.start_date}</TableCell>
                 <TableCell>{p.end_date || "Ongoing"}</TableCell>
-                <TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
                   <Tooltip title="Edit schedule">
                     <IconButton size="small" onClick={() => openEditPattern(p)}>
                       <FontAwesomeIcon icon={faPen} />
@@ -543,7 +748,20 @@ function StaffingAssignTab() {
             ))}
           </TableBody>
         </Table>
+        </Box>
       )}
+      {!loading && filteredPatterns.length > ROWS_PER_PAGE && (
+        <TablePagination
+          component="div"
+          count={filteredPatterns.length}
+          page={patPageSafe}
+          onPageChange={(e, p) => setPatPage(p)}
+          rowsPerPage={ROWS_PER_PAGE}
+          rowsPerPageOptions={[ROWS_PER_PAGE]}
+        />
+      )}
+      </Box>
+      </Box>
 
       {/* Edit recurring schedule dialog */}
       <Dialog open={editPatternOpen} onClose={closeEditPattern} maxWidth="sm" fullWidth>
@@ -706,8 +924,10 @@ function StaffingAssignTab() {
         email alert is sent to this organization's admins automatically.
       </Typography>
 
-      <Stack spacing={1.5} sx={{ mb: 1.5, maxWidth: 900 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
+      <Box sx={twoPaneSx}>
+      <Box sx={{ minWidth: 0 }}>
+      <Stack spacing={1.5} sx={{ mb: 1.5 }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
           <FormControl size="small" sx={{ minWidth: 220 }}>
             <InputLabel id="cov-mode-label">Requirement Type</InputLabel>
             <Select
@@ -749,7 +969,7 @@ function StaffingAssignTab() {
             unit and have a nursing role set on the Roster tab.
           </Typography>
         )}
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel id="cov-shift-type-label">Shift Type</InputLabel>
             <Select
@@ -798,7 +1018,7 @@ function StaffingAssignTab() {
           </Stack>
         </Box>
 
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           <TextField
             label="Start Date"
             type="date"
@@ -839,7 +1059,102 @@ function StaffingAssignTab() {
         </Alert>
       )}
 
+      </Box>
+
+      <Box sx={{ minWidth: 0 }}>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        Coverage Requirements
+      </Typography>
+      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+        <TextField
+          size="small"
+          label="Search requirements"
+          placeholder="Unit, shift, day, minimum..."
+          value={covSearch}
+          onChange={(e) => {
+            setCovSearch(e.target.value);
+            setCovPage(0);
+          }}
+          sx={{ minWidth: 220, flex: 1 }}
+        />
+        <FormControl size="small" sx={{ minWidth: 140 }}>
+          <InputLabel id="covf-unit-label">Unit</InputLabel>
+          <Select
+            labelId="covf-unit-label"
+            label="Unit"
+            value={covFilterUnit}
+            onChange={(e) => {
+              setCovFilterUnit(e.target.value);
+              setCovPage(0);
+            }}
+          >
+            <MenuItem value="">All units</MenuItem>
+            <MenuItem value="none">
+              <em>No unit</em>
+            </MenuItem>
+            {units.map((u) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 130 }}>
+          <InputLabel id="covf-shift-label">Shift</InputLabel>
+          <Select
+            labelId="covf-shift-label"
+            label="Shift"
+            value={covFilterShift}
+            onChange={(e) => {
+              setCovFilterShift(e.target.value);
+              setCovPage(0);
+            }}
+          >
+            <MenuItem value="">All shifts</MenuItem>
+            {SHIFT_TYPES.map((st) => (
+              <MenuItem key={st.value} value={st.value}>
+                {st.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <FormControl size="small" sx={{ minWidth: 130 }}>
+          <InputLabel id="covf-mode-label">Type</InputLabel>
+          <Select
+            labelId="covf-mode-label"
+            label="Type"
+            value={covFilterMode}
+            onChange={(e) => {
+              setCovFilterMode(e.target.value);
+              setCovPage(0);
+            }}
+          >
+            <MenuItem value="">All types</MenuItem>
+            <MenuItem value="fixed">Fixed minimum</MenuItem>
+            <MenuItem value="hppd">HPPD</MenuItem>
+          </Select>
+        </FormControl>
+        <Typography variant="body2" color="text.secondary">
+          Showing {filteredCoverage.length} of {coverageRequirements.length}
+        </Typography>
+        {covFiltersActive && (
+          <Button
+            size="small"
+            onClick={() => {
+              setCovSearch("");
+              setCovFilterUnit("");
+              setCovFilterShift("");
+              setCovFilterMode("");
+              setCovPage(0);
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </Stack>
+
       {!loading && (
+        <Box sx={{ overflowX: "auto" }}>
         <Table size="small">
           <TableHead>
             <TableRow>
@@ -853,7 +1168,16 @@ function StaffingAssignTab() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {coverageRequirements.map((r) => (
+            {filteredCoverage.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} align="center" sx={{ color: "text.secondary", py: 3 }}>
+                  {coverageRequirements.length === 0
+                    ? "No coverage requirements yet."
+                    : "No requirements match your search or filters."}
+                </TableCell>
+              </TableRow>
+            )}
+            {pagedCoverage.map((r) => (
               <TableRow key={r.id}>
                 <TableCell>{r.unit_name || "-"}</TableCell>
                 <TableCell>{r.shift_type_display || r.shift_type}</TableCell>
@@ -863,7 +1187,7 @@ function StaffingAssignTab() {
                 </TableCell>
                 <TableCell>{r.start_date}</TableCell>
                 <TableCell>{r.end_date || "Ongoing"}</TableCell>
-                <TableCell>
+                <TableCell sx={{ whiteSpace: "nowrap" }}>
                   <Tooltip title="Delete coverage requirement">
                     <IconButton
                       size="small"
@@ -878,7 +1202,20 @@ function StaffingAssignTab() {
             ))}
           </TableBody>
         </Table>
+        </Box>
       )}
+      {!loading && filteredCoverage.length > ROWS_PER_PAGE && (
+        <TablePagination
+          component="div"
+          count={filteredCoverage.length}
+          page={covPageSafe}
+          onPageChange={(e, p) => setCovPage(p)}
+          rowsPerPage={ROWS_PER_PAGE}
+          rowsPerPageOptions={[ROWS_PER_PAGE]}
+        />
+      )}
+      </Box>
+      </Box>
         </Box>
       )}
     </Box>
