@@ -19,6 +19,9 @@ const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
 
 function StaffingPage() {
   const [tab, setTab] = useState("calendar");
+  // Slots in the title row that the Calendar tab fills (shift legend in the middle, coverage legend on the right).
+  const [shiftSlot, setShiftSlot] = useState(null);
+  const [legendSlot, setLegendSlot] = useState(null);
   const [role, setRole] = useState("");
   const [timeOffCounts, setTimeOffCounts] = useState({ open_emergencies: 0, pending_requests: 0 });
   const navigate = useNavigate();
@@ -74,9 +77,17 @@ function StaffingPage() {
 
   return (
     <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
         <BackButton to="/solutions" sx={{ mb: 0 }} />
         <Typography variant="h5">Staffing</Typography>
+        <Box
+          ref={tab === "calendar" ? setShiftSlot : null}
+          sx={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}
+        />
+        <Box
+          ref={tab === "calendar" ? setLegendSlot : null}
+          sx={{ display: "flex", justifyContent: "flex-end" }}
+        />
       </Box>
 
       {timeOffCounts.open_emergencies > 0 && tab !== "timeoff" && (
@@ -122,7 +133,7 @@ function StaffingPage() {
         <Tab value="reports" label="Reports" />
       </Tabs>
 
-      {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} />}
+      {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} shiftSlot={shiftSlot} legendSlot={legendSlot} />}
       {tab === "roster" && <StaffingRosterTab isAdmin={isAdmin} />}
       {tab === "units" && <StaffingUnitsTab isAdmin={isAdmin} />}
       {tab === "timeoff" && <StaffingTimeOffTab isAdmin={isAdmin} />}
