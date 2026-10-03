@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -7,6 +7,7 @@ import {
   TableRow,
   TableCell,
   TableBody,
+  TablePagination,
   Chip,
   IconButton,
   Tooltip,
@@ -85,6 +86,49 @@ function StaffingRosterTab({ isAdmin = false }) {
   const [messageSending, setMessageSending] = useState(false);
   const [messageError, setMessageError] = useState("");
   const [messageSuccess, setMessageSuccess] = useState("");
+
+  // Search, filters and paging (all client-side; the whole roster is loaded).
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // all | active | inactive
+  const [roleFilter, setRoleFilter] = useState("all"); // all | rn | lpn | cna | other
+  const [page, setPage] = useState(0);
+
+  const filteredStaff = useMemo(() => {
+    const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return staff.filter((s) => {
+      if (statusFilter === "active" && !s.is_active) return false;
+      if (statusFilter === "inactive" && s.is_active) return false;
+      if (roleFilter !== "all" && (s.nursing_role || "other") !== roleFilter) return false;
+      if (terms.length === 0) return true;
+      const haystack = [
+        s.full_name,
+        s.first_name,
+        s.last_name,
+        s.profession_display,
+        s.profession,
+        s.nursing_role_display,
+        s.email,
+        s.phone_number,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      // Phone numbers: also match on digits only, so "301880" finds (301) 880-xxxx.
+      const digits = (s.phone_number || "").replace(/\D/g, "");
+      return terms.every(
+        (t) => haystack.includes(t) || (/^\d+$/.test(t) && digits.includes(t))
+      );
+    });
+  }, [staff, search, statusFilter, roleFilter]);
+
+  const ROWS_PER_PAGE = 20;
+  const lastPage = Math.max(0, Math.ceil(filteredStaff.length / ROWS_PER_PAGE) - 1);
+  const safePage = Math.min(page, lastPage);
+  const pageStaff = filteredStaff.slice(
+    safePage * ROWS_PER_PAGE,
+    safePage * ROWS_PER_PAGE + ROWS_PER_PAGE
+  );
+  const filtersActive = search.trim() !== "" || statusFilter !== "all" || roleFilter !== "all";
 
   const fetchStaff = useCallback(async () => {
     setLoading(true);
@@ -360,6 +404,68 @@ function StaffingRosterTab({ isAdmin = false }) {
         </Alert>
       )}
 
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1, flexWrap: "wrap", rowGap: 1 }}>
+        <TextField
+          size="small"
+          label="Search roster"
+          placeholder="Name, email, phone, profession or role"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
+          sx={{ minWidth: 280, flex: 1, maxWidth: 420 }}
+        />
+        <TextField
+          select
+          size="small"
+          label="Status"
+          value={statusFilter}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(0);
+          }}
+          sx={{ minWidth: 120 }}
+        >
+          <MenuItem value="all">All</MenuItem>
+          <MenuItem value="active">Active</MenuItem>
+          <MenuItem value="inactive">Inactive</MenuItem>
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Nursing role"
+          value={roleFilter}
+          onChange={(e) => {
+            setRoleFilter(e.target.value);
+            setPage(0);
+          }}
+          sx={{ minWidth: 140 }}
+        >
+          <MenuItem value="all">All</MenuItem>
+          <MenuItem value="rn">RN</MenuItem>
+          <MenuItem value="lpn">LPN</MenuItem>
+          <MenuItem value="cna">CNA</MenuItem>
+          <MenuItem value="other">Other</MenuItem>
+        </TextField>
+        <Typography variant="body2" color="text.secondary">
+          Showing {filteredStaff.length} of {staff.length}
+        </Typography>
+        {filtersActive && (
+          <Button
+            size="small"
+            onClick={() => {
+              setSearch("");
+              setStatusFilter("all");
+              setRoleFilter("all");
+              setPage(0);
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </Stack>
+
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -374,7 +480,16 @@ function StaffingRosterTab({ isAdmin = false }) {
           </TableRow>
         </TableHead>
         <TableBody>
-          {staff.map((s) => (
+          {pageStaff.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={isAdmin ? 8 : 7}>
+                <Typography variant="body2" color="text.secondary">
+                  {staff.length === 0 ? "No staff on the roster yet." : "No staff match your search."}
+                </Typography>
+              </TableCell>
+            </TableRow>
+          )}
+          {pageStaff.map((s) => (
             <TableRow key={s.id}>
               <TableCell>{s.full_name}</TableCell>
               <TableCell>{s.profession_display || s.profession}</TableCell>
@@ -474,6 +589,16 @@ function StaffingRosterTab({ isAdmin = false }) {
           ))}
         </TableBody>
       </Table>
+      {filteredStaff.length > ROWS_PER_PAGE && (
+        <TablePagination
+          component="div"
+          count={filteredStaff.length}
+          page={safePage}
+          onPageChange={(e, p) => setPage(p)}
+          rowsPerPage={ROWS_PER_PAGE}
+          rowsPerPageOptions={[]}
+        />
+      )}
 
       {/* Edit staff dialog */}
       <Dialog open={editOpen} onClose={closeEdit} maxWidth="sm" fullWidth>
