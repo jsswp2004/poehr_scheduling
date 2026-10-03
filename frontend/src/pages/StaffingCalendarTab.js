@@ -26,6 +26,7 @@ import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { US_STATES } from "../constants/usStates";
 import { COVERAGE_STATUS, toISO } from "./staffingCoverage";
+import StaffingCalendarToolbar from "../components/calendar/StaffingCalendarToolbar";
 
 const localizer = momentLocalizer(moment);
 
@@ -264,7 +265,10 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [dayInfo]
   );
 
-  const components = useMemo(() => ({ month: { dateHeader: DateHeader } }), [DateHeader]);
+  const components = useMemo(
+    () => ({ month: { dateHeader: DateHeader }, toolbar: StaffingCalendarToolbar }),
+    [DateHeader]
+  );
 
   const openLocationDialog = () => {
     setLocForm({
