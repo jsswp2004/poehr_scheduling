@@ -294,11 +294,11 @@ function StaffingReportsTab() {
         .print-only-header { display: none; }
       `}</style>
 
-      <Typography variant="h6" sx={{ mb: 2 }} className="no-print">
+      <Typography variant="h6" sx={{ mb: 1 }} className="no-print">
         Reports
       </Typography>
 
-      <Stack spacing={2} sx={{ mb: 3, maxWidth: 1000 }} className="no-print">
+      <Stack spacing={1.5} sx={{ mb: 1.5, maxWidth: 1000 }} className="no-print">
         <FormControl size="small" sx={{ minWidth: 280 }}>
           <InputLabel id="report-type-label">Report</InputLabel>
           <Select
@@ -315,7 +315,7 @@ function StaffingReportsTab() {
           </Select>
         </FormControl>
 
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
           <ToggleButtonGroup size="small" value={preset} exclusive onChange={handlePresetChange}>
             <ToggleButton value="today">Day</ToggleButton>
             <ToggleButton value="week">Week</ToggleButton>
@@ -387,13 +387,13 @@ function StaffingReportsTab() {
       </Stack>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} className="no-print">
+        <Alert severity="error" sx={{ mb: 1 }} className="no-print">
           {error}
         </Alert>
       )}
 
       {loading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }} className="no-print">
+        <Box sx={{ display: "flex", justifyContent: "center", py: 2 }} className="no-print">
           <CircularProgress />
         </Box>
       )}
@@ -588,7 +588,7 @@ function StaffingReportsTab() {
             </TableBody>
           </Table>
           {complianceRows.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               No active Coverage Requirements apply to this date range. Add one on the Assign Schedule tab to see compliance data here.
             </Typography>
           )}

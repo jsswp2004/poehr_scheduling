@@ -164,7 +164,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
   return (
     <Box sx={{ maxWidth: 900 }}>
       {status && (
-        <Alert severity={status.ok ? "success" : "error"} sx={{ mb: 2 }}>
+        <Alert severity={status.ok ? "success" : "error"} sx={{ mb: 1 }}>
           {status.message}
         </Alert>
       )}
@@ -172,13 +172,13 @@ function StaffingUnitsTab({ isAdmin = false }) {
       <Typography variant="h6" sx={{ mb: 1 }}>
         Daily Census
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Enter the number of residents on each unit. HPPD staffing requirements
         use this number. If a day has no census entered, the most recent entry
         from the last 7 days is used and flagged on the compliance report.
       </Typography>
 
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
         <TextField
           label="Date"
           type="date"
@@ -197,13 +197,13 @@ function StaffingUnitsTab({ isAdmin = false }) {
       </Stack>
 
       {activeUnits.length === 0 ? (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
           {isAdmin
             ? "No units yet. Add your first unit below."
             : "No units have been set up yet. Ask an admin to add them."}
         </Typography>
       ) : (
-        <Table size="small" sx={{ mb: 4 }}>
+        <Table size="small" sx={{ mb: 2 }}>
           <TableHead>
             <TableRow>
               <TableCell>Unit</TableCell>
@@ -240,18 +240,18 @@ function StaffingUnitsTab({ isAdmin = false }) {
         </Table>
       )}
 
-      <Divider sx={{ mb: 3 }} />
+      <Divider sx={{ mb: 1.5 }} />
 
       <Typography variant="h6" sx={{ mb: 1 }}>
         Units
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Each unit works either 8-hour shifts (Day / Evening / Night) or 12-hour
         shifts (Day / Night). This sets how many staff HPPD requires per shift.
       </Typography>
 
       {isAdmin && (
-        <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }} flexWrap="wrap">
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }} flexWrap="wrap">
           <TextField
             label="New unit name"
             size="small"

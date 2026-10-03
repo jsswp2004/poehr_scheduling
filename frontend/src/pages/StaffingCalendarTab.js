@@ -281,7 +281,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
       {location && (
         <Alert
           severity={location.warning ? "warning" : "info"}
-          sx={{ mb: 2 }}
+          sx={{ mb: 1 }}
           action={
             isAdmin && (
               <Button color="inherit" size="small" onClick={openLocationDialog}>
@@ -340,7 +340,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           </Select>
         </FormControl>
       </Stack>
-      <Stack direction="row" spacing={1} sx={{ mb: 2 }} alignItems="center">
+      <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
         {Object.entries(SHIFT_COLORS).map(([type, color]) => (
           <Chip
             key={type}
@@ -360,7 +360,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
         </Alert>
       ))}
       {error && (
-        <Typography color="error" sx={{ mb: 2 }}>
+        <Typography color="error" sx={{ mb: 1 }}>
           {error}
         </Typography>
       )}

@@ -154,7 +154,7 @@ function StaffingTimeOffTab({ isAdmin = false }) {
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }} flexWrap="wrap" useFlexGap>
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }} flexWrap="wrap" useFlexGap>
         <ToggleButtonGroup size="small" exclusive value={view} onChange={(e, v) => v && setView(v)}>
           <ToggleButton value="attention">Needs attention</ToggleButton>
           <ToggleButton value="all">All requests</ToggleButton>
@@ -168,13 +168,13 @@ function StaffingTimeOffTab({ isAdmin = false }) {
         )}
       </Stack>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
+        <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError("")}>
           {error}
         </Alert>
       )}
 
       {emergencies.length > 0 && (
-        <Stack spacing={1.5} sx={{ mb: 3 }}>
+        <Stack spacing={1.5} sx={{ mb: 1.5 }}>
           <Typography variant="h6" color="error">
             Emergency call-outs - cover needed
           </Typography>

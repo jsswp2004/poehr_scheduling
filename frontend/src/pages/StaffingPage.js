@@ -73,8 +73,8 @@ function StaffingPage() {
   const isAdmin = ADMIN_ROLES.includes(role);
 
   return (
-    <Box sx={{ height: "100%", p: 2, bgcolor: "background.paper", borderRadius: 2 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+    <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5 }}>
         <BackButton to="/solutions" sx={{ mb: 0 }} />
         <Typography variant="h5">Staffing</Typography>
       </Box>
@@ -82,7 +82,7 @@ function StaffingPage() {
       {timeOffCounts.open_emergencies > 0 && tab !== "timeoff" && (
         <Alert
           severity="error"
-          sx={{ mb: 2 }}
+          sx={{ mb: 1, py: 0 }}
           action={
             <Button color="inherit" size="small" onClick={() => setTab("timeoff")}>
               Find cover
@@ -97,7 +97,10 @@ function StaffingPage() {
       <Tabs
         value={tab}
         onChange={(e, val) => setTab(val)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
+        sx={{
+          mb: 1.5, minHeight: 40, borderBottom: 1, borderColor: "divider",
+          "& .MuiTab-root": { minHeight: 40, py: 0.5 },
+        }}
       >
         <Tab value="calendar" label="Calendar" />
         <Tab value="roster" label="Roster" />
