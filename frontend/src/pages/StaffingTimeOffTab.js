@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Alert,
   Box,
@@ -11,6 +11,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  InputAdornment,
   Link,
   MenuItem,
   Stack,
@@ -46,6 +47,7 @@ function StaffingTimeOffTab({ isAdmin = false }) {
   const headers = getAuthHeaders(token);
 
   const [view, setView] = useState("attention"); // attention | all
+  const [search, setSearch] = useState("");
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -87,8 +89,34 @@ function StaffingTimeOffTab({ isAdmin = false }) {
     return () => clearInterval(t);
   }, [load]);
 
-  const emergencies = rows.filter((r) => r.kind === "emergency" && r.status === "open");
-  const others = rows.filter((r) => !(r.kind === "emergency" && r.status === "open"));
+  // Every whitespace-separated term must appear somewhere in the request's text.
+  const visibleRows = useMemo(() => {
+    const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return rows;
+    return rows.filter((r) => {
+      const hay = [
+        r.staff_name,
+        r.kind_display,
+        r.kind === "emergency" ? "emergency call-out callout" : "time off request",
+        r.status_display,
+        r.status,
+        r.reason,
+        r.admin_note,
+        r.cover_staff_name,
+        r.start_date,
+        r.end_date,
+        dateRange(r),
+        ...(r.affected_shifts || []).map(shiftLine),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    });
+  }, [rows, search]);
+
+  const emergencies = visibleRows.filter((r) => r.kind === "emergency" && r.status === "open");
+  const others = visibleRows.filter((r) => !(r.kind === "emergency" && r.status === "open"));
 
   const openCover = async (req) => {
     setCoverFor(req);
@@ -159,6 +187,28 @@ function StaffingTimeOffTab({ isAdmin = false }) {
           <ToggleButton value="attention">Needs attention</ToggleButton>
           <ToggleButton value="all">All requests</ToggleButton>
         </ToggleButtonGroup>
+        <TextField
+          size="small"
+          label="Search requests"
+          placeholder="Name, type, status, reason, date..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          sx={{ minWidth: 280 }}
+          InputProps={{
+            endAdornment: search ? (
+              <InputAdornment position="end">
+                <Button size="small" onClick={() => setSearch("")}>
+                  Clear
+                </Button>
+              </InputAdornment>
+            ) : null,
+          }}
+        />
+        {search.trim() && (
+          <Typography variant="body2" color="text.secondary">
+            Showing {visibleRows.length} of {rows.length}
+          </Typography>
+        )}
         {loading && <CircularProgress size={18} />}
         <Box sx={{ flexGrow: 1 }} />
         {isAdmin && (
@@ -218,7 +268,9 @@ function StaffingTimeOffTab({ isAdmin = false }) {
         {view === "attention" ? "Pending time-off requests" : "All requests"}
       </Typography>
       {others.length === 0 ? (
-        <Typography color="text.secondary">Nothing here.</Typography>
+        <Typography color="text.secondary">
+          {rows.length > 0 && search.trim() ? "No requests match your search." : "Nothing here."}
+        </Typography>
       ) : (
         <Table size="small">
           <TableHead>
