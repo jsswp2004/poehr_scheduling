@@ -306,6 +306,25 @@ function StaffingCalendarTab({ isAdmin = false }) {
                 {location.state ? "Edit location" : "Set location"}
               </Button>
             )}
+          </Stack>
+
+          <Typography variant="body2" sx={{ maxWidth: 360 }}>
+            {location?.state ? (
+              <>
+                <strong>{location.state_name}</strong>
+                {location.city ? ` - ${location.city}` : ""}.{" "}
+                {location.rule
+                  ? `${location.rule.name} staffing rules are applied automatically (${location.rule.hppd_min} care hrs/resident/day${
+                      location.rule.max_residents_per_staff ? `, 1:${location.rule.max_residents_per_staff} ratio` : ""
+                    }, ${location.rule.min_rn_per_shift} RN per shift).`
+                  : location.warning}
+              </>
+            ) : (
+              location?.warning
+            )}
+          </Typography>
+
+          <Stack direction="row" spacing={1} alignItems="center">
             <FormControl size="small" sx={{ minWidth: 170, bgcolor: "background.paper", borderRadius: 1 }}>
               <InputLabel id="calendar-unit-label">All Units</InputLabel>
               <Select
@@ -324,22 +343,6 @@ function StaffingCalendarTab({ isAdmin = false }) {
             </FormControl>
             {loading && <CircularProgress size={18} />}
           </Stack>
-
-          <Typography variant="body2" sx={{ maxWidth: 360 }}>
-            {location?.state ? (
-              <>
-                <strong>{location.state_name}</strong>
-                {location.city ? ` - ${location.city}` : ""}.{" "}
-                {location.rule
-                  ? `${location.rule.name} staffing rules are applied automatically (${location.rule.hppd_min} care hrs/resident/day${
-                      location.rule.max_residents_per_staff ? `, 1:${location.rule.max_residents_per_staff} ratio` : ""
-                    }, ${location.rule.min_rn_per_shift} RN per shift).`
-                  : location.warning}
-              </>
-            ) : (
-              location?.warning
-            )}
-          </Typography>
 
           <Box sx={{ textAlign: "center" }}>
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap" useFlexGap>
