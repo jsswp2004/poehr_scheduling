@@ -313,7 +313,7 @@ function StaffingRosterTab({ isAdmin = false }) {
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" sx={{ mb: 2, flexWrap: "wrap" }}>
+      <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ mb: 1, flexWrap: "wrap" }}>
         <Typography variant="h6">
           Staff Roster ({staff.length})
         </Typography>
@@ -350,12 +350,12 @@ function StaffingRosterTab({ isAdmin = false }) {
       </Stack>
 
       {notice && (
-        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice("")}>
+        <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice("")}>
           {notice}
         </Alert>
       )}
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
+        <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError("")}>
           {error}
         </Alert>
       )}

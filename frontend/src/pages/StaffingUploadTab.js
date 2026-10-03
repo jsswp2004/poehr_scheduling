@@ -102,7 +102,7 @@ function StaffingUploadTab() {
         and a blank end_date means an ongoing schedule.
       </Typography>
 
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ my: 2 }}>
+      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ my: 1 }}>
         <Tooltip title="Download Template">
           <IconButton color="primary" onClick={handleDownloadTemplate}>
             <FontAwesomeIcon icon={faDownload} />
@@ -123,7 +123,7 @@ function StaffingUploadTab() {
       </Stack>
 
       {status && status.ok && (
-        <Alert severity={(status.errors && status.errors.length) || status.not_counted > 0 ? "warning" : "success"} sx={{ mt: 2 }}>
+        <Alert severity={(status.errors && status.errors.length) || status.not_counted > 0 ? "warning" : "success"} sx={{ mt: 1 }}>
           Created {status.created}, updated {status.updated}.
           {status.not_counted > 0 && (
             <> {status.not_counted} of these {status.not_counted === 1 ? "person has" : "people have"} the
@@ -146,7 +146,7 @@ function StaffingUploadTab() {
         </Alert>
       )}
       {status && !status.ok && (
-        <Alert severity="error" sx={{ mt: 2 }}>
+        <Alert severity="error" sx={{ mt: 1 }}>
           {status.message}
         </Alert>
       )}

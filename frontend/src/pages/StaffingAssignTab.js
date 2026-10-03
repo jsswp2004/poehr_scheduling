@@ -348,7 +348,7 @@ function StaffingAssignTab() {
       <Tabs
         value={assignTab}
         onChange={(e, newValue) => setAssignTab(newValue)}
-        sx={{ mb: 3 }}
+        sx={{ mb: 1.5 }}
       >
         <Tab label="Assign a Schedule" value="assign" />
         <Tab label="Coverage Requirements" value="coverage" />
@@ -357,7 +357,7 @@ function StaffingAssignTab() {
       {assignTab === "assign" && (
         <Box>
 
-      <Stack spacing={2} sx={{ mb: 3 }}>
+      <Stack spacing={1.5} sx={{ mb: 1.5 }}>
         <FormControl size="small" sx={{ minWidth: 260 }}>
           <InputLabel id="staff-label">Staff Member</InputLabel>
           <Select
@@ -497,7 +497,7 @@ function StaffingAssignTab() {
       </Stack>
 
       {status && (
-        <Alert severity={status.ok ? "success" : "error"} sx={{ mb: 3 }}>
+        <Alert severity={status.ok ? "success" : "error"} sx={{ mb: 1.5 }}>
           {status.message}
         </Alert>
       )}
@@ -699,15 +699,15 @@ function StaffingAssignTab() {
 
       {assignTab === "coverage" && (
         <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Mark which shift types need guaranteed coverage (understaffing
         alerts). If fewer than the minimum number of staff are assigned to
         a covered shift type/date combination 24 hours before it starts, an
         email alert is sent to this organization's admins automatically.
       </Typography>
 
-      <Stack spacing={2} sx={{ mb: 3, maxWidth: 900 }}>
-        <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+      <Stack spacing={1.5} sx={{ mb: 1.5, maxWidth: 900 }}>
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap">
           <FormControl size="small" sx={{ minWidth: 220 }}>
             <InputLabel id="cov-mode-label">Requirement Type</InputLabel>
             <Select
@@ -834,7 +834,7 @@ function StaffingAssignTab() {
       </Stack>
 
       {covStatus && (
-        <Alert severity={covStatus.ok ? "success" : "error"} sx={{ mb: 3 }}>
+        <Alert severity={covStatus.ok ? "success" : "error"} sx={{ mb: 1.5 }}>
           {covStatus.message}
         </Alert>
       )}
