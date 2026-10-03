@@ -190,6 +190,8 @@ function StaffingReportsTab() {
         setComplianceSummary({
           checked: res.data.checked_count || 0,
           understaffed: res.data.understaffed_count || 0,
+          atRisk: res.data.at_risk_count || 0,
+          warnings: res.data.warnings || [],
         });
       } else if (reportType === "message_log") {
         const res = await axios.get(apiEndpoints.staffingReportMessageLog, {
@@ -530,7 +532,9 @@ function StaffingReportsTab() {
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
               {complianceSummary
-                ? `${complianceSummary.checked} covered shift/date combinations checked, ${complianceSummary.understaffed} understaffed`
+                ? `${complianceSummary.checked} shift/date combinations checked, ${complianceSummary.understaffed} understaffed${
+                    complianceSummary.atRisk ? `, ${complianceSummary.atRisk} at risk` : ""
+                  }`
                 : ""}{" "}
               from {startDate} to {endDate}
             </Typography>
@@ -543,6 +547,11 @@ function StaffingReportsTab() {
               </Button>
             </Stack>
           </Stack>
+          {(complianceSummary?.warnings || []).map((w) => (
+            <Alert key={w} severity="warning" sx={{ mb: 1 }}>
+              {w}
+            </Alert>
+          ))}
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -577,7 +586,11 @@ function StaffingReportsTab() {
                       : "—"}
                   </TableCell>
                   <TableCell>
-                    <Chip size="small" label={r.status} color={r.status === "Met" ? "success" : "error"} />
+                    <Chip
+                      size="small"
+                      label={r.status}
+                      color={r.status === "Met" ? "success" : r.status === "At risk" ? "warning" : "error"}
+                    />
                   </TableCell>
                   <TableCell sx={{ maxWidth: 320 }}>
                     {[...(r.shortfalls || []), r.note].filter(Boolean).join("; ") || "—"}
@@ -589,7 +602,9 @@ function StaffingReportsTab() {
           </Table>
           {complianceRows.length === 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              No active Coverage Requirements apply to this date range. Add one on the Assign Schedule tab to see compliance data here.
+              Nothing to check for this date range. The report uses your state's staffing rule for every unit that has a census
+              (set the clinic location on the Calendar tab and enter a census on the Units & Census tab), plus any Coverage
+              Requirements added on the Assign Schedule tab.
             </Typography>
           )}
           {complianceRows.some((r) => r.census_source === "carried_forward") && (
