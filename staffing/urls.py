@@ -2,6 +2,13 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .compliance_views import CoverageStatusView, OrgLocationView
+from .rules_views import (
+    RuleAuditView,
+    RuleDetailView,
+    RuleDuplicateView,
+    RuleSelectionView,
+    RulesListCreateView,
+)
 from .timeoff_views import (
     MyTimeOffView,
     MyTimeOffCancelView,
@@ -66,6 +73,11 @@ urlpatterns = [
     ),
     path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
     path("location/", OrgLocationView.as_view(), name="staffing-location"),
+    path("rules/", RulesListCreateView.as_view(), name="staffing-rules"),
+    path("rules/selection/", RuleSelectionView.as_view(), name="staffing-rules-selection"),
+    path("rules/<int:pk>/", RuleDetailView.as_view(), name="staffing-rule-detail"),
+    path("rules/<int:pk>/duplicate/", RuleDuplicateView.as_view(), name="staffing-rule-duplicate"),
+    path("rules/<int:pk>/audit/", RuleAuditView.as_view(), name="staffing-rule-audit"),
     path("me/time-off/", MyTimeOffView.as_view(), name="staffing-me-time-off"),
     path("me/time-off/<int:pk>/cancel/", MyTimeOffCancelView.as_view(), name="staffing-me-time-off-cancel"),
     path("time-off/", TimeOffListCreateView.as_view(), name="staffing-time-off"),

@@ -50,6 +50,8 @@ class Need:
     staff_by_ratio: int = 0                 # hppd
     required_rn: int = 0                    # hppd
     shift_hours: float = 8.0                # hppd
+    required_licensed_hours: float = 0.0    # hppd: RN + LPN hours (component rules)
+    required_cna_hours: float = 0.0         # hppd: CNA hours (component rules)
 
 
 @dataclass(frozen=True)
@@ -96,6 +98,8 @@ def evaluate(need: Need, people: Sequence[Person]) -> Evaluation:
         staff_by_ratio=need.staff_by_ratio,
         required_staff=need.required_staff,
         required_rn=need.required_rn,
+        required_licensed_hours=need.required_licensed_hours,
+        required_cna_hours=need.required_cna_hours,
     )
     c = hppd.evaluate_shift(hreq, [(p.role, p.hours) for p in people])
     short = []
@@ -105,6 +109,10 @@ def evaluate(need: Need, people: Sequence[Person]) -> Evaluation:
         short.append(f"Short {c.staff_short} staff for the ratio")
     if not c.rn_ok:
         short.append(f"Need {need.required_rn} RN, have {c.rn_scheduled}")
+    if not c.licensed_ok:
+        short.append(f"Short {c.licensed_short:g} licensed-nurse (RN/LPN) hours")
+    if not c.cna_ok:
+        short.append(f"Short {c.cna_short:g} CNA hours")
     return Evaluation(c.compliant, c.heads_scheduled, c.hours_scheduled, c.rn_scheduled, tuple(short))
 
 

@@ -540,3 +540,109 @@ class StaffTimeOffRequest(models.Model):
     @property
     def is_pending_off(self):
         return self.kind == self.KIND_OFF_REQUEST and self.status == self.STATUS_PENDING
+
+
+# --- Staffing rules (state standards + custom) ----------------------------
+class StaffingRule(models.Model):
+    """
+    A coverage-compliance standard: the numbers the staffing engine applies.
+
+    organization NULL  -> SHARED state rule (Maryland, New York, ...). Only a
+                          system admin can add or edit these; every organization
+                          located in that state uses the active one.
+    organization set   -> CUSTOM rule owned by that organization. An org admin
+                          creates it (usually by duplicating a shared rule) and
+                          can select it for the organization.
+
+    Every number except hppd_min is optional: a rule only enforces what it sets.
+    Edits are logged in StaffingRuleAudit.
+    """
+
+    STATUS_ACTIVE = "active"
+    STATUS_DRAFT = "draft"
+    STATUS_INACTIVE = "inactive"
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_DRAFT, "Draft (not applied)"),
+        (STATUS_INACTIVE, "Inactive"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, on_delete=models.CASCADE,
+        related_name="staffing_rules",
+        help_text="Empty = shared state rule (system admins only).",
+    )
+    state = models.CharField(max_length=2, blank=True, default="", help_text="Two-letter state code; blank for a custom standard.")
+    name = models.CharField(max_length=120)
+    facility_type = models.CharField(max_length=30, default="nursing_home")
+
+    hppd_min = models.DecimalField(max_digits=5, decimal_places=2, help_text="Total care hours per resident per day.")
+    min_licensed_hppd = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Minimum RN + LPN hours per resident per day.")
+    min_cna_hppd = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Minimum CNA / aide hours per resident per day.")
+    max_residents_per_staff = models.PositiveSmallIntegerField(null=True, blank=True)
+    min_rn_per_shift = models.PositiveSmallIntegerField(default=0)
+
+    source = models.TextField(blank=True, default="", help_text="Regulation citation shown to admins.")
+    notes = models.TextField(blank=True, default="")
+    effective_date = models.DateField(null=True, blank=True)
+    last_verified_date = models.DateField(null=True, blank=True)
+    needs_verification = models.BooleanField(default=False)
+
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    is_seed = models.BooleanField(default=False, help_text="Created by the built-in seed data.")
+
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["state", "name", "id"]
+        indexes = [models.Index(fields=["state", "status"], name="staffing_rule_state_idx")]
+
+    def __str__(self):
+        scope = "shared" if self.organization_id is None else f"org {self.organization_id}"
+        return f"{self.name} ({scope}, {self.status})"
+
+    @property
+    def is_custom(self):
+        return self.organization_id is not None
+
+
+class StaffingRuleAudit(models.Model):
+    """Who changed which rule, when, and what changed."""
+
+    ACTION_CHOICES = [
+        ("created", "Created"),
+        ("updated", "Updated"),
+        ("deactivated", "Deactivated"),
+        ("duplicated", "Duplicated"),
+        ("verified", "Marked verified"),
+        ("selected", "Selected for organization"),
+    ]
+
+    rule = models.ForeignKey(StaffingRule, null=True, blank=True, on_delete=models.SET_NULL, related_name="audit_entries")
+    rule_name = models.CharField(max_length=120, blank=True, default="")
+    organization = models.ForeignKey(Organization, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    changes = models.JSONField(default=dict, blank=True)
+    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    changed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-changed_at", "-id"]
+
+    def __str__(self):
+        return f"{self.action} {self.rule_name} @ {self.changed_at:%Y-%m-%d %H:%M}"
+
+
+class OrgStaffingRule(models.Model):
+    """The custom (or alternative) rule an organization chose to use instead of its state's."""
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="staffing_rule_choice")
+    rule = models.ForeignKey(StaffingRule, on_delete=models.CASCADE, related_name="+")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.organization_id} -> {self.rule_id}"

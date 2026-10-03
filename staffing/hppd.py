@@ -103,6 +103,10 @@ class ShiftRequirement:
     staff_by_ratio: int     # heads needed by the 1:15 ratio rule
     required_staff: int     # max of the two (0 when census is 0)
     required_rn: int        # minimum RNs on the shift
+    # Component minimums (rules such as New York's split licensed vs aide hours).
+    # 0.0 = the rule has no such component.
+    required_licensed_hours: float = 0.0   # RN + LPN care hours this shift must supply
+    required_cna_hours: float = 0.0        # CNA / aide care hours this shift must supply
 
 
 def required_staff_by_shift(
@@ -111,6 +115,8 @@ def required_staff_by_shift(
     hppd: float = HPPD_MINIMUM,
     max_residents_per_staff: int = MAX_RESIDENTS_PER_STAFF,
     min_rn: int = MIN_RN_PER_SHIFT,
+    min_licensed_hppd: float = 0.0,
+    min_cna_hppd: float = 0.0,
 ) -> List[ShiftRequirement]:
     """
     Required staffing for every shift of the pattern, for one unit and day.
@@ -123,6 +129,8 @@ def required_staff_by_shift(
 
     shifts = get_pattern(pattern_key)
     daily_hours = census * hppd
+    daily_licensed = census * (min_licensed_hppd or 0.0)
+    daily_cna = census * (min_cna_hppd or 0.0)
     # A rule with no ratio (max_residents_per_staff falsy) skips the ratio check.
     by_ratio = (
         _ceil(census / max_residents_per_staff)
@@ -147,6 +155,8 @@ def required_staff_by_shift(
                 staff_by_ratio=by_ratio,
                 required_staff=required,
                 required_rn=rn_needed,
+                required_licensed_hours=round(daily_licensed * s.share, 6),
+                required_cna_hours=round(daily_cna * s.share, 6),
             )
         )
     return result
@@ -166,6 +176,12 @@ class ShiftCompliance:
     hours_short: float      # 0 when the hours rule is met
     staff_short: int        # heads short of the ratio requirement
     compliant: bool
+    licensed_ok: bool = True
+    cna_ok: bool = True
+    licensed_hours: float = 0.0     # RN + LPN hours scheduled
+    cna_hours: float = 0.0          # CNA hours scheduled
+    licensed_short: float = 0.0     # licensed hours short of the component minimum
+    cna_short: float = 0.0
 
 
 def evaluate_shift(
@@ -181,6 +197,8 @@ def evaluate_shift(
     hours = 0.0
     heads = 0
     rns = 0
+    licensed_hours = 0.0
+    cna_hours = 0.0
     for role, hrs in scheduled:
         if role not in COUNTED_ROLES:
             continue
@@ -188,10 +206,16 @@ def evaluate_shift(
         heads += 1
         if role == ROLE_RN:
             rns += 1
+        if role in (ROLE_RN, ROLE_LPN):
+            licensed_hours += hrs
+        elif role == ROLE_CNA:
+            cna_hours += hrs
 
     hours_ok = round(hours, 6) >= round(requirement.required_hours, 6)
     ratio_ok = heads >= requirement.staff_by_ratio
     rn_ok = rns >= requirement.required_rn
+    licensed_ok = round(licensed_hours, 6) >= round(requirement.required_licensed_hours, 6)
+    cna_ok = round(cna_hours, 6) >= round(requirement.required_cna_hours, 6)
 
     return ShiftCompliance(
         hours_scheduled=round(hours, 6),
@@ -202,5 +226,11 @@ def evaluate_shift(
         rn_ok=rn_ok,
         hours_short=0.0 if hours_ok else round(requirement.required_hours - hours, 6),
         staff_short=max(0, requirement.staff_by_ratio - heads),
-        compliant=hours_ok and ratio_ok and rn_ok,
+        compliant=hours_ok and ratio_ok and rn_ok and licensed_ok and cna_ok,
+        licensed_ok=licensed_ok,
+        cna_ok=cna_ok,
+        licensed_hours=round(licensed_hours, 6),
+        cna_hours=round(cna_hours, 6),
+        licensed_short=0.0 if licensed_ok else round(requirement.required_licensed_hours - licensed_hours, 6),
+        cna_short=0.0 if cna_ok else round(requirement.required_cna_hours - cna_hours, 6),
     )

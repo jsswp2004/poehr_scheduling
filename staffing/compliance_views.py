@@ -21,6 +21,7 @@ from users.us_states import US_STATE_NAMES, normalize_state
 
 from . import state_rules
 from .coverage_status import compute_coverage_status
+from .models import OrgStaffingRule
 from .views import (
     ADMIN_ROLES,
     IsStaffingManager,
@@ -58,7 +59,8 @@ class CoverageStatusView(APIView):
 
 
 def _location_payload(org):
-    resolved = state_rules.resolve_rule(org.state)
+    resolved = state_rules.resolve_rule_for_org(org)
+    choice = OrgStaffingRule.objects.filter(organization=org).first()
     return {
         "organization_id": org.id,
         "address_line1": org.address_line1,
@@ -70,9 +72,8 @@ def _location_payload(org):
         "staffing_spare_buffer": org.staffing_spare_buffer,
         "rule": resolved.rule.as_dict() if resolved.rule else None,
         "warning": resolved.warning,
-        "states_with_rules": sorted(
-            s for s, r in state_rules.STATE_RULES.items() if r.status == state_rules.STATUS_ACTIVE
-        ),
+        "states_with_rules": state_rules.states_with_rules(),
+        "selected_rule_id": choice.rule_id if choice else None,
     }
 
 

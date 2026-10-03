@@ -42,6 +42,8 @@ class EffectiveRequirement:
     census: Optional[int] = None
     census_source: Optional[str] = None   # "entered" | "carried_forward" | None
     note: str = ""
+    required_licensed_hours: float = 0.0
+    required_cna_hours: float = 0.0
 
 
 def census_for(unit, a_date) -> Tuple[Optional[int], Optional[str]]:
@@ -88,7 +90,7 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
 
     # The clinic's state decides the numbers (hours, ratio, RN). No active
     # rule for the state -> fixed minimum, with the reason in `note`.
-    resolved = state_rules.resolve_rule(req.organization.state)
+    resolved = state_rules.resolve_rule_for_org(req.organization)
     if resolved.rule is None:
         return _fixed(req, resolved.warning)
     rule = resolved.rule
@@ -99,6 +101,8 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
         hppd=rule.hppd_min,
         max_residents_per_staff=rule.max_residents_per_staff,
         min_rn=rule.min_rn_per_shift,
+        min_licensed_hppd=rule.min_licensed_hppd or 0.0,
+        min_cna_hppd=rule.min_cna_hppd or 0.0,
     ):
         if shift.shift_type == req.shift_type:
             note = "Census carried forward from an earlier day." if source == "carried_forward" else ""
@@ -111,6 +115,8 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
                 census=census,
                 census_source=source,
                 note=note,
+                required_licensed_hours=shift.required_licensed_hours,
+                required_cna_hours=shift.required_cna_hours,
             )
 
     return EffectiveRequirement(
@@ -237,6 +243,8 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
         staff_by_ratio=eff.staff_by_ratio,
         required_staff=eff.required_staff,
         required_rn=eff.required_rn,
+        required_licensed_hours=eff.required_licensed_hours,
+        required_cna_hours=eff.required_cna_hours,
     )
     c = hppd.evaluate_shift(hreq, per_staff.values())
 
@@ -247,6 +255,10 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
         shortfalls.append(f"Short {c.staff_short} staff for the 1:15 ratio")
     if not c.rn_ok:
         shortfalls.append(f"Need {eff.required_rn} RN, have {c.rn_scheduled}")
+    if not c.licensed_ok:
+        shortfalls.append(f"Short {c.licensed_short:g} licensed-nurse (RN/LPN) hours")
+    if not c.cna_ok:
+        shortfalls.append(f"Short {c.cna_short:g} CNA hours")
 
     return RequirementStatus(
         eff, c.heads_scheduled, c.hours_scheduled, c.rn_scheduled, c.compliant, tuple(shortfalls)
