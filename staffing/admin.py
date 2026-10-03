@@ -48,3 +48,23 @@ class StaffTimeOffRequestAdmin(admin.ModelAdmin):
     list_filter = ("organization", "kind", "status")
     search_fields = ("staff__first_name", "staff__last_name", "reason")
     date_hierarchy = "start_date"
+
+
+from .models import OrgStaffingRule, StaffingRule, StaffingRuleAudit  # noqa: E402
+
+
+@admin.register(StaffingRule)
+class StaffingRuleAdmin(admin.ModelAdmin):
+    list_display = ("name", "state", "organization", "hppd_min", "status", "needs_verification", "updated_at")
+    list_filter = ("status", "needs_verification", "state")
+    search_fields = ("name", "state")
+
+
+@admin.register(StaffingRuleAudit)
+class StaffingRuleAuditAdmin(admin.ModelAdmin):
+    list_display = ("rule_name", "action", "changed_by", "changed_at")
+    list_filter = ("action",)
+    readonly_fields = ("rule", "rule_name", "organization", "action", "changes", "changed_by", "changed_at")
+
+
+admin.site.register(OrgStaffingRule)

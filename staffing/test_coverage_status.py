@@ -129,7 +129,7 @@ class AutoStateRuleTests(TestCase):
         self.assertEqual(self.day()["status"], "unknown")
 
     def test_state_without_rule_uses_no_auto_items(self):
-        self.org.state = "NY"
+        self.org.state = "TX"      # no shared rule seeded for Texas
         self.org.save()
         out = compute_coverage_status(self.org, D, D)
         self.assertEqual(out["days"][D.isoformat()]["items"], [])

@@ -93,11 +93,14 @@ def _hppd_need(rule, unit, shift_type, census) -> Need:
         hppd=rule.hppd_min,
         max_residents_per_staff=rule.max_residents_per_staff,
         min_rn=rule.min_rn_per_shift,
+        min_licensed_hppd=rule.min_licensed_hppd or 0.0,
+        min_cna_hppd=rule.min_cna_hppd or 0.0,
     ):
         if r.shift_type == shift_type:
             return Need(
                 MODE_HPPD, r.required_staff, r.required_hours, r.staff_by_ratio,
                 r.required_rn, float(r.shift_hours),
+                r.required_licensed_hours, r.required_cna_hours,
             )
     return Need(MODE_HPPD, 0, 0.0, 0, 0, _pattern_hours(unit, shift_type))
 
@@ -138,7 +141,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
     if (end - start).days > MAX_RANGE_DAYS:
         raise ValueError(f"Date range too large (max {MAX_RANGE_DAYS} days).")
 
-    resolved = state_rules.resolve_rule(organization.state)
+    resolved = state_rules.resolve_rule_for_org(organization)
     rule = resolved.rule
     buffer = organization.staffing_spare_buffer
 
@@ -219,6 +222,8 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
             "required_hours": need.required_hours,
             "hours_scheduled": ev.hours,
             "required_rn": need.required_rn if need.mode == MODE_HPPD else None,
+            "required_licensed_hours": need.required_licensed_hours if need.mode == MODE_HPPD else None,
+            "required_cna_hours": need.required_cna_hours if need.mode == MODE_HPPD else None,
             "rn_scheduled": ev.rn,
             "reasons": list(c.reasons),
             "critical": list(c.critical_names),

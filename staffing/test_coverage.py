@@ -224,7 +224,10 @@ class ComplianceReportEndpointTests(TestCase):
             "/api/staffing/reports/coverage-compliance/", {"start": D.isoformat(), "end": D.isoformat()}
         )
         self.assertEqual(resp.status_code, 200, resp.content)
-        rows = {r["shift_type"]: r for r in resp.json()["rows"]}
+        # Only the clinic's own requirement rows; the automatic state-rule rows for the
+        # same unit/shifts are covered by test_coverage_compliance_report.
+        explicit = [r for r in resp.json()["rows"] if r.get("source") != "state_rule"]
+        rows = {r["shift_type"]: r for r in explicit}
         day, night = rows["day"], rows["night"]
         self.assertEqual((day["mode"], day["required"], day["required_hours"], day["unit_name"]),
                          ("hppd", 6, 48, "2 West"))
@@ -233,4 +236,4 @@ class ComplianceReportEndpointTests(TestCase):
         # fixed row keeps the original shape and meaning
         self.assertEqual((night["mode"], night["required"], night["assigned"]), ("fixed", 1, 0))
         self.assertEqual(night["status"], "Understaffed")
-        self.assertEqual(resp.json()["understaffed_count"], 2)
+        self.assertEqual(sum(1 for r in explicit if r["status"] == "Understaffed"), 2)
