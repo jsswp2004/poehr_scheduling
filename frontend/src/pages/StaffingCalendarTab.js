@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -37,10 +36,13 @@ const SHIFT_COLORS = {
   custom: "#546e7a",
 };
 
-// Render into a slot in the page header when one is provided; otherwise inline.
-const intoSlot = (el, node) => (el ? createPortal(node, el) : node);
+// Shift types each unit pattern uses (mirrors the backend's hppd.SHIFT_PATTERNS).
+const PATTERN_SHIFT_TYPES = {
+  "8h": ["day", "evening", "night"],
+  "12h": ["day", "night"],
+};
 
-function StaffingCalendarTab({ isAdmin = false, shiftSlot = null, legendSlot = null }) {
+function StaffingCalendarTab({ isAdmin = false }) {
   const [shifts, setShifts] = useState([]);
   const [coverage, setCoverage] = useState(null);
   const [location, setLocation] = useState(null);
@@ -148,6 +150,17 @@ function StaffingCalendarTab({ isAdmin = false, shiftSlot = null, legendSlot = n
     setRange({ start, end });
     fetchShifts(start, end);
   };
+
+  // Only the shift types the unit(s) in view actually use, plus any type that has a shift on the calendar
+  // (so Custom shows only when a custom shift exists).
+  const visibleShiftTypes = useMemo(() => {
+    const inScope = unitId === "" ? units : units.filter((u) => String(u.id) === String(unitId));
+    const types = new Set();
+    inScope.forEach((u) => (PATTERN_SHIFT_TYPES[u.shift_pattern] || PATTERN_SHIFT_TYPES["8h"]).forEach((t) => types.add(t)));
+    if (inScope.length === 0) ["day", "evening", "night"].forEach((t) => types.add(t));
+    shifts.forEach((s) => types.add(s.shift_type));
+    return Object.keys(SHIFT_COLORS).filter((t) => types.has(t));
+  }, [units, unitId, shifts]);
 
   const events = useMemo(
     () =>
@@ -282,92 +295,89 @@ function StaffingCalendarTab({ isAdmin = false, shiftSlot = null, legendSlot = n
 
   return (
     <Box>
-      {location && (
-        <Alert
-          severity={location.warning ? "warning" : "info"}
-          sx={{ mb: 1 }}
-          action={
-            isAdmin && (
-              <Button color="inherit" size="small" onClick={openLocationDialog}>
+      <Alert
+        severity={location?.warning ? "warning" : "info"}
+        sx={{ mb: 1, "& .MuiAlert-message": { flex: 1, width: "100%", overflow: "visible" } }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {isAdmin && location && (
+              <Button color="inherit" size="small" variant="outlined" onClick={openLocationDialog}>
                 {location.state ? "Edit location" : "Set location"}
               </Button>
-            )
-          }
-        >
-          {location.state ? (
-            <>
-              <strong>{location.state_name}</strong>
-              {location.city ? ` - ${location.city}` : ""}.{" "}
-              {location.rule
-                ? `${location.rule.name} staffing rules are applied automatically (${location.rule.hppd_min} care hrs/resident/day${
-                    location.rule.max_residents_per_staff ? `, 1:${location.rule.max_residents_per_staff} ratio` : ""
-                  }, ${location.rule.min_rn_per_shift} RN per shift).`
-                : location.warning}
-            </>
-          ) : (
-            location.warning
-          )}
-        </Alert>
-      )}
-
-      {intoSlot(
-        legendSlot,
-        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ justifyContent: "flex-end", mb: legendSlot ? 0 : 1 }}>
-          {Object.entries(COVERAGE_STATUS).map(([key, m]) => (
-            <Chip
-              key={key}
-              size="small"
-              label={`${m.icon} ${m.label}`}
-              sx={{ bgcolor: m.bg, color: m.color, fontWeight: 600, border: `1px solid ${m.color}55` }}
-            />
-          ))}
-          {coverage && (
-            <Typography variant="caption" color="text.secondary">
-              In view: {coverage.summary.not_met} not met, {coverage.summary.at_risk} at risk,{" "}
-              {coverage.summary.met} covered
-            </Typography>
-          )}
-        </Stack>
-      )}
-      {intoSlot(
-        shiftSlot,
-        <Box sx={{ textAlign: "center", mb: shiftSlot ? 0 : 1 }}>
-          <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-            {Object.entries(SHIFT_COLORS).map(([type, color]) => (
-              <Chip
-                key={type}
-                label={type}
-                size="small"
-                sx={{ bgcolor: color, color: "white", textTransform: "capitalize" }}
-              />
-            ))}
+            )}
+            <FormControl size="small" sx={{ minWidth: 170, bgcolor: "background.paper", borderRadius: 1 }}>
+              <InputLabel id="calendar-unit-label">All Units</InputLabel>
+              <Select
+                labelId="calendar-unit-label"
+                label="All Units"
+                value={unitId}
+                onChange={(e) => setUnitId(e.target.value)}
+              >
+                <MenuItem value="">All Units</MenuItem>
+                {units.map((u) => (
+                  <MenuItem key={u.id} value={u.id}>
+                    {u.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {loading && <CircularProgress size={18} />}
           </Stack>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-            Click a day for its coverage details.
-            {isAdmin ? " Click a shift to remove it." : ""}
+
+          <Typography variant="body2" sx={{ maxWidth: 360 }}>
+            {location?.state ? (
+              <>
+                <strong>{location.state_name}</strong>
+                {location.city ? ` - ${location.city}` : ""}.{" "}
+                {location.rule
+                  ? `${location.rule.name} staffing rules are applied automatically (${location.rule.hppd_min} care hrs/resident/day${
+                      location.rule.max_residents_per_staff ? `, 1:${location.rule.max_residents_per_staff} ratio` : ""
+                    }, ${location.rule.min_rn_per_shift} RN per shift).`
+                  : location.warning}
+              </>
+            ) : (
+              location?.warning
+            )}
           </Typography>
+
+          <Box sx={{ textAlign: "center" }}>
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap" useFlexGap>
+              {Object.entries(COVERAGE_STATUS).map(([key, m]) => (
+                <Chip
+                  key={key}
+                  size="small"
+                  label={`${m.icon} ${m.label}`}
+                  sx={{ bgcolor: m.bg, color: m.color, fontWeight: 600, border: `1px solid ${m.color}55` }}
+                />
+              ))}
+            </Stack>
+            {coverage && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                In view: {coverage.summary.not_met} not met, {coverage.summary.at_risk} at risk,{" "}
+                {coverage.summary.met} covered
+              </Typography>
+            )}
+          </Box>
+
+          <Box sx={{ textAlign: "center" }}>
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+              {visibleShiftTypes.map((type) => (
+                <Chip
+                  key={type}
+                  label={type}
+                  size="small"
+                  sx={{ bgcolor: SHIFT_COLORS[type], color: "white", textTransform: "capitalize" }}
+                />
+              ))}
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+              Click a day for its coverage details.
+              {isAdmin ? " Click a shift to remove it." : ""}
+            </Typography>
+          </Box>
         </Box>
-      )}
-      <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
-        <Box sx={{ flexGrow: 1 }} />
-        {loading && <CircularProgress size={18} />}
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <InputLabel id="calendar-unit-label">All Units</InputLabel>
-          <Select
-            labelId="calendar-unit-label"
-            label="All Units"
-            value={unitId}
-            onChange={(e) => setUnitId(e.target.value)}
-          >
-            <MenuItem value="">All Units</MenuItem>
-            {units.map((u) => (
-              <MenuItem key={u.id} value={u.id}>
-                {u.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Stack>
+      </Alert>
       {coverage?.warnings?.map((w) => (
         <Alert key={w} severity="warning" sx={{ mb: 1 }}>
           {w}
