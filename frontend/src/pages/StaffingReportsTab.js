@@ -161,7 +161,6 @@ function StaffingReportsTab() {
   const showProfessionFilter = ["schedule", "unscheduled", "labor_hours", "shift_distribution"].includes(
     reportType
   );
-  const showStaffFilter = ["schedule", "message_log"].includes(reportType);
 
   const handlePresetChange = (_e, value) => {
     if (!value) return;
@@ -308,6 +307,25 @@ function StaffingReportsTab() {
 
   const handlePrint = () => window.print();
 
+  const staffFilterControl = (
+    <FormControl size="small" sx={{ minWidth: 200 }}>
+      <InputLabel id="report-staff-label">Staff (all)</InputLabel>
+      <Select
+        labelId="report-staff-label"
+        label="Staff (all)"
+        value={staffFilterId}
+        onChange={(e) => setStaffFilterId(e.target.value)}
+      >
+        <MenuItem value="">All</MenuItem>
+        {staffList.map((s) => (
+          <MenuItem key={s.id} value={s.id}>
+            {s.full_name}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
   return (
     <Box>
       <style>{`
@@ -429,25 +447,6 @@ function StaffingReportsTab() {
               </Select>
             </FormControl>
           )}
-
-          {showStaffFilter && (
-            <FormControl size="small" sx={{ minWidth: 200 }}>
-              <InputLabel id="report-staff-label">Staff (all)</InputLabel>
-              <Select
-                labelId="report-staff-label"
-                label="Staff (all)"
-                value={staffFilterId}
-                onChange={(e) => setStaffFilterId(e.target.value)}
-              >
-                <MenuItem value="">All</MenuItem>
-                {staffList.map((s) => (
-                  <MenuItem key={s.id} value={s.id}>
-                    {s.full_name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
         </Stack>
       </Stack>
 
@@ -478,7 +477,8 @@ function StaffingReportsTab() {
             <Typography variant="body2" color="text.secondary">
               {shifts.length} shift{shifts.length === 1 ? "" : "s"} from {startDate} to {endDate}
             </Typography>
-            <Stack direction="row" spacing={1} className="no-print">
+            <Stack direction="row" spacing={1} alignItems="center" className="no-print">
+              {staffFilterControl}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportSchedule} disabled={shifts.length === 0}>
                 Export CSV
               </Button>
@@ -692,7 +692,8 @@ function StaffingReportsTab() {
               {messageRows.length} message{messageRows.length === 1 ? "" : "s"} from {startDate} to {endDate}
               {messageTruncated ? " (showing the most recent 1000 -- narrow the date range for the full list)" : ""}
             </Typography>
-            <Stack direction="row" spacing={1} className="no-print">
+            <Stack direction="row" spacing={1} alignItems="center" className="no-print">
+              {staffFilterControl}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportMessageLog} disabled={messageRows.length === 0}>
                 Export CSV
               </Button>
