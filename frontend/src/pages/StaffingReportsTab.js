@@ -103,7 +103,11 @@ function StaffingReportsTab() {
   const [endDate, setEndDate] = useState(() => getPresetRange("week").end);
   const [profession, setProfession] = useState("");
   const [staffFilterId, setStaffFilterId] = useState("");
+  // Coverage Compliance only: filter the rows by unit and shift (done in the browser).
+  const [unitFilterId, setUnitFilterId] = useState("");
+  const [shiftFilter, setShiftFilter] = useState("");
 
+  const [unitList, setUnitList] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -125,8 +129,29 @@ function StaffingReportsTab() {
       .get(apiEndpoints.staffingStaff, { headers: getAuthHeaders(token) })
       .then((res) => setStaffList(res.data.results || res.data || []))
       .catch((err) => console.error("Failed to load staff for report filters", err));
+    axios
+      .get(apiEndpoints.staffingUnits, { headers: getAuthHeaders(token) })
+      .then((res) => setUnitList(res.data.results || res.data || []))
+      .catch((err) => console.error("Failed to load units for report filters", err));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const filteredCompliance = useMemo(
+    () =>
+      complianceRows.filter(
+        (r) =>
+          (unitFilterId === "" || String(r.unit_id) === String(unitFilterId)) &&
+          (shiftFilter === "" || r.shift_type === shiftFilter)
+      ),
+    [complianceRows, unitFilterId, shiftFilter]
+  );
+  const complianceFiltered = unitFilterId !== "" || shiftFilter !== "";
+  const complianceUnderstaffed = filteredCompliance.filter((r) => r.status === "Understaffed").length;
+  const complianceAtRisk = filteredCompliance.filter((r) => r.status === "At risk").length;
+  const complianceUnitName = unitList.find((u) => String(u.id) === String(unitFilterId))?.name;
+  const complianceWarnings = (complianceSummary?.warnings || []).filter(
+    (w) => !complianceUnitName || !w.startsWith("No census on file for") || w.includes(complianceUnitName)
+  );
 
   const professions = useMemo(
     () => Array.from(new Set(staffList.map((s) => s.profession))).sort(),
@@ -248,7 +273,7 @@ function StaffingReportsTab() {
     downloadCsv(
       `staffing_coverage_compliance_${startDate}_to_${endDate}.csv`,
       ["Date", "Unit", "Shift", "Type", "Census", "Required Staff", "Assigned", "Required Care Hours", "Scheduled Care Hours", "Status", "Details", "Alert Sent"],
-      complianceRows.map((r) => [
+      filteredCompliance.map((r) => [
         r.date,
         r.unit_name || "",
         r.shift_type_display,
@@ -347,6 +372,44 @@ function StaffingReportsTab() {
             }}
             InputLabelProps={{ shrink: true }}
           />
+
+          {reportType === "coverage_compliance" && (
+            <>
+              <FormControl size="small" sx={{ minWidth: 160 }}>
+                <InputLabel id="report-unit-label">Unit (all)</InputLabel>
+                <Select
+                  labelId="report-unit-label"
+                  label="Unit (all)"
+                  value={unitFilterId}
+                  onChange={(e) => setUnitFilterId(e.target.value)}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  {unitList.map((u) => (
+                    <MenuItem key={u.id} value={u.id}>
+                      {u.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel id="report-shift-label">Shift (all)</InputLabel>
+                <Select
+                  labelId="report-shift-label"
+                  label="Shift (all)"
+                  value={shiftFilter}
+                  onChange={(e) => setShiftFilter(e.target.value)}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="day">Day</MenuItem>
+                  <MenuItem value="evening">Evening</MenuItem>
+                  <MenuItem value="night">Night</MenuItem>
+                  {complianceRows.some((r) => r.shift_type === "custom") && (
+                    <MenuItem value="custom">Custom</MenuItem>
+                  )}
+                </Select>
+              </FormControl>
+            </>
+          )}
 
           {showProfessionFilter && (
             <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -532,22 +595,24 @@ function StaffingReportsTab() {
           <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
             <Typography variant="body2" color="text.secondary">
               {complianceSummary
-                ? `${complianceSummary.checked} shift/date combinations checked, ${complianceSummary.understaffed} understaffed${
-                    complianceSummary.atRisk ? `, ${complianceSummary.atRisk} at risk` : ""
+                ? `${filteredCompliance.length}${
+                    complianceFiltered ? ` of ${complianceSummary.checked}` : ""
+                  } shift/date combinations checked, ${complianceUnderstaffed} understaffed${
+                    complianceAtRisk ? `, ${complianceAtRisk} at risk` : ""
                   }`
                 : ""}{" "}
               from {startDate} to {endDate}
             </Typography>
             <Stack direction="row" spacing={1} className="no-print">
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportCompliance} disabled={complianceRows.length === 0}>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportCompliance} disabled={filteredCompliance.length === 0}>
                 Export CSV
               </Button>
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={complianceRows.length === 0}>
+              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={filteredCompliance.length === 0}>
                 Print
               </Button>
             </Stack>
           </Stack>
-          {(complianceSummary?.warnings || []).map((w) => (
+          {complianceWarnings.map((w) => (
             <Alert key={w} severity="warning" sx={{ mb: 1 }}>
               {w}
             </Alert>
@@ -568,7 +633,7 @@ function StaffingReportsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {complianceRows.map((r, idx) => (
+              {filteredCompliance.map((r, idx) => (
                 <TableRow key={idx}>
                   <TableCell>{r.date}</TableCell>
                   <TableCell>{r.unit_name || "—"}</TableCell>
@@ -600,6 +665,11 @@ function StaffingReportsTab() {
               ))}
             </TableBody>
           </Table>
+          {complianceRows.length > 0 && filteredCompliance.length === 0 && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              No shifts match the selected unit and shift. Choose "All" to see the whole report.
+            </Typography>
+          )}
           {complianceRows.length === 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Nothing to check for this date range. The report uses your state's staffing rule for every unit that has a census
@@ -607,7 +677,7 @@ function StaffingReportsTab() {
               Requirements added on the Assign Schedule tab.
             </Typography>
           )}
-          {complianceRows.some((r) => r.census_source === "carried_forward") && (
+          {filteredCompliance.some((r) => r.census_source === "carried_forward") && (
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
               * Census carried forward from the most recent entry (no census was entered for that date).
             </Typography>
