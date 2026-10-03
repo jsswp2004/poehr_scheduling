@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -19,6 +19,8 @@ import {
   Tooltip,
   Tabs,
   Tab,
+  TablePagination,
+  MenuItem,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -79,8 +81,11 @@ function StaffingUnitsTab({ isAdmin = false }) {
   const [newPattern, setNewPattern] = useState("8h");
 
   const [sub, setSub] = useState("census");
-  const [history, setHistory] = useState([]); // last 20 census entries
-  const [historyTotal, setHistoryTotal] = useState(0);
+  const [history, setHistory] = useState([]); // every census entry, newest first
+  const [censusSearch, setCensusSearch] = useState("");
+  const [censusUnitFilter, setCensusUnitFilter] = useState("all");
+  const [censusShiftFilter, setCensusShiftFilter] = useState("all"); // all | 8h | 12h
+  const [censusPage, setCensusPage] = useState(0);
   const [editCensus, setEditCensus] = useState(null); // {id, unit_name, date, census, notes}
   const [deleteCensus, setDeleteCensus] = useState(null);
   const [editUnit, setEditUnit] = useState(null); // {id, name, shift_pattern}
@@ -116,8 +121,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
         String(b.date).localeCompare(String(a.date)) ||
         String(b.updated_at || "").localeCompare(String(a.updated_at || ""))
     );
-    setHistoryTotal(res.data.count ?? rows.length);
-    setHistory(rows.slice(0, PAGE_LIMIT));
+    setHistory(rows);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -190,6 +194,44 @@ function StaffingUnitsTab({ isAdmin = false }) {
       setStatus({ ok: false, message: errText(err, "Failed to update unit.") });
     }
   };
+
+  const shiftLabel = (unit) =>
+    unit ? (unit.shift_pattern === "12h" ? "12 hour" : "8 hour") : "";
+
+  const censusFiltersActive =
+    censusSearch.trim() !== "" || censusUnitFilter !== "all" || censusShiftFilter !== "all";
+
+  // With no search or filter the table shows the last 20 entries, as before.
+  // Searching covers every entry on file and pages through the matches.
+  const censusMatches = useMemo(() => {
+    if (!censusFiltersActive) return history.slice(0, PAGE_LIMIT);
+    const terms = censusSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return history.filter((h) => {
+      const unit = units.find((u) => u.id === h.unit);
+      if (censusUnitFilter !== "all" && String(h.unit) !== String(censusUnitFilter)) return false;
+      if (censusShiftFilter !== "all" && unit?.shift_pattern !== censusShiftFilter) return false;
+      if (terms.length === 0) return true;
+      const haystack = [
+        h.unit_name || unit?.name,
+        shiftLabel(unit),
+        h.date,
+        String(h.census),
+        h.entered_by_name,
+        h.notes,
+        fmtStamp(h.updated_at || h.created_at),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return terms.every((t) => haystack.includes(t));
+    });
+  }, [history, units, censusSearch, censusUnitFilter, censusShiftFilter, censusFiltersActive]);
+
+  const censusLastPage = Math.max(0, Math.ceil(censusMatches.length / PAGE_LIMIT) - 1);
+  const censusSafePage = censusFiltersActive ? Math.min(censusPage, censusLastPage) : 0;
+  const censusRows = censusFiltersActive
+    ? censusMatches.slice(censusSafePage * PAGE_LIMIT, censusSafePage * PAGE_LIMIT + PAGE_LIMIT)
+    : censusMatches;
 
   const closeDialogs = () => {
     setEditCensus(null);
@@ -413,10 +455,77 @@ function StaffingUnitsTab({ isAdmin = false }) {
           <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
             Census
             <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-              last {PAGE_LIMIT}
-              {historyTotal > PAGE_LIMIT ? ` of ${historyTotal}` : ""}
+              {censusFiltersActive
+                ? `showing ${censusMatches.length} of ${history.length}`
+                : `last ${Math.min(PAGE_LIMIT, history.length)}${
+                    history.length > PAGE_LIMIT ? ` of ${history.length}` : ""
+                  }`}
             </Typography>
           </Typography>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            alignItems="center"
+            sx={{ mb: 1, flexWrap: "wrap", rowGap: 1 }}
+          >
+            <TextField
+              size="small"
+              label="Search census"
+              placeholder="Unit, date, census, shift or who entered"
+              value={censusSearch}
+              onChange={(e) => {
+                setCensusSearch(e.target.value);
+                setCensusPage(0);
+              }}
+              sx={{ minWidth: 240, flex: 1, maxWidth: 380 }}
+            />
+            <TextField
+              select
+              size="small"
+              label="Unit"
+              value={censusUnitFilter}
+              onChange={(e) => {
+                setCensusUnitFilter(e.target.value);
+                setCensusPage(0);
+              }}
+              sx={{ minWidth: 130 }}
+            >
+              <MenuItem value="all">All</MenuItem>
+              {units.map((u) => (
+                <MenuItem key={u.id} value={u.id}>
+                  {u.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              select
+              size="small"
+              label="Shift"
+              value={censusShiftFilter}
+              onChange={(e) => {
+                setCensusShiftFilter(e.target.value);
+                setCensusPage(0);
+              }}
+              sx={{ minWidth: 110 }}
+            >
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="8h">8 hour</MenuItem>
+              <MenuItem value="12h">12 hour</MenuItem>
+            </TextField>
+            {censusFiltersActive && (
+              <Button
+                size="small"
+                onClick={() => {
+                  setCensusSearch("");
+                  setCensusUnitFilter("all");
+                  setCensusShiftFilter("all");
+                  setCensusPage(0);
+                }}
+              >
+                Clear
+              </Button>
+            )}
+          </Stack>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -429,16 +538,18 @@ function StaffingUnitsTab({ isAdmin = false }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {history.length === 0 && (
+              {censusRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={6}>
                     <Typography variant="body2" color="text.secondary">
-                      No census entries yet.
+                      {history.length === 0
+                        ? "No census entries yet."
+                        : "No census entries match your search."}
                     </Typography>
                   </TableCell>
                 </TableRow>
               )}
-              {history.map((h) => {
+              {censusRows.map((h) => {
                 const unit = units.find((u) => u.id === h.unit);
                 return (
                   <TableRow key={h.id}>
@@ -476,6 +587,16 @@ function StaffingUnitsTab({ isAdmin = false }) {
               })}
             </TableBody>
           </Table>
+          {censusFiltersActive && censusMatches.length > PAGE_LIMIT && (
+            <TablePagination
+              component="div"
+              count={censusMatches.length}
+              page={censusSafePage}
+              onPageChange={(e, p) => setCensusPage(p)}
+              rowsPerPage={PAGE_LIMIT}
+              rowsPerPageOptions={[]}
+            />
+          )}
           </Box>
         </Box>
       )}
