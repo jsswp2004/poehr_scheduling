@@ -24,7 +24,6 @@ import {
   TableRow,
   Tabs,
   Tab,
-  Divider,
   FormControl,
   InputLabel,
   Select as MUISelect,
@@ -687,17 +686,16 @@ function DashboardPage() {
         new Date(a.appointment_datetime) - new Date(b.appointment_datetime)
     );
   return (
-    <Box sx={{ mt: 0, p: 3, maxWidth: "100%", mx: "auto" }}>
+    <Box sx={{ mt: 0, p: 1.5, maxWidth: "100%", mx: "auto" }}>
       {" "}
-      <Stack direction="row" spacing={3} sx={{ height: "100vh" }}>
+      <Stack direction="row" spacing={1.5} sx={{ height: "100vh" }}>
         {/* Left Pane - Patient Portal (70%) */}
         <Box
           sx={{
             flex: "0 0 70%",
-            boxShadow: 2,
             borderRadius: 2,
             bgcolor: "background.paper",
-            p: 3,
+            p: 1.5,
             overflow: "auto",
           }}
         >
@@ -708,7 +706,7 @@ function DashboardPage() {
             value={tab}
             onChange={(_, val) => setTab(val)}
             aria-label="dashboard-tabs"
-            sx={{ mb: 0 }}
+            sx={{ mb: 1 }}
           >
             <Tab value="myinfo" label="My Information" />
             <Tab value="manage" label="Manage Appointments" />
@@ -717,21 +715,20 @@ function DashboardPage() {
               <Tab value="calendar" label="Calendar" />
             )}
           </Tabs>
-          <Divider sx={{ mb: 2 }} />
           {tab === "myinfo" && (
             <Box>
               {userInfoLoading ? (
                 <Typography>Loading user information...</Typography>
               ) : currentUser ? (
-                <Stack spacing={3}>
+                <Stack spacing={1.5}>
                   <Typography variant="h6">My Information</Typography>
 
                   {/* User Details Section */}
-                  <Paper sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
+                  <Paper sx={{ p: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 1 }}>
                       Profile Information
                     </Typography>
-                    <Grid container spacing={2}>
+                    <Grid container spacing={1.5}>
                       <Grid item xs={12} sm={6}>
                         <TextField
                           label="First Name"
@@ -826,8 +823,8 @@ function DashboardPage() {
 
                   {/* SMS Consent Section for Patients */}
                   {currentUser.role === "patient" && (
-                    <Paper sx={{ p: 3 }}>
-                      <Typography variant="h6" sx={{ mb: 2 }}>
+                    <Paper sx={{ p: 2 }}>
+                      <Typography variant="h6" sx={{ mb: 1 }}>
                         Communication Preferences
                       </Typography>
 
@@ -880,7 +877,7 @@ function DashboardPage() {
                             />
                           )}
 
-                        <Box sx={{ mt: 2 }}>
+                        <Box sx={{ mt: 1 }}>
                           {smsConsentEditing || phoneEditing ? (
                             <Stack direction="row" spacing={1}>
                               <Button
@@ -922,7 +919,7 @@ function DashboardPage() {
                         </Box>
 
                         {tempSmsConsent && !tempPhoneNumber.trim() && (
-                          <Alert severity="warning" sx={{ mt: 2 }}>
+                          <Alert severity="warning" sx={{ mt: 1 }}>
                             A phone number is required to receive SMS
                             notifications.
                           </Alert>
@@ -932,14 +929,14 @@ function DashboardPage() {
                   )}
 
                   {/* Change Password Section */}
-                  <Paper sx={{ p: 3 }}>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
+                  <Paper sx={{ p: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 1 }}>
                       Change Password
                     </Typography>
 
                     <Box>
                       {passwordEditing ? (
-                        <Stack spacing={2}>
+                        <Stack spacing={1.5}>
                           <TextField
                             fullWidth
                             type="password"
@@ -1024,7 +1021,7 @@ function DashboardPage() {
                         </Stack>
                       ) : (
                         <Box>
-                          <Typography variant="body2" sx={{ mb: 2 }}>
+                          <Typography variant="body2" sx={{ mb: 1 }}>
                             Update your account password for enhanced security
                           </Typography>
                           <Button
@@ -1046,13 +1043,13 @@ function DashboardPage() {
           )}
           {tab === "manage" && (
             <Box>
-              <Stack direction={{ xs: "column", md: "row" }} spacing={4}>
+              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
                 <Box sx={{ flex: 1, minWidth: 350 }}>
                   <form onSubmit={handleSubmit}>
-                    <Typography variant="h6" sx={{ mb: 2 }}>
+                    <Typography variant="h6" sx={{ mb: 1 }}>
                       {editMode ? "Edit Appointment" : "Request an Appointment"}
                     </Typography>
-                    <Stack spacing={2}>
+                    <Stack spacing={1.5}>
                       <TextField
                         label="Title"
                         name="title"
@@ -1098,7 +1095,7 @@ function DashboardPage() {
                           isClearable
                         />
                       </Box>
-                      <Stack direction="row" spacing={2}>
+                      <Stack direction="row" spacing={1.5}>
                         <Button
                           type="submit"
                           variant="contained"
@@ -1134,7 +1131,7 @@ function DashboardPage() {
                       </Stack>
                     </Stack>
                   </form>
-                  <Box sx={{ mt: 4 }}>
+                  <Box sx={{ mt: 2 }}>
                     <Typography variant="subtitle1" sx={{ mb: 1 }}>
                       Available Dates for{" "}
                       {selectedDoctor?.label || "Selected Doctor"}
@@ -1177,7 +1174,7 @@ function DashboardPage() {
                   </Box>
                 </Box>
                 <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ mb: 2 }}>
+                  <Typography variant="h6" sx={{ mb: 1 }}>
                     Your Appointments
                   </Typography>
                   <TableContainer component={Paper} sx={{ maxHeight: 350 }}>
@@ -1259,7 +1256,7 @@ function DashboardPage() {
               sx={{
                 display: "grid",
                 gridTemplateColumns: "1fr 1fr",
-                gap: 3,
+                gap: 1.5,
                 maxHeight: "70vh",
                 overflow: "hidden",
               }}
@@ -1275,17 +1272,17 @@ function DashboardPage() {
               >
                 <Typography
                   variant="h6"
-                  sx={{ mb: 2, fontWeight: 600, color: "primary.main" }}
+                  sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
                 >
                   📧 Email
                 </Typography>
                 {messageSent && (
-                  <Alert severity="success" sx={{ mb: 2 }}>
+                  <Alert severity="success" sx={{ mb: 1 }}>
                     Your email has been sent successfully. Your provider will
                     respond to you as soon as possible.
                   </Alert>
                 )}
-                <Stack spacing={2} sx={{ flex: 1, overflow: "auto" }}>
+                <Stack spacing={1.5} sx={{ flex: 1, overflow: "auto" }}>
                   <TextField
                     label="From"
                     value={emailForm.from}
@@ -1369,7 +1366,7 @@ function DashboardPage() {
                     textTransform: "none",
                     fontWeight: 600,
                     py: 1.5,
-                    mt: 2,
+                    mt: 1,
                     flexShrink: 0,
                   }}
                 >
@@ -1387,12 +1384,12 @@ function DashboardPage() {
               >
                 <Typography
                   variant="h6"
-                  sx={{ mb: 2, fontWeight: 600, color: "primary.main" }}
+                  sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
                 >
                   💬 Text Message
                 </Typography>
                 {smsSent && (
-                  <Alert severity="success" sx={{ mb: 2 }}>
+                  <Alert severity="success" sx={{ mb: 1 }}>
                     Your text message has been sent successfully. Your provider
                     will respond to you as soon as possible.
                   </Alert>
@@ -1432,7 +1429,7 @@ function DashboardPage() {
                     textTransform: "none",
                     fontWeight: 600,
                     py: 1.5,
-                    mt: 2,
+                    mt: 1,
                     flexShrink: 0,
                   }}
                 >
@@ -1442,7 +1439,7 @@ function DashboardPage() {
             </Box>
           )}
           {tab === "calendar" && currentUser?.role !== "patient" && (
-            <Box sx={{ mt: 2 }}>
+            <Box sx={{ mt: 1 }}>
               <CalendarView
                 onUpdate={() => setRefreshFlag((prev) => !prev)}
                 showBackButton={currentUser?.role !== "patient"}
@@ -1454,16 +1451,15 @@ function DashboardPage() {
         <Box
           sx={{
             flex: "0 0 30%",
-            boxShadow: 2,
             borderRadius: 2,
             bgcolor: "background.paper",
-            p: 3,
+            p: 1.5,
             overflow: "auto",
           }}
         >
           <Typography
             variant="h6"
-            sx={{ mb: 2, fontWeight: "bold", color: "primary.main" }}
+            sx={{ mb: 1, fontWeight: "bold", color: "primary.main" }}
           >
             Announcements
           </Typography>
