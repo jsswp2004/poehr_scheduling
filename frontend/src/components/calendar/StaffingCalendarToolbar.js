@@ -10,11 +10,22 @@
  * Today use, so the parent's onRangeChange still fires and the shifts and
  * coverage colors for the new period load.
  */
-import { memo, useRef, useState } from "react";
-import { Popover } from "@mui/material";
+import { createContext, memo, useContext, useRef, useState } from "react";
+import { IconButton, InputAdornment, Popover, TextField, Typography } from "@mui/material";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
+/**
+ * The calendar's search box state lives in the parent (it filters the events),
+ * but react-big-calendar renders this toolbar itself, so the state reaches it
+ * through context. Keeping the toolbar component's identity stable is what
+ * keeps the input focused while typing.
+ * Value shape: { value, onChange, shown, total }  (null = no search box).
+ */
+export const StaffingCalendarSearchContext = createContext(null);
 
 const StaffingCalendarToolbar = memo(function StaffingCalendarToolbar({
   date,
@@ -25,6 +36,7 @@ const StaffingCalendarToolbar = memo(function StaffingCalendarToolbar({
   views,
   localizer,
 }) {
+  const search = useContext(StaffingCalendarSearchContext);
   const anchorRef = useRef(null);
   const [open, setOpen] = useState(false);
   const msg = (key, fallback) => localizer?.messages?.[key] || fallback;
@@ -83,6 +95,37 @@ const StaffingCalendarToolbar = memo(function StaffingCalendarToolbar({
             }}
           />
         </Popover>
+        {search && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, marginLeft: 12, verticalAlign: "middle" }}>
+            <TextField
+              size="small"
+              placeholder="Search shifts: name, unit, shift..."
+              value={search.value}
+              onChange={(e) => search.onChange(e.target.value)}
+              inputProps={{ "aria-label": "Search shifts on the calendar" }}
+              sx={{ width: 260, "& .MuiInputBase-root": { fontSize: 14, bgcolor: "background.paper" } }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+                endAdornment: search.value ? (
+                  <InputAdornment position="end">
+                    <IconButton size="small" aria-label="Clear search" onClick={() => search.onChange("")}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+            />
+            {search.value.trim() && (
+              <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap", fontWeight: 400 }}>
+                {search.shown} of {search.total} shifts
+              </Typography>
+            )}
+          </span>
+        )}
       </span>
 
       <span className="rbc-btn-group">

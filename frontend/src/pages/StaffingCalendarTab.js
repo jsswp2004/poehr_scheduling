@@ -26,7 +26,9 @@ import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { US_STATES } from "../constants/usStates";
 import { COVERAGE_STATUS, toISO } from "./staffingCoverage";
-import StaffingCalendarToolbar from "../components/calendar/StaffingCalendarToolbar";
+import StaffingCalendarToolbar, {
+  StaffingCalendarSearchContext,
+} from "../components/calendar/StaffingCalendarToolbar";
 
 const localizer = momentLocalizer(moment);
 
@@ -52,6 +54,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
   const [unitId, setUnitId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   const [dayDialog, setDayDialog] = useState(null); // ISO date string
   const [locDialog, setLocDialog] = useState(false);
   const [locForm, setLocForm] = useState({});
@@ -163,9 +166,39 @@ function StaffingCalendarTab({ isAdmin = false }) {
     return Object.keys(SHIFT_COLORS).filter((t) => types.has(t));
   }, [units, unitId, shifts]);
 
+  // Search narrows which shifts are drawn; every term must match somewhere in the
+  // shift's staff, unit, shift type, time, date or notes. Coverage colors still
+  // reflect the whole schedule.
+  const filteredShifts = useMemo(() => {
+    const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (terms.length === 0) return shifts;
+    return shifts.filter((shift) => {
+      const hay = [
+        shift.staff_name,
+        shift.unit_name,
+        shift.shift_type_display,
+        shift.shift_type,
+        shift.start_time,
+        shift.end_time,
+        shift.date,
+        shift.notes,
+        moment(shift.date).format("dddd MMMM"),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return terms.every((t) => hay.includes(t));
+    });
+  }, [shifts, search]);
+
+  const searchCtx = useMemo(
+    () => ({ value: search, onChange: setSearch, shown: filteredShifts.length, total: shifts.length }),
+    [search, filteredShifts.length, shifts.length]
+  );
+
   const events = useMemo(
     () =>
-      shifts.map((shift) => {
+      filteredShifts.map((shift) => {
         const start = new Date(`${shift.date}T${shift.start_time || "00:00:00"}`);
         let end = new Date(`${shift.date}T${shift.end_time || "23:59:59"}`);
         // Overnight shifts (e.g. 7:00 PM - 7:00 AM) have an end clock-time
@@ -186,7 +219,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           resource: shift,
         };
       }),
-    [shifts]
+    [filteredShifts]
   );
 
   const eventPropGetter = (event) => {
@@ -406,6 +439,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
         spinner next to the legend instead (above), never by hiding the grid.
       */}
       <Box sx={{ height: 650, bgcolor: "background.paper", p: 1, borderRadius: 2 }}>
+        <StaffingCalendarSearchContext.Provider value={searchCtx}>
         <Calendar
           localizer={localizer}
           events={events}
@@ -421,6 +455,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           components={components}
           popup
         />
+        </StaffingCalendarSearchContext.Provider>
       </Box>
 
       {/* Day detail */}
