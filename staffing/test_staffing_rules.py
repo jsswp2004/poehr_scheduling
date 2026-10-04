@@ -199,17 +199,37 @@ class RulesApiTests(TestCase):
         self.assertEqual(r.status_code, 200)
         names = {x["name"] for x in r.json()["rules"]}
         self.assertIn("Mine", names)
-        self.assertIn("New York", names)
+        self.assertIn("Maryland", names)           # the org's own state
+        self.assertNotIn("New York", names)        # other states are not shown to org admins
+        self.assertNotIn("Connecticut", names)
         self.assertNotIn("Hidden", names)
-        ny = next(x for x in r.json()["rules"] if x["state"] == "NY")
-        self.assertFalse(ny["editable"])
-        self.assertEqual(ny["scope"], "shared")
+        md = next(x for x in r.json()["rules"] if x["state"] == "MD")
+        self.assertFalse(md["editable"])
+        self.assertEqual(md["scope"], "shared")
+
+    def test_system_admin_sees_every_state(self):
+        names = {x["name"] for x in client_for(self.sysadmin).get(RULES).json()["rules"]}
+        self.assertTrue({"Maryland", "New York", "Connecticut"} <= names)
+
+    def test_staff_see_only_own_state(self):
+        names = {x["name"] for x in client_for(self.nurse).get(RULES).json()["rules"]}
+        self.assertEqual(names, {"Maryland"})
 
     def test_org_admin_cannot_edit_shared_rule(self):
-        r = client_for(self.admin).patch(f"{RULES}{self.ny.pk}/", {"hppd_min": "9"}, format="json")
+        md = StaffingRule.objects.get(state="MD", organization__isnull=True)
+        r = client_for(self.admin).patch(f"{RULES}{md.pk}/", {"hppd_min": "9"}, format="json")
         self.assertEqual(r.status_code, 403)
-        self.ny.refresh_from_db()
-        self.assertEqual(float(self.ny.hppd_min), 3.5)
+        md.refresh_from_db()
+        self.assertEqual(float(md.hppd_min), 3.0)
+
+    def test_org_admin_cannot_reach_another_states_rule(self):
+        for method, suffix in (("get", ""), ("patch", ""), ("get", "audit/")):
+            r = getattr(client_for(self.admin), method)(f"{RULES}{self.ny.pk}/{suffix}")
+            self.assertEqual(r.status_code, 404, (method, suffix))
+        r = client_for(self.admin).post(f"{RULES}{self.ny.pk}/duplicate/", {}, format="json")
+        self.assertEqual(r.status_code, 404)
+        r = client_for(self.admin).put(f"{RULES}selection/", {"rule_id": self.ny.pk}, format="json")
+        self.assertEqual(r.status_code, 400)
 
     def test_system_admin_edits_shared_rule_and_audit_is_written(self):
         r = client_for(self.sysadmin).patch(
@@ -220,7 +240,7 @@ class RulesApiTests(TestCase):
         a = StaffingRuleAudit.objects.get(rule=self.ny, action="updated")
         self.assertEqual(a.changes["hppd_min"], [3.5, 3.6])
         self.assertEqual(a.changed_by, self.sysadmin)
-        hist = client_for(self.admin).get(f"{RULES}{self.ny.pk}/audit/")
+        hist = client_for(self.sysadmin).get(f"{RULES}{self.ny.pk}/audit/")
         self.assertEqual(hist.status_code, 200)
         self.assertEqual(hist.json()[0]["changed_by"], "sys")
 
@@ -259,11 +279,12 @@ class RulesApiTests(TestCase):
 
     def test_duplicate_select_and_deselect(self):
         c = client_for(self.admin)
-        d = c.post(f"{RULES}{self.ny.pk}/duplicate/", {}, format="json")
+        md = StaffingRule.objects.get(state="MD", organization__isnull=True)
+        d = c.post(f"{RULES}{md.pk}/duplicate/", {}, format="json")
         self.assertEqual(d.status_code, 201, d.content)
         copy_id = d.json()["id"]
-        self.assertEqual(d.json()["name"], "New York (custom)")
-        self.assertEqual(d.json()["min_licensed_hppd"], 1.1)
+        self.assertEqual(d.json()["name"], "Maryland (custom)")
+        self.assertEqual(d.json()["hppd_min"], 3.0)
         self.assertTrue(StaffingRuleAudit.objects.filter(rule_id=copy_id, action="duplicated").exists())
 
         s = c.put(f"{RULES}selection/", {"rule_id": copy_id}, format="json")
@@ -299,3 +320,76 @@ class RulesApiTests(TestCase):
         self.assertTrue(StaffingRuleAudit.objects.filter(rule=ct, action="verified").exists())
         org = Organization.objects.create(name="CT", state="CT")
         self.assertEqual(state_rules.resolve_rule_for_org(org).warning, "")
+
+
+class OrgSwitchTests(TestCase):
+    """A system admin can act on any organization; nobody else can."""
+
+    def setUp(self):
+        self.md = Organization.objects.create(name="MD org", state="MD")
+        self.ny = Organization.objects.create(name="NY org", state="NY")
+        self.sysadmin = mk_user(self.md, "system_admin", "sys")
+        self.md_admin = mk_user(self.md, "admin", "mdadm")
+        self.ny_admin = mk_user(self.ny, "admin", "nyadm")
+        Unit.objects.create(organization=self.md, name="MD unit")
+        Unit.objects.create(organization=self.ny, name="NY unit")
+
+    def unit_names(self, user, query=""):
+        r = client_for(user).get(f"/api/staffing/units/{query}")
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        rows = body["results"] if isinstance(body, dict) and "results" in body else body
+        return {u["name"] for u in rows}
+
+    def test_without_a_pick_system_admin_keeps_seeing_everything(self):
+        self.assertEqual(self.unit_names(self.sysadmin), {"MD unit", "NY unit"})
+
+    def test_pick_scopes_lists_to_that_org(self):
+        self.assertEqual(self.unit_names(self.sysadmin, f"?organization={self.ny.pk}"), {"NY unit"})
+        self.assertEqual(self.unit_names(self.sysadmin, f"?organization={self.md.pk}"), {"MD unit"})
+
+    def test_org_admin_cannot_switch(self):
+        self.assertEqual(self.unit_names(self.md_admin, f"?organization={self.ny.pk}"), {"MD unit"})
+
+    def test_create_lands_in_the_picked_org(self):
+        r = client_for(self.sysadmin).post(
+            f"/api/staffing/units/?organization={self.ny.pk}", {"name": "Added"}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(Unit.objects.filter(organization=self.ny, name="Added").exists())
+        self.assertFalse(Unit.objects.filter(organization=self.md, name="Added").exists())
+
+    def test_create_without_a_pick_uses_own_org(self):
+        r = client_for(self.sysadmin).post("/api/staffing/units/", {"name": "Home"}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(Unit.objects.filter(organization=self.md, name="Home").exists())
+
+    def test_create_for_unknown_org_is_a_400(self):
+        r = client_for(self.sysadmin).post(
+            "/api/staffing/units/?organization=999999", {"name": "Nope"}, format="json")
+        self.assertEqual(r.status_code, 400, r.content)
+
+    def test_location_and_rule_follow_the_pick(self):
+        c = client_for(self.sysadmin)
+        self.assertEqual(c.get("/api/staffing/location/").json()["rule"]["state"], "MD")
+        loc = c.get(f"/api/staffing/location/?organization={self.ny.pk}").json()
+        self.assertEqual(loc["rule"]["state"], "NY")
+
+    def test_rules_list_and_selection_act_for_the_picked_org(self):
+        c = client_for(self.sysadmin)
+        mine = StaffingRule.objects.create(organization=self.ny, name="NY custom", hppd_min=3)
+        listing = c.get(f"{RULES}?organization={self.ny.pk}").json()
+        self.assertIn("NY custom", {r["name"] for r in listing["rules"]})
+        # a system admin may point an org at any shared rule
+        ct = StaffingRule.objects.get(state="CT")
+        r = c.put(f"{RULES}selection/?organization={self.ny.pk}", {"rule_id": ct.pk}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(state_rules.resolve_rule_for_org(self.ny).rule.state, "CT")
+        self.assertEqual(state_rules.resolve_rule_for_org(self.md).rule.state, "MD")
+        # system admin can edit that org's custom rule
+        r = c.patch(f"{RULES}{mine.pk}/?organization={self.ny.pk}", {"name": "Renamed"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def test_org_admin_cannot_use_system_admin_param_on_rules(self):
+        r = client_for(self.md_admin).get(f"{RULES}?organization={self.ny.pk}").json()
+        self.assertNotIn("NY custom", {x["name"] for x in r["rules"]})
+        self.assertEqual({x["state"] for x in r["rules"] if x["state"]}, {"MD"})

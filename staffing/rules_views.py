@@ -157,16 +157,44 @@ def _audit(rule, action, user, org, changes=None):
     )
 
 
+def _org_state(org):
+    return (getattr(org, "state", "") or "").strip().upper() if org is not None else ""
+
+
+def _selectable_q(user, org):
+    """Rules an organization may choose for itself.
+
+    System admins (acting for an org) may pick any shared rule. Everyone else
+    sees only their own state's standard and their own custom rules.
+    """
+    own = Q(organization=org) if org is not None else Q(pk__in=[])
+    if _is_system_admin(user):
+        return Q(organization__isnull=True) | own
+    state = _org_state(org)
+    if state:
+        return own | Q(organization__isnull=True, state=state)
+    return own
+
+
 def _visible_rules(user, org):
-    q = Q(organization__isnull=True)
+    qs = StaffingRule.objects.select_related("updated_by")
+    if _is_system_admin(user):
+        q = Q(organization__isnull=True)
+        if org is not None:
+            q |= Q(organization=org)
+        return qs.filter(q)
+
+    q = _selectable_q(user, org)
     if org is not None:
-        q |= Q(organization=org)
-    qs = StaffingRule.objects.filter(q).select_related("updated_by")
-    if not _is_system_admin(user):
-        # Non-system admins don't see other people's draft/inactive shared rules.
-        qs = qs.exclude(organization__isnull=True, status__in=[StaffingRule.STATUS_DRAFT, StaffingRule.STATUS_INACTIVE])
-        if not _is_admin(user):
-            qs = qs.filter(status=StaffingRule.STATUS_ACTIVE)
+        # Keep the rule the org currently uses visible even if it is another
+        # state's (chosen before states were separated), so it is never hidden.
+        chosen = OrgStaffingRule.objects.filter(organization=org).values_list("rule_id", flat=True)
+        q |= Q(pk__in=list(chosen))
+    qs = qs.filter(q)
+    # Non-system admins don't see draft/inactive shared rules.
+    qs = qs.exclude(organization__isnull=True, status__in=[StaffingRule.STATUS_DRAFT, StaffingRule.STATUS_INACTIVE])
+    if not _is_admin(user):
+        qs = qs.filter(status=StaffingRule.STATUS_ACTIVE)
     return qs
 
 
@@ -335,8 +363,7 @@ class RuleSelectionView(APIView):
         except (TypeError, ValueError):
             return Response({"error": "rule_id must be a number or null."}, status=400)
         rule = StaffingRule.objects.filter(
-            Q(organization__isnull=True) | Q(organization=org), pk=rule_id,
-            status=StaffingRule.STATUS_ACTIVE,
+            _selectable_q(user, org), pk=rule_id, status=StaffingRule.STATUS_ACTIVE,
         ).first()
         if rule is None:
             return Response({"error": "That rule is not available to this organization."}, status=400)
