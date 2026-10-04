@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Alert, Box, Button, CircularProgress, MenuItem, Tabs, Tab, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Tabs, Tab, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -8,7 +8,6 @@ import { getAccessToken } from "../utils/tokenManager";
 import { API_BASE_URL, apiEndpoints, getAuthHeaders } from "../config/api";
 import {
   clearSelectedOrg,
-  getStoredOrgId,
   installStaffingOrgInterceptor,
   setSelectedOrgId,
 } from "../utils/staffingOrg";
@@ -31,6 +30,7 @@ function StaffingPage() {
   const [orgs, setOrgs] = useState([]);
   const [orgId, setOrgId] = useState("");
   const [orgReady, setOrgReady] = useState(false);
+  const [ownOrgId, setOwnOrgId] = useState("");
   const [orgError, setOrgError] = useState("");
   const [timeOffCounts, setTimeOffCounts] = useState({ open_emergencies: 0, pending_requests: 0 });
   const navigate = useNavigate();
@@ -75,8 +75,15 @@ function StaffingPage() {
           .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         if (cancelled) return;
         setOrgs(list);
-        const stored = getStoredOrgId();
-        const pick = list.find((o) => String(o.id) === stored) || list[0];
+        // Always start on the account's own organization; switching is deliberate.
+        let own = "";
+        try {
+          own = String(jwtDecode(getAccessToken()).organization_id || "");
+        } catch (e) {
+          own = "";
+        }
+        setOwnOrgId(own);
+        const pick = list.find((o) => String(o.id) === own) || list[0];
         if (pick) {
           setSelectedOrgId(pick.id);
           setOrgId(String(pick.id));
@@ -149,6 +156,9 @@ function StaffingPage() {
               </MenuItem>
             ))}
           </TextField>
+        )}
+        {isSystemAdmin && orgId && ownOrgId && orgId !== ownOrgId && (
+          <Chip size="small" color="warning" label="Viewing another organization" />
         )}
         <Box sx={{ flex: 1 }} />
         <BackButton to="/solutions" sx={{ mb: 0 }} />
