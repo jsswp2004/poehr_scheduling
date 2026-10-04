@@ -21,7 +21,10 @@ template is done by ``note_template_import.apply_template_import``.
 
 import csv
 import io
+import json
 import re
+
+from .calculations import INTERPRETATION_SUFFIX, OPTION_TYPES, to_number, validate_calc
 
 COLUMNS = [
     "Code",
@@ -36,6 +39,10 @@ COLUMNS = [
     "Depends on",
     "Value",
 ]
+# Optional extra column, written only when the template has a calculated field:
+# the calculation as JSON (see calculations.py). Value must be blank for such a
+# field, and the fields a calculation uses must come before it.
+CALC_COLUMN = "Calculation"
 
 # NoteFieldDefinition.field_type value -> label used in the CSV.
 FIELD_TYPE_LABELS = {
@@ -47,6 +54,7 @@ FIELD_TYPE_LABELS = {
     "checkbox": "Checkbox (yes/no)",
     "numeric": "Numeric",
     "date": "Date",
+    "calculated": "Calculated (total / result)",
 }
 DICTIONARY_TYPES = {"radio", "dropdown", "multiselect"}
 
@@ -142,7 +150,7 @@ def parse_template_csv(text):
         {"code": str, "name": str, "fields": [
             {"row", "tab_label", "section_label", "key", "label",
              "field_type", "required", "help_text",
-             "depends_on_key", "depends_on_value", "options"}, ...]}
+             "depends_on_key", "depends_on_value", "options", "calc"}, ...]}
 
     ``options`` is a list of ``(value, label)`` for dictionary types, else None.
     Every error is ``{"row": int, "column": str, "message": str}`` where row 1
@@ -164,6 +172,8 @@ def parse_template_csv(text):
 
     fields, seen_keys = [], {}
     option_values = {}  # key -> set of option values, for Depends on checks
+    earlier = {}  # key -> info for calculation source checks
+    calc_index = col_index.get(_norm(CALC_COLUMN))
     code = name = None
 
     for row_num, cells in enumerate(reader, start=2):
@@ -261,8 +271,39 @@ def parse_template_csv(text):
                 elif dep_value not in option_values[dep_key]:
                     errors.append(_err(row_num, "Depends on", f"'{dep_value}' is not one of the stored values of '{dep_key}'."))
 
+        # ---- Calculation (calculated fields only) ----
+        raw_calc = cells[calc_index].strip() if calc_index is not None and calc_index < len(cells) else ""
+        calc = {}
+        if key.endswith(INTERPRETATION_SUFFIX):
+            errors.append(_err(row_num, "Key", f"Key can't end with '{INTERPRETATION_SUFFIX}' (reserved)."))
+        if field_type == "calculated":
+            if not raw_calc:
+                errors.append(_err(row_num, CALC_COLUMN, "A Calculated field needs its calculation in the Calculation column."))
+            else:
+                try:
+                    candidate = json.loads(raw_calc)
+                except ValueError:
+                    candidate = None
+                    errors.append(_err(row_num, CALC_COLUMN, "The calculation isn't valid JSON. Export an existing template to see the format."))
+                if candidate is not None:
+                    calc, problems = validate_calc(candidate, key, earlier)
+                    for problem in problems:
+                        errors.append(_err(row_num, CALC_COLUMN, problem))
+                    calc = calc or {}
+        elif raw_calc:
+            errors.append(_err(row_num, CALC_COLUMN, "Calculation must be blank unless the Field Type is Calculated."))
+
         if key and SLUG_RE.match(key) and key not in seen_keys:
             seen_keys[key] = row_num
+            earlier[key] = {
+                "field_type": field_type,
+                "numeric_options": (
+                    bool(options) and all(to_number(v) is not None for v, _ in options)
+                    if field_type in OPTION_TYPES
+                    else None
+                ),
+                "label": label,
+            }
         if options and key:
             option_values[key] = {v for v, _ in options}
 
@@ -280,6 +321,7 @@ def parse_template_csv(text):
                     "depends_on_key": dep_key,
                     "depends_on_value": dep_value or "",
                     "options": options,
+                    "calc": calc,
                 }
             )
         if len(errors) >= MAX_ERRORS:
@@ -310,26 +352,34 @@ def build_csv_text(code, name, fields):
     """
     Build CSV text for a template. ``fields`` is an ordered list of dicts with
     tab_label, section_label, key, label, field_type, required, help_text,
-    depends_on_key, depends_on_value, options ([(value, label)] or None).
+    depends_on_key, depends_on_value, options ([(value, label)] or None) and,
+    for calculated fields, calc. The Calculation column is added only when some
+    field is calculated.
     """
+    with_calc = any(f["field_type"] == "calculated" for f in fields)
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\r\n")
-    writer.writerow(COLUMNS)
+    writer.writerow(COLUMNS + ([CALC_COLUMN] if with_calc else []))
     for f in fields:
         dep = f"{f['depends_on_key']}={f['depends_on_value']}" if f.get("depends_on_key") else ""
-        writer.writerow(
-            [
-                code,
-                name,
-                f.get("tab_label") or "",
-                f.get("section_label") or "",
-                f["key"],
-                f["label"],
-                FIELD_TYPE_LABELS[f["field_type"]],
-                "TRUE" if f.get("required") else "FALSE",
-                f.get("help_text") or "",
-                dep,
-                format_options(f["options"]) if f.get("options") else "",
-            ]
-        )
+        line = [
+            code,
+            name,
+            f.get("tab_label") or "",
+            f.get("section_label") or "",
+            f["key"],
+            f["label"],
+            FIELD_TYPE_LABELS[f["field_type"]],
+            "TRUE" if f.get("required") else "FALSE",
+            f.get("help_text") or "",
+            dep,
+            format_options(f["options"]) if f.get("options") else "",
+        ]
+        if with_calc:
+            line.append(
+                json.dumps(f["calc"], sort_keys=True, separators=(",", ":"))
+                if f["field_type"] == "calculated" and f.get("calc")
+                else ""
+            )
+        writer.writerow(line)
     return out.getvalue()

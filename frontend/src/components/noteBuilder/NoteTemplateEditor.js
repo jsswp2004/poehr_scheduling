@@ -26,6 +26,9 @@ import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
+import { describeCalc } from "../../utils/calculations";
+import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
+import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own (App.js's interceptors are only wired to the default `axios` import,
@@ -43,6 +46,7 @@ const FIELD_TYPES = [
     { value: "checkbox", label: "Checkbox (yes/no)" },
     { value: "numeric", label: "Numeric" },
     { value: "date", label: "Date" },
+    { value: "calculated", label: "Calculated (total / result)" },
 ];
 const DICTIONARY_FIELD_TYPES = new Set(["radio", "dropdown", "multiselect"]);
 
@@ -66,6 +70,7 @@ function fieldFromApi(f) {
         help_text: f.help_text || "",
         dependsOnKey: f.depends_on_key || null, // resolved to a clientId once all fields are loaded
         depends_on_value: f.depends_on_value || "",
+        calc: f.calc || {},
     };
 }
 
@@ -83,6 +88,7 @@ function blankField() {
         help_text: "",
         dependsOnClientId: null,
         depends_on_value: "",
+        calc: {},
     };
 }
 
@@ -166,6 +172,45 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
         setFields((prev) => [...prev, blankField()]);
     };
 
+    // A calculated field (total / result) added after the current last field,
+    // pre-set to add up the scored or numeric fields in the last field's section.
+    const addCalculatedField = () => {
+        setFields((prev) => {
+            const section = prev.length ? prev[prev.length - 1].section_label : "";
+            const tab = prev.length ? prev[prev.length - 1].tab_label : "";
+            return [
+                ...prev,
+                {
+                    ...blankField(),
+                    tab_label: tab,
+                    section_label: section,
+                    key: uniqueKey("total_score", prev),
+                    label: "Total score",
+                    field_type: "calculated",
+                    calc: { ...blankCalc(), sources: suggestedTotalSources(prev, section, dictionaries) },
+                },
+            ];
+        });
+    };
+
+    // Switching a field to "Calculated" starts it as a total of the scored or
+    // numeric fields above it in its section; switching away drops the
+    // calculation. A calculated field is never typed in, so it is never required.
+    const changeFieldType = (index, newType) => {
+        setFields((prev) =>
+            prev.map((f, i) => {
+                if (i !== index) return f;
+                if (newType === "calculated") {
+                    const calc = f.calc && f.calc.operation
+                        ? f.calc
+                        : { ...blankCalc(), sources: suggestedTotalSources(prev.slice(0, index), f.section_label, dictionaries) };
+                    return { ...f, field_type: newType, dictionary: null, required: false, calc };
+                }
+                return { ...f, field_type: newType, calc: {} };
+            })
+        );
+    };
+
     const removeField = (clientId) => {
         setFields((prev) =>
             prev
@@ -238,10 +283,18 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
             setError("Field keys must be unique within this template.");
             return;
         }
-        for (const f of fields) {
+        for (let i = 0; i < fields.length; i += 1) {
+            const f = fields[i];
             if (DICTIONARY_FIELD_TYPES.has(f.field_type) && !f.dictionary) {
                 setError(`Field "${f.label || f.key}" needs a dictionary (its type requires one).`);
                 return;
+            }
+            if (f.field_type === "calculated") {
+                const problem = calcProblems(f.calc, calcCandidates(fields, i, dictionaries));
+                if (problem) {
+                    setError(`Calculated field "${f.label || f.key}": ${problem}`);
+                    return;
+                }
             }
         }
 
@@ -258,8 +311,9 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                 key: f.key,
                 label: f.label,
                 field_type: f.field_type,
-                dictionary: f.dictionary || null,
-                required: f.required,
+                dictionary: f.field_type === "calculated" ? null : f.dictionary || null,
+                calc: f.field_type === "calculated" ? f.calc : {},
+                required: f.field_type === "calculated" ? false : f.required,
                 help_text: f.help_text,
                 depends_on_client_id: f.dependsOnClientId || null,
                 depends_on_value: f.depends_on_value || "",
@@ -289,14 +343,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                 setBanner({ severity: "success", text: "Saved." });
             }
         } catch (e) {
-            const detail = e?.response?.data;
-            setError(
-                typeof detail === "string"
-                    ? detail
-                    : detail
-                    ? JSON.stringify(detail)
-                    : "Couldn't save this template."
-            );
+            setError(formatApiError(e, "Couldn't save this template."));
         } finally {
             setSaving(false);
         }
@@ -359,7 +406,9 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Drag the handle to reorder. A field can be shown only when another field has a
-                particular value selected -- pick that under "Depends on".
+                particular value selected -- pick that under "Depends on". A Calculated field (a
+                total, score or result) is worked out automatically from the fields above it, so
+                keep it below the fields it uses.
             </Typography>
 
             {distinctSections.length > 0 && (
@@ -439,6 +488,9 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     </Typography>
                                 </Typography>
                                 <Chip size="small" variant="outlined" label={f.field_type} />
+                                {f.field_type === "calculated" && (
+                                    <Chip size="small" color="primary" variant="outlined" label={describeCalc(f.calc)} />
+                                )}
                                 {f.required && <Chip size="small" color="warning" label="required" />}
                                 {f.dependsOnClientId && <Chip size="small" color="info" label="conditional" />}
                                 <IconButton
@@ -496,7 +548,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                         label="Field Type"
                                         fullWidth
                                         value={f.field_type}
-                                        onChange={(e) => updateField(f.clientId, { field_type: e.target.value })}
+                                        onChange={(e) => changeFieldType(index, e.target.value)}
                                     >
                                         {FIELD_TYPES.map((t) => (
                                             <MenuItem key={t.value} value={t.value}>
@@ -528,7 +580,8 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     <FormControlLabel
                                         control={
                                             <Checkbox
-                                                checked={f.required}
+                                                checked={f.required && f.field_type !== "calculated"}
+                                                disabled={f.field_type === "calculated"}
                                                 onChange={(e) => updateField(f.clientId, { required: e.target.checked })}
                                             />
                                         }
@@ -599,6 +652,15 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     </Grid>
                                 )}
                             </Grid>
+                            {f.field_type === "calculated" && (
+                                <Box sx={{ mt: 2 }}>
+                                    <CalculationEditor
+                                        calc={f.calc}
+                                        candidates={calcCandidates(fields, index, dictionaries)}
+                                        onChange={(calc) => updateField(f.clientId, { calc })}
+                                    />
+                                </Box>
+                            )}
                         </AccordionDetails>
                     </Accordion>
                 );
@@ -606,6 +668,9 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
 
             <Button startIcon={<AddIcon />} onClick={addField} sx={{ mb: 3 }}>
                 Add Field
+            </Button>
+            <Button startIcon={<AddIcon />} onClick={addCalculatedField} sx={{ mb: 3, ml: 1 }}>
+                Add Calculated Field (total / result)
             </Button>
 
             <Box sx={{ display: "flex", gap: 2 }}>

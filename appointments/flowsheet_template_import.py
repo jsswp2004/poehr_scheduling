@@ -26,6 +26,7 @@ from collections import OrderedDict
 
 from django.db import transaction
 
+from .calculations import calc_signature
 from .flowsheet_template_csv import build_csv_text
 from .models import Dictionary, DictionaryItem, FlowsheetRowDefinition, FlowsheetTemplate
 from .note_template_import import _items_of, _sync_items, _unique_dictionary_code
@@ -73,13 +74,18 @@ def _signature_existing(template):
     sigs = set()
     for r in template.rows.select_related("dictionary"):
         values = frozenset(v for v, _ in _items_of(r.dictionary)) if r.dictionary_id else None
-        sigs.add((r.key, r.field_type, values))
+        sigs.add((r.key, r.field_type, values, calc_signature(r.calc)))
     return sigs
 
 
 def _signature_incoming(rows):
     return {
-        (r["key"], r["field_type"], frozenset(v for v, _ in r["options"]) if r["options"] else None)
+        (
+            r["key"],
+            r["field_type"],
+            frozenset(v for v, _ in r["options"]) if r["options"] else None,
+            calc_signature(r.get("calc")),
+        )
         for r in rows
     }
 
@@ -125,6 +131,7 @@ def apply_flowsheet_import(parsed):
             field_type=r["field_type"],
             dictionary=dictionary_for.get(r["key"]),
             sort_order=idx * 10,
+            calc=r.get("calc") or {},
         )
         ex = existing_rows.get(r["key"])
         if ex is not None:
@@ -156,6 +163,7 @@ def export_flowsheet_csv(template):
                 "unit": r.unit,
                 "field_type": r.field_type,
                 "options": _items_of(r.dictionary) if r.dictionary_id else None,
+                "calc": r.calc,
             }
         )
     return build_csv_text(template.code, template.name, rows)

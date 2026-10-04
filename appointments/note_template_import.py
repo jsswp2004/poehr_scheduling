@@ -27,6 +27,7 @@ from collections import OrderedDict
 
 from django.db import transaction
 
+from .calculations import calc_signature
 from .models import Dictionary, DictionaryItem, NoteFieldDefinition, NoteTemplate
 from .note_template_csv import build_csv_text
 
@@ -107,7 +108,8 @@ def _signature_set_existing(template):
     for f in template.fields.select_related("dictionary", "depends_on"):
         values = frozenset(v for v, _ in _items_of(f.dictionary)) if f.dictionary_id else None
         sigs.add((f.key, f.field_type, values, bool(f.required),
-                  f.depends_on.key if f.depends_on_id else None, f.depends_on_value or ""))
+                  f.depends_on.key if f.depends_on_id else None, f.depends_on_value or "",
+                  calc_signature(f.calc)))
     return sigs
 
 
@@ -116,7 +118,8 @@ def _signature_set_incoming(fields):
     for f in fields:
         values = frozenset(v for v, _ in f["options"]) if f["options"] else None
         sigs.add((f["key"], f["field_type"], values, bool(f["required"]),
-                  f["depends_on_key"], f["depends_on_value"] or ""))
+                  f["depends_on_key"], f["depends_on_value"] or "",
+                  calc_signature(f.get("calc"))))
     return sigs
 
 
@@ -165,6 +168,7 @@ def apply_template_import(parsed):
             sort_order=idx * 10,
             help_text=f["help_text"],
             depends_on_value=f["depends_on_value"],
+            calc=f.get("calc") or {},
         )
         ex = existing_fields.get(f["key"])
         if ex is not None:
@@ -207,6 +211,7 @@ def export_template_csv(template):
                 "depends_on_key": f.depends_on.key if f.depends_on_id else None,
                 "depends_on_value": f.depends_on_value,
                 "options": _items_of(f.dictionary) if f.dictionary_id else None,
+                "calc": f.calc,
             }
         )
     return build_csv_text(template.code, template.name, rows)

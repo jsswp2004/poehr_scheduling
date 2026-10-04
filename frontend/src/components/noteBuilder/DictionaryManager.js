@@ -179,8 +179,12 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                 </Grid>
             </Grid>
 
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                 Options
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                To use this list in a calculated total (for example a PHQ-9 score), make each stored value its
+                score: 0, 1, 2, 3. The label is what people see.
             </Typography>
             {items.map((it) => (
                 <Grid container spacing={1} key={it._key} sx={{ mb: 1 }} alignItems="center">

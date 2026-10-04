@@ -707,6 +707,7 @@ class NoteFieldDefinition(models.Model):
         ("checkbox", "Checkbox (yes/no)"),
         ("numeric", "Numeric"),
         ("date", "Date"),
+        ("calculated", "Calculated (total / result)"),
     ]
 
     template = models.ForeignKey(
@@ -743,6 +744,11 @@ class NoteFieldDefinition(models.Model):
     required = models.BooleanField(default=False)
     sort_order = models.PositiveIntegerField(default=0)
     help_text = models.CharField(max_length=255, blank=True)
+    # Only used when field_type is 'calculated': how the value is worked out
+    # from other fields (sum / average / min / max / formula), plus optional
+    # interpretation ranges and cautions. Format and rules:
+    # appointments/calculations.py. Empty for every other field type.
+    calc = models.JSONField(default=dict, blank=True)
 
     # --- Conditional visibility ---------------------------------------
     # This field is only rendered/collected once `depends_on`'s current
@@ -826,6 +832,7 @@ class FlowsheetRowDefinition(models.Model):
         ("numeric", "Numeric"),
         ("text", "Text"),
         ("dropdown", "Dropdown (dictionary)"),
+        ("calculated", "Calculated (total / result)"),
     ]
 
     template = models.ForeignKey(
@@ -852,6 +859,8 @@ class FlowsheetRowDefinition(models.Model):
         help_text="Required when field_type is 'dropdown'",
     )
     sort_order = models.PositiveIntegerField(default=0)
+    # Only used when field_type is 'calculated' -- see NoteFieldDefinition.calc.
+    calc = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["template", "sort_order"]
