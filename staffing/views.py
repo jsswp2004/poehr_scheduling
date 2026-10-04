@@ -10,6 +10,7 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from . import org_scope
 from .models import (
     Staff,
     StaffRecurringPattern,
@@ -116,6 +117,9 @@ def _org_queryset(model, request):
     """System admins see everything; everyone else is scoped to their org."""
     user = request.user
     if user.role == "system_admin":
+        oid = org_scope.requested_org_id(request)
+        if oid is not None:
+            return model.objects.filter(organization_id=oid)
         return model.objects.all()
     return model.objects.filter(organization=user.organization)
 
@@ -134,11 +138,7 @@ class StaffViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == "system_admin" and self.request.data.get("organization"):
-            serializer.save()
-        else:
-            serializer.save(organization=user.organization)
+        serializer.save(**org_scope.create_kwargs(self.request))
 
     def perform_update(self, serializer):
         staff = serializer.save()
@@ -163,11 +163,7 @@ class StaffRecurringPatternViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSe
         return qs
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == "system_admin" and self.request.data.get("organization"):
-            pattern = serializer.save()
-        else:
-            pattern = serializer.save(organization=user.organization)
+        pattern = serializer.save(**org_scope.create_kwargs(self.request))
         # Generate this pattern's shifts immediately so the schedule shows
         # up on the calendar right away, rather than waiting for the next
         # daily automated generate_shifts_from_patterns() run.
@@ -222,11 +218,7 @@ class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == "system_admin" and self.request.data.get("organization"):
-            serializer.save(source="manual")
-        else:
-            serializer.save(organization=user.organization, source="manual")
+        serializer.save(source="manual", **org_scope.create_kwargs(self.request))
 
 
 _DAY_NAME_TO_CODE = {label.lower(): code for code, label in DAY_OF_WEEK_CHOICES}
@@ -397,7 +389,7 @@ class UploadStaffCSV(APIView):
         except Exception as e:
             return Response({"error": f"CSV parsing error: {e}"}, status=400)
 
-        organization = request.user.organization
+        organization = org_scope.acting_org(request, allow_body=True)
         created_count = 0
         updated_count = 0
         schedules_created_count = 0
@@ -554,11 +546,7 @@ class ShiftCoverageRequirementViewSet(StaffingAdminWriteMixin, viewsets.ModelVie
         return qs
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == "system_admin" and self.request.data.get("organization"):
-            serializer.save()
-        else:
-            serializer.save(organization=user.organization)
+        serializer.save(**org_scope.create_kwargs(self.request))
 
 
 class UnitViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
@@ -588,11 +576,7 @@ class UnitViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
         return ctx
 
     def perform_create(self, serializer):
-        user = self.request.user
-        if user.role == "system_admin" and self.request.data.get("organization"):
-            serializer.save(organization_id=self.request.data.get("organization"))
-        else:
-            serializer.save(organization=user.organization)
+        serializer.save(**org_scope.create_kwargs(self.request))
 
     def destroy(self, request, *args, **kwargs):
         denied = self._require_admin(request)
@@ -615,7 +599,11 @@ class UnitViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
 def _org_queryset_for_census(request):
     user = request.user
     qs = UnitCensus.objects.all()
-    if user.role != "system_admin":
+    if user.role == "system_admin":
+        oid = org_scope.requested_org_id(request)
+        if oid is not None:
+            qs = qs.filter(unit__organization_id=oid)
+    else:
         qs = qs.filter(unit__organization=user.organization)
     return qs
 
@@ -1092,7 +1080,8 @@ class MessageDeliveryLogReportView(APIView):
                 email_to_staff[s.email.strip().lower()] = s
 
         if request.user.role == "system_admin":
-            org_filter = {}
+            oid = org_scope.requested_org_id(request)
+            org_filter = {"organization_id": oid} if oid is not None else {}
         else:
             org_filter = {"organization": request.user.organization}
 

@@ -19,7 +19,7 @@ from rest_framework.views import APIView
 from users.models import Organization
 from users.us_states import US_STATE_NAMES, normalize_state
 
-from . import state_rules
+from . import org_scope, state_rules
 from .coverage_status import compute_coverage_status
 from .models import OrgStaffingRule
 from .views import (
@@ -32,10 +32,7 @@ from .views import (
 
 def _org_for(request):
     """The caller's organization; a system admin may pass ?organization=<id>."""
-    user = request.user
-    if user.role == "system_admin" and request.query_params.get("organization"):
-        return Organization.objects.filter(pk=request.query_params["organization"]).first()
-    return user.organization
+    return org_scope.acting_org(request)
 
 
 class CoverageStatusView(APIView):

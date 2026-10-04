@@ -271,11 +271,9 @@ class UnitSerializer(serializers.ModelSerializer):
         name = attrs.get("name", getattr(self.instance, "name", None))
         org_id = getattr(self.instance, "organization_id", None)
         if org_id is None and request is not None:
-            user = request.user
-            if user.role == "system_admin" and request.data.get("organization"):
-                org_id = request.data.get("organization")
-            else:
-                org_id = user.organization_id
+            from . import org_scope
+
+            org_id = org_scope.requested_org_id(request, allow_body=True) or request.user.organization_id
         if name and org_id:
             qs = Unit.objects.filter(organization_id=org_id, name__iexact=name)
             if self.instance is not None:

@@ -344,7 +344,11 @@ function StaffingRulesTab({ isAdmin = false }) {
 
       <Stack direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", rowGap: 1 }} alignItems="center">
         <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 260 }}>
-          State standards are managed centrally. {canEditCustom ? "You can copy any rule as your own custom rule, then choose which rule your organization uses." : "Only administrators can change which rule applies."}
+          {canEditShared
+            ? "As system admin you manage the shared state standards, and you act for the organization chosen at the top of the page."
+            : canEditCustom
+              ? "Your state's standard is managed centrally. You can copy it as your own custom rule, then choose which rule your organization uses."
+              : "Only administrators can change which rule applies."}
         </Typography>
         {isAdmin && !usingStateDefault && (
           <Button variant="outlined" onClick={() => useRule(null)}>

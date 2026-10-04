@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
-import { Alert, Box, Button, Tabs, Tab, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, MenuItem, Tabs, Tab, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
 import { getAccessToken } from "../utils/tokenManager";
-import { apiEndpoints, getAuthHeaders } from "../config/api";
+import { API_BASE_URL, apiEndpoints, getAuthHeaders } from "../config/api";
+import {
+  clearSelectedOrg,
+  getStoredOrgId,
+  installStaffingOrgInterceptor,
+  setSelectedOrgId,
+} from "../utils/staffingOrg";
 import StaffingCalendarTab from "./StaffingCalendarTab";
 import StaffingUploadTab from "./StaffingUploadTab";
 import StaffingAssignTab from "./StaffingAssignTab";
@@ -21,6 +27,11 @@ const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
 function StaffingPage() {
   const [tab, setTab] = useState("calendar");
   const [role, setRole] = useState("");
+  // Organization switcher (system admin only). Everyone else is ready at once.
+  const [orgs, setOrgs] = useState([]);
+  const [orgId, setOrgId] = useState("");
+  const [orgReady, setOrgReady] = useState(false);
+  const [orgError, setOrgError] = useState("");
   const [timeOffCounts, setTimeOffCounts] = useState({ open_emergencies: 0, pending_requests: 0 });
   const navigate = useNavigate();
 
@@ -43,9 +54,53 @@ function StaffingPage() {
     }
   }, [navigate]);
 
-  // Light poll so an open emergency call-out is visible from any tab.
+  // System admins can act on any organization. Load the list, restore their
+  // last pick, and make sure the choice is set before any tab loads data.
   useEffect(() => {
     if (!role) return undefined;
+    if (role !== "system_admin") {
+      clearSelectedOrg();
+      setOrgReady(true);
+      return undefined;
+    }
+    let cancelled = false;
+    installStaffingOrgInterceptor();
+    (async () => {
+      try {
+        const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
+          headers: getAuthHeaders(getAccessToken()),
+        });
+        const list = (Array.isArray(res.data) ? res.data : res.data?.results || [])
+          .slice()
+          .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        if (cancelled) return;
+        setOrgs(list);
+        const stored = getStoredOrgId();
+        const pick = list.find((o) => String(o.id) === stored) || list[0];
+        if (pick) {
+          setSelectedOrgId(pick.id);
+          setOrgId(String(pick.id));
+        }
+      } catch (err) {
+        if (!cancelled) setOrgError("Could not load the organization list.");
+      } finally {
+        if (!cancelled) setOrgReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [role]);
+
+  const changeOrg = (value) => {
+    setSelectedOrgId(value);
+    setOrgId(String(value));
+    setTimeOffCounts({ open_emergencies: 0, pending_requests: 0 });
+  };
+
+  // Light poll so an open emergency call-out is visible from any tab.
+  useEffect(() => {
+    if (!role || !orgReady) return undefined;
     let cancelled = false;
     const check = async () => {
       try {
@@ -69,18 +124,48 @@ function StaffingPage() {
       cancelled = true;
       clearInterval(t);
     };
-  }, [role]);
+  }, [role, orgReady, orgId]);
 
   const isAdmin = ADMIN_ROLES.includes(role);
+  const isSystemAdmin = role === "system_admin";
 
   return (
     <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
         <Typography variant="h5">Staffing Center</Typography>
+        {isSystemAdmin && orgs.length > 0 && (
+          <TextField
+            select
+            size="small"
+            label="Organization"
+            value={orgId}
+            onChange={(e) => changeOrg(e.target.value)}
+            sx={{ minWidth: 280 }}
+          >
+            {orgs.map((o) => (
+              <MenuItem key={o.id} value={String(o.id)}>
+                {o.name}
+                {o.state ? ` (${o.state})` : ""}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
         <Box sx={{ flex: 1 }} />
         <BackButton to="/solutions" sx={{ mb: 0 }} />
       </Box>
 
+      {orgError && (
+        <Alert severity="warning" sx={{ mb: 1 }} onClose={() => setOrgError("")}>
+          {orgError} Showing data for all organizations.
+        </Alert>
+      )}
+
+      {!orgReady ? (
+        <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+      <Box key={orgId || "own"}>
       {timeOffCounts.open_emergencies > 0 && tab !== "timeoff" && (
         <Alert
           severity="error"
@@ -142,6 +227,8 @@ function StaffingPage() {
       {tab === "assign" && isAdmin && <StaffingAssignTab />}
       {tab === "reports" && <StaffingReportsTab />}
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}
+      </Box>
+      )}
     </Box>
   );
 }
