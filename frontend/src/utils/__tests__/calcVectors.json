@@ -1,0 +1,1443 @@
+[
+  {
+    "name": "phq9 all zero",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "0",
+      "phq9_q2": "0",
+      "phq9_q3": "0",
+      "phq9_q4": "0",
+      "phq9_q5": "0",
+      "phq9_q6": "0",
+      "phq9_q7": "0",
+      "phq9_q8": "0",
+      "phq9_q9": "0"
+    },
+    "expect": {
+      "value": "0",
+      "interpretation": "None-minimal",
+      "alerts": []
+    }
+  },
+  {
+    "name": "phq9 mild",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "1",
+      "phq9_q2": "1",
+      "phq9_q3": "1",
+      "phq9_q4": "1",
+      "phq9_q5": "1",
+      "phq9_q6": "1",
+      "phq9_q7": "1",
+      "phq9_q8": "0",
+      "phq9_q9": "0"
+    },
+    "expect": {
+      "value": "7",
+      "interpretation": "Mild",
+      "alerts": []
+    }
+  },
+  {
+    "name": "phq9 moderate edge 10",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "1",
+      "phq9_q2": "1",
+      "phq9_q3": "1",
+      "phq9_q4": "1",
+      "phq9_q5": "1",
+      "phq9_q6": "1",
+      "phq9_q7": "1",
+      "phq9_q8": "1",
+      "phq9_q9": "2"
+    },
+    "expect": {
+      "value": "10",
+      "interpretation": "Moderate",
+      "alerts": [
+        "Further assessment for suicide risk is needed."
+      ]
+    }
+  },
+  {
+    "name": "phq9 moderately severe 15",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "2",
+      "phq9_q2": "2",
+      "phq9_q3": "2",
+      "phq9_q4": "2",
+      "phq9_q5": "2",
+      "phq9_q6": "2",
+      "phq9_q7": "2",
+      "phq9_q8": "1",
+      "phq9_q9": "0"
+    },
+    "expect": {
+      "value": "15",
+      "interpretation": "Moderately severe",
+      "alerts": []
+    }
+  },
+  {
+    "name": "phq9 severe max 27",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "3",
+      "phq9_q2": "3",
+      "phq9_q3": "3",
+      "phq9_q4": "3",
+      "phq9_q5": "3",
+      "phq9_q6": "3",
+      "phq9_q7": "3",
+      "phq9_q8": "3",
+      "phq9_q9": "3"
+    },
+    "expect": {
+      "value": "27",
+      "interpretation": "Severe",
+      "alerts": [
+        "Further assessment for suicide risk is needed."
+      ]
+    }
+  },
+  {
+    "name": "phq9 incomplete -> blank",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "1",
+      "phq9_q2": "1",
+      "phq9_q3": "1",
+      "phq9_q4": "1",
+      "phq9_q5": "",
+      "phq9_q6": "1",
+      "phq9_q7": "1",
+      "phq9_q8": "1",
+      "phq9_q9": "1"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": [
+        "Further assessment for suicide risk is needed."
+      ]
+    }
+  },
+  {
+    "name": "phq9 missing key -> blank",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "3"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "phq9 q9 alert fires even when incomplete",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q9": "1"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": [
+        "Further assessment for suicide risk is needed."
+      ]
+    }
+  },
+  {
+    "name": "phq9 band edges 4 and 5",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "1",
+      "phq9_q2": "1",
+      "phq9_q3": "1",
+      "phq9_q4": "1",
+      "phq9_q5": "0",
+      "phq9_q6": "0",
+      "phq9_q7": "0",
+      "phq9_q8": "0",
+      "phq9_q9": "0"
+    },
+    "expect": {
+      "value": "4",
+      "interpretation": "None-minimal",
+      "alerts": []
+    }
+  },
+  {
+    "name": "phq9 numbers not strings",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": true,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": 1,
+      "phq9_q2": 1,
+      "phq9_q3": 1,
+      "phq9_q4": 1,
+      "phq9_q5": 1,
+      "phq9_q6": 1,
+      "phq9_q7": 1,
+      "phq9_q8": 1,
+      "phq9_q9": 1
+    },
+    "expect": {
+      "value": "9",
+      "interpretation": "Mild",
+      "alerts": [
+        "Further assessment for suicide risk is needed."
+      ]
+    }
+  },
+  {
+    "name": "partial total allowed",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": false,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "2",
+      "phq9_q2": "3"
+    },
+    "expect": {
+      "value": "5",
+      "interpretation": "Mild",
+      "alerts": []
+    }
+  },
+  {
+    "name": "partial total, nothing answered",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": false,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {},
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "junk answers ignored",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": false,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "abc",
+      "phq9_q2": "2"
+    },
+    "expect": {
+      "value": "2",
+      "interpretation": "None-minimal",
+      "alerts": []
+    }
+  },
+  {
+    "name": "hex and inf are not numbers",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "phq9_q1",
+        "phq9_q2",
+        "phq9_q3",
+        "phq9_q4",
+        "phq9_q5",
+        "phq9_q6",
+        "phq9_q7",
+        "phq9_q8",
+        "phq9_q9"
+      ],
+      "require_all": false,
+      "decimals": 0,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "None-minimal"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "Mild"
+        },
+        {
+          "min": 10,
+          "max": 14,
+          "label": "Moderate"
+        },
+        {
+          "min": 15,
+          "max": 19,
+          "label": "Moderately severe"
+        },
+        {
+          "min": 20,
+          "max": 27,
+          "label": "Severe"
+        }
+      ],
+      "alerts": [
+        {
+          "source": "phq9_q9",
+          "min": 1,
+          "message": "Further assessment for suicide risk is needed."
+        }
+      ]
+    },
+    "values": {
+      "phq9_q1": "0x10",
+      "phq9_q2": "inf",
+      "phq9_q3": "1_0"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "average rounds half up",
+    "calc": {
+      "operation": "average",
+      "sources": [
+        "a",
+        "b"
+      ],
+      "decimals": 1
+    },
+    "values": {
+      "a": "1",
+      "b": "2"
+    },
+    "expect": {
+      "value": "1.5",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "average 1.005 -> 1.01",
+    "calc": {
+      "operation": "average",
+      "sources": [
+        "a",
+        "b"
+      ],
+      "decimals": 2
+    },
+    "values": {
+      "a": "1.005",
+      "b": "1.005"
+    },
+    "expect": {
+      "value": "1.01",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "average 2.5 -> 3",
+    "calc": {
+      "operation": "average",
+      "sources": [
+        "a",
+        "b"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": "2",
+      "b": "3"
+    },
+    "expect": {
+      "value": "3",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "negative half away from zero",
+    "calc": {
+      "operation": "average",
+      "sources": [
+        "a",
+        "b"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": "-2",
+      "b": "-3"
+    },
+    "expect": {
+      "value": "-3",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "sum decimals 0.1+0.2",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "a",
+        "b"
+      ],
+      "decimals": 2
+    },
+    "values": {
+      "a": "0.1",
+      "b": "0.2"
+    },
+    "expect": {
+      "value": "0.30",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "sum to exact zero has no minus",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "a",
+        "b"
+      ],
+      "decimals": 1
+    },
+    "values": {
+      "a": "1",
+      "b": "-1"
+    },
+    "expect": {
+      "value": "0.0",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "tiny negative rounds to 0 not -0",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "a"
+      ],
+      "decimals": 1
+    },
+    "values": {
+      "a": "-0.04"
+    },
+    "expect": {
+      "value": "0.0",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "min",
+    "calc": {
+      "operation": "min",
+      "sources": [
+        "a",
+        "b",
+        "c"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": "5",
+      "b": "2",
+      "c": "9"
+    },
+    "expect": {
+      "value": "2",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "max",
+    "calc": {
+      "operation": "max",
+      "sources": [
+        "a",
+        "b",
+        "c"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": "5",
+      "b": "2",
+      "c": "9"
+    },
+    "expect": {
+      "value": "9",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "checkbox counts 1/0",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "a",
+        "b",
+        "c"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": true,
+      "b": false,
+      "c": true
+    },
+    "expect": {
+      "value": "2",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "bmi normal",
+    "calc": {
+      "operation": "formula",
+      "formula": "weight / (height * height) * 703",
+      "sources": [
+        "weight",
+        "height"
+      ],
+      "decimals": 1,
+      "bands": [
+        {
+          "max": 18.4,
+          "label": "Underweight"
+        },
+        {
+          "min": 18.5,
+          "max": 24.9,
+          "label": "Normal"
+        },
+        {
+          "min": 25,
+          "max": 29.9,
+          "label": "Overweight"
+        },
+        {
+          "min": 30,
+          "label": "Obese"
+        }
+      ]
+    },
+    "values": {
+      "weight": "150",
+      "height": "65"
+    },
+    "expect": {
+      "value": "25.0",
+      "interpretation": "Overweight",
+      "alerts": []
+    }
+  },
+  {
+    "name": "bmi obese open-ended band",
+    "calc": {
+      "operation": "formula",
+      "formula": "weight / (height * height) * 703",
+      "sources": [
+        "weight",
+        "height"
+      ],
+      "decimals": 1,
+      "bands": [
+        {
+          "max": 18.4,
+          "label": "Underweight"
+        },
+        {
+          "min": 18.5,
+          "max": 24.9,
+          "label": "Normal"
+        },
+        {
+          "min": 25,
+          "max": 29.9,
+          "label": "Overweight"
+        },
+        {
+          "min": 30,
+          "label": "Obese"
+        }
+      ]
+    },
+    "values": {
+      "weight": "220",
+      "height": "65"
+    },
+    "expect": {
+      "value": "36.6",
+      "interpretation": "Obese",
+      "alerts": []
+    }
+  },
+  {
+    "name": "bmi underweight open-ended low",
+    "calc": {
+      "operation": "formula",
+      "formula": "weight / (height * height) * 703",
+      "sources": [
+        "weight",
+        "height"
+      ],
+      "decimals": 1,
+      "bands": [
+        {
+          "max": 18.4,
+          "label": "Underweight"
+        },
+        {
+          "min": 18.5,
+          "max": 24.9,
+          "label": "Normal"
+        },
+        {
+          "min": 25,
+          "max": 29.9,
+          "label": "Overweight"
+        },
+        {
+          "min": 30,
+          "label": "Obese"
+        }
+      ]
+    },
+    "values": {
+      "weight": "100",
+      "height": "70"
+    },
+    "expect": {
+      "value": "14.3",
+      "interpretation": "Underweight",
+      "alerts": []
+    }
+  },
+  {
+    "name": "bmi missing input",
+    "calc": {
+      "operation": "formula",
+      "formula": "weight / (height * height) * 703",
+      "sources": [
+        "weight",
+        "height"
+      ],
+      "decimals": 1,
+      "bands": [
+        {
+          "max": 18.4,
+          "label": "Underweight"
+        },
+        {
+          "min": 18.5,
+          "max": 24.9,
+          "label": "Normal"
+        },
+        {
+          "min": 25,
+          "max": 29.9,
+          "label": "Overweight"
+        },
+        {
+          "min": 30,
+          "label": "Obese"
+        }
+      ]
+    },
+    "values": {
+      "weight": "150"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "formula divide by zero",
+    "calc": {
+      "operation": "formula",
+      "formula": "a / b",
+      "sources": [
+        "a",
+        "b"
+      ],
+      "decimals": 2
+    },
+    "values": {
+      "a": "5",
+      "b": "0"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "formula precedence",
+    "calc": {
+      "operation": "formula",
+      "formula": "1 + 2 * 3 - 4 / 2",
+      "sources": [],
+      "decimals": 0
+    },
+    "values": {},
+    "expect": {
+      "value": "5",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "formula unary minus and parens",
+    "calc": {
+      "operation": "formula",
+      "formula": "-(a + 2) * -3",
+      "sources": [
+        "a"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": "1"
+    },
+    "expect": {
+      "value": "9",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "formula MAP",
+    "calc": {
+      "operation": "formula",
+      "formula": "(sys + 2 * dia) / 3",
+      "sources": [
+        "sys",
+        "dia"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "sys": "120",
+      "dia": "80"
+    },
+    "expect": {
+      "value": "93",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "formula invalid is blank",
+    "calc": {
+      "operation": "formula",
+      "formula": "a +",
+      "sources": [
+        "a"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": "1"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "formula huge is blank",
+    "calc": {
+      "operation": "formula",
+      "formula": "a * a",
+      "sources": [
+        "a"
+      ],
+      "decimals": 0
+    },
+    "values": {
+      "a": "1e9"
+    },
+    "expect": {
+      "value": "",
+      "interpretation": "",
+      "alerts": []
+    }
+  },
+  {
+    "name": "gap between bands -> no interpretation",
+    "calc": {
+      "operation": "sum",
+      "sources": [
+        "a"
+      ],
+      "decimals": 1,
+      "bands": [
+        {
+          "min": 0,
+          "max": 4,
+          "label": "Low"
+        },
+        {
+          "min": 5,
+          "max": 9,
+          "label": "High"
+        }
+      ]
+    },
+    "values": {
+      "a": "4.5"
+    },
+    "expect": {
+      "value": "4.5",
+      "interpretation": "",
+      "alerts": []
+    }
+  }
+]

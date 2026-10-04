@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Box,
@@ -23,6 +23,7 @@ import {
   DialogContent,
   DialogActions,
   Stack,
+  Alert,
 } from "@mui/material";
 import AddAlarmIcon from "@mui/icons-material/AddAlarm";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -31,6 +32,7 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import DateRangeIcon from "@mui/icons-material/DateRange";
 import UnfoldMoreIcon from "@mui/icons-material/UnfoldMore";
 import UnfoldLessIcon from "@mui/icons-material/UnfoldLess";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { LocalizationProvider, DateTimePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { jwtDecode } from "jwt-decode";
@@ -38,6 +40,7 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
+import { applyCalculations } from "../utils/calculations";
 
 // The shared `api` axios instance has no request interceptor of its own --
 // Authorization headers must be attached explicitly per-call, matching the
@@ -99,7 +102,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   const [loadingTemplates, setLoadingTemplates] = useState(true);
   const [selectedTemplateCode, setSelectedTemplateCode] = useState("");
   const selectedTemplate = templates.find((t) => t.code === selectedTemplateCode) || null;
-  const rowDefinitions = selectedTemplate?.row_definitions || [];
+  const rowDefinitions = useMemo(() => selectedTemplate?.row_definitions || [], [selectedTemplate]);
 
   const [flowsheetId, setFlowsheetId] = useState(null);
   const [columns, setColumns] = useState([]);
@@ -132,6 +135,29 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   const clampedRangeCount = Math.max(1, Math.min(50, Number(rangeCount) || 0));
 
   const canAuthor = ["doctor", "nurse", "admin", "system_admin"].includes(userRole);
+
+  // Calculated rows (a PHQ-9 total, a BMI, ...) are never typed: each time
+  // column's result is worked out live from that column's own answers by the
+  // row's `calc` config. The server recomputes the same numbers on Save.
+  const flatRows = useMemo(() => rowDefinitions.flatMap((section) => section.rows), [rowDefinitions]);
+  const hasCalculatedRows = flatRows.some((row) => row.field_type === "calculated");
+  const calcByColumn = useMemo(() => {
+    const out = {};
+    if (!hasCalculatedRows) return out;
+    columns.forEach((col) => {
+      const values = {};
+      flatRows.forEach((row) => {
+        if (row.field_type === "calculated") return;
+        const v = cellData[row.key]?.[col.id];
+        if (v !== undefined && v !== "") values[row.key] = v;
+      });
+      out[col.id] = applyCalculations(flatRows, values).results;
+    });
+    return out;
+  }, [columns, cellData, flatRows, hasCalculatedRows]);
+  // Dropdown rows (e.g. a PHQ-9 item with its four answers) need a wider cell.
+  const hasDropdownRows = flatRows.some((row) => row.field_type === "dropdown");
+  const columnMinWidth = hasDropdownRows ? 180 : 140;
 
   // Role + flowsheet types: loaded once, independent of which appointment is
   // selected (the templates endpoint needs no appointment/instance).
@@ -290,7 +316,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
 
   const removeColumn = (col) => {
     const hasValues = rowDefinitions.some((section) =>
-      section.rows.some((row) => cellData[row.key]?.[col.id])
+      section.rows.some((row) => row.field_type !== "calculated" && cellData[row.key]?.[col.id])
     );
     if (hasValues) {
       toast.error("This time column has entries -- clear its values before removing it.");
@@ -388,6 +414,26 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   const sortedColumns = [...columns].sort(
     (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
   );
+
+  // Every caution raised by a calculated row (e.g. the PHQ-9 suicide-risk
+  // note when item 9 is answered), listed under the grid with its column.
+  const cautionLines = [];
+  sortedColumns.forEach((col) => {
+    flatRows.forEach((row) => {
+      if (row.field_type !== "calculated") return;
+      (calcByColumn[col.id]?.[row.key]?.alerts || []).forEach((message) => {
+        cautionLines.push({
+          id: `${col.id}-${row.key}-${message}`,
+          when: `${new Date(col.timestamp).toLocaleDateString()} ${new Date(col.timestamp).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`,
+          label: row.label,
+          message,
+        });
+      });
+    });
+  });
 
   return (
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
@@ -496,7 +542,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
                   Measure
                 </TableCell>
                 {sortedColumns.map((col) => (
-                  <TableCell key={col.id} align="center" sx={{ minWidth: 140 }}>
+                  <TableCell key={col.id} align="center" sx={{ minWidth: columnMinWidth }}>
                     <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                       <Box>
                         <Typography variant="caption" display="block" sx={{ fontWeight: "bold" }}>
@@ -567,29 +613,94 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
                           bgcolor: "background.paper",
                         }}
                       >
-                        {row.label}
+                        <span style={row.field_type === "calculated" ? { fontWeight: 700 } : undefined}>
+                          {row.label}
+                        </span>
                         {row.unit && (
                           <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
                             ({row.unit})
                           </Typography>
                         )}
                       </TableCell>
-                      {sortedColumns.map((col) => (
-                        <TableCell key={col.id} align="center">
-                          <TextField
-                            size="small"
-                            variant="standard"
-                            value={cellData[row.key]?.[col.id] ?? ""}
-                            onChange={(e) => handleCellChange(row.key, col.id, e.target.value)}
-                            disabled={!canAuthor}
-                            inputProps={{
-                              style: { textAlign: "center" },
-                              inputMode: row.field_type === "numeric" ? "decimal" : "text",
-                            }}
-                            sx={{ width: 90 }}
-                          />
-                        </TableCell>
-                      ))}
+                      {sortedColumns.map((col) => {
+                        if (row.field_type === "calculated") {
+                          const result = calcByColumn[col.id]?.[row.key];
+                          const hasResult = !!result && result.value !== "";
+                          return (
+                            <TableCell key={col.id} align="center" sx={{ bgcolor: "action.hover" }}>
+                              <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                                {hasResult ? result.value : "--"}
+                              </Typography>
+                              {hasResult && result.interpretation && (
+                                <Typography variant="caption" display="block">
+                                  {result.interpretation}
+                                </Typography>
+                              )}
+                              {(result?.alerts || []).length > 0 && (
+                                <Tooltip title={result.alerts.join(" ")}>
+                                  <Typography
+                                    variant="caption"
+                                    color="error"
+                                    sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}
+                                  >
+                                    <WarningAmberIcon fontSize="inherit" /> Caution
+                                  </Typography>
+                                </Tooltip>
+                              )}
+                            </TableCell>
+                          );
+                        }
+                        if (row.field_type === "dropdown") {
+                          const current = cellData[row.key]?.[col.id] ?? "";
+                          const options = row.options || [];
+                          return (
+                            <TableCell key={col.id} align="center">
+                              <TextField
+                                select
+                                size="small"
+                                variant="standard"
+                                value={current}
+                                onChange={(e) => handleCellChange(row.key, col.id, e.target.value)}
+                                disabled={!canAuthor}
+                                SelectProps={{
+                                  displayEmpty: true,
+                                  renderValue: (v) =>
+                                    v === "" ? "" : options.find((o) => o.value === v)?.label || v,
+                                }}
+                                sx={{ width: columnMinWidth - 30 }}
+                              >
+                                <MenuItem value="">
+                                  <em>--</em>
+                                </MenuItem>
+                                {options.map((opt) => (
+                                  <MenuItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </MenuItem>
+                                ))}
+                                {current !== "" && !options.some((o) => o.value === current) && (
+                                  <MenuItem value={current}>{current}</MenuItem>
+                                )}
+                              </TextField>
+                            </TableCell>
+                          );
+                        }
+                        return (
+                          <TableCell key={col.id} align="center">
+                            <TextField
+                              size="small"
+                              variant="standard"
+                              value={cellData[row.key]?.[col.id] ?? ""}
+                              onChange={(e) => handleCellChange(row.key, col.id, e.target.value)}
+                              disabled={!canAuthor}
+                              inputProps={{
+                                style: { textAlign: "center" },
+                                inputMode: row.field_type === "numeric" ? "decimal" : "text",
+                              }}
+                              sx={{ width: 90 }}
+                            />
+                          </TableCell>
+                        );
+                      })}
                       {sortedColumns.length === 0 && <TableCell />}
                     </TableRow>
                   ))}
@@ -599,6 +710,19 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
             </TableBody>
           </Table>
         </TableContainer>
+      )}
+
+      {cautionLines.length > 0 && (
+        <Stack spacing={1} sx={{ mt: 2 }}>
+          {cautionLines.map((line) => (
+            <Alert key={line.id} severity="warning">
+              <strong>
+                {line.label} ({line.when}):
+              </strong>{" "}
+              {line.message}
+            </Alert>
+          ))}
+        </Stack>
       )}
 
       <Dialog open={addTimeOpen} onClose={() => setAddTimeOpen(false)}>

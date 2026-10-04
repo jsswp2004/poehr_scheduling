@@ -13,6 +13,12 @@ Dropdown rows as ``stored_value=Label|stored_value=Label`` (a bare ``Label``
 is allowed -- its stored value is then derived from the label) and must be
 blank for Numeric and Text rows. ``Unit`` is optional (e.g. bpm, mmHg).
 
+A ``Calculated`` row is a total or result worked out from other rows (a PHQ-9
+score, a BMI). It uses one extra column, ``Calculation``, holding the
+calculation as JSON (see calculations.py); the column is only present in a file
+that has a calculated row, and Value must be blank for such a row. Rows used by
+a calculation must come before it.
+
 This is the flowsheet twin of note_template_csv.py and shares its option
 parsing. Like that module it has no Django imports, so the rules can be unit
 tested without a database; saving a parsed flowsheet is done by
@@ -21,17 +27,22 @@ tested without a database; saving a parsed flowsheet is done by
 
 import csv
 import io
+import json
 import re
 
+from .calculations import INTERPRETATION_SUFFIX, OPTION_TYPES, to_number, validate_calc
 from .note_template_csv import SLUG_RE, _err, _norm, format_options, parse_options
 
 COLUMNS = ["Code", "Name", "Section", "Key", "Label", "Unit", "Row Type", "Value"]
+# Optional extra column, written only when the flowsheet has a calculated row.
+CALC_COLUMN = "Calculation"
 
 # FlowsheetRowDefinition.field_type value -> label used in the CSV.
 ROW_TYPE_LABELS = {
     "numeric": "Numeric",
     "text": "Text",
     "dropdown": "Dropdown (Dictionary)",
+    "calculated": "Calculated",
 }
 
 # Limits mirror the model columns (appointments/models.py).
@@ -58,7 +69,7 @@ def parse_flowsheet_csv(text):
 
         {"code": str, "name": str, "rows": [
             {"row", "section_label", "key", "label", "unit",
-             "field_type", "options"}, ...]}
+             "field_type", "options", "calc"}, ...]}
 
     ``options`` is a list of ``(value, label)`` for dropdown rows, else None.
     Every error is ``{"row": int, "column": str, "message": str}`` where row 1
@@ -79,6 +90,8 @@ def parse_flowsheet_csv(text):
         return None, [_err(1, "", "Missing column(s) in the header row: " + ", ".join(missing))]
 
     rows, seen_keys = [], {}
+    earlier = {}  # key -> info for calculation source checks
+    calc_index = col_index.get(_norm(CALC_COLUMN))
     code = name = None
 
     for row_num, cells in enumerate(reader, start=2):
@@ -151,8 +164,39 @@ def parse_flowsheet_csv(text):
         elif field_type is not None and raw_value:
             errors.append(_err(row_num, "Value", f"Value must be blank for a {ROW_TYPE_LABELS[field_type]} row (only Dropdown rows have options)."))
 
+        # ---- Calculation (calculated rows only) ----
+        raw_calc = cells[calc_index].strip() if calc_index is not None and calc_index < len(cells) else ""
+        calc = {}
+        if key.endswith(INTERPRETATION_SUFFIX):
+            errors.append(_err(row_num, "Key", f"Key can't end with '{INTERPRETATION_SUFFIX}' (reserved)."))
+        if field_type == "calculated":
+            if not raw_calc:
+                errors.append(_err(row_num, CALC_COLUMN, "A Calculated row needs its calculation in the Calculation column."))
+            else:
+                try:
+                    candidate = json.loads(raw_calc)
+                except ValueError:
+                    candidate = None
+                    errors.append(_err(row_num, CALC_COLUMN, "The calculation isn't valid JSON. Export an existing flowsheet to see the format."))
+                if candidate is not None:
+                    calc, problems = validate_calc(candidate, key, earlier)
+                    for problem in problems:
+                        errors.append(_err(row_num, CALC_COLUMN, problem))
+                    calc = calc or {}
+        elif raw_calc:
+            errors.append(_err(row_num, CALC_COLUMN, f"Calculation must be blank for a {ROW_TYPE_LABELS.get(field_type, 'this')} row."))
+
         if key and SLUG_RE.match(key) and key not in seen_keys:
             seen_keys[key] = row_num
+            earlier[key] = {
+                "field_type": field_type,
+                "numeric_options": (
+                    bool(options) and all(to_number(v) is not None for v, _ in options)
+                    if field_type in OPTION_TYPES
+                    else None
+                ),
+                "label": label,
+            }
 
         if len(errors) == before:
             rows.append(
@@ -164,6 +208,7 @@ def parse_flowsheet_csv(text):
                     "unit": unit,
                     "field_type": field_type,
                     "options": options,
+                    "calc": calc,
                 }
             )
         if len(errors) >= MAX_ERRORS:
@@ -180,25 +225,33 @@ def parse_flowsheet_csv(text):
 def build_csv_text(code, name, rows):
     """
     Build CSV text for a flowsheet. ``rows`` is an ordered list of dicts with
-    section_label, key, label, unit, field_type, options ([(value, label)] or None).
-    Raises ValueError if an option can't be represented in the Value column.
+    section_label, key, label, unit, field_type, options ([(value, label)] or None)
+    and, for calculated rows, calc. The Calculation column is added only when
+    some row is calculated. Raises ValueError if an option can't be represented
+    in the Value column.
     """
+    with_calc = any(r["field_type"] == "calculated" for r in rows)
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\r\n")
-    writer.writerow(COLUMNS)
+    writer.writerow(COLUMNS + ([CALC_COLUMN] if with_calc else []))
     for r in rows:
-        writer.writerow(
-            [
-                code,
-                name,
-                r.get("section_label") or "",
-                r["key"],
-                r["label"],
-                r.get("unit") or "",
-                ROW_TYPE_LABELS[r["field_type"]],
-                format_options(r["options"]) if r.get("options") else "",
-            ]
-        )
+        line = [
+            code,
+            name,
+            r.get("section_label") or "",
+            r["key"],
+            r["label"],
+            r.get("unit") or "",
+            ROW_TYPE_LABELS[r["field_type"]],
+            format_options(r["options"]) if r.get("options") else "",
+        ]
+        if with_calc:
+            line.append(
+                json.dumps(r["calc"], sort_keys=True, separators=(",", ":"))
+                if r["field_type"] == "calculated" and r.get("calc")
+                else ""
+            )
+        writer.writerow(line)
     return out.getvalue()
 
 

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Box,
+  Chip,
   Typography,
   TextField,
   MenuItem,
@@ -18,6 +20,7 @@ import {
   Tabs,
   Tab,
 } from "@mui/material";
+import { INTERPRETATION_SUFFIX, applyCalculations, computeCalc } from "../utils/calculations";
 
 /**
  * Renders a form for any structured (non-SOAP) ClinicalNote from a
@@ -37,6 +40,10 @@ import {
  *   checkbox    -> single Checkbox (stored as boolean)
  *   numeric     -> TextField type="number"
  *   date        -> TextField type="date"
+ *   calculated  -> read-only result (a total / score) worked out live from
+ *                  other fields by the field's `calc` config, with its
+ *                  interpretation and cautions; stored like any other value
+ *                  (the server recomputes it on save)
  *
  * A field with `depends_on_key` set is only rendered once the field it
  * depends on has a value containing (for multiselect/array values) or
@@ -69,7 +76,16 @@ export function isFieldVisible(field, values) {
 // DynamicNoteSummary (Note History) and buildNotePreviewSections (the live
 // preview pane / print in ClinicalNotesPanel) so both show a field the same
 // way.
-export function formatFieldValue(field, rawValue) {
+export function formatFieldValue(field, rawValue, allValues) {
+  if (field.field_type === "calculated") {
+    if (rawValue === undefined || rawValue === null || rawValue === "") return null;
+    // Work the interpretation out from the field's own (snapshotted) calc so
+    // an old note always shows the ranges it was signed with.
+    const computed = allValues && field.calc ? computeCalc(field.calc, allValues) : null;
+    const interpretation =
+      (computed && computed.interpretation) || (allValues && allValues[field.key + INTERPRETATION_SUFFIX]) || "";
+    return interpretation ? `${rawValue} (${interpretation})` : String(rawValue);
+  }
   if (field.field_type === "multiselect") {
     if (!Array.isArray(rawValue) || rawValue.length === 0) return null;
     return rawValue
@@ -152,6 +168,27 @@ function DynamicNoteForm({ template, values, onChange, disabled }) {
       if (!isEmpty) {
         onChangeRef.current(field.key, Array.isArray(current) ? [] : "");
       }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, template]);
+
+  // Calculated fields (a total, a score) are never typed: keep each one's
+  // stored value -- and its interpretation, stored beside it -- in step with
+  // the answers it is calculated from. Only visible ones are kept (a hidden
+  // one is cleared by the effect above), and each pass fixes what differs, so
+  // chained calculations settle in a few passes. The server recomputes on
+  // save, so this is for what the author sees while typing.
+  useEffect(() => {
+    if (!template) return;
+    const calculated = fields.filter((f) => f.field_type === "calculated" && isFieldVisible(f, values));
+    if (calculated.length === 0) return;
+    const { values: next } = applyCalculations(fields, values);
+    calculated.forEach((f) => {
+      [f.key, f.key + INTERPRETATION_SUFFIX].forEach((key) => {
+        const want = next[key] === undefined ? "" : next[key];
+        const have = values[key] === undefined ? "" : values[key];
+        if (want !== have) onChangeRef.current(key, want);
+      });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values, template]);
@@ -316,6 +353,41 @@ function DynamicNoteForm({ template, values, onChange, disabled }) {
         );
       }
 
+      case "calculated": {
+        const result = computeCalc(field.calc, values);
+        return (
+          <Box
+            key={field.key}
+            sx={{ p: 1.5, border: 1, borderColor: "divider", borderRadius: 1, bgcolor: "action.hover" }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              {field.label}
+            </Typography>
+            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
+              <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                {result.value !== "" ? result.value : "--"}
+              </Typography>
+              {result.interpretation && <Chip color="primary" label={result.interpretation} />}
+            </Stack>
+            {result.value === "" && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                Calculated automatically from the items above.
+              </Typography>
+            )}
+            {field.help_text && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                {field.help_text}
+              </Typography>
+            )}
+            {result.alerts.map((message) => (
+              <Alert key={message} severity="warning" sx={{ mt: 1 }}>
+                {message}
+              </Alert>
+            ))}
+          </Box>
+        );
+      }
+
       case "text":
       default:
         return (
@@ -386,12 +458,25 @@ export function DynamicNoteSummary({ templateDetail, structuredData }) {
     // stale-value cleanup in DynamicNoteForm) is never shown in
     // history -- only what was applicable when the note was signed.
     if (!isFieldVisible(field, structuredData)) return null;
-    const display = formatFieldValue(field, structuredData[field.key]);
-    if (display === null) return null;
+    const display = formatFieldValue(field, structuredData[field.key], structuredData);
+    // A caution (e.g. the PHQ-9 suicide-risk note) shows even before the
+    // total itself can be worked out.
+    const cautions =
+      field.field_type === "calculated" && field.calc ? computeCalc(field.calc, structuredData).alerts : [];
+    if (display === null && cautions.length === 0) return null;
     return (
-      <Typography variant="body2" key={field.key}>
-        <strong>{field.label}:</strong> {display}
-      </Typography>
+      <Box key={field.key}>
+        {display !== null && (
+          <Typography variant="body2">
+            <strong>{field.label}:</strong> {display}
+          </Typography>
+        )}
+        {cautions.map((message) => (
+          <Typography variant="body2" color="error" key={message}>
+            Caution: {message}
+          </Typography>
+        ))}
+      </Box>
     );
   };
 
@@ -440,7 +525,14 @@ export function buildNotePreviewSections(fields, values) {
       entries: section.fields
         .filter((f) => isFieldVisible(f, values || {}))
         .map((f) => {
-          const display = formatFieldValue(f, values ? values[f.key] : undefined);
+          let display = formatFieldValue(f, values ? values[f.key] : undefined, values || {});
+          // Calculated items carry their caution into the preview and print.
+          if (f.field_type === "calculated" && f.calc) {
+            const cautions = computeCalc(f.calc, values || {}).alerts;
+            if (cautions.length > 0) {
+              display = `${display === null ? "" : `${display} -- `}Caution: ${cautions.join(" ")}`;
+            }
+          }
           return { label: f.label, display: display === null ? "" : display, empty: display === null };
         }),
     })),

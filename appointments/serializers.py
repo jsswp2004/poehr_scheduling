@@ -21,9 +21,61 @@ from .models import (
     Order,
     OrderEvent,
 )
+import copy
 import logging
 
+from .calculations import (
+    INTERPRETATION_SUFFIX,
+    OPTION_TYPES,
+    apply_calculations,
+    calc_signature,
+    to_number,
+    validate_calc,
+)
+
 logger = logging.getLogger(__name__)
+
+
+def _numeric_options(dictionary):
+    """True when every option value of `dictionary` is a number (so it can score)."""
+    if dictionary is None:
+        return None
+    values = list(dictionary.items.values_list("value", flat=True))
+    return bool(values) and all(to_number(v) is not None for v in values)
+
+
+def _validate_calculated_items(items, noun):
+    """
+    Shared by the note builder and the flowsheet builder. `items` is the
+    submitted, ordered list of fields/rows (dicts with key, field_type,
+    dictionary, calc). Checks every calculated item's config against the items
+    BEFORE it (so a calculation can only use what comes earlier -- no loops)
+    and replaces its `calc` with the cleaned version. Non-calculated items get
+    an empty calc.
+    """
+    earlier = {}
+    for item in items:
+        key = item["key"]
+        if key.endswith(INTERPRETATION_SUFFIX):
+            raise serializers.ValidationError(
+                f"'{key}' can't end with '{INTERPRETATION_SUFFIX}' -- that ending is reserved for stored interpretations."
+            )
+        if item["field_type"] == "calculated":
+            cleaned, errors = validate_calc(item.get("calc"), key, earlier)
+            if errors:
+                raise serializers.ValidationError(
+                    f"{noun} '{key}': " + " ".join(errors)
+                )
+            item["calc"] = cleaned
+            item["dictionary"] = None
+        else:
+            item["calc"] = {}
+        dictionary = item.get("dictionary")
+        earlier[key] = {
+            "field_type": item["field_type"],
+            "numeric_options": _numeric_options(dictionary) if item["field_type"] in OPTION_TYPES else None,
+            "label": item.get("label", key),
+        }
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -224,6 +276,7 @@ class NoteFieldDefinitionSerializer(serializers.ModelSerializer):
             "required",
             "sort_order",
             "help_text",
+            "calc",
             "options",
             "depends_on_key",
             "depends_on_value",
@@ -359,6 +412,7 @@ class NoteFieldDefinitionAdminSerializer(serializers.Serializer):
     required = serializers.BooleanField(required=False, default=False)
     sort_order = serializers.IntegerField(required=False, default=0)
     help_text = serializers.CharField(allow_blank=True, required=False, default="")
+    calc = serializers.JSONField(required=False, default=dict)
     depends_on_client_id = serializers.CharField(required=False, allow_null=True, default=None)
     depends_on_value = serializers.CharField(allow_blank=True, required=False, default="")
 
@@ -368,6 +422,9 @@ class NoteFieldDefinitionAdminSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"dictionary": f"A dictionary is required for field type '{field_type}'."}
             )
+        if field_type == "calculated":
+            # Worked out automatically, never typed in -- so never "required".
+            data["required"] = False
         return data
 
 
@@ -419,11 +476,20 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
         # between existing values later if ever needed.
         for idx, f in enumerate(value):
             f["sort_order"] = idx * 10
+        _validate_calculated_items(value, "Calculated field")
         return value
 
     @staticmethod
-    def _signature(key, field_type, dictionary_id, required, depends_on_key, depends_on_value):
-        return (key, field_type, dictionary_id, bool(required), depends_on_key, depends_on_value or "")
+    def _signature(key, field_type, dictionary_id, required, depends_on_key, depends_on_value, calc=None):
+        return (
+            key,
+            field_type,
+            dictionary_id,
+            bool(required),
+            depends_on_key,
+            depends_on_value or "",
+            calc_signature(calc),
+        )
 
     def _existing_signatures(self, template):
         sigs = set()
@@ -436,6 +502,7 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
                     f.required,
                     f.depends_on.key if f.depends_on_id else None,
                     f.depends_on_value,
+                    f.calc,
                 )
             )
         return sigs
@@ -453,6 +520,7 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
                     f.get("required", False),
                     dep_key,
                     f.get("depends_on_value", ""),
+                    f.get("calc"),
                 )
             )
         return sigs
@@ -483,6 +551,7 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
                 sort_order=f.get("sort_order", 0),
                 help_text=f.get("help_text", ""),
                 depends_on_value=f.get("depends_on_value", ""),
+                calc=f.get("calc") or {},
             )
             if real_id:
                 NoteFieldDefinition.objects.filter(id=real_id).update(**common)
@@ -660,6 +729,21 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
                             )
                         }
                     )
+
+        # Calculated fields are never trusted from the client: recompute them
+        # from the answers being saved, overwriting whatever was sent.
+        template = data.get("template") or getattr(self.instance, "template", None)
+        if template is not None and ({"structured_data", "template"} & set(data)):
+            structured = data.get("structured_data", getattr(self.instance, "structured_data", None))
+            if isinstance(structured, dict):
+                items = [
+                    {"key": f.key, "field_type": f.field_type, "calc": f.calc}
+                    for f in template.fields.all().order_by("sort_order", "id")
+                ]
+                if any(i["field_type"] == "calculated" for i in items):
+                    values = dict(structured)
+                    apply_calculations(items, values)
+                    data["structured_data"] = values
         return data
 
     def create(self, validated_data):
@@ -721,6 +805,11 @@ def _grouped_row_definitions(rows):
             sections.append(section)
         section["rows"].append(
             {
+                # id / dictionary / calc let the flowsheet builder reopen an
+                # existing row for editing without losing what it points at.
+                "id": row.id,
+                "dictionary": row.dictionary_id,
+                "calc": row.calc or {},
                 "key": row.key,
                 "label": row.label,
                 "unit": row.unit or None,
@@ -754,6 +843,7 @@ class FlowsheetRowDefinitionSerializer(serializers.ModelSerializer):
             "field_type",
             "dictionary",
             "sort_order",
+            "calc",
             "options",
         ]
 
@@ -818,6 +908,7 @@ class FlowsheetRowDefinitionAdminSerializer(serializers.Serializer):
         queryset=Dictionary.objects.all(), required=False, allow_null=True, default=None
     )
     sort_order = serializers.IntegerField(required=False, default=0)
+    calc = serializers.JSONField(required=False, default=dict)
 
     def validate(self, data):
         if data.get("field_type") == "dropdown" and not data.get("dictionary"):
@@ -860,21 +951,27 @@ class FlowsheetTemplateAdminSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Duplicate client_id in submitted rows.")
         for idx, r in enumerate(value):
             r["sort_order"] = idx * 10
+        _validate_calculated_items(value, "Calculated row")
         return value
 
     @staticmethod
-    def _signature(key, field_type, dictionary_id):
-        return (key, field_type, dictionary_id)
+    def _signature(key, field_type, dictionary_id, calc=None):
+        return (key, field_type, dictionary_id, calc_signature(calc))
 
     def _existing_signatures(self, template):
         return {
-            self._signature(r.key, r.field_type, r.dictionary_id)
+            self._signature(r.key, r.field_type, r.dictionary_id, r.calc)
             for r in template.rows.all()
         }
 
     def _incoming_signatures(self, rows_data):
         return {
-            self._signature(r["key"], r["field_type"], r["dictionary"].id if r.get("dictionary") else None)
+            self._signature(
+                r["key"],
+                r["field_type"],
+                r["dictionary"].id if r.get("dictionary") else None,
+                r.get("calc"),
+            )
             for r in rows_data
         }
 
@@ -895,6 +992,7 @@ class FlowsheetTemplateAdminSerializer(serializers.ModelSerializer):
                 field_type=r["field_type"],
                 dictionary=r.get("dictionary"),
                 sort_order=r.get("sort_order", 0),
+                calc=r.get("calc") or {},
             )
             if real_id:
                 FlowsheetRowDefinition.objects.filter(id=real_id).update(**common)
@@ -1010,6 +1108,48 @@ class VitalSignsFlowsheetSerializer(serializers.ModelSerializer):
         if not isinstance(value, dict):
             raise serializers.ValidationError("data must be an object.")
         return value
+
+    def validate(self, attrs):
+        # Calculated rows (a PHQ-9 total, a BMI, ...) are never trusted from
+        # the client: recompute every one, per time column, from the row
+        # answers being saved, overwriting whatever was sent for them.
+        template = attrs.get("template") or getattr(self.instance, "template", None)
+        if template is None or not ({"columns", "data", "template"} & set(attrs)):
+            return attrs
+        items = [
+            {"key": r.key, "field_type": r.field_type, "calc": r.calc}
+            for r in template.rows.all().order_by("sort_order", "id")
+        ]
+        calc_keys = [i["key"] for i in items if i["field_type"] == "calculated"]
+        if not calc_keys:
+            return attrs
+
+        columns = attrs.get("columns", getattr(self.instance, "columns", None)) or []
+        data = copy.deepcopy(attrs.get("data", getattr(self.instance, "data", None)) or {})
+        stored_keys = set(calc_keys) | {k + INTERPRETATION_SUFFIX for k in calc_keys}
+        for column in columns:
+            col_id = column.get("id") if isinstance(column, dict) else None
+            if not col_id:
+                continue
+            values = {
+                key: cells[col_id]
+                for key, cells in data.items()
+                if key not in stored_keys and isinstance(cells, dict) and col_id in cells
+            }
+            apply_calculations(items, values)
+            for key in stored_keys:
+                cells = data.get(key)
+                if key in values:
+                    if not isinstance(cells, dict):
+                        cells = data[key] = {}
+                    cells[col_id] = values[key]
+                elif isinstance(cells, dict):
+                    cells.pop(col_id, None)
+        for key in stored_keys:
+            if key in data and not data[key]:
+                del data[key]
+        attrs["data"] = data
+        return attrs
 
     def create(self, validated_data):
         appointment = validated_data["appointment"]

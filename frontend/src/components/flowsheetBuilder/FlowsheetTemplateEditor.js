@@ -26,6 +26,9 @@ import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
+import { describeCalc } from "../../utils/calculations";
+import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
+import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own -- every call site attaches its own token, matching the pattern used
@@ -37,6 +40,7 @@ const FIELD_TYPES = [
     { value: "numeric", label: "Numeric" },
     { value: "text", label: "Text" },
     { value: "dropdown", label: "Dropdown (dictionary)" },
+    { value: "calculated", label: "Calculated (total / result)" },
 ];
 
 let tempIdCounter = 0;
@@ -55,6 +59,7 @@ function rowFromApi(r) {
         unit: r.unit || "",
         field_type: r.field_type,
         dictionary: r.dictionary || null,
+        calc: r.calc || {},
     };
 }
 
@@ -67,6 +72,7 @@ function blankRow() {
         unit: "",
         field_type: "numeric",
         dictionary: null,
+        calc: {},
     };
 }
 
@@ -150,6 +156,42 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
         setRows((prev) => [...prev, blankRow()]);
     };
 
+    // A calculated row (total / result) added after the current last row,
+    // pre-set to add up the scored or numeric rows in the last row's section.
+    const addCalculatedRow = () => {
+        setRows((prev) => {
+            const section = prev.length ? prev[prev.length - 1].section_label : "";
+            return [
+                ...prev,
+                {
+                    ...blankRow(),
+                    section_label: section,
+                    key: uniqueKey("total_score", prev),
+                    label: "Total score",
+                    field_type: "calculated",
+                    calc: { ...blankCalc(), sources: suggestedTotalSources(prev, section, dictionaries) },
+                },
+            ];
+        });
+    };
+
+    // Switching a row to "Calculated" starts it as a total of the scored or
+    // numeric rows above it in its section; switching away drops the calculation.
+    const changeFieldType = (index, newType) => {
+        setRows((prev) =>
+            prev.map((r, i) => {
+                if (i !== index) return r;
+                if (newType === "calculated") {
+                    const calc = r.calc && r.calc.operation
+                        ? r.calc
+                        : { ...blankCalc(), sources: suggestedTotalSources(prev.slice(0, index), r.section_label, dictionaries) };
+                    return { ...r, field_type: newType, dictionary: null, calc };
+                }
+                return { ...r, field_type: newType, calc: {} };
+            })
+        );
+    };
+
     const removeRow = (clientId) => {
         setRows((prev) => prev.filter((r) => r.clientId !== clientId));
     };
@@ -196,10 +238,18 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
             setError("Row keys must be unique within this flowsheet.");
             return;
         }
-        for (const r of rows) {
+        for (let i = 0; i < rows.length; i += 1) {
+            const r = rows[i];
             if (r.field_type === "dropdown" && !r.dictionary) {
                 setError(`Row "${r.label || r.key}" needs a dictionary (its type requires one).`);
                 return;
+            }
+            if (r.field_type === "calculated") {
+                const problem = calcProblems(r.calc, calcCandidates(rows, i, dictionaries));
+                if (problem) {
+                    setError(`Calculated row "${r.label || r.key}": ${problem}`);
+                    return;
+                }
             }
             if (!r.section_label.trim()) {
                 setError(`Row "${r.label || r.key}" needs a section.`);
@@ -220,6 +270,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                 unit: r.unit || "",
                 field_type: r.field_type,
                 dictionary: r.field_type === "dropdown" ? r.dictionary : null,
+                calc: r.field_type === "calculated" ? r.calc : {},
             })),
         };
 
@@ -246,14 +297,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                 setBanner({ severity: "success", text: "Saved." });
             }
         } catch (e) {
-            const detail = e?.response?.data;
-            setError(
-                typeof detail === "string"
-                    ? detail
-                    : detail
-                    ? JSON.stringify(detail)
-                    : "Couldn't save this flowsheet type."
-            );
+            setError(formatApiError(e, "Couldn't save this flowsheet type."));
         } finally {
             setSaving(false);
         }
@@ -326,7 +370,8 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Drag the handle to reorder. Rows sharing the same section label are grouped
-                together in the flowsheet grid.
+                together in the flowsheet grid. A Calculated row (a total, score or result) is
+                worked out automatically from the rows above it, so keep it below the rows it uses.
             </Typography>
 
             {rows.map((r, index) => (
@@ -349,6 +394,9 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                 </Typography>
                             </Typography>
                             <Chip size="small" variant="outlined" label={r.field_type} />
+                            {r.field_type === "calculated" && (
+                                <Chip size="small" color="primary" variant="outlined" label={describeCalc(r.calc)} />
+                            )}
                             {r.unit && <Chip size="small" variant="outlined" label={r.unit} />}
                             <IconButton
                                 size="small"
@@ -405,7 +453,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                     label="Field Type"
                                     fullWidth
                                     value={r.field_type}
-                                    onChange={(e) => updateRow(r.clientId, { field_type: e.target.value })}
+                                    onChange={(e) => changeFieldType(index, e.target.value)}
                                 >
                                     {FIELD_TYPES.map((t) => (
                                         <MenuItem key={t.value} value={t.value}>
@@ -434,12 +482,24 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                 </Grid>
                             )}
                         </Grid>
+                        {r.field_type === "calculated" && (
+                            <Box sx={{ mt: 2 }}>
+                                <CalculationEditor
+                                    calc={r.calc}
+                                    candidates={calcCandidates(rows, index, dictionaries)}
+                                    onChange={(calc) => updateRow(r.clientId, { calc })}
+                                />
+                            </Box>
+                        )}
                     </AccordionDetails>
                 </Accordion>
             ))}
 
             <Button startIcon={<AddIcon />} onClick={addRow} sx={{ mb: 3 }}>
                 Add Row
+            </Button>
+            <Button startIcon={<AddIcon />} onClick={addCalculatedRow} sx={{ mb: 3, ml: 1 }}>
+                Add Calculated Row (total / result)
             </Button>
 
             <Box sx={{ display: "flex", gap: 2 }}>
