@@ -16,11 +16,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
+from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from users.rights import user_has_right
 
-from . import lab_hl7, lab_intake, lab_orders_out, lab_results
+from . import lab_hl7, lab_intake, lab_orders_out, lab_results, lab_usage
 from .models import LabInboundMessage
 
 MAX_BODY_BYTES = 5 * 1024 * 1024
@@ -226,3 +227,38 @@ class LabInboundMessageViewSet(viewsets.ReadOnlyModelViewSet):
     def dismiss(self, request, pk=None):
         message = lab_intake.dismiss_message(self.get_object(), request.user, request.data.get("reason"))
         return Response(self._row(message))
+
+
+class LabUsageView(APIView):
+    """
+    GET /api/lab-usage/?month=2026-10[&format=csv] -- billing counts for the lab add-on.
+    A system admin sees every clinic (?org= narrows it); a clinic admin sees only their own.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        role = getattr(user, "role", None)
+        if role == "system_admin":
+            org = None
+            if request.query_params.get("org"):
+                from users.models import Organization
+
+                org = Organization.objects.filter(pk=request.query_params["org"]).first()
+                if org is None:
+                    return Response({"detail": "Organization not found."}, status=404)
+        elif role == "admin" and user.organization_id:
+            org = user.organization
+        else:
+            return Response({"detail": "Only administrators can see lab usage."}, status=403)
+        try:
+            rows = lab_usage.usage(request.query_params.get("month"), org)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=400)
+        if request.query_params.get("export") == "csv":
+            month = rows[0]["month"] if rows else (request.query_params.get("month") or "month")
+            resp = HttpResponse(lab_usage.to_csv(rows), content_type="text/csv; charset=utf-8")
+            resp["Content-Disposition"] = f'attachment; filename="lab_usage_{month}.csv"'
+            return resp
+        return Response({"month": rows[0]["month"] if rows else request.query_params.get("month"), "results": rows})

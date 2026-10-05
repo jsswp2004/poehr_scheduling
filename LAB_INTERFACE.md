@@ -159,3 +159,33 @@ order, cycling. Use a test or demo clinic only: it creates real reports and hold
 
 After a run, look at the Lab Results inbox: you should see the abnormal and critical reports
 waiting for review, and the unknown-patient / DOB / name items under "Results waiting for a patient".
+
+---
+
+# Billing the add-on: usage counts
+
+Nothing extra is stored: counts come straight from the records the interface keeps, so they
+cannot drift from what happened. Months follow the server's time zone.
+
+```
+python manage.py lab_usage                                   # this month, every clinic with the add-on or any activity
+python manage.py lab_usage --month 2026-09 --csv > lab_usage_2026-09.csv
+python manage.py lab_usage --month 2026-09 --org 3
+```
+
+API (same numbers): `GET /api/lab-usage/?month=2026-09` (add `&export=csv` for a file). A system
+admin sees every clinic (`&org=ID` narrows it); a clinic admin sees only their own; anyone else gets 403.
+
+| Column | Meaning |
+|---|---|
+| orders_sent | New-order messages handed to the lab's engine in the month (withdrawn ones are not counted) |
+| orders_accepted / orders_rejected | Confirmed by the lab in the month |
+| cancellations_sent | Cancellations sent |
+| results_messages | Result messages received |
+| **results_filed** | Reports created from the interface: the usual per-result billing unit |
+| results_held | Messages held for staff (patient not safely matched), later assigned or dismissed or still waiting |
+| scans_uploaded, results_entered_manually | Base-product use, shown for information, not part of the add-on |
+
+Pricing itself (monthly fee, per-result fee, or both) is your decision; these are the counts to
+bill from. A clinic with the add-on switched off but activity in the month still appears, with
+`addon_enabled` false, so a switch turned off mid-month does not hide use.

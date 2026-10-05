@@ -37,7 +37,7 @@ from .views import (
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
 from .lab_views import LabReportViewSet
-from .lab_interface_views import LabInboundMessageViewSet, fhir_intake, hl7_intake, orders_ack, orders_pull
+from .lab_interface_views import LabInboundMessageViewSet, LabUsageView, fhir_intake, hl7_intake, orders_ack, orders_pull
 
 # Debug import
 from django.http import JsonResponse
@@ -198,6 +198,7 @@ urlpatterns = router.urls + [
     # lab interface engines post results here (key-authenticated, no login)
     path("lab-interface/hl7/", hl7_intake, name="lab-interface-hl7"),
     path("lab-interface/fhir/", fhir_intake, name="lab-interface-fhir"),
+    path("lab-usage/", LabUsageView.as_view(), name="lab-usage"),
     path("lab-interface/orders/", orders_pull, name="lab-interface-orders"),
     path("lab-interface/orders/ack/", orders_ack, name="lab-interface-orders-ack"),
     # ICD-10-CM code search for the order diagnosis picker (proxies NLM's free service)
