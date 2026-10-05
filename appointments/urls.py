@@ -36,6 +36,7 @@ from .views import (
 )  # ⬅️ import the new SMS view and check-in views
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
+from .lab_views import LabReportViewSet
 
 # Debug import
 from django.http import JsonResponse
@@ -186,6 +187,7 @@ router.register(r"admin/note-templates", NoteTemplateAdminViewSet, basename="not
 router.register(r"admin/dictionaries", DictionaryAdminViewSet, basename="dictionaryadmin")
 router.register(r"orders", OrderViewSet, basename="order")
 router.register(r"orderables", OrderableViewSet, basename="orderable")
+router.register(r"lab-reports", LabReportViewSet, basename="labreport")
 router.register(r"order-sets", OrderSetViewSet, basename="orderset")
 router.register(r"admin/orderables", OrderableAdminViewSet, basename="orderableadmin")
 router.register(r"admin/order-sets", OrderSetAdminViewSet, basename="ordersetadmin")

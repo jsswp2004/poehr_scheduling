@@ -38,6 +38,7 @@ import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
 import DynamicNoteForm from "./DynamicNoteForm";
 import IcdCodePicker, { dxLabel } from "./IcdCodePicker";
+import LabResultsPanel from "./LabResultsPanel";
 
 const authHeader = async () => {
   const token = await getValidToken();
@@ -117,6 +118,7 @@ function OrdersPanel({ patientId }) {
 
   const [dialog, setDialog] = useState(null); // { kind, order }
   const [dialogText, setDialogText] = useState("");
+  const [labEntry, setLabEntry] = useState(null); // asks the lab results section below to open its entry form for an order
 
   const canPlace = ["doctor", "nurse", "admin", "system_admin"].includes(me.role);
   const canCosign = ["doctor", "admin", "system_admin"].includes(me.role);
@@ -516,6 +518,15 @@ function OrdersPanel({ patientId }) {
               Complete
             </Button>
           )}
+          {order.orderable_category === "laboratory" && order.status !== "discontinued" && (
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => setLabEntry({ orderId: order.id, nonce: Date.now() })}
+            >
+              Enter results
+            </Button>
+          )}
           {open && (
             <>
               <Button size="small" disabled={busy} onClick={() => openDialog("replace", order)}>
@@ -664,6 +675,8 @@ function OrdersPanel({ patientId }) {
           )}
         </Box>
       </Box>
+
+      <LabResultsPanel patientId={patientId} orders={orders} me={me} entryRequest={labEntry} />
 
       <Dialog
         open={!!dialog && dialog.kind !== "history"}

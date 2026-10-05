@@ -392,6 +392,15 @@ class Organization(models.Model):
         ),
     )
 
+    lab_interface_enabled = models.BooleanField(
+        default=False,
+        help_text=(
+            "Paid add-on: electronic lab connection (Quest, Labcorp, ...). Lab results can "
+            "always be entered by hand or scanned; this switch only unlocks the automatic "
+            "electronic interface for this organization. Only a system admin can change it."
+        ),
+    )
+
     # Clinic location. The STATE drives which state staffing rules the
     # Staffing module applies (see staffing/state_rules.py).
     address_line1 = models.CharField(max_length=255, blank=True, default="")
