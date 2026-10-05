@@ -192,6 +192,15 @@ class IntakeTests(Base):
         self.assertEqual(m.status, "unmatched")
         self.assertIn("date of birth", m.detail)
 
+    def test_last_name_differences_in_case_spacing_and_hyphens_are_fine_but_a_different_name_is_held(self):
+        self.patient.last_name = "Doe-Smith"
+        self.patient.save()
+        self.post(self.msg(control="N1", last="DOE SMITH"))
+        self.assertEqual(LabReport.objects.count(), 1)
+        self.post(self.msg(control="N2", last="Jones", filler="ACC2"))
+        self.assertEqual(LabReport.objects.count(), 1)
+        self.assertIn("last name", LabInboundMessage.objects.get(control_id="N2").detail)
+
     def test_order_and_mrn_for_different_patients_is_not_filed(self):
         order = self.order_for(self.patient2)
         self.post(self.msg(placer=order.placer_order_number))

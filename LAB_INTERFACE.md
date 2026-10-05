@@ -135,3 +135,27 @@ results find their order (section 4 above).
 - **Rejections.** A rejected order is marked with the lab's reason (Order `interface_status`
   = error) and is not retried automatically: fix the cause, then replace the order.
 - **Billing / insurance (IN1) is not sent.** Clinics pay the lab directly (client bill).
+
+---
+
+# Testing without a lab: the simulator
+
+`manage.py lab_simulator` is a pretend lab. It uses the real endpoints: it picks up the
+orders waiting for a connection, confirms them, sends results back, and checks every reply
+(PASS/FAIL per step; exit code 1 on any failure). It reads our order message the way a lab
+would, so an order message a lab could not read fails here first.
+
+```
+python manage.py lab_simulator --list
+python manage.py lab_simulator --seed <ORG_ID> --count 4                  # test patient "ZZTEST" + signed lab orders
+python manage.py lab_simulator --url https://<api-host> --key lab_xxx --scenarios all
+```
+
+Scenarios: normal, abnormal, critical, prelim_final, correction, cancel, duplicate,
+unknown_patient, dob_mismatch, name_mismatch, fhir, bad_key. One scenario is used per waiting
+order, cycling. Use a test or demo clinic only: it creates real reports and holds real
+"waiting for a patient" items. Prerequisites: add-on on, a connection with orders on
+(`lab_connection orders --id N --on`), and a doctor in the clinic (for `--seed`).
+
+After a run, look at the Lab Results inbox: you should see the abnormal and critical reports
+waiting for review, and the unknown-patient / DOB / name items under "Results waiting for a patient".
