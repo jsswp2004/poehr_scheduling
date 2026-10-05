@@ -58,6 +58,7 @@ class LabReportSerializer(serializers.ModelSerializer):
     events = LabReportEventSerializer(many=True, read_only=True)
     has_abnormal = serializers.SerializerMethodField()
     has_critical = serializers.SerializerMethodField()
+    has_file = serializers.SerializerMethodField()
 
     class Meta:
         model = LabReport
@@ -89,6 +90,10 @@ class LabReportSerializer(serializers.ModelSerializer):
             "reviewed_at",
             "review_comment",
             "error_reason",
+            "has_file",
+            "file_name",
+            "file_content_type",
+            "file_size",
             "created_at",
             "updated_at",
             "events",
@@ -115,6 +120,9 @@ class LabReportSerializer(serializers.ModelSerializer):
 
     def get_has_critical(self, obj):
         return lab_results.report_flags(obj)[1]
+
+    def get_has_file(self, obj):
+        return bool(obj.file_name)
 
 
 class LabItemInputSerializer(serializers.Serializer):

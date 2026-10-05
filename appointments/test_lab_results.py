@@ -412,3 +412,232 @@ class OrganizationSwitchTests(Base):
         self.assertEqual(response.status_code, 200, response.content)
         self.org.refresh_from_db()
         self.assertTrue(self.org.lab_interface_enabled)
+
+
+# ---------------------------------------------------------------------------
+# Scanned documents
+# ---------------------------------------------------------------------------
+
+from unittest import mock
+
+from django.core.files.uploadedfile import SimpleUploadedFile
+
+from .models import LabReportFileData
+
+UPLOAD = "/api/lab-reports/upload/"
+PDF = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"
+JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+
+
+def pdf(name="scan.pdf", content=PDF):
+    return SimpleUploadedFile(name, content, content_type="application/pdf")
+
+
+class FileTypeTests(SimpleTestCase):
+    def test_type_comes_from_the_bytes_not_the_name(self):
+        self.assertEqual(lr.sniff_content_type(PDF[:16]), "application/pdf")
+        self.assertEqual(lr.sniff_content_type(JPEG[:16]), "image/jpeg")
+        self.assertEqual(lr.sniff_content_type(PNG[:16]), "image/png")
+        self.assertIsNone(lr.sniff_content_type(b"MZ\x90\x00 not a pdf"))
+        self.assertIsNone(lr.sniff_content_type(b"<html><script>"))
+        self.assertIsNone(lr.sniff_content_type(b""))
+
+    def test_filenames_are_just_a_name(self):
+        self.assertEqual(lr.safe_filename("../../etc/passwd"), "passwd")
+        self.assertEqual(lr.safe_filename("C:\\scans\\bmp 1.pdf"), "bmp 1.pdf")
+        self.assertEqual(lr.safe_filename('a"b<c>.pdf'), "abc.pdf")
+        self.assertEqual(lr.safe_filename(""), "scan")
+        self.assertLessEqual(len(lr.safe_filename("x" * 500 + ".pdf")), 150)
+
+
+class UploadTests(Base):
+    def upload(self, user=None, file=None, **fields):
+        self.client.force_authenticate(user or self.registrar)
+        data = {"patient": self.patient.pk, **fields}
+        if file is not False:
+            data["file"] = file or pdf()
+        return self.client.post(UPLOAD, data, format="multipart")
+
+    def test_front_desk_can_upload_but_not_read_results_back(self):
+        response = self.upload(self.registrar, title="Quest BMP 10/1")
+        self.assertEqual(response.status_code, 201, response.content)
+        body = response.json()
+        self.assertEqual(body["title"], "Quest BMP 10/1")
+        self.assertNotIn("items", body)  # a confirmation only
+        report = LabReport.objects.get(pk=body["id"])
+        self.assertEqual((report.source, report.review_status, report.status), ("scan", "unreviewed", "final"))
+        self.assertEqual(report.entered_by, self.registrar)
+        self.assertEqual(report.file_content_type, "application/pdf")
+        self.assertEqual(report.file_size, len(PDF))
+        self.assertEqual(bytes(LabReportFileData.objects.get(report=report).data), PDF)
+        # ...and cannot list, open or download
+        self.assertEqual(self.client.get(URL).status_code, 403)
+        self.assertEqual(self.client.get(f"{URL}{report.pk}/file/").status_code, 403)
+
+    def test_receptionist_can_upload_too(self):
+        reception = make_user("rec", "receptionist", self.org)
+        self.assertEqual(self.upload(reception).status_code, 201)
+
+    def test_clinician_gets_the_full_report_back_and_it_waits_for_review(self):
+        body = self.upload(self.doctor).json()
+        self.assertEqual(body["source"], "scan")
+        self.assertEqual(body["review_status"], "unreviewed")
+        self.assertTrue(body["has_file"])
+        self.assertEqual(body["file_name"], "scan.pdf")
+        self.assertEqual(body["items"], [])
+        self.assertEqual([e["event_type"] for e in body["events"]], ["uploaded"])
+        self.assertNotIn("data", body)
+
+    def test_title_defaults_to_the_file_name(self):
+        self.assertEqual(self.upload(file=pdf("Quest results.pdf")).json()["title"], "Quest results")
+
+    def test_jpeg_and_png_are_accepted(self):
+        self.assertEqual(self.upload(file=SimpleUploadedFile("a.jpg", JPEG)).status_code, 201)
+        self.assertEqual(self.upload(file=SimpleUploadedFile("b.png", PNG)).status_code, 201)
+
+    def test_wrong_kinds_of_file_are_refused_whatever_they_are_called(self):
+        for name, content in (("evil.pdf", b"MZ\x90\x00 program"), ("page.pdf", b"<html><script>x</script>"), ("x.exe", b"MZ")):
+            response = self.upload(file=SimpleUploadedFile(name, content, content_type="application/pdf"))
+            self.assertEqual(response.status_code, 400, name)
+            self.assertIn("PDF, JPEG or PNG", response.json()["detail"])
+        self.assertEqual(self.upload(file=SimpleUploadedFile("empty.pdf", b"")).status_code, 400)
+        self.assertEqual(LabReport.objects.count(), 0)
+
+    def test_too_large_is_refused(self):
+        with mock.patch.object(lr, "MAX_FILE_BYTES", 10):
+            response = self.upload()
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("too large", response.json()["detail"])
+
+    def test_file_and_patient_are_required(self):
+        self.assertEqual(self.upload(file=False).status_code, 400)
+        self.client.force_authenticate(self.registrar)
+        self.assertEqual(self.client.post(UPLOAD, {"file": pdf()}, format="multipart").status_code, 400)
+
+    def test_cannot_upload_for_another_organizations_patient(self):
+        response = self.upload(patient=self.other_patient.pk)
+        self.assertEqual(response.status_code, 404)
+
+    def test_patients_and_anonymous_cannot_upload(self):
+        self.assertEqual(self.upload(self.patient).status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertIn(self.client.post(UPLOAD, {"patient": self.patient.pk, "file": pdf()}, format="multipart").status_code, (401, 403))
+
+    def test_same_file_twice_is_a_conflict_unless_allowed(self):
+        first = self.upload().json()
+        again = self.upload()
+        self.assertEqual(again.status_code, 409)
+        body = again.json()
+        self.assertEqual(body["errors"][0]["duplicate_of"], first["id"])
+        self.assertEqual(LabReport.objects.count(), 1)
+        allowed = self.upload(allow_duplicate="true")
+        self.assertEqual(allowed.status_code, 201)
+        self.assertEqual(LabReport.objects.count(), 2)
+
+    def test_same_file_for_a_different_patient_is_not_a_duplicate(self):
+        other = make_user("pat5", "patient", self.org)
+        self.upload()
+        self.assertEqual(self.upload(patient=other.pk).status_code, 201)
+
+    def test_a_file_marked_in_error_can_be_uploaded_again(self):
+        first = self.upload().json()
+        self.client.force_authenticate(self.doctor)
+        self.client.post(f"{URL}{first['id']}/mark-error/", {"reason": "Wrong patient"}, format="json")
+        self.assertEqual(self.upload().status_code, 201)
+
+    def test_can_link_to_an_order_and_record_the_lab(self):
+        appt = Appointment.objects.create(
+            organization=self.org, patient=self.patient, provider=self.doctor, title="V",
+            appointment_datetime=timezone.now() + timedelta(days=1),
+        )
+        order = ow.create_draft_order(self.doctor, appt, Orderable.objects.create(code="bmp", name="BMP", category="laboratory"))
+        body = self.upload(self.doctor, order=str(order.pk), performing_lab="Labcorp", collected_at="2026-10-01T09:30:00Z").json()
+        self.assertEqual((body["order"], body["performing_lab"]), (order.pk, "Labcorp"))
+        from datetime import datetime, timezone as dt_timezone
+
+        self.assertEqual(
+            datetime.fromisoformat(body["collected_at"].replace("Z", "+00:00")),
+            datetime(2026, 10, 1, 9, 30, tzinfo=dt_timezone.utc),
+        )
+
+    def test_bad_collected_date_is_a_clear_error(self):
+        self.assertEqual(self.upload(collected_at="yesterday-ish").status_code, 400)
+
+
+class FileViewingTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.registrar)
+        self.report_id = self.client.post(UPLOAD, {"patient": self.patient.pk, "file": pdf("a.pdf")}, format="multipart").json()["id"]
+
+    def test_clinician_downloads_the_exact_file_with_safe_headers(self):
+        self.client.force_authenticate(self.nurse)
+        response = self.client.get(f"{URL}{self.report_id}/file/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, PDF)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertEqual(response["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(response["Cache-Control"], "no-store")
+        self.assertIn("sandbox", response["Content-Security-Policy"])
+        self.assertIn('filename="a.pdf"', response["Content-Disposition"])
+
+    def test_every_opening_is_recorded_with_who_and_when(self):
+        self.client.force_authenticate(self.nurse)
+        self.client.get(f"{URL}{self.report_id}/file/")
+        self.client.force_authenticate(self.doctor)
+        self.client.get(f"{URL}{self.report_id}/file/")
+        events = self.client.get(f"{URL}{self.report_id}/").json()["events"]
+        opened = [e for e in events if e["event_type"] == "file_viewed"]
+        self.assertEqual([e["user"] for e in opened], [self.nurse.pk, self.doctor.pk])
+
+    def test_another_clinics_staff_cannot_download(self):
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(f"{URL}{self.report_id}/file/").status_code, 404)
+
+    def test_typed_report_has_no_file(self):
+        data = self.enter(self.doctor)
+        self.assertFalse(data["has_file"])
+        self.assertEqual(self.client.get(f"{URL}{data['id']}/file/").status_code, 404)
+
+    def test_listing_does_not_carry_the_file_bytes(self):
+        self.client.force_authenticate(self.doctor)
+        row = self.client.get(URL).json()[0]
+        self.assertTrue(row["has_file"])
+        self.assertNotIn("data", row)
+        self.assertLess(len(str(row)), 5000)
+
+
+class ScanReviewTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.registrar)
+        self.report_id = self.client.post(UPLOAD, {"patient": self.patient.pk, "file": pdf()}, format="multipart").json()["id"]
+
+    def test_a_scan_is_reviewed_like_any_result(self):
+        self.client.force_authenticate(self.nurse)
+        body = self.client.post(f"{URL}{self.report_id}/review/", {"comment": "Normal"}, format="json").json()
+        self.assertEqual((body["review_status"], body["reviewed_by"]), ("reviewed", self.nurse.pk))
+        listed = self.client.get(URL, {"review_status": "unreviewed", "source": "scan"}).json()
+        self.assertEqual(listed, [])
+
+    def test_typing_values_in_from_the_scan_is_not_a_correction_but_does_need_review_again(self):
+        self.client.force_authenticate(self.nurse)
+        self.client.post(f"{URL}{self.report_id}/review/", {}, format="json")
+        body = self.client.patch(
+            f"{URL}{self.report_id}/",
+            {"items": [{"test_name": "Potassium", "value": "5.4", "reference_range": "3.5-5.0"}]},
+            format="json",
+        ).json()
+        self.assertEqual(body["status"], "final")  # the first values are not a "correction"
+        self.assertEqual(body["review_status"], "unreviewed")
+        self.assertTrue(body["has_abnormal"])
+        self.assertTrue(body["has_file"])
+        # a later change to those typed values IS a correction
+        again = self.client.patch(f"{URL}{self.report_id}/", {"items": [{"test_name": "Potassium", "value": "4.0", "reference_range": "3.5-5.0"}]}, format="json").json()
+        self.assertEqual(again["status"], "corrected")
+
+    def test_editing_the_header_of_a_scan_without_values_works(self):
+        self.client.force_authenticate(self.nurse)
+        body = self.client.patch(f"{URL}{self.report_id}/", {"title": "Quest BMP", "performing_lab": "Quest Diagnostics"}, format="json").json()
+        self.assertEqual((body["title"], body["performing_lab"], body["items"]), ("Quest BMP", "Quest Diagnostics", []))

@@ -60,6 +60,8 @@ const errorText = (err, fallback) =>
 
 export const ENTER_ROLES = ["doctor", "nurse", "admin", "system_admin"];
 export const REVIEW_ROLES = ["doctor", "nurse", "system_admin"];
+export const UPLOAD_ROLES = ["doctor", "nurse", "admin", "registrar", "receptionist", "system_admin"];
+export const MAX_UPLOAD_MB = 10;
 
 // Shown with a symbol and a word as well as colour, so it reads without colour.
 export const FLAG_INFO = {
@@ -92,6 +94,8 @@ const EVENT_LABELS = {
   updated: "Changed",
   reviewed: "Reviewed",
   review_reset: "Review cleared (result changed)",
+  uploaded: "Scan uploaded",
+  file_viewed: "Document opened",
   entered_in_error: "Marked entered in error",
 };
 
@@ -174,9 +178,12 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
   const [dialog, setDialog] = useState(null); // { kind: "review" | "error" | "history", report }
   const [dialogText, setDialogText] = useState("");
   const [form, setForm] = useState(null); // entry/edit form, or null when closed
+  const [upload, setUpload] = useState(null); // scan upload form, or null when closed
+  const [duplicate, setDuplicate] = useState(null); // { title, uploaded_at } when the same file was already uploaded
 
   const canEnter = ENTER_ROLES.includes(me.role);
   const canReview = REVIEW_ROLES.includes(me.role);
+  const canUpload = UPLOAD_ROLES.includes(me.role);
 
   const labOrders = useMemo(
     () => orders.filter((o) => o.orderable_category === "laboratory" && o.status !== "draft" && o.status !== "discontinued"),
@@ -237,7 +244,8 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
       resulted_at: toLocalInput(report.resulted_at),
       status: report.status === "entered_in_error" ? "final" : report.status,
       comment: report.comment || "",
-      items: report.items.map((i) => ({
+      isScan: report.source === "scan",
+      items: report.items.length === 0 && report.source === "scan" ? [blankItem()] : report.items.map((i) => ({
         test_name: i.test_name,
         value: i.value,
         units: i.units || "",
@@ -265,7 +273,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
   const formProblem = () => {
     if (!form.title.trim()) return "Enter the panel or test name.";
     const lines = form.items.filter((it) => it.test_name.trim() || it.value.trim());
-    if (!lines.length) return "Add at least one result.";
+    if (!lines.length && !form.isScan) return "Add at least one result.";
     const bad = lines.find((it) => !it.test_name.trim() || !it.value.trim());
     if (bad) return "Each result needs a test name and a value.";
     return "";
@@ -297,6 +305,8 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
           loinc_code: it.loinc_code,
         })),
     };
+    // a scan can be saved without typed values; then leave its (empty) result lines alone
+    if (form.isScan && body.items.length === 0) delete body.items;
     setBusy(true);
     try {
       const headers = await authHeader();
@@ -342,11 +352,193 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
     }
   };
 
+  const openUpload = () => {
+    setDuplicate(null);
+    setUpload({ file: null, title: "", order: "", performing_lab: "", collected_at: "", comment: "" });
+  };
+
+  const submitUpload = async (allowDuplicate = false) => {
+    if (!upload.file) {
+      toast.error("Choose the scanned file first.");
+      return;
+    }
+    if (upload.file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      toast.error(`That file is too large. The limit is ${MAX_UPLOAD_MB} MB.`);
+      return;
+    }
+    const body = new FormData();
+    body.append("patient", patientId);
+    body.append("file", upload.file);
+    if (upload.title.trim()) body.append("title", upload.title.trim());
+    if (upload.order) body.append("order", upload.order);
+    if (upload.performing_lab.trim()) body.append("performing_lab", upload.performing_lab.trim());
+    const collected = fromLocalInput(upload.collected_at);
+    if (collected) body.append("collected_at", collected);
+    if (upload.comment.trim()) body.append("comment", upload.comment.trim());
+    if (allowDuplicate) body.append("allow_duplicate", "true");
+    setBusy(true);
+    try {
+      const headers = await authHeader();
+      await api.post(apiEndpoints.labReportUpload, body, { headers });
+      toast.success("Scan uploaded. A clinician will review it.");
+      setUpload(null);
+      setDuplicate(null);
+      if (!denied) await load();
+    } catch (err) {
+      const dupe = err?.response?.status === 409 && err?.response?.data?.errors?.[0]?.duplicate_of;
+      if (dupe) {
+        setDuplicate(err.response.data.errors[0]);
+      } else {
+        toast.error(errorText(err, "Could not upload the scan."));
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const viewDocument = async (report) => {
+    try {
+      const headers = await authHeader();
+      const res = await api.get(apiEndpoints.labReportFile(report.id), { headers, responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      load(); // the opening is recorded in the report's history
+    } catch (err) {
+      toast.error(errorText(err, "Could not open the document."));
+    }
+  };
+
   const visible = reports.filter((r) => !onlyUnreviewed || (r.review_status === "unreviewed" && r.status !== "entered_in_error"));
   const needsReview = reports.filter((r) => r.review_status === "unreviewed" && r.status !== "entered_in_error");
   const criticalWaiting = needsReview.filter((r) => r.has_critical);
 
-  if (denied) return null;
+  const uploadDialogs = (
+    <>
+      <Dialog open={!!upload} onClose={() => !busy && setUpload(null)} fullWidth maxWidth="sm">
+        {upload && (
+          <>
+            <DialogTitle>Upload a scanned lab result</DialogTitle>
+            <DialogContent>
+              <Stack spacing={2} sx={{ mt: 1 }}>
+                <Box>
+                  <Button component="label" variant="outlined" size="small">
+                    {upload.file ? "Choose a different file" : "Choose file"}
+                    <input
+                      hidden
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                      aria-label="Scanned file"
+                      onChange={(e) => {
+                        const file = e.target.files && e.target.files[0];
+                        if (file) setUpload((u) => ({ ...u, file, title: u.title || file.name.replace(/\.[^.]+$/, "") }));
+                        setDuplicate(null);
+                      }}
+                    />
+                  </Button>
+                  <Typography variant="body2" sx={{ mt: 0.5 }} color={upload.file ? "text.primary" : "text.secondary"}>
+                    {upload.file ? `${upload.file.name} (${Math.max(1, Math.round(upload.file.size / 1024))} KB)` : `PDF, JPEG or PNG, up to ${MAX_UPLOAD_MB} MB. Scan to one PDF when you can.`}
+                  </Typography>
+                </Box>
+                <TextField
+                  size="small"
+                  label="Title (optional)"
+                  value={upload.title}
+                  onChange={(e) => setUpload({ ...upload, title: e.target.value })}
+                />
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                  <Autocomplete
+                    freeSolo
+                    size="small"
+                    options={LAB_NAMES}
+                    inputValue={upload.performing_lab}
+                    onInputChange={(_e, text) => setUpload((u) => ({ ...u, performing_lab: text }))}
+                    sx={{ flex: 1 }}
+                    renderInput={(params) => <TextField {...params} label="Lab (optional)" />}
+                  />
+                  <TextField
+                    size="small"
+                    type="datetime-local"
+                    label="Collected (optional)"
+                    InputLabelProps={{ shrink: true }}
+                    value={upload.collected_at}
+                    onChange={(e) => setUpload({ ...upload, collected_at: e.target.value })}
+                    sx={{ flex: 1 }}
+                  />
+                </Stack>
+                {labOrders.length > 0 && (
+                  <TextField
+                    size="small"
+                    select
+                    label="For order (optional)"
+                    value={upload.order}
+                    onChange={(e) => setUpload({ ...upload, order: e.target.value })}
+                  >
+                    <MenuItem value="">Not linked to an order</MenuItem>
+                    {labOrders.map((o) => (
+                      <MenuItem key={o.id} value={o.id}>
+                        {o.orderable_name} ({o.placer_order_number})
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
+                <TextField
+                  size="small"
+                  multiline
+                  minRows={2}
+                  label="Note (optional)"
+                  value={upload.comment}
+                  onChange={(e) => setUpload({ ...upload, comment: e.target.value })}
+                />
+                {duplicate && (
+                  <Alert severity="warning">
+                    This exact file was already uploaded for this patient
+                    {duplicate.title ? ` as “${duplicate.title}”` : ""}
+                    {duplicate.uploaded_at ? ` on ${fmt(duplicate.uploaded_at)}` : ""}. Upload it again only if that is intended.
+                  </Alert>
+                )}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button disabled={busy} onClick={() => setUpload(null)}>
+                Cancel
+              </Button>
+              {duplicate ? (
+                <Button variant="contained" color="warning" disabled={busy} onClick={() => submitUpload(true)}>
+                  Upload anyway
+                </Button>
+              ) : (
+                <Button variant="contained" disabled={busy} onClick={() => submitUpload(false)}>
+                  Upload
+                </Button>
+              )}
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+    </>
+  );
+
+  if (denied) {
+    // No right to read results (e.g. front desk): offer only the scan upload.
+    if (!canUpload) return null;
+    return (
+      <Box sx={{ mt: 4 }} data-testid="lab-upload-only">
+        <Typography variant="h6">Lab results</Typography>
+        <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} justifyContent="space-between">
+            <Typography variant="body2" color="text.secondary">
+              Scan paper lab results here. A clinician will review them.
+            </Typography>
+            <Button variant="contained" size="small" onClick={openUpload}>
+              Upload scan
+            </Button>
+          </Stack>
+        </Paper>
+        {uploadDialogs}
+      </Box>
+    );
+  }
 
   const renderReport = (report) => {
     const inError = report.status === "entered_in_error";
@@ -368,6 +560,11 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
                   .filter(Boolean)
                   .join(" · ")}
               </Typography>
+              {report.has_file && (
+                <Typography variant="caption" color="text.secondary" display="block">
+                  File: {report.file_name} ({Math.max(1, Math.round(report.file_size / 1024))} KB)
+                </Typography>
+              )}
               {report.order_name && (
                 <Typography variant="caption" color="text.secondary" display="block">
                   For order: {report.order_name} ({report.placer_order_number})
@@ -376,6 +573,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
             </Box>
             <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap alignItems="flex-start">
               <Chip size="small" label={report.status_display} color={STATUS_COLORS[report.status]} />
+              {report.source === "scan" && <Chip size="small" variant="outlined" label="Scanned document" />}
               {report.has_critical && <Chip size="small" color="error" label="Critical value" />}
               {report.has_abnormal && !report.has_critical && <Chip size="small" color="warning" variant="outlined" label="Abnormal" />}
               {!inError &&
@@ -392,6 +590,12 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
             </Stack>
           </Stack>
 
+          {report.items.length === 0 && report.source === "scan" && (
+            <Typography variant="body2" color="text.secondary">
+              Scanned document. No values have been typed in yet{canEnter ? " — use Edit to enter them from the document." : "."}
+            </Typography>
+          )}
+          {report.items.length > 0 && (
           <TableContainer>
             <Table size="small">
               <TableHead>
@@ -425,6 +629,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
               </TableBody>
             </Table>
           </TableContainer>
+          )}
 
           {report.comment && <Typography variant="body2">{report.comment}</Typography>}
           {report.review_comment && (
@@ -439,6 +644,11 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
           )}
 
           <Stack direction="row" spacing={1} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+            {report.has_file && (
+              <Button size="small" variant="outlined" onClick={() => viewDocument(report)}>
+                View document
+              </Button>
+            )}
             <Button size="small" onClick={() => openDialog("history", report)}>
               History
             </Button>
@@ -475,6 +685,11 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
             control={<Switch size="small" checked={onlyUnreviewed} onChange={(e) => setOnlyUnreviewed(e.target.checked)} />}
             label="Needs review only"
           />
+          {canUpload && (
+            <Button variant="outlined" size="small" onClick={openUpload}>
+              Upload scan
+            </Button>
+          )}
           {canEnter && (
             <Button variant="contained" size="small" onClick={() => openNew()}>
               Enter results
@@ -760,6 +975,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
           </>
         )}
       </Dialog>
+      {uploadDialogs}
     </Box>
   );
 }

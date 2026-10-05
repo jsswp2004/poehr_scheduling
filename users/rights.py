@@ -45,6 +45,7 @@ RIGHTS = [
     ("lab_results.view", "View lab results", "Lab Results"),
     ("lab_results.enter", "Enter lab results by hand and mark a result entered in error", "Lab Results"),
     ("lab_results.review", "Review (acknowledge) lab results", "Lab Results"),
+    ("lab_results.upload", "Upload scanned lab documents", "Lab Results"),
 
     # Scheduling & Patients
     ("appointments.create_for_others", "Create appointments on behalf of other patients", "Scheduling & Patients"),
@@ -120,6 +121,10 @@ _LAB_REVIEW_RIGHTS = {
     "lab_results.review",
 }
 
+# Scanning: the front desk scans paper results in; clinicians can too. Uploading does not
+# let a user read results back (that is lab_results.view).
+_LAB_UPLOAD_RIGHTS = {"lab_results.upload"}
+
 _FRONT_OFFICE_RIGHTS = {
     "holidays.manage",
     "checkin.manage",
@@ -153,10 +158,10 @@ _ORG_ADMIN_RIGHTS = _FRONT_OFFICE_RIGHTS | {
 ROLE_DEFAULT_RIGHTS = {
     "patient": set(),
     "none": set(),
-    "doctor": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | _LAB_REVIEW_RIGHTS | {"orders.cosign", "analytics.view"},
-    "nurse": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | _LAB_REVIEW_RIGHTS | {"analytics.view"},
-    "receptionist": {"checkin.manage", "messages.send"},
-    "registrar": _FRONT_OFFICE_RIGHTS | {"analytics.view"},
+    "doctor": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | _LAB_REVIEW_RIGHTS | _LAB_UPLOAD_RIGHTS | {"orders.cosign", "analytics.view"},
+    "nurse": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | _LAB_REVIEW_RIGHTS | _LAB_UPLOAD_RIGHTS | {"analytics.view"},
+    "receptionist": {"checkin.manage", "messages.send"} | _LAB_UPLOAD_RIGHTS,
+    "registrar": _FRONT_OFFICE_RIGHTS | _LAB_UPLOAD_RIGHTS | {"analytics.view"},
     # Admins manage note/flowsheet template structure in addition to the
     # clinical-staff and org-admin rights -- matches the original
     # IsNoteTemplateAdmin/IsFlowsheetTemplateAdmin ALLOWED_ROLES ("admin",
@@ -171,6 +176,7 @@ ROLE_DEFAULT_RIGHTS = {
         "orders.manage_catalog",
         "lab_results.view",
         "lab_results.enter",
+        "lab_results.upload",
     },
     "system_admin": _ALL_RIGHTS,
 }

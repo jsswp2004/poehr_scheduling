@@ -113,6 +113,8 @@ export const apiEndpoints = {
     labReports: `${API_BASE_URL}/api/lab-reports/`,
     labReport: (id) => `${API_BASE_URL}/api/lab-reports/${id}/`,
     labReportAction: (id, action) => `${API_BASE_URL}/api/lab-reports/${id}/${action}/`,
+    labReportUpload: `${API_BASE_URL}/api/lab-reports/upload/`,
+    labReportFile: (id) => `${API_BASE_URL}/api/lab-reports/${id}/file/`,
 
     // Order Builder (admin)
     orderablesAdmin: `${API_BASE_URL}/api/admin/orderables/`,
