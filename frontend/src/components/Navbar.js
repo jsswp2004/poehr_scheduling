@@ -22,6 +22,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import GroupsIcon from "@mui/icons-material/Groups";
+import ScienceIcon from "@mui/icons-material/Science";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
@@ -76,6 +77,14 @@ const MODULE_LINKS = [
     Icon: GroupsIcon,
     roles: STAFF_MODULE_ROLES,
     isActive: (path) => path.startsWith("/staffing"),
+  },
+  {
+    key: "lab-inbox",
+    label: "Lab Results",
+    to: "/lab-inbox",
+    Icon: ScienceIcon,
+    roles: ["doctor", "nurse", "system_admin"], // the roles that review results
+    isActive: (path) => path.startsWith("/lab-inbox"),
   },
 ];
 

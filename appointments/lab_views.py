@@ -27,6 +27,7 @@ class CanAccessLabResults(permissions.BasePermission):
         "partial_update": "lab_results.enter",
         "mark_error": "lab_results.enter",
         "review": "lab_results.review",
+        "inbox": "lab_results.review",
         "upload": "lab_results.upload",
         "file": "lab_results.view",
     }
@@ -115,6 +116,38 @@ class LabReportViewSet(viewsets.ModelViewSet):
             self.get_object(), request.user, request.data.get("reason", "")
         )
         return Response(self.get_serializer(self._reload(report)).data)
+
+    INBOX_LIMIT = 200
+
+    @action(detail=False, methods=["get"])
+    def inbox(self, request):
+        """
+        Everything waiting for review across the organization, most urgent first:
+        critical values, then other abnormal results, then the oldest. Any user with
+        the review right sees all of it (the ordering provider, a covering provider
+        or a nurse); ?mine=1 narrows it to results for orders this user placed.
+        """
+        qs = self.get_queryset().filter(review_status="unreviewed").exclude(status="entered_in_error")
+        if request.query_params.get("mine") in ("1", "true", "True"):
+            qs = qs.filter(order__ordering_provider=request.user)
+        reports = list(qs)
+
+        def urgency(report):
+            has_abnormal, has_critical = lab_results.report_flags(report)
+            when = report.resulted_at or report.created_at
+            return (not has_critical, not has_abnormal, when)
+
+        reports.sort(key=urgency)
+        critical = sum(1 for r in reports if lab_results.report_flags(r)[1])
+        shown = reports[: self.INBOX_LIMIT]
+        return Response(
+            {
+                "count": len(reports),
+                "critical": critical,
+                "truncated": len(reports) > len(shown),
+                "results": self.get_serializer(shown, many=True).data,
+            }
+        )
 
     @action(detail=False, methods=["post"], parser_classes=[MultiPartParser, FormParser])
     def upload(self, request):

@@ -641,3 +641,68 @@ class ScanReviewTests(Base):
         self.client.force_authenticate(self.nurse)
         body = self.client.patch(f"{URL}{self.report_id}/", {"title": "Quest BMP", "performing_lab": "Quest Diagnostics"}, format="json").json()
         self.assertEqual((body["title"], body["performing_lab"], body["items"]), ("Quest BMP", "Quest Diagnostics", []))
+
+
+class InboxTests(Base):
+    INBOX = "/api/lab-reports/inbox/"
+
+    def make(self, title, *, items=None, user=None, resulted_at=None, **extra):
+        data = self.enter(user or self.doctor, title=title, items=items or [{"test_name": "Na", "value": "140", "reference_range": "135-145"}], **extra)
+        if resulted_at:
+            LabReport.objects.filter(pk=data["id"]).update(resulted_at=resulted_at)
+        return data["id"]
+
+    def test_most_urgent_first_critical_then_abnormal_then_oldest(self):
+        now = timezone.now()
+        old_normal = self.make("old normal", resulted_at=now - timedelta(days=3))
+        new_normal = self.make("new normal", resulted_at=now - timedelta(days=1))
+        abnormal = self.make("abnormal", items=[{"test_name": "K", "value": "5.4", "reference_range": "3.5-5.0"}], resulted_at=now - timedelta(days=2))
+        critical = self.make("critical", items=[{"test_name": "K", "value": "7", "abnormal_flag": "HH"}], resulted_at=now - timedelta(hours=1))
+        self.client.force_authenticate(self.nurse)
+        body = self.client.get(self.INBOX).json()
+        self.assertEqual([r["id"] for r in body["results"]], [critical, abnormal, old_normal, new_normal])
+        self.assertEqual((body["count"], body["critical"], body["truncated"]), (4, 1, False))
+
+    def test_reviewed_and_in_error_reports_leave_the_inbox(self):
+        a, b, c = self.make("a"), self.make("b"), self.make("c")
+        self.client.force_authenticate(self.doctor)
+        self.client.post(f"{URL}{a}/review/", {}, format="json")
+        self.client.post(f"{URL}{b}/mark-error/", {"reason": "wrong"}, format="json")
+        self.assertEqual([r["id"] for r in self.client.get(self.INBOX).json()["results"]], [c])
+
+    def test_any_reviewer_sees_everything_and_mine_narrows_to_my_orders(self):
+        appt = Appointment.objects.create(
+            organization=self.org, patient=self.patient, provider=self.doctor, title="V",
+            appointment_datetime=timezone.now() + timedelta(days=1),
+        )
+        cbc = Orderable.objects.create(code="bmp", name="BMP", category="laboratory")
+        mine = ow.create_draft_order(self.doctor, appt, cbc)
+        theirs = ow.create_draft_order(self.doctor2, appt, cbc)
+        linked = self.make("for doc", order=mine.pk)
+        other = self.make("for doc2", order=theirs.pk)
+        loose = self.make("no order")
+        self.client.force_authenticate(self.doctor)
+        everything = {r["id"] for r in self.client.get(self.INBOX).json()["results"]}
+        self.assertEqual(everything, {linked, other, loose})
+        only_mine = [r["id"] for r in self.client.get(self.INBOX, {"mine": "1"}).json()["results"]]
+        self.assertEqual(only_mine, [linked])
+        # a covering provider and a nurse see the same full list
+        for covering in (self.doctor2, self.nurse):
+            self.client.force_authenticate(covering)
+            self.assertEqual({r["id"] for r in self.client.get(self.INBOX).json()["results"]}, everything)
+
+    def test_only_reviewers_in_their_own_organization(self):
+        self.make("x")
+        for user in (self.admin, self.registrar, self.patient):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.client.get(self.INBOX).status_code, 403, user.role)
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(self.INBOX).json()["count"], 0)
+
+    def test_long_inboxes_are_capped_but_counted(self):
+        for i in range(3):
+            self.make(f"r{i}")
+        self.client.force_authenticate(self.doctor)
+        with mock.patch("appointments.lab_views.LabReportViewSet.INBOX_LIMIT", 2):
+            body = self.client.get(self.INBOX).json()
+        self.assertEqual((body["count"], len(body["results"]), body["truncated"]), (3, 2, True))

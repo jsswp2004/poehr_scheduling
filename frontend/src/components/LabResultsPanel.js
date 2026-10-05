@@ -43,7 +43,7 @@ import { toast } from "./SimpleToast";
  * screen shows the right buttons and relays the server's messages.
  */
 
-const authHeader = async () => {
+export const authHeader = async () => {
   const token = await getValidToken();
   if (!token) return {};
   return { Authorization: `Bearer ${token.access_token || token}` };
@@ -51,7 +51,7 @@ const authHeader = async () => {
 
 const listOf = (res) => (Array.isArray(res.data) ? res.data : res.data?.results || []);
 
-const errorText = (err, fallback) =>
+export const errorText = (err, fallback) =>
   err?.response?.data?.detail ||
   (err?.response?.data && typeof err.response.data === "object"
     ? Object.values(err.response.data).flat().join(" ")
@@ -155,7 +155,7 @@ export const fromLocalInput = (value) => {
   return Number.isNaN(d.getTime()) ? null : d.toISOString();
 };
 
-const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : "");
+export const fmt = (iso) => (iso ? new Date(iso).toLocaleString() : "");
 
 function FlagCell({ flag }) {
   const info = FLAG_INFO[flag];
@@ -167,6 +167,54 @@ function FlagCell({ flag }) {
       </Typography>
     </Tooltip>
   );
+}
+
+/** The result lines of a report, abnormal values called out. Shared with the results inbox. */
+export function ReportItemsTable({ items }) {
+  return (
+      <TableContainer>
+        <Table size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell>Test</TableCell>
+              <TableCell>Result</TableCell>
+              <TableCell>Flag</TableCell>
+              <TableCell>Units</TableCell>
+              <TableCell>Reference range</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {items.map((item) => {
+              const info = FLAG_INFO[item.abnormal_flag];
+              return (
+                <TableRow
+                  key={item.id}
+                  data-testid={`lab-item-${item.id}`}
+                  sx={info ? { bgcolor: info.critical ? "rgba(211,47,47,0.14)" : "rgba(237,108,2,0.08)" } : undefined}
+                >
+                  <TableCell>{item.test_name}</TableCell>
+                  <TableCell sx={info ? { color: info.color, fontWeight: 700 } : undefined}>{item.value}</TableCell>
+                  <TableCell>
+                    <FlagCell flag={item.abnormal_flag} />
+                  </TableCell>
+                  <TableCell>{item.units}</TableCell>
+                  <TableCell>{item.reference_range}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+  );
+}
+
+/** Open a report's scanned document in a new tab (the opening is recorded by the server). */
+export async function openReportDocument(report) {
+  const headers = await authHeader();
+  const res = await api.get(apiEndpoints.labReportFile(report.id), { headers, responseType: "blob" });
+  const url = URL.createObjectURL(res.data);
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null }) {
@@ -398,11 +446,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
 
   const viewDocument = async (report) => {
     try {
-      const headers = await authHeader();
-      const res = await api.get(apiEndpoints.labReportFile(report.id), { headers, responseType: "blob" });
-      const url = URL.createObjectURL(res.data);
-      window.open(url, "_blank", "noopener");
-      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      await openReportDocument(report);
       load(); // the opening is recorded in the report's history
     } catch (err) {
       toast.error(errorText(err, "Could not open the document."));
@@ -595,41 +639,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
               Scanned document. No values have been typed in yet{canEnter ? " — use Edit to enter them from the document." : "."}
             </Typography>
           )}
-          {report.items.length > 0 && (
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Test</TableCell>
-                  <TableCell>Result</TableCell>
-                  <TableCell>Flag</TableCell>
-                  <TableCell>Units</TableCell>
-                  <TableCell>Reference range</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {report.items.map((item) => {
-                  const info = FLAG_INFO[item.abnormal_flag];
-                  return (
-                    <TableRow
-                      key={item.id}
-                      data-testid={`lab-item-${item.id}`}
-                      sx={info ? { bgcolor: info.critical ? "rgba(211,47,47,0.14)" : "rgba(237,108,2,0.08)" } : undefined}
-                    >
-                      <TableCell>{item.test_name}</TableCell>
-                      <TableCell sx={info ? { color: info.color, fontWeight: 700 } : undefined}>{item.value}</TableCell>
-                      <TableCell>
-                        <FlagCell flag={item.abnormal_flag} />
-                      </TableCell>
-                      <TableCell>{item.units}</TableCell>
-                      <TableCell>{item.reference_range}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          )}
+          {report.items.length > 0 && <ReportItemsTable items={report.items} />}
 
           {report.comment && <Typography variant="body2">{report.comment}</Typography>}
           {report.review_comment && (
