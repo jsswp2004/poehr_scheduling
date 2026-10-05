@@ -1232,6 +1232,15 @@ class LabReport(models.Model):
     file_size = models.PositiveIntegerField(default=0)
     file_sha256 = models.CharField(max_length=64, blank=True, db_index=True)
 
+    # Set when the report arrived through a lab interface (see LabInboundMessage).
+    inbound_message = models.ForeignKey(
+        "appointments.LabInboundMessage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="reports",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1303,3 +1312,61 @@ class LabReportFileData(models.Model):
 
     report = models.OneToOneField(LabReport, on_delete=models.CASCADE, related_name="file_data")
     data = models.BinaryField()
+
+
+class LabInterfaceConnection(models.Model):
+    """
+    One lab's electronic feed into one organization (e.g. Quest -> Clinic A). The
+    interface engine proves who it is with a secret key sent in the X-Interface-Key
+    header; only a hash of the key is stored. Created from the command line
+    (manage.py lab_connection), because it is part of setting up a paid add-on.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="lab_connections")
+    name = models.CharField(max_length=100, help_text="Label for staff, e.g. Quest HL7 feed")
+    lab_name = models.CharField(max_length=120, blank=True, help_text="Shown on results, e.g. Quest Diagnostics")
+    key_hash = models.CharField(max_length=64, unique=True)
+    key_prefix = models.CharField(max_length=12, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.organization})"
+
+
+class LabInboundMessage(models.Model):
+    """
+    Every message a lab sent us, kept as received. This is the audit trail, the
+    guard against processing the same message twice (control id), and the queue
+    of results that could not be matched to a patient and need a person.
+    """
+
+    FORMAT_CHOICES = [("hl7", "HL7 v2"), ("fhir", "FHIR")]
+    STATUS_CHOICES = [
+        ("processed", "Filed"),
+        ("unmatched", "Needs a patient"),
+        ("assigned", "Assigned by staff"),
+        ("dismissed", "Dismissed by staff"),
+        ("rejected", "Rejected"),
+        ("ignored", "Nothing to file"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="lab_inbound_messages")
+    connection = models.ForeignKey(LabInterfaceConnection, on_delete=models.CASCADE, related_name="messages")
+    message_format = models.CharField(max_length=4, choices=FORMAT_CHOICES)
+    control_id = models.CharField(max_length=100)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    detail = models.TextField(blank=True, help_text="Why it was not filed, or what was done")
+    patient_hint = models.CharField(max_length=255, blank=True, help_text="Name / DOB / MRN as the lab sent them")
+    raw = models.TextField()
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="lab_messages_resolved"
+    )
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-received_at", "-id"]
+        unique_together = [("connection", "control_id")]
+        indexes = [models.Index(fields=["organization", "status"])]

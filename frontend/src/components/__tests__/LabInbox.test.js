@@ -7,6 +7,8 @@ jest.mock(
   () => ({
     apiEndpoints: {
       labReportsInbox: "/inbox",
+      labMessages: "/msgs",
+      labMessageAction: (id, action) => `/msgs/${id}/${action}`,
       labReportAction: (id, action) => `/lr/${id}/${action}`,
       labReportFile: (id) => `/lr/${id}/file`,
     },
@@ -131,4 +133,65 @@ test("when the list was cut off it says how many are shown", async () => {
   api.get.mockResolvedValue(inbox([row(1), row(2)], { count: 250, truncated: true }));
   renderInbox();
   expect(await screen.findByText(/Showing the 2 most urgent of 250/)).toBeInTheDocument();
+});
+
+const waitingMsg = (id, over = {}) => ({
+  id, patient_hint: "SMYTH, JANE | DOB 1980-01-15 | ID NOPE", lab: "Quest Diagnostics",
+  detail: "No matching order number or MRN.", received_at: "2026-10-01T15:00:00Z", ...over,
+});
+const withWaiting = (messages, results = []) =>
+  api.get.mockImplementation(async (url) =>
+    url === "/msgs" ? { data: { count: messages.length, results: messages } } : inbox(results, { unmatched: messages.length }));
+
+test("results waiting for a patient are listed with why they could not be matched", async () => {
+  withWaiting([waitingMsg(7)]);
+  renderInbox();
+  const box = await screen.findByTestId("unmatched-7");
+  expect(within(box).getByText(/SMYTH, JANE/)).toBeInTheDocument();
+  expect(within(box).getByText("No matching order number or MRN.")).toBeInTheDocument();
+  expect(screen.getByText("Results waiting for a patient (1)")).toBeInTheDocument();
+});
+
+test("no waiting section when nothing is unmatched, and messages are not even requested", async () => {
+  api.get.mockResolvedValue(inbox([row(1)], { unmatched: 0 }));
+  renderInbox();
+  await screen.findByText(/Basic metabolic panel/);
+  expect(screen.queryByTestId("lab-unmatched")).toBeNull();
+  expect(api.get.mock.calls.every(([url]) => url === "/inbox")).toBe(true);
+});
+
+test("assigning by MRN posts it and reloads; the button waits for an MRN", async () => {
+  withWaiting([waitingMsg(7)]);
+  api.post.mockResolvedValue({ data: {} });
+  renderInbox();
+  fireEvent.click(await screen.findByRole("button", { name: "Assign to patient" }));
+  const file = screen.getByRole("button", { name: "File to chart" });
+  expect(file).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Patient MRN"), { target: { value: " MRN-000042 " } });
+  fireEvent.click(file);
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/msgs/7/assign", { mrn: "MRN-000042" }, expect.anything()));
+  await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Filed to the patient's chart."));
+});
+
+test("dismissing needs a reason and sends it", async () => {
+  withWaiting([waitingMsg(8)]);
+  api.post.mockResolvedValue({ data: {} });
+  renderInbox();
+  fireEvent.click(await screen.findByRole("button", { name: "Dismiss" }));
+  const go = screen.getAllByRole("button", { name: "Dismiss" }).pop();
+  expect(go).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Why is it being dismissed?"), { target: { value: "Not our patient" } });
+  fireEvent.click(go);
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/msgs/8/dismiss", { reason: "Not our patient" }, expect.anything()));
+});
+
+test("a server refusal on assign is shown and the dialog stays open", async () => {
+  withWaiting([waitingMsg(9)]);
+  api.post.mockRejectedValue({ response: { status: 404, data: { detail: "No patient in this organization has that MRN." } } });
+  renderInbox();
+  fireEvent.click(await screen.findByRole("button", { name: "Assign to patient" }));
+  fireEvent.change(screen.getByLabelText("Patient MRN"), { target: { value: "MRN-1" } });
+  fireEvent.click(screen.getByRole("button", { name: "File to chart" }));
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No patient in this organization has that MRN."));
+  expect(screen.getByLabelText("Patient MRN")).toBeInTheDocument();
 });

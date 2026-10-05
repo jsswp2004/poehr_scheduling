@@ -140,8 +140,14 @@ class LabReportViewSet(viewsets.ModelViewSet):
         reports.sort(key=urgency)
         critical = sum(1 for r in reports if lab_results.report_flags(r)[1])
         shown = reports[: self.INBOX_LIMIT]
+        from .models import LabInboundMessage
+
+        unmatched = LabInboundMessage.objects.filter(status="unmatched")
+        if getattr(request.user, "role", None) != "system_admin":
+            unmatched = unmatched.filter(organization=request.user.organization)
         return Response(
             {
+                "unmatched": unmatched.count() if user_has_right(request.user, "lab_results.enter") else 0,
                 "count": len(reports),
                 "critical": critical,
                 "truncated": len(reports) > len(shown),

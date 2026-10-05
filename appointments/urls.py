@@ -37,6 +37,7 @@ from .views import (
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
 from .lab_views import LabReportViewSet
+from .lab_interface_views import LabInboundMessageViewSet, fhir_intake, hl7_intake
 
 # Debug import
 from django.http import JsonResponse
@@ -188,11 +189,15 @@ router.register(r"admin/dictionaries", DictionaryAdminViewSet, basename="diction
 router.register(r"orders", OrderViewSet, basename="order")
 router.register(r"orderables", OrderableViewSet, basename="orderable")
 router.register(r"lab-reports", LabReportViewSet, basename="labreport")
+router.register(r"lab-messages", LabInboundMessageViewSet, basename="labmessage")
 router.register(r"order-sets", OrderSetViewSet, basename="orderset")
 router.register(r"admin/orderables", OrderableAdminViewSet, basename="orderableadmin")
 router.register(r"admin/order-sets", OrderSetAdminViewSet, basename="ordersetadmin")
 
 urlpatterns = router.urls + [
+    # lab interface engines post results here (key-authenticated, no login)
+    path("lab-interface/hl7/", hl7_intake, name="lab-interface-hl7"),
+    path("lab-interface/fhir/", fhir_intake, name="lab-interface-fhir"),
     # ICD-10-CM code search for the order diagnosis picker (proxies NLM's free service)
     path("icd10/search/", Icd10SearchView.as_view(), name="icd10-search"),
     # ⬇️ custom endpoint for doctor availability
