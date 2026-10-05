@@ -16,6 +16,7 @@ import PatientsPage from './pages/PatientsPage';
 import PatientDetailPage from './pages/PatientDetailPage';
 import ClinicalNotesPage from './pages/ClinicalNotesPage';
 import OrdersPage from './pages/OrdersPage';
+import LabInboxPage from './pages/LabInboxPage';
 import OrderBuilderPage from './pages/OrderBuilderPage';
 import VitalSignsFlowsheetPage from './pages/VitalSignsFlowsheetPage';
 import AdminPage from './pages/AdminPage';
@@ -203,6 +204,7 @@ function AppContent() {
         <Route path="/patients/:id/notes" element={<PrivateRoute><ClinicalNotesPage /></PrivateRoute>} />
         <Route path="/patients/:id/flowsheet" element={<PrivateRoute><VitalSignsFlowsheetPage /></PrivateRoute>} />
         <Route path="/patients/:id/orders" element={<PrivateRoute><OrdersPage /></PrivateRoute>} />
+        <Route path="/lab-inbox" element={<PrivateRoute><LabInboxPage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><AccountPage /></PrivateRoute>} />
         <Route path="/profile" element={<ProfilePage />} />
