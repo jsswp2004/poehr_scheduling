@@ -37,6 +37,7 @@ import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
 import DynamicNoteForm from "./DynamicNoteForm";
+import IcdCodePicker, { dxLabel } from "./IcdCodePicker";
 
 const authHeader = async () => {
   const token = await getValidToken();
@@ -86,13 +87,8 @@ const TABS = [
   { key: "all", label: "All", match: () => true },
 ];
 
-const dxToText = (codes) => (codes || []).map((d) => d.code).join(", ");
-const textToDx = (text) =>
-  text
-    .split(/[,;\s]+/)
-    .map((c) => c.trim())
-    .filter(Boolean)
-    .map((code) => ({ code }));
+// "E11.9 - Type 2 diabetes mellitus without complications; I10 - ..." (description when we have one)
+const dxToText = (codes) => (codes || []).map(dxLabel).join("; ");
 
 /**
  * Orders for a single patient: place from the catalog or an order set, edit
@@ -246,7 +242,7 @@ function OrdersPanel({ patientId }) {
     edits[order.id] || {
       priority: order.priority,
       indication: order.indication || "",
-      dx: dxToText(order.diagnosis_codes),
+      dx: order.diagnosis_codes || [],
       detail: order.detail || {},
     };
 
@@ -260,7 +256,7 @@ function OrdersPanel({ patientId }) {
       {
         priority: v.priority,
         indication: v.indication,
-        diagnosis_codes: textToDx(v.dx),
+        diagnosis_codes: v.dx,
         detail: v.detail,
       },
       { headers }
@@ -428,13 +424,11 @@ function OrdersPanel({ patientId }) {
               onChange={(e) => setDraftField(order, { indication: e.target.value })}
               fullWidth
             />
-            <TextField
-              size="small"
-              label="Diagnosis codes (ICD-10)"
-              placeholder="E11.9, I10"
+            <IcdCodePicker
               value={v.dx}
-              onChange={(e) => setDraftField(order, { dx: e.target.value })}
-              sx={{ minWidth: 220 }}
+              onChange={(dx) => setDraftField(order, { dx })}
+              disabled={busy}
+              sx={{ minWidth: 280, flexShrink: 0 }}
             />
           </Stack>
 

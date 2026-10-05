@@ -35,6 +35,7 @@ from .views import (
     OrderSetAdminViewSet,
 )  # ⬅️ import the new SMS view and check-in views
 from .analytics_views import AnalyticsReportView, ExportReportView
+from .icd10 import Icd10SearchView
 
 # Debug import
 from django.http import JsonResponse
@@ -190,6 +191,8 @@ router.register(r"admin/orderables", OrderableAdminViewSet, basename="orderablea
 router.register(r"admin/order-sets", OrderSetAdminViewSet, basename="ordersetadmin")
 
 urlpatterns = router.urls + [
+    # ICD-10-CM code search for the order diagnosis picker (proxies NLM's free service)
+    path("icd10/search/", Icd10SearchView.as_view(), name="icd10-search"),
     # ⬇️ custom endpoint for doctor availability
     path(
         "doctors/<int:doctor_id>/available-dates/",
