@@ -39,6 +39,10 @@ function LabInbox() {
   const [open, setOpen] = useState(null); // report being looked at
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState([]); // lab messages that could not be matched to a patient
+  const [resolve, setResolve] = useState(null); // { message, mode: "assign" | "dismiss" }
+  const [mrn, setMrn] = useState("");
+  const [reason, setReason] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -47,6 +51,16 @@ function LabInbox() {
       const res = await api.get(apiEndpoints.labReportsInbox, { headers, params: mine ? { mine: 1 } : {} });
       setData(res.data);
       setDenied(false);
+      if (res.data.unmatched > 0) {
+        try {
+          const list = await api.get(apiEndpoints.labMessages, { headers });
+          setWaiting(list.data.results || []);
+        } catch (err) {
+          toast.error(errorText(err, "Could not load results waiting for a patient."));
+        }
+      } else {
+        setWaiting([]);
+      }
     } catch (err) {
       if (err?.response?.status === 403) {
         setDenied(true);
@@ -74,6 +88,29 @@ function LabInbox() {
       await api.post(apiEndpoints.labReportAction(open.id, "review"), { comment: note }, { headers });
       toast.success("Marked as reviewed.");
       setOpen(null);
+      await load();
+    } catch (err) {
+      toast.error(errorText(err, "That did not go through."));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startResolve = (message, mode) => {
+    setMrn("");
+    setReason("");
+    setResolve({ message, mode });
+  };
+
+  const submitResolve = async () => {
+    const { message, mode } = resolve;
+    setBusy(true);
+    try {
+      const headers = await authHeader();
+      const body = mode === "assign" ? { mrn: mrn.trim() } : { reason: reason.trim() };
+      await api.post(apiEndpoints.labMessageAction(message.id, mode), body, { headers });
+      toast.success(mode === "assign" ? "Filed to the patient's chart." : "Dismissed.");
+      setResolve(null);
       await load();
     } catch (err) {
       toast.error(errorText(err, "That did not go through."));
@@ -111,6 +148,43 @@ function LabInbox() {
           </Button>
         </Stack>
       </Stack>
+
+      {waiting.length > 0 && (
+        <Paper variant="outlined" data-testid="lab-unmatched" sx={{ p: 1.5, mb: 2, borderColor: "warning.main", borderWidth: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 0.5 }}>
+            Results waiting for a patient ({waiting.length})
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            These arrived from the lab but could not be matched safely to one patient, so they are not in any chart yet. Check the name and
+            date of birth, then file each to the right patient by MRN, or dismiss it.
+          </Typography>
+          <Stack spacing={1}>
+            {waiting.map((m) => (
+              <Paper key={m.id} variant="outlined" data-testid={`unmatched-${m.id}`} sx={{ p: 1 }}>
+                <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+                  <Box>
+                    <Typography variant="subtitle2">{m.patient_hint || "No patient details"}</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      {[m.lab, `Received ${fmt(m.received_at)}`].filter(Boolean).join(" · ")}
+                    </Typography>
+                    <Typography variant="caption" color="warning.dark" display="block">
+                      {m.detail}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={0.5}>
+                    <Button size="small" variant="contained" onClick={() => startResolve(m, "assign")}>
+                      Assign to patient
+                    </Button>
+                    <Button size="small" onClick={() => startResolve(m, "dismiss")}>
+                      Dismiss
+                    </Button>
+                  </Stack>
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        </Paper>
+      )}
 
       {data.critical > 0 && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -172,6 +246,53 @@ function LabInbox() {
           ))}
         </Stack>
       )}
+
+      <Dialog open={!!resolve} onClose={() => !busy && setResolve(null)} fullWidth maxWidth="xs">
+        {resolve && (
+          <>
+            <DialogTitle>{resolve.mode === "assign" ? "Assign to a patient" : "Dismiss this result"}</DialogTitle>
+            <DialogContent>
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <Typography variant="body2">
+                  The lab sent: <strong>{resolve.message.patient_hint || "no patient details"}</strong>
+                </Typography>
+                {resolve.mode === "assign" ? (
+                  <TextField
+                    autoFocus
+                    size="small"
+                    label="Patient MRN"
+                    value={mrn}
+                    onChange={(e) => setMrn(e.target.value)}
+                    helperText="Confirm the name and date of birth on the chart match before filing."
+                  />
+                ) : (
+                  <TextField
+                    autoFocus
+                    size="small"
+                    multiline
+                    minRows={2}
+                    label="Why is it being dismissed?"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                  />
+                )}
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button disabled={busy} onClick={() => setResolve(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                disabled={busy || (resolve.mode === "assign" ? !mrn.trim() : !reason.trim())}
+                onClick={submitResolve}
+              >
+                {resolve.mode === "assign" ? "File to chart" : "Dismiss"}
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
 
       <Dialog open={!!open} onClose={() => !busy && setOpen(null)} fullWidth maxWidth="md">
         {open && (
