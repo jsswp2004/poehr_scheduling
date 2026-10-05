@@ -1153,3 +1153,138 @@ class OrderEvent(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
+
+
+# ---------------------------------------------------------------------------
+# Lab results
+# ---------------------------------------------------------------------------
+
+
+class LabReport(models.Model):
+    """
+    One lab result report for a patient: a panel or a single test, with one
+    or more result lines (LabResultItem). A report is entered by hand today;
+    the same shape is what a Quest/Labcorp interface (HL7 ORU or FHIR
+    DiagnosticReport) fills in later, which is why it can exist without an
+    order and why `source` records where it came from.
+
+    Reports are never deleted: a wrong one is marked "entered in error", and
+    changing a reviewed report puts it back in the unreviewed pile.
+    """
+
+    SOURCE_CHOICES = [
+        ("manual", "Entered by hand"),
+        ("scan", "Scanned document"),
+        ("interface", "Lab interface"),
+    ]
+    STATUS_CHOICES = [
+        ("preliminary", "Preliminary"),
+        ("final", "Final"),
+        ("corrected", "Corrected"),
+        ("entered_in_error", "Entered in error"),
+    ]
+    REVIEW_CHOICES = [
+        ("unreviewed", "Not yet reviewed"),
+        ("reviewed", "Reviewed"),
+    ]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="lab_reports", null=True, blank=True
+    )
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="lab_reports"
+    )
+    order = models.ForeignKey(
+        Order,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="lab_reports",
+        help_text="The order this answers, if known",
+    )
+    title = models.CharField(max_length=255, help_text="Panel or test name, e.g. Basic metabolic panel")
+    source = models.CharField(max_length=12, choices=SOURCE_CHOICES, default="manual")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="final")
+    performing_lab = models.CharField(max_length=120, blank=True)
+    accession_number = models.CharField(max_length=64, blank=True)
+    collected_at = models.DateTimeField(null=True, blank=True)
+    resulted_at = models.DateTimeField(null=True, blank=True)
+    comment = models.TextField(blank=True)
+
+    entered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="lab_reports_entered"
+    )
+
+    # Review: any clinical user with the review right may acknowledge a report.
+    review_status = models.CharField(max_length=12, choices=REVIEW_CHOICES, default="unreviewed")
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="lab_reports_reviewed"
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_comment = models.TextField(blank=True)
+
+    error_reason = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-resulted_at", "-created_at"]
+        indexes = [
+            models.Index(fields=["organization", "patient"]),
+            models.Index(fields=["organization", "review_status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.title} for {self.patient} ({self.status})"
+
+
+class LabResultItem(models.Model):
+    """One result line of a report (one analyte): value, units, reference range, flag."""
+
+    FLAG_CHOICES = [
+        ("", "Normal / not flagged"),
+        ("L", "Low"),
+        ("H", "High"),
+        ("LL", "Critical low"),
+        ("HH", "Critical high"),
+        ("A", "Abnormal"),
+    ]
+
+    report = models.ForeignKey(LabReport, on_delete=models.CASCADE, related_name="items")
+    sort_order = models.PositiveIntegerField(default=0)
+    test_name = models.CharField(max_length=255)
+    loinc_code = models.CharField(max_length=20, blank=True)
+    value = models.CharField(max_length=255, help_text="As reported, e.g. 5.4 or Negative")
+    value_numeric = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    units = models.CharField(max_length=50, blank=True)
+    reference_range = models.CharField(max_length=100, blank=True)
+    ref_low = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    ref_high = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
+    abnormal_flag = models.CharField(max_length=2, choices=FLAG_CHOICES, blank=True, default="")
+    comment = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["report", "sort_order", "id"]
+
+
+class LabReportEvent(models.Model):
+    """Append-only audit trail for a lab report: entered, changed, reviewed, marked in error."""
+
+    SOURCE_CHOICES = [
+        ("user", "User"),
+        ("interface", "Interface"),
+        ("system", "System"),
+    ]
+
+    report = models.ForeignKey(LabReport, on_delete=models.CASCADE, related_name="events")
+    event_type = models.CharField(max_length=30)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="lab_report_events"
+    )
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="user")
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]

@@ -41,6 +41,11 @@ RIGHTS = [
     ("orders.manage_catalog", "Manage the orderables catalog and order sets", "Orders"),
     ("orders.interface", "Interface access: read the outbound order queue and post status/results", "Orders"),
 
+    # Lab results
+    ("lab_results.view", "View lab results", "Lab Results"),
+    ("lab_results.enter", "Enter lab results by hand and mark a result entered in error", "Lab Results"),
+    ("lab_results.review", "Review (acknowledge) lab results", "Lab Results"),
+
     # Scheduling & Patients
     ("appointments.create_for_others", "Create appointments on behalf of other patients", "Scheduling & Patients"),
     ("appointments.manage_requests", "Approve or deny patient-submitted appointment requests", "Scheduling & Patients"),
@@ -104,6 +109,17 @@ _ORDER_STAFF_RIGHTS = {
     "orders.complete",
 }
 
+# Lab results: clinicians (doctor, nurse) see, enter and review results. Any
+# of them may review -- the ordering provider, a covering provider or a nurse.
+# Admins can see and enter but do not review by default (an admin can be
+# granted the review right per user). Interface access is separate
+# (orders.interface) and never granted by role.
+_LAB_REVIEW_RIGHTS = {
+    "lab_results.view",
+    "lab_results.enter",
+    "lab_results.review",
+}
+
 _FRONT_OFFICE_RIGHTS = {
     "holidays.manage",
     "checkin.manage",
@@ -137,8 +153,8 @@ _ORG_ADMIN_RIGHTS = _FRONT_OFFICE_RIGHTS | {
 ROLE_DEFAULT_RIGHTS = {
     "patient": set(),
     "none": set(),
-    "doctor": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | {"orders.cosign", "analytics.view"},
-    "nurse": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | {"analytics.view"},
+    "doctor": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | _LAB_REVIEW_RIGHTS | {"orders.cosign", "analytics.view"},
+    "nurse": _CLINICAL_STAFF_RIGHTS | _ORDER_STAFF_RIGHTS | _LAB_REVIEW_RIGHTS | {"analytics.view"},
     "receptionist": {"checkin.manage", "messages.send"},
     "registrar": _FRONT_OFFICE_RIGHTS | {"analytics.view"},
     # Admins manage note/flowsheet template structure in addition to the
@@ -153,6 +169,8 @@ ROLE_DEFAULT_RIGHTS = {
         "flowsheet_templates.manage",
         "orders.cosign",
         "orders.manage_catalog",
+        "lab_results.view",
+        "lab_results.enter",
     },
     "system_admin": _ALL_RIGHTS,
 }

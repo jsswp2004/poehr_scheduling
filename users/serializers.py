@@ -422,6 +422,7 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "max_users",
             "organization_type",
             "staffing_messaging_enabled",
+            "lab_interface_enabled",
             "address_line1",
             "address_line2",
             "city",
@@ -429,3 +430,18 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "postal_code",
             "staffing_spare_buffer",
         ]
+
+    def update(self, instance, validated_data):
+        # The lab add-on is a paid switch: only a system admin may change it.
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if getattr(user, "role", None) != "system_admin" and not getattr(user, "is_superuser", False):
+            validated_data.pop("lab_interface_enabled", None)
+        return super().update(instance, validated_data)
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if getattr(user, "role", None) != "system_admin" and not getattr(user, "is_superuser", False):
+            validated_data.pop("lab_interface_enabled", None)
+        return super().create(validated_data)

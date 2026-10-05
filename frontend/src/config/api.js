@@ -109,6 +109,11 @@ export const apiEndpoints = {
     orderSets: `${API_BASE_URL}/api/order-sets/`,
     icd10Search: `${API_BASE_URL}/api/icd10/search/`,
 
+    // Lab results
+    labReports: `${API_BASE_URL}/api/lab-reports/`,
+    labReport: (id) => `${API_BASE_URL}/api/lab-reports/${id}/`,
+    labReportAction: (id, action) => `${API_BASE_URL}/api/lab-reports/${id}/${action}/`,
+
     // Order Builder (admin)
     orderablesAdmin: `${API_BASE_URL}/api/admin/orderables/`,
     orderableAdmin: (id) => `${API_BASE_URL}/api/admin/orderables/${id}/`,
