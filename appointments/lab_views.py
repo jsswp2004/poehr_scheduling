@@ -1,8 +1,11 @@
 """API for lab reports: GET/POST/PATCH /api/lab-reports/ plus review and mark-in-error."""
 
+from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.serializers import DateTimeField, ValidationError
 
 from users.rights import user_has_right
 
@@ -24,6 +27,8 @@ class CanAccessLabResults(permissions.BasePermission):
         "partial_update": "lab_results.enter",
         "mark_error": "lab_results.enter",
         "review": "lab_results.review",
+        "upload": "lab_results.upload",
+        "file": "lab_results.view",
     }
 
     def has_permission(self, request, view):
@@ -110,6 +115,70 @@ class LabReportViewSet(viewsets.ModelViewSet):
             self.get_object(), request.user, request.data.get("reason", "")
         )
         return Response(self.get_serializer(self._reload(report)).data)
+
+    @action(detail=False, methods=["post"], parser_classes=[MultiPartParser, FormParser])
+    def upload(self, request):
+        """
+        POST multipart: file, patient, and optionally title, order, performing_lab,
+        collected_at, comment, allow_duplicate. Front-desk staff may upload without
+        being able to read results back; they get a short confirmation only.
+        """
+        form = request.data
+
+        def text(name):
+            value = form.get(name)
+            return value.strip() if isinstance(value, str) else value
+
+        try:
+            patient = int(text("patient"))
+        except (TypeError, ValueError):
+            raise lab_results.LabResultError("Choose the patient this scan is for.")
+        order = text("order")
+        try:
+            order = int(order) if order not in (None, "") else None
+        except ValueError:
+            raise lab_results.LabResultError("That order was not found for this patient.", 404)
+        collected_at = None
+        if text("collected_at"):
+            try:
+                collected_at = DateTimeField().to_internal_value(text("collected_at"))
+            except ValidationError:
+                raise lab_results.LabResultError("The collection date and time are not valid.")
+        data = {
+            "patient": patient,
+            "order": order,
+            "title": text("title") or "",
+            "performing_lab": text("performing_lab") or "",
+            "comment": text("comment") or "",
+            "collected_at": collected_at,
+        }
+        allow_duplicate = str(text("allow_duplicate") or "").lower() in ("1", "true", "yes")
+        report = lab_results.create_scanned_report(
+            request.user, data, request.FILES.get("file"), allow_duplicate=allow_duplicate
+        )
+        if user_has_right(request.user, "lab_results.view"):
+            body = self.get_serializer(self._reload(report)).data
+        else:
+            body = {
+                "id": report.pk,
+                "title": report.title,
+                "file_name": report.file_name,
+                "file_size": report.file_size,
+                "created_at": report.created_at,
+                "detail": "Uploaded. A clinician will review it.",
+            }
+        return Response(body, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"])
+    def file(self, request, pk=None):
+        """The scanned document itself. Every opening is recorded in the report's history."""
+        content, content_type, filename = lab_results.read_report_file(self.get_object(), request.user)
+        response = HttpResponse(content, content_type=content_type)
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Cache-Control"] = "no-store"
+        response["Content-Security-Policy"] = "sandbox"
+        return response
 
     def _reload(self, report):
         """Fresh copy with result lines and history, so the response shows what was just saved."""

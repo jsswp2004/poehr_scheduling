@@ -1225,6 +1225,13 @@ class LabReport(models.Model):
 
     error_reason = models.TextField(blank=True)
 
+    # A scanned document (PDF / JPEG / PNG). Only the facts about the file live
+    # here; the bytes are in LabReportFileData so listing reports never loads them.
+    file_name = models.CharField(max_length=150, blank=True)
+    file_content_type = models.CharField(max_length=50, blank=True)
+    file_size = models.PositiveIntegerField(default=0)
+    file_sha256 = models.CharField(max_length=64, blank=True, db_index=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1288,3 +1295,11 @@ class LabReportEvent(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
+
+
+class LabReportFileData(models.Model):
+    """The bytes of a scanned lab document. Kept in the database (durable and backed up
+    with everything else) rather than on Render's disk, which is wiped on every deploy."""
+
+    report = models.OneToOneField(LabReport, on_delete=models.CASCADE, related_name="file_data")
+    data = models.BinaryField()

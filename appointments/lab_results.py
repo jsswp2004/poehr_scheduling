@@ -20,6 +20,8 @@ flags (LL / HH) are never guessed -- the lab or the person entering the
 result has to say so.
 """
 
+import hashlib
+import os
 import re
 from decimal import Decimal, InvalidOperation
 
@@ -27,7 +29,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
-from .models import LabReport, LabReportEvent, LabResultItem, Order
+from .models import LabReport, LabReportEvent, LabReportFileData, LabResultItem, Order
 
 MAX_ITEMS = 100
 
@@ -54,6 +56,15 @@ FLAG_ALIASES = {
 }
 
 CRITICAL_FLAGS = ("LL", "HH")
+
+# Scanned documents: what browsers can show inline, and a size cap that fits a
+# multi-page scan at normal resolution.
+MAX_FILE_BYTES = 10 * 1024 * 1024
+FILE_SIGNATURES = (
+    (b"%PDF-", "application/pdf"),
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+)
 
 
 class LabResultError(Exception):
@@ -333,6 +344,7 @@ def update_report(report, user, data):
             changed.append("order")
 
     results_changed = False
+    had_items = report.items.exists()
     if "items" in data:
         items = prepare_items(data.get("items"))
         # An edit form sends every line back; only a real difference counts as a change.
@@ -347,7 +359,7 @@ def update_report(report, user, data):
             raise LabResultError("Status must be preliminary, final or corrected.")
         report.status = requested
         changed.append("status")
-    elif results_changed and report.status == "final":
+    elif results_changed and had_items and report.status == "final":
         report.status = "corrected"
         changed.append("status")
 
@@ -399,3 +411,97 @@ def mark_entered_in_error(report, user, reason):
     report.save()
     log_event(report, "entered_in_error", user, detail={"from_status": previous, "reason": reason})
     return report
+
+
+# --------------------------------------------------------------------------
+# scanned documents
+# --------------------------------------------------------------------------
+
+def sniff_content_type(head):
+    """The real type of a file from its first bytes (never from its name), or None."""
+    for signature, content_type in FILE_SIGNATURES:
+        if head.startswith(signature):
+            return content_type
+    return None
+
+
+def safe_filename(name):
+    """Just the file's own name: no folders, no control characters, not too long."""
+    base = os.path.basename(str(name or "").replace("\\", "/"))
+    base = re.sub(r"[\x00-\x1f\x7f\"<>|:*?]", "", base).strip()
+    return base[:150] or "scan"
+
+
+@transaction.atomic
+def create_scanned_report(user, data, upload, *, allow_duplicate=False):
+    """
+    Store a scanned lab document as a report (source "scan") with no result
+    lines yet. It joins the same unreviewed pile as typed results, and values
+    can be typed in later from the document. The same file for the same
+    patient is refused unless ``allow_duplicate`` says it is intentional.
+    """
+    if upload is None:
+        raise LabResultError("Choose a file to upload.")
+    content = upload.read()
+    if not content:
+        raise LabResultError("That file is empty.")
+    if len(content) > MAX_FILE_BYTES:
+        raise LabResultError(f"That file is too large. The limit is {MAX_FILE_BYTES // (1024 * 1024)} MB.")
+    content_type = sniff_content_type(content[:16])
+    if content_type is None:
+        raise LabResultError("Only PDF, JPEG or PNG files can be uploaded. Scan to PDF if you can.")
+
+    patient = _find_patient(user, data.get("patient"))
+    order = _find_order(patient, data.get("order"))
+    digest = hashlib.sha256(content).hexdigest()
+
+    if not allow_duplicate:
+        twin = (
+            LabReport.objects.filter(patient=patient, file_sha256=digest)
+            .exclude(status="entered_in_error")
+            .order_by("-created_at")
+            .first()
+        )
+        if twin is not None:
+            raise LabResultError(
+                "This exact file was already uploaded for this patient.",
+                409,
+                errors=[{"duplicate_of": twin.pk, "title": twin.title, "uploaded_at": twin.created_at.isoformat()}],
+            )
+
+    filename = safe_filename(getattr(upload, "name", ""))
+    title = str(data.get("title") or "").strip() or os.path.splitext(filename)[0] or "Scanned lab result"
+    report = LabReport.objects.create(
+        organization=patient.organization,
+        patient=patient,
+        order=order,
+        title=title[:255],
+        source="scan",
+        status="final",
+        performing_lab=str(data.get("performing_lab") or "").strip()[:120],
+        collected_at=data.get("collected_at"),
+        resulted_at=data.get("resulted_at") or timezone.now(),
+        comment=str(data.get("comment") or "").strip(),
+        entered_by=user,
+        file_name=filename,
+        file_content_type=content_type,
+        file_size=len(content),
+        file_sha256=digest,
+    )
+    LabReportFileData.objects.create(report=report, data=content)
+    log_event(
+        report,
+        "uploaded",
+        user,
+        detail={"file_name": filename, "size": len(content), "duplicate_allowed": bool(allow_duplicate)},
+    )
+    return report
+
+
+def read_report_file(report, user):
+    """(bytes, content_type, filename) of a report's scan, recording who opened it."""
+    row = LabReportFileData.objects.filter(report=report).first()
+    if row is None or not report.file_name:
+        raise LabResultError("This report has no scanned document.", 404)
+    log_event(report, "file_viewed", user)
+    return bytes(row.data), report.file_content_type, report.file_name
