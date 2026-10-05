@@ -107,6 +107,7 @@ export const apiEndpoints = {
     orderAction: (id, action) => `${API_BASE_URL}/api/orders/${id}/${action}/`,
     orderables: `${API_BASE_URL}/api/orderables/`,
     orderSets: `${API_BASE_URL}/api/order-sets/`,
+    icd10Search: `${API_BASE_URL}/api/icd10/search/`,
 
     // Order Builder (admin)
     orderablesAdmin: `${API_BASE_URL}/api/admin/orderables/`,
