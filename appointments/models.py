@@ -1328,6 +1328,10 @@ class LabInterfaceConnection(models.Model):
     key_hash = models.CharField(max_length=64, unique=True)
     key_prefix = models.CharField(max_length=12, blank=True)
     is_active = models.BooleanField(default=True)
+    send_orders = models.BooleanField(
+        default=False,
+        help_text="Also send this clinic's lab orders to this lab. At most one connection per clinic.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
 
@@ -1370,3 +1374,38 @@ class LabInboundMessage(models.Model):
         ordering = ["-received_at", "-id"]
         unique_together = [("connection", "control_id")]
         indexes = [models.Index(fields=["organization", "status"])]
+
+
+class LabOutboundMessage(models.Model):
+    """
+    One order (or one cancellation) waiting for, or already given to, a lab's
+    interface engine. The engine polls for these and confirms each one; until it
+    does, the message is offered again, so nothing is lost if a delivery fails.
+    """
+
+    ACTION_CHOICES = [("NW", "New order"), ("CA", "Cancel order")]
+    STATUS_CHOICES = [
+        ("pending", "Waiting to be picked up"),
+        ("delivered", "Picked up, not yet confirmed"),
+        ("acknowledged", "Accepted by the lab"),
+        ("rejected", "Rejected by the lab"),
+        ("cancelled", "Withdrawn before it was sent"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="lab_outbound_messages")
+    connection = models.ForeignKey(LabInterfaceConnection, on_delete=models.CASCADE, related_name="outbound_messages")
+    order = models.ForeignKey("appointments.Order", on_delete=models.PROTECT, related_name="lab_outbound_messages")
+    action = models.CharField(max_length=2, choices=ACTION_CHOICES)
+    control_id = models.CharField(max_length=40, unique=True)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="pending")
+    last_body = models.TextField(blank=True, help_text="The message as last handed over")
+    detail = models.TextField(blank=True)
+    delivery_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        unique_together = [("order", "action")]
+        indexes = [models.Index(fields=["connection", "status"])]
