@@ -36,6 +36,8 @@ class CustomUser(AbstractUser):
         blank=True,
         related_name="patients",
     )
+    # Labs identify the ordering provider by NPI on electronic orders.
+    npi = models.CharField(max_length=10, blank=True, help_text="National Provider Identifier (providers only)")
 
     profile_picture = models.ImageField(
         upload_to="profile_pics/", null=True, blank=True

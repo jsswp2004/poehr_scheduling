@@ -9,7 +9,7 @@ class CustomUserAdmin(UserAdmin):
     )  # <-- Shows organization and type
     list_filter = ('role', 'organization_type', 'organization', 'is_active', 'is_staff')  # <-- Filter by org and role
     fieldsets = UserAdmin.fieldsets + (
-        ('Custom Fields', {'fields': ('role', 'provider', 'organization', 'organization_type')}), # <-- Show these on detail view
+        ('Custom Fields', {'fields': ('role', 'provider', 'organization', 'organization_type', 'npi')}), # <-- Show these on detail view
     )
     add_fieldsets = UserAdmin.add_fieldsets + (
         ('Custom Fields', {'fields': ('role', 'provider', 'organization', 'organization_type')}), # <-- Show these on add form

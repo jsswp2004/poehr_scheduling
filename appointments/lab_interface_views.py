@@ -13,14 +13,14 @@ import json
 
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from users.rights import user_has_right
 
-from . import lab_hl7, lab_intake, lab_results
+from . import lab_hl7, lab_intake, lab_orders_out, lab_results
 from .models import LabInboundMessage
 
 MAX_BODY_BYTES = 5 * 1024 * 1024
@@ -84,6 +84,64 @@ def fhir_intake(request):
         "report_ids": outcome.report_ids,
     }
     return JsonResponse(body, status=outcome.http_status)
+
+
+@require_GET
+def orders_pull(request):
+    """
+    The lab's interface engine asks for orders waiting to be sent (?fmt=hl7|fhir, ?limit=).
+    Each item must be confirmed through orders_ack; unconfirmed ones are offered again.
+    """
+    connection = lab_intake.authenticate(request.META.get("HTTP_X_INTERFACE_KEY", ""))
+    if connection is None:
+        return JsonResponse({"detail": "Invalid or missing interface key."}, status=401)
+    if not connection.organization.lab_interface_enabled:
+        return JsonResponse({"detail": "The lab interface add-on is not enabled for this organization."}, status=403)
+    if not connection.send_orders:
+        return JsonResponse({"detail": "This connection is not set up to send orders."}, status=403)
+    fmt = request.GET.get("fmt", "hl7").lower()
+    if fmt not in ("hl7", "fhir"):
+        return JsonResponse({"detail": "fmt must be hl7 or fhir."}, status=400)
+    try:
+        limit = int(request.GET.get("limit") or lab_orders_out.MAX_PER_PULL)
+    except ValueError:
+        return JsonResponse({"detail": "limit must be a number."}, status=400)
+    messages = lab_orders_out.pull(connection, fmt, limit)
+    return JsonResponse({"count": len(messages), "messages": messages})
+
+
+@csrf_exempt
+@require_POST
+def orders_ack(request):
+    """
+    Confirm an order message. Either JSON {"control_id", "status": "accepted"|"rejected", "detail"}
+    or the lab's raw HL7 ACK (MSA-2 must echo our control id).
+    """
+    connection = lab_intake.authenticate(request.META.get("HTTP_X_INTERFACE_KEY", ""))
+    if connection is None:
+        return JsonResponse({"detail": "Invalid or missing interface key."}, status=401)
+    raw = _read_body(request)
+    if raw is None:
+        return JsonResponse({"detail": "Message is too large."}, status=413)
+    raw = _strip_mllp(raw)
+    if raw.startswith("MSH"):
+        control_id, ok, detail = lab_orders_out.parse_ack(raw)
+    else:
+        try:
+            body = json.loads(raw)
+            control_id = str(body["control_id"])
+            status = str(body.get("status", "")).lower()
+            if status not in ("accepted", "rejected"):
+                raise ValueError
+        except (ValueError, KeyError, TypeError):
+            return JsonResponse({"detail": 'Send {"control_id", "status": "accepted" or "rejected"} or an HL7 ACK.'}, status=400)
+        ok, detail = status == "accepted", str(body.get("detail", ""))
+    if not control_id:
+        return JsonResponse({"detail": "The acknowledgment does not say which message it answers."}, status=400)
+    msg = lab_orders_out.acknowledge(connection, control_id, ok, detail)
+    if msg is None:
+        return JsonResponse({"detail": "Unknown message."}, status=404)
+    return JsonResponse({"control_id": msg.control_id, "status": msg.status})
 
 
 class CanWorkLabMessages(permissions.BasePermission):

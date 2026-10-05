@@ -83,3 +83,55 @@ curl -X POST https://<api-host>/api/lab-interface/hl7/ \
 ```
 
 Expect `MSA|AA|T1`. Use a test patient's real MRN; a made-up one lands in the waiting list.
+
+---
+
+# Sending orders to the lab (outbound)
+
+Render cannot open a connection to a lab, so orders go out by **pull**: the lab's
+interface engine asks POWER what is waiting and confirms each message. A message
+that is not confirmed is offered again, so a failed delivery loses nothing.
+
+## Turn it on
+
+```
+python manage.py lab_connection orders --id <ID> --on     # --off to stop
+```
+
+Orders go to **one lab per clinic** (the command refuses a second). A connection
+used only for results (e.g. a second lab) never receives orders.
+
+## What is sent
+
+Signed (active) **laboratory** orders that have not been sent. Drafts, orders waiting for
+a cosign, and non-lab orders are never sent. An order stopped before the lab picked it up
+is withdrawn. One the lab already has is cancelled with an `ORC|CA` message.
+
+| Call | Purpose |
+|---|---|
+| `GET /api/lab-interface/orders/?fmt=hl7` (or `fhir`, `&limit=`) | Messages waiting: `{"count", "messages": [{"control_id", "action": "NW"/"CA", "order", "placer_order_number", "body"}]}` |
+| `POST /api/lab-interface/orders/ack/` | Confirm: JSON `{"control_id", "status": "accepted"/"rejected", "detail"}` **or** post the lab's raw HL7 ACK (MSA-2 must echo our control id, e.g. `OUT-0000000012`) |
+
+Same `X-Interface-Key` header as results. 401 bad key; 403 add-on off or connection not set to send orders.
+
+## Message content
+
+**HL7 ORM^O01:** MSH, PID (our MRN in PID-3, name, DOB, sex, address, phone), ORC (NW/CA,
+placer order number `ORD-00000123`, ordering provider with NPI), OBR (test code, name, code
+system), TQ1 (priority R/A/S), DG1 per ICD-10 diagnosis, NTE for the indication and order
+details. **FHIR:** a collection Bundle of Patient, Practitioner and ServiceRequest.
+
+Your lab will echo the placer order number and MRN back on the result, which is how
+results find their order (section 4 above).
+
+## Things the clinic must set up
+
+- **Test codes.** Each lab-orderable in the catalog needs the code the lab expects
+  (Orders catalog, `code_system` + `external_code`; Quest/Labcorp use their own test codes
+  or CPT/LOINC mappings). With no external code the local catalog code is sent as a
+  local code, which a lab will probably reject.
+- **Provider NPI.** The ordering provider's `npi` (on the user record) is sent in ORC-12.
+  Labs generally require it. There is no screen for it yet; set it in the Django admin / shell.
+- **Rejections.** A rejected order is marked with the lab's reason (Order `interface_status`
+  = error) and is not retried automatically: fix the cause, then replace the order.
+- **Billing / insurance (IN1) is not sent.** Clinics pay the lab directly (client bill).
