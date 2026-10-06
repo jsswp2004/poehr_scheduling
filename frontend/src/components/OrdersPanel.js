@@ -123,13 +123,19 @@ function OrdersPanel({ patientId }) {
   const canPlace = ["doctor", "nurse", "admin", "system_admin"].includes(me.role);
   const canCosign = ["doctor", "admin", "system_admin"].includes(me.role);
 
-  // The Lab icon in the Patients table links here with #lab-results: scroll to the lab results once the page has loaded.
-  const labSectionRef = useRef(null);
-  useEffect(() => {
-    if (!loading && window.location.hash === "#lab-results" && labSectionRef.current) {
-      labSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  // Orders and Lab Results are two tabs. The Lab icon in the Patients table links here with #lab-results to open the Lab Results tab.
+  const [section, setSection] = useState(() =>
+    typeof window !== "undefined" && window.location.hash === "#lab-results" ? "labs" : "orders"
+  );
+  const changeSection = (next) => {
+    setSection(next);
+    try {
+      const base = window.location.pathname + window.location.search;
+      window.history.replaceState(window.history.state, "", next === "labs" ? `${base}#lab-results` : base);
+    } catch (err) {
+      // address bar update is only a convenience
     }
-  }, [loading]);
+  };
 
   const loadAll = useCallback(async () => {
     if (!patientId) return;
@@ -530,7 +536,10 @@ function OrdersPanel({ patientId }) {
             <Button
               size="small"
               disabled={busy}
-              onClick={() => setLabEntry({ orderId: order.id, nonce: Date.now() })}
+              onClick={() => {
+                setSection("labs");
+                setLabEntry({ orderId: order.id, nonce: Date.now() });
+              }}
             >
               Enter results
             </Button>
@@ -563,6 +572,17 @@ function OrdersPanel({ patientId }) {
 
   return (
     <Stack spacing={3}>
+      <Tabs
+        value={section}
+        onChange={(e, v) => changeSection(v)}
+        aria-label="Orders and lab results"
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab value="orders" label="Orders" data-testid="orders-section-tab" />
+        <Tab value="labs" label="Lab Results" data-testid="lab-results-section-tab" />
+      </Tabs>
+
+      <Stack spacing={3} sx={{ display: section === "orders" ? "flex" : "none" }}>
       {canPlace && (
         <Paper variant="outlined" sx={{ p: 2 }}>
           <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
@@ -684,7 +704,10 @@ function OrdersPanel({ patientId }) {
         </Box>
       </Box>
 
-      <Box id="lab-results" ref={labSectionRef} sx={{ scrollMarginTop: 80 }}>
+      </Stack>
+
+      {/* Kept mounted (just hidden) so results stay loaded when switching tabs and "Enter results" can open its form. */}
+      <Box id="lab-results" sx={{ display: section === "labs" ? "block" : "none" }}>
         <LabResultsPanel patientId={patientId} orders={orders} me={me} entryRequest={labEntry} />
       </Box>
 
