@@ -120,7 +120,8 @@ def board_visit(visit, chart=None):
         "ed_status": visit.ed_status,
         "md": {"id": visit.attending_provider_id, "name": _name(visit.attending_provider)} if visit.attending_provider_id else None,
         "rn": {"id": visit.assigned_nurse_id, "name": _name(visit.assigned_nurse)} if visit.assigned_nurse_id else None,
-        "resident": visit.resident,
+        "resident": {"id": visit.resident_provider_id, "name": _name(visit.resident_provider)} if visit.resident_provider_id else None,
+        "resident_text": visit.resident,
         "comments": visit.board_comments,
         "registration_complete": visit.registration_complete,
         "custom": visit.board_custom or {},
@@ -186,7 +187,7 @@ class EdBoardPreferenceView(APIView):
         return Response({"view": key})
 
 
-_RELATED = ("patient__user", "attending_provider", "assigned_nurse", "bed__room", "room", "unit__facility")
+_RELATED = ("patient__user", "attending_provider", "assigned_nurse", "resident_provider", "bed__room", "room", "unit__facility")
 
 
 class EdBoardView(APIView):
@@ -281,7 +282,7 @@ def _clean_custom(values, settings, current):
 
 class BoardUpdateView(APIView):
     """
-    PATCH {esi?, ed_status?, assigned_nurse?, attending_provider?, resident?, comments?, registration_complete?}
+    PATCH {esi?, ed_status?, assigned_nurse?, attending_provider?, resident?, reason?, complaint?, comments?, registration_complete?}
 
     Edits the board fields of an open visit. Send only what changed; null or "" clears a field.
     """
@@ -336,7 +337,18 @@ class BoardUpdateView(APIView):
                     return _bad("That doctor was not found.")
                 visit.attending_provider = doctor
         if "resident" in data:
-            visit.resident = str(data["resident"] or "").strip()[:120]
+            if data["resident"] in (None, ""):
+                visit.resident_provider = None
+            else:
+                resident = _staff(org, data["resident"], "doctor")
+                if resident is None:
+                    return _bad("That resident was not found.")
+                visit.resident_provider = resident
+            visit.resident = ""  # the old typed name is replaced by the pick (or cleared with it)
+        if "reason" in data:
+            visit.reason_for_visit = str(data["reason"] or "").strip()[:500]
+        if "complaint" in data:
+            visit.presenting_problem = str(data["complaint"] or "").strip()[:500]
         if "comments" in data:
             visit.board_comments = str(data["comments"] or "").strip()[:300]
         if "registration_complete" in data:

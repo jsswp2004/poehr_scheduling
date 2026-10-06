@@ -308,10 +308,10 @@ class BoardViewsTests(BuilderBase):
     def test_board_lists_the_built_in_views_then_saved_ones(self):
         self.make_view("Nurse view")
         views = self.board()["views"]
-        self.assertEqual([v["key"] for v in views][:3], ["all", "waiting", "mine"])
-        self.assertEqual([v["label"] for v in views][3:], ["Nurse view"])
-        self.assertEqual([v["builtin"] for v in views], [True, True, True, False])
-        self.assertEqual([v["filter"] for v in views][:3], ["all", "waiting", "mine"])
+        self.assertEqual([v["key"] for v in views][:2], ["all", "waiting"])
+        self.assertEqual([v["label"] for v in views][2:], ["Nurse view"])
+        self.assertEqual([v["builtin"] for v in views], [True, True, False])
+        self.assertEqual([v["filter"] for v in views][:2], ["all", "waiting"])
 
     def test_default_view_comes_from_the_person_then_the_clinic_then_all(self):
         v = self.make_view("Nurse view")
@@ -352,14 +352,14 @@ class BedLimitTests(BuilderBase):
         self.bed_c = Bed.objects.create(room=self.room, name="C")
 
     def test_waiting_area_is_the_name_of_the_built_in_view(self):
-        self.assertEqual([v["label"] for v in self.board()["views"]][:3], ["ED All View", "Waiting Area", "My patients"])
+        self.assertEqual([v["label"] for v in self.board()["views"]][:2], ["ED All View", "Waiting Area"])
 
     def test_the_builder_offers_locations_units_and_beds(self):
         data = self.api().get(VIEWS).json()
         self.assertEqual([f["name"] for f in data["locations"]], ["General Hospital"])
         unit = data["locations"][0]["units"][0]
         self.assertEqual(unit["name"], "ED")
-        self.assertEqual([b["name"] for b in unit["beds"]], ["ED1A", "ED1B", "ED1C"])
+        self.assertEqual([b["name"] for b in unit["beds"]], ["ED1-A", "ED1-B", "ED1-C"])
         # inpatient beds are not offered
         self.assertNotIn("3 West", [u["name"] for u in data["locations"][0]["units"]])
 

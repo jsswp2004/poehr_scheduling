@@ -20,18 +20,19 @@ import { api } from "../../api/client";
 import { toast } from "../SimpleToast";
 import EDBoard from "../edBoard/EDBoard";
 import { formatLos, losMinutes, filterRows, vitalsStatus, ruleColors } from "../edBoard/edBoardColumns";
+import { cellText, filterByColumns, sortRows } from "../edBoard/edBoardTable";
 
 const visit = (over = {}) => ({
   registration: 90, visit_number: "VN-000090", patient: 3, user_id: 30, name: "TEST, Jane", age: 28, sex: "F",
   arrival_time: new Date(Date.now() - 125 * 60000).toISOString(), reason: "Chest pain", complaint: "CP", esi: 3, ed_status: "tip",
-  md: { id: 8, name: "Abulafia, Dr" }, rn: { id: 7, name: "Geronimo, Ann" }, resident: "", comments: "", registration_complete: false, location: "x", ...over,
+  md: { id: 8, name: "Abulafia, Dr" }, rn: { id: 7, name: "Geronimo, Ann" }, resident: null, resident_text: "", comments: "", registration_complete: false, location: "x", ...over,
 });
 
 const board = (rows) => ({
   departments: [{ id: 5, name: "ED Labor and Delivery", facility: 1, facility_name: "General Hospital" }, { id: 6, name: "Fast Track", facility: 1, facility_name: "General Hospital" }],
   unit: 5,
   statuses: [{ value: "wtbs", code: "WTBS", label: "Waiting to be seen" }, { value: "tip", code: "TIP", label: "Treatment in progress" }],
-  staff: { nurses: [{ id: 7, name: "Geronimo, Ann" }, { id: 9, name: "Bell, Sam" }], doctors: [{ id: 8, name: "Abulafia, Dr" }] },
+  staff: { nurses: [{ id: 7, name: "Geronimo, Ann" }, { id: 9, name: "Bell, Sam" }], doctors: [{ id: 8, name: "Abulafia, Dr" }, { id: 12, name: "Park, Dana" }] },
   rows,
 });
 
@@ -94,7 +95,8 @@ test("the patient row shows name, age and sex, LOS and chief complaint", async (
   expect(within(row).getByText("TEST, Jane")).toBeInTheDocument();
   expect(within(row).getByText("28y /F")).toBeInTheDocument();
   expect(within(row).getByText("02:05")).toBeInTheDocument();
-  expect(within(row).getByText("Chest pain")).toBeInTheDocument();
+  expect(within(row).getByDisplayValue("Chest pain")).toBeInTheDocument();
+  expect(within(row).getByDisplayValue("CP")).toBeInTheDocument();
   expect(within(row).getByText("Female")).toBeInTheDocument();
 });
 
@@ -164,9 +166,16 @@ test("the View dropdown narrows to waiting patients", async () => {
   pick("ed-view", "Waiting Area");
   expect(screen.queryByTestId("ed-bed-1")).toBeNull();
   expect(screen.getByTestId("ed-waiting-91")).toBeInTheDocument();
-  pick("ed-view", "My patients");
+  pick("ed-view", "ED All View");
   expect(screen.getByTestId("ed-bed-1")).toBeInTheDocument();
-  expect(screen.queryByTestId("ed-waiting-91")).toBeNull();
+  expect(screen.getByTestId("ed-waiting-91")).toBeInTheDocument();
+});
+
+test("there is no My patients view in the dropdown", async () => {
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  fireEvent.mouseDown(within(screen.getByTestId("ed-view").closest(".MuiInputBase-root")).getByRole("combobox"));
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["ED All View", "Waiting Area"]);
 });
 
 test("switching department loads that department's board", async () => {
@@ -421,4 +430,155 @@ test("the ED Board has no Patient List button", async () => {
   render(<EDBoard userRole="nurse" />);
   await screen.findByTestId("ed-bed-1");
   expect(screen.queryByRole("button", { name: "Patient List" })).toBeNull();
+});
+
+const allCols = () => [col("loc", "LOC"), col("patient", "Patient"), col("esi", "ESI"), col("status", "STS"), col("resident", "Resident"), col("reason", "Visit Reason"), col("complaint", "Chief Complaint"), col("actions", "")];
+const crowd = () => [
+  { type: "bed", bed: 1, loc: "ED-A", bed_status: "occupied", hold_reason: "", visit: visit({ registration: 1, user_id: 1, name: "ZED, Zoe", esi: 3, reason: "Cough" }) },
+  { type: "bed", bed: 2, loc: "ED-B", bed_status: "available", hold_reason: "", visit: null },
+  { type: "bed", bed: 3, loc: "ED-C", bed_status: "occupied", hold_reason: "", visit: visit({ registration: 3, user_id: 3, name: "ABLE, Al", esi: 1, reason: "Fall" }) },
+  { type: "bed", bed: 4, loc: "ED-D", bed_status: "occupied", hold_reason: "", visit: visit({ registration: 4, user_id: 4, name: "MOORE, Mo", esi: 5, reason: "Rash", ed_status: "wtbs" }) },
+];
+const order = () => screen.getAllByTestId(/^ed-bed-/).map((r) => r.getAttribute("data-testid"));
+
+describe("sorting, filtering and resizing the columns", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    api.get.mockResolvedValue({ data: withConfig({ columns: allCols() }, crowd()) });
+  });
+
+  test("clicking a header sorts ascending, then descending, then back to the board's order; empty beds stay last", async () => {
+    render(<EDBoard userRole="nurse" currentUserId={7} />);
+    await screen.findByTestId("ed-bed-1");
+    expect(order()).toEqual(["ed-bed-1", "ed-bed-2", "ed-bed-3", "ed-bed-4"]);
+    fireEvent.click(screen.getByTestId("sort-esi"));
+    expect(order()).toEqual(["ed-bed-3", "ed-bed-1", "ed-bed-4", "ed-bed-2"]);
+    expect(screen.getByRole("columnheader", { name: /ESI/ })).toHaveAttribute("aria-sort", "ascending");
+    fireEvent.click(screen.getByTestId("sort-esi"));
+    expect(order()).toEqual(["ed-bed-4", "ed-bed-1", "ed-bed-3", "ed-bed-2"]);
+    fireEvent.click(screen.getByTestId("sort-esi"));
+    expect(order()).toEqual(["ed-bed-1", "ed-bed-2", "ed-bed-3", "ed-bed-4"]);
+    fireEvent.click(screen.getByTestId("sort-patient"));
+    expect(order()).toEqual(["ed-bed-3", "ed-bed-4", "ed-bed-1", "ed-bed-2"]);
+  });
+
+  test("the buttons column cannot be sorted or filtered", async () => {
+    render(<EDBoard userRole="nurse" />);
+    await screen.findByTestId("ed-bed-1");
+    expect(screen.queryByTestId("sort-actions")).toBeNull();
+    expect(screen.queryByTestId("filter-actions")).toBeNull();
+  });
+
+  test("a column filter keeps matching rows, shows how many filters are on, and clears", async () => {
+    render(<EDBoard userRole="nurse" />);
+    await screen.findByTestId("ed-bed-1");
+    fireEvent.click(screen.getByRole("button", { name: "Filter Patient" }));
+    fireEvent.change(screen.getByTestId("column-filter-input"), { target: { value: "able" } });
+    expect(order()).toEqual(["ed-bed-3"]);
+    fireEvent.keyDown(screen.getByTestId("column-filter-input"), { key: "Enter" });
+    fireEvent.click(await screen.findByRole("button", { name: "Filter STS" }));
+    fireEvent.change(await screen.findByTestId("column-filter-input"), { target: { value: "wtbs" } });
+    expect(await screen.findByText("Nobody matches the column filters.")).toBeInTheDocument();
+    expect(screen.getByTestId("clear-filters")).toHaveTextContent("Clear 2 filters");
+    fireEvent.click(screen.getByTestId("clear-filters"));
+    expect(order()).toHaveLength(4);
+  });
+
+  test("filter and sort work together", async () => {
+    render(<EDBoard userRole="nurse" />);
+    await screen.findByTestId("ed-bed-1");
+    fireEvent.click(screen.getByRole("button", { name: "Filter LOC" }));
+    fireEvent.change(screen.getByTestId("column-filter-input"), { target: { value: "ED-" } });
+    fireEvent.click(screen.getByTestId("sort-patient"));
+    fireEvent.click(screen.getByTestId("sort-patient"));
+    expect(order()).toEqual(["ed-bed-1", "ed-bed-4", "ed-bed-3", "ed-bed-2"]);
+  });
+
+  test("dragging a header edge resizes the column and the width is remembered", async () => {
+    const { unmount } = render(<EDBoard userRole="nurse" currentUserId={7} />);
+    await screen.findByTestId("ed-bed-1");
+    const head = screen.getByRole("columnheader", { name: /Patient/ });
+    expect(head).toHaveStyle({ width: "100px" });
+    fireEvent.mouseDown(screen.getByTestId("resize-patient"), { clientX: 200 });
+    fireEvent.mouseMove(document, { clientX: 260 });
+    fireEvent.mouseUp(document);
+    expect(screen.getByRole("columnheader", { name: /Patient/ })).toHaveStyle({ width: "160px" });
+    expect(JSON.parse(window.localStorage.getItem("edBoardWidths:7"))).toEqual({ patient: 160 });
+    unmount();
+    render(<EDBoard userRole="nurse" currentUserId={7} />);
+    await screen.findByTestId("ed-bed-1");
+    expect(screen.getByRole("columnheader", { name: /Patient/ })).toHaveStyle({ width: "160px" });
+    fireEvent.click(screen.getByTestId("reset-widths"));
+    expect(screen.getByRole("columnheader", { name: /Patient/ })).toHaveStyle({ width: "100px" });
+    expect(window.localStorage.getItem("edBoardWidths:7")).toBeNull();
+  });
+
+  test("a column cannot be dragged narrower than 50 or wider than 600", async () => {
+    render(<EDBoard userRole="nurse" currentUserId={7} />);
+    await screen.findByTestId("ed-bed-1");
+    fireEvent.mouseDown(screen.getByTestId("resize-patient"), { clientX: 300 });
+    fireEvent.mouseMove(document, { clientX: 0 });
+    expect(screen.getByRole("columnheader", { name: /Patient/ })).toHaveStyle({ width: "50px" });
+    fireEvent.mouseMove(document, { clientX: 5000 });
+    expect(screen.getByRole("columnheader", { name: /Patient/ })).toHaveStyle({ width: "600px" });
+    fireEvent.mouseUp(document);
+  });
+});
+
+test("Visit Reason and Chief Complaint are edited on the board and saved on blur", async () => {
+  api.get.mockResolvedValue({ data: withConfig({ columns: allCols() }, crowd()) });
+  api.patch.mockResolvedValue({ data: { ...visit({ registration: 1, user_id: 1, name: "ZED, Zoe" }), reason: "Cough x3 days" } });
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  const reason = screen.getByTestId("reason-1");
+  fireEvent.change(reason, { target: { value: "Cough x3 days" } });
+  fireEvent.blur(reason);
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/1/board/", { reason: "Cough x3 days" }, expect.anything()));
+  const complaint = screen.getByTestId("complaint-1");
+  fireEvent.change(complaint, { target: { value: "Productive cough" } });
+  fireEvent.blur(complaint);
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/1/board/", { complaint: "Productive cough" }, expect.anything()));
+});
+
+test("a registrar-less role cannot edit Visit Reason", async () => {
+  api.get.mockResolvedValue({ data: withConfig({ columns: allCols() }, crowd()) });
+  render(<EDBoard userRole="receptionist" />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getByTestId("reason-1")).toBeDisabled();
+});
+
+test("Resident is a dropdown of the clinic's doctors, like MD", async () => {
+  api.get.mockResolvedValue({ data: withConfig({ columns: allCols() }, crowd()) });
+  api.patch.mockResolvedValue({ data: visit({ registration: 1, user_id: 1, name: "ZED, Zoe", resident: { id: 12, name: "Park, Dana" } }) });
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  pick("resident-1", "Park, Dana");
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/1/board/", { resident: 12 }, expect.anything()));
+  expect(await screen.findByText("Park, Dana")).toBeInTheDocument();
+});
+
+test("a resident typed in before the list existed still shows until one is picked", async () => {
+  const rows = crowd();
+  rows[0].visit = visit({ registration: 1, user_id: 1, name: "ZED, Zoe", resident_text: "Dr. Patel" });
+  api.get.mockResolvedValue({ data: withConfig({ columns: allCols() }, rows) });
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  expect(within(screen.getByTestId("cell-resident-b1")).getByText("Dr. Patel")).toBeInTheDocument();
+});
+
+test("table helpers: text, sort and filter", () => {
+  const ctx = { now: Date.now(), statuses: [{ value: "wtbs", code: "WTBS" }, { value: "tip", code: "TIP" }], limit: 60 };
+  const rows = crowd();
+  const cols = allCols();
+  const by = (key) => cols.find((c) => c.key === key);
+  expect(cellText(by("status"), rows[0], ctx)).toBe("TIP");
+  expect(cellText(by("status"), rows[1], ctx)).toBe("Ready");
+  expect(cellText(by("loc"), { type: "waiting", loc: "" }, ctx)).toBe("WAITING");
+  expect(sortRows(rows, by("esi"), "asc", ctx).map((r) => r.bed)).toEqual([3, 1, 4, 2]);
+  expect(sortRows(rows, by("esi"), "desc", ctx).map((r) => r.bed)).toEqual([4, 1, 3, 2]);
+  expect(sortRows(rows, undefined, "asc", ctx)).toBe(rows);
+  expect(filterByColumns(rows, cols, { reason: " RA " }, ctx).map((r) => r.bed)).toEqual([4]);
+  expect(filterByColumns(rows, cols, { reason: "" }, ctx)).toBe(rows);
+  const num = [{ type: "bed", bed: 1, loc: "Bed 10", visit: null }, { type: "bed", bed: 2, loc: "Bed 9", visit: null }];
+  expect(sortRows(num, by("loc"), "asc", ctx).map((r) => r.bed)).toEqual([2, 1]);
 });

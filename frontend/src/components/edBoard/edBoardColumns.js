@@ -81,7 +81,6 @@ export const ruleColors = (rules, visit, now = Date.now(), limit = VITALS_OVERDU
 export const VIEWS = [
   { value: "all", label: "ED All View" },
   { value: "waiting", label: "Waiting Area" },
-  { value: "mine", label: "My patients" },
 ];
 
 /** Whole minutes from `arrival` to `now` (never negative). */

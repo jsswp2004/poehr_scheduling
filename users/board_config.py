@@ -56,7 +56,6 @@ DEFAULT_STATUSES = [
 BUILTIN_VIEWS = [
     {"key": "all", "label": "ED All View", "filter": "all"},
     {"key": "waiting", "label": "Waiting Area", "filter": "waiting"},
-    {"key": "mine", "label": "My patients", "filter": "mine"},
 ]
 BUILTIN_VIEW_KEYS = {v["key"] for v in BUILTIN_VIEWS}
 FILTERS = ("all", "waiting", "mine")
