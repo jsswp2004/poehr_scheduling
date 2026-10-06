@@ -663,6 +663,19 @@ class InboxTests(Base):
         self.assertEqual([r["id"] for r in body["results"]], [critical, abnormal, old_normal, new_normal])
         self.assertEqual((body["count"], body["critical"], body["truncated"]), (4, 1, False))
 
+    def test_summary_returns_counts_only_for_the_menu_badge(self):
+        self.make("normal")
+        self.make("critical", items=[{"test_name": "K", "value": "7", "abnormal_flag": "HH"}])
+        self.client.force_authenticate(self.nurse)
+        body = self.client.get(self.INBOX, {"summary": "1"}).json()
+        self.assertEqual(body, {"unmatched": body["unmatched"], "count": 2, "critical": 1})
+        self.assertNotIn("results", body)
+        # same access rules as the full inbox
+        self.client.force_authenticate(self.registrar)
+        self.assertEqual(self.client.get(self.INBOX, {"summary": "1"}).status_code, 403)
+        self.client.force_authenticate(self.outsider)
+        self.assertEqual(self.client.get(self.INBOX, {"summary": "1"}).json()["count"], 0)
+
     def test_reviewed_and_in_error_reports_leave_the_inbox(self):
         a, b, c = self.make("a"), self.make("b"), self.make("c")
         self.client.force_authenticate(self.doctor)
