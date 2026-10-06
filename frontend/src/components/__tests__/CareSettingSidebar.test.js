@@ -3,12 +3,28 @@ import CareSettingSidebar, { COLLAPSED_KEY, SELECTED_KEY, storedCareSetting, rem
 
 beforeEach(() => window.localStorage.clear());
 
-test("lists all patients and the three care settings", () => {
-  render(<CareSettingSidebar value="" onChange={() => {}} />);
-  for (const name of ["All patients", "Ambulatory Care", "Emergency Care", "Acute Care"]) {
+test("lists the three care settings and no All patients item", () => {
+  render(<CareSettingSidebar onChange={() => {}} />);
+  for (const name of ["Ambulatory Care", "Emergency Care", "Acute Care"]) {
     expect(screen.getByRole("button", { name })).toBeInTheDocument();
   }
-  expect(screen.getByRole("button", { name: "All patients" })).toHaveAttribute("aria-current", "true");
+  expect(screen.queryByRole("button", { name: "All patients" })).toBeNull();
+  // Ambulatory is the default, so the list is always filtered
+  expect(screen.getByRole("button", { name: "Ambulatory Care" })).toHaveAttribute("aria-current", "true");
+});
+
+test("has a Back button only when asked, in the sidebar, collapsed or open", () => {
+  const onBack = jest.fn();
+  const { rerender } = render(<CareSettingSidebar onChange={() => {}} />);
+  expect(screen.queryByTestId("care-sidebar-back")).toBeNull();
+  rerender(<CareSettingSidebar onChange={() => {}} onBack={onBack} />);
+  expect(screen.getByText("Back")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(onBack).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+  expect(screen.queryByText("Back")).toBeNull(); // icon only now
+  fireEvent.click(screen.getByRole("button", { name: "Back" }));
+  expect(onBack).toHaveBeenCalledTimes(2);
 });
 
 test("clicking a setting reports its key", () => {
@@ -16,8 +32,6 @@ test("clicking a setting reports its key", () => {
   render(<CareSettingSidebar value="" onChange={onChange} />);
   fireEvent.click(screen.getByRole("button", { name: "Emergency Care" }));
   expect(onChange).toHaveBeenCalledWith("emergency");
-  fireEvent.click(screen.getByRole("button", { name: "All patients" }));
-  expect(onChange).toHaveBeenLastCalledWith("");
 });
 
 test("marks the chosen setting", () => {
@@ -46,12 +60,12 @@ test("collapses to icons, expands again, and remembers", () => {
 });
 
 test("the chosen setting is remembered, junk is ignored", () => {
-  expect(storedCareSetting()).toBe("");
+  expect(storedCareSetting()).toBe("ambulatory");
   rememberCareSetting("emergency");
   expect(window.localStorage.getItem(SELECTED_KEY)).toBe("emergency");
   expect(storedCareSetting()).toBe("emergency");
   window.localStorage.setItem(SELECTED_KEY, "bogus");
-  expect(storedCareSetting()).toBe("");
+  expect(storedCareSetting()).toBe("ambulatory");
 });
 
 test("works when storage is blocked", () => {
@@ -64,7 +78,7 @@ test("works when storage is blocked", () => {
   render(<CareSettingSidebar value="" onChange={() => {}} />);
   fireEvent.click(screen.getByRole("button", { name: "Collapse sidebar" })); // still collapses for this visit
   expect(screen.getByTestId("care-setting-sidebar")).toHaveAttribute("data-collapsed", "true");
-  expect(storedCareSetting()).toBe("");
+  expect(storedCareSetting()).toBe("ambulatory");
   spy.mockRestore();
   set.mockRestore();
 });

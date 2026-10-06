@@ -2,13 +2,12 @@ import { useState } from "react";
 import { Box, List, ListItemButton, ListItemIcon, ListItemText, IconButton, Tooltip, Typography } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import PeopleIcon from "@mui/icons-material/People";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
 import EmergencyIcon from "@mui/icons-material/Emergency";
 import HotelIcon from "@mui/icons-material/Hotel";
 
 export const CARE_SETTINGS = [
-  { key: "", label: "All patients", Icon: PeopleIcon },
   { key: "ambulatory", label: "Ambulatory Care", Icon: MedicalServicesIcon },
   { key: "emergency", label: "Emergency Care", Icon: EmergencyIcon },
   { key: "acute", label: "Acute Care", Icon: HotelIcon },
@@ -33,20 +32,22 @@ const writeStored = (key, value) => {
   }
 };
 
-/** The care setting remembered from last time ("" = all patients). */
+export const DEFAULT_CARE_SETTING = "ambulatory";
+
+/** The care setting remembered from last time. The list is always filtered, so the default is Ambulatory. */
 export const storedCareSetting = () => {
   const value = readStored(SELECTED_KEY);
-  return CARE_SETTINGS.some((c) => c.key === value) ? value : "";
+  return CARE_SETTINGS.some((c) => c.key === value) ? value : DEFAULT_CARE_SETTING;
 };
 
-export const rememberCareSetting = (value) => writeStored(SELECTED_KEY, value || "");
+export const rememberCareSetting = (value) => writeStored(SELECTED_KEY, value || DEFAULT_CARE_SETTING);
 
 /**
  * Collapsible sidebar on the Patients page. Picking a care setting narrows the
  * patient list to patients whose latest visit is in that setting. It folds down
  * to an icon strip, and remembers whether it was open.
  */
-function CareSettingSidebar({ value = "", onChange, compact = false }) {
+function CareSettingSidebar({ value = DEFAULT_CARE_SETTING, onChange, compact = false, onBack = null }) {
   // compact: the icon strip shown beside a patient's chart pages. Always collapsed, no toggle, and it never changes the remembered open/closed choice.
   const [openState, setCollapsed] = useState(() => readStored(COLLAPSED_KEY) === "1");
   const collapsed = compact ? true : openState;
@@ -75,6 +76,21 @@ function CareSettingSidebar({ value = "", onChange, compact = false }) {
         flexDirection: "column",
       }}
     >
+      {onBack && (
+        <Tooltip title={collapsed ? "Back" : ""} placement="right">
+          <ListItemButton
+            onClick={onBack}
+            aria-label="Back"
+            data-testid="care-sidebar-back"
+            sx={{ justifyContent: collapsed ? "center" : "flex-start", px: collapsed ? 0 : 1.5, flexGrow: 0, color: "primary.main", fontWeight: 600 }}
+          >
+            <ListItemIcon sx={{ minWidth: collapsed ? 0 : 36, justifyContent: "center", color: "primary.main" }}>
+              <ArrowBackIcon fontSize="small" />
+            </ListItemIcon>
+            {!collapsed && <ListItemText primary="Back" primaryTypographyProps={{ fontWeight: 600 }} />}
+          </ListItemButton>
+        </Tooltip>
+      )}
       {!compact && (
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", px: collapsed ? 0 : 1.5, py: 0.5 }}>
         {!collapsed && (

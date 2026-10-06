@@ -13,6 +13,7 @@ function ChartPageShell({ children }) {
     <Box sx={{ display: "flex", alignItems: "stretch" }}>
       <CareSettingSidebar
         compact
+        onBack={() => navigate(-1)}
         value={storedCareSetting()}
         onChange={(value) => {
           rememberCareSetting(value);
