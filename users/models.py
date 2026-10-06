@@ -751,7 +751,17 @@ class Registration(models.Model):
     assigned_nurse = models.ForeignKey(
         "CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="nurse_registrations"
     )
+    # The resident now comes from the clinic's doctors (resident_provider); the old free-text name is kept
+    # so nothing is lost, and shows until someone picks a resident from the list.
     resident = models.CharField(max_length=120, blank=True)
+    resident_provider = models.ForeignKey(
+        "CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        limit_choices_to={"role": "doctor"},
+        related_name="resident_registrations",
+    )
     board_comments = models.CharField(max_length=300, blank=True)
     # Registrar ticks this once registration is finished (the board shows it red until then).
     registration_complete = models.BooleanField(default=False)

@@ -502,7 +502,7 @@ export function SettingsTab({ settings, people, departments, onChange }) {
           Staff lists
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          These people fill the RN and MD dropdowns. Leave a list on "every" and anyone with that role in the clinic is offered.
+          Nurses fill the RN dropdown. Doctors fill both the MD and the Resident dropdowns. Leave a list on "every" and anyone with that role in the clinic is offered.
         </Typography>
         <Stack spacing={2}>
           <RosterPicker title="Nurses" role="nurse" people={people.nurses} value={roster.default.nurses} editable onChange={(nurses) => setDefault({ nurses })} />

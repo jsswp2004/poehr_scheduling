@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -15,6 +15,7 @@ import {
   InputLabel,
   MenuItem,
   Paper,
+  Popover,
   Select,
   Table,
   TableBody,
@@ -22,10 +23,12 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
+import FilterListIcon from "@mui/icons-material/FilterList";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
 import HotelIcon from "@mui/icons-material/Hotel";
@@ -35,6 +38,7 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
 import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, filterRows, formatLos, losMinutes, ruleColors, vitalsStatus } from "./edBoardColumns";
+import { BED_LABEL, filterByColumns, isPlainColumn, sortRows } from "./edBoardTable";
 
 const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 const REFRESH_MS = 30000;
@@ -47,7 +51,26 @@ const ROW_COLORS = {
   occupiedA: "#ffffff",
   occupiedB: "#eef1f5",
 };
-const BED_LABEL = { available: "Ready", cleaning: "Cleaning", blocked: "Blocked", occupied: "" };
+const MIN_WIDTH = 50;
+const MAX_WIDTH = 600;
+
+const widthsKey = (userId) => `edBoardWidths:${userId ?? "anon"}`;
+const loadWidths = (userId) => {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(widthsKey(userId)) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch (err) {
+    return {};
+  }
+};
+const saveWidths = (userId, widths) => {
+  try {
+    if (Object.keys(widths).length === 0) window.localStorage.removeItem(widthsKey(userId));
+    else window.localStorage.setItem(widthsKey(userId), JSON.stringify(widths));
+  } catch (err) {
+    // remembering widths is only a convenience
+  }
+};
 
 /** A small "pick one" dialog used to place a waiting patient in a bed, or fill a Ready bed. */
 function PickDialog({ title, label, options, onClose, onSubmit, busy }) {
@@ -108,6 +131,11 @@ export default function EDBoard({
   const data = previewData || fetched;
   const [unit, setUnit] = useState("");
   const [pickedView, setPickedView] = useState(null);
+  const [sort, setSort] = useState(null); // { key, dir }
+  const [filters, setFilters] = useState({}); // { column key: text }
+  const [filterFor, setFilterFor] = useState(null); // { key, anchor }
+  const [widths, setWidths] = useState(() => loadWidths(currentUserId));
+  const dragging = useRef(null);
   const [problem, setProblem] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [picking, setPicking] = useState(null); // { title, label, options, submit }
@@ -164,8 +192,48 @@ export default function EDBoard({
     }
   };
   const overdueMinutes = data?.config?.vitals_overdue_minutes ?? 60;
-  const statuses = data?.statuses || [];
+  const statuses = useMemo(() => data?.statuses || [], [data]);
   const staff = data?.staff || { nurses: [], doctors: [] };
+
+  // column filters, then the chosen sort, on top of the view's own rows
+  const tableCtx = useMemo(() => ({ now, statuses, limit: overdueMinutes }), [now, statuses, overdueMinutes]);
+  const shownRows = useMemo(() => {
+    const kept = filterByColumns(rows, columns, filters, tableCtx);
+    return sortRows(kept, columns.find((c) => c.key === sort?.key), sort?.dir, tableCtx);
+  }, [rows, columns, filters, sort, tableCtx]);
+  const filterCount = Object.values(filters).filter((t) => (t || "").trim() !== "").length;
+  const widthOf = (c) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, widths[c.key] ?? c.width ?? 100));
+  const tableWidth = columns.reduce((sum, c) => sum + widthOf(c), 0);
+
+  const toggleSort = (key) => setSort((cur) => (!cur || cur.key !== key ? { key, dir: "asc" } : cur.dir === "asc" ? { key, dir: "desc" } : null));
+  const setFilter = (key, text) => setFilters((cur) => ({ ...cur, [key]: text }));
+
+  const startResize = (event, column) => {
+    event.preventDefault();
+    event.stopPropagation();
+    dragging.current = { key: column.key, startX: event.clientX, startWidth: widthOf(column) };
+    const move = (e) => {
+      const d = dragging.current;
+      if (!d) return;
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, d.startWidth + (e.clientX - d.startX)));
+      setWidths((cur) => ({ ...cur, [d.key]: next }));
+    };
+    const stop = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", stop);
+      dragging.current = null;
+      setWidths((cur) => {
+        saveWidths(currentUserId, cur);
+        return cur;
+      });
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", stop);
+  };
+  const resetWidths = () => {
+    setWidths({});
+    saveWidths(currentUserId, {});
+  };
 
   const save = async (visitId, body) => {
     try {
@@ -307,9 +375,24 @@ export default function EDBoard({
       case "age":
         return v && v.age != null ? `${v.age}y /${v.sex || "?"}` : "";
       case "reason":
-        return v?.reason || "";
-      case "complaint":
-        return v?.complaint || "";
+      case "complaint": {
+        if (!v) return "";
+        const field = key === "reason" ? "reason" : "complaint";
+        const label = key === "reason" ? "Visit reason" : "Chief complaint";
+        return (
+          <TextField
+            variant="standard"
+            size="small"
+            fullWidth
+            defaultValue={v[field]}
+            key={`${field}-${v.registration}-${v[field]}`}
+            disabled={!canEdit}
+            onBlur={(e) => e.target.value !== v[field] && save(v.registration, { [field]: e.target.value })}
+            inputProps={{ maxLength: 500, "data-testid": `${field}-${v.registration}`, "aria-label": `${label} for ${v.name}`, style: { fontSize: "0.8rem" } }}
+            InputProps={{ disableUnderline: true }}
+          />
+        );
+      }
       case "esi":
         return v ? (
           <Select
@@ -356,23 +439,29 @@ export default function EDBoard({
         }
         return BED_LABEL[row.bed_status] || "";
       case "md":
-      case "rn": {
+      case "rn":
+      case "resident": {
         if (!v) return "";
         const isMd = key === "md";
-        const list = isMd ? staff.doctors : staff.nurses;
-        const current = (isMd ? v.md : v.rn)?.id ?? "";
+        const isResident = key === "resident";
+        const list = isMd || isResident ? staff.doctors : staff.nurses;
+        const current = (isMd ? v.md : isResident ? v.resident : v.rn)?.id ?? "";
+        // a resident typed in by hand before the list existed still shows until one is picked
+        const legacy = isResident && !current && v.resident_text ? v.resident_text : "";
+        const field = isMd ? "attending_provider" : isResident ? "resident" : "assigned_nurse";
         return (
           <Select
             variant="standard"
             disableUnderline
             displayEmpty
-            value={list.some((s) => s.id === current) ? current : ""}
+            value={legacy ? "legacy" : list.some((s) => s.id === current) ? current : ""}
             disabled={!canEdit}
-            onChange={(e) => save(v.registration, isMd ? { attending_provider: e.target.value } : { assigned_nurse: e.target.value })}
-            inputProps={{ "data-testid": `${key}-${v.registration}`, "aria-label": `${isMd ? "MD" : "RN"} for ${v.name}` }}
+            onChange={(e) => e.target.value !== "legacy" && save(v.registration, { [field]: e.target.value })}
+            inputProps={{ "data-testid": `${key}-${v.registration}`, "aria-label": `${isMd ? "MD" : isResident ? "Resident" : "RN"} for ${v.name}` }}
             sx={{ ...compact, minWidth: 110 }}
           >
             <MenuItem value="">-</MenuItem>
+            {legacy && <MenuItem value="legacy">{legacy}</MenuItem>}
             {list.map((s) => (
               <MenuItem key={s.id} value={s.id}>
                 {s.name}
@@ -381,21 +470,6 @@ export default function EDBoard({
           </Select>
         );
       }
-      case "resident":
-        return v ? (
-          <TextField
-            variant="standard"
-            size="small"
-            defaultValue={v.resident}
-            key={`res-${v.registration}-${v.resident}`}
-            disabled={!canEdit}
-            onBlur={(e) => e.target.value !== v.resident && save(v.registration, { resident: e.target.value })}
-            inputProps={{ maxLength: 120, "data-testid": `resident-${v.registration}`, "aria-label": `Resident for ${v.name}`, style: { fontSize: "0.8rem" } }}
-            InputProps={{ disableUnderline: true }}
-          />
-        ) : (
-          ""
-        );
       case "comments":
         return v ? (
           <TextField
@@ -533,6 +607,16 @@ export default function EDBoard({
             ))}
           </Select>
         </FormControl>
+        {filterCount > 0 && (
+          <Button size="small" onClick={() => setFilters({})} data-testid="clear-filters">
+            Clear {filterCount} filter{filterCount === 1 ? "" : "s"}
+          </Button>
+        )}
+        {Object.keys(widths).length > 0 && (
+          <Button size="small" color="inherit" onClick={resetWidths} data-testid="reset-widths">
+            Reset column widths
+          </Button>
+        )}
       </Box>
 
       {problem && <Alert severity="error" sx={{ mb: 1 }}>{problem}</Alert>}
@@ -544,21 +628,55 @@ export default function EDBoard({
 
       {data && !noDepartments && (
         <TableContainer component={Paper} variant="outlined">
-          <Table size="small" stickyHeader>
+          <Table size="small" stickyHeader sx={{ tableLayout: "fixed", width: tableWidth }}>
             <TableHead>
               <TableRow>
-                {columns.map((c) => (
-                  <TableCell key={c.key} sx={{ fontWeight: 700, bgcolor: "#b0bec5", minWidth: c.width, whiteSpace: "nowrap" }}>
-                    {c.label}
-                  </TableCell>
-                ))}
+                {columns.map((c) => {
+                  const w = widthOf(c);
+                  const plain = isPlainColumn(c);
+                  const sorted = sort?.key === c.key;
+                  const filtered = (filters[c.key] || "").trim() !== "";
+                  const name = c.label || c.key;
+                  return (
+                    <TableCell
+                      key={c.key}
+                      aria-sort={sorted ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
+                      sx={{ fontWeight: 700, bgcolor: "#b0bec5", width: w, minWidth: w, maxWidth: w, whiteSpace: "nowrap", position: "sticky", overflow: "hidden", px: 1 }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "center", pr: 0.75 }}>
+                        {plain ? (
+                          c.label
+                        ) : (
+                          <TableSortLabel active={sorted} direction={sorted ? sort.dir : "asc"} onClick={() => toggleSort(c.key)} data-testid={`sort-${c.key}`} aria-label={`Sort by ${name}`}>
+                            {c.label}
+                          </TableSortLabel>
+                        )}
+                        {!plain && (
+                          <IconButton size="small" aria-label={`Filter ${name}`} onClick={(e) => setFilterFor({ key: c.key, anchor: e.currentTarget })} sx={{ ml: 0.25, p: 0.25 }} color={filtered ? "primary" : "default"} data-testid={`filter-${c.key}`}>
+                            <FilterListIcon fontSize="inherit" />
+                          </IconButton>
+                        )}
+                      </Box>
+                      <Box
+                        role="separator"
+                        aria-orientation="vertical"
+                        aria-label={`Resize ${name}`}
+                        data-testid={`resize-${c.key}`}
+                        onMouseDown={(e) => startResize(e, c)}
+                        sx={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 6, cursor: "col-resize", "&:hover": { bgcolor: "rgba(0,0,0,0.25)" } }}
+                      />
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.length === 0 && (
+              {shownRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={columns.length} sx={{ textAlign: "center", py: 3 }}>
-                    {limitedBeds && limitedBeds.length > 0 && !(data?.rows || []).some((r) => r.type === "bed" && limitedBeds.includes(r.bed))
+                    {rows.length > 0 && filterCount > 0
+                      ? "Nobody matches the column filters."
+                      : limitedBeds && limitedBeds.length > 0 && !(data?.rows || []).some((r) => r.type === "bed" && limitedBeds.includes(r.bed))
                       ? "None of this view's beds are in this department. Pick another department."
                       : view === "all" && !(limitedBeds && limitedBeds.length)
                       ? "No beds in this department yet."
@@ -566,7 +684,7 @@ export default function EDBoard({
                   </TableCell>
                 </TableRow>
               )}
-              {rows.map((row, i) => {
+              {shownRows.map((row, i) => {
                 const colors = ruleColors(rules, row.visit, now, overdueMinutes);
                 const base = row.type === "waiting" ? ROW_COLORS.waiting : row.visit ? (i % 2 ? ROW_COLORS.occupiedB : ROW_COLORS.occupiedA) : ROW_COLORS[row.bed_status] || ROW_COLORS.available;
                 const bg = colors.row || base;
@@ -587,7 +705,7 @@ export default function EDBoard({
                       if (!cellBg && c.key === "age" && row.visit?.sex === "F") cellBg = "#f8bbd0";
                       if (!cellBg && c.key === "reg_comp" && row.visit && !row.visit.registration_complete) cellBg = "#e53935";
                       return (
-                        <TableCell key={c.key} sx={{ py: 0.5, bgcolor: cellBg, fontSize: "0.85rem" }} data-testid={`cell-${c.key}-${row.type === "waiting" ? `w${row.visit.registration}` : `b${row.bed}`}`}>
+                        <TableCell key={c.key} sx={{ py: 0.5, px: 1, bgcolor: cellBg, fontSize: "0.85rem", width: widthOf(c), maxWidth: widthOf(c), overflow: "hidden", textOverflow: "ellipsis" }} data-testid={`cell-${c.key}-${row.type === "waiting" ? `w${row.visit.registration}` : `b${row.bed}`}`}>
                           {cell(c.key, row, c)}
                         </TableCell>
                       );
@@ -599,6 +717,25 @@ export default function EDBoard({
           </Table>
         </TableContainer>
       )}
+
+      <Popover open={!!filterFor} anchorEl={filterFor?.anchor} onClose={() => setFilterFor(null)} anchorOrigin={{ vertical: "bottom", horizontal: "left" }}>
+        {filterFor && (
+          <Box sx={{ p: 1.5, display: "flex", gap: 1, alignItems: "center" }}>
+            <TextField
+              autoFocus
+              size="small"
+              label={`Filter ${columns.find((c) => c.key === filterFor.key)?.label || filterFor.key}`}
+              value={filters[filterFor.key] || ""}
+              onChange={(e) => setFilter(filterFor.key, e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && setFilterFor(null)}
+              inputProps={{ "data-testid": "column-filter-input" }}
+            />
+            <Button size="small" onClick={() => setFilter(filterFor.key, "")} disabled={!(filters[filterFor.key] || "").trim()}>
+              Clear
+            </Button>
+          </Box>
+        )}
+      </Popover>
 
       {picking && (
         <PickDialog title={picking.title} label={picking.label} options={picking.options} busy={busy} onClose={() => setPicking(null)} onSubmit={picking.submit} />

@@ -430,7 +430,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           <h2>Reason for Visit</h2>
           <table>
             <tr><td class="label">Reason for Visit</td><td>${esc(visitFields.reason_for_visit)}</td></tr>
-            <tr><td class="label">Presenting Problem</td><td>${esc(visitFields.presenting_problem)}</td></tr>
+            <tr><td class="label">Chief Complaint</td><td>${esc(visitFields.presenting_problem)}</td></tr>
             <tr><td class="label">Scheduled Procedure</td><td>${esc(visitFields.scheduled_procedure)}</td></tr>
             <tr><td class="label">Referring Physician</td><td>${esc(visitFields.referring_physician)}</td></tr>
             <tr><td class="label">Medical History</td><td>${esc(activePatient.medical_history)}</td></tr>
@@ -793,7 +793,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   onChange={(e) => handleVisitFieldChange("reason_for_visit", e.target.value)}
                 />
                 <TextField
-                  label="Presenting Problem"
+                  label="Chief Complaint"
                   size="small"
                   fullWidth
                   multiline

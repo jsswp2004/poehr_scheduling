@@ -19,6 +19,7 @@ class EdBoardBase(Base):
         self.ed_bed_a = Bed.objects.create(room=self.ed_room, name="A")
         self.ed_bed_b = Bed.objects.create(room=self.ed_room, name="B")
         self.ed_bed_c = Bed.objects.create(room=self.ed_room, name="C")
+        self.resident = make_user("resident1", "doctor", self.org, first_name="Dana", last_name="Park")
 
     def er_visit(self, patient=None, bed=None, **extra):
         body = {"patient": (patient or self.patient).pk, "organization": self.org.pk, "admission_type": "emergency",
@@ -88,7 +89,7 @@ class BoardTests(EdBoardBase):
         make_user("nurse_other", "nurse", self.other_org)
         staff = self.board().json()["staff"]
         self.assertEqual([n["id"] for n in staff["nurses"]], [self.nurse.pk])
-        self.assertEqual([d["id"] for d in staff["doctors"]], [self.doctor.pk])
+        self.assertEqual(sorted(d["id"] for d in staff["doctors"]), sorted([self.doctor.pk, self.resident.pk]))
 
     def test_unknown_department_and_no_departments(self):
         self.assertEqual(self.board(unit=self.west.pk).status_code, 404)
@@ -121,13 +122,32 @@ class EditTests(EdBoardBase):
 
     def test_sets_every_board_field(self):
         r = self.edit({"esi": 2, "ed_status": "tip", "assigned_nurse": self.nurse.pk, "attending_provider": self.doctor.pk,
-                       "resident": "Dr. Patel", "comments": "Awaiting CT", "registration_complete": True})
+                       "resident": self.resident.pk, "comments": "Awaiting CT", "registration_complete": True,
+                       "reason": "Chest pain", "complaint": "CP x2 hours"})
         self.assertEqual(r.status_code, 200, r.content)
         v = Registration.objects.get(pk=self.vid)
-        self.assertEqual((v.esi, v.ed_status, v.assigned_nurse, v.attending_provider, v.resident, v.board_comments, v.registration_complete),
-                         (2, "tip", self.nurse, self.doctor, "Dr. Patel", "Awaiting CT", True))
-        body = r.json()
-        self.assertEqual((body["esi"], body["ed_status"], body["rn"]["id"], body["md"]["id"]), (2, "tip", self.nurse.pk, self.doctor.pk))
+        self.assertEqual((v.esi, v.ed_status, v.assigned_nurse, v.attending_provider, v.resident_provider, v.board_comments, v.registration_complete),
+                         (2, "tip", self.nurse, self.doctor, self.resident, "Awaiting CT", True))
+        self.assertEqual((v.reason_for_visit, v.presenting_problem), ("Chest pain", "CP x2 hours"))
+        row = r.json()
+        self.assertEqual(row["resident"], {"id": self.resident.pk, "name": "Park, Dana"})
+        self.assertEqual((row["reason"], row["complaint"]), ("Chest pain", "CP x2 hours"))
+        self.assertEqual((row["esi"], row["ed_status"], row["rn"]["id"], row["md"]["id"]), (2, "tip", self.nurse.pk, self.doctor.pk))
+
+    def test_resident_must_be_a_doctor_of_this_clinic_and_can_be_cleared(self):
+        outsider = make_user("outdoc", "doctor", self.other_org)
+        for bad in (self.nurse.pk, outsider.pk, 999999):
+            self.assertEqual(self.edit({"resident": bad}).status_code, 400, bad)
+        self.assertEqual(self.edit({"resident": self.resident.pk}).status_code, 200)
+        self.assertEqual(self.edit({"resident": ""}).json()["resident"], None)
+        self.assertIsNone(Registration.objects.get(pk=self.vid).resident_provider)
+
+    def test_an_old_typed_resident_name_still_shows_until_one_is_picked(self):
+        Registration.objects.filter(pk=self.vid).update(resident="Dr. Patel")
+        row = self.edit({"esi": 3}).json()
+        self.assertEqual((row["resident"], row["resident_text"]), (None, "Dr. Patel"))
+        row = self.edit({"resident": self.resident.pk}).json()
+        self.assertEqual((row["resident"]["id"], row["resident_text"]), (self.resident.pk, ""))
 
     def test_blank_clears_a_field(self):
         self.edit({"esi": 3, "assigned_nurse": self.nurse.pk, "ed_status": "tip"})
@@ -153,9 +173,9 @@ class EditTests(EdBoardBase):
         self.assertEqual(self.edit({"esi": 1}).status_code, 400)
 
     def test_long_text_is_trimmed(self):
-        self.edit({"comments": "x" * 500, "resident": "y" * 500})
+        self.edit({"comments": "x" * 600, "reason": "y" * 600, "complaint": "z" * 600})
         v = Registration.objects.get(pk=self.vid)
-        self.assertEqual((len(v.board_comments), len(v.resident)), (300, 120))
+        self.assertEqual((len(v.board_comments), len(v.reason_for_visit), len(v.presenting_problem)), (300, 500, 500))
 
 
 class PlaceFromWaitingTests(EdBoardBase):
