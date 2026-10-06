@@ -149,7 +149,8 @@ export default function EDBoard({
   const viewKey = pickedView && views.some((v) => v.key === pickedView) ? pickedView : data?.default_view && views.some((v) => v.key === data.default_view) ? data.default_view : "all";
   const activeView = previewView || views.find((v) => v.key === viewKey) || views[0];
   const view = activeView?.filter || "all";
-  const rows = useMemo(() => filterRows(data?.rows || [], view, currentUserId), [data, view, currentUserId]);
+  const limitedBeds = activeView?.beds;
+  const rows = useMemo(() => filterRows(data?.rows || [], view, currentUserId, limitedBeds), [data, view, currentUserId, limitedBeds]);
   const columns = useMemo(() => (activeView?.columns || DEFAULT_COLUMNS).filter((c) => c.visible !== false), [activeView]);
   const rules = activeView?.rules || [];
 
@@ -563,7 +564,11 @@ export default function EDBoard({
               {rows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={columns.length} sx={{ textAlign: "center", py: 3 }}>
-                    {view === "all" ? "No beds in this department yet." : "Nobody matches this view."}
+                    {limitedBeds && limitedBeds.length > 0 && !(data?.rows || []).some((r) => r.type === "bed" && limitedBeds.includes(r.bed))
+                      ? "None of this view's beds are in this department. Pick another department."
+                      : view === "all" && !(limitedBeds && limitedBeds.length)
+                      ? "No beds in this department yet."
+                      : "Nobody matches this view."}
                   </TableCell>
                 </TableRow>
               )}

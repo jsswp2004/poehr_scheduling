@@ -80,7 +80,7 @@ export const ruleColors = (rules, visit, now = Date.now(), limit = VITALS_OVERDU
 
 export const VIEWS = [
   { value: "all", label: "ED All View" },
-  { value: "waiting", label: "Waiting" },
+  { value: "waiting", label: "Waiting Area" },
   { value: "mine", label: "My patients" },
 ];
 
@@ -99,10 +99,14 @@ export const formatLos = (minutes) => {
   return days > 0 ? `${days}d ${hh}:${mm}` : `${hh}:${mm}`;
 };
 
-/** Which rows a view shows. `meId` is the signed-in user. */
-export const filterRows = (rows, view, meId) => {
-  if (view === "waiting") return rows.filter((r) => r.type === "waiting");
-  if (view === "mine")
-    return rows.filter((r) => r.visit && (r.visit.rn?.id === meId || r.visit.md?.id === meId));
-  return rows;
+/**
+ * Which rows a view shows. `meId` is the signed-in user. A view limited to certain beds lists only those
+ * beds (patients without a bed live in the Waiting Area view); with no beds chosen it lists every bed.
+ */
+export const filterRows = (rows, view, meId, beds = []) => {
+  let list = rows;
+  if (beds && beds.length > 0) list = list.filter((r) => r.type === "bed" && beds.includes(r.bed));
+  if (view === "waiting") return list.filter((r) => r.type === "waiting");
+  if (view === "mine") return list.filter((r) => r.visit && (r.visit.rn?.id === meId || r.visit.md?.id === meId));
+  return list;
 };

@@ -161,7 +161,7 @@ test("roles that cannot edit see the board read-only", async () => {
 test("the View dropdown narrows to waiting patients", async () => {
   render(<EDBoard userRole="nurse" currentUserId={7} />);
   await screen.findByTestId("ed-bed-1");
-  pick("ed-view", "Waiting");
+  pick("ed-view", "Waiting Area");
   expect(screen.queryByTestId("ed-bed-1")).toBeNull();
   expect(screen.getByTestId("ed-waiting-91")).toBeInTheDocument();
   pick("ed-view", "My patients");
@@ -394,4 +394,32 @@ test("clicking anywhere on a patient's row selects that patient, but not an empt
   expect(onSelectPatient).toHaveBeenCalledTimes(1);
   expect(screen.getByTestId("ed-waiting-91")).toHaveAttribute("aria-selected", "true");
   expect(screen.getByTestId("ed-bed-1")).toHaveAttribute("aria-selected", "false");
+});
+
+test("a view limited to chosen beds lists only those beds and not the waiting patients", async () => {
+  api.get.mockResolvedValue({ data: { ...withConfig({ columns: [col("loc", "Bed"), col("patient", "Name")] }), views: [{ key: "v1", id: 1, label: "Fast Track", filter: "all", beds: [2, 4], columns: [col("loc", "Bed"), col("patient", "Name")], rules: [] }], default_view: "v1" } });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-2");
+  expect(screen.getByTestId("ed-bed-4")).toBeInTheDocument();
+  expect(screen.queryByTestId("ed-bed-1")).toBeNull();
+  expect(screen.queryByTestId("ed-bed-3")).toBeNull();
+  expect(screen.queryByTestId("ed-waiting-91")).toBeNull();
+});
+
+test("a bed-limited view whose beds are in another department says so", async () => {
+  api.get.mockResolvedValue({ data: { ...withConfig({ columns: [col("loc", "Bed"), col("patient", "Name")] }), views: [{ key: "v1", id: 1, label: "Elsewhere", filter: "all", beds: [999], columns: [col("loc", "Bed"), col("patient", "Name")], rules: [] }], default_view: "v1" } });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  expect(await screen.findByText(/None of this view's beds are in this department/)).toBeInTheDocument();
+});
+
+test("filterRows: beds limit first, then the waiting or mine filter; the Waiting Area ignores nothing", () => {
+  const rows = [
+    { type: "bed", bed: 1, visit: visit({ rn: { id: 7 } }) },
+    { type: "bed", bed: 2, visit: null },
+    { type: "waiting", bed: null, visit: visit({ registration: 5, rn: { id: 7 } }) },
+  ];
+  expect(filterRows(rows, "all", 7, []).length).toBe(3);
+  expect(filterRows(rows, "all", 7, [2]).map((r) => r.bed)).toEqual([2]);
+  expect(filterRows(rows, "mine", 7, [1, 2]).map((r) => r.bed)).toEqual([1]);
+  expect(filterRows(rows, "waiting", 7, []).length).toBe(1);
 });

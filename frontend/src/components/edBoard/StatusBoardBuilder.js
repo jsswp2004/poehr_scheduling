@@ -61,7 +61,7 @@ export function sampleBoard(settings, columns, people, departments) {
   };
 }
 
-const configOf = (view) => ({ columns: view.columns, rules: view.rules, filter: view.filter });
+const configOf = (view) => ({ columns: view.columns, rules: view.rules, filter: view.filter, beds: view.beds || [] });
 
 export default function StatusBoardBuilder() {
   const [data, setData] = useState(null);
@@ -290,7 +290,7 @@ export default function StatusBoardBuilder() {
                   <Paper variant="outlined" sx={{ p: 2 }}>
                     {sub === 0 && <ColumnsTab config={config} onChange={change} />}
                     {sub === 1 && <ColorsTab config={config} settings={settings} onChange={change} />}
-                    {sub === 2 && <PatientsTab config={config} onChange={change} />}
+                    {sub === 2 && <PatientsTab config={config} locations={data.locations || []} onChange={change} />}
                   </Paper>
                 </>
               )}

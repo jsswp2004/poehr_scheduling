@@ -29,7 +29,7 @@ const col = (key, label, extra = {}) => ({ key, label, width: 100, visible: true
 const columns = () => [col("loc", "LOC"), col("patient", "Patient"), col("age", "Age"), col("esi", "ESI"), col("status", "STS"), col("rn", "RN"), col("actions", "")];
 const view = (over = {}) => ({
   key: "v1", id: 1, name: "Charge nurse", label: "Charge nurse", builtin: false, is_default: false, can_undo: false, filter: "all",
-  columns: columns(), rules: [], author: { id: 1, name: "Admin, Ann" }, ...over,
+  columns: columns(), rules: [], beds: [], author: { id: 1, name: "Admin, Ann" }, ...over,
 });
 const settings = () => ({
   statuses: [{ value: "wtbs", code: "WTBS", label: "Waiting to be seen" }, { value: "tip", code: "TIP", label: "Treatment in progress" }],
@@ -41,6 +41,7 @@ const payload = (over = {}) => ({
   views: [view(), view({ key: "v2", id: 2, name: "Triage", label: "Triage", is_default: true, can_undo: true })],
   settings: settings(),
   departments: [{ id: 5, name: "ED Main", facility_name: "General Hospital" }],
+  locations: [{ id: 1, name: "General Hospital", units: [{ id: 5, name: "ED Main", beds: [{ id: 11, name: "ED1A" }, { id: 12, name: "ED1B" }, { id: 13, name: "ED1C" }] }, { id: 6, name: "Fast Track", beds: [{ id: 21, name: "FT1" }] }] }],
   default_view_config: { columns: columns(), rules: [], filter: "all" },
   people: { nurses: [{ id: 7, name: "Geronimo, Ann" }, { id: 9, name: "Bell, Sam" }], doctors: [{ id: 8, name: "Lee, Jeffrey" }] },
   ...over,
@@ -96,7 +97,7 @@ test("the Patients shown tab changes which patients the view lists", async () =>
   await open();
   fireEvent.click(screen.getByRole("tab", { name: "Patients shown" }));
   fireEvent.mouseDown(within(screen.getByTestId("view-filter").closest(".MuiInputBase-root")).getByRole("combobox"));
-  fireEvent.click(screen.getByRole("option", { name: "Only patients waiting for a bed" }));
+  fireEvent.click(screen.getByRole("option", { name: /Waiting Area/ }));
   api.patch.mockResolvedValue({ data: view({ filter: "waiting" }) });
   fireEvent.click(screen.getByRole("button", { name: "Save view" }));
   await waitFor(() => expect(api.patch.mock.calls[0][1].config.filter).toBe("waiting"));
@@ -217,4 +218,59 @@ test("with no saved views the page says how to start", async () => {
   api.get.mockResolvedValue({ data: payload({ views: [] }) });
   render(<StatusBoardBuilder />);
   expect(await screen.findByText(/Create a view to choose/)).toBeInTheDocument();
+});
+
+const openPatientsTab = async () => {
+  await open();
+  fireEvent.click(screen.getByRole("tab", { name: "Patients shown" }));
+};
+const choose = (testId, name) => {
+  fireEvent.mouseDown(within(screen.getByTestId(testId).closest(".MuiInputBase-root")).getByRole("combobox"));
+  fireEvent.click(screen.getByRole("option", { name }));
+};
+
+test("beds are picked by location, then unit, and saved with the view", async () => {
+  await openPatientsTab();
+  expect(screen.getByTestId("bed-summary")).toHaveTextContent("Every bed in the department");
+  choose("bed-location", "General Hospital");
+  choose("bed-unit", "ED Main");
+  fireEvent.click(screen.getByRole("checkbox", { name: "ED1A" }));
+  fireEvent.click(screen.getByRole("checkbox", { name: "ED1C" }));
+  expect(screen.getByTestId("bed-summary")).toHaveTextContent("2 beds chosen");
+  expect(screen.getByText("ED Main ED1A")).toBeInTheDocument();
+  api.patch.mockResolvedValue({ data: view({ beds: [11, 13] }) });
+  fireEvent.click(screen.getByRole("button", { name: "Save view" }));
+  await waitFor(() => expect(api.patch.mock.calls[0][1].config.beds).toEqual([11, 13]));
+});
+
+test("select all and clear work on one unit and keep beds from other units", async () => {
+  await openPatientsTab();
+  choose("bed-location", "General Hospital");
+  choose("bed-unit", "Fast Track");
+  fireEvent.click(screen.getByRole("button", { name: "Select all in Fast Track" }));
+  choose("bed-unit", "ED Main");
+  fireEvent.click(screen.getByRole("button", { name: "Select all in ED Main" }));
+  expect(screen.getByTestId("bed-summary")).toHaveTextContent("4 beds chosen");
+  fireEvent.click(screen.getByRole("button", { name: "Clear ED Main" }));
+  expect(screen.getByTestId("bed-summary")).toHaveTextContent("1 bed chosen");
+  fireEvent.click(screen.getByRole("button", { name: "Clear all beds" }));
+  expect(screen.getByTestId("bed-summary")).toHaveTextContent("Every bed in the department");
+});
+
+test("a chosen bed can be removed from its chip", async () => {
+  api.get.mockResolvedValue({ data: payload({ views: [view({ beds: [11, 12] })] }) });
+  render(<StatusBoardBuilder />);
+  await screen.findByTestId("view-item-1");
+  fireEvent.click(screen.getByRole("tab", { name: "Patients shown" }));
+  expect(screen.getByTestId("bed-summary")).toHaveTextContent("2 beds chosen");
+  const chip = screen.getByText("ED Main ED1A").closest(".MuiChip-root");
+  fireEvent.click(chip.querySelector(".MuiChip-deleteIcon"));
+  expect(screen.getByTestId("bed-summary")).toHaveTextContent("1 bed chosen");
+});
+
+test("the Waiting Area filter has no beds to pick", async () => {
+  await openPatientsTab();
+  choose("view-filter", /Waiting Area/);
+  expect(screen.getByTestId("beds-not-applicable")).toBeInTheDocument();
+  expect(screen.queryByTestId("bed-location")).toBeNull();
 });
