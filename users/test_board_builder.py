@@ -1,4 +1,4 @@
-from appointments.models import Bed, Room
+from appointments.models import Bed, Facility, Room, Unit
 from appointments.test_locations import Base, make_user
 from users.board_config import default_view_config
 from users.models import Registration, StatusBoardView
@@ -28,7 +28,7 @@ class BuilderBase(Base):
         return r.json()
 
     def save(self, view, **changes):
-        config = {"columns": view["columns"], "rules": view["rules"], "filter": view["filter"]}
+        config = {"columns": view["columns"], "rules": view["rules"], "filter": view["filter"], "beds": view.get("beds", [])}
         config.update(changes)
         return self.api().patch(ONE.format(view["id"]), {"config": config}, format="json")
 
@@ -343,3 +343,59 @@ class BoardViewsTests(BuilderBase):
         self.assertEqual([s["code"] for s in data["statuses"]], ["WTBS", "TIP", "DISPO", "ADM", "DC"])
         self.assertEqual(data["config"]["vitals_overdue_minutes"], 60)
         self.assertEqual(len(data["staff"]["nurses"]), 2)
+
+
+class BedLimitTests(BuilderBase):
+    def setUp(self):
+        super().setUp()
+        self.bed_b2 = Bed.objects.create(room=self.room, name="B")
+        self.bed_c = Bed.objects.create(room=self.room, name="C")
+
+    def test_waiting_area_is_the_name_of_the_built_in_view(self):
+        self.assertEqual([v["label"] for v in self.board()["views"]][:3], ["ED All View", "Waiting Area", "My patients"])
+
+    def test_the_builder_offers_locations_units_and_beds(self):
+        data = self.api().get(VIEWS).json()
+        self.assertEqual([f["name"] for f in data["locations"]], ["General Hospital"])
+        unit = data["locations"][0]["units"][0]
+        self.assertEqual(unit["name"], "ED")
+        self.assertEqual([b["name"] for b in unit["beds"]], ["ED1A", "ED1B", "ED1C"])
+        # inpatient beds are not offered
+        self.assertNotIn("3 West", [u["name"] for u in data["locations"][0]["units"]])
+
+    def test_a_view_starts_with_no_bed_limit_and_keeps_the_beds_it_is_given(self):
+        v = self.make_view()
+        self.assertEqual(v["beds"], [])
+        r = self.save(v, beds=[self.bed.pk, self.bed_c.pk, self.bed.pk])
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["beds"], [self.bed.pk, self.bed_c.pk])
+        self.assertEqual([x for x in self.board()["views"] if x["id"] == v["id"]][0]["beds"], [self.bed.pk, self.bed_c.pk])
+
+    def test_beds_are_part_of_undo_and_duplicate(self):
+        v = self.make_view()
+        self.save(v, beds=[self.bed.pk])
+        undone = self.api().post(UNDO.format(v["id"])).json()
+        self.assertEqual(undone["beds"], [])
+        self.api().post(UNDO.format(v["id"]))
+        copy = self.make_view("Copy", from_view=v["id"])
+        self.assertEqual(copy["beds"], [self.bed.pk])
+
+    def test_beds_must_be_emergency_beds_of_this_clinic(self):
+        v = self.make_view()
+        other_hospital = Facility.objects.create(organization=self.other_org, name="Elsewhere ED", kind="hospital")
+        other_unit = Unit.objects.create(facility=other_hospital, name="ED", care_type="emergency")
+        other_bed = Bed.objects.create(room=Room.objects.create(unit=other_unit, name="X"), name="1")
+        for bad in ([other_bed.pk], [self.bed_a.pk], [999999], ["1"], [True], "all"):
+            self.assertEqual(self.save(v, beds=bad).status_code, 400, bad)
+        self.assertEqual(self.save(v, beds=list(range(1, 502))).status_code, 400)
+
+    def test_a_bed_that_goes_away_drops_out_of_the_view(self):
+        v = self.make_view()
+        self.save(v, beds=[self.bed.pk, self.bed_c.pk])
+        self.bed_c.is_active = False
+        self.bed_c.save()
+        got = [x for x in self.board()["views"] if x["id"] == v["id"]][0]
+        self.assertEqual(got["beds"], [self.bed.pk])
+        self.bed.delete()
+        got = [x for x in self.board()["views"] if x["id"] == v["id"]][0]
+        self.assertEqual(got["beds"], [])

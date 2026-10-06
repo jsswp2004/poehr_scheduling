@@ -49,6 +49,23 @@ def _view_data(view, settings):
     return data
 
 
+def _locations(org):
+    """Facilities > emergency units > beds, for the bed picker."""
+    from appointments.models import Bed
+
+    beds = Bed.objects.filter(
+        room__unit__facility__organization=org, room__unit__care_type="emergency", room__unit__is_active=True, room__unit__facility__is_active=True, is_active=True, room__is_active=True
+    ).select_related("room", "room__unit", "room__unit__facility").order_by("room__unit__facility__name", "room__unit__name", "room__name", "name")
+    out = {}
+    for bed in beds:
+        unit = bed.room.unit
+        facility = unit.facility
+        f = out.setdefault(facility.pk, {"id": facility.pk, "name": facility.name, "units": {}})
+        u = f["units"].setdefault(unit.pk, {"id": unit.pk, "name": unit.name, "beds": []})
+        u["beds"].append({"id": bed.pk, "name": f"{bed.room.name}{bed.name}"})
+    return [{**f, "units": list(f["units"].values())} for f in out.values()]
+
+
 class _Admin(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -97,6 +114,7 @@ class StatusViewListView(_Admin):
                 "views": [_view_data(v, settings) for v in StatusBoardView.objects.filter(organization=org).select_related("author")],
                 "settings": settings,
                 "departments": departments,
+                "locations": _locations(org),
                 "default_view_config": default_view_config(),
                 "people": {
                     "nurses": [_person(u) for u in people if u.role == "nurse"],
@@ -122,9 +140,9 @@ class StatusViewListView(_Admin):
                 return _bad("That view was not found.", 404)
             config = source.config
         try:
-            config = clean_view_config(config, settings)
+            config = clean_view_config(config, settings, org)
         except ConfigError:
-            config = clean_view_config(default_view_config(), settings)
+            config = clean_view_config(default_view_config(), settings, org)
         position = (StatusBoardView.objects.filter(organization=org).aggregate(m=Max("position"))["m"] or 0) + 1
         view = StatusBoardView.objects.create(organization=org, name=name, position=position, config=config, author=request.user)
         return Response(_view_data(view, settings), status=201)
@@ -146,7 +164,7 @@ class StatusViewDetailView(_Admin):
             view.name = name
         if "config" in request.data:
             try:
-                config = clean_view_config(request.data["config"], settings)
+                config = clean_view_config(request.data["config"], settings, org)
             except ConfigError as exc:
                 return _bad(str(exc))
             if config != view.config:

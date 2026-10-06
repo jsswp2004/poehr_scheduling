@@ -55,7 +55,7 @@ DEFAULT_STATUSES = [
 # The views every clinic has; they cannot be edited. `filter` says which rows they list.
 BUILTIN_VIEWS = [
     {"key": "all", "label": "ED All View", "filter": "all"},
-    {"key": "waiting", "label": "Waiting", "filter": "waiting"},
+    {"key": "waiting", "label": "Waiting Area", "filter": "waiting"},
     {"key": "mine", "label": "My patients", "filter": "mine"},
 ]
 BUILTIN_VIEW_KEYS = {v["key"] for v in BUILTIN_VIEWS}
@@ -66,7 +66,7 @@ STATUS_VALUE = re.compile(r"^[a-z0-9_]{1,20}$")
 COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 CUSTOM_KINDS = ("text", "dropdown", "checkbox")
 RULE_FIELDS = ("esi", "ed_status", "vitals_overdue", "registration_complete", "sex")
-MAX_VIEWS, MAX_COLUMNS, MAX_RULES, MAX_STATUSES, MAX_OPTIONS, MAX_CUSTOM = 30, 60, 30, 12, 30, 20
+MAX_VIEWS, MAX_COLUMNS, MAX_RULES, MAX_STATUSES, MAX_OPTIONS, MAX_CUSTOM, MAX_BEDS = 30, 60, 30, 12, 30, 20, 500
 
 
 class ConfigError(ValueError):
@@ -87,6 +87,7 @@ def default_view_config():
         "columns": [{"key": k, "label": label, "width": w, "visible": True, "type": "builtin"} for k, label, w in BUILTIN_COLUMNS],
         "rules": [],
         "filter": "all",
+        "beds": [],
     }
 
 
@@ -295,7 +296,31 @@ def _clean_rules(raw, settings):
     return out
 
 
-def clean_view_config(raw, settings):
+def _bed_queryset(org):
+    from appointments.models import Bed
+
+    return Bed.objects.filter(room__unit__facility__organization=org, room__unit__care_type="emergency")
+
+
+def _clean_beds(raw, org):
+    """The beds a view is limited to (empty = every bed), as ids that exist in this clinic's emergency units."""
+    if raw in (None, ""):
+        return []
+    if not isinstance(raw, list) or len(raw) > MAX_BEDS:
+        raise ConfigError(f"A view can be limited to at most {MAX_BEDS} beds.")
+    ids = []
+    for item in raw:
+        if isinstance(item, bool) or not isinstance(item, int):
+            raise ConfigError("Beds must be picked from the list.")
+        if item not in ids:
+            ids.append(item)
+    found = set(_bed_queryset(org).filter(pk__in=ids).values_list("pk", flat=True)) if org is not None else set(ids)
+    if len(found) != len(ids):
+        raise ConfigError("One of those beds is not an emergency bed in this clinic.")
+    return ids
+
+
+def clean_view_config(raw, settings, org=None):
     """One view's layout in canonical form, or ConfigError saying what is wrong."""
     if not isinstance(raw, dict):
         raise ConfigError("The layout is missing.")
@@ -306,6 +331,7 @@ def clean_view_config(raw, settings):
         "columns": _clean_columns(raw.get("columns", default_view_config()["columns"]), settings),
         "rules": _clean_rules(raw.get("rules", []), settings),
         "filter": view_filter,
+        "beds": _clean_beds(raw.get("beds", []), org),
     }
 
 
@@ -315,7 +341,7 @@ def view_key(view):
 
 def view_payload(view, settings):
     """A saved view as the board and builder read it: custom columns carry their kind and choices."""
-    config = clean_view_config_lenient(view.config, settings)
+    config = clean_view_config_lenient(view.config, settings, view.organization)
     custom = {c["key"]: c for c in settings["custom_columns"]}
     columns = []
     for c in config["columns"]:
@@ -325,22 +351,26 @@ def view_payload(view, settings):
             if custom[c["key"]]["kind"] == "dropdown":
                 c["options"] = custom[c["key"]]["options"]
         columns.append(c)
-    return {"key": view_key(view), "id": view.pk, "label": view.name, "builtin": False, "filter": config["filter"], "columns": columns, "rules": config["rules"]}
+    return {"key": view_key(view), "id": view.pk, "label": view.name, "builtin": False, "filter": config["filter"], "beds": config["beds"], "columns": columns, "rules": config["rules"]}
 
 
-def clean_view_config_lenient(config, settings):
+def clean_view_config_lenient(config, settings, org=None):
     """Like clean_view_config but drops what no longer exists (a deleted custom column) instead of failing."""
     config = dict(config or {})
     known = set(BUILTIN_KEYS) | {c["key"] for c in settings["custom_columns"]}
     config["columns"] = [c for c in config.get("columns", []) if c.get("key") in known] or default_view_config()["columns"]
     custom_keys = {c["key"] for c in settings["custom_columns"]}
     config["rules"] = [r for r in config.get("rules", []) if r.get("field") in RULE_FIELDS or r.get("field") in custom_keys]
-    return clean_view_config(config, settings)
+    if org is not None:  # beds that were deleted or deactivated drop out of the view
+        wanted = [b for b in config.get("beds") or [] if isinstance(b, int) and not isinstance(b, bool)]
+        alive = set(_bed_queryset(org).filter(is_active=True, room__is_active=True, pk__in=wanted).values_list("pk", flat=True))
+        config["beds"] = [b for b in wanted if b in alive]
+    return clean_view_config(config, settings, org)
 
 
 def builtin_view_payload(spec):
     cfg = default_view_config()
-    return {"key": spec["key"], "id": None, "label": spec["label"], "builtin": True, "filter": spec["filter"], "columns": cfg["columns"], "rules": []}
+    return {"key": spec["key"], "id": None, "label": spec["label"], "builtin": True, "filter": spec["filter"], "beds": [], "columns": cfg["columns"], "rules": []}
 
 
 def all_view_payloads(org, settings):

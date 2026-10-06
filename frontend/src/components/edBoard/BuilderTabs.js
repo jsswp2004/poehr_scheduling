@@ -134,24 +134,110 @@ export function ColumnsTab({ config, onChange }) {
 
 export const FILTER_CHOICES = [
   { value: "all", label: "Everyone on the board" },
-  { value: "waiting", label: "Only patients waiting for a bed" },
+  { value: "waiting", label: "Waiting Area (everyone in the ED without a bed)" },
   { value: "mine", label: "Only the signed-in person's patients" },
 ];
 
-export function PatientsTab({ config, onChange }) {
+/** Limit a view to chosen beds: pick a location, then a unit, then tick its beds. */
+function BedPicker({ beds, locations, onChange }) {
+  const [facilityId, setFacilityId] = useState("");
+  const [unitId, setUnitId] = useState("");
+  const facility = locations.find((f) => String(f.id) === facilityId);
+  const unit = facility?.units.find((u) => String(u.id) === unitId);
+  const names = {};
+  for (const f of locations) for (const u of f.units) for (const b of u.beds) names[b.id] = `${u.name} ${b.name}`;
+  const toggle = (id) => onChange(beds.includes(id) ? beds.filter((b) => b !== id) : [...beds, id]);
+  const unitIds = unit ? unit.beds.map((b) => b.id) : [];
   return (
     <Box>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Which patients does this view list?
+      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+        Beds this view covers
       </Typography>
-      <TextField select label="Which patients" size="small" value={config.filter || "all"} onChange={(e) => onChange({ ...config, filter: e.target.value })} sx={{ minWidth: 320 }} inputProps={{ "data-testid": "view-filter" }}>
-        {FILTER_CHOICES.map((f) => (
-          <MenuItem key={f.value} value={f.value}>
-            {f.label}
-          </MenuItem>
-        ))}
-      </TextField>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Leave empty to show every bed in the department. Pick beds to make a view for just those, such as Fast Track.
+      </Typography>
+      <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap", rowGap: 1.5, mb: 1.5 }}>
+        <TextField select size="small" label="Location" value={facilityId} onChange={(e) => { setFacilityId(e.target.value); setUnitId(""); }} sx={{ minWidth: 220 }} inputProps={{ "data-testid": "bed-location" }}>
+          {locations.map((f) => (
+            <MenuItem key={f.id} value={String(f.id)}>
+              {f.name}
+            </MenuItem>
+          ))}
+        </TextField>
+        <TextField select size="small" label="Unit" value={unitId} disabled={!facility} onChange={(e) => setUnitId(e.target.value)} sx={{ minWidth: 220 }} inputProps={{ "data-testid": "bed-unit" }}>
+          {(facility?.units || []).map((u) => (
+            <MenuItem key={u.id} value={String(u.id)}>
+              {u.name}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Stack>
+      {unit && (
+        <Box sx={{ mb: 1.5 }}>
+          <Stack direction="row" spacing={1} sx={{ mb: 0.5 }}>
+            <Button size="small" onClick={() => onChange([...beds, ...unitIds.filter((id) => !beds.includes(id))])}>
+              Select all in {unit.name}
+            </Button>
+            <Button size="small" color="inherit" onClick={() => onChange(beds.filter((id) => !unitIds.includes(id)))}>
+              Clear {unit.name}
+            </Button>
+          </Stack>
+          <Box sx={{ display: "flex", flexWrap: "wrap", columnGap: 2 }}>
+            {unit.beds.map((b) => (
+              <FormControlLabel key={b.id} control={<Checkbox size="small" checked={beds.includes(b.id)} onChange={() => toggle(b.id)} />} label={b.name} />
+            ))}
+          </Box>
+        </Box>
+      )}
+      <Box data-testid="bed-summary">
+        {beds.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            Every bed in the department
+          </Typography>
+        ) : (
+          <>
+            <Typography variant="body2" sx={{ mb: 0.5 }}>
+              {beds.length} bed{beds.length === 1 ? "" : "s"} chosen
+            </Typography>
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.5 }}>
+              {beds.map((id) => (
+                <Chip key={id} size="small" label={names[id] || `Bed ${id}`} onDelete={() => toggle(id)} />
+              ))}
+            </Stack>
+            <Button size="small" sx={{ mt: 1 }} onClick={() => onChange([])}>
+              Clear all beds
+            </Button>
+          </>
+        )}
+      </Box>
     </Box>
+  );
+}
+
+export function PatientsTab({ config, locations = [], onChange }) {
+  const waiting = config.filter === "waiting";
+  return (
+    <Stack spacing={3}>
+      <Box>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Which patients does this view list?
+        </Typography>
+        <TextField select label="Which patients" size="small" value={config.filter || "all"} onChange={(e) => onChange({ ...config, filter: e.target.value })} sx={{ minWidth: 340 }} inputProps={{ "data-testid": "view-filter" }}>
+          {FILTER_CHOICES.map((f) => (
+            <MenuItem key={f.value} value={f.value}>
+              {f.label}
+            </MenuItem>
+          ))}
+        </TextField>
+      </Box>
+      {waiting ? (
+        <Typography variant="body2" color="text.secondary" data-testid="beds-not-applicable">
+          The Waiting Area shows every ED patient who has no bed yet, so there are no beds to choose.
+        </Typography>
+      ) : (
+        <BedPicker beds={config.beds || []} locations={locations} onChange={(beds) => onChange({ ...config, beds })} />
+      )}
+    </Stack>
   );
 }
 
