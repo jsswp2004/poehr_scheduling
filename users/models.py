@@ -821,6 +821,36 @@ class Registration(models.Model):
         if not self.visit_number:
             self.visit_number = f"VN-{self.pk:06d}"
             super().save(update_fields=["visit_number"])
+        if self.care_setting == "emergency" and not self.appointment_id and not self.discharge_datetime:
+            self.ensure_chart_appointment()
+
+    def ensure_chart_appointment(self):
+        """
+        Orders and flowsheets are charted against an Appointment, so every open ED visit gets one
+        (created once, linked here). It is marked in progress and arrived, and the reminder jobs skip it.
+        """
+        if self.appointment_id or not self.pk:
+            return self.appointment
+        from django.utils import timezone
+
+        from appointments.models import Appointment
+
+        user = self.patient.user
+        appointment = Appointment.all_objects.create(
+            organization=self.organization or user.organization,
+            patient=user,
+            title=f"ED visit {self.visit_number or ''}".strip(),
+            description=self.reason_for_visit or "",
+            appointment_datetime=self.arrival_time or timezone.now(),
+            duration_minutes=60,
+            status="in_progress",
+            provider=self.attending_provider,
+            unit=self.unit,
+            arrived=True,
+        )
+        Registration.objects.filter(pk=self.pk).update(appointment=appointment)
+        self.appointment = appointment
+        return appointment
 
     def __str__(self):
         return f"{self.visit_number or 'unsaved'} - {self.patient}"

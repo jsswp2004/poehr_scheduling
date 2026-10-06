@@ -166,3 +166,71 @@ class PlaceFromWaitingTests(EdBoardBase):
         rows = self.board().json()["rows"]
         self.assertFalse([r for r in rows if r["type"] == "waiting"])
         self.assertEqual([r for r in rows if r["loc"] == "ED1C"][0]["visit"]["registration"], vid)
+
+
+class ChartLinkTests(EdBoardBase):
+    def _order(self, appt, name, category, status="active"):
+        from appointments.models import Order, Orderable
+
+        code = name.lower().replace(" ", "_")[:60]
+        item = Orderable.objects.create(code=code, name=name, category=category)
+        return Order.objects.create(
+            organization=self.org, appointment=appt, patient=appt.patient, ordering_provider=self.doctor,
+            orderable=item, orderable_name=name, orderable_category=category, status=status,
+        )
+
+    def test_an_emergency_visit_gets_one_linked_chart_appointment(self):
+        vid = self.er_visit(bed=self.ed_bed_a)
+        visit = Registration.objects.get(pk=vid)
+        self.assertIsNotNone(visit.appointment_id)
+        self.assertEqual(visit.appointment.patient_id, self.patient_user.pk)
+        self.assertTrue(visit.appointment.title.startswith("ED visit"))
+        visit.save()  # saving again must not create another
+        self.assertEqual(Registration.objects.get(pk=vid).appointment_id, visit.appointment_id)
+
+    def test_outpatient_visits_get_no_chart_appointment(self):
+        r = self.as_(self.registrar).post(
+            "/api/users/registrations/",
+            {"patient": self.patient.pk, "organization": self.org.pk, "admission_type": "scheduled"}, format="json")
+        self.assertIsNone(Registration.objects.get(pk=r.json()["id"]).appointment_id)
+
+    def test_older_emergency_visits_are_linked_when_the_board_loads(self):
+        vid = self.er_visit(bed=self.ed_bed_a)
+        Registration.objects.filter(pk=vid).update(appointment=None)
+        self.board()
+        self.assertIsNotNone(Registration.objects.get(pk=vid).appointment_id)
+
+    def test_board_shows_last_vitals_time_and_order_icons(self):
+        from appointments.models import FlowsheetTemplate, VitalSignsFlowsheet
+
+        vid = self.er_visit(bed=self.ed_bed_a)
+        appt = Registration.objects.get(pk=vid).appointment
+        tpl = FlowsheetTemplate.objects.filter(code="vital_signs").first() or FlowsheetTemplate.objects.create(code="vital_signs", name="Vital Signs")
+        early = (timezone.now() - timedelta(hours=3)).isoformat()
+        late = (timezone.now() - timedelta(minutes=20)).isoformat()
+        VitalSignsFlowsheet.objects.create(
+            organization=self.org, template=tpl, appointment=appt, patient=self.patient_user,
+            columns=[{"id": "c1", "timestamp": late}, {"id": "c2", "timestamp": early}],
+        )
+        self._order(appt, "Urinalysis", "laboratory")
+        self._order(appt, "Troponin I", "laboratory", status="completed")
+        self._order(appt, "Chest X-ray", "imaging")
+        self._order(appt, "12 lead EKG", "procedure")
+        self._order(appt, "Morphine", "medication")
+        self._order(appt, "Old draft", "imaging", status="draft")
+        v = [r for r in self.board().json()["rows"] if r["loc"] == "ED1A"][0]["visit"]
+        self.assertEqual(v["vitals_last_at"][:16], late[:16])
+        self.assertEqual(v["orders"], {"lab": "pending", "urine": "pending", "cardiac": "done", "rad": "pending", "ekg": "pending", "meds": "pending"})
+
+    def test_a_visit_with_nothing_charted_has_empty_chart_fields(self):
+        self.er_visit(bed=self.ed_bed_a)
+        v = [r for r in self.board().json()["rows"] if r["loc"] == "ED1A"][0]["visit"]
+        self.assertIsNone(v["vitals_last_at"])
+        self.assertEqual(v["orders"], {})
+
+    def test_reminders_skip_emergency_and_inpatient_visits(self):
+        from appointments.models import Appointment
+
+        self.er_visit(bed=self.ed_bed_a)
+        cands = Appointment.all_objects.exclude(registration__care_setting__in=("emergency", "acute"))
+        self.assertFalse(cands.filter(title__startswith="ED visit").exists())
