@@ -365,7 +365,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       >
         {/* Left Pane - Registration Form */}
         <Box sx={{
-          flex: '1 1 35%',
+          flex: '1 1 50%',
           minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
@@ -587,7 +587,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
           )}
         </Box>
         {/* Right Pane - All Registered Patients (first 50) */}
-        <Box sx={{ flex: '1 1 65%', minWidth: 0, pl: 2 }}>
+        <Box sx={{ flex: '1 1 50%', minWidth: 0, pl: 2 }}>
           <PatientsRegisterTable userRole={userRole} onEdit={handleEditPatient} />
         </Box>
       </Paper>
