@@ -46,8 +46,10 @@ export const rememberCareSetting = (value) => writeStored(SELECTED_KEY, value ||
  * patient list to patients whose latest visit is in that setting. It folds down
  * to an icon strip, and remembers whether it was open.
  */
-function CareSettingSidebar({ value = "", onChange }) {
-  const [collapsed, setCollapsed] = useState(() => readStored(COLLAPSED_KEY) === "1");
+function CareSettingSidebar({ value = "", onChange, compact = false }) {
+  // compact: the icon strip shown beside a patient's chart pages. Always collapsed, no toggle, and it never changes the remembered open/closed choice.
+  const [openState, setCollapsed] = useState(() => readStored(COLLAPSED_KEY) === "1");
+  const collapsed = compact ? true : openState;
 
   const toggle = () => {
     const next = !collapsed;
@@ -73,6 +75,7 @@ function CareSettingSidebar({ value = "", onChange }) {
         flexDirection: "column",
       }}
     >
+      {!compact && (
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", px: collapsed ? 0 : 1.5, py: 0.5 }}>
         {!collapsed && (
           <Typography variant="overline" color="text.secondary">
@@ -85,7 +88,8 @@ function CareSettingSidebar({ value = "", onChange }) {
           </IconButton>
         </Tooltip>
       </Box>
-      <List dense disablePadding>
+      )}
+      <List dense disablePadding sx={compact ? { pt: 1 } : undefined}>
         {CARE_SETTINGS.map(({ key, label, Icon }) => {
           const selected = value === key;
           return (
