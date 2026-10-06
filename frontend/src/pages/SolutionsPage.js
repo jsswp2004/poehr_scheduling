@@ -51,10 +51,10 @@ export const SolutionsPage = ({ className }) => {
         >
           <img
             src={DocumentationImage}
-            alt="Documentation"
+            alt="POWER Documentation"
             className="solution-image"
           />
-          <div className="solution-label">Documentation</div>
+          <div className="solution-label">POWER Documentation</div>
         </div>
         <div
           className="solution-button"
@@ -63,10 +63,10 @@ export const SolutionsPage = ({ className }) => {
         >
           <img
             src={SchedulerImage}
-            alt="Scheduler"
+            alt="POWER Scheduler"
             className="solution-image"
           />
-          <div className="solution-label">Scheduler</div>
+          <div className="solution-label">POWER Scheduler</div>
         </div>
         <div
           className="solution-button"
@@ -75,34 +75,34 @@ export const SolutionsPage = ({ className }) => {
         >
           <img
             src={CommunicatorImage}
-            alt="Communicator"
+            alt="POWER Communicator"
             className="solution-image"
           />
-          <div className="solution-label">Communicator</div>
+          <div className="solution-label">POWER Communicator</div>
         </div>{" "}
         <div
           className="solution-button"
           onClick={handlePortalClick}
           style={{ cursor: "pointer" }}
         >
-          <img src={PortalImage} alt="Portal" className="solution-image" />
-          <div className="solution-label">Patient Portal</div>
+          <img src={PortalImage} alt="POWER Patient Portal" className="solution-image" />
+          <div className="solution-label">POWER Patient Portal</div>
         </div>
         <div
           className="solution-button"
           onClick={handleCheckInClick}
           style={{ cursor: "pointer" }}
         >
-          <img src={CheckInImage} alt="Check In" className="solution-image" />
-          <div className="solution-label">Check-In</div>
+          <img src={CheckInImage} alt="POWER Check-In" className="solution-image" />
+          <div className="solution-label">POWER Check-In</div>
         </div>
         <div
           className="solution-button"
           onClick={handleStaffingClick}
           style={{ cursor: "pointer" }}
         >
-          <img src={StaffingImage} alt="Staffing" className="solution-image" />
-          <div className="solution-label">Staffing</div>
+          <img src={StaffingImage} alt="POWER Staffing" className="solution-image" />
+          <div className="solution-label">POWER Staffing</div>
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
