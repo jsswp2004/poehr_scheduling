@@ -102,7 +102,6 @@ export default function EDBoard({
   onTransfer,
   onDischarge,
   onAdmit,
-  onShowList,
 }) {
   const [fetched, setData] = useState(null);
   const preview = !!previewData;
@@ -514,11 +513,6 @@ export default function EDBoard({
   return (
     <Box sx={{ p: 1.5 }} data-testid="ed-board">
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap", mb: 1.5 }}>
-        {onShowList && (
-          <Button size="small" variant="outlined" onClick={onShowList}>
-            Patient List
-          </Button>
-        )}
         <FormControl size="small" sx={{ minWidth: 200 }}>
           <InputLabel id="ed-dept">Department</InputLabel>
           <Select labelId="ed-dept" label="Department" value={unit || data?.unit || ""} onChange={(e) => setUnit(e.target.value)} inputProps={{ "data-testid": "ed-department" }}>

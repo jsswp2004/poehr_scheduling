@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Box, Button, Typography, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -152,7 +152,6 @@ function PatientsPage() {
   // Acute Care shows the patient list or the bed board; the board reloads when `boardKey` changes
   const [acuteView, setAcuteView] = useState("list");
   // Emergency Care opens on the ED Board; its Patient List button shows the plain list
-  const [edView, setEdView] = useState("board");
   const [boardKey, setBoardKey] = useState(0);
   const afterAdmissionChange = useCallback(async () => {
     setBoardKey((k) => k + 1);
@@ -575,13 +574,12 @@ function PatientsPage() {
             if (current === "patient_list") {
               const acute = patients.careSetting === "acute";
               const emergency = patients.careSetting === "emergency";
-              if (emergency && edView === "board") {
+              if (emergency) {
                 return (
                   <EDBoard
                     userRole={userRole}
                     currentUserId={currentUser?.id ?? null}
                     refreshKey={boardKey}
-                    onShowList={() => setEdView("list")}
                     selectedUserId={selectedPatient ? selectedPatient.id : null}
                     onSelectPatient={selectPatient}
                     onOpenPatient={(p) => openChart(p, "orders")}
@@ -593,13 +591,6 @@ function PatientsPage() {
               }
               return (
             <>
-            {emergency && (
-              <Box sx={{ display: "flex", justifyContent: "flex-start", pt: 1, pl: 1 }}>
-                <Button size="small" variant="outlined" onClick={() => setEdView("board")}>
-                  ED Board
-                </Button>
-              </Box>
-            )}
             {acute && <AcuteViewTabs value={acuteView} onChange={setAcuteView} />}
             {acute && acuteView === "beds" ? (
               <BedBoard
