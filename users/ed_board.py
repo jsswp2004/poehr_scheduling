@@ -19,7 +19,7 @@ from appointments.locations import bed_status
 from appointments.models import Bed, Order, Unit, VitalSignsFlowsheet
 
 from .admissions import ROLES, _bad, _org
-from .board_config import BUILTIN_VIEW_KEYS, DEFAULT_STATUSES, all_view_payloads, get_settings, roster_for, status_keys
+from .board_config import BUILTIN_VIEW_KEYS, DEFAULT_STATUSES, bed_label, all_view_payloads, get_settings, roster_for, status_keys
 from .models import CustomUser, Registration, StatusBoardPreference, StatusBoardView
 
 # The built-in ED statuses; an admin can change them per clinic or department in the Status Board Builder.
@@ -239,7 +239,7 @@ class EdBoardView(APIView):
                 {
                     "type": "bed",
                     "bed": bed.pk,
-                    "loc": f"{bed.room.name}{bed.name}",
+                    "loc": bed_label(bed),
                     "bed_status": bed_status(bed, occupied),
                     "hold_reason": bed.hold_reason,
                     "visit": board_visit(visit, chart[visit.pk]) if visit else None,

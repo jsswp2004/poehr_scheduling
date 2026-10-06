@@ -20,6 +20,7 @@ from .admissions import _bad, _org
 from .board_config import (
     MAX_VIEWS,
     ConfigError,
+    bed_label,
     clean_settings,
     clean_view_config,
     default_view_config,
@@ -62,7 +63,7 @@ def _locations(org):
         facility = unit.facility
         f = out.setdefault(facility.pk, {"id": facility.pk, "name": facility.name, "units": {}})
         u = f["units"].setdefault(unit.pk, {"id": unit.pk, "name": unit.name, "beds": []})
-        u["beds"].append({"id": bed.pk, "name": f"{bed.room.name}{bed.name}"})
+        u["beds"].append({"id": bed.pk, "name": bed_label(bed)})
     return [{**f, "units": list(f["units"].values())} for f in out.values()]
 
 

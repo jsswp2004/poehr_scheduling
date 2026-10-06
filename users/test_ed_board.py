@@ -40,7 +40,7 @@ class BoardTests(EdBoardBase):
         self.assertEqual([d["name"] for d in data["departments"]], ["ED"])
         self.assertEqual(data["unit"], self.ed.pk)
         rows = [r for r in data["rows"] if r["type"] == "bed"]
-        self.assertEqual([r["loc"] for r in rows], ["ED1A", "ED1B", "ED1C"])
+        self.assertEqual([r["loc"] for r in rows], ["ED1-A", "ED1-B", "ED1-C"])
         self.assertTrue(all(r["bed_status"] == "available" and r["visit"] is None for r in rows))
         self.assertIn({"value": "wtbs", "code": "WTBS", "label": "Waiting to be seen"}, data["statuses"])
 
@@ -49,7 +49,7 @@ class BoardTests(EdBoardBase):
         self.patient.legal_sex = "F"
         self.patient.save()
         self.er_visit(bed=self.ed_bed_b)
-        row = [r for r in self.board().json()["rows"] if r["loc"] == "ED1B"][0]
+        row = [r for r in self.board().json()["rows"] if r["loc"] == "ED1-B"][0]
         self.assertEqual(row["bed_status"], "occupied")
         v = row["visit"]
         self.assertEqual((v["name"], v["age"], v["sex"], v["reason"], v["complaint"]), ("BCS, Test", 28, "F", "Chest pain", "CP"))
@@ -71,8 +71,8 @@ class BoardTests(EdBoardBase):
         self.ed_bed_c.hold = "cleaning"
         self.ed_bed_c.save()
         rows = {r["loc"]: r for r in self.board().json()["rows"]}
-        self.assertEqual((rows["ED1A"]["bed_status"], rows["ED1A"]["hold_reason"]), ("blocked", "Broken rail"))
-        self.assertEqual(rows["ED1C"]["bed_status"], "cleaning")
+        self.assertEqual((rows["ED1-A"]["bed_status"], rows["ED1-A"]["hold_reason"]), ("blocked", "Broken rail"))
+        self.assertEqual(rows["ED1-C"]["bed_status"], "cleaning")
 
     def test_discharged_visits_leave_the_board_and_inpatients_never_appear(self):
         vid = self.er_visit(bed=self.ed_bed_a)
@@ -165,7 +165,7 @@ class PlaceFromWaitingTests(EdBoardBase):
         self.assertEqual(r.status_code, 200, r.content)
         rows = self.board().json()["rows"]
         self.assertFalse([r for r in rows if r["type"] == "waiting"])
-        self.assertEqual([r for r in rows if r["loc"] == "ED1C"][0]["visit"]["registration"], vid)
+        self.assertEqual([r for r in rows if r["loc"] == "ED1-C"][0]["visit"]["registration"], vid)
 
 
 class ChartLinkTests(EdBoardBase):
@@ -218,13 +218,13 @@ class ChartLinkTests(EdBoardBase):
         self._order(appt, "12 lead EKG", "procedure")
         self._order(appt, "Morphine", "medication")
         self._order(appt, "Old draft", "imaging", status="draft")
-        v = [r for r in self.board().json()["rows"] if r["loc"] == "ED1A"][0]["visit"]
+        v = [r for r in self.board().json()["rows"] if r["loc"] == "ED1-A"][0]["visit"]
         self.assertEqual(v["vitals_last_at"][:16], late[:16])
         self.assertEqual(v["orders"], {"lab": "pending", "urine": "pending", "cardiac": "done", "rad": "pending", "ekg": "pending", "meds": "pending"})
 
     def test_a_visit_with_nothing_charted_has_empty_chart_fields(self):
         self.er_visit(bed=self.ed_bed_a)
-        v = [r for r in self.board().json()["rows"] if r["loc"] == "ED1A"][0]["visit"]
+        v = [r for r in self.board().json()["rows"] if r["loc"] == "ED1-A"][0]["visit"]
         self.assertIsNone(v["vitals_last_at"])
         self.assertEqual(v["orders"], {})
 
