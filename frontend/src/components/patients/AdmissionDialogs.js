@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import {
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   InputLabel,
   MenuItem,
   Select,
@@ -179,6 +181,7 @@ export function TransferDialog({ patient, onClose, onDone }) {
 /** Discharge: ends the visit and frees the bed. */
 export function DischargeDialog({ patient, onClose, onDone }) {
   const [when, setWhen] = useState(nowLocal);
+  const [cleaning, setCleaning] = useState(true);
   const { busy, problem, run } = useAction(onDone, onClose);
   if (!patient || !patient.current_visit) return null;
   const visit = patient.current_visit;
@@ -200,6 +203,12 @@ export function DischargeDialog({ patient, onClose, onDone }) {
             InputLabelProps={{ shrink: true }}
             inputProps={{ "data-testid": "discharge-time" }}
           />
+          {visit.location && (
+            <FormControlLabel
+              control={<Checkbox checked={cleaning} onChange={(e) => setCleaning(e.target.checked)} />}
+              label="Mark the bed for cleaning"
+            />
+          )}
           {problem && (
             <Typography color="error" variant="body2" role="alert">
               {problem}
@@ -218,7 +227,7 @@ export function DischargeDialog({ patient, onClose, onDone }) {
           onClick={() =>
             run(
               apiEndpoints.admissionDischarge(visit.id),
-              { discharge_datetime: new Date(when).toISOString() },
+              { discharge_datetime: new Date(when).toISOString(), bed_needs_cleaning: cleaning },
               `${patient.full_name} discharged`
             )
           }

@@ -146,6 +146,9 @@ def build_tree(org, active_only=False):
                             "status": status,
                             "occupant": _patient_name(reg) if reg else None,
                             "visit_number": reg.visit_number if reg else None,
+                            "registration": reg.pk if reg else None,
+                            "patient": reg.patient_id if reg else None,
+                            "patient_user_id": reg.patient.user_id if reg else None,
                         }
                     )
                     if b.is_active:
@@ -452,3 +455,33 @@ class LocationItemView(APIView):
         base = Registration.objects.filter(bed__isnull=False, discharge_datetime__isnull=True)
         field = {"facilities": "bed__room__unit__facility", "units": "bed__room__unit", "rooms": "bed__room", "beds": "bed"}[kind]
         return base.filter(**{field: obj}).count()
+
+
+# --------------------------------------------------------------------------
+# bed hold: block a bed or mark it for cleaning (nursing and front office do this, not just admins)
+# --------------------------------------------------------------------------
+
+HOLD_ROLES = ("doctor", "nurse", "registrar", "admin", "system_admin")
+
+
+class BedHoldView(APIView):
+    """POST {hold: "" | "blocked" | "cleaning", hold_reason?}"""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        if request.user.role not in HOLD_ROLES:
+            return Response({"detail": "You do not have permission to change a bed's status."}, status=403)
+        org = _org(request, request.data.get("organization"))
+        bed = Bed.objects.filter(pk=pk, room__unit__facility__organization=org).select_related("room__unit__facility").first() if org else None
+        if bed is None:
+            return Response({"detail": "Bed not found."}, status=404)
+        hold = request.data.get("hold", "")
+        if hold not in dict(Bed.HOLD_CHOICES):
+            return Response({"detail": "A bed can be blocked, cleaning, or neither."}, status=400)
+        if hold and bed.pk in occupied_beds(org):
+            return Response({"detail": "A patient is in this bed. Move or discharge them before blocking it."}, status=400)
+        bed.hold = hold
+        bed.hold_reason = "" if not hold else str(request.data.get("hold_reason") or "").strip()[:200]
+        bed.save()
+        return Response({"id": bed.pk, "hold": bed.hold, "hold_reason": bed.hold_reason})

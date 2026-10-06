@@ -37,7 +37,7 @@ from .views import (
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
 from .lab_views import LabReportViewSet
-from .locations import LocationItemView, LocationTreeView
+from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .patient_header import (
     HeaderConfigView,
     HeaderFieldViewSet,
@@ -212,6 +212,7 @@ urlpatterns = router.urls + [
     path("lab-usage/", LabUsageView.as_view(), name="lab-usage"),
     # patient chart header: layout, items, allergies
     path("locations/tree/", LocationTreeView.as_view(), name="location-tree"),
+    path("locations/beds/<int:pk>/hold/", BedHoldView.as_view(), name="bed-hold"),
     path("locations/<str:kind>/", LocationItemView.as_view(), name="location-item-create"),
     path("locations/<str:kind>/<int:pk>/", LocationItemView.as_view(), name="location-item"),
     path("patient-header-config/", HeaderConfigView.as_view(), name="patient-header-config"),
