@@ -34,7 +34,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
-import { DEFAULT_COLUMNS, VIEWS, filterRows, formatLos, losMinutes } from "./edBoardColumns";
+import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, filterRows, formatLos, losMinutes, vitalsStatus } from "./edBoardColumns";
 
 const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 const REFRESH_MS = 30000;
@@ -327,6 +327,37 @@ export default function EDBoard({
         ) : (
           row.hold_reason || ""
         );
+      case "vitals": {
+        if (!v) return "";
+        const vs = vitalsStatus(v, now);
+        const text = vs.charted ? `${formatLos(vs.minutes)} ago` : "None yet";
+        return vs.overdue ? (
+          <Chip size="small" color="error" label={`Due · ${text}`} data-testid={`vitals-${v.registration}`} />
+        ) : (
+          <span data-testid={`vitals-${v.registration}`}>{text}</span>
+        );
+      }
+      case "meds":
+      case "lab":
+      case "rad":
+      case "urine":
+      case "ekg":
+      case "cardiac": {
+        const state = v?.orders?.[key];
+        if (!state) return "";
+        const name = ORDER_ICON_COLUMNS[key];
+        return (
+          <Tooltip title={`${name} ${state === "done" ? "resulted" : "ordered"}`}>
+            <Chip
+              size="small"
+              label={name[0]}
+              color={state === "done" ? "success" : "warning"}
+              aria-label={`${name} ${state === "done" ? "resulted" : "ordered"} for ${v.name}`}
+              data-testid={`order-${key}-${v.registration}`}
+            />
+          </Tooltip>
+        );
+      }
       case "bed_status":
         return row.type === "bed" ? BED_LABEL[row.bed_status] || "Occupied" : "";
       case "inc_reg":

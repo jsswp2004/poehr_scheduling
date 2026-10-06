@@ -18,7 +18,7 @@ jest.mock("../SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn
 import { api } from "../../api/client";
 import { toast } from "../SimpleToast";
 import EDBoard from "../edBoard/EDBoard";
-import { formatLos, losMinutes, filterRows } from "../edBoard/edBoardColumns";
+import { formatLos, losMinutes, filterRows, vitalsStatus } from "../edBoard/edBoardColumns";
 
 const visit = (over = {}) => ({
   registration: 90, visit_number: "VN-000090", patient: 3, user_id: 30, name: "TEST, Jane", age: 28, sex: "F",
@@ -227,4 +227,37 @@ test("says so when there are no emergency departments, and shows load errors", a
   api.get.mockRejectedValue({ response: { data: { detail: "You do not have permission to see the ED board." } } });
   render(<EDBoard userRole="nurse" />);
   expect(await screen.findByText("You do not have permission to see the ED board.")).toBeInTheDocument();
+});
+
+test("vitalsStatus: overdue at 60 minutes, counted from arrival when nothing is charted", () => {
+  const now = Date.now();
+  const ago = (m) => new Date(now - m * 60000).toISOString();
+  expect(vitalsStatus({ arrival_time: ago(30), vitals_last_at: null }, now)).toMatchObject({ charted: false, overdue: false, minutes: 30 });
+  expect(vitalsStatus({ arrival_time: ago(200), vitals_last_at: null }, now).overdue).toBe(true);
+  expect(vitalsStatus({ arrival_time: ago(200), vitals_last_at: ago(59) }, now)).toMatchObject({ charted: true, overdue: false });
+  expect(vitalsStatus({ arrival_time: ago(200), vitals_last_at: ago(60) }, now).overdue).toBe(true);
+});
+
+test("Vitals column flags overdue patients and shows recent ones plainly", async () => {
+  const rows = rowsDefault();
+  rows[0].visit = visit({ registration: 90, vitals_last_at: null });
+  rows[4].visit = visit({ registration: 91, name: "RAY, Bob", vitals_last_at: new Date(Date.now() - 20 * 60000).toISOString() });
+  api.get.mockResolvedValue({ data: board(rows) });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getByTestId("vitals-90")).toHaveTextContent("Due · None yet");
+  expect(screen.getByTestId("vitals-91")).toHaveTextContent("00:20 ago");
+  expect(screen.getByTestId("vitals-91")).not.toHaveTextContent("Due");
+});
+
+test("order icons light up pending and resulted orders only", async () => {
+  const rows = rowsDefault();
+  rows[0].visit = visit({ registration: 90, orders: { lab: "pending", rad: "done" } });
+  api.get.mockResolvedValue({ data: board(rows) });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getByTestId("order-lab-90")).toHaveAttribute("aria-label", "Lab ordered for TEST, Jane");
+  expect(screen.getByTestId("order-rad-90")).toHaveAttribute("aria-label", "Radiology resulted for TEST, Jane");
+  expect(screen.queryByTestId("order-meds-90")).toBeNull();
+  expect(screen.queryByTestId("order-ekg-90")).toBeNull();
 });

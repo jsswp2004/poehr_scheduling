@@ -6,15 +6,17 @@ who are in the ED but have no bed yet (waiting). Staff edit the triage level, st
 resident, comments and registration flag right on the board. Moving, admitting and discharging
 use the admit / transfer / discharge views in admissions.py.
 """
+import re
 from datetime import date
 
 from django.db.models import Q
+from django.utils.dateparse import parse_datetime
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from appointments.locations import bed_status
-from appointments.models import Bed, Unit
+from appointments.models import Bed, Order, Unit, VitalSignsFlowsheet
 
 from .admissions import ROLES, _bad, _org
 from .models import CustomUser, Registration
@@ -43,7 +45,69 @@ def _age(dob):
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
 
 
-def board_visit(visit):
+# -- chart summary: last vitals and what has been ordered --------------------------------------
+VITALS_TEMPLATE_CODE = "vital_signs"
+# Order statuses that show on the board (drafts and discontinued orders do not)
+_BOARD_ORDER_STATUSES = ("pending_cosign", "active", "in_progress", "completed")
+_EKG = re.compile(r"\b(ekg|ecg|electrocardiogram)\b", re.I)
+_URINE = re.compile(r"urin|\bua\b", re.I)
+_CARDIAC = re.compile(r"troponin|\bbnp\b|ck-?mb|cardiac|\bkoe\b|echo", re.I)
+
+
+def order_icons(name, category):
+    """Which board icons an order lights up: meds, lab, rad, urine, ekg, cardiac."""
+    icons = set()
+    if category == "medication":
+        icons.add("meds")
+    elif category == "laboratory":
+        icons.add("lab")
+        if _URINE.search(name):
+            icons.add("urine")
+        if _CARDIAC.search(name):
+            icons.add("cardiac")
+    elif category == "imaging":
+        icons.add("rad")
+    if _EKG.search(name):
+        icons.add("ekg")
+    elif category == "procedure" and _CARDIAC.search(name):
+        icons.add("cardiac")
+    return icons
+
+
+def chart_summaries(visits):
+    """{registration id: {"vitals_last_at": iso or None, "orders": {icon: "pending" | "done"}}} in two queries."""
+    by_appt = {v.appointment_id: v.pk for v in visits if v.appointment_id}
+    out = {v.pk: {"vitals_last_at": None, "orders": {}} for v in visits}
+    if not by_appt:
+        return out
+
+    for sheet in VitalSignsFlowsheet.objects.filter(appointment_id__in=by_appt, template__code=VITALS_TEMPLATE_CODE):
+        latest = None
+        for col in sheet.columns or []:
+            stamp = parse_datetime(str(col.get("timestamp") or ""))
+            if stamp and (latest is None or stamp > latest):
+                latest = stamp
+        current = out[by_appt[sheet.appointment_id]]
+        if latest and (current["vitals_last_at"] is None or latest > current["vitals_last_at"]):
+            current["vitals_last_at"] = latest
+
+    for appt_id, name, category, status in Order.objects.filter(
+        appointment_id__in=by_appt, status__in=_BOARD_ORDER_STATUSES
+    ).values_list("appointment_id", "orderable_name", "orderable_category", "status"):
+        icons = out[by_appt[appt_id]]["orders"]
+        for icon in order_icons(name, category):
+            if status == "completed":
+                icons.setdefault(icon, "done")
+            else:
+                icons[icon] = "pending"
+
+    for item in out.values():
+        if item["vitals_last_at"]:
+            item["vitals_last_at"] = item["vitals_last_at"].isoformat()
+    return out
+
+
+def board_visit(visit, chart=None):
     """One patient's row data on the board."""
     patient = visit.patient
     user = patient.user
@@ -66,6 +130,8 @@ def board_visit(visit):
         "comments": visit.board_comments,
         "registration_complete": visit.registration_complete,
         "location": visit.location_path() or visit.assigned_location,
+        "vitals_last_at": (chart or {}).get("vitals_last_at"),
+        "orders": (chart or {}).get("orders", {}),
     }
 
 
@@ -114,6 +180,18 @@ class EdBoardView(APIView):
 
         open_visits = Registration.objects.filter(discharge_datetime__isnull=True).select_related(*_RELATED)
         in_beds = {r.bed_id: r for r in open_visits.filter(bed__room__unit=unit)}
+        waiting = list(
+            open_visits.filter(care_setting="emergency", bed__isnull=True)
+            .filter(Q(unit=unit) | Q(unit__isnull=True))
+            .filter(Q(organization=org) | Q(patient__user__organization=org))
+            .order_by("arrival_time", "created_at")
+        )
+        shown = list(in_beds.values()) + waiting
+        for visit in shown:
+            # visits registered before charting was linked get their chart appointment the first time they show here
+            if not visit.appointment_id and visit.care_setting == "emergency":
+                visit.ensure_chart_appointment()
+        chart = chart_summaries(shown)
 
         rows = []
         beds = Bed.objects.filter(room__unit=unit, is_active=True, room__is_active=True).select_related("room").order_by("room__name", "name")
@@ -127,19 +205,13 @@ class EdBoardView(APIView):
                     "loc": f"{bed.room.name}{bed.name}",
                     "bed_status": bed_status(bed, occupied),
                     "hold_reason": bed.hold_reason,
-                    "visit": board_visit(visit) if visit else None,
+                    "visit": board_visit(visit, chart[visit.pk]) if visit else None,
                 }
             )
 
         # in the ED but not in a bed yet (this department's, or not placed in any)
-        waiting = (
-            open_visits.filter(care_setting="emergency", bed__isnull=True)
-            .filter(Q(unit=unit) | Q(unit__isnull=True))
-            .filter(Q(organization=org) | Q(patient__user__organization=org))
-            .order_by("arrival_time", "created_at")
-        )
         for visit in waiting:
-            rows.append({"type": "waiting", "bed": None, "loc": "", "bed_status": "", "hold_reason": "", "visit": board_visit(visit)})
+            rows.append({"type": "waiting", "bed": None, "loc": "", "bed_status": "", "hold_reason": "", "visit": board_visit(visit, chart[visit.pk])})
         return Response({**base, "unit": unit.pk, "rows": rows})
 
 
@@ -210,4 +282,4 @@ class BoardUpdateView(APIView):
             visit.registration_complete = data["registration_complete"] in (True, "true", "True", "1", 1)
         visit.save()
         visit = Registration.objects.select_related(*_RELATED).get(pk=visit.pk)
-        return Response(board_visit(visit))
+        return Response(board_visit(visit, chart_summaries([visit])[visit.pk]))
