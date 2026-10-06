@@ -528,9 +528,9 @@ function PatientsPage() {
           </Box>
         )}
 
-        {/* Patient header: on top, follows the selected patient. On the Patient List it is always there (with a
-            "no patient selected" message); on Team, Appointments, Analytics and Register it shows only once a patient is selected. */}
-        {showPatientContext && (
+        {/* Patient header: only on the Patient List view, where it follows the selected patient
+            (and reads "No patient selected" until one is chosen). */}
+        {tab === "patients" && (
           <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} />
         )}
 
