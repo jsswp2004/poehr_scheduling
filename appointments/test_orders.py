@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from users.models import Organization
 
@@ -205,8 +206,9 @@ class InterfaceTests(OrdersBase):
 
 class ApiTests(OrdersBase):
     def client_for(self, user):
+        # a real token, so the tenant-scoped Appointment manager knows the clinic (force_authenticate sets none)
         c = APIClient()
-        c.force_authenticate(user)
+        c.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}")
         return c
 
     def test_create_sign_complete_over_api(self):

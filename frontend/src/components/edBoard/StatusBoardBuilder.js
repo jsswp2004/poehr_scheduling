@@ -9,6 +9,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  List,
+  ListItemButton,
+  ListItemText,
   MenuItem,
   Paper,
   Stack,
@@ -22,18 +25,17 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
 import EDBoard from "./EDBoard";
-import { ColumnsTab, StaffTab, StatusesTab, VersionsTab } from "./BuilderTabs";
-import { diffConfigs } from "./statusBoardDiff";
+import { ColorsTab, ColumnsTab, PatientsTab, SettingsTab } from "./BuilderTabs";
 
-/** Sample patients so the preview shows what the layout will look like. */
-export function sampleBoard(config, people, departments, unit) {
+/** Sample patients so the preview shows what the view will look like. */
+export function sampleBoard(settings, columns, people, departments) {
   const now = Date.now();
   const ago = (minutes) => new Date(now - minutes * 60000).toISOString();
-  const statuses = config.statuses || [];
+  const statuses = settings.statuses || [];
   const nurse = people.nurses?.[0] || { id: 1, name: "Nurse, Sample" };
   const doctor = people.doctors?.[0] || { id: 2, name: "Doctor, Sample" };
   const custom = {};
-  for (const c of config.columns) {
+  for (const c of columns) {
     if (c.type !== "custom") continue;
     custom[c.key] = c.kind === "dropdown" ? (c.options || [])[0] || "" : c.kind === "checkbox" ? true : "Sample";
   }
@@ -43,13 +45,13 @@ export function sampleBoard(config, people, departments, unit) {
     resident: "", comments: "Awaiting labs", registration_complete: false, custom, location: "", vitals_last_at: ago(25),
     orders: { lab: "pending", rad: "done", meds: "pending" }, ...over,
   });
-  const dept = departments.find((d) => d.id === unit);
+  const dept = departments[0];
   return {
     departments: dept ? [{ id: dept.id, name: dept.name, facility_name: dept.facility_name }] : [{ id: 0, name: "Sample ED", facility_name: "Preview" }],
     unit: dept ? dept.id : 0,
     statuses,
     staff: { nurses: [], doctors: [] },
-    config: { version: null, columns: config.columns, rules: config.rules, vitals_overdue_minutes: config.vitals_overdue_minutes },
+    config: { vitals_overdue_minutes: settings.vitals_overdue_minutes },
     rows: [
       { type: "bed", bed: 1, loc: "ED1A", bed_status: "occupied", hold_reason: "", visit: visit({}) },
       { type: "bed", bed: 2, loc: "ED1B", bed_status: "occupied", hold_reason: "", visit: visit({ registration: 2, name: "SAMPLE, Bob", sex: "M", age: 61, esi: 4, ed_status: statuses[0]?.value || "", registration_complete: true, vitals_last_at: null, arrival_time: ago(95), orders: {} }) },
@@ -59,230 +61,287 @@ export function sampleBoard(config, people, departments, unit) {
   };
 }
 
-const TABS = ["Columns", "Statuses & colors", "Staff", "Versions"];
+const configOf = (view) => ({ columns: view.columns, rules: view.rules, filter: view.filter });
 
 export default function StatusBoardBuilder() {
-  const [unit, setUnit] = useState("");
   const [data, setData] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [name, setName] = useState("");
   const [config, setConfig] = useState(null);
   const [dirty, setDirty] = useState(false);
-  const [tab, setTab] = useState(0);
+  const [main, setMain] = useState(0);
+  const [sub, setSub] = useState(0);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
-  const [publishing, setPublishing] = useState(false);
-  const [note, setNote] = useState("");
-  const [picked, setPicked] = useState([]);
-  const [diff, setDiff] = useState(null);
+  const [creating, setCreating] = useState(null); // { name, from }
+  const [deleting, setDeleting] = useState(false);
+
+  const open = useCallback((view) => {
+    setSelectedId(view ? view.id : null);
+    setName(view ? view.name : "");
+    setConfig(view ? configOf(view) : null);
+    setDirty(false);
+  }, []);
 
   const load = useCallback(
-    async (scope = unit) => {
+    async (keepId) => {
       try {
         const headers = await authHeader();
-        const res = await api.get(apiEndpoints.statusBoards, { headers, params: scope ? { unit: scope } : undefined });
+        const res = await api.get(apiEndpoints.statusViews, { headers });
         setData(res.data);
-        setConfig(res.data.draft?.config || res.data.published?.config || res.data.default_config);
-        setDirty(false);
+        setSettings(res.data.settings);
+        setSettingsDirty(false);
+        const views = res.data.views;
+        open(views.find((v) => v.id === keepId) || views[0] || null);
         setProblem("");
       } catch (err) {
         setProblem(errorText(err, "Could not load the status board builder."));
       }
     },
-    [unit]
+    [open]
   );
 
   useEffect(() => {
-    load(unit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    load(null);
+  }, [load]);
 
-  const draft = data?.draft || null;
-  const published = data?.published || null;
-  const editable = !!draft;
+  const views = data?.views || [];
+  const current = views.find((v) => v.id === selectedId) || null;
 
   const run = async (work, success) => {
     setBusy(true);
     try {
       const headers = await authHeader();
-      await work(headers);
+      const result = await work(headers);
       if (success) toast.success(success);
+      return result === undefined ? true : result;
     } catch (err) {
       toast.error(errorText(err, "That did not work."));
       return false;
     } finally {
       setBusy(false);
     }
-    return true;
   };
 
-  const changeScope = (value) => {
-    if (dirty) {
-      toast.error("Save or discard your changes before switching boards.");
+  const replaceView = (view) => setData((d) => ({ ...d, views: d.views.map((v) => (v.id === view.id ? view : v)) }));
+
+  const choose = (view) => {
+    if (dirty && view.id !== selectedId) {
+      toast.error("Save or discard your changes to this view first.");
       return;
     }
-    setUnit(value);
-    setPicked([]);
-    setDiff(null);
-    load(value);
+    open(view);
   };
-
-  const startDraft = async () => {
-    const ok = await run((headers) => api.post(apiEndpoints.statusBoards, { unit: unit || null }, { headers }), "Draft started");
-    if (ok) load(unit);
-  };
-
-  const saveDraft = async () => {
-    let saved = null;
-    const ok = await run(async (headers) => {
-      const res = await api.patch(apiEndpoints.statusBoard(draft.id), { config }, { headers });
-      saved = res.data;
-    }, "Draft saved");
-    if (ok && saved) {
-      setConfig(saved.config);
-      setDirty(false);
-    }
-    return ok;
-  };
-
-  const discard = async () => {
-    const ok = await run((headers) => api.delete(apiEndpoints.statusBoard(draft.id), { headers }), "Draft discarded");
-    if (ok) load(unit);
-  };
-
-  const publish = async () => {
-    const ok = await run(async (headers) => {
-      if (dirty) await api.patch(apiEndpoints.statusBoard(draft.id), { config }, { headers });
-      await api.post(apiEndpoints.statusBoardPublish(draft.id), { note }, { headers });
-    }, "Published. The board now uses this layout.");
-    if (ok) {
-      setPublishing(false);
-      setNote("");
-      load(unit);
-    }
-  };
-
-  const restore = async (version) => {
-    const ok = await run((headers) => api.post(apiEndpoints.statusBoardRestore(version.id), {}, { headers }), `Version ${version.number} copied into a new draft`);
-    if (ok) {
-      setTab(0);
-      load(unit);
-    }
-  };
-
-  const compare = async () => {
-    try {
-      const headers = await authHeader();
-      const [a, b] = await Promise.all(picked.map((id) => api.get(apiEndpoints.statusBoard(id), { headers })));
-      const [older, newer] = a.data.number < b.data.number ? [a.data, b.data] : [b.data, a.data];
-      setDiff({ title: `What changed from v${older.number} to v${newer.number}`, lines: diffConfigs(older.config, newer.config) });
-    } catch (err) {
-      toast.error(errorText(err, "Could not compare those versions."));
-    }
-  };
-
-  const pick = (id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id].slice(-2)));
 
   const change = (next) => {
     setConfig(next);
     setDirty(true);
   };
 
-  const preview = useMemo(
-    () => (config && data ? sampleBoard(config, data.people, data.departments, unit ? Number(unit) : null) : null),
-    [config, data, unit]
+  const saveView = async () => {
+    const saved = await run(async (headers) => (await api.patch(apiEndpoints.statusView(current.id), { name, config }, { headers })).data, "View saved");
+    if (saved && saved.id) {
+      replaceView(saved);
+      open(saved);
+    }
+  };
+
+  const undo = async () => {
+    const saved = await run(async (headers) => (await api.post(apiEndpoints.statusViewUndo(current.id), {}, { headers })).data, "Went back to the layout before your last save");
+    if (saved && saved.id) {
+      replaceView(saved);
+      open(saved);
+    }
+  };
+
+  const setDefault = async (value) => {
+    const ok = await run((headers) => api.patch(apiEndpoints.statusView(current.id), { is_default: value }, { headers }), value ? `"${current.name}" is now the view everyone starts on` : "No default view");
+    if (ok) {
+      const keep = current.id;
+      const nextDefault = (v) => ({ ...v, is_default: value ? v.id === keep : false });
+      setData((d) => ({ ...d, views: d.views.map(nextDefault) }));
+    }
+  };
+
+  const createView = async () => {
+    const made = await run(async (headers) => (await api.post(apiEndpoints.statusViews, { name: creating.name, ...(creating.from ? { from_view: creating.from } : {}) }, { headers })).data, "View created");
+    if (made && made.id) {
+      setCreating(null);
+      setData((d) => ({ ...d, views: [...d.views, made] }));
+      setMain(0);
+      open(made);
+    }
+  };
+
+  const deleteView = async () => {
+    const ok = await run((headers) => api.delete(apiEndpoints.statusView(current.id), { headers }), "View deleted");
+    if (ok) {
+      setDeleting(false);
+      load(null);
+    }
+  };
+
+  const saveSettings = async () => {
+    if (dirty) {
+      toast.error("Save or discard your changes to the view first.");
+      return;
+    }
+    const saved = await run(async (headers) => (await api.patch(apiEndpoints.statusViewSettings, settings, { headers })).data, "Shared settings saved");
+    if (saved && saved.statuses) await load(selectedId);
+  };
+
+  const changeSettings = (next) => {
+    setSettings(next);
+    setSettingsDirty(true);
+  };
+
+  const previewColumns = config?.columns;
+  const previewData = useMemo(
+    () => (settings && previewColumns ? sampleBoard(settings, previewColumns, data.people, data.departments) : null),
+    [settings, previewColumns, data]
   );
 
   if (problem && !data) return <Alert severity="error">{problem}</Alert>;
-  if (!data || !config) return <CircularProgress aria-label="Loading" />;
-
-  const scopeName = unit ? data.departments.find((d) => String(d.id) === String(unit))?.name : "Clinic default";
+  if (!data || !settings) return <CircularProgress aria-label="Loading" />;
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} sx={{ alignItems: "center", flexWrap: "wrap", mb: 2 }}>
-        <TextField select size="small" label="Board" value={unit} onChange={(e) => changeScope(e.target.value)} sx={{ minWidth: 260 }} inputProps={{ "data-testid": "builder-scope" }}>
-          <MenuItem value="">Clinic default (all departments)</MenuItem>
-          {data.departments.map((d) => (
-            <MenuItem key={d.id} value={String(d.id)}>
-              {d.name} ({d.facility_name})
-            </MenuItem>
-          ))}
-        </TextField>
-        {published ? <Chip color="success" label={`Live: version ${published.number}`} /> : <Chip variant="outlined" label="Using the built-in layout" />}
-        {draft && <Chip color="warning" label={`Draft: version ${draft.number}${dirty ? " (unsaved changes)" : ""}`} />}
-        <Box sx={{ flexGrow: 1 }} />
-        {!draft && (
-          <Button variant="contained" onClick={startDraft} disabled={busy}>
-            Start a draft to edit
-          </Button>
-        )}
-        {draft && (
-          <>
-            <Button onClick={discard} disabled={busy} color="inherit">
-              Discard draft
-            </Button>
-            <Button onClick={saveDraft} disabled={busy || !dirty} variant="outlined">
-              Save draft
-            </Button>
-            <Button onClick={() => setPublishing(true)} disabled={busy} variant="contained">
-              Publish
-            </Button>
-          </>
-        )}
-      </Stack>
+      <Tabs value={main} onChange={(_e, v) => setMain(v)} sx={{ mb: 2 }}>
+        <Tab label="Views" value={0} />
+        <Tab label={`Shared settings${settingsDirty ? " *" : ""}`} value={1} />
+      </Tabs>
       {problem && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {problem}
         </Alert>
       )}
-      {!draft && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          You are looking at the layout the {scopeName.toLowerCase() === "clinic default" ? "clinic default" : scopeName} board uses now. Start a draft to change it. Nothing changes on the live board until you publish.
-        </Alert>
+
+      {main === 1 && (
+        <Box>
+          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+            <SettingsTab settings={settings} people={data.people} departments={data.departments} onChange={changeSettings} />
+          </Paper>
+          <Button variant="contained" onClick={saveSettings} disabled={busy || !settingsDirty}>
+            Save shared settings
+          </Button>
+        </Box>
       )}
 
-      <Tabs value={tab} onChange={(_e, v) => setTab(v)} sx={{ mb: 2 }}>
-        {TABS.map((t, i) => (
-          <Tab key={t} label={t} value={i} />
-        ))}
-      </Tabs>
+      {main === 0 && (
+        <Box>
+          <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
+            <Paper variant="outlined" sx={{ width: 260, flexShrink: 0 }}>
+              <List dense aria-label="Views" disablePadding>
+                {views.length === 0 && (
+                  <ListItemText sx={{ p: 2 }} primary="No saved views yet" secondary="The three built-in views are always available." />
+                )}
+                {views.map((v) => (
+                  <ListItemButton key={v.id} selected={v.id === selectedId} onClick={() => choose(v)} data-testid={`view-item-${v.id}`}>
+                    <ListItemText primary={v.name} />
+                    {v.is_default && <Chip size="small" color="primary" label="Default" />}
+                  </ListItemButton>
+                ))}
+              </List>
+              <Box sx={{ p: 1 }}>
+                <Button fullWidth variant="outlined" size="small" onClick={() => setCreating({ name: "", from: "" })} disabled={views.length >= 30}>
+                  New view
+                </Button>
+              </Box>
+            </Paper>
 
-      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
-        {tab === 0 && <ColumnsTab config={config} onChange={change} editable={editable} />}
-        {tab === 1 && <StatusesTab config={config} onChange={change} editable={editable} />}
-        {tab === 2 && <StaffTab config={config} people={data.people} onChange={change} editable={editable} />}
-        {tab === 3 && (
-          <VersionsTab
-            versions={data.versions}
-            picked={picked}
-            onPick={pick}
-            onRestore={restore}
-            canRestore={!draft && !busy}
-            diff={diff?.lines}
-            diffTitle={diff?.title}
-            onCompare={compare}
-          />
-        )}
-      </Paper>
+            <Box sx={{ flex: 1, minWidth: 320 }}>
+              {!current && (
+                <Alert severity="info">Create a view to choose the columns, colors and patients it shows. It will appear in the View list on the ED Board.</Alert>
+              )}
+              {current && config && (
+                <>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", mb: 2, rowGap: 1 }}>
+                    <TextField label="View name" size="small" value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} inputProps={{ maxLength: 60, "data-testid": "view-name" }} sx={{ minWidth: 240 }} />
+                    <Button variant="contained" onClick={saveView} disabled={busy || !dirty || !name.trim()}>
+                      Save view
+                    </Button>
+                    <Button onClick={undo} disabled={busy || dirty || !current.can_undo} color="inherit">
+                      Undo last save
+                    </Button>
+                    {dirty && (
+                      <Button onClick={() => open(current)} disabled={busy} color="inherit">
+                        Discard changes
+                      </Button>
+                    )}
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Button size="small" onClick={() => setDefault(!current.is_default)} disabled={busy}>
+                      {current.is_default ? "Remove as default" : "Make default"}
+                    </Button>
+                    <Button size="small" onClick={() => setCreating({ name: `${current.name} copy`, from: String(current.id) })} disabled={busy || views.length >= 30}>
+                      Duplicate
+                    </Button>
+                    <Button size="small" color="error" onClick={() => setDeleting(true)} disabled={busy}>
+                      Delete
+                    </Button>
+                  </Stack>
 
-      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-        Preview
-      </Typography>
-      <Box sx={{ overflowX: "auto" }} data-testid="builder-preview">
-        <EDBoard userRole="admin" previewData={preview} />
-      </Box>
+                  <Tabs value={sub} onChange={(_e, v) => setSub(v)} sx={{ mb: 2 }}>
+                    <Tab label="Columns" value={0} />
+                    <Tab label="Colors" value={1} />
+                    <Tab label="Patients shown" value={2} />
+                  </Tabs>
+                  <Paper variant="outlined" sx={{ p: 2 }}>
+                    {sub === 0 && <ColumnsTab config={config} onChange={change} />}
+                    {sub === 1 && <ColorsTab config={config} settings={settings} onChange={change} />}
+                    {sub === 2 && <PatientsTab config={config} onChange={change} />}
+                  </Paper>
+                </>
+              )}
+            </Box>
+          </Box>
 
-      <Dialog open={publishing} onClose={() => setPublishing(false)} fullWidth maxWidth="xs">
-        <DialogTitle>Publish this layout?</DialogTitle>
+          {current && config && previewData && (
+            <>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 3, mb: 1 }}>
+                Preview
+              </Typography>
+              <Box sx={{ overflowX: "auto" }} data-testid="builder-preview">
+                <EDBoard userRole="admin" previewData={previewData} previewView={{ label: name || "Preview", columns: config.columns, rules: config.rules, filter: "all" }} />
+              </Box>
+            </>
+          )}
+        </Box>
+      )}
+
+      <Dialog open={!!creating} onClose={() => setCreating(null)} fullWidth maxWidth="xs">
+        <DialogTitle>{creating?.from ? "Duplicate this view" : "New view"}</DialogTitle>
         <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            The {scopeName} board will switch to this layout right away. The version it replaces stays in the history.
-          </Typography>
-          <TextField label="What changed? (optional)" fullWidth multiline minRows={2} value={note} onChange={(e) => setNote(e.target.value)} inputProps={{ maxLength: 300 }} />
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Name the view" autoFocus value={creating?.name || ""} onChange={(e) => setCreating((c) => ({ ...c, name: e.target.value }))} inputProps={{ maxLength: 60 }} />
+            <TextField select label="Start from" value={creating?.from || ""} onChange={(e) => setCreating((c) => ({ ...c, from: e.target.value }))} inputProps={{ "data-testid": "start-from" }}>
+              <MenuItem value="">The standard layout</MenuItem>
+              {views.map((v) => (
+                <MenuItem key={v.id} value={String(v.id)}>
+                  A copy of {v.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPublishing(false)}>Cancel</Button>
-          <Button variant="contained" onClick={publish} disabled={busy}>
-            Publish
+          <Button onClick={() => setCreating(null)}>Cancel</Button>
+          <Button variant="contained" onClick={createView} disabled={busy || !(creating?.name || "").trim()}>
+            Create view
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleting} onClose={() => setDeleting(false)} fullWidth maxWidth="xs">
+        <DialogTitle>Delete this view?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">"{current?.name}" will disappear from the View list for everyone. People who had it selected go back to the default view.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleting(false)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={deleteView} disabled={busy}>
+            Delete view
           </Button>
         </DialogActions>
       </Dialog>

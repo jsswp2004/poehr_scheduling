@@ -5,7 +5,7 @@ import { Container, Typography } from "@mui/material";
 import StatusBoardBuilder from "../components/edBoard/StatusBoardBuilder";
 
 /**
- * Status Board Builder: edit the ED board's columns, statuses, colors and staff lists and keep saved versions.
+ * Status Board Builder: build named ED board views (columns, colors, patients shown) and manage the settings every view shares.
  * Admin/system_admin only; the API enforces the same rule server-side.
  */
 function StatusBoardBuilderPage() {

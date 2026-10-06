@@ -1,21 +1,15 @@
 """
-Status Board Builder API (admins only): save, publish and restore versions of an ED board layout.
+Status Board Builder API (admins only): named ED board views and the settings every view shares.
 
-A scope is a clinic default (no unit) or one emergency department. Each scope has at most one draft and one
-published version. Publishing archives the old published version, so history is kept; restoring an old
-version copies it into a new draft rather than rewriting history.
-
-  GET    status-boards/?unit=<id>            versions, draft, published, built-in default and people to pick from
-  POST   status-boards/                      {unit?, from_version?}  start a draft
-  GET    status-boards/<id>/                 one version with its layout (used to compare)
-  PATCH  status-boards/<id>/                 {config?, note?}        edit the draft
-  DELETE status-boards/<id>/                 throw the draft away
-  POST   status-boards/<id>/publish/         {note?}                 make the draft live
-  POST   status-boards/<id>/restore/                                 copy any version into a new draft
+  GET    status-views/                 views, shared settings, departments, people to pick from
+  POST   status-views/                 {name, from_view?}  make a view (a copy of another one, or the built-in layout)
+  PATCH  status-views/<id>/            {name?, config?, is_default?}  save a view; saving a layout keeps the one before it
+  DELETE status-views/<id>/            delete a view
+  POST   status-views/<id>/undo/       put back the layout from before the last save (undo again to redo)
+  PATCH  status-views/settings/        {statuses?, vitals_overdue_minutes?, custom_columns?, roster?}
 """
 from django.db import transaction
 from django.db.models import Max
-from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,8 +17,16 @@ from rest_framework.views import APIView
 from appointments.models import Unit
 
 from .admissions import _bad, _org
-from .board_config import ConfigError, clean_config, default_config
-from .models import CustomUser, StatusBoardVersion
+from .board_config import (
+    MAX_VIEWS,
+    ConfigError,
+    clean_settings,
+    clean_view_config,
+    default_view_config,
+    get_settings,
+    view_payload,
+)
+from .models import CustomUser, StatusBoardSettings, StatusBoardView
 
 ADMIN_ROLES = ("admin", "system_admin")
 
@@ -33,28 +35,24 @@ def _person(user):
     return {"id": user.pk, "name": f"{user.last_name}, {user.first_name}".strip(", ") or user.username} if user else None
 
 
-def version_data(v, with_config=False):
-    data = {
-        "id": v.pk,
-        "number": v.number,
-        "status": v.status,
-        "unit": v.unit_id,
-        "note": v.note,
-        "author": _person(v.author),
-        "created_at": v.created_at,
-        "published_at": v.published_at,
-        "published_by": _person(v.published_by),
-    }
-    if with_config:
-        data["config"] = v.config
+def _view_data(view, settings):
+    data = view_payload(view, settings)
+    data.update(
+        {
+            "name": view.name,
+            "is_default": view.is_default,
+            "can_undo": view.previous_config is not None,
+            "author": _person(view.author),
+            "updated_at": view.updated_at,
+        }
+    )
     return data
 
 
 class _Admin(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
-    def setup_scope(self, request):
-        """(org, error response). Admins only."""
+    def setup_org(self, request):
         if request.user.role not in ADMIN_ROLES:
             return None, _bad("Only an admin can change the status board.", 403)
         org = _org(request)
@@ -62,35 +60,31 @@ class _Admin(APIView):
             return None, _bad("No clinic is selected.")
         return org, None
 
-    def unit_for(self, org, raw):
-        """(unit or None, error response): empty means the clinic default."""
-        if raw in (None, "", "null"):
-            return None, None
-        unit = Unit.objects.filter(pk=raw, facility__organization=org, care_type="emergency").first() if str(raw).isdigit() else None
-        if unit is None:
-            return None, _bad("That is not an emergency department in this clinic.", 404)
-        return unit, None
-
-    def version_for(self, org, pk):
-        return StatusBoardVersion.objects.filter(pk=pk, organization=org).select_related("author", "published_by").first()
+    def view_for(self, org, pk):
+        return StatusBoardView.objects.filter(pk=pk, organization=org).select_related("author").first()
 
 
-def _start_draft(org, unit, config, user, note=""):
-    number = (StatusBoardVersion.objects.filter(organization=org, unit=unit).aggregate(m=Max("number"))["m"] or 0) + 1
-    return StatusBoardVersion.objects.create(organization=org, unit=unit, number=number, status=StatusBoardVersion.DRAFT, note=note, config=config, author=user)
+def _name(request, org, current=None):
+    """(clean name, error response): 1 to 60 characters, not already used by another view."""
+    name = " ".join(str(request.data.get("name") or "").split())
+    if not name:
+        return None, _bad("Give the view a name.")
+    if len(name) > 60:
+        return None, _bad("A view name can be at most 60 characters.")
+    clash = StatusBoardView.objects.filter(organization=org, name__iexact=name)
+    if current is not None:
+        clash = clash.exclude(pk=current.pk)
+    if clash.exists():
+        return None, _bad("Another view already has that name.")
+    return name, None
 
 
-class StatusBoardScopeView(_Admin):
+class StatusViewListView(_Admin):
     def get(self, request):
-        org, err = self.setup_scope(request)
+        org, err = self.setup_org(request)
         if err:
             return err
-        unit, err = self.unit_for(org, request.query_params.get("unit"))
-        if err:
-            return err
-        versions = list(StatusBoardVersion.objects.filter(organization=org, unit=unit).select_related("author", "published_by"))
-        draft = next((v for v in versions if v.status == StatusBoardVersion.DRAFT), None)
-        published = next((v for v in versions if v.status == StatusBoardVersion.PUBLISHED), None)
+        settings = get_settings(org)
         departments = [
             {"id": u.pk, "name": u.name, "facility_name": u.facility.name}
             for u in Unit.objects.filter(facility__organization=org, care_type="emergency", is_active=True, facility__is_active=True)
@@ -100,12 +94,10 @@ class StatusBoardScopeView(_Admin):
         people = CustomUser.objects.filter(organization=org, is_active=True, role__in=("nurse", "doctor")).order_by("last_name", "first_name")
         return Response(
             {
-                "unit": unit.pk if unit else None,
+                "views": [_view_data(v, settings) for v in StatusBoardView.objects.filter(organization=org).select_related("author")],
+                "settings": settings,
                 "departments": departments,
-                "default_config": default_config(),
-                "draft": version_data(draft, True) if draft else None,
-                "published": version_data(published, True) if published else None,
-                "versions": [version_data(v) for v in versions],
+                "default_view_config": default_view_config(),
                 "people": {
                     "nurses": [_person(u) for u in people if u.role == "nurse"],
                     "doctors": [_person(u) for u in people if u.role == "doctor"],
@@ -114,115 +106,115 @@ class StatusBoardScopeView(_Admin):
         )
 
     def post(self, request):
-        org, err = self.setup_scope(request)
+        org, err = self.setup_org(request)
         if err:
             return err
-        unit, err = self.unit_for(org, request.data.get("unit"))
+        name, err = _name(request, org)
         if err:
             return err
-        if StatusBoardVersion.objects.filter(organization=org, unit=unit, status=StatusBoardVersion.DRAFT).exists():
-            return _bad("There is already a draft. Publish it or discard it first.")
-        source = None
-        if request.data.get("from_version"):
-            source = self.version_for(org, request.data["from_version"])
+        if StatusBoardView.objects.filter(organization=org).count() >= MAX_VIEWS:
+            return _bad(f"A clinic can have at most {MAX_VIEWS} views.")
+        settings = get_settings(org)
+        config = default_view_config()
+        if request.data.get("from_view"):
+            source = self.view_for(org, request.data["from_view"])
             if source is None:
-                return _bad("That version was not found.", 404)
+                return _bad("That view was not found.", 404)
             config = source.config
-        else:
-            live = StatusBoardVersion.objects.filter(organization=org, unit=unit, status=StatusBoardVersion.PUBLISHED).first()
-            if live is None and unit is not None:
-                live = StatusBoardVersion.objects.filter(organization=org, unit__isnull=True, status=StatusBoardVersion.PUBLISHED).first()
-            config = live.config if live else default_config()
         try:
-            config = clean_config(config, org)
+            config = clean_view_config(config, settings)
         except ConfigError:
-            # a saved layout that no longer validates (for example a person who left): start from the default
-            config = default_config()
-        draft = _start_draft(org, unit, config, request.user)
-        return Response(version_data(draft, True), status=201)
+            config = clean_view_config(default_view_config(), settings)
+        position = (StatusBoardView.objects.filter(organization=org).aggregate(m=Max("position"))["m"] or 0) + 1
+        view = StatusBoardView.objects.create(organization=org, name=name, position=position, config=config, author=request.user)
+        return Response(_view_data(view, settings), status=201)
 
 
-class StatusBoardVersionView(_Admin):
-    def get(self, request, pk):
-        org, err = self.setup_scope(request)
-        if err:
-            return err
-        v = self.version_for(org, pk)
-        if v is None:
-            return _bad("That version was not found.", 404)
-        return Response(version_data(v, True))
-
+class StatusViewDetailView(_Admin):
     def patch(self, request, pk):
-        org, err = self.setup_scope(request)
+        org, err = self.setup_org(request)
         if err:
             return err
-        v = self.version_for(org, pk)
-        if v is None:
-            return _bad("That version was not found.", 404)
-        if v.status != StatusBoardVersion.DRAFT:
-            return _bad("Only a draft can be edited. Restore this version to start a new draft.")
+        view = self.view_for(org, pk)
+        if view is None:
+            return _bad("That view was not found.", 404)
+        settings = get_settings(org)
+        if "name" in request.data:
+            name, err = _name(request, org, view)
+            if err:
+                return err
+            view.name = name
         if "config" in request.data:
             try:
-                v.config = clean_config(request.data["config"], org)
+                config = clean_view_config(request.data["config"], settings)
             except ConfigError as exc:
                 return _bad(str(exc))
-        if "note" in request.data:
-            v.note = str(request.data["note"] or "").strip()[:300]
-        v.save()
-        return Response(version_data(v, True))
+            if config != view.config:
+                view.previous_config = view.config
+                view.config = config
+        with transaction.atomic():
+            if "is_default" in request.data:
+                make_default = bool(request.data["is_default"])
+                if make_default:
+                    StatusBoardView.objects.filter(organization=org, is_default=True).exclude(pk=view.pk).update(is_default=False)
+                view.is_default = make_default
+            view.save()
+        return Response(_view_data(view, settings))
 
     def delete(self, request, pk):
-        org, err = self.setup_scope(request)
+        org, err = self.setup_org(request)
         if err:
             return err
-        v = self.version_for(org, pk)
-        if v is None:
-            return _bad("That version was not found.", 404)
-        if v.status != StatusBoardVersion.DRAFT:
-            return _bad("Only a draft can be discarded.")
-        v.delete()
+        view = self.view_for(org, pk)
+        if view is None:
+            return _bad("That view was not found.", 404)
+        view.delete()
         return Response(status=204)
 
 
-class StatusBoardPublishView(_Admin):
+class StatusViewUndoView(_Admin):
     def post(self, request, pk):
-        org, err = self.setup_scope(request)
+        org, err = self.setup_org(request)
         if err:
             return err
-        v = self.version_for(org, pk)
-        if v is None:
-            return _bad("That version was not found.", 404)
-        if v.status != StatusBoardVersion.DRAFT:
-            return _bad("Only a draft can be published.")
+        view = self.view_for(org, pk)
+        if view is None:
+            return _bad("That view was not found.", 404)
+        if view.previous_config is None:
+            return _bad("There is nothing to undo.")
+        settings = get_settings(org)
+        view.config, view.previous_config = view.previous_config, view.config
+        view.save()
+        return Response(_view_data(view, settings))
+
+
+class StatusSettingsView(_Admin):
+    def patch(self, request):
+        org, err = self.setup_org(request)
+        if err:
+            return err
+        current = get_settings(org)
         try:
-            config = clean_config(v.config, org)
+            settings = clean_settings(request.data, org, current)
         except ConfigError as exc:
             return _bad(str(exc))
-        with transaction.atomic():
-            StatusBoardVersion.objects.filter(organization=org, unit=v.unit, status=StatusBoardVersion.PUBLISHED).update(status=StatusBoardVersion.ARCHIVED)
-            v.config = config
-            v.status = StatusBoardVersion.PUBLISHED
-            v.published_at = timezone.now()
-            v.published_by = request.user
-            if "note" in request.data:
-                v.note = str(request.data["note"] or "").strip()[:300]
-            v.save()
-        return Response(version_data(v, True))
-
-
-class StatusBoardRestoreView(_Admin):
-    def post(self, request, pk):
-        org, err = self.setup_scope(request)
-        if err:
-            return err
-        v = self.version_for(org, pk)
-        if v is None:
-            return _bad("That version was not found.", 404)
-        if StatusBoardVersion.objects.filter(organization=org, unit=v.unit, status=StatusBoardVersion.DRAFT).exists():
-            return _bad("There is already a draft. Publish it or discard it first.")
-        try:
-            config = clean_config(v.config, org)
-        except ConfigError:
-            return _bad("That version can no longer be restored as it is (someone on its roster has left). Open it in a new draft from the current layout instead.")
-        draft = _start_draft(org, v.unit, config, request.user, note=f"Restored from version {v.number}")
-        return Response(version_data(draft, True), status=201)
+        StatusBoardSettings.objects.update_or_create(
+            organization=org,
+            defaults={
+                "statuses": settings["statuses"],
+                "vitals_overdue_minutes": settings["vitals_overdue_minutes"],
+                "custom_columns": settings["custom_columns"],
+                "roster": settings["roster"],
+                "updated_by": request.user,
+            },
+        )
+        # a custom column that was removed leaves its place in every view (and any rule that used it)
+        removed = {c["key"] for c in current["custom_columns"]} - {c["key"] for c in settings["custom_columns"]}
+        if removed:
+            for view in StatusBoardView.objects.filter(organization=org):
+                config = dict(view.config or {})
+                config["columns"] = [c for c in config.get("columns", []) if c.get("key") not in removed]
+                config["rules"] = [r for r in config.get("rules", []) if r.get("field") not in removed]
+                view.config = config
+                view.save(update_fields=["config", "updated_at"])
+        return Response(settings)

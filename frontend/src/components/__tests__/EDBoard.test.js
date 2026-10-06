@@ -6,6 +6,7 @@ jest.mock(
   () => ({
     apiEndpoints: {
       edBoard: "/ed/board/",
+      edBoardPreference: "/ed/pref/",
       admissionBoard: (id) => `/adm/${id}/board/`,
       admissionTransfer: (id) => `/adm/${id}/transfer/`,
     },
@@ -262,7 +263,16 @@ test("order icons light up pending and resulted orders only", async () => {
   expect(screen.queryByTestId("order-ekg-90")).toBeNull();
 });
 
-const withConfig = (config, rows = rowsDefault()) => ({ ...board(rows), config: { version: 2, rules: [], vitals_overdue_minutes: 60, ...config } });
+const withConfig = ({ columns, rules = [], vitals_overdue_minutes = 60, filter = "all", extraViews = [], default_view = "v1" }, rows = rowsDefault()) => ({
+  ...board(rows),
+  views: [
+    { key: "all", id: null, label: "ED All View", builtin: true, filter: "all", columns: [], rules: [] },
+    { key: "v1", id: 1, label: "Charge view", builtin: false, filter, columns, rules },
+    ...extraViews,
+  ],
+  default_view,
+  config: { vitals_overdue_minutes },
+});
 const col = (key, label, extra = {}) => ({ key, label, width: 100, visible: true, type: "builtin", ...extra });
 
 test("the published layout decides which columns show, in what order and under what name", async () => {
@@ -337,10 +347,51 @@ test("the vitals limit comes from the layout", async () => {
 });
 
 test("preview mode draws the given data without loading, polling or editing", async () => {
-  const data = withConfig({ columns: [col("loc", "LOC"), col("patient", "Patient"), col("esi", "ESI")] });
-  render(<EDBoard userRole="admin" previewData={data} />);
+  const data = withConfig({ columns: [] });
+  render(<EDBoard userRole="admin" previewData={data} previewView={{ label: "Draft", filter: "all", rules: [], columns: [col("loc", "LOC"), col("patient", "Patient"), col("esi", "ESI")] }} />);
   expect(await screen.findByTestId("ed-bed-1")).toBeInTheDocument();
   expect(api.get).not.toHaveBeenCalled();
   screen.getAllByRole("combobox", { name: /ESI/i }).forEach((el) => expect(el).toHaveAttribute("aria-disabled", "true"));
   expect(api.patch).not.toHaveBeenCalled();
+});
+
+test("the View list holds the clinic's saved views and starts on the default one", async () => {
+  api.get.mockResolvedValue({ data: withConfig({ columns: [col("loc", "Bed"), col("patient", "Name")] }) });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Bed", "Name"]);
+  fireEvent.mouseDown(within(screen.getByTestId("ed-view").closest(".MuiInputBase-root")).getByRole("combobox"));
+  expect(screen.getByRole("option", { name: "Charge view" })).toBeInTheDocument();
+  expect(screen.getByRole("option", { name: "ED All View" })).toBeInTheDocument();
+});
+
+test("picking a view changes the columns and remembers the choice", async () => {
+  api.get.mockResolvedValue({ data: withConfig({ columns: [col("loc", "Bed"), col("patient", "Name")], default_view: "all" }) });
+  api.patch.mockResolvedValue({ data: {} });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  pick("ed-view", "Charge view");
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/ed/pref/", { view: "v1" }, expect.anything()));
+  expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Bed", "Name"]);
+});
+
+test("a saved view can list only the patients waiting", async () => {
+  api.get.mockResolvedValue({ data: withConfig({ columns: [col("loc", "Bed"), col("patient", "Name")], filter: "waiting" }) });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-waiting-91");
+  expect(screen.queryByTestId("ed-bed-1")).toBeNull();
+});
+
+test("clicking anywhere on a patient's row selects that patient, but not an empty bed or a control", async () => {
+  const onSelectPatient = jest.fn();
+  render(<EDBoard userRole="nurse" currentUserId={7} selectedUserId={40} onSelectPatient={onSelectPatient} />);
+  await screen.findByTestId("ed-bed-1");
+  fireEvent.click(screen.getByTestId("cell-age-b1"));
+  expect(onSelectPatient).toHaveBeenCalledTimes(1);
+  expect(onSelectPatient.mock.calls[0][0]).toMatchObject({ user_id: 30, full_name: "TEST, Jane" });
+  fireEvent.click(screen.getByTestId("ed-bed-2"));
+  fireEvent.click(within(screen.getByTestId("cell-esi-b1")).getByRole("combobox"));
+  expect(onSelectPatient).toHaveBeenCalledTimes(1);
+  expect(screen.getByTestId("ed-waiting-91")).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByTestId("ed-bed-1")).toHaveAttribute("aria-selected", "false");
 });

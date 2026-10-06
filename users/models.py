@@ -858,33 +858,50 @@ class Registration(models.Model):
         return f"{self.visit_number or 'unsaved'} - {self.patient}"
 
 
-class StatusBoardVersion(models.Model):
+class StatusBoardSettings(models.Model):
     """
-    One saved version of an ED status board layout (columns, statuses, color rules, roster).
-
-    A scope is a clinic (unit empty = the clinic default) or one emergency department. Each scope has at most
-    one draft being edited and one published version the board uses; publishing archives the previous
-    published version, so the history is never lost and any version can be restored as a new draft.
+    What every ED board view in a clinic shares: the status list, the overdue-vitals limit, the custom columns
+    (their names, kinds and choices, so a value means the same thing in every view) and the nurse/doctor lists.
+    One row per clinic; a clinic with no row uses the built-in defaults (see board_config.py).
     """
 
-    DRAFT, PUBLISHED, ARCHIVED = "draft", "published", "archived"
-    STATUS_CHOICES = [(DRAFT, "Draft"), (PUBLISHED, "Published"), (ARCHIVED, "Archived")]
+    organization = models.OneToOneField("Organization", on_delete=models.CASCADE, related_name="status_board_settings")
+    statuses = models.JSONField(default=list)
+    vitals_overdue_minutes = models.PositiveIntegerField(default=60)
+    custom_columns = models.JSONField(default=list)
+    # {"default": {"nurses": [ids] | None, "doctors": [...] | None}, "units": {"<unit id>": {...}}}
+    roster = models.JSONField(default=dict)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey("CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
 
-    organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="status_board_versions")
-    unit = models.ForeignKey(
-        "appointments.Unit", on_delete=models.CASCADE, null=True, blank=True, related_name="status_board_versions"
-    )
-    number = models.PositiveIntegerField()
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=DRAFT)
-    note = models.CharField(max_length=300, blank=True)
+
+class StatusBoardView(models.Model):
+    """
+    A named ED board view an admin built (columns, color rules and which patients it shows). It appears in the
+    board's View dropdown for the whole clinic. `previous_config` holds the layout before the last save so one
+    save can be undone.
+    """
+
+    organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="status_board_views")
+    name = models.CharField(max_length=60)
+    position = models.PositiveIntegerField(default=0)
+    is_default = models.BooleanField(default=False)
     config = models.JSONField(default=dict)
+    previous_config = models.JSONField(null=True, blank=True)
     author = models.ForeignKey("CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
-    published_at = models.DateTimeField(null=True, blank=True)
-    published_by = models.ForeignKey("CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-number"]
+        ordering = ["position", "name"]
 
     def __str__(self):
-        return f"Status board v{self.number} ({self.status})"
+        return self.name
+
+
+class StatusBoardPreference(models.Model):
+    """The view a person last chose on the ED board ("all", "waiting", "mine" or "v<id>")."""
+
+    user = models.OneToOneField("CustomUser", on_delete=models.CASCADE, related_name="status_board_preference")
+    view_key = models.CharField(max_length=20)
+    updated_at = models.DateTimeField(auto_now=True)

@@ -2,8 +2,8 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .admissions import AdmitView, TransferView, DischargeView
-from .board_builder import StatusBoardPublishView, StatusBoardRestoreView, StatusBoardScopeView, StatusBoardVersionView
-from .ed_board import BoardUpdateView, EdBoardView
+from .board_builder import StatusSettingsView, StatusViewDetailView, StatusViewListView, StatusViewUndoView
+from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -190,10 +190,11 @@ urlpatterns = [
     path("admissions/<int:pk>/discharge/", DischargeView.as_view(), name="admission-discharge"),
     path("admissions/<int:pk>/board/", BoardUpdateView.as_view(), name="admission-board"),
     path("ed-board/", EdBoardView.as_view(), name="ed-board"),
-    path("status-boards/", StatusBoardScopeView.as_view(), name="status-boards"),
-    path("status-boards/<int:pk>/", StatusBoardVersionView.as_view(), name="status-board-version"),
-    path("status-boards/<int:pk>/publish/", StatusBoardPublishView.as_view(), name="status-board-publish"),
-    path("status-boards/<int:pk>/restore/", StatusBoardRestoreView.as_view(), name="status-board-restore"),
+    path("ed-board/preference/", EdBoardPreferenceView.as_view(), name="ed-board-preference"),
+    path("status-views/", StatusViewListView.as_view(), name="status-views"),
+    path("status-views/settings/", StatusSettingsView.as_view(), name="status-views-settings"),
+    path("status-views/<int:pk>/", StatusViewDetailView.as_view(), name="status-view"),
+    path("status-views/<int:pk>/undo/", StatusViewUndoView.as_view(), name="status-view-undo"),
 ]
 
 # ✅ Append viewset routes

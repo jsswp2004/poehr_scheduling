@@ -19,8 +19,8 @@ from appointments.locations import bed_status
 from appointments.models import Bed, Order, Unit, VitalSignsFlowsheet
 
 from .admissions import ROLES, _bad, _org
-from .board_config import DEFAULT_STATUSES, resolve_config, status_keys
-from .models import CustomUser, Registration
+from .board_config import BUILTIN_VIEW_KEYS, DEFAULT_STATUSES, all_view_payloads, get_settings, roster_for, status_keys
+from .models import CustomUser, Registration, StatusBoardPreference, StatusBoardView
 
 # The built-in ED statuses; an admin can change them per clinic or department in the Status Board Builder.
 ED_STATUSES = [(x["value"], x["code"], x["label"]) for x in DEFAULT_STATUSES]
@@ -137,23 +137,53 @@ def _roster(org, role, allowed):
     return [{"id": u.pk, "name": _name(u)} for u in people.order_by("last_name", "first_name")]
 
 
-def _board_base(org, unit, departments):
-    """The layout, statuses and staff lists a department's board uses (its published version, else the defaults)."""
-    config, version = resolve_config(org, unit)
+def _default_view_key(user, org, views):
+    """The view the board opens on: the person's last pick, else the clinic's default view, else ED All View."""
+    keys = {v["key"] for v in views}
+    pref = StatusBoardPreference.objects.filter(user=user).values_list("view_key", flat=True).first()
+    if pref in keys:
+        return pref
+    default = StatusBoardView.objects.filter(organization=org, is_default=True).first()
+    if default and f"v{default.pk}" in keys:
+        return f"v{default.pk}"
+    return "all"
+
+
+def _board_base(org, unit, departments, user):
+    """The views, statuses and staff lists a department's board uses."""
+    settings = get_settings(org)
+    views = all_view_payloads(org, settings)
+    roster = roster_for(settings, unit.pk if unit else None)
     return {
         "departments": departments,
-        "statuses": config["statuses"],
-        "config": {
-            "version": version,
-            "columns": config["columns"],
-            "rules": config["rules"],
-            "vitals_overdue_minutes": config["vitals_overdue_minutes"],
-        },
+        "statuses": settings["statuses"],
+        "views": views,
+        "default_view": _default_view_key(user, org, views),
+        "config": {"vitals_overdue_minutes": settings["vitals_overdue_minutes"]},
         "staff": {
-            "nurses": _roster(org, "nurse", config["roster"].get("nurses")),
-            "doctors": _roster(org, "doctor", config["roster"].get("doctors")),
+            "nurses": _roster(org, "nurse", roster.get("nurses")),
+            "doctors": _roster(org, "doctor", roster.get("doctors")),
         },
     }
+
+
+class EdBoardPreferenceView(APIView):
+    """PATCH {view}: remember which view this person picked ("all", "waiting", "mine" or "v<id>")."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        if request.user.role not in ROLES:
+            return _bad("You do not have permission to see the ED board.", 403)
+        org = _org(request)
+        if org is None:
+            return _bad("No clinic is selected.")
+        key = str(request.data.get("view") or "")
+        valid = key in BUILTIN_VIEW_KEYS or (key.startswith("v") and key[1:].isdigit() and StatusBoardView.objects.filter(organization=org, pk=key[1:]).exists())
+        if not valid:
+            return _bad("That is not a view on this board.", 404)
+        StatusBoardPreference.objects.update_or_create(user=request.user, defaults={"view_key": key})
+        return Response({"view": key})
 
 
 _RELATED = ("patient__user", "attending_provider", "assigned_nurse", "bed__room", "room", "unit__facility")
@@ -181,7 +211,7 @@ class EdBoardView(APIView):
         unit = next((u for u in units if str(u.pk) == str(raw)), None) if raw else (units[0] if units else None)
         if raw and unit is None:
             return _bad("That is not an emergency department in this clinic.", 404)
-        base = _board_base(org, unit, departments)
+        base = _board_base(org, unit, departments, request.user)
         if unit is None:
             return Response({**base, "unit": None, "rows": []})
 
@@ -226,11 +256,11 @@ def _staff(org, pk, role):
     return CustomUser.objects.filter(pk=pk, organization=org, role=role, is_active=True).first()
 
 
-def _clean_custom(values, config, current):
+def _clean_custom(values, settings, current):
     """(merged custom values, problem): checks each value against the custom column an admin built."""
     if not isinstance(values, dict):
         return None, "Custom values must be an object."
-    columns = {c["key"]: c for c in config["columns"] if c["type"] == "custom"}
+    columns = {c["key"]: c for c in settings["custom_columns"]}
     merged = dict(current or {})
     for key, value in values.items():
         column = columns.get(key)
@@ -270,7 +300,7 @@ class BoardUpdateView(APIView):
         if visit.discharge_datetime is not None:
             return _bad("This visit has been discharged, so it cannot be edited here.")
         data = request.data
-        config, _version = resolve_config(org, visit.unit)
+        settings = get_settings(org)
 
         if "esi" in data:
             raw = data["esi"]
@@ -286,7 +316,7 @@ class BoardUpdateView(APIView):
                 visit.esi = level
         if "ed_status" in data:
             value = data["ed_status"] or ""
-            if value and value not in status_keys(config):
+            if value and value not in status_keys(settings):
                 return _bad("That is not a known ED status.")
             visit.ed_status = value
         if "assigned_nurse" in data:
@@ -312,7 +342,7 @@ class BoardUpdateView(APIView):
         if "registration_complete" in data:
             visit.registration_complete = data["registration_complete"] in (True, "true", "True", "1", 1)
         if "custom" in data:
-            custom, problem = _clean_custom(data["custom"], config, visit.board_custom)
+            custom, problem = _clean_custom(data["custom"], settings, visit.board_custom)
             if problem:
                 return _bad(problem)
             visit.board_custom = custom
