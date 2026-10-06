@@ -19,17 +19,11 @@ from appointments.locations import bed_status
 from appointments.models import Bed, Order, Unit, VitalSignsFlowsheet
 
 from .admissions import ROLES, _bad, _org
+from .board_config import DEFAULT_STATUSES, resolve_config, status_keys
 from .models import CustomUser, Registration
 
-# The ED statuses (a later step lets an admin edit this list from the board builder).
-ED_STATUSES = [
-    ("wtbs", "WTBS", "Waiting to be seen"),
-    ("tip", "TIP", "Treatment in progress"),
-    ("dispo", "DISPO", "Disposition pending"),
-    ("admit_pending", "ADM", "Admit pending"),
-    ("discharge_pending", "DC", "Discharge pending"),
-]
-STATUS_KEYS = {k for k, _a, _b in ED_STATUSES}
+# The built-in ED statuses; an admin can change them per clinic or department in the Status Board Builder.
+ED_STATUSES = [(x["value"], x["code"], x["label"]) for x in DEFAULT_STATUSES]
 
 
 def _name(user):
@@ -129,9 +123,36 @@ def board_visit(visit, chart=None):
         "resident": visit.resident,
         "comments": visit.board_comments,
         "registration_complete": visit.registration_complete,
+        "custom": visit.board_custom or {},
         "location": visit.location_path() or visit.assigned_location,
         "vitals_last_at": (chart or {}).get("vitals_last_at"),
         "orders": (chart or {}).get("orders", {}),
+    }
+
+
+def _roster(org, role, allowed):
+    people = CustomUser.objects.filter(organization=org, role=role, is_active=True)
+    if allowed is not None:
+        people = people.filter(pk__in=allowed)
+    return [{"id": u.pk, "name": _name(u)} for u in people.order_by("last_name", "first_name")]
+
+
+def _board_base(org, unit, departments):
+    """The layout, statuses and staff lists a department's board uses (its published version, else the defaults)."""
+    config, version = resolve_config(org, unit)
+    return {
+        "departments": departments,
+        "statuses": config["statuses"],
+        "config": {
+            "version": version,
+            "columns": config["columns"],
+            "rules": config["rules"],
+            "vitals_overdue_minutes": config["vitals_overdue_minutes"],
+        },
+        "staff": {
+            "nurses": _roster(org, "nurse", config["roster"].get("nurses")),
+            "doctors": _roster(org, "doctor", config["roster"].get("doctors")),
+        },
     }
 
 
@@ -156,25 +177,11 @@ class EdBoardView(APIView):
             .order_by("facility__name", "name")
         )
         departments = [{"id": u.pk, "name": u.name, "facility": u.facility_id, "facility_name": u.facility.name} for u in units]
-        base = {
-            "departments": departments,
-            "statuses": [{"value": k, "code": c, "label": label} for k, c, label in ED_STATUSES],
-            "staff": {
-                "nurses": [
-                    {"id": u.pk, "name": _name(u)}
-                    for u in CustomUser.objects.filter(organization=org, role="nurse", is_active=True).order_by("last_name", "first_name")
-                ],
-                "doctors": [
-                    {"id": u.pk, "name": _name(u)}
-                    for u in CustomUser.objects.filter(organization=org, role="doctor", is_active=True).order_by("last_name", "first_name")
-                ],
-            },
-        }
-
         raw = request.query_params.get("unit")
         unit = next((u for u in units if str(u.pk) == str(raw)), None) if raw else (units[0] if units else None)
         if raw and unit is None:
             return _bad("That is not an emergency department in this clinic.", 404)
+        base = _board_base(org, unit, departments)
         if unit is None:
             return Response({**base, "unit": None, "rows": []})
 
@@ -219,6 +226,29 @@ def _staff(org, pk, role):
     return CustomUser.objects.filter(pk=pk, organization=org, role=role, is_active=True).first()
 
 
+def _clean_custom(values, config, current):
+    """(merged custom values, problem): checks each value against the custom column an admin built."""
+    if not isinstance(values, dict):
+        return None, "Custom values must be an object."
+    columns = {c["key"]: c for c in config["columns"] if c["type"] == "custom"}
+    merged = dict(current or {})
+    for key, value in values.items():
+        column = columns.get(key)
+        if column is None:
+            return None, f"'{key}' is not a column on this board."
+        kind = column.get("kind", "text")
+        if kind == "checkbox":
+            merged[key] = value in (True, "true", "True", "1", 1)
+        elif kind == "dropdown":
+            value = "" if value is None else str(value)
+            if value and value not in column.get("options", []):
+                return None, f"'{value}' is not a choice for {column['label']}."
+            merged[key] = value
+        else:
+            merged[key] = ("" if value is None else str(value)).strip()[:200]
+    return merged, None
+
+
 class BoardUpdateView(APIView):
     """
     PATCH {esi?, ed_status?, assigned_nurse?, attending_provider?, resident?, comments?, registration_complete?}
@@ -240,6 +270,7 @@ class BoardUpdateView(APIView):
         if visit.discharge_datetime is not None:
             return _bad("This visit has been discharged, so it cannot be edited here.")
         data = request.data
+        config, _version = resolve_config(org, visit.unit)
 
         if "esi" in data:
             raw = data["esi"]
@@ -255,7 +286,7 @@ class BoardUpdateView(APIView):
                 visit.esi = level
         if "ed_status" in data:
             value = data["ed_status"] or ""
-            if value and value not in STATUS_KEYS:
+            if value and value not in status_keys(config):
                 return _bad("That is not a known ED status.")
             visit.ed_status = value
         if "assigned_nurse" in data:
@@ -280,6 +311,11 @@ class BoardUpdateView(APIView):
             visit.board_comments = str(data["comments"] or "").strip()[:300]
         if "registration_complete" in data:
             visit.registration_complete = data["registration_complete"] in (True, "true", "True", "1", 1)
+        if "custom" in data:
+            custom, problem = _clean_custom(data["custom"], config, visit.board_custom)
+            if problem:
+                return _bad(problem)
+            visit.board_custom = custom
         visit.save()
         visit = Registration.objects.select_related(*_RELATED).get(pk=visit.pk)
         return Response(board_visit(visit, chart_summaries([visit])[visit.pk]))

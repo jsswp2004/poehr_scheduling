@@ -112,6 +112,10 @@ export const apiEndpoints = {
     admissionDischarge: (id) => `${API_BASE_URL}/api/users/admissions/${id}/discharge/`,
     admissionBoard: (id) => `${API_BASE_URL}/api/users/admissions/${id}/board/`,
     edBoard: `${API_BASE_URL}/api/users/ed-board/`,
+    statusBoards: `${API_BASE_URL}/api/users/status-boards/`,
+    statusBoard: (id) => `${API_BASE_URL}/api/users/status-boards/${id}/`,
+    statusBoardPublish: (id) => `${API_BASE_URL}/api/users/status-boards/${id}/publish/`,
+    statusBoardRestore: (id) => `${API_BASE_URL}/api/users/status-boards/${id}/restore/`,
 
     // Orders
     orders: `${API_BASE_URL}/api/orders/`,

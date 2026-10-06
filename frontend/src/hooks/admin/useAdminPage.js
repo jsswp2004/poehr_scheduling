@@ -70,6 +70,14 @@ export const useAdminPage = () => {
             requiredRoles: ['admin', 'system_admin']
         },
         {
+            id: 'status-board-builder',
+            label: 'Status Board Builder',
+            icon: 'FaColumns',
+            path: '/status-board-builder',
+            color: 'primary',
+            requiredRoles: ['admin', 'system_admin']
+        },
+        {
             id: 'order-builder',
             label: 'Order Builder',
             icon: 'FaClipboardCheck',

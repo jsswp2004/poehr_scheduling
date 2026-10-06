@@ -37,10 +37,45 @@ export const ORDER_ICON_COLUMNS = { meds: "Meds", lab: "Lab", rad: "Radiology", 
 export const VITALS_OVERDUE_MINUTES = 60;
 
 /** {minutes, overdue, charted}: how long since the last vitals; never charted counts from arrival. */
-export const vitalsStatus = (visit, now = Date.now()) => {
+export const vitalsStatus = (visit, now = Date.now(), limit = VITALS_OVERDUE_MINUTES) => {
   const charted = !!visit.vitals_last_at;
   const minutes = losMinutes(charted ? visit.vitals_last_at : visit.arrival_time, now);
-  return { minutes, charted, overdue: minutes >= VITALS_OVERDUE_MINUTES };
+  return { minutes, charted, overdue: minutes >= limit };
+};
+
+/** Which column a color rule's field is shown in (for rules that color a single cell). */
+export const RULE_COLUMN = { esi: "esi", ed_status: "status", vitals_overdue: "vitals", registration_complete: "reg_comp", sex: "gender" };
+
+/** The value a rule's field has for this visit, as text ("true"/"false" for yes-no fields). */
+const ruleValue = (field, visit, now, limit) => {
+  if (field === "vitals_overdue") return String(vitalsStatus(visit, now, limit).overdue);
+  if (field === "registration_complete") return String(!!visit.registration_complete);
+  if (field === "esi") return visit.esi == null ? "" : String(visit.esi);
+  if (field === "ed_status") return visit.ed_status || "";
+  if (field === "sex") return visit.sex || "";
+  const custom = visit.custom?.[field];
+  return custom == null ? "" : String(custom);
+};
+
+export const ruleMatches = (rule, visit, now = Date.now(), limit = VITALS_OVERDUE_MINUTES) => {
+  const same = ruleValue(rule.field, visit, now, limit) === String(rule.value);
+  return rule.op === "neq" ? !same : same;
+};
+
+/** {row: color or undefined, cells: {columnKey: color}} from the first matching rule of each kind. */
+export const ruleColors = (rules, visit, now = Date.now(), limit = VITALS_OVERDUE_MINUTES) => {
+  const out = { row: undefined, cells: {} };
+  if (!visit) return out;
+  for (const rule of rules || []) {
+    if (!ruleMatches(rule, visit, now, limit)) continue;
+    if (rule.target === "cell") {
+      const column = RULE_COLUMN[rule.field] || rule.field;
+      if (!out.cells[column]) out.cells[column] = rule.color;
+    } else if (!out.row) {
+      out.row = rule.color;
+    }
+  }
+  return out;
 };
 
 export const VIEWS = [
