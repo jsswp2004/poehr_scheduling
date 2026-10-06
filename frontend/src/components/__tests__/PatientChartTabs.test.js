@@ -50,3 +50,8 @@ test("non-persistent header with no patient renders nothing", () => {
   const { container } = render(<PatientChartHeader patientId={null} />);
   expect(container).toBeEmptyDOMElement();
 });
+
+test("the strip shows whatever is passed for its right-hand end (the Back button)", () => {
+  render(<PatientChartTabs value="patient_list" onChange={() => {}} role="doctor" right={<button>Back</button>} />);
+  expect(screen.getByText("Back")).toBeInTheDocument();
+});

@@ -24,6 +24,9 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import GroupsIcon from "@mui/icons-material/Groups";
 import ScienceIcon from "@mui/icons-material/Science";
+import PeopleIcon from "@mui/icons-material/People";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
@@ -42,6 +45,9 @@ const STAFF_MODULE_ROLES = [
 // decides which one is highlighted for the current URL. Patients page tabs are
 // kept in ?tab=, so Documentation and Scheduler share /patients and are told
 // apart by that parameter.
+// Views of the Patients page that have their own header icon (opened with ?tab=...).
+const PATIENTS_PAGE_VIEWS = ["appointments", "team", "analytics", "register"];
+
 const MODULE_LINKS = [
   {
     key: "documentation",
@@ -51,7 +57,7 @@ const MODULE_LINKS = [
     roles: STAFF_MODULE_ROLES,
     isActive: (path, tab) =>
       path.startsWith("/patients") &&
-      !(path === "/patients" && tab === "appointments"),
+      !(path === "/patients" && PATIENTS_PAGE_VIEWS.includes(tab)),
   },
   {
     key: "scheduler",
@@ -62,6 +68,30 @@ const MODULE_LINKS = [
     isActive: (path, tab) =>
       (path === "/patients" && tab === "appointments") ||
       path.startsWith("/appointments"),
+  },
+  {
+    key: "team",
+    label: "Team",
+    to: "/patients?tab=team",
+    Icon: PeopleIcon,
+    roles: STAFF_MODULE_ROLES,
+    isActive: (path, tab) => path === "/patients" && tab === "team",
+  },
+  {
+    key: "analytics",
+    label: "Analytics",
+    to: "/patients?tab=analytics",
+    Icon: BarChartIcon,
+    roles: STAFF_MODULE_ROLES,
+    isActive: (path, tab) => path === "/patients" && tab === "analytics",
+  },
+  {
+    key: "register",
+    label: "Register",
+    to: "/patients?tab=register",
+    Icon: PersonAddIcon,
+    roles: ["admin", "system_admin", "registrar"],
+    isActive: (path, tab) => path === "/patients" && tab === "register",
   },
   {
     key: "portal",
@@ -352,6 +382,14 @@ function Navbar() {
   // Lab results waiting for review (and results waiting for a patient): a badge on the Lab Results icon.
   const [labWaiting, setLabWaiting] = useState({ count: 0, critical: 0, unmatched: 0 });
   const canSeeLab = ["doctor", "nurse", "system_admin"].includes(role);
+
+  // Unread team messages: the Patients page tells the header whenever the count changes.
+  const [teamUnread, setTeamUnread] = useState(0);
+  useEffect(() => {
+    const onUnread = (e) => setTeamUnread(Number(e.detail) || 0);
+    window.addEventListener("team-unread-changed", onUnread);
+    return () => window.removeEventListener("team-unread-changed", onUnread);
+  }, []);
   const refreshLabWaiting = useCallback(async () => {
     const token = getAccessToken();
     if (!token) return;
@@ -488,7 +526,9 @@ function Navbar() {
                     <Tooltip
                       key={key}
                       title={
-                        key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0
+                        key === "team" && teamUnread > 0
+                          ? `${label}: ${teamUnread} unread`
+                          : key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0
                           ? `${label}: ${labWaiting.count} to review${
                               labWaiting.critical > 0 ? ` (${labWaiting.critical} critical)` : ""
                             }${labWaiting.unmatched > 0 ? `, ${labWaiting.unmatched} waiting for a patient` : ""}`
@@ -517,7 +557,11 @@ function Navbar() {
                         aria-current={active ? "page" : undefined}
                         data-testid={`nav-module-${key}`}
                       >
-                        {key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0 ? (
+                        {key === "team" && teamUnread > 0 ? (
+                          <Badge badgeContent={teamUnread} max={99} color="error" data-testid="team-unread-badge">
+                            <Icon sx={{ color: "white" }} />
+                          </Badge>
+                        ) : key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0 ? (
                           <Badge
                             badgeContent={labWaiting.count + labWaiting.unmatched}
                             max={99}

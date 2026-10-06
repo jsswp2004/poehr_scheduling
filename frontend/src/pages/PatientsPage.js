@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Box, Typography, Tabs, Tab, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -46,6 +46,14 @@ import { useSubscriptionAccess, SubscriptionGate } from "../hooks/useSubscriptio
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
 
+// Team, Appointments, Analytics and Register are opened from the icons in the top header (?tab=...).
+const VIEW_TITLES = {
+  team: "Team",
+  appointments: "Appointments",
+  analytics: "Analytics",
+  register: "Register",
+};
+
 function PatientsPage() {
   const navigate = useNavigate();
 
@@ -83,6 +91,7 @@ function PatientsPage() {
   // the previous user's patient.
   const [selectedPatient, setSelectedPatient] = useState(null); // { id, name }
   const [chartTab, setChartTab] = useState("patient_list");
+  const showPatientContext = tab === "patients" || !!selectedPatient;
   const selectionKey = currentUser ? `powerSelectedPatient:${currentUser.id}` : null;
   useEffect(() => {
     if (!selectionKey) return;
@@ -136,7 +145,7 @@ function PatientsPage() {
   const analytics = useAnalytics();
 
   // Subscription access control
-  const { userTier, permissions, canAccess, requiresUpgrade } = useSubscriptionAccess();
+  const { userTier, permissions } = useSubscriptionAccess();
 
   // Initialize chat
   const chat = useChat(
@@ -338,6 +347,16 @@ function PatientsPage() {
     patients.handleSendText(patient, token);
   };
 
+  // The Team icon in the top header shows unread messages.
+  const teamUnread = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0;
+  useEffect(() => {
+    try {
+      window.dispatchEvent(new CustomEvent("team-unread-changed", { detail: teamUnread }));
+    } catch (err) {
+      // the badge is only a convenience
+    }
+  }, [teamUnread]);
+
   const handleDeletePatient = (patientId) => {
     const doomed = (patients.patients || []).find((p) => p.id === patientId);
     if (doomed && selectedPatient && String(doomed.user_id) === String(selectedPatient.id)) {
@@ -466,13 +485,15 @@ function PatientsPage() {
         }}
       >
         {/* Care setting sidebar: full height, far left, outside the tabs */}
-        <CareSettingSidebar
-          value={patients.careSetting}
-          onChange={(value) => {
-            patients.setCareSetting(value);
-            if (tab !== "patients") setTab("patients");
-          }}
-        />
+        {showPatientContext && (
+          <CareSettingSidebar
+            value={patients.careSetting}
+            onChange={(value) => {
+              patients.setCareSetting(value);
+              if (tab !== "patients") handleTabChange(null, "patients");
+            }}
+          />
+        )}
 
         <Box
           sx={{
@@ -506,129 +527,27 @@ function PatientsPage() {
           </Box>
         )}
 
-        {/* Patient header: always on top, follows the selected patient */}
-        <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} />
-
-        {/* Main Navigation Tabs (thin row, below the patient header) */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            mb: 1,
-            bgcolor: "#f5faff",
-            flexShrink: 0,
-          }}
-        >
-          <Tabs
-            value={tab}
-            onChange={handleTabChange}
-            sx={{
-              flex: 1,
-              minHeight: 32,
-              "& .MuiTabs-indicator": {
-                height: 3,
-                borderRadius: 2,
-                bgcolor: "primary.main",
-              },
-              "& .MuiTab-root": {
-                fontWeight: 500,
-                fontSize: "0.85rem",
-                color: "primary.main",
-                minHeight: 32,
-                py: 0.5,
-                textTransform: "none",
-                borderRadius: 2,
-                mx: 0.5,
-                transition: "background 0.2s",
-                "&.Mui-selected": {
-                  bgcolor: "primary.light",
-                  color: "primary.dark",
-                  boxShadow: 2,
-                },
-                "&:hover": {
-                  bgcolor: "primary.lighter",
-                  color: "primary.dark",
-                },
-              },
-            }}
-          >
-            <Tab label="Patients" value="patients" />
-
-            <Tab
-              label={
-                <Box
-                  sx={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  Team
-                  {(() => {
-                    const hasUnread = chat.getTotalUnreadCount
-                      ? chat.getTotalUnreadCount() > 0
-                      : false;
-                    return hasUnread ? (
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: -8,
-                          right: -12,
-                          width: 8,
-                          height: 8,
-                          backgroundColor: "#ff4444",
-                          borderRadius: "50%",
-                        }}
-                      />
-                    ) : null;
-                  })()}
-                </Box>
-              }
-              value="team"
-            />
-
-            <Tab label="Appointments" value="appointments" />
-            
-            {canAccess('analyticsSection') ? (
-              <Tab label="Analytics" value="analytics" />
-            ) : (
-              <Tab 
-                label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    Analytics
-                    <span style={{ 
-                      fontSize: '10px', 
-                      color: '#1976d2', 
-                      fontWeight: 'bold',
-                      backgroundColor: '#e3f2fd',
-                      padding: '2px 6px',
-                      borderRadius: '8px'
-                    }}>
-                      UPGRADE
-                    </span>
-                  </Box>
-                } 
-                value="analytics" 
-                onClick={() => {
-                  if (requiresUpgrade('analyticsSection')) {
-                    window.location.href = '/pricing?plan=clinic';
-                  }
-                }}
-              />
-            )}
-
-            {(userRole === "admin" ||
-              userRole === "system_admin" ||
-              userRole === "registrar") && (
-                <Tab label="Register" value="register" />
-              )}
-          </Tabs>
-          <BackButton />
-        </Box>
+        {/* Patient header: on top, follows the selected patient. On the Patient List it is always there (with a
+            "no patient selected" message); on Team, Appointments, Analytics and Register it shows only once a patient is selected. */}
+        {showPatientContext && (
+          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} />
+        )}
 
         {/* Chart tabs for the selected patient */}
-        {tab === "patients" && (
-          <PatientChartTabs value={chartTab} onChange={setChartTab} role={userRole} />
+        {tab === "patients" ? (
+          <PatientChartTabs
+            value={chartTab}
+            onChange={setChartTab}
+            role={userRole}
+            right={<BackButton />}
+          />
+        ) : (
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }} data-testid="view-title">
+              {VIEW_TITLES[tab] || ""}
+            </Typography>
+            <BackButton />
+          </Box>
         )}
 
         {/* Tab Content */}
