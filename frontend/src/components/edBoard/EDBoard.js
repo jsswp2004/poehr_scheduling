@@ -94,8 +94,10 @@ export default function EDBoard({
   userRole,
   currentUserId = null,
   refreshKey = 0,
-  columns: columnsProp,
   previewData = null,
+  previewView = null,
+  selectedUserId = null,
+  onSelectPatient,
   onOpenPatient,
   onTransfer,
   onDischarge,
@@ -106,7 +108,7 @@ export default function EDBoard({
   const preview = !!previewData;
   const data = previewData || fetched;
   const [unit, setUnit] = useState("");
-  const [view, setView] = useState("all");
+  const [pickedView, setPickedView] = useState(null);
   const [problem, setProblem] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [picking, setPicking] = useState(null); // { title, label, options, submit }
@@ -139,13 +141,28 @@ export default function EDBoard({
     return () => clearInterval(id);
   }, [load]);
 
-  const rows = useMemo(() => filterRows(data?.rows || [], view, currentUserId), [data, view, currentUserId]);
-  // the board's layout comes from the published Status Board version; the built-in layout is the fallback
-  const columns = useMemo(
-    () => columnsProp || (data?.config?.columns || DEFAULT_COLUMNS).filter((c) => c.visible !== false),
-    [columnsProp, data]
+  // the saved views are the clinic's; the built-in three are the fallback
+  const views = useMemo(
+    () => (data?.views?.length ? data.views : VIEWS.map((v) => ({ key: v.value, label: v.label, filter: v.value, columns: DEFAULT_COLUMNS, rules: [] }))),
+    [data]
   );
-  const rules = data?.config?.rules || [];
+  const viewKey = pickedView && views.some((v) => v.key === pickedView) ? pickedView : data?.default_view && views.some((v) => v.key === data.default_view) ? data.default_view : "all";
+  const activeView = previewView || views.find((v) => v.key === viewKey) || views[0];
+  const view = activeView?.filter || "all";
+  const rows = useMemo(() => filterRows(data?.rows || [], view, currentUserId), [data, view, currentUserId]);
+  const columns = useMemo(() => (activeView?.columns || DEFAULT_COLUMNS).filter((c) => c.visible !== false), [activeView]);
+  const rules = activeView?.rules || [];
+
+  const chooseView = async (key) => {
+    setPickedView(key);
+    if (preview) return;
+    try {
+      const headers = await authHeader();
+      await api.patch(apiEndpoints.edBoardPreference, { view: key }, { headers });
+    } catch (err) {
+      // remembering the choice is only a convenience
+    }
+  };
   const overdueMinutes = data?.config?.vitals_overdue_minutes ?? 60;
   const statuses = data?.statuses || [];
   const staff = data?.staff || { nurses: [], doctors: [] };
@@ -194,6 +211,12 @@ export default function EDBoard({
         discharge_datetime: null,
       },
     };
+  };
+
+  // a click anywhere on an occupied row sets the patient in the header, except on the controls inside it
+  const rowClicked = (e, row) => {
+    if (e.target.closest("input, textarea, button, a, [role='combobox'], [role='option'], .MuiSelect-select, .MuiCheckbox-root")) return;
+    onSelectPatient(patientLike(row));
   };
 
   const readyBeds = (data?.rows || []).filter((r) => r.type === "bed" && r.bed_status === "available");
@@ -507,9 +530,9 @@ export default function EDBoard({
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel id="ed-view">View</InputLabel>
-          <Select labelId="ed-view" label="View" value={view} onChange={(e) => setView(e.target.value)} inputProps={{ "data-testid": "ed-view" }}>
-            {VIEWS.map((v) => (
-              <MenuItem key={v.value} value={v.value}>
+          <Select labelId="ed-view" label="View" value={previewView ? "" : viewKey} displayEmpty={!!previewView} renderValue={previewView ? () => previewView.label || "Preview" : undefined} onChange={(e) => chooseView(e.target.value)} inputProps={{ "data-testid": "ed-view" }}>
+            {views.map((v) => (
+              <MenuItem key={v.key} value={v.key}>
                 {v.label}
               </MenuItem>
             ))}
@@ -548,8 +571,18 @@ export default function EDBoard({
                 const colors = ruleColors(rules, row.visit, now, overdueMinutes);
                 const base = row.type === "waiting" ? ROW_COLORS.waiting : row.visit ? (i % 2 ? ROW_COLORS.occupiedB : ROW_COLORS.occupiedA) : ROW_COLORS[row.bed_status] || ROW_COLORS.available;
                 const bg = colors.row || base;
+                const selected = !!row.visit && selectedUserId != null && String(row.visit.user_id) === String(selectedUserId);
+                const clickable = !!row.visit && !!onSelectPatient;
                 return (
-                  <TableRow key={row.type === "waiting" ? `w${row.visit.registration}` : `b${row.bed}`} data-testid={row.type === "waiting" ? `ed-waiting-${row.visit.registration}` : `ed-bed-${row.bed}`} sx={{ bgcolor: bg }}>
+                  <TableRow
+                    key={row.type === "waiting" ? `w${row.visit.registration}` : `b${row.bed}`}
+                    data-testid={row.type === "waiting" ? `ed-waiting-${row.visit.registration}` : `ed-bed-${row.bed}`}
+                    hover={clickable}
+                    selected={selected}
+                    aria-selected={clickable ? selected : undefined}
+                    onClick={clickable ? (e) => rowClicked(e, row) : undefined}
+                    sx={{ bgcolor: bg, cursor: clickable ? "pointer" : "default", outline: selected ? "2px solid #1976d2" : "none", outlineOffset: "-2px" }}
+                  >
                     {columns.map((c) => {
                       let cellBg = colors.cells[c.key];
                       if (!cellBg && c.key === "age" && row.visit?.sex === "F") cellBg = "#f8bbd0";

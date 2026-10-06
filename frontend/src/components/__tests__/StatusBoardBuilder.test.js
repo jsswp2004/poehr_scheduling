@@ -6,12 +6,13 @@ jest.mock(
   () => ({
     apiEndpoints: {
       edBoard: "/ed/board/",
+      edBoardPreference: "/ed/pref/",
       admissionBoard: (id) => `/adm/${id}/board/`,
       admissionTransfer: (id) => `/adm/${id}/transfer/`,
-      statusBoards: "/sb/",
-      statusBoard: (id) => `/sb/${id}/`,
-      statusBoardPublish: (id) => `/sb/${id}/publish/`,
-      statusBoardRestore: (id) => `/sb/${id}/restore/`,
+      statusViews: "/sv/",
+      statusViewSettings: "/sv/settings/",
+      statusView: (id) => `/sv/${id}/`,
+      statusViewUndo: (id) => `/sv/${id}/undo/`,
     },
   }),
   { virtual: true }
@@ -23,231 +24,197 @@ import { api } from "../../api/client";
 import { toast } from "../SimpleToast";
 import StatusBoardBuilder from "../edBoard/StatusBoardBuilder";
 import { customKey } from "../edBoard/BuilderTabs";
-import { diffConfigs } from "../edBoard/statusBoardDiff";
 
 const col = (key, label, extra = {}) => ({ key, label, width: 100, visible: true, type: "builtin", ...extra });
-const baseConfig = () => ({
-  columns: [col("loc", "LOC"), col("patient", "Patient"), col("age", "Age"), col("esi", "ESI"), col("status", "STS"), col("rn", "RN"), col("actions", "")],
-  statuses: [
-    { value: "wtbs", code: "WTBS", label: "Waiting to be seen" },
-    { value: "tip", code: "TIP", label: "Treatment in progress" },
-  ],
-  rules: [],
-  vitals_overdue_minutes: 60,
-  roster: { nurses: null, doctors: null },
+const columns = () => [col("loc", "LOC"), col("patient", "Patient"), col("age", "Age"), col("esi", "ESI"), col("status", "STS"), col("rn", "RN"), col("actions", "")];
+const view = (over = {}) => ({
+  key: "v1", id: 1, name: "Charge nurse", label: "Charge nurse", builtin: false, is_default: false, can_undo: false, filter: "all",
+  columns: columns(), rules: [], author: { id: 1, name: "Admin, Ann" }, ...over,
 });
-const version = (over = {}) => ({ id: 11, number: 1, status: "published", unit: null, note: "", author: { id: 1, name: "Admin, Ann" }, created_at: "2026-10-01T10:00:00Z", published_at: "2026-10-01T10:00:00Z", published_by: null, config: baseConfig(), ...over });
-const scope = (over = {}) => ({
-  unit: null,
+const settings = () => ({
+  statuses: [{ value: "wtbs", code: "WTBS", label: "Waiting to be seen" }, { value: "tip", code: "TIP", label: "Treatment in progress" }],
+  vitals_overdue_minutes: 60,
+  custom_columns: [],
+  roster: { default: { nurses: null, doctors: null }, units: {} },
+});
+const payload = (over = {}) => ({
+  views: [view(), view({ key: "v2", id: 2, name: "Triage", label: "Triage", is_default: true, can_undo: true })],
+  settings: settings(),
   departments: [{ id: 5, name: "ED Main", facility_name: "General Hospital" }],
-  default_config: baseConfig(),
-  draft: null,
-  published: null,
-  versions: [],
+  default_view_config: { columns: columns(), rules: [], filter: "all" },
   people: { nurses: [{ id: 7, name: "Geronimo, Ann" }, { id: 9, name: "Bell, Sam" }], doctors: [{ id: 8, name: "Lee, Jeffrey" }] },
   ...over,
 });
 
-let state;
 beforeEach(() => {
   jest.clearAllMocks();
-  state = { scope: scope(), versions: {} };
-  api.get.mockImplementation(async (url) => {
-    if (url === "/sb/") return { data: state.scope };
-    const id = Number(url.split("/")[2]);
-    return { data: state.versions[id] };
-  });
+  api.get.mockResolvedValue({ data: payload() });
   api.post.mockResolvedValue({ data: {} });
-  api.patch.mockImplementation(async (url, body) => ({ data: { ...state.scope.draft, config: body.config } }));
+  api.patch.mockResolvedValue({ data: {} });
   api.delete.mockResolvedValue({ data: {} });
 });
 
-const withDraft = () => {
-  const d = version({ id: 21, number: 2, status: "draft", published_at: null });
-  state.scope = scope({ draft: d, published: version(), versions: [d, version()] });
-  return d;
+const open = async () => {
+  render(<StatusBoardBuilder />);
+  await screen.findByTestId("view-item-1");
 };
 
-test("helpers: custom column keys are safe and unique", () => {
+test("customKey makes safe, unique keys", () => {
   expect(customKey("Isolation type", [])).toBe("c_isolation_type");
   expect(customKey("Isolation type", ["c_isolation_type"])).toBe("c_isolation_type_2");
   expect(customKey("  !!  ", [])).toBe("c_column");
-  expect(customKey("x".repeat(60), []).length).toBeLessThanOrEqual(30);
 });
 
-test("diffConfigs describes what changed in plain words", () => {
-  const before = baseConfig();
-  const after = baseConfig();
-  after.columns = [after.columns[1], after.columns[0], ...after.columns.slice(2)]; // loc and patient swapped
-  after.columns[2] = { ...after.columns[2], label: "Years", width: 70 };
-  after.columns[3] = { ...after.columns[3], visible: false };
-  after.columns.push(col("c_iso", "Isolation", { type: "custom", kind: "dropdown", options: ["A"] }));
-  after.statuses.push({ value: "x", code: "TRI", label: "Triage" });
-  after.rules = [{ field: "esi", op: "eq", value: "1", target: "row", color: "#ff0000" }];
-  after.vitals_overdue_minutes = 30;
-  after.roster = { nurses: [7], doctors: null };
-  const lines = diffConfigs(before, after);
-  expect(lines).toEqual(
-    expect.arrayContaining([
-      'Added column "Isolation"',
-      'Renamed column "Age" to "Years"',
-      'Resized "Years" from 100 to 70',
-      'Hid column "ESI"',
-      "Reordered the columns",
-      "Added status TRI",
-      "Color rules went from 0 to 1",
-      "Vitals are overdue after 30 minutes (was 60)",
-      "The nurse list is now 1 chosen person",
-    ])
-  );
-  expect(diffConfigs(before, baseConfig())).toEqual([]);
+test("lists the clinic's views and marks the default", async () => {
+  await open();
+  expect(screen.getByTestId("view-item-1")).toHaveTextContent("Charge nurse");
+  expect(screen.getByTestId("view-item-2")).toHaveTextContent("Triage");
+  expect(screen.getByTestId("view-item-2")).toHaveTextContent("Default");
+  expect(screen.getByTestId("view-item-1")).not.toHaveTextContent("Default");
 });
 
-test("without a draft the layout is read-only until you start one", async () => {
-  render(<StatusBoardBuilder />);
-  expect(await screen.findByText("Using the built-in layout")).toBeInTheDocument();
-  expect(screen.getByRole("checkbox", { name: "Show Age" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Add a column" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Start a draft to edit" }));
-  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sb/", { unit: null }, expect.anything()));
+test("saving a view sends its name and layout together", async () => {
+  await open();
+  const save = screen.getByRole("button", { name: "Save view" });
+  expect(save).toBeDisabled();
+  fireEvent.change(screen.getByTestId("view-name"), { target: { value: "Charge RN" } });
+  fireEvent.click(screen.getByRole("checkbox", { name: "Show Age" }));
+  expect(save).toBeEnabled();
+  api.patch.mockResolvedValue({ data: view({ name: "Charge RN", label: "Charge RN", can_undo: true }) });
+  fireEvent.click(save);
+  await waitFor(() => expect(api.patch).toHaveBeenCalled());
+  const [url, body] = api.patch.mock.calls[0];
+  expect(url).toBe("/sv/1/");
+  expect(body.name).toBe("Charge RN");
+  expect(body.config.columns.find((c) => c.key === "age").visible).toBe(false);
+  expect(body.config.filter).toBe("all");
+  await waitFor(() => expect(screen.getByRole("button", { name: "Undo last save" })).toBeEnabled());
+  expect(screen.getByTestId("view-item-1")).toHaveTextContent("Charge RN");
 });
 
-test("editing a draft renames, hides, adds a column and saves the whole layout", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  fireEvent.change(screen.getByLabelText("Name of age"), { target: { value: "Years" } });
-  fireEvent.click(screen.getByRole("checkbox", { name: "Show ESI" }));
-  expect(screen.getByText(/unsaved changes/)).toBeInTheDocument();
-  // preview follows the edits
-  const preview = within(screen.getByTestId("builder-preview"));
-  expect(preview.getByRole("columnheader", { name: "Years" })).toBeInTheDocument();
-  expect(preview.queryByRole("columnheader", { name: "ESI" })).toBeNull();
+test("the Patients shown tab changes which patients the view lists", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("tab", { name: "Patients shown" }));
+  fireEvent.mouseDown(within(screen.getByTestId("view-filter").closest(".MuiInputBase-root")).getByRole("combobox"));
+  fireEvent.click(screen.getByRole("option", { name: "Only patients waiting for a bed" }));
+  api.patch.mockResolvedValue({ data: view({ filter: "waiting" }) });
+  fireEvent.click(screen.getByRole("button", { name: "Save view" }));
+  await waitFor(() => expect(api.patch.mock.calls[0][1].config.filter).toBe("waiting"));
+});
 
-  fireEvent.click(screen.getByRole("button", { name: "Add a column" }));
-  fireEvent.change(screen.getByLabelText("Column name"), { target: { value: "Isolation" } });
-  fireEvent.mouseDown(within(screen.getByLabelText("What goes in it").closest(".MuiInputBase-root")).getByRole("combobox"));
+test("a color rule is added in the Colors tab and saved with the view", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("tab", { name: "Colors" }));
+  fireEvent.click(screen.getByRole("button", { name: "Add a color rule" }));
+  api.patch.mockResolvedValue({ data: view() });
+  fireEvent.click(screen.getByRole("button", { name: "Save view" }));
+  await waitFor(() => expect(api.patch.mock.calls[0][1].config.rules).toEqual([{ field: "esi", op: "eq", value: "1", target: "row", color: "#ffcdd2" }]));
+});
+
+test("you cannot walk away from unsaved changes by picking another view", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("checkbox", { name: "Show Age" }));
+  fireEvent.click(screen.getByTestId("view-item-2"));
+  expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/Save or discard/));
+  expect(screen.getByTestId("view-name")).toHaveValue("Charge nurse");
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+  fireEvent.click(screen.getByTestId("view-item-2"));
+  await waitFor(() => expect(screen.getByTestId("view-name")).toHaveValue("Triage"));
+});
+
+test("undo puts back the layout from before the last save", async () => {
+  await open();
+  expect(screen.getByRole("button", { name: "Undo last save" })).toBeDisabled();
+  fireEvent.click(screen.getByTestId("view-item-2"));
+  const undo = await screen.findByRole("button", { name: "Undo last save" });
+  await waitFor(() => expect(undo).toBeEnabled());
+  api.post.mockResolvedValue({ data: view({ key: "v2", id: 2, name: "Triage", is_default: true, can_undo: true }) });
+  fireEvent.click(undo);
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sv/2/undo/", {}, expect.anything()));
+});
+
+test("a new view is named by the admin and starts from the standard layout", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "New view" }));
+  const create = screen.getByRole("button", { name: "Create view" });
+  expect(create).toBeDisabled();
+  fireEvent.change(screen.getByLabelText("Name the view"), { target: { value: "Night shift" } });
+  api.post.mockResolvedValue({ data: view({ key: "v3", id: 3, name: "Night shift", label: "Night shift" }) });
+  fireEvent.click(create);
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sv/", { name: "Night shift" }, expect.anything()));
+  await waitFor(() => expect(screen.getByTestId("view-item-3")).toHaveTextContent("Night shift"));
+  expect(screen.getByTestId("view-name")).toHaveValue("Night shift");
+});
+
+test("duplicating copies the selected view under a new name", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
+  expect(screen.getByLabelText("Name the view")).toHaveValue("Charge nurse copy");
+  api.post.mockResolvedValue({ data: view({ key: "v3", id: 3, name: "Charge nurse copy" }) });
+  fireEvent.click(screen.getByRole("button", { name: "Create view" }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sv/", { name: "Charge nurse copy", from_view: "1" }, expect.anything()));
+});
+
+test("make default and remove default", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Make default" }));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/sv/1/", { is_default: true }, expect.anything()));
+  await waitFor(() => expect(screen.getByTestId("view-item-1")).toHaveTextContent("Default"));
+  expect(screen.getByTestId("view-item-2")).not.toHaveTextContent("Default");
+  fireEvent.click(screen.getByRole("button", { name: "Remove as default" }));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/sv/1/", { is_default: false }, expect.anything()));
+});
+
+test("deleting a view asks first", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(api.delete).not.toHaveBeenCalled();
+  fireEvent.click(await screen.findByRole("button", { name: "Delete view" }));
+  await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/sv/1/", expect.anything()));
+});
+
+test("shared settings: vitals limit and a new custom column are saved for every view", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("tab", { name: "Shared settings" }));
+  expect(screen.getByText(/shared by every view/i)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Vitals are overdue after (minutes)"), { target: { value: "45" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add a custom column" }));
+  fireEvent.change(screen.getByLabelText("Column name"), { target: { value: "Isolation type" } });
+  fireEvent.mouseDown(screen.getByLabelText("What goes in it"));
   fireEvent.click(screen.getByRole("option", { name: "Dropdown" }));
   fireEvent.change(screen.getByLabelText(/Choices/), { target: { value: "Contact, Airborne" } });
   fireEvent.click(screen.getByRole("button", { name: "Add column" }));
-  await waitFor(() => expect(preview.getByRole("columnheader", { name: "Isolation" })).toBeInTheDocument());
-
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
+  api.patch.mockResolvedValue({ data: { ...settings(), vitals_overdue_minutes: 45, custom_columns: [{ key: "c_isolation_type", label: "Isolation type", kind: "dropdown", options: ["Contact", "Airborne"] }] } });
+  fireEvent.click(await screen.findByRole("button", { name: "Save shared settings" }));
   await waitFor(() => expect(api.patch).toHaveBeenCalled());
   const [url, body] = api.patch.mock.calls[0];
-  expect(url).toBe("/sb/21/");
-  const byKey = Object.fromEntries(body.config.columns.map((c) => [c.key, c]));
-  expect(byKey.age.label).toBe("Years");
-  expect(byKey.esi.visible).toBe(false);
-  expect(byKey.c_isolation).toMatchObject({ kind: "dropdown", options: ["Contact", "Airborne"], type: "custom" });
-  await waitFor(() => expect(screen.queryByText(/unsaved changes/)).toBeNull());
+  expect(url).toBe("/sv/settings/");
+  expect(body.vitals_overdue_minutes).toBe(45);
+  expect(body.custom_columns).toEqual([{ key: "c_isolation_type", label: "Isolation type", kind: "dropdown", options: ["Contact", "Airborne"] }]);
+  expect(body.statuses).toHaveLength(2);
 });
 
-test("columns can be moved and required ones cannot be hidden", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  expect(screen.getByRole("checkbox", { name: "Show Patient" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Move LOC up" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Move LOC down" }));
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await waitFor(() => expect(api.patch).toHaveBeenCalled());
-  expect(api.patch.mock.calls[0][1].config.columns.slice(0, 2).map((c) => c.key)).toEqual(["patient", "loc"]);
-});
-
-test("statuses and color rules are edited on their own tab", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  fireEvent.click(screen.getByRole("tab", { name: "Statuses & colors" }));
-  fireEvent.click(screen.getByRole("button", { name: "Add a status" }));
-  fireEvent.change(screen.getByLabelText("Vitals are overdue after (minutes)"), { target: { value: "30" } });
-  fireEvent.click(screen.getByRole("button", { name: "Add a color rule" }));
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await waitFor(() => expect(api.patch).toHaveBeenCalled());
-  const config = api.patch.mock.calls[0][1].config;
-  expect(config.statuses).toHaveLength(3);
-  expect(config.vitals_overdue_minutes).toBe(30);
-  expect(config.rules).toEqual([{ field: "esi", op: "eq", value: "1", target: "row", color: "#ffcdd2" }]);
-});
-
-test("the staff tab limits the dropdowns to chosen people", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  fireEvent.click(screen.getByRole("tab", { name: "Staff" }));
-  fireEvent.click(screen.getAllByRole("radio", { name: /Only the nurses I choose/ })[0]);
-  fireEvent.click(screen.getByRole("button", { name: "Save draft" }));
-  await waitFor(() => expect(api.patch).toHaveBeenCalled());
-  expect(api.patch.mock.calls[0][1].config.roster).toEqual({ nurses: [7, 9], doctors: null });
-});
-
-test("publishing saves unsaved edits, then publishes with the note", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  fireEvent.click(screen.getByRole("checkbox", { name: "Show ESI" }));
-  fireEvent.click(screen.getByRole("button", { name: "Publish" }));
-  fireEvent.change(screen.getByLabelText(/What changed/), { target: { value: "Hid ESI for fast track" } });
-  fireEvent.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Publish" }));
-  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sb/21/publish/", { note: "Hid ESI for fast track" }, expect.anything()));
-  expect(api.patch).toHaveBeenCalledTimes(1);
-  expect(toast.success).toHaveBeenCalled();
-});
-
-test("you cannot switch boards while there are unsaved changes", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  fireEvent.click(screen.getByRole("checkbox", { name: "Show ESI" }));
-  fireEvent.mouseDown(within(screen.getByTestId("builder-scope").closest(".MuiInputBase-root")).getByRole("combobox"));
+test("a department can have its own staff lists", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("tab", { name: "Shared settings" }));
+  fireEvent.mouseDown(within(screen.getByTestId("roster-dept").closest(".MuiInputBase-root")).getByRole("combobox"));
   fireEvent.click(screen.getByRole("option", { name: /ED Main/ }));
-  expect(toast.error).toHaveBeenCalledWith("Save or discard your changes before switching boards.");
-  expect(api.get).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole("checkbox", { name: "This department has its own staff lists" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save shared settings" }));
+  await waitFor(() => expect(api.patch).toHaveBeenCalled());
+  expect(api.patch.mock.calls[0][1].roster.units).toEqual({ 5: { nurses: [7, 9], doctors: [8] } });
 });
 
-test("a department board loads its own versions", async () => {
-  render(<StatusBoardBuilder />);
-  await screen.findByText("Using the built-in layout");
-  fireEvent.mouseDown(within(screen.getByTestId("builder-scope").closest(".MuiInputBase-root")).getByRole("combobox"));
-  fireEvent.click(screen.getByRole("option", { name: /ED Main/ }));
-  await waitFor(() => expect(api.get).toHaveBeenCalledWith("/sb/", expect.objectContaining({ params: { unit: "5" } })));
+test("the preview shows the view being edited, including hidden columns turned off", async () => {
+  await open();
+  const preview = screen.getByTestId("builder-preview");
+  await waitFor(() => expect(within(preview).getByText("Age")).toBeInTheDocument());
+  fireEvent.click(screen.getByRole("checkbox", { name: "Show Age" }));
+  await waitFor(() => expect(within(preview).queryByText("Age")).toBeNull());
 });
 
-test("versions: compare two and restore an old one", async () => {
-  const v1 = version({ id: 11, number: 1, status: "archived", note: "Original" });
-  const cfg2 = baseConfig();
-  cfg2.vitals_overdue_minutes = 30;
-  const v2 = version({ id: 12, number: 2, status: "published", config: cfg2, note: "Stricter vitals" });
-  state.scope = scope({ published: v2, versions: [v2, v1] });
-  state.versions = { 11: v1, 12: v2 };
+test("with no saved views the page says how to start", async () => {
+  api.get.mockResolvedValue({ data: payload({ views: [] }) });
   render(<StatusBoardBuilder />);
-  await screen.findByText("Live: version 2");
-  fireEvent.click(screen.getByRole("tab", { name: "Versions" }));
-  expect(screen.getByRole("button", { name: /Compare the two/ })).toBeDisabled();
-  fireEvent.click(screen.getByRole("checkbox", { name: "Compare version 1" }));
-  fireEvent.click(screen.getByRole("checkbox", { name: "Compare version 2" }));
-  fireEvent.click(screen.getByRole("button", { name: /Compare the two/ }));
-  const diff = await screen.findByTestId("diff");
-  expect(diff).toHaveTextContent("What changed from v1 to v2");
-  expect(diff).toHaveTextContent("Vitals are overdue after 30 minutes (was 60)");
-
-  fireEvent.click(screen.getByRole("button", { name: "Restore version 1" }));
-  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sb/11/restore/", {}, expect.anything()));
-});
-
-test("restore is off while a draft is open", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  fireEvent.click(screen.getByRole("tab", { name: "Versions" }));
-  expect(screen.getByRole("button", { name: "Restore version 1" })).toBeDisabled();
-});
-
-test("discarding a draft deletes it", async () => {
-  withDraft();
-  render(<StatusBoardBuilder />);
-  await screen.findByText(/Draft: version 2/);
-  fireEvent.click(screen.getByRole("button", { name: "Discard draft" }));
-  await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/sb/21/", expect.anything()));
+  expect(await screen.findByText(/Create a view to choose/)).toBeInTheDocument();
 });
