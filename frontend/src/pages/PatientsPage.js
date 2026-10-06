@@ -488,6 +488,7 @@ function PatientsPage() {
         {showPatientContext && (
           <CareSettingSidebar
             value={patients.careSetting}
+            onBack={() => navigate(-1)}
             onChange={(value) => {
               patients.setCareSetting(value);
               if (tab !== "patients") handleTabChange(null, "patients");
@@ -539,14 +540,14 @@ function PatientsPage() {
             value={chartTab}
             onChange={setChartTab}
             role={userRole}
-            right={<BackButton />}
           />
         ) : (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0 }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }} data-testid="view-title">
               {VIEW_TITLES[tab] || ""}
             </Typography>
-            <BackButton />
+            {/* With a patient selected the sidebar's Back button is the only one. */}
+            {!selectedPatient && <BackButton />}
           </Box>
         )}
 
