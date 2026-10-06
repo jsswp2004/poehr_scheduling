@@ -18,7 +18,7 @@ jest.mock("../SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn
 import { api } from "../../api/client";
 import { toast } from "../SimpleToast";
 import EDBoard from "../edBoard/EDBoard";
-import { formatLos, losMinutes, filterRows, vitalsStatus } from "../edBoard/edBoardColumns";
+import { formatLos, losMinutes, filterRows, vitalsStatus, ruleColors } from "../edBoard/edBoardColumns";
 
 const visit = (over = {}) => ({
   registration: 90, visit_number: "VN-000090", patient: 3, user_id: 30, name: "TEST, Jane", age: 28, sex: "F",
@@ -260,4 +260,87 @@ test("order icons light up pending and resulted orders only", async () => {
   expect(screen.getByTestId("order-rad-90")).toHaveAttribute("aria-label", "Radiology resulted for TEST, Jane");
   expect(screen.queryByTestId("order-meds-90")).toBeNull();
   expect(screen.queryByTestId("order-ekg-90")).toBeNull();
+});
+
+const withConfig = (config, rows = rowsDefault()) => ({ ...board(rows), config: { version: 2, rules: [], vitals_overdue_minutes: 60, ...config } });
+const col = (key, label, extra = {}) => ({ key, label, width: 100, visible: true, type: "builtin", ...extra });
+
+test("the published layout decides which columns show, in what order and under what name", async () => {
+  api.get.mockResolvedValue({
+    data: withConfig({ columns: [col("loc", "Bed"), col("patient", "Name"), col("esi", "Triage", { visible: false }), col("age", "Yrs"), col("actions", "")] }),
+  });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  const heads = screen.getAllByRole("columnheader").map((h) => h.textContent);
+  expect(heads).toEqual(["Bed", "Name", "Yrs", ""]);
+  expect(screen.queryByText("Triage")).toBeNull();
+});
+
+test("custom columns can be typed into, picked from or ticked, and save as custom values", async () => {
+  const rows = rowsDefault();
+  rows[0].visit = visit({ registration: 90, custom: { c_note: "old" } });
+  api.get.mockResolvedValue({
+    data: withConfig(
+      {
+        columns: [
+          col("loc", "LOC"), col("patient", "Patient"),
+          col("c_iso", "Isolation", { type: "custom", kind: "dropdown", options: ["Contact", "Airborne"] }),
+          col("c_note", "Tech note", { type: "custom", kind: "text" }),
+          col("c_bag", "Belongings", { type: "custom", kind: "checkbox" }),
+        ],
+      },
+      rows
+    ),
+  });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  const note = screen.getByTestId("custom-c_note-90");
+  expect(note).toHaveValue("old");
+  pick("custom-c_iso-90", "Airborne");
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { custom: { c_iso: "Airborne" } }, expect.anything()));
+  const typed = screen.getByTestId("custom-c_note-90");
+  fireEvent.change(typed, { target: { value: "IV in L arm" } });
+  fireEvent.blur(typed);
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { custom: { c_note: "IV in L arm" } }, expect.anything()));
+  fireEvent.click(screen.getByRole("checkbox", { name: "Belongings for TEST, Jane" }));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { custom: { c_bag: true } }, expect.anything()));
+});
+
+test("color rules paint a whole row or a single cell", () => {
+  const v = visit({ esi: 1, ed_status: "wtbs", custom: { c_iso: "Airborne" }, vitals_last_at: null });
+  const now = Date.now();
+  const rules = [
+    { field: "esi", op: "eq", value: "1", target: "row", color: "#ff0000" },
+    { field: "ed_status", op: "neq", value: "tip", target: "cell", color: "#00ff00" },
+    { field: "c_iso", op: "eq", value: "Airborne", target: "cell", color: "#0000ff" },
+    { field: "vitals_overdue", op: "eq", value: true, target: "cell", color: "#ffaa00" },
+  ];
+  expect(ruleColors(rules, v, now)).toEqual({ row: "#ff0000", cells: { status: "#00ff00", c_iso: "#0000ff", vitals: "#ffaa00" } });
+  expect(ruleColors(rules, visit({ esi: 3, ed_status: "tip", custom: {}, vitals_last_at: new Date(now).toISOString() }), now)).toEqual({ row: undefined, cells: {} });
+  expect(ruleColors(rules, null, now)).toEqual({ row: undefined, cells: {} });
+});
+
+test("a rule colors the row on the board", async () => {
+  api.get.mockResolvedValue({ data: withConfig({ columns: [col("loc", "LOC"), col("patient", "Patient"), col("status", "STS")], rules: [{ field: "esi", op: "eq", value: "3", target: "row", color: "#ff0000" }] }) });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  const row = await screen.findByTestId("ed-bed-1");
+  expect(getComputedStyle(row).backgroundColor).toBe("rgb(255, 0, 0)");
+});
+
+test("the vitals limit comes from the layout", async () => {
+  const rows = rowsDefault();
+  rows[0].visit = visit({ registration: 90, vitals_last_at: new Date(Date.now() - 20 * 60000).toISOString() });
+  api.get.mockResolvedValue({ data: withConfig({ columns: [col("loc", "LOC"), col("patient", "Patient"), col("vitals", "Vitals")], vitals_overdue_minutes: 15 }, rows) });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getByTestId("vitals-90")).toHaveTextContent("Due");
+});
+
+test("preview mode draws the given data without loading, polling or editing", async () => {
+  const data = withConfig({ columns: [col("loc", "LOC"), col("patient", "Patient"), col("esi", "ESI")] });
+  render(<EDBoard userRole="admin" previewData={data} />);
+  expect(await screen.findByTestId("ed-bed-1")).toBeInTheDocument();
+  expect(api.get).not.toHaveBeenCalled();
+  screen.getAllByRole("combobox", { name: /ESI/i }).forEach((el) => expect(el).toHaveAttribute("aria-disabled", "true"));
+  expect(api.patch).not.toHaveBeenCalled();
 });

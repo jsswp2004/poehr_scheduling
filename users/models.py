@@ -755,6 +755,8 @@ class Registration(models.Model):
     board_comments = models.CharField(max_length=300, blank=True)
     # Registrar ticks this once registration is finished (the board shows it red until then).
     registration_complete = models.BooleanField(default=False)
+    # Values for the custom columns an admin adds in the Status Board Builder: {column key: value}.
+    board_custom = models.JSONField(default=dict, blank=True)
     arrival_time = models.DateTimeField(null=True, blank=True)
     # "Unit, room, bed" as one free-text field, matching how front-office
     # staff actually write it (e.g. "3 West, Rm 312, Bed B").
@@ -854,3 +856,35 @@ class Registration(models.Model):
 
     def __str__(self):
         return f"{self.visit_number or 'unsaved'} - {self.patient}"
+
+
+class StatusBoardVersion(models.Model):
+    """
+    One saved version of an ED status board layout (columns, statuses, color rules, roster).
+
+    A scope is a clinic (unit empty = the clinic default) or one emergency department. Each scope has at most
+    one draft being edited and one published version the board uses; publishing archives the previous
+    published version, so the history is never lost and any version can be restored as a new draft.
+    """
+
+    DRAFT, PUBLISHED, ARCHIVED = "draft", "published", "archived"
+    STATUS_CHOICES = [(DRAFT, "Draft"), (PUBLISHED, "Published"), (ARCHIVED, "Archived")]
+
+    organization = models.ForeignKey("Organization", on_delete=models.CASCADE, related_name="status_board_versions")
+    unit = models.ForeignKey(
+        "appointments.Unit", on_delete=models.CASCADE, null=True, blank=True, related_name="status_board_versions"
+    )
+    number = models.PositiveIntegerField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=DRAFT)
+    note = models.CharField(max_length=300, blank=True)
+    config = models.JSONField(default=dict)
+    author = models.ForeignKey("CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    published_by = models.ForeignKey("CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+
+    class Meta:
+        ordering = ["-number"]
+
+    def __str__(self):
+        return f"Status board v{self.number} ({self.status})"

@@ -34,7 +34,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
-import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, filterRows, formatLos, losMinutes, vitalsStatus } from "./edBoardColumns";
+import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, filterRows, formatLos, losMinutes, ruleColors, vitalsStatus } from "./edBoardColumns";
 
 const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 const REFRESH_MS = 30000;
@@ -94,23 +94,27 @@ export default function EDBoard({
   userRole,
   currentUserId = null,
   refreshKey = 0,
-  columns = DEFAULT_COLUMNS,
+  columns: columnsProp,
+  previewData = null,
   onOpenPatient,
   onTransfer,
   onDischarge,
   onAdmit,
   onShowList,
 }) {
-  const [data, setData] = useState(null);
+  const [fetched, setData] = useState(null);
+  const preview = !!previewData;
+  const data = previewData || fetched;
   const [unit, setUnit] = useState("");
   const [view, setView] = useState("all");
   const [problem, setProblem] = useState("");
   const [now, setNow] = useState(() => Date.now());
   const [picking, setPicking] = useState(null); // { title, label, options, submit }
   const [busy, setBusy] = useState(false);
-  const canEdit = FRONT_LINE.includes(userRole);
+  const canEdit = !preview && FRONT_LINE.includes(userRole);
 
   const load = useCallback(async () => {
+    if (preview) return;
     try {
       const headers = await authHeader();
       const res = await api.get(apiEndpoints.edBoard, { headers, params: unit ? { unit } : undefined });
@@ -120,7 +124,7 @@ export default function EDBoard({
     } catch (err) {
       setProblem(errorText(err, "Could not load the ED board."));
     }
-  }, [unit]);
+  }, [unit, preview]);
 
   useEffect(() => {
     load();
@@ -136,6 +140,13 @@ export default function EDBoard({
   }, [load]);
 
   const rows = useMemo(() => filterRows(data?.rows || [], view, currentUserId), [data, view, currentUserId]);
+  // the board's layout comes from the published Status Board version; the built-in layout is the fallback
+  const columns = useMemo(
+    () => columnsProp || (data?.config?.columns || DEFAULT_COLUMNS).filter((c) => c.visible !== false),
+    [columnsProp, data]
+  );
+  const rules = data?.config?.rules || [];
+  const overdueMinutes = data?.config?.vitals_overdue_minutes ?? 60;
   const statuses = data?.statuses || [];
   const staff = data?.staff || { nurses: [], doctors: [] };
 
@@ -200,8 +211,59 @@ export default function EDBoard({
 
   const compact = { fontSize: "0.8rem", "& .MuiSelect-select": { py: 0.25, fontSize: "0.8rem" } };
 
-  const cell = (key, row) => {
+  const customCell = (col, v) => {
+    if (!v) return "";
+    const kind = col.kind || "text";
+    const current = v.custom?.[col.key];
+    const send = (value) => save(v.registration, { custom: { [col.key]: value } });
+    if (kind === "checkbox") {
+      return (
+        <Checkbox
+          size="small"
+          checked={!!current}
+          disabled={!canEdit}
+          onChange={(e) => send(e.target.checked)}
+          inputProps={{ "aria-label": `${col.label} for ${v.name}` }}
+        />
+      );
+    }
+    if (kind === "dropdown") {
+      return (
+        <Select
+          size="small"
+          displayEmpty
+          value={current || ""}
+          disabled={!canEdit}
+          onChange={(e) => send(e.target.value)}
+          sx={{ minWidth: 90, ...compact }}
+          inputProps={{ "aria-label": `${col.label} for ${v.name}`, "data-testid": `custom-${col.key}-${v.registration}` }}
+        >
+          <MenuItem value="">&nbsp;</MenuItem>
+          {(col.options || []).map((o) => (
+            <MenuItem key={o} value={o}>
+              {o}
+            </MenuItem>
+          ))}
+        </Select>
+      );
+    }
+    return canEdit ? (
+      <TextField
+        key={`${v.registration}-${current || ""}`}
+        size="small"
+        variant="standard"
+        defaultValue={current || ""}
+        onBlur={(e) => e.target.value !== (current || "") && send(e.target.value)}
+        inputProps={{ "aria-label": `${col.label} for ${v.name}`, "data-testid": `custom-${col.key}-${v.registration}`, style: { fontSize: "0.8rem" } }}
+      />
+    ) : (
+      current || ""
+    );
+  };
+
+  const cell = (key, row, col) => {
     const v = row.visit;
+    if (col?.type === "custom") return customCell(col, v);
     switch (key) {
       case "loc":
         return row.type === "waiting" ? <b>WAITING</b> : row.loc;
@@ -329,7 +391,7 @@ export default function EDBoard({
         );
       case "vitals": {
         if (!v) return "";
-        const vs = vitalsStatus(v, now);
+        const vs = vitalsStatus(v, now, overdueMinutes);
         const text = vs.charted ? `${formatLos(vs.minutes)} ago` : "None yet";
         return vs.overdue ? (
           <Chip size="small" color="error" label={`Due · ${text}`} data-testid={`vitals-${v.registration}`} />
@@ -483,16 +545,18 @@ export default function EDBoard({
                 </TableRow>
               )}
               {rows.map((row, i) => {
-                const bg = row.type === "waiting" ? ROW_COLORS.waiting : row.visit ? (i % 2 ? ROW_COLORS.occupiedB : ROW_COLORS.occupiedA) : ROW_COLORS[row.bed_status] || ROW_COLORS.available;
+                const colors = ruleColors(rules, row.visit, now, overdueMinutes);
+                const base = row.type === "waiting" ? ROW_COLORS.waiting : row.visit ? (i % 2 ? ROW_COLORS.occupiedB : ROW_COLORS.occupiedA) : ROW_COLORS[row.bed_status] || ROW_COLORS.available;
+                const bg = colors.row || base;
                 return (
                   <TableRow key={row.type === "waiting" ? `w${row.visit.registration}` : `b${row.bed}`} data-testid={row.type === "waiting" ? `ed-waiting-${row.visit.registration}` : `ed-bed-${row.bed}`} sx={{ bgcolor: bg }}>
                     {columns.map((c) => {
-                      let cellBg;
-                      if (c.key === "age" && row.visit?.sex === "F") cellBg = "#f8bbd0";
-                      if (c.key === "reg_comp" && row.visit && !row.visit.registration_complete) cellBg = "#e53935";
+                      let cellBg = colors.cells[c.key];
+                      if (!cellBg && c.key === "age" && row.visit?.sex === "F") cellBg = "#f8bbd0";
+                      if (!cellBg && c.key === "reg_comp" && row.visit && !row.visit.registration_complete) cellBg = "#e53935";
                       return (
-                        <TableCell key={c.key} sx={{ py: 0.5, bgcolor: cellBg, fontSize: "0.85rem" }}>
-                          {cell(c.key, row)}
+                        <TableCell key={c.key} sx={{ py: 0.5, bgcolor: cellBg, fontSize: "0.85rem" }} data-testid={`cell-${c.key}-${row.type === "waiting" ? `w${row.visit.registration}` : `b${row.bed}`}`}>
+                          {cell(c.key, row, c)}
                         </TableCell>
                       );
                     })}
