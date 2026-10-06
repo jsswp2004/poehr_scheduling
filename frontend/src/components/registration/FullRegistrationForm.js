@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Select from "react-select";
 import {
@@ -21,6 +21,7 @@ import {
   Tooltip,
   Chip,
   Divider,
+  Alert,
 } from "@mui/material";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
@@ -98,6 +99,26 @@ const EMPTY_VISIT_FIELDS = {
   attending_provider: "",
 };
 
+// "2026-10-06T14:30:00Z" -> "2026-10-06T10:30" (what <input type="datetime-local"> wants, in local time)
+const toLocalInput = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
+// Turns a saved visit (Registration) into the form's visit fields.
+const visitToFields = (reg) => {
+  const out = { ...EMPTY_VISIT_FIELDS };
+  Object.keys(EMPTY_VISIT_FIELDS).forEach((key) => {
+    const v = reg[key];
+    out[key] = v === null || v === undefined ? "" : typeof v === "number" ? String(v) : v;
+  });
+  out.arrival_time = toLocalInput(reg.arrival_time);
+  return out;
+};
+
 function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonce }) {
   const [mode, setMode] = useState("new"); // "new" | "existing"
   const [activeSubTab, setActiveSubTab] = useState("identity");
@@ -112,6 +133,9 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [mrn, setMrn] = useState(null);
   const [visitNumber, setVisitNumber] = useState(null);
   const [registrationId, setRegistrationId] = useState(null);
+  // true while the form holds the patient's OPEN visit, so Save edits it instead of starting a new one
+  const [editingOpenVisit, setEditingOpenVisit] = useState(false);
+  const visitLoadToken = useRef(0);
 
   // New-patient quick-create fields (same minimal set Quick Register uses)
   const [newPatient, setNewPatient] = useState({
@@ -170,7 +194,39 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setVisitFields(EMPTY_VISIT_FIELDS);
     setRegistrationId(null);
     setVisitNumber(null);
+    setEditingOpenVisit(false);
     setLegalFiles({});
+    loadOpenVisit(patient);
+  };
+
+  // An existing patient who is still in the building has an open visit. Load it, so Save
+  // updates that visit (and the ED Board shows the Visit Reason / Chief Complaint)
+  // instead of creating a second, empty visit.
+  const loadOpenVisit = async (patient) => {
+    const current = patient?.current_visit;
+    const ticket = ++visitLoadToken.current;
+    if (!current?.id || current.discharge_datetime) return;
+    try {
+      const token = await getValidToken();
+      const res = await axios.get(apiEndpoints.registration(current.id), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (ticket !== visitLoadToken.current) return; // a newer patient/choice took over
+      setVisitFields(visitToFields(res.data));
+      setRegistrationId(res.data.id);
+      setVisitNumber(res.data.visit_number || null);
+      setEditingOpenVisit(true);
+    } catch (err) {
+      console.error("Could not load the open visit:", err);
+    }
+  };
+
+  const startNewVisit = () => {
+    visitLoadToken.current += 1;
+    setVisitFields(EMPTY_VISIT_FIELDS);
+    setRegistrationId(null);
+    setVisitNumber(null);
+    setEditingOpenVisit(false);
   };
 
   // Loads a patient passed in from the right-pane patients table's Edit
@@ -329,6 +385,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       } else {
         regRes = await axios.post(apiEndpoints.registrations, visitPayload, { headers });
         setRegistrationId(regRes.data.id);
+        setEditingOpenVisit(true);
       }
       setVisitNumber(regRes.data.visit_number || visitNumber);
 
@@ -575,16 +632,28 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                 onClick={() => {
                   setActivePatient(null);
                   setPatientFields(EMPTY_PATIENT_FIELDS);
-                  setVisitFields(EMPTY_VISIT_FIELDS);
-                  setRegistrationId(null);
+                  startNewVisit();
                   setMrn(null);
-                  setVisitNumber(null);
                 }}
               >
                 Change Patient
               </Button>
             </Stack>
           </Box>
+
+          {editingOpenVisit && (
+            <Alert
+              severity="info"
+              sx={{ mb: 1 }}
+              action={
+                <Button color="inherit" size="small" onClick={startNewVisit}>
+                  Start a new visit instead
+                </Button>
+              }
+            >
+              Editing the open visit{visitNumber ? ` ${visitNumber}` : ""}. Saving updates it.
+            </Alert>
+          )}
 
           <Tabs
             value={activeSubTab}
