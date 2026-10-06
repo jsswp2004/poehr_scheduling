@@ -48,7 +48,9 @@ const openVisit = {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  axios.get.mockResolvedValue({ data: openVisit });
+  axios.get.mockImplementation((url) =>
+    Promise.resolve({ data: url === "/registrations/" ? { results: [openVisit] } : openVisit })
+  );
   axios.patch.mockImplementation((url) =>
     Promise.resolve({ data: url.includes("registrations") ? { ...openVisit, visit_number: "V-55" } : { mrn: "M1" } })
   );
@@ -63,9 +65,9 @@ const goToReason = async () => {
 };
 
 test("editing a patient with an open visit loads that visit and Save updates it", async () => {
-  open(sofia({ id: 55, discharge_datetime: null }));
+  open(sofia(null));
   expect(await screen.findByText(/Editing the open visit V-55/)).toBeInTheDocument();
-  expect(axios.get).toHaveBeenCalledWith("/registrations/55/", expect.anything());
+  expect(axios.get).toHaveBeenCalledWith("/registrations/", expect.objectContaining({ params: { patient: 9, open: 1 } }));
 
   await goToReason();
   fireEvent.change(screen.getByLabelText("Chief Complaint"), { target: { value: "Chest pain" } });
@@ -81,24 +83,32 @@ test("editing a patient with an open visit loads that visit and Save updates it"
 });
 
 test("'Start a new visit instead' makes Save create a new visit", async () => {
-  open(sofia({ id: 55, discharge_datetime: null }));
+  open(sofia(null));
   fireEvent.click(await screen.findByRole("button", { name: "Start a new visit instead" }));
   expect(screen.queryByText(/Editing the open visit/)).not.toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Save Registration" }));
   await waitFor(() => expect(axios.post).toHaveBeenCalledWith("/registrations/", expect.anything(), expect.anything()));
 });
 
-test("a discharged last visit is not reopened", async () => {
+test("with several open visits the one on the board (has a bed) is loaded and others can be picked", async () => {
+  const blank = { ...openVisit, id: 60, visit_number: "V-60", bed: null, unit: null, room: null, facility: null, care_setting: "" };
+  axios.get.mockResolvedValue({ data: { results: [blank, openVisit] } });
+  open(sofia(null));
+  expect(await screen.findByText(/Editing the open visit V-55/)).toBeInTheDocument();
+  expect(screen.getByLabelText("Open visits")).toBeInTheDocument();
+});
+
+test("no open visits (all discharged) starts a blank visit", async () => {
+  axios.get.mockResolvedValue({ data: { results: [] } });
   open(sofia({ id: 55, discharge_datetime: "2026-10-05T10:00:00Z" }));
   await screen.findByText("Sofia Marchetti");
-  expect(axios.get).not.toHaveBeenCalled();
   expect(screen.queryByText(/Editing the open visit/)).not.toBeInTheDocument();
 });
 
 test("a patient with no visit starts a blank one", async () => {
+  axios.get.mockResolvedValue({ data: [] });
   open(sofia(null));
   await screen.findByText("Sofia Marchetti");
-  expect(axios.get).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Save Registration" }));
   await waitFor(() => expect(axios.post).toHaveBeenCalled());
 });

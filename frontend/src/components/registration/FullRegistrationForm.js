@@ -136,6 +136,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   // true while the form holds the patient's OPEN visit, so Save edits it instead of starting a new one
   const [editingOpenVisit, setEditingOpenVisit] = useState(false);
   const visitLoadToken = useRef(0);
+  const [openVisits, setOpenVisits] = useState([]);
 
   // New-patient quick-create fields (same minimal set Quick Register uses)
   const [newPatient, setNewPatient] = useState({
@@ -199,23 +200,32 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     loadOpenVisit(patient);
   };
 
-  // An existing patient who is still in the building has an open visit. Load it, so Save
-  // updates that visit (and the ED Board shows the Visit Reason / Chief Complaint)
-  // instead of creating a second, empty visit.
+  // An existing patient who is still in the building has open visits. Load one, so Save
+  // updates it (and the ED Board shows its Visit Reason / Chief Complaint) instead of
+  // creating another empty visit. If there are several, the one with a bed (the one on
+  // the board) is picked first and the others can be chosen from the banner.
+  const applyVisit = (reg) => {
+    setVisitFields(visitToFields(reg));
+    setRegistrationId(reg.id);
+    setVisitNumber(reg.visit_number || null);
+    setEditingOpenVisit(true);
+  };
+
   const loadOpenVisit = async (patient) => {
-    const current = patient?.current_visit;
     const ticket = ++visitLoadToken.current;
-    if (!current?.id || current.discharge_datetime) return;
+    setOpenVisits([]);
+    if (!patient?.id) return;
     try {
       const token = await getValidToken();
-      const res = await axios.get(apiEndpoints.registration(current.id), {
+      const res = await axios.get(apiEndpoints.registrations, {
         headers: { Authorization: `Bearer ${token}` },
+        params: { patient: patient.id, open: 1 },
       });
       if (ticket !== visitLoadToken.current) return; // a newer patient/choice took over
-      setVisitFields(visitToFields(res.data));
-      setRegistrationId(res.data.id);
-      setVisitNumber(res.data.visit_number || null);
-      setEditingOpenVisit(true);
+      const list = Array.isArray(res.data) ? res.data : res.data?.results || [];
+      if (list.length === 0) return;
+      setOpenVisits(list);
+      applyVisit(list.find((v) => v.bed) || list[0]);
     } catch (err) {
       console.error("Could not load the open visit:", err);
     }
@@ -652,6 +662,28 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               }
             >
               Editing the open visit{visitNumber ? ` ${visitNumber}` : ""}. Saving updates it.
+              {openVisits.length > 1 && (
+                <FormControl size="small" sx={{ ml: 2, minWidth: 260 }}>
+                  <InputLabel id="open-visit-label">Open visits</InputLabel>
+                  <MUISelect
+                    labelId="open-visit-label"
+                    label="Open visits"
+                    value={registrationId || ""}
+                    onChange={(e) => {
+                      const pick = openVisits.find((v) => v.id === e.target.value);
+                      if (pick) applyVisit(pick);
+                    }}
+                  >
+                    {openVisits.map((v) => (
+                      <MenuItem key={v.id} value={v.id}>
+                        {[v.visit_number, v.location_path || v.care_setting || "no location", v.reason_for_visit]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </MenuItem>
+                    ))}
+                  </MUISelect>
+                </FormControl>
+              )}
             </Alert>
           )}
 
