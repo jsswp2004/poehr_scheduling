@@ -197,7 +197,7 @@ def run_scenario(t, report, name, order, stamp):
 
     def cid():
         n[0] += 1
-        return f"SIM{stamp}{name[:4].upper()}{n[0]}"
+        return f"SIM{stamp}{name[:4].upper()}{order.placer[-6:]}{n[0]}"
 
     filler = f"SIM-{stamp}-{order.placer[-6:]}"
     if name == "normal":
