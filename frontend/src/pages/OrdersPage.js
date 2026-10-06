@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import OrdersPanel from "../components/OrdersPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
+import ChartPageShell from "../components/patients/ChartPageShell";
 import BackButton from "../components/BackButton";
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { usePatientData } from "../hooks/usePatientData";
@@ -52,6 +53,7 @@ function OrdersPage() {
     if (!patient) return <div>Loading patient details...</div>;
 
     return (
+<ChartPageShell>
         <Box
             sx={{
                 mt: 0,
@@ -79,7 +81,8 @@ function OrdersPage() {
 
             <OrdersPanel patientId={patient.user_id || patient.id} />
         </Box>
-    );
+    </ChartPageShell>
+);
 }
 
 export default OrdersPage;

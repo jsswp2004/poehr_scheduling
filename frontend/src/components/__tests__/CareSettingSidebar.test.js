@@ -68,3 +68,16 @@ test("works when storage is blocked", () => {
   spy.mockRestore();
   set.mockRestore();
 });
+
+describe("compact mode (beside a patient's chart pages)", () => {
+  test("is always collapsed, has no toggle, and leaves the remembered choice alone", () => {
+    window.localStorage.setItem("powerCareSidebarCollapsed", "0");
+    const onChange = jest.fn();
+    render(<CareSettingSidebar compact value="" onChange={onChange} />);
+    expect(screen.getByTestId("care-setting-sidebar")).toHaveAttribute("data-collapsed", "true");
+    expect(screen.queryByRole("button", { name: /expand sidebar/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Emergency Care" }));
+    expect(onChange).toHaveBeenCalledWith("emergency");
+    expect(window.localStorage.getItem("powerCareSidebarCollapsed")).toBe("0");
+  });
+});

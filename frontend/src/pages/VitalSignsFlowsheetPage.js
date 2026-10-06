@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
+import ChartPageShell from "../components/patients/ChartPageShell";
 import BackButton from "../components/BackButton";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { getValidToken, clearAuthData } from "../utils/auth";
@@ -55,6 +56,7 @@ function VitalSignsFlowsheetPage() {
     if (!patient) return <div>Loading patient details...</div>;
 
     return (
+<ChartPageShell>
         <Box
             sx={{
                 mt: 0,
@@ -85,7 +87,8 @@ function VitalSignsFlowsheetPage() {
                 patientName={`${patient.first_name} ${patient.last_name}`}
             />
         </Box>
-    );
+    </ChartPageShell>
+);
 }
 
 export default VitalSignsFlowsheetPage;

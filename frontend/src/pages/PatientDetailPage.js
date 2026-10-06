@@ -15,6 +15,7 @@ import {
   InputLabel,
   Select as MUISelect,
 } from "@mui/material";
+import ChartPageShell from "../components/patients/ChartPageShell";
 import BackButton from "../components/BackButton";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -885,6 +886,7 @@ function PatientDetailPage() {
 
   if (!patient) return <div>Loading patient details...</div>;
   return (
+<ChartPageShell>
     <Box
       sx={{
         mt: 0,
@@ -1432,7 +1434,8 @@ function PatientDetailPage() {
         </div>
       )}
     </Box>
-  );
+  </ChartPageShell>
+);
 }
 
 export default PatientDetailPage;
