@@ -723,6 +723,24 @@ class Registration(models.Model):
     care_setting = models.CharField(
         max_length=12, choices=CARE_SETTING_CHOICES, blank=True
     )
+
+    # -- Where the patient is (Location Manager) -------------------------
+    # Pick the most specific place known (bed, else room, else unit, else facility);
+    # the rest of the path is filled in from it when the visit is saved.
+    facility = models.ForeignKey(
+        "appointments.Facility", on_delete=models.SET_NULL, null=True, blank=True, related_name="registrations"
+    )
+    unit = models.ForeignKey(
+        "appointments.Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="registrations"
+    )
+    room = models.ForeignKey(
+        "appointments.Room", on_delete=models.SET_NULL, null=True, blank=True, related_name="registrations"
+    )
+    bed = models.ForeignKey(
+        "appointments.Bed", on_delete=models.SET_NULL, null=True, blank=True, related_name="registrations"
+    )
+    # Set when the patient leaves; a bed is occupied while a visit holds it with no discharge time.
+    discharge_datetime = models.DateTimeField(null=True, blank=True)
     arrival_time = models.DateTimeField(null=True, blank=True)
     # "Unit, room, bed" as one free-text field, matching how front-office
     # staff actually write it (e.g. "3 West, Rm 312, Bed B").
@@ -751,12 +769,40 @@ class Registration(models.Model):
         """Emergency visits are Emergency Care, direct admissions are Acute Care, the rest Ambulatory."""
         return {"emergency": "emergency", "direct": "acute"}.get(admission_type or "", "ambulatory")
 
+    def location_path(self):
+        """'General Hospital > 3 West > 312 > B' from whatever parts of the location are set."""
+        parts = [
+            self.facility.name if self.facility_id else "",
+            self.unit.name if self.unit_id else "",
+            self.room.name if self.room_id else "",
+            self.bed.name if self.bed_id else "",
+        ]
+        return " \u203a ".join(p for p in parts if p)
+
+    def _fill_location_parents(self):
+        """Work up from the most specific place chosen so the parents always agree with it."""
+        if self.bed_id:
+            self.room = self.bed.room
+        if self.room_id:
+            self.unit = self.room.unit
+        if self.unit_id:
+            self.facility = self.unit.facility
+
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        extra = []
+        if self.bed_id or self.room_id or self.unit_id or self.facility_id:
+            self._fill_location_parents()
+            # The unit's care type decides the care setting; the typed location text follows the tree.
+            if self.unit_id:
+                self.care_setting = self.unit.care_setting
+            self.assigned_location = self.location_path()
+            extra = ["facility", "unit", "room", "bed", "care_setting", "assigned_location"]
         if not self.care_setting:
             self.care_setting = self.default_care_setting(self.admission_type)
-            update_fields = kwargs.get("update_fields")
-            if update_fields is not None and "care_setting" not in update_fields:
-                kwargs["update_fields"] = list(update_fields) + ["care_setting"]
+            extra.append("care_setting")
+        if update_fields is not None and extra:
+            kwargs["update_fields"] = list(update_fields) + [f for f in extra if f not in update_fields]
         super().save(*args, **kwargs)
         if not self.visit_number:
             self.visit_number = f"VN-{self.pk:06d}"

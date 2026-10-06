@@ -28,6 +28,7 @@ import PrintIcon from "@mui/icons-material/Print";
 import { toast } from "react-toastify";
 import { getValidToken } from "../../utils/auth";
 import { API_BASE_URL, apiEndpoints } from "../../config/api";
+import LocationPicker, { useLocationTree } from "../locations/LocationPicker";
 
 // Every field the Registration tab captures, grouped into the six sub-tabs
 // the user asked for. Patient Identity/Emergency Contact/Financial/Legal
@@ -90,6 +91,10 @@ const EMPTY_VISIT_FIELDS = {
   care_setting: "",
   arrival_time: "",
   assigned_location: "",
+  facility: "",
+  unit: "",
+  room: "",
+  bed: "",
   attending_provider: "",
 };
 
@@ -122,6 +127,16 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [visitFields, setVisitFields] = useState(EMPTY_VISIT_FIELDS);
   const [legalFiles, setLegalFiles] = useState({});
   const [saving, setSaving] = useState(false);
+  const locationTree = useLocationTree();
+  const hasLocations = !!locationTree && locationTree.length > 0;
+  // "Clinic > Unit > Room > Bed" for the picked location, used on the printed summary.
+  const chosenLocationText = () => {
+    const f = (locationTree || []).find((x) => x.id === Number(visitFields.facility));
+    const u = f?.units.find((x) => x.id === Number(visitFields.unit));
+    const r = u?.rooms.find((x) => x.id === Number(visitFields.room));
+    const b = r?.beds.find((x) => x.id === Number(visitFields.bed));
+    return [f, u, r, b].filter(Boolean).map((x) => x.name).join(" > ");
+  };
 
   const resetForActivePatient = (patient) => {
     setActivePatient(patient);
@@ -299,6 +314,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         patient: activePatient.id,
         arrival_time: visitFields.arrival_time || null,
         attending_provider: visitFields.attending_provider || null,
+        facility: visitFields.facility || null,
+        unit: visitFields.unit || null,
+        room: visitFields.room || null,
+        bed: visitFields.bed || null,
       };
       let regRes;
       if (registrationId) {
@@ -426,7 +445,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             <tr><td class="label">Admission Type</td><td>${esc(visitFields.admission_type)}</td></tr>
             <tr><td class="label">Care Setting</td><td>${esc(visitFields.care_setting)}</td></tr>
             <tr><td class="label">Arrival Time</td><td>${esc(visitFields.arrival_time)}</td></tr>
-            <tr><td class="label">Assigned Location</td><td>${esc(visitFields.assigned_location)}</td></tr>
+            <tr><td class="label">Assigned Location</td><td>${esc(chosenLocationText() || visitFields.assigned_location)}</td></tr>
             <tr><td class="label">Attending Provider</td><td>${attendingName}</td></tr>
           </table>
         </body>
@@ -898,8 +917,11 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     label="Care Setting"
                     value={visitFields.care_setting}
                     onChange={(e) => handleVisitFieldChange("care_setting", e.target.value)}
+                    disabled={hasLocations && !!visitFields.unit}
                   >
-                    <MenuItem value="">Automatic (from admission type)</MenuItem>
+                    <MenuItem value="">
+                      {hasLocations && visitFields.unit ? "Automatic (from the unit)" : "Automatic (from admission type)"}
+                    </MenuItem>
                     <MenuItem value="ambulatory">Ambulatory Care</MenuItem>
                     <MenuItem value="emergency">Emergency Care</MenuItem>
                     <MenuItem value="acute">Acute Care</MenuItem>
@@ -914,14 +936,33 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   value={visitFields.arrival_time}
                   onChange={(e) => handleVisitFieldChange("arrival_time", e.target.value)}
                 />
-                <TextField
-                  label="Assigned Location (unit, room, bed)"
-                  size="small"
-                  fullWidth
-                  placeholder="e.g. 3 West, Rm 312, Bed B"
-                  value={visitFields.assigned_location}
-                  onChange={(e) => handleVisitFieldChange("assigned_location", e.target.value)}
-                />
+                {hasLocations ? (
+                  <LocationPicker
+                    tree={locationTree}
+                    value={{
+                      facility: visitFields.facility,
+                      unit: visitFields.unit,
+                      room: visitFields.room,
+                      bed: visitFields.bed,
+                    }}
+                    onChange={(loc, careSetting) =>
+                      setVisitFields((prev) => ({
+                        ...prev,
+                        ...loc,
+                        care_setting: loc.unit ? careSetting : prev.care_setting,
+                      }))
+                    }
+                  />
+                ) : (
+                  <TextField
+                    label="Assigned Location (unit, room, bed)"
+                    size="small"
+                    fullWidth
+                    placeholder="e.g. 3 West, Rm 312, Bed B"
+                    value={visitFields.assigned_location}
+                    onChange={(e) => handleVisitFieldChange("assigned_location", e.target.value)}
+                  />
+                )}
                 <FormControl size="small" fullWidth>
                   <InputLabel id="attending-provider-label">Attending Provider</InputLabel>
                   <MUISelect

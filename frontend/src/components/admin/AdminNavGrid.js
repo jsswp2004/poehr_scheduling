@@ -8,7 +8,8 @@ import {
     FaEnvelope,
     FaClipboardList,
     FaClipboardCheck,
-    FaTable
+    FaTable,
+    FaHospital
 } from 'react-icons/fa';
 
 /**
@@ -26,6 +27,7 @@ const AdminNavGrid = ({ navItems, onNavigate }) => {
         FaClipboardList: FaClipboardList,
         FaTable: FaTable,
         FaClipboardCheck: FaClipboardCheck,
+        FaHospital: FaHospital,
     };
 
     const renderIcon = (iconName) => {

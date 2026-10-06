@@ -18,6 +18,7 @@ import ClinicalNotesPage from './pages/ClinicalNotesPage';
 import OrdersPage from './pages/OrdersPage';
 import LabInboxPage from './pages/LabInboxPage';
 import OrderBuilderPage from './pages/OrderBuilderPage';
+import LocationManagerPage from './pages/LocationManagerPage';
 import VitalSignsFlowsheetPage from './pages/VitalSignsFlowsheetPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
@@ -218,6 +219,7 @@ function AppContent() {
         <Route path="/note-builder" element={<PrivateRoute><NoteTemplateBuilderPage /></PrivateRoute>} />
         <Route path="/flowsheet-builder" element={<PrivateRoute><FlowsheetBuilderPage /></PrivateRoute>} />
         <Route path="/order-builder" element={<PrivateRoute><OrderBuilderPage /></PrivateRoute>} />
+        <Route path="/location-manager" element={<PrivateRoute><LocationManagerPage /></PrivateRoute>} />
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />        <Route path="/toast-test" element={<ToastTestPage />} />
         <Route path="/websocket-test" element={<WebSocketTest />} />
         <Route path="/websocket-direct-test" element={<WebSocketDirectTest />} />

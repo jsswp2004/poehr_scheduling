@@ -362,6 +362,7 @@ class PatientSerializer(serializers.ModelSerializer):
 class RegistrationSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     attending_provider_name = serializers.SerializerMethodField()
+    location_path = serializers.SerializerMethodField()
 
     class Meta:
         model = Registration
@@ -381,6 +382,12 @@ class RegistrationSerializer(serializers.ModelSerializer):
             "care_setting",
             "arrival_time",
             "assigned_location",
+            "facility",
+            "unit",
+            "room",
+            "bed",
+            "location_path",
+            "discharge_datetime",
             "attending_provider",
             "attending_provider_name",
             "registered_by",
@@ -400,6 +407,43 @@ class RegistrationSerializer(serializers.ModelSerializer):
         if obj.attending_provider:
             return f"Dr. {obj.attending_provider.first_name} {obj.attending_provider.last_name}"
         return None
+
+    def get_location_path(self, obj):
+        # live from the Location Manager, so renaming a unit shows everywhere; older visits keep their typed text
+        return obj.location_path() or obj.assigned_location
+
+    def validate(self, attrs):
+        """A visit's place must come from the Location Manager, belong to the clinic, and the bed must be free."""
+        from appointments.locations import check_location
+
+        inst = self.instance
+        pick = lambda name: attrs[name] if name in attrs else (getattr(inst, name) if inst else None)
+        facility, unit, room, bed = pick("facility"), pick("unit"), pick("room"), pick("bed")
+        # Only look at the place when it is being set or changed, so editing an old visit never trips on it.
+        changed = any(k in attrs for k in ("facility", "unit", "room", "bed"))
+        if changed and any([facility, unit, room, bed]):
+            org = attrs.get("organization") or (inst.organization if inst else None)
+            request = self.context.get("request")
+            if org is None and request is not None and request.user.is_authenticated:
+                org = request.user.organization
+            # when a more specific place is chosen, ignore stale parents sent along with it
+            if bed is not None:
+                room = unit = facility = None
+            elif room is not None:
+                unit = facility = None
+            elif unit is not None:
+                facility = None
+            message = check_location(
+                org,
+                facility=facility,
+                unit=unit,
+                room=room,
+                bed=bed,
+                registration_pk=inst.pk if inst else None,
+            )
+            if message:
+                raise serializers.ValidationError({"bed" if bed is not None else "unit": message})
+        return super().validate(attrs)
 
     def create(self, validated_data):
         request = self.context.get("request")

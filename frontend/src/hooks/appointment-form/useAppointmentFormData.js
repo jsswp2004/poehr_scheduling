@@ -18,6 +18,7 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
         duration_minutes: 30,
         recurrence: 'none',
         recurrence_end_date: '',
+        unit: '',
     });
 
     const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
@@ -46,6 +47,7 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
                 recurrence: appointmentToEdit.recurrence || 'none',
                 recurrence_end_date: appointmentToEdit.recurrence_end_date || '',
                 status: appointmentToEdit.status || 'scheduled',
+                unit: appointmentToEdit.unit || '',
             });
 
             // Preselect clinic event
@@ -113,7 +115,7 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
     };
 
     const preparePayload = (selectedDoctor) => {
-        return prepareAppointmentPayload(
+        const payload = prepareAppointmentPayload(
             formData,
             selectedClinicEvent,
             selectedDoctor,
@@ -121,6 +123,8 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
             appointmentToEdit,
             userRole
         );
+        // The unit (from the Location Manager) the appointment takes place in.
+        return { ...payload, unit: formData.unit || null };
     };
 
     return {

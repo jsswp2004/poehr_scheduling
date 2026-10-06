@@ -1,9 +1,10 @@
 /**
  * Appointment form fields component
  */
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, TextField, MenuItem, Typography, Stack } from '@mui/material';
 import Select from 'react-select';
+import LocationPicker, { useLocationTree } from '../locations/LocationPicker';
 
 export const AppointmentFormFields = ({
     formData,
@@ -16,6 +17,16 @@ export const AppointmentFormFields = ({
     handleDoctorChange,
     editMode
 }) => {
+    const locationTree = useLocationTree();
+    const [facility, setFacility] = useState('');
+
+    // When editing, show the clinic the saved unit belongs to.
+    useEffect(() => {
+        if (!locationTree || !formData.unit) return;
+        const owner = locationTree.find((fac) => fac.units.some((u) => u.id === Number(formData.unit)));
+        if (owner) setFacility(owner.id);
+    }, [locationTree, formData.unit]);
+
     return (
         <Stack spacing={2}>
             <Box>
@@ -94,6 +105,21 @@ export const AppointmentFormFields = ({
                         min: formData.appointment_datetime ? formData.appointment_datetime.split('T')[0] : undefined
                     }}
                 />
+            )}
+
+            {locationTree && locationTree.length > 0 && (
+                <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Location</Typography>
+                    <LocationPicker
+                        level="unit"
+                        tree={locationTree}
+                        value={{ facility, unit: formData.unit }}
+                        onChange={(loc) => {
+                            setFacility(loc.facility);
+                            handleChange({ target: { name: 'unit', value: loc.unit } });
+                        }}
+                    />
+                </Box>
             )}
 
             <Box>

@@ -87,6 +87,11 @@ class Appointment(models.Model):
 
     recurrence_end_date = models.DateField(null=True, blank=True)  # NEW FIELD
 
+    # Where the appointment is: a clinic or unit from the Location Manager.
+    unit = models.ForeignKey(
+        "Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="appointments"
+    )
+
     # Patient arrival tracking fields
     arrived = models.BooleanField(
         default=False, help_text="Whether the patient has arrived for the appointment"
@@ -1493,3 +1498,90 @@ class PatientHeaderValue(models.Model):
 
     class Meta:
         unique_together = [("patient", "definition")]
+
+
+# ---------------------------------------------------------------------------
+# Locations: Location (hospital or clinic) > Unit > Room > Bed
+# Built in the Location Manager. Registration (the visit's place) and Scheduling
+# (the clinic or unit an appointment is at) both point at these, so every visit
+# and appointment is tied to a real place instead of free text.
+# ---------------------------------------------------------------------------
+
+
+class Facility(models.Model):
+    """A hospital or clinic: the top of the location tree."""
+
+    KIND_CHOICES = [("hospital", "Hospital"), ("clinic", "Clinic"), ("other", "Other")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="facilities")
+    name = models.CharField(max_length=120)
+    code = models.CharField(max_length=20, blank=True)
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="hospital")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        unique_together = [("organization", "name")]
+        verbose_name_plural = "facilities"
+
+    def __str__(self):
+        return self.name
+
+
+class Unit(models.Model):
+    """A unit or clinic area inside a facility. The care type lives here: a hospital can have an
+    Emergency unit, Inpatient units and Outpatient clinics under one roof."""
+
+    CARE_TYPE_CHOICES = [("outpatient", "Outpatient"), ("inpatient", "Inpatient"), ("emergency", "Emergency")]
+    # what the Patients page's care-setting sidebar calls each type
+    CARE_SETTING_FOR_TYPE = {"outpatient": "ambulatory", "inpatient": "acute", "emergency": "emergency"}
+
+    facility = models.ForeignKey(Facility, on_delete=models.CASCADE, related_name="units")
+    name = models.CharField(max_length=120)
+    code = models.CharField(max_length=20, blank=True)
+    care_type = models.CharField(max_length=12, choices=CARE_TYPE_CHOICES, default="outpatient")
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        unique_together = [("facility", "name")]
+
+    @property
+    def care_setting(self):
+        return self.CARE_SETTING_FOR_TYPE.get(self.care_type, "ambulatory")
+
+    def __str__(self):
+        return f"{self.facility.name} - {self.name}"
+
+
+class Room(models.Model):
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="rooms")
+    name = models.CharField(max_length=60)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        unique_together = [("unit", "name")]
+
+    def __str__(self):
+        return f"{self.unit} - {self.name}"
+
+
+class Bed(models.Model):
+    """A bed. Whether it is occupied comes from who is admitted to it; `hold` is a manual block."""
+
+    HOLD_CHOICES = [("", "None"), ("blocked", "Blocked"), ("cleaning", "Cleaning")]
+
+    room = models.ForeignKey(Room, on_delete=models.CASCADE, related_name="beds")
+    name = models.CharField(max_length=60)
+    is_active = models.BooleanField(default=True)
+    hold = models.CharField(max_length=10, choices=HOLD_CHOICES, blank=True, default="")
+    hold_reason = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        unique_together = [("room", "name")]
+
+    def __str__(self):
+        return f"{self.room} - {self.name}"
