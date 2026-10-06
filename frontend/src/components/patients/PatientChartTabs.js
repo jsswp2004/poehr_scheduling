@@ -32,11 +32,11 @@ export function visibleChartTabs(role) {
   return CHART_TABS.filter((t) => !t.clinical || clinical);
 }
 
-export function PatientChartTabs({ value, onChange, role }) {
+export function PatientChartTabs({ value, onChange, role, right = null }) {
   const tabs = visibleChartTabs(role);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
-    <Box sx={{ flexShrink: 0, mb: 1, borderBottom: 1, borderColor: "divider", bgcolor: "#f5faff" }}>
+    <Box sx={{ flexShrink: 0, mb: 1, borderBottom: 1, borderColor: "divider", bgcolor: "#f5faff", display: "flex", alignItems: "center" }}>
       <Tabs
         value={current}
         onChange={(e, v) => onChange(v)}
@@ -44,6 +44,8 @@ export function PatientChartTabs({ value, onChange, role }) {
         scrollButtons="auto"
         aria-label="Patient chart"
         sx={{
+          flex: 1,
+          minWidth: 0,
           minHeight: 36,
           "& .MuiTab-root": { minHeight: 36, py: 0.5, textTransform: "none", fontSize: "0.9rem" },
         }}
@@ -52,6 +54,7 @@ export function PatientChartTabs({ value, onChange, role }) {
           <Tab key={t.value} value={t.value} label={t.label} data-testid={`chart-tab-${t.value}`} />
         ))}
       </Tabs>
+      {right}
     </Box>
   );
 }
