@@ -39,7 +39,7 @@ MAX_CUSTOM_FIELDS = 20
 # key, label, what it shows
 BUILTIN_FIELDS = [
     ("name", "Patient name", "Last name, first name"),
-    ("location", "Unit / clinic", "Unit, room and bed for the visit, or the clinic's name"),
+    ("location", "Unit / clinic", "Location, unit, room and bed for the visit, or the clinic's name"),
     ("attending", "Attending", "The visit's attending provider, or the patient's provider"),
     ("mrn", "MRN", "Medical record number"),
     ("visit_id", "Visit ID", "Visit number of the latest visit"),
@@ -315,7 +315,8 @@ def build_header(patient, visit_id=None):
 
     builtin_values = {
         "name": f"{patient.last_name}, {patient.first_name}".strip(", "),
-        "location": (visit.assigned_location if visit and visit.assigned_location else (org.name if org else "")),
+        # the full path from the Location Manager, else the older typed text, else the clinic's name
+        "location": ((visit.location_path() or visit.assigned_location) if visit and (visit.location_path() or visit.assigned_location) else (org.name if org else "")),
         "attending": attending,
         "mrn": getattr(profile, "mrn", "") or "",
         "visit_id": (visit.visit_number if visit else "") or "",

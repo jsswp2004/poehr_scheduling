@@ -76,6 +76,14 @@ export const useAdminPage = () => {
             path: '/order-builder',
             color: 'primary',
             requiredRoles: ['admin', 'system_admin']
+        },
+        {
+            id: 'location-manager',
+            label: 'Location Manager',
+            icon: 'FaHospital',
+            path: '/location-manager',
+            color: 'primary',
+            requiredRoles: ['admin', 'system_admin']
         }
     ];
 

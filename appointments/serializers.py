@@ -94,6 +94,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
         return result
 
     def validate(self, data):
+        # The clinic or unit must come from the Location Manager and belong to this clinic.
+        unit = data.get("unit")
+        if unit is not None:
+            from .locations import unit_check
+
+            request = self.context.get("request")
+            org = data.get("organization") or (request.user.organization if request and request.user.is_authenticated else None)
+            message = unit_check(org, unit)
+            if message:
+                raise serializers.ValidationError({"unit": message})
+
         # Validate recurrence and recurrence_end_date
         recurrence = data.get("recurrence", "none")
         recurrence_end_date = data.get("recurrence_end_date", None)
@@ -155,6 +166,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        # Where the appointment is, as readable text ("General Hospital > Cardiology")
+        unit = instance.unit
+        data["unit_name"] = f"{unit.facility.name} \u203a {unit.name}" if unit else None
         # Ensure ISO string includes timezone
         data["appointment_datetime"] = instance.appointment_datetime.isoformat()
         return data

@@ -100,6 +100,11 @@ export const apiEndpoints = {
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
     noteTemplates: `${API_BASE_URL}/api/note-templates/`,
 
+    // Location manager (facility > unit > room > bed)
+    locationTree: `${API_BASE_URL}/api/locations/tree/`,
+    locationItems: (kind) => `${API_BASE_URL}/api/locations/${kind}/`,
+    locationItem: (kind, id) => `${API_BASE_URL}/api/locations/${kind}/${id}/`,
+
     // Orders
     orders: `${API_BASE_URL}/api/orders/`,
     order: (id) => `${API_BASE_URL}/api/orders/${id}/`,
