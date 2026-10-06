@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Box, Typography, CircularProgress, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, Typography, CircularProgress, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -23,6 +23,7 @@ import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
 import BedBoard from "../components/patients/BedBoard";
+import EDBoard from "../components/edBoard/EDBoard";
 import {
   PatientChartTabs,
   ComingSoonPanel,
@@ -149,6 +150,8 @@ function PatientsPage() {
   const [admission, setAdmission] = useState(null);
   // Acute Care shows the patient list or the bed board; the board reloads when `boardKey` changes
   const [acuteView, setAcuteView] = useState("list");
+  // Emergency Care opens on the ED Board; its Patient List button shows the plain list
+  const [edView, setEdView] = useState("board");
   const [boardKey, setBoardKey] = useState(0);
   const afterAdmissionChange = useCallback(async () => {
     setBoardKey((k) => k + 1);
@@ -551,6 +554,7 @@ function PatientsPage() {
             value={chartTab}
             onChange={setChartTab}
             role={userRole}
+            listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
         ) : (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0 }}>
@@ -569,8 +573,30 @@ function PatientsPage() {
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
             if (current === "patient_list") {
               const acute = patients.careSetting === "acute";
+              const emergency = patients.careSetting === "emergency";
+              if (emergency && edView === "board") {
+                return (
+                  <EDBoard
+                    userRole={userRole}
+                    currentUserId={currentUser?.id ?? null}
+                    refreshKey={boardKey}
+                    onShowList={() => setEdView("list")}
+                    onOpenPatient={(p) => openChart(p, "orders")}
+                    onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
+                    onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
+                    onAdmit={(p) => setAdmission({ mode: "admit", patient: p })}
+                  />
+                );
+              }
               return (
             <>
+            {emergency && (
+              <Box sx={{ display: "flex", justifyContent: "flex-start", pt: 1, pl: 1 }}>
+                <Button size="small" variant="outlined" onClick={() => setEdView("board")}>
+                  ED Board
+                </Button>
+              </Box>
+            )}
             {acute && (
               <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 1, pr: 1 }}>
                 <ToggleButtonGroup size="small" exclusive value={acuteView} onChange={(e, v) => v && setAcuteView(v)} aria-label="Acute Care view">

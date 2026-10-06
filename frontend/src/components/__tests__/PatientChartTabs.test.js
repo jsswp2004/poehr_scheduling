@@ -55,3 +55,9 @@ test("the strip shows whatever is passed for its right-hand end (the Back button
   render(<PatientChartTabs value="patient_list" onChange={() => {}} role="doctor" right={<button>Back</button>} />);
   expect(screen.getByText("Back")).toBeInTheDocument();
 });
+
+test("listLabel renames only the first tab", () => {
+  render(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" listLabel="ED Board" />);
+  expect(screen.getByTestId("chart-tab-patient_list")).toHaveTextContent("ED Board");
+  expect(screen.getByTestId("chart-tab-flowsheets")).toHaveTextContent("Flowsheets");
+});

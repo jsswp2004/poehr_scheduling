@@ -741,6 +741,20 @@ class Registration(models.Model):
     )
     # Set when the patient leaves; a bed is occupied while a visit holds it with no discharge time.
     discharge_datetime = models.DateTimeField(null=True, blank=True)
+
+    # -- ED board (the emergency status board reads and edits these) ---------
+    # Triage level 1 (most urgent) to 5.
+    esi = models.PositiveSmallIntegerField(null=True, blank=True)
+    # Where the patient is in the ED flow, e.g. "wtbs" (waiting to be seen); the allowed
+    # values live in users/ed_board.py.
+    ed_status = models.CharField(max_length=20, blank=True)
+    assigned_nurse = models.ForeignKey(
+        "CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="nurse_registrations"
+    )
+    resident = models.CharField(max_length=120, blank=True)
+    board_comments = models.CharField(max_length=300, blank=True)
+    # Registrar ticks this once registration is finished (the board shows it red until then).
+    registration_complete = models.BooleanField(default=False)
     arrival_time = models.DateTimeField(null=True, blank=True)
     # "Unit, room, bed" as one free-text field, matching how front-office
     # staff actually write it (e.g. "3 West, Rm 312, Bed B").

@@ -78,6 +78,8 @@ function PatientsTable({
     // Admit / transfer / discharge are done by the front-line roles (the server enforces the same list).
     const canAdmit = ["doctor", "nurse", "registrar", "admin", "system_admin"].includes(userRole);
     const inpatientView = careSetting === 'acute';
+    // Transfer and Discharge apply to anyone in a bed or waiting in the ED, as well as inpatients
+    const inHouseView = careSetting === 'acute' || careSetting === 'emergency';
     const columnCount = 5;
 
     if (loading) {
@@ -237,7 +239,7 @@ function PatientsTable({
                                                 </IconButton>
                                             </Tooltip>
 
-                                            {canAdmit && inpatientView && onTransfer && (
+                                            {canAdmit && inHouseView && onTransfer && (
                                                 <Tooltip title="Transfer">
                                                     <IconButton
                                                         size="small"
@@ -249,7 +251,7 @@ function PatientsTable({
                                                     </IconButton>
                                                 </Tooltip>
                                             )}
-                                            {canAdmit && inpatientView && onDischarge && (
+                                            {canAdmit && inHouseView && onDischarge && (
                                                 <Tooltip title="Discharge">
                                                     <IconButton
                                                         size="small"
