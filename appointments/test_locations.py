@@ -384,3 +384,55 @@ class HeaderLocationTests(Base):
         self.assertEqual(self.header_location(), "Riverside")
         Registration.objects.create(patient=self.patient, organization=self.org, assigned_location="3 West, Rm 312, Bed B")
         self.assertEqual(self.header_location(), "3 West, Rm 312, Bed B")
+
+
+class BedHoldTests(Base):
+    HOLD = "/api/locations/beds/{}/hold/"
+
+    def test_nurse_can_mark_a_bed_for_cleaning_and_free_it_again(self):
+        r = self.as_(self.nurse).post(self.HOLD.format(self.bed_a.pk), {"hold": "cleaning"}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.bed_a.refresh_from_db()
+        self.assertEqual(self.bed_a.hold, "cleaning")
+        r = self.as_(self.nurse).post(self.HOLD.format(self.bed_a.pk), {"hold": "", "hold_reason": "ignored"}, format="json")
+        self.bed_a.refresh_from_db()
+        self.assertEqual((self.bed_a.hold, self.bed_a.hold_reason), ("", ""))
+
+    def test_block_keeps_a_reason(self):
+        self.as_(self.registrar).post(self.HOLD.format(self.bed_a.pk), {"hold": "blocked", "hold_reason": "Broken rail"}, format="json")
+        self.bed_a.refresh_from_db()
+        self.assertEqual((self.bed_a.hold, self.bed_a.hold_reason), ("blocked", "Broken rail"))
+
+    def test_cannot_block_an_occupied_bed(self):
+        self.as_(self.nurse).post(
+            "/api/users/admissions/admit/", {"patient": self.patient.pk, "unit": self.west.pk, "room": self.room.pk, "bed": self.bed_a.pk}, format="json"
+        )
+        r = self.as_(self.nurse).post(self.HOLD.format(self.bed_a.pk), {"hold": "blocked"}, format="json")
+        self.assertEqual(r.status_code, 400)
+
+    def test_bad_value_other_clinic_and_patients(self):
+        self.assertEqual(self.as_(self.nurse).post(self.HOLD.format(self.bed_a.pk), {"hold": "broken"}, format="json").status_code, 400)
+        from .test_locations import make_user
+
+        stranger = make_user("nurse9", "nurse", self.other_org)
+        self.assertEqual(self.as_(stranger).post(self.HOLD.format(self.bed_a.pk), {"hold": "blocked"}, format="json").status_code, 404)
+        self.assertEqual(self.as_(self.patient_user).post(self.HOLD.format(self.bed_a.pk), {"hold": "blocked"}, format="json").status_code, 403)
+
+    def test_tree_tells_who_is_in_the_bed(self):
+        self.as_(self.nurse).post(
+            "/api/users/admissions/admit/", {"patient": self.patient.pk, "unit": self.west.pk, "room": self.room.pk, "bed": self.bed_a.pk}, format="json"
+        )
+        beds = [b for f in self.as_(self.nurse).get(TREE).json()["locations"] for u in f["units"] for r in u["rooms"] for b in r["beds"]]
+        bed = [b for b in beds if b["id"] == self.bed_a.pk][0]
+        self.assertEqual(bed["patient"], self.patient.pk)
+        self.assertEqual(bed["patient_user_id"], self.patient_user.pk)
+        self.assertTrue(bed["registration"])
+
+    def test_discharge_can_mark_the_bed_for_cleaning(self):
+        visit = self.as_(self.nurse).post(
+            "/api/users/admissions/admit/", {"patient": self.patient.pk, "unit": self.west.pk, "room": self.room.pk, "bed": self.bed_a.pk}, format="json"
+        ).json()["id"]
+        r = self.as_(self.nurse).post(f"/api/users/admissions/{visit}/discharge/", {"bed_needs_cleaning": True}, format="json")
+        self.assertEqual(r.status_code, 200)
+        self.bed_a.refresh_from_db()
+        self.assertEqual(self.bed_a.hold, "cleaning")

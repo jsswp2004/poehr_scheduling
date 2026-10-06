@@ -104,6 +104,7 @@ export const apiEndpoints = {
     locationTree: `${API_BASE_URL}/api/locations/tree/`,
     locationItems: (kind) => `${API_BASE_URL}/api/locations/${kind}/`,
     locationItem: (kind, id) => `${API_BASE_URL}/api/locations/${kind}/${id}/`,
+    bedHold: (id) => `${API_BASE_URL}/api/locations/beds/${id}/hold/`,
 
     // Admit / transfer / discharge a visit
     admissionAdmit: `${API_BASE_URL}/api/users/admissions/admit/`,

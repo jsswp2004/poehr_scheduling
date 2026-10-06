@@ -133,4 +133,14 @@ test("discharge posts the time and says what it frees", async () => {
   const [url, body] = api.post.mock.calls[0];
   expect(url).toBe("/adm/90/discharge/");
   expect(Number.isNaN(Date.parse(body.discharge_datetime))).toBe(false);
+  expect(body.bed_needs_cleaning).toBe(true);
+});
+
+test("discharge can leave the bed available instead of marking it for cleaning", async () => {
+  api.post.mockResolvedValue({ data: {} });
+  render(<DischargeDialog patient={admitted} onClose={() => {}} />);
+  fireEvent.click(screen.getByLabelText("Mark the bed for cleaning"));
+  fireEvent.click(screen.getByRole("button", { name: "Discharge" }));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][1].bed_needs_cleaning).toBe(false);
 });

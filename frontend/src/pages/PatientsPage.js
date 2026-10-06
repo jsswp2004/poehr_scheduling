@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Box, Typography, CircularProgress } from "@mui/material";
+import { Box, Typography, CircularProgress, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -22,6 +22,7 @@ import RegisterPage from "./RegisterPage";
 import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
+import BedBoard from "../components/patients/BedBoard";
 import {
   PatientChartTabs,
   ComingSoonPanel,
@@ -146,6 +147,13 @@ function PatientsPage() {
   const analytics = useAnalytics();
   // Admit / transfer / discharge dialog: { mode: "admit" | "transfer" | "discharge", patient }
   const [admission, setAdmission] = useState(null);
+  // Acute Care shows the patient list or the bed board; the board reloads when `boardKey` changes
+  const [acuteView, setAcuteView] = useState("list");
+  const [boardKey, setBoardKey] = useState(0);
+  const afterAdmissionChange = useCallback(async () => {
+    setBoardKey((k) => k + 1);
+    await patients.fetchPatients();
+  }, [patients]);
 
   // Subscription access control
   const { userTier, permissions } = useSubscriptionAccess();
@@ -560,7 +568,26 @@ function PatientsPage() {
             const allowed = visibleChartTabs(userRole).map((t) => t.value);
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
             if (current === "patient_list") {
+              const acute = patients.careSetting === "acute";
               return (
+            <>
+            {acute && (
+              <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 1, pr: 1 }}>
+                <ToggleButtonGroup size="small" exclusive value={acuteView} onChange={(e, v) => v && setAcuteView(v)} aria-label="Acute Care view">
+                  <ToggleButton value="list" aria-label="Patient list view">Patient list</ToggleButton>
+                  <ToggleButton value="beds" aria-label="Bed board view">Bed board</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            )}
+            {acute && acuteView === "beds" ? (
+              <BedBoard
+                userRole={userRole}
+                refreshKey={boardKey}
+                onOpenPatient={(p) => openChart(p, "orders")}
+                onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
+                onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
+              />
+            ) : (
             <PatientsTable
               patients={patients.patients}
               loading={patients.loading}
@@ -584,6 +611,8 @@ function PatientsPage() {
               onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
               onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
             />
+            )}
+            </>
               );
             }
             if (COMING_SOON[current]) {
@@ -720,14 +749,14 @@ function PatientsPage() {
             patient={admission.patient}
             providers={analytics.providers}
             onClose={() => setAdmission(null)}
-            onDone={patients.fetchPatients}
+            onDone={afterAdmissionChange}
           />
         )}
         {admission && admission.mode === "transfer" && (
-          <TransferDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={patients.fetchPatients} />
+          <TransferDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={afterAdmissionChange} />
         )}
         {admission && admission.mode === "discharge" && (
-          <DischargeDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={patients.fetchPatients} />
+          <DischargeDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={afterAdmissionChange} />
         )}
         {/* SMS Modal */}
         <SMSModal

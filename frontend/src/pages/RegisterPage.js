@@ -4,7 +4,6 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
   Paper,
-  Typography,
   TextField,
   Button,
   Stack,
@@ -17,6 +16,7 @@ import {
   Alert,
   Tabs,
   Tab,
+  MenuItem,
 } from "@mui/material";
 import Select from "react-select";
 import { jwtDecode } from "jwt-decode";
@@ -24,6 +24,14 @@ import { getValidToken } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
 import FullRegistrationForm from "../components/registration/FullRegistrationForm";
 import PatientsRegisterTable from "../components/registration/PatientsRegisterTable";
+
+// How the patient arrives. Saving with one of these also starts their visit, which
+// decides the list they appear on: Ambulatory, Emergency, or Acute (a direct admit).
+const ADMIT_TYPES = [
+  { value: "scheduled", label: "Scheduled (Ambulatory)" },
+  { value: "emergency", label: "Emergency" },
+  { value: "direct", label: "Direct admit (Inpatient)" },
+];
 
 function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = false }) {
   const [hasProvider, setHasProvider] = useState(null); // 'yes' or 'no'
@@ -58,6 +66,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
     assigned_doctor: "",
     phone_number: "",
     organization_name: "",
+    admission_type: "",
   });
   useEffect(() => {
     // Function to fetch doctors with valid token
@@ -201,7 +210,10 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
       // right pane here is now the all-patients table, not a single-patient
       // display, so there's nothing else to populate.
       if (adminMode && token) {
-        if (modalMode && onPatientRegistered) {
+        // The new patient's record is needed to hand it to a modal caller, and to
+        // start a visit when an Admit Type was chosen.
+        let createdPatient = null;
+        if ((modalMode && onPatientRegistered) || formData.admission_type) {
           try {
             const patientResponse = await axios.get(
               `${API_BASE_URL}/api/users/patients/`,
@@ -210,12 +222,39 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
                 params: { search: formData.username },
               }
             );
-            if (patientResponse.data.results && patientResponse.data.results.length > 0) {
-              onPatientRegistered(patientResponse.data.results[0]);
-            }
+            const found = patientResponse.data.results || [];
+            createdPatient =
+              found.find((p) => p.username === payload.username) || found[0] || null;
           } catch (fetchError) {
             console.error("Failed to fetch registered patient:", fetchError);
           }
+        }
+
+        // Start the visit with the chosen Admit Type so the patient lands on the right
+        // list (Emergency, Acute for a direct admit, Ambulatory for scheduled).
+        if (formData.admission_type) {
+          const label = ADMIT_TYPES.find((t) => t.value === formData.admission_type)?.label;
+          if (!createdPatient) {
+            toast.warning(`Patient registered, but the ${label} visit could not be started. Use the Registration tab.`);
+          } else {
+            try {
+              await axios.post(
+                `${API_BASE_URL}/api/users/registrations/`,
+                { patient: createdPatient.id, admission_type: formData.admission_type },
+                { headers: { Authorization: `Bearer ${token}` } }
+              );
+              toast.success(`${label} visit started`);
+            } catch (visitError) {
+              const detail =
+                visitError.response?.data?.detail ||
+                Object.values(visitError.response?.data || {}).flat().join(" ");
+              toast.warning(`Patient registered, but the visit could not be started. ${detail || ""}`.trim());
+            }
+          }
+        }
+
+        if (modalMode && onPatientRegistered) {
+          if (createdPatient) onPatientRegistered(createdPatient);
         } else {
           // Clear the Quick Register form so the registrar can start the
           // next patient right away.
@@ -229,6 +268,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
             assigned_doctor: "",
             phone_number: "",
             organization_name: "",
+            admission_type: "",
           });
           setHasProvider(null);
         }
@@ -433,6 +473,27 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
                   fullWidth
                   size="small"
                 />
+                {/* Staff only: start the visit now, by type */}
+                {adminMode && (
+                  <TextField
+                    label="Admit Type"
+                    name="admission_type"
+                    select
+                    value={formData.admission_type || ""}
+                    onChange={handleChange}
+                    fullWidth
+                    size="small"
+                    helperText="Optional. Starts a visit so the patient shows on that list."
+                    inputProps={{ "data-testid": "quick-admit-type" }}
+                  >
+                    <MenuItem value="">Not specified (register only)</MenuItem>
+                    {ADMIT_TYPES.map((t) => (
+                      <MenuItem key={t.value} value={t.value}>
+                        {t.label}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
 
                 {/* Provider question - HIDDEN in adminMode */}
                 {!adminMode && (

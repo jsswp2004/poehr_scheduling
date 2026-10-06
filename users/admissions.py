@@ -221,7 +221,7 @@ class TransferView(APIView):
 
 
 class DischargeView(APIView):
-    """POST {discharge_datetime?}: end the visit and free the bed."""
+    """POST {discharge_datetime?, bed_needs_cleaning?}: end the visit and free the bed."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -245,4 +245,10 @@ class DischargeView(APIView):
             return _bad("The discharge time is before the patient arrived.")
         visit.discharge_datetime = when
         visit.save()
+        # housekeeping: the bed they leave can be marked for cleaning in the same step
+        if request.data.get("bed_needs_cleaning") in (True, "true", "1", 1) and visit.bed_id:
+            bed = visit.bed
+            if not bed.hold and bed.is_active:
+                bed.hold = "cleaning"
+                bed.save(update_fields=["hold"])
         return Response(RegistrationSerializer(visit).data)
