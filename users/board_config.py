@@ -296,6 +296,12 @@ def _clean_rules(raw, settings):
     return out
 
 
+def bed_label(bed):
+    """How a bed reads on the board: the room, a hyphen, then the bed ("Adults-A")."""
+    room = (bed.room.name or "").strip()
+    return f"{room}-{bed.name}" if room else bed.name
+
+
 def _bed_queryset(org):
     from appointments.models import Bed
 
