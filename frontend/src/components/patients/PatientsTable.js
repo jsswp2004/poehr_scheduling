@@ -49,8 +49,16 @@ function PatientsTable({
     onOpenEmailModal,
     onDelete,
     userRole,
+    selectedId = null,
+    onSelect = null,
+    onOpenChart = null,
 }) {
     const navigate = useNavigate();
+    // On the Patients page the chart opens in place (under the patient header). Anywhere else it falls back to the standalone pages.
+    const openChart = (patient, chartTab, path) => {
+        if (onOpenChart) onOpenChart(patient, chartTab);
+        else navigate(path);
+    };
     // Clinical Notes and the Flowsheet are gated server-side to
     // doctor/nurse/admin/system_admin (see CanAccessClinicalNotes /
     // CanAccessVitalSignsFlowsheets) -- schedulers/registrars and any other
@@ -138,8 +146,14 @@ function PatientsTable({
                             patients.map((patient) => (
                                 <TableRow
                                     key={patient.id}
+                                    hover
+                                    selected={selectedId != null && String(patient.user_id) === String(selectedId)}
+                                    aria-selected={selectedId != null && String(patient.user_id) === String(selectedId)}
+                                    data-testid={`patient-row-${patient.user_id}`}
+                                    onClick={() => onSelect && onSelect(patient)}
                                     sx={{
                                         '&:hover': { bgcolor: '#f5f5f5' },
+                                        '&.Mui-selected, &.Mui-selected:hover': { bgcolor: '#cfe8fc' },
                                         cursor: 'pointer',
                                     }}
                                 >
@@ -168,7 +182,7 @@ function PatientsTable({
                                             <Tooltip title="View Details">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => navigate(`/patients/${patient.user_id}`)}
+                                                    onClick={(e) => { e.stopPropagation(); navigate(`/patients/${patient.user_id}`); }}
                                                     sx={{ color: 'primary.main' }}
                                                 >
                                                     <VisibilityIcon fontSize="small" />
@@ -180,7 +194,7 @@ function PatientsTable({
                                                     <Tooltip title="Clinical Notes">
                                                         <IconButton
                                                             size="small"
-                                                            onClick={() => navigate(`/patients/${patient.user_id}/notes`)}
+                                                            onClick={(e) => { e.stopPropagation(); openChart(patient, 'documents', `/patients/${patient.user_id}/notes`); }}
                                                             sx={{ color: 'secondary.main' }}
                                                         >
                                                             <AssignmentIcon fontSize="small" />
@@ -190,7 +204,7 @@ function PatientsTable({
                                                     <Tooltip title="Flowsheet">
                                                         <IconButton
                                                             size="small"
-                                                            onClick={() => navigate(`/patients/${patient.user_id}/flowsheet`)}
+                                                            onClick={(e) => { e.stopPropagation(); openChart(patient, 'flowsheets', `/patients/${patient.user_id}/flowsheet`); }}
                                                             sx={{ color: '#c2185b' }}
                                                         >
                                                             <MonitorHeartIcon fontSize="small" />
@@ -200,7 +214,7 @@ function PatientsTable({
                                                     <Tooltip title="Orders">
                                                         <IconButton
                                                             size="small"
-                                                            onClick={() => navigate(`/patients/${patient.user_id}/orders`)}
+                                                            onClick={(e) => { e.stopPropagation(); openChart(patient, 'orders', `/patients/${patient.user_id}/orders`); }}
                                                             sx={{ color: '#2e7d32' }}
                                                         >
                                                             <OrdersIcon fontSize="small" />
@@ -210,7 +224,7 @@ function PatientsTable({
                                                     <Tooltip title="Lab Results">
                                                         <IconButton
                                                             size="small"
-                                                            onClick={() => navigate(`/patients/${patient.user_id}/orders#lab-results`)}
+                                                            onClick={(e) => { e.stopPropagation(); openChart(patient, 'results', `/patients/${patient.user_id}/orders#lab-results`); }}
                                                             sx={{ color: '#6a1b9a' }}
                                                         >
                                                             <LabIcon fontSize="small" />
@@ -222,7 +236,7 @@ function PatientsTable({
                                             <Tooltip title="Send Email">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => onOpenEmailModal(patient)}
+                                                    onClick={(e) => { e.stopPropagation(); onOpenEmailModal(patient); }}
                                                     sx={{ color: 'success.main' }}
                                                 >
                                                     <FontAwesomeIcon icon={faEnvelope} />
@@ -232,7 +246,7 @@ function PatientsTable({
                                             <Tooltip title="Send SMS">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => onSendText(patient)}
+                                                    onClick={(e) => { e.stopPropagation(); onSendText(patient); }}
                                                     sx={{ color: 'warning.main' }}
                                                 >
                                                     <FontAwesomeIcon icon={faSms} />
@@ -242,7 +256,7 @@ function PatientsTable({
                                             <Tooltip title="Delete Patient">
                                                 <IconButton
                                                     size="small"
-                                                    onClick={() => onDelete(patient.id)}
+                                                    onClick={(e) => { e.stopPropagation(); onDelete(patient.id); }}
                                                     sx={{ color: 'error.main' }}
                                                 >
                                                     <DeleteIcon fontSize="small" />

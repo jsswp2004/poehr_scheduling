@@ -45,3 +45,14 @@ test("switching tabs swaps the sections and updates the address", async () => {
   expect(screen.getByText("Place orders")).toBeVisible();
   expect(window.location.hash).toBe("");
 });
+
+test("when the chart tab strip drives it, the inner tabs are hidden and the section follows", async () => {
+  const { rerender } = render(<OrdersPanel patientId={3} forcedSection="orders" />);
+  await waitFor(() => expect(screen.getByText("Place orders")).toBeInTheDocument());
+  expect(screen.queryByTestId("orders-section-tab")).toBeNull();
+  expect(screen.getByText("LAB PANEL BODY")).not.toBeVisible();
+  rerender(<OrdersPanel patientId={3} forcedSection="labs" />);
+  expect(screen.getByText("LAB PANEL BODY")).toBeVisible();
+  expect(screen.getByText("Place orders")).not.toBeVisible();
+  expect(window.location.hash).toBe("");
+});

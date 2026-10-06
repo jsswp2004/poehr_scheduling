@@ -98,7 +98,7 @@ const dxToText = (codes) => (codes || []).map(dxLabel).join("; ");
  * requirements, locking after signing) is enforced by the backend; this
  * screen just shows the right buttons and relays the server's messages.
  */
-function OrdersPanel({ patientId }) {
+function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
   const [me, setMe] = useState({ role: null, id: null });
   const [appointments, setAppointments] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -124,11 +124,14 @@ function OrdersPanel({ patientId }) {
   const canCosign = ["doctor", "admin", "system_admin"].includes(me.role);
 
   // Orders and Lab Results are two tabs. The Lab icon in the Patients table links here with #lab-results to open the Lab Results tab.
-  const [section, setSection] = useState(() =>
+  // When the chart tab strip on the Patients page drives the section (forcedSection), the inner tabs are hidden.
+  const [sectionState, setSection] = useState(() =>
     typeof window !== "undefined" && window.location.hash === "#lab-results" ? "labs" : "orders"
   );
+  const section = forcedSection || sectionState;
   const changeSection = (next) => {
     setSection(next);
+    if (forcedSection) return;
     try {
       const base = window.location.pathname + window.location.search;
       window.history.replaceState(window.history.state, "", next === "labs" ? `${base}#lab-results` : base);
@@ -538,6 +541,7 @@ function OrdersPanel({ patientId }) {
               disabled={busy}
               onClick={() => {
                 setSection("labs");
+                if (onShowLabs) onShowLabs();
                 setLabEntry({ orderId: order.id, nonce: Date.now() });
               }}
             >
@@ -572,15 +576,17 @@ function OrdersPanel({ patientId }) {
 
   return (
     <Stack spacing={3}>
-      <Tabs
-        value={section}
-        onChange={(e, v) => changeSection(v)}
-        aria-label="Orders and lab results"
-        sx={{ borderBottom: 1, borderColor: "divider" }}
-      >
-        <Tab value="orders" label="Orders" data-testid="orders-section-tab" />
-        <Tab value="labs" label="Lab Results" data-testid="lab-results-section-tab" />
-      </Tabs>
+      {!forcedSection && (
+        <Tabs
+          value={section}
+          onChange={(e, v) => changeSection(v)}
+          aria-label="Orders and lab results"
+          sx={{ borderBottom: 1, borderColor: "divider" }}
+        >
+          <Tab value="orders" label="Orders" data-testid="orders-section-tab" />
+          <Tab value="labs" label="Lab Results" data-testid="lab-results-section-tab" />
+        </Tabs>
+      )}
 
       <Stack spacing={3} sx={{ display: section === "orders" ? "flex" : "none" }}>
       {canPlace && (

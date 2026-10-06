@@ -43,7 +43,7 @@ const VALUE_STYLE = {
  * Allergies are red when there are any, and a patient with nothing recorded reads
  * "Not documented" (different from "No known allergies").
  */
-function PatientChartHeader({ patientId, refreshKey = 0, visitId = null }) {
+function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persistent = false }) {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -60,13 +60,38 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null }) {
     }
   }, [patientId, visitId]);
 
+  // A different patient was chosen: drop the old banner so it never shows someone else's details.
+  useEffect(() => {
+    setData(null);
+    setFailed(false);
+    setEditing(false);
+  }, [patientId]);
+
   useEffect(() => {
     load();
   }, [load, refreshKey]);
 
+  // The always-visible banner on the Patients page: say so when no patient is chosen or it cannot load.
+  if (persistent && (!patientId || (failed && !data))) {
+    return (
+      <Paper
+        variant="outlined"
+        component="section"
+        aria-label="Patient header"
+        data-testid="patient-chart-header-empty"
+        sx={{ p: 1.5, mb: 1, borderLeft: "6px solid", borderLeftColor: "grey.400", bgcolor: "#f7fbff", flexShrink: 0 }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          {!patientId ? "No patient selected. Select a patient from the list." : "Patient header could not be loaded."}
+        </Typography>
+      </Paper>
+    );
+  }
+
   // No access (or the server is unreachable): show nothing rather than a broken banner.
+  if (!patientId) return null;
   if (failed && !data) return null;
-  if (!data) return <Box sx={{ minHeight: 56 }} aria-busy="true" />;
+  if (!data) return <Box sx={{ minHeight: 56, mb: persistent ? 1 : 0, flexShrink: 0 }} aria-busy="true" />;
 
   const [first, ...rest] = data.items;
 
@@ -76,7 +101,7 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null }) {
       component="section"
       aria-label="Patient header"
       data-testid="patient-chart-header"
-      sx={{ p: 1.5, mb: 2, borderLeft: "6px solid", borderLeftColor: "primary.main", bgcolor: "#f7fbff" }}
+      sx={{ p: 1.5, mb: persistent ? 1 : 2, flexShrink: 0, borderLeft: "6px solid", borderLeftColor: "primary.main", bgcolor: "#f7fbff" }}
     >
       <Stack direction="row" alignItems="flex-start" spacing={2}>
         <Box sx={{ flex: 1, minWidth: 0 }}>

@@ -20,6 +20,17 @@ import {
 } from "../components/patients";
 import RegisterPage from "./RegisterPage";
 import CareSettingSidebar from "../components/patients/CareSettingSidebar";
+import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
+import {
+  PatientChartTabs,
+  ComingSoonPanel,
+  SelectPatientPrompt,
+  COMING_SOON,
+  visibleChartTabs,
+} from "../components/patients/PatientChartTabs";
+import OrdersPanel from "../components/OrdersPanel";
+import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
+import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 
 // Hooks
 import useOnlineStatus from "../hooks/useOnlineStatus";
@@ -66,6 +77,43 @@ function PatientsPage() {
   const [token, setToken] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+
+  // The patient whose chart is open. The header above the tabs and every chart tab follow it.
+  // It is remembered for this browser tab only, and per user, so a shared computer never shows
+  // the previous user's patient.
+  const [selectedPatient, setSelectedPatient] = useState(null); // { id, name }
+  const [chartTab, setChartTab] = useState("patient_list");
+  const selectionKey = currentUser ? `powerSelectedPatient:${currentUser.id}` : null;
+  useEffect(() => {
+    if (!selectionKey) return;
+    try {
+      const saved = JSON.parse(window.sessionStorage.getItem(selectionKey) || "null");
+      if (saved && saved.id) setSelectedPatient(saved);
+    } catch (err) {
+      // remembering the selection is only a convenience
+    }
+  }, [selectionKey]);
+  const selectPatient = useCallback(
+    (patient) => {
+      const next = patient ? { id: patient.user_id, name: patient.full_name || "" } : null;
+      setSelectedPatient(next);
+      if (!selectionKey) return;
+      try {
+        if (next) window.sessionStorage.setItem(selectionKey, JSON.stringify(next));
+        else window.sessionStorage.removeItem(selectionKey);
+      } catch (err) {
+        // ignore
+      }
+    },
+    [selectionKey]
+  );
+  const openChart = useCallback(
+    (patient, nextTab) => {
+      selectPatient(patient);
+      setChartTab(nextTab);
+    },
+    [selectPatient]
+  );
 
   // Chat and online status
   const {
@@ -291,6 +339,10 @@ function PatientsPage() {
   };
 
   const handleDeletePatient = (patientId) => {
+    const doomed = (patients.patients || []).find((p) => p.id === patientId);
+    if (doomed && selectedPatient && String(doomed.user_id) === String(selectedPatient.id)) {
+      selectPatient(null);
+    }
     patients.handleDelete(patientId, token);
   };
 
@@ -454,12 +506,15 @@ function PatientsPage() {
           </Box>
         )}
 
-        {/* Main Navigation Tabs */}
+        {/* Patient header: always on top, follows the selected patient */}
+        <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} />
+
+        {/* Main Navigation Tabs (thin row, below the patient header) */}
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
-            mb: 2,
+            mb: 1,
             bgcolor: "#f5faff",
             flexShrink: 0,
           }}
@@ -469,17 +524,18 @@ function PatientsPage() {
             onChange={handleTabChange}
             sx={{
               flex: 1,
-              minHeight: 40,
+              minHeight: 32,
               "& .MuiTabs-indicator": {
-                height: 4,
+                height: 3,
                 borderRadius: 2,
                 bgcolor: "primary.main",
               },
               "& .MuiTab-root": {
                 fontWeight: 500,
-                fontSize: "1rem",
+                fontSize: "0.85rem",
                 color: "primary.main",
-                minHeight: 40,
+                minHeight: 32,
+                py: 0.5,
                 textTransform: "none",
                 borderRadius: 2,
                 mx: 0.5,
@@ -570,9 +626,18 @@ function PatientsPage() {
           <BackButton />
         </Box>
 
+        {/* Chart tabs for the selected patient */}
+        {tab === "patients" && (
+          <PatientChartTabs value={chartTab} onChange={setChartTab} role={userRole} />
+        )}
+
         {/* Tab Content */}
         <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
-          {tab === "patients" && (
+          {tab === "patients" && (() => {
+            const allowed = visibleChartTabs(userRole).map((t) => t.value);
+            const current = allowed.includes(chartTab) ? chartTab : "patient_list";
+            if (current === "patient_list") {
+              return (
             <PatientsTable
               patients={patients.patients}
               loading={patients.loading}
@@ -588,8 +653,58 @@ function PatientsPage() {
               onOpenEmailModal={handleOpenEmailModal}
               onDelete={handleDeletePatient}
               userRole={userRole}
+              selectedId={selectedPatient ? selectedPatient.id : null}
+              onSelect={selectPatient}
+              onOpenChart={openChart}
             />
-          )}
+              );
+            }
+            if (COMING_SOON[current]) {
+              return (
+                <ComingSoonPanel
+                  title={COMING_SOON[current]}
+                  patient={selectedPatient}
+                  onOpenRecord={() => navigate(`/patients/${selectedPatient.id}`)}
+                />
+              );
+            }
+            if (!selectedPatient) return <SelectPatientPrompt />;
+            if (current === "orders" || current === "results") {
+              return (
+                <Box sx={{ p: 1 }}>
+                  <OrdersPanel
+                    key={selectedPatient.id}
+                    patientId={selectedPatient.id}
+                    forcedSection={current === "results" ? "labs" : "orders"}
+                    onShowLabs={() => setChartTab("results")}
+                  />
+                </Box>
+              );
+            }
+            if (current === "documents") {
+              return (
+                <Box sx={{ p: 1 }}>
+                  <ClinicalNotesPanel
+                    key={selectedPatient.id}
+                    patientId={selectedPatient.id}
+                    patientName={selectedPatient.name}
+                  />
+                </Box>
+              );
+            }
+            if (current === "flowsheets") {
+              return (
+                <Box sx={{ p: 1 }}>
+                  <VitalSignsFlowsheetPanel
+                    key={selectedPatient.id}
+                    patientId={selectedPatient.id}
+                    patientName={selectedPatient.name}
+                  />
+                </Box>
+              );
+            }
+            return <SelectPatientPrompt />;
+          })()}
 
           {tab === "team" && (
             <TeamTable
