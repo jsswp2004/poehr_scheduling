@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { Box, Button, Typography, CircularProgress, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { Box, Button, Typography, CircularProgress } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -23,6 +23,7 @@ import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
 import BedBoard from "../components/patients/BedBoard";
+import AcuteViewTabs from "../components/patients/AcuteViewTabs";
 import EDBoard from "../components/edBoard/EDBoard";
 import {
   PatientChartTabs,
@@ -597,14 +598,7 @@ function PatientsPage() {
                 </Button>
               </Box>
             )}
-            {acute && (
-              <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 1, pr: 1 }}>
-                <ToggleButtonGroup size="small" exclusive value={acuteView} onChange={(e, v) => v && setAcuteView(v)} aria-label="Acute Care view">
-                  <ToggleButton value="list" aria-label="Patient list view">Patient list</ToggleButton>
-                  <ToggleButton value="beds" aria-label="Bed board view">Bed board</ToggleButton>
-                </ToggleButtonGroup>
-              </Box>
-            )}
+            {acute && <AcuteViewTabs value={acuteView} onChange={setAcuteView} />}
             {acute && acuteView === "beds" ? (
               <BedBoard
                 userRole={userRole}
