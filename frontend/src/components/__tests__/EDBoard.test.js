@@ -213,13 +213,6 @@ test("transfer, discharge and admit hand the patient to the page, and the name o
   expect(onOpenPatient.mock.calls[0][0].user_id).toBe(30);
 });
 
-test("the Patient List button hands control back to the page", async () => {
-  const onShowList = jest.fn();
-  render(<EDBoard userRole="nurse" onShowList={onShowList} />);
-  fireEvent.click(await screen.findByRole("button", { name: "Patient List" }));
-  expect(onShowList).toHaveBeenCalled();
-});
-
 test("says so when there are no emergency departments, and shows load errors", async () => {
   api.get.mockResolvedValue({ data: { ...board([]), departments: [], unit: null } });
   const { unmount } = render(<EDBoard userRole="nurse" />);
@@ -422,4 +415,10 @@ test("filterRows: beds limit first, then the waiting or mine filter; the Waiting
   expect(filterRows(rows, "all", 7, [2]).map((r) => r.bed)).toEqual([2]);
   expect(filterRows(rows, "mine", 7, [1, 2]).map((r) => r.bed)).toEqual([1]);
   expect(filterRows(rows, "waiting", 7, []).length).toBe(1);
+});
+
+test("the ED Board has no Patient List button", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.queryByRole("button", { name: "Patient List" })).toBeNull();
 });
