@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
+from .admissions import AdmitView, TransferView, DischargeView
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -181,6 +182,10 @@ urlpatterns = [
     path("payments/history/", billing_history, name="billing-history"),
     path("payments/add-method/", add_payment_method, name="add-payment-method"),
     path("payments/messaging-usage/", messaging_usage, name="messaging-usage"),
+    # Admit, transfer and discharge a visit (locations come from the Location Manager).
+    path("admissions/admit/", AdmitView.as_view(), name="admission-admit"),
+    path("admissions/<int:pk>/transfer/", TransferView.as_view(), name="admission-transfer"),
+    path("admissions/<int:pk>/discharge/", DischargeView.as_view(), name="admission-discharge"),
 ]
 
 # ✅ Append viewset routes

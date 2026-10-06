@@ -25,6 +25,9 @@ import {
     MonitorHeart as MonitorHeartIcon,
     PlaylistAddCheck as OrdersIcon,
     Science as LabIcon,
+    Hotel as AdmitIcon,
+    SwapHoriz as TransferIcon,
+    ExitToApp as DischargeIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -52,6 +55,10 @@ function PatientsTable({
     selectedId = null,
     onSelect = null,
     onOpenChart = null,
+    careSetting = '',
+    onAdmit = null,
+    onTransfer = null,
+    onDischarge = null,
 }) {
     const navigate = useNavigate();
     // On the Patients page the chart opens in place (under the patient header). Anywhere else it falls back to the standalone pages.
@@ -67,6 +74,11 @@ function PatientsTable({
     const canAccessClinicalDocs = ["doctor", "nurse", "admin", "system_admin"].includes(
         userRole
     );
+
+    // Admit / transfer / discharge are done by the front-line roles (the server enforces the same list).
+    const canAdmit = ["doctor", "nurse", "registrar", "admin", "system_admin"].includes(userRole);
+    const inpatientView = careSetting === 'acute';
+    const columnCount = 5;
 
     if (loading) {
         return (
@@ -127,9 +139,19 @@ function PatientsTable({
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#e3f2fd' }}>
                             <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                            {inpatientView ? (
+                                <>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Location</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Admitted</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Attending</TableCell>
+                                </>
+                            ) : (
+                                <>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
+                                    <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
+                                </>
+                            )}
                             <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                                 Actions
                             </TableCell>
@@ -138,8 +160,10 @@ function PatientsTable({
                     <TableBody>
                         {patients.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
-                                    No patients found
+                                <TableCell colSpan={columnCount} sx={{ textAlign: 'center', py: 4 }}>
+                                    {inpatientView
+                                        ? 'No inpatients right now. Admit a patient from the Ambulatory or Emergency list with the bed icon.'
+                                        : 'No patients found'}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -162,21 +186,45 @@ function PatientsTable({
                                             {patient.full_name}
                                         </Typography>
                                     </TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2">
-                                            {patient.email || 'N/A'}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2">
-                                            {patient.phone_number || 'N/A'}
-                                        </Typography>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Typography variant="body2">
-                                            {patient.provider_name || 'Not assigned'}
-                                        </Typography>
-                                    </TableCell>
+                                    {inpatientView ? (
+                                        <>
+                                            <TableCell>
+                                                <Typography variant="body2" data-testid={`patient-location-${patient.user_id}`}>
+                                                    {patient.current_visit?.location || 'No bed assigned'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2">
+                                                    {patient.current_visit?.arrival_time
+                                                        ? new Date(patient.current_visit.arrival_time).toLocaleString()
+                                                        : 'N/A'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2">
+                                                    {patient.current_visit?.attending_provider_name || 'Not assigned'}
+                                                </Typography>
+                                            </TableCell>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TableCell>
+                                                <Typography variant="body2">
+                                                    {patient.email || 'N/A'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2">
+                                                    {patient.phone_number || 'N/A'}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Typography variant="body2">
+                                                    {patient.provider_name || 'Not assigned'}
+                                                </Typography>
+                                            </TableCell>
+                                        </>
+                                    )}
                                     <TableCell sx={{ textAlign: 'center' }}>
                                         <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
                                             <Tooltip title="View Details">
@@ -188,6 +236,43 @@ function PatientsTable({
                                                     <VisibilityIcon fontSize="small" />
                                                 </IconButton>
                                             </Tooltip>
+
+                                            {canAdmit && inpatientView && onTransfer && (
+                                                <Tooltip title="Transfer">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={`Transfer ${patient.full_name}`}
+                                                        onClick={(e) => { e.stopPropagation(); onTransfer(patient); }}
+                                                        sx={{ color: '#0277bd' }}
+                                                    >
+                                                        <TransferIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            {canAdmit && inpatientView && onDischarge && (
+                                                <Tooltip title="Discharge">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={`Discharge ${patient.full_name}`}
+                                                        onClick={(e) => { e.stopPropagation(); onDischarge(patient); }}
+                                                        sx={{ color: '#ef6c00' }}
+                                                    >
+                                                        <DischargeIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            {canAdmit && !inpatientView && onAdmit && (
+                                                <Tooltip title="Admit">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={`Admit ${patient.full_name}`}
+                                                        onClick={(e) => { e.stopPropagation(); onAdmit(patient); }}
+                                                        sx={{ color: '#00695c' }}
+                                                    >
+                                                        <AdmitIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
 
                                             {canAccessClinicalDocs && (
                                                 <>

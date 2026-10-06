@@ -21,6 +21,7 @@ import {
 import RegisterPage from "./RegisterPage";
 import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
+import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
 import {
   PatientChartTabs,
   ComingSoonPanel,
@@ -143,6 +144,8 @@ function PatientsPage() {
   const team = useTeam(navigate);
   const appointments = usePatientsAppointments();
   const analytics = useAnalytics();
+  // Admit / transfer / discharge dialog: { mode: "admit" | "transfer" | "discharge", patient }
+  const [admission, setAdmission] = useState(null);
 
   // Subscription access control
   const { userTier, permissions } = useSubscriptionAccess();
@@ -576,6 +579,10 @@ function PatientsPage() {
               selectedId={selectedPatient ? selectedPatient.id : null}
               onSelect={selectPatient}
               onOpenChart={openChart}
+              careSetting={patients.careSetting}
+              onAdmit={(p) => setAdmission({ mode: "admit", patient: p })}
+              onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
+              onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
             />
               );
             }
@@ -707,6 +714,21 @@ function PatientsPage() {
           onSend={handleSendEmail}
         />
 
+        {/* Admit / transfer / discharge */}
+        {admission && admission.mode === "admit" && (
+          <AdmitDialog
+            patient={admission.patient}
+            providers={analytics.providers}
+            onClose={() => setAdmission(null)}
+            onDone={patients.fetchPatients}
+          />
+        )}
+        {admission && admission.mode === "transfer" && (
+          <TransferDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={patients.fetchPatients} />
+        )}
+        {admission && admission.mode === "discharge" && (
+          <DischargeDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={patients.fetchPatients} />
+        )}
         {/* SMS Modal */}
         <SMSModal
           open={patients.showSMSModal}
