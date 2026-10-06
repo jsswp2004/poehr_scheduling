@@ -70,6 +70,11 @@ def _profile(user):
     return getattr(user, "patient_profile", None)
 
 
+def _norm_name(name):
+    """Last name for comparison: case, spaces, hyphens and punctuation do not count."""
+    return "".join(ch for ch in str(name or "").lower() if ch.isalnum())
+
+
 def match_patient(organization, patient_info, placer_numbers):
     """
     (patient_user, order, reason). patient_user is None when it should not be
@@ -127,6 +132,9 @@ def match_patient(organization, patient_info, placer_numbers):
         return None, order, "The date of birth in the result does not match the chart."
     if patient.organization_id != organization.pk:
         return None, order, "That patient is not in this organization."
+    sent_last, chart_last = _norm_name(patient_info.get("last")), _norm_name(patient.last_name)
+    if sent_last and chart_last and sent_last != chart_last:
+        return None, order, "The last name in the result does not match the chart."
     return patient, order, ""
 
 
