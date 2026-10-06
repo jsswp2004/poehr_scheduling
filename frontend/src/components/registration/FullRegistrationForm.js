@@ -623,6 +623,8 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           <Box
             sx={{
               display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
               alignItems: "center",
               justifyContent: "space-between",
               mb: 1,
@@ -654,16 +656,16 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           {editingOpenVisit && (
             <Alert
               severity="info"
-              sx={{ mb: 1 }}
-              action={
-                <Button color="inherit" size="small" onClick={startNewVisit}>
-                  Start a new visit instead
-                </Button>
-              }
+              sx={{ mb: 2, alignItems: "flex-start", "& .MuiAlert-message": { flex: 1, minWidth: 0 } }}
             >
-              Editing the open visit{visitNumber ? ` ${visitNumber}` : ""}. Saving updates it.
+              <Typography variant="body2" fontWeight={600}>
+                Editing the open visit{visitNumber ? ` ${visitNumber}` : ""}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Saving updates this visit.
+              </Typography>
               {openVisits.length > 1 && (
-                <FormControl size="small" sx={{ ml: 2, minWidth: 260 }}>
+                <FormControl size="small" fullWidth sx={{ mt: 1.5 }}>
                   <InputLabel id="open-visit-label">Open visits</InputLabel>
                   <MUISelect
                     labelId="open-visit-label"
@@ -684,6 +686,9 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                   </MUISelect>
                 </FormControl>
               )}
+              <Button size="small" variant="outlined" sx={{ mt: 1.5, textTransform: "none" }} onClick={startNewVisit}>
+                Start a new visit instead
+              </Button>
             </Alert>
           )}
 
