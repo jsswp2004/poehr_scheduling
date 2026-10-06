@@ -228,6 +228,33 @@ class ChartLinkTests(EdBoardBase):
         self.assertIsNone(v["vitals_last_at"])
         self.assertEqual(v["orders"], {})
 
+    def test_calendar_list_hides_ed_chart_appointments_but_patient_and_detail_still_find_them(self):
+        from appointments.models import Appointment
+        from rest_framework.test import APIClient
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        # appointments are tenant-scoped by the JWT authenticator, so this test logs in with a real token
+        jwt = APIClient()
+        jwt.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.nurse).access_token}")
+        vid = self.er_visit(bed=self.ed_bed_a)
+        appt = Registration.objects.get(pk=vid).appointment
+        outpatient = Appointment.all_objects.create(
+            organization=self.org, patient=self.patient_user, title="Clinic visit",
+            appointment_datetime=timezone.now() + timedelta(days=1),
+        )
+
+        def ids(resp):
+            data = resp.json()
+            data = data["results"] if isinstance(data, dict) else data
+            return {a["id"] for a in data}
+
+        listed = ids(jwt.get("/api/appointments/"))
+        self.assertIn(outpatient.pk, listed)
+        self.assertNotIn(appt.pk, listed)
+        # charting panels ask for one patient's visits and still see the ED visit
+        self.assertIn(appt.pk, ids(jwt.get("/api/appointments/", {"patient": self.patient_user.pk})))
+        self.assertEqual(jwt.get(f"/api/appointments/{appt.pk}/").status_code, 200)
+
     def test_reminders_skip_emergency_and_inpatient_visits(self):
         from appointments.models import Appointment
 

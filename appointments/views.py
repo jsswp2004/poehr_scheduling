@@ -95,6 +95,11 @@ from .models import Appointment
 User = apps.get_model(settings.AUTH_USER_MODEL)
 
 
+# ED and inpatient visits keep a chart appointment so orders and flowsheets have something to attach to;
+# the calendar, open slots and check-in only deal with outpatient visits.
+INPATIENT_CHART = Q(registration__care_setting__in=("emergency", "acute"))
+
+
 class AppointmentViewSet(viewsets.ModelViewSet):
     serializer_class = AppointmentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -142,6 +147,10 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             patient_id = self.request.query_params.get("patient")
             if patient_id and user.role != "patient":
                 queryset = queryset.filter(patient_id=patient_id)
+            elif self.action == "list":
+                # The calendar is for outpatient visits only. ED and inpatient visits keep a chart
+                # appointment (for orders and flowsheets) that is reachable by patient or by id.
+                queryset = queryset.exclude(INPATIENT_CHART)
 
         # Optional free-text search (?search=...), used by the admin
         # appointment-search page. This used to be done by fetching every
@@ -549,9 +558,11 @@ def doctor_available_slots(request, doctor_id):
                 continue
 
             # Check if slot is taken by existing appointment
-            is_taken = Appointment.objects.filter(
-                provider_id=doctor_id, appointment_datetime=slot_time
-            ).exists()
+            is_taken = (
+                Appointment.objects.filter(provider_id=doctor_id, appointment_datetime=slot_time)
+                .exclude(INPATIENT_CHART)
+                .exists()
+            )
 
             if is_taken:
                 continue
@@ -1730,6 +1741,7 @@ class CheckInSearchView(APIView):
             queryset = Appointment.objects.filter(
                 appointment_datetime__date=today, organization=user.organization
             )
+        queryset = queryset.exclude(INPATIENT_CHART)
 
         print(f"[DEBUG] CheckInSearchView: base queryset count={queryset.count()}")
 
