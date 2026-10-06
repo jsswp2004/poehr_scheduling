@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .admissions import AdmitView, TransferView, DischargeView
+from .ed_board import BoardUpdateView, EdBoardView
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -186,6 +187,8 @@ urlpatterns = [
     path("admissions/admit/", AdmitView.as_view(), name="admission-admit"),
     path("admissions/<int:pk>/transfer/", TransferView.as_view(), name="admission-transfer"),
     path("admissions/<int:pk>/discharge/", DischargeView.as_view(), name="admission-discharge"),
+    path("admissions/<int:pk>/board/", BoardUpdateView.as_view(), name="admission-board"),
+    path("ed-board/", EdBoardView.as_view(), name="ed-board"),
 ]
 
 # ✅ Append viewset routes

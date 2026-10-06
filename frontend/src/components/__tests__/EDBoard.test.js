@@ -1,0 +1,230 @@
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+
+jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn(), patch: jest.fn() } }), { virtual: true });
+jest.mock(
+  "../../config/api",
+  () => ({
+    apiEndpoints: {
+      edBoard: "/ed/board/",
+      admissionBoard: (id) => `/adm/${id}/board/`,
+      admissionTransfer: (id) => `/adm/${id}/transfer/`,
+    },
+  }),
+  { virtual: true }
+);
+jest.mock("../../utils/auth", () => ({ getValidToken: async () => ({ access_token: "t" }) }), { virtual: true });
+jest.mock("../SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn() } }), { virtual: true });
+
+import { api } from "../../api/client";
+import { toast } from "../SimpleToast";
+import EDBoard from "../edBoard/EDBoard";
+import { formatLos, losMinutes, filterRows } from "../edBoard/edBoardColumns";
+
+const visit = (over = {}) => ({
+  registration: 90, visit_number: "VN-000090", patient: 3, user_id: 30, name: "TEST, Jane", age: 28, sex: "F",
+  arrival_time: new Date(Date.now() - 125 * 60000).toISOString(), reason: "Chest pain", complaint: "CP", esi: 3, ed_status: "tip",
+  md: { id: 8, name: "Abulafia, Dr" }, rn: { id: 7, name: "Geronimo, Ann" }, resident: "", comments: "", registration_complete: false, location: "x", ...over,
+});
+
+const board = (rows) => ({
+  departments: [{ id: 5, name: "ED Labor and Delivery", facility: 1, facility_name: "General Hospital" }, { id: 6, name: "Fast Track", facility: 1, facility_name: "General Hospital" }],
+  unit: 5,
+  statuses: [{ value: "wtbs", code: "WTBS", label: "Waiting to be seen" }, { value: "tip", code: "TIP", label: "Treatment in progress" }],
+  staff: { nurses: [{ id: 7, name: "Geronimo, Ann" }, { id: 9, name: "Bell, Sam" }], doctors: [{ id: 8, name: "Abulafia, Dr" }] },
+  rows,
+});
+
+const rowsDefault = () => [
+  { type: "bed", bed: 1, loc: "3525A", bed_status: "occupied", hold_reason: "", visit: visit() },
+  { type: "bed", bed: 2, loc: "3525B", bed_status: "available", hold_reason: "", visit: null },
+  { type: "bed", bed: 3, loc: "3525C", bed_status: "cleaning", hold_reason: "", visit: null },
+  { type: "bed", bed: 4, loc: "3525D", bed_status: "blocked", hold_reason: "Broken rail", visit: null },
+  { type: "waiting", bed: null, loc: "", bed_status: "", hold_reason: "", visit: visit({ registration: 91, patient: 4, user_id: 40, name: "RAY, Bob", sex: "M", age: 50, esi: null, ed_status: "wtbs", md: null, rn: null, registration_complete: true }) },
+];
+
+const pick = (testId, name) => {
+  fireEvent.mouseDown(within(screen.getByTestId(testId).closest(".MuiInputBase-root")).getByRole("combobox"));
+  fireEvent.click(screen.getByRole("option", { name }));
+};
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  api.get.mockResolvedValue({ data: board(rowsDefault()) });
+  api.patch.mockImplementation(async (url, body) => ({ data: { ...visit(), ...bodyToVisit(body) } }));
+  api.post.mockResolvedValue({ data: {} });
+});
+
+const bodyToVisit = (b) => {
+  const out = {};
+  if ("esi" in b) out.esi = b.esi === "" ? null : b.esi;
+  if ("ed_status" in b) out.ed_status = b.ed_status;
+  if ("registration_complete" in b) out.registration_complete = b.registration_complete;
+  if ("assigned_nurse" in b) out.rn = b.assigned_nurse ? { id: b.assigned_nurse, name: "Bell, Sam" } : null;
+  if ("comments" in b) out.comments = b.comments;
+  return out;
+};
+
+test("helpers: LOS text, minutes, views", () => {
+  expect(formatLos(125)).toBe("02:05");
+  expect(formatLos(38 * 1440 + 22 * 60 + 23)).toBe("38d 22:23");
+  expect(losMinutes(new Date(Date.now() - 90 * 60000).toISOString())).toBe(90);
+  const rows = rowsDefault();
+  expect(filterRows(rows, "waiting", 7).map((r) => r.type)).toEqual(["waiting"]);
+  expect(filterRows(rows, "mine", 7)).toHaveLength(1);
+  expect(filterRows(rows, "mine", 99)).toHaveLength(0);
+  expect(filterRows(rows, "all", 7)).toHaveLength(5);
+});
+
+test("draws a row per bed, with Ready, Cleaning and Blocked beds and the waiting patient", async () => {
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  expect(await screen.findByTestId("ed-bed-1")).toBeInTheDocument();
+  expect(within(screen.getByTestId("ed-bed-2")).getAllByText("Ready")[0]).toBeInTheDocument();
+  expect(within(screen.getByTestId("ed-bed-3")).getAllByText("Cleaning")[0]).toBeInTheDocument();
+  expect(within(screen.getByTestId("ed-bed-4")).getAllByText("Blocked").length).toBeGreaterThan(0);
+  expect(within(screen.getByTestId("ed-bed-4")).getByText("Broken rail")).toBeInTheDocument();
+  const waiting = screen.getByTestId("ed-waiting-91");
+  expect(within(waiting).getByText("WAITING")).toBeInTheDocument();
+  expect(within(waiting).getByText("RAY, Bob")).toBeInTheDocument();
+});
+
+test("the patient row shows name, age and sex, LOS and chief complaint", async () => {
+  render(<EDBoard userRole="nurse" />);
+  const row = await screen.findByTestId("ed-bed-1");
+  expect(within(row).getByText("TEST, Jane")).toBeInTheDocument();
+  expect(within(row).getByText("28y /F")).toBeInTheDocument();
+  expect(within(row).getByText("02:05")).toBeInTheDocument();
+  expect(within(row).getByText("Chest pain")).toBeInTheDocument();
+  expect(within(row).getByText("Female")).toBeInTheDocument();
+});
+
+test("incomplete registration shows the Inc Reg badge; complete does not", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getByTestId("inc-reg-90")).toBeInTheDocument();
+  expect(screen.queryByTestId("inc-reg-91")).toBeNull();
+});
+
+test("changing ESI saves just that field", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  pick("esi-90", "2");
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { esi: 2 }, expect.anything()));
+});
+
+test("changing the status and the nurse saves, using ED staff only", async () => {
+  render(<EDBoard userRole="doctor" />);
+  await screen.findByTestId("ed-bed-1");
+  pick("status-90", "WTBS");
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { ed_status: "wtbs" }, expect.anything()));
+  fireEvent.mouseDown(within(screen.getByTestId("rn-90").closest(".MuiInputBase-root")).getByRole("combobox"));
+  expect(screen.getByRole("option", { name: "Bell, Sam" })).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("option", { name: "Bell, Sam" }));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { assigned_nurse: 9 }, expect.anything()));
+});
+
+test("ticking Registration Complete saves it", async () => {
+  render(<EDBoard userRole="registrar" />);
+  await screen.findByTestId("ed-bed-1");
+  fireEvent.click(screen.getByLabelText("Registration complete for TEST, Jane"));
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { registration_complete: true }, expect.anything()));
+});
+
+test("comments save when you leave the box with a change, not otherwise", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  const box = screen.getByTestId("comments-90");
+  fireEvent.blur(box);
+  expect(api.patch).not.toHaveBeenCalled();
+  fireEvent.change(box, { target: { value: "Awaiting CT" } });
+  fireEvent.blur(box);
+  await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/adm/90/board/", { comments: "Awaiting CT" }, expect.anything()));
+});
+
+test("a rejected edit shows the reason and reloads the board", async () => {
+  api.patch.mockRejectedValue({ response: { data: { detail: "ESI must be a number from 1 to 5." } } });
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  const before = api.get.mock.calls.length;
+  pick("esi-90", "1");
+  await waitFor(() => expect(toast.error).toHaveBeenCalledWith("ESI must be a number from 1 to 5."));
+  await waitFor(() => expect(api.get.mock.calls.length).toBeGreaterThan(before));
+});
+
+test("roles that cannot edit see the board read-only", async () => {
+  render(<EDBoard userRole="receptionist" />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getByLabelText("Registration complete for TEST, Jane")).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Transfer TEST, Jane" })).toBeNull();
+});
+
+test("the View dropdown narrows to waiting patients", async () => {
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  pick("ed-view", "Waiting");
+  expect(screen.queryByTestId("ed-bed-1")).toBeNull();
+  expect(screen.getByTestId("ed-waiting-91")).toBeInTheDocument();
+  pick("ed-view", "My patients");
+  expect(screen.getByTestId("ed-bed-1")).toBeInTheDocument();
+  expect(screen.queryByTestId("ed-waiting-91")).toBeNull();
+});
+
+test("switching department loads that department's board", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  pick("ed-department", "Fast Track");
+  await waitFor(() => expect(api.get).toHaveBeenLastCalledWith("/ed/board/", expect.objectContaining({ params: { unit: 6 } })));
+});
+
+test("a Ready bed can take a waiting patient", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-2");
+  fireEvent.click(screen.getByRole("button", { name: "Place a patient in 3525B" }));
+  pick("pick-select", "RAY, Bob");
+  fireEvent.click(screen.getByRole("button", { name: "Place" }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/adm/91/transfer/", { unit: 5, bed: 2 }, expect.anything()));
+});
+
+test("a waiting patient can be assigned a Ready bed", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-waiting-91");
+  fireEvent.click(screen.getByRole("button", { name: "Assign bed to RAY, Bob" }));
+  pick("pick-select", "3525B");
+  fireEvent.click(screen.getByRole("button", { name: "Place" }));
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/adm/91/transfer/", { unit: 5, bed: 2 }, expect.anything()));
+});
+
+test("transfer, discharge and admit hand the patient to the page, and the name opens the chart", async () => {
+  const onTransfer = jest.fn();
+  const onDischarge = jest.fn();
+  const onAdmit = jest.fn();
+  const onOpenPatient = jest.fn();
+  render(<EDBoard userRole="nurse" onTransfer={onTransfer} onDischarge={onDischarge} onAdmit={onAdmit} onOpenPatient={onOpenPatient} />);
+  await screen.findByTestId("ed-bed-1");
+  fireEvent.click(screen.getByRole("button", { name: "Transfer TEST, Jane" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discharge TEST, Jane" }));
+  fireEvent.click(screen.getByRole("button", { name: "Admit TEST, Jane" }));
+  const patient = onTransfer.mock.calls[0][0];
+  expect(patient).toMatchObject({ id: 3, user_id: 30, full_name: "TEST, Jane" });
+  expect(patient.current_visit).toMatchObject({ id: 90, care_setting: "emergency", location: "General Hospital › ED Labor and Delivery › 3525A" });
+  expect(onDischarge).toHaveBeenCalledWith(patient);
+  expect(onAdmit).toHaveBeenCalledWith(patient);
+  fireEvent.click(screen.getByText("TEST, Jane"));
+  expect(onOpenPatient.mock.calls[0][0].user_id).toBe(30);
+});
+
+test("the Patient List button hands control back to the page", async () => {
+  const onShowList = jest.fn();
+  render(<EDBoard userRole="nurse" onShowList={onShowList} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Patient List" }));
+  expect(onShowList).toHaveBeenCalled();
+});
+
+test("says so when there are no emergency departments, and shows load errors", async () => {
+  api.get.mockResolvedValue({ data: { ...board([]), departments: [], unit: null } });
+  const { unmount } = render(<EDBoard userRole="nurse" />);
+  expect(await screen.findByTestId("no-ed-departments")).toBeInTheDocument();
+  unmount();
+  api.get.mockRejectedValue({ response: { data: { detail: "You do not have permission to see the ED board." } } });
+  render(<EDBoard userRole="nurse" />);
+  expect(await screen.findByText("You do not have permission to see the ED board.")).toBeInTheDocument();
+});

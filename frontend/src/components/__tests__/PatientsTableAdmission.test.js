@@ -57,3 +57,16 @@ test("an empty Acute list explains how to admit", () => {
   show({ careSetting: "acute", patients: [] });
   expect(screen.getByText(/No inpatients right now/)).toBeInTheDocument();
 });
+
+test("Emergency list offers Transfer, Admit and Discharge", () => {
+  const onAdmit = jest.fn();
+  const onTransfer = jest.fn();
+  const onDischarge = jest.fn();
+  show({ careSetting: "emergency", onAdmit, onTransfer, onDischarge });
+  fireEvent.click(screen.getByRole("button", { name: "Transfer Bob Ray" }));
+  fireEvent.click(screen.getByRole("button", { name: "Admit Bob Ray" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discharge Bob Ray" }));
+  expect(onTransfer).toHaveBeenCalledWith(rows[0]);
+  expect(onAdmit).toHaveBeenCalledWith(rows[0]);
+  expect(onDischarge).toHaveBeenCalledWith(rows[0]);
+});

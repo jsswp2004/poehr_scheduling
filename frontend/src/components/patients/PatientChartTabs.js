@@ -32,7 +32,7 @@ export function visibleChartTabs(role) {
   return CHART_TABS.filter((t) => !t.clinical || clinical);
 }
 
-export function PatientChartTabs({ value, onChange, role, right = null }) {
+export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null }) {
   const tabs = visibleChartTabs(role);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
@@ -51,7 +51,7 @@ export function PatientChartTabs({ value, onChange, role, right = null }) {
         }}
       >
         {tabs.map((t) => (
-          <Tab key={t.value} value={t.value} label={t.label} data-testid={`chart-tab-${t.value}`} />
+          <Tab key={t.value} value={t.value} label={t.value === "patient_list" && listLabel ? listLabel : t.label} data-testid={`chart-tab-${t.value}`} />
         ))}
       </Tabs>
       {right}
