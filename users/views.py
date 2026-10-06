@@ -65,19 +65,27 @@ class RegistrationViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == "system_admin":
-            return Registration.objects.select_related(
-                "patient__user", "attending_provider", "organization"
-            ).all()
-        if user.role not in ["doctor", "nurse", "registrar", "admin"]:
-            return Registration.objects.none()
-        if user.role == "doctor":
-            return Registration.objects.select_related(
-                "patient__user", "attending_provider", "organization"
-            ).filter(patient__user__provider=user)
-        return Registration.objects.select_related(
+        base = Registration.objects.select_related(
             "patient__user", "attending_provider", "organization"
-        ).filter(organization=user.organization)
+        )
+        if user.role == "system_admin":
+            qs = base.all()
+        elif user.role not in ["doctor", "nurse", "registrar", "admin"]:
+            return Registration.objects.none()
+        elif user.role == "doctor":
+            qs = base.filter(patient__user__provider=user)
+        else:
+            qs = base.filter(organization=user.organization)
+        # The registration form asks for one patient's visits that are still open (?patient=<id>&open=1).
+        if self.action == "list":
+            patient = self.request.query_params.get("patient")
+            if patient and str(patient).isdigit():
+                qs = qs.filter(patient_id=int(patient))
+            if self.request.query_params.get("open") in ("1", "true", "True"):
+                qs = qs.filter(discharge_datetime__isnull=True)
+            if patient or self.request.query_params.get("open"):
+                qs = qs.order_by("-created_at", "-pk")
+        return qs
 
     def perform_create(self, serializer):
         if self.request.user.role not in [

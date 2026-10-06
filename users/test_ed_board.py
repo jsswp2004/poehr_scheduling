@@ -281,3 +281,16 @@ class ChartLinkTests(EdBoardBase):
         self.er_visit(bed=self.ed_bed_a)
         cands = Appointment.all_objects.exclude(registration__care_setting__in=("emergency", "acute"))
         self.assertFalse(cands.filter(title__startswith="ED visit").exists())
+
+
+class RegistrationListFilterTests(EdBoardBase):
+    def test_open_visits_of_one_patient(self):
+        old = self.er_visit(bed=self.ed_bed_a)
+        Registration.objects.filter(pk=old).update(discharge_datetime="2026-01-01T00:00:00Z")
+        open_a = self.er_visit(bed=self.ed_bed_b)
+        open_b = self.er_visit()
+        r = self.as_(self.registrar).get("/api/users/registrations/", {"patient": self.patient.pk, "open": 1})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        rows = body["results"] if isinstance(body, dict) else body
+        self.assertEqual([x["id"] for x in rows], [open_b, open_a])
