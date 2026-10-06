@@ -123,6 +123,14 @@ function OrdersPanel({ patientId }) {
   const canPlace = ["doctor", "nurse", "admin", "system_admin"].includes(me.role);
   const canCosign = ["doctor", "admin", "system_admin"].includes(me.role);
 
+  // The Lab icon in the Patients table links here with #lab-results: scroll to the lab results once the page has loaded.
+  const labSectionRef = useRef(null);
+  useEffect(() => {
+    if (!loading && window.location.hash === "#lab-results" && labSectionRef.current) {
+      labSectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [loading]);
+
   const loadAll = useCallback(async () => {
     if (!patientId) return;
     setLoading(true);
@@ -676,7 +684,9 @@ function OrdersPanel({ patientId }) {
         </Box>
       </Box>
 
-      <LabResultsPanel patientId={patientId} orders={orders} me={me} entryRequest={labEntry} />
+      <Box id="lab-results" ref={labSectionRef} sx={{ scrollMarginTop: 80 }}>
+        <LabResultsPanel patientId={patientId} orders={orders} me={me} entryRequest={labEntry} />
+      </Box>
 
       <Dialog
         open={!!dialog && dialog.kind !== "history"}

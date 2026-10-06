@@ -24,6 +24,7 @@ import {
     Assignment as AssignmentIcon,
     MonitorHeart as MonitorHeartIcon,
     PlaylistAddCheck as OrdersIcon,
+    Science as LabIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -203,6 +204,16 @@ function PatientsTable({
                                                             sx={{ color: '#2e7d32' }}
                                                         >
                                                             <OrdersIcon fontSize="small" />
+                                                        </IconButton>
+                                                    </Tooltip>
+
+                                                    <Tooltip title="Lab Results">
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() => navigate(`/patients/${patient.user_id}/orders#lab-results`)}
+                                                            sx={{ color: '#6a1b9a' }}
+                                                        >
+                                                            <LabIcon fontSize="small" />
                                                         </IconButton>
                                                     </Tooltip>
                                                 </>
