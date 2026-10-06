@@ -118,6 +118,14 @@ export const apiEndpoints = {
     labReportFile: (id) => `${API_BASE_URL}/api/lab-reports/${id}/file/`,
     labMessages: `${API_BASE_URL}/api/lab-messages/`,
     labMessageAction: (id, action) => `${API_BASE_URL}/api/lab-messages/${id}/${action}/`,
+    patientHeader: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/`,
+    patientHeaderValues: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/values/`,
+    patientAllergies: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/`,
+    patientAllergy: (patientId, allergyId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/${allergyId}/`,
+    patientAllergyStatus: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergy-status/`,
+    patientHeaderConfig: `${API_BASE_URL}/api/patient-header-config/`,
+    patientHeaderFields: `${API_BASE_URL}/api/patient-header-fields/`,
+    patientHeaderField: (id) => `${API_BASE_URL}/api/patient-header-fields/${id}/`,
 
     // Order Builder (admin)
     orderablesAdmin: `${API_BASE_URL}/api/admin/orderables/`,

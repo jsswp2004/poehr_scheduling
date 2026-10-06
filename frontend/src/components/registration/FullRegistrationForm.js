@@ -87,6 +87,7 @@ const EMPTY_VISIT_FIELDS = {
   referring_physician: "",
   current_diagnoses: "",
   admission_type: "",
+  care_setting: "",
   arrival_time: "",
   assigned_location: "",
   attending_provider: "",
@@ -423,6 +424,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
           <h2>Logistics</h2>
           <table>
             <tr><td class="label">Admission Type</td><td>${esc(visitFields.admission_type)}</td></tr>
+            <tr><td class="label">Care Setting</td><td>${esc(visitFields.care_setting)}</td></tr>
             <tr><td class="label">Arrival Time</td><td>${esc(visitFields.arrival_time)}</td></tr>
             <tr><td class="label">Assigned Location</td><td>${esc(visitFields.assigned_location)}</td></tr>
             <tr><td class="label">Attending Provider</td><td>${attendingName}</td></tr>
@@ -887,6 +889,20 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
                     <MenuItem value="scheduled">Scheduled</MenuItem>
                     <MenuItem value="emergency">Emergency</MenuItem>
                     <MenuItem value="direct">Direct</MenuItem>
+                  </MUISelect>
+                </FormControl>
+                <FormControl size="small" fullWidth>
+                  <InputLabel id="care-setting-label">Care Setting</InputLabel>
+                  <MUISelect
+                    labelId="care-setting-label"
+                    label="Care Setting"
+                    value={visitFields.care_setting}
+                    onChange={(e) => handleVisitFieldChange("care_setting", e.target.value)}
+                  >
+                    <MenuItem value="">Automatic (from admission type)</MenuItem>
+                    <MenuItem value="ambulatory">Ambulatory Care</MenuItem>
+                    <MenuItem value="emergency">Emergency Care</MenuItem>
+                    <MenuItem value="acute">Acute Care</MenuItem>
                   </MUISelect>
                 </FormControl>
                 <TextField

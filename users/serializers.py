@@ -378,6 +378,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
             "referring_physician",
             "current_diagnoses",
             "admission_type",
+            "care_setting",
             "arrival_time",
             "assigned_location",
             "attending_provider",

@@ -19,6 +19,7 @@ import {
   EmailModal,
 } from "../components/patients";
 import RegisterPage from "./RegisterPage";
+import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 
 // Hooks
 import useOnlineStatus from "../hooks/useOnlineStatus";
@@ -553,22 +554,30 @@ function PatientsPage() {
         {/* Tab Content */}
         <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
           {tab === "patients" && (
-            <PatientsTable
-              patients={patients.patients}
-              loading={patients.loading}
-              search={patients.search}
-              setSearch={patients.setSearch}
-              provider={patients.provider}
-              setProvider={patients.setProvider}
-              providers={analytics.providers}
-              page={patients.page}
-              setPage={patients.setPage}
-              totalPages={patients.totalPages}
-              onSendText={handleSendText}
-              onOpenEmailModal={handleOpenEmailModal}
-              onDelete={handleDeletePatient}
-              userRole={userRole}
-            />
+            <Box sx={{ display: "flex", alignItems: "stretch", minHeight: "100%" }}>
+              <CareSettingSidebar
+                value={patients.careSetting}
+                onChange={patients.setCareSetting}
+              />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <PatientsTable
+                  patients={patients.patients}
+                  loading={patients.loading}
+                  search={patients.search}
+                  setSearch={patients.setSearch}
+                  provider={patients.provider}
+                  setProvider={patients.setProvider}
+                  providers={analytics.providers}
+                  page={patients.page}
+                  setPage={patients.setPage}
+                  totalPages={patients.totalPages}
+                  onSendText={handleSendText}
+                  onOpenEmailModal={handleOpenEmailModal}
+                  onDelete={handleDeletePatient}
+                  userRole={userRole}
+                />
+              </Box>
+            </Box>
           )}
 
           {tab === "team" && (
