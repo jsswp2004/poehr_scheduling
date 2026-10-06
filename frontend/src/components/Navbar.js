@@ -15,6 +15,7 @@ import IconButton from "@mui/material/IconButton";
 import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
+import Badge from "@mui/material/Badge";
 import useForceUpdate from "../utils/useForceUpdate";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
@@ -348,6 +349,40 @@ function Navbar() {
     );
   };
 
+  // Lab results waiting for review (and results waiting for a patient): a badge on the Lab Results icon.
+  const [labWaiting, setLabWaiting] = useState({ count: 0, critical: 0, unmatched: 0 });
+  const canSeeLab = ["doctor", "nurse", "system_admin"].includes(role);
+  const refreshLabWaiting = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/lab-reports/inbox/`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: { summary: 1 },
+      });
+      setLabWaiting({
+        count: Number(res.data.count) || 0,
+        critical: Number(res.data.critical) || 0,
+        unmatched: Number(res.data.unmatched) || 0,
+      });
+    } catch (err) {
+      // No access, offline, or the add-on is off: show no badge rather than an error.
+      setLabWaiting({ count: 0, critical: 0, unmatched: 0 });
+    }
+  }, []);
+  useEffect(() => {
+    if (!isAuthenticated || !canSeeLab) return undefined;
+    refreshLabWaiting();
+    const timer = setInterval(refreshLabWaiting, 120000);
+    window.addEventListener("focus", refreshLabWaiting);
+    window.addEventListener("lab-inbox-changed", refreshLabWaiting);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refreshLabWaiting);
+      window.removeEventListener("lab-inbox-changed", refreshLabWaiting);
+    };
+  }, [isAuthenticated, canSeeLab, refreshLabWaiting, location.pathname]);
+
   const isSystemAdmin = role === "system_admin";
 
   // Module links this user may see, with the current page flagged.
@@ -450,7 +485,16 @@ function Navbar() {
                   }}
                 >
                   {moduleLinks.map(({ key, label, to, Icon, active }) => (
-                    <Tooltip key={key} title={label}>
+                    <Tooltip
+                      key={key}
+                      title={
+                        key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0
+                          ? `${label}: ${labWaiting.count} to review${
+                              labWaiting.critical > 0 ? ` (${labWaiting.critical} critical)` : ""
+                            }${labWaiting.unmatched > 0 ? `, ${labWaiting.unmatched} waiting for a patient` : ""}`
+                          : label
+                      }
+                    >
                       <IconButton
                         color="inherit"
                         sx={{
@@ -473,7 +517,18 @@ function Navbar() {
                         aria-current={active ? "page" : undefined}
                         data-testid={`nav-module-${key}`}
                       >
-                        <Icon sx={{ color: "white" }} />
+                        {key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0 ? (
+                          <Badge
+                            badgeContent={labWaiting.count + labWaiting.unmatched}
+                            max={99}
+                            color={labWaiting.critical > 0 ? "error" : "warning"}
+                            data-testid="lab-waiting-badge"
+                          >
+                            <Icon sx={{ color: "white" }} />
+                          </Badge>
+                        ) : (
+                          <Icon sx={{ color: "white" }} />
+                        )}
                       </IconButton>
                     </Tooltip>
                   ))}

@@ -51,6 +51,7 @@ function LabInbox() {
       const res = await api.get(apiEndpoints.labReportsInbox, { headers, params: mine ? { mine: 1 } : {} });
       setData(res.data);
       setDenied(false);
+      window.dispatchEvent(new Event("lab-inbox-changed")); // refreshes the badge on the menu icon
       if (res.data.unmatched > 0) {
         try {
           const list = await api.get(apiEndpoints.labMessages, { headers });

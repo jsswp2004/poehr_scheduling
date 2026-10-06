@@ -145,6 +145,15 @@ class LabReportViewSet(viewsets.ModelViewSet):
         unmatched = LabInboundMessage.objects.filter(status="unmatched")
         if getattr(request.user, "role", None) != "system_admin":
             unmatched = unmatched.filter(organization=request.user.organization)
+        if request.query_params.get("summary") in ("1", "true", "True"):
+            # Counts only, for the badge on the menu icon: no result rows.
+            return Response(
+                {
+                    "unmatched": unmatched.count() if user_has_right(request.user, "lab_results.enter") else 0,
+                    "count": len(reports),
+                    "critical": critical,
+                }
+            )
         return Response(
             {
                 "unmatched": unmatched.count() if user_has_right(request.user, "lab_results.enter") else 0,
