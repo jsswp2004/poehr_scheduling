@@ -858,7 +858,7 @@ def get_patients(request):
             patients = patients.filter(user__provider_id=provider_id)
 
         # Sidebar tabs: a patient belongs to the care setting of their latest visit
-        # (no visit on file counts as Ambulatory).
+        # (no visit on file, or a discharged one, counts as Ambulatory).
         care_setting = request.GET.get("care_setting")
         if care_setting in ("ambulatory", "emergency", "acute"):
             from django.db.models import OuterRef, Subquery
@@ -868,15 +868,25 @@ def get_patients(request):
                 .order_by("-created_at", "-pk")
                 .values("care_setting")[:1]
             )
-            patients = patients.annotate(_care_setting=Subquery(latest_setting))
+            latest_discharge = (
+                Registration.objects.filter(patient=OuterRef("pk"))
+                .order_by("-created_at", "-pk")
+                .values("discharge_datetime")[:1]
+            )
+            patients = patients.annotate(
+                _care_setting=Subquery(latest_setting),
+                _discharged_at=Subquery(latest_discharge),
+            )
             if care_setting == "ambulatory":
+                # no visit, an ambulatory visit, or a visit that has ended (discharged)
                 patients = patients.filter(
                     Q(_care_setting="ambulatory")
                     | Q(_care_setting="")
                     | Q(_care_setting__isnull=True)
+                    | Q(_discharged_at__isnull=False)
                 )
             else:
-                patients = patients.filter(_care_setting=care_setting)
+                patients = patients.filter(_care_setting=care_setting, _discharged_at__isnull=True)
 
         logger.info(f"📊 Filtered patient count: {patients.count()}")
 

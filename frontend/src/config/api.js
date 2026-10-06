@@ -105,6 +105,11 @@ export const apiEndpoints = {
     locationItems: (kind) => `${API_BASE_URL}/api/locations/${kind}/`,
     locationItem: (kind, id) => `${API_BASE_URL}/api/locations/${kind}/${id}/`,
 
+    // Admit / transfer / discharge a visit
+    admissionAdmit: `${API_BASE_URL}/api/users/admissions/admit/`,
+    admissionTransfer: (id) => `${API_BASE_URL}/api/users/admissions/${id}/transfer/`,
+    admissionDischarge: (id) => `${API_BASE_URL}/api/users/admissions/${id}/discharge/`,
+
     // Orders
     orders: `${API_BASE_URL}/api/orders/`,
     order: (id) => `${API_BASE_URL}/api/orders/${id}/`,

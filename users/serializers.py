@@ -218,6 +218,7 @@ class PatientSerializer(serializers.ModelSerializer):
     )
     provider_name = serializers.SerializerMethodField()
     last_appointment_date = serializers.SerializerMethodField()
+    current_visit = serializers.SerializerMethodField()
     organization = serializers.PrimaryKeyRelatedField(
         queryset=Organization.objects.all(), required=False, allow_null=True
     )
@@ -239,6 +240,7 @@ class PatientSerializer(serializers.ModelSerializer):
             "address",
             "medical_history",
             "last_appointment_date",
+            "current_visit",
             "organization",
             # Patient Identity
             "legal_sex",
@@ -285,6 +287,12 @@ class PatientSerializer(serializers.ModelSerializer):
             "assignment_of_benefits_at": {"read_only": True},
             "release_of_information_at": {"read_only": True},
         }
+
+    def get_current_visit(self, obj):
+        """Where the patient is now (latest visit): care setting, unit, bed, attending."""
+        from .admissions import visit_summary
+
+        return visit_summary(obj)
 
     def get_last_appointment_date(self, obj):
         try:
