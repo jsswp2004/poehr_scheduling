@@ -679,6 +679,14 @@ class Registration(models.Model):
         ("emergency", "Emergency"),
         ("direct", "Direct"),
     ]
+    # The care setting this visit belongs to: drives the Ambulatory / Emergency /
+    # Acute tabs on the Patients page. Left blank it is worked out from the
+    # admission type when the visit is saved (see save() below).
+    CARE_SETTING_CHOICES = [
+        ("ambulatory", "Ambulatory Care"),
+        ("emergency", "Emergency Care"),
+        ("acute", "Acute Care"),
+    ]
 
     patient = models.ForeignKey(
         Patient, on_delete=models.CASCADE, related_name="registrations"
@@ -712,6 +720,9 @@ class Registration(models.Model):
     admission_type = models.CharField(
         max_length=20, choices=ADMISSION_TYPE_CHOICES, blank=True
     )
+    care_setting = models.CharField(
+        max_length=12, choices=CARE_SETTING_CHOICES, blank=True
+    )
     arrival_time = models.DateTimeField(null=True, blank=True)
     # "Unit, room, bed" as one free-text field, matching how front-office
     # staff actually write it (e.g. "3 West, Rm 312, Bed B").
@@ -735,7 +746,17 @@ class Registration(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    @staticmethod
+    def default_care_setting(admission_type):
+        """Emergency visits are Emergency Care, direct admissions are Acute Care, the rest Ambulatory."""
+        return {"emergency": "emergency", "direct": "acute"}.get(admission_type or "", "ambulatory")
+
     def save(self, *args, **kwargs):
+        if not self.care_setting:
+            self.care_setting = self.default_care_setting(self.admission_type)
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None and "care_setting" not in update_fields:
+                kwargs["update_fields"] = list(update_fields) + ["care_setting"]
         super().save(*args, **kwargs)
         if not self.visit_number:
             self.visit_number = f"VN-{self.pk:06d}"

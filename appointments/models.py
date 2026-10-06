@@ -1409,3 +1409,87 @@ class LabOutboundMessage(models.Model):
         ordering = ["id"]
         unique_together = [("order", "action")]
         indexes = [models.Index(fields=["connection", "status"])]
+
+
+# ---------------------------------------------------------------------------
+# Patient chart header: allergies, a per-clinic header layout, and fields a
+# clinic defines itself (code status, isolation, ...).
+# ---------------------------------------------------------------------------
+
+
+class PatientAllergy(models.Model):
+    """One allergy on a patient's chart. Inactive rows are kept as history."""
+
+    SEVERITY_CHOICES = [("mild", "Mild"), ("moderate", "Moderate"), ("severe", "Severe")]
+    STATUS_CHOICES = [("active", "Active"), ("inactive", "Inactive")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="patient_allergies", null=True, blank=True)
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="allergy_records")
+    substance = models.CharField(max_length=200)
+    reaction = models.CharField(max_length=200, blank=True)
+    severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    entered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["status", "substance", "id"]  # active first ("active" sorts before "inactive")
+
+    def __str__(self):
+        return f"{self.substance} ({self.patient_id})"
+
+
+class PatientAllergyStatus(models.Model):
+    """'No known allergies' is a positive statement, different from nothing recorded."""
+
+    patient = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="allergy_status")
+    no_known_allergies = models.BooleanField(default=False)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class PatientHeaderConfig(models.Model):
+    """
+    Which items a clinic's patient header shows, and in what order. `items` is an
+    ordered list: [{"key": "mrn", "visible": true}, ...]. Custom fields use the key
+    "custom:<field key>". A clinic with no row uses the built-in default.
+    """
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="patient_header_config")
+    items = models.JSONField(default=list)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class HeaderFieldDefinition(models.Model):
+    """An extra header item a clinic defines itself, e.g. 'Code status' or 'Isolation'."""
+
+    TYPE_CHOICES = [("text", "Text"), ("yes_no", "Yes / No"), ("date", "Date")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="header_field_definitions")
+    key = models.SlugField(max_length=50)
+    label = models.CharField(max_length=60)
+    field_type = models.CharField(max_length=10, choices=TYPE_CHOICES, default="text")
+    alert = models.BooleanField(default=False, help_text="Show the value in red when it is filled in")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("organization", "key")]
+        ordering = ["label", "id"]
+
+    def __str__(self):
+        return f"{self.label} ({self.organization_id})"
+
+
+class PatientHeaderValue(models.Model):
+    """A patient's value for one clinic-defined header field."""
+
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="header_values")
+    definition = models.ForeignKey(HeaderFieldDefinition, on_delete=models.CASCADE, related_name="values")
+    value = models.CharField(max_length=300, blank=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [("patient", "definition")]

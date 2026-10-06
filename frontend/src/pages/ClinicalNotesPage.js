@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
 import BackButton from "../components/BackButton";
+import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { getValidToken, clearAuthData } from "../utils/auth";
 
 // Import custom hooks (same ones PatientDetailPage uses for patient lookup
@@ -82,6 +83,8 @@ function ClinicalNotesPage() {
                 </Typography>
                 <BackButton to={`/patients/${id}`} />
             </Box>
+
+            <PatientChartHeader patientId={patient.user_id || patient.id} />
 
             <ClinicalNotesPanel
                 patientId={patient.user_id || patient.id}

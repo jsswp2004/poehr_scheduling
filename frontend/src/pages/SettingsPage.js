@@ -3,6 +3,7 @@ import MaintenancePage from "./MaintenancePage";
 import EnvironmentProfilePage from "./EnvironmentProfilePage";
 import UploadTab from "../components/UploadTab";
 import BackButton from "../components/BackButton";
+import PatientHeaderSettings from "../components/patientHeader/PatientHeaderSettings";
 import { Box, Typography, Tabs, Tab } from "@mui/material";
 
 function SettingsPage() {
@@ -66,6 +67,7 @@ function SettingsPage() {
             <Tab label="Schedule Maintenance" value="maintenance" />
             <Tab label="Environment Profile" value="env" />
             <Tab label="Uploads / Downloads" value="uploads" />
+            <Tab label="Patient Header" value="patient-header" />
           </Tabs>
           <Box sx={{ ml: 1 }}>
             <BackButton />
@@ -108,6 +110,18 @@ function SettingsPage() {
           >
             {}
             <UploadTab />
+          </Box>
+        )}
+        {tab === "patient-header" && (
+          <Box
+            sx={{
+              boxShadow: 2,
+              borderRadius: "0 0 8px 8px",
+              bgcolor: "background.paper",
+              p: 3,
+            }}
+          >
+            <PatientHeaderSettings />
           </Box>
         )}
       </Box>

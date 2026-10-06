@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 import BackButton from "../components/BackButton";
+import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { getValidToken, clearAuthData } from "../utils/auth";
 
 import { usePatientData } from "../hooks/usePatientData";
@@ -76,6 +77,8 @@ function VitalSignsFlowsheetPage() {
                 </Typography>
                 <BackButton to={`/patients/${id}`} />
             </Box>
+
+            <PatientChartHeader patientId={patient.user_id || patient.id} />
 
             <VitalSignsFlowsheetPanel
                 patientId={patient.user_id || patient.id}

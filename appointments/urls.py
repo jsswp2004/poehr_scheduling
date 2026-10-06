@@ -37,6 +37,15 @@ from .views import (
 from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
 from .lab_views import LabReportViewSet
+from .patient_header import (
+    HeaderConfigView,
+    HeaderFieldViewSet,
+    PatientAllergiesView,
+    PatientAllergyDetailView,
+    PatientAllergyStatusView,
+    PatientHeaderValuesView,
+    PatientHeaderView,
+)
 from .lab_interface_views import LabInboundMessageViewSet, LabUsageView, fhir_intake, hl7_intake, orders_ack, orders_pull
 
 # Debug import
@@ -189,6 +198,7 @@ router.register(r"admin/dictionaries", DictionaryAdminViewSet, basename="diction
 router.register(r"orders", OrderViewSet, basename="order")
 router.register(r"orderables", OrderableViewSet, basename="orderable")
 router.register(r"lab-reports", LabReportViewSet, basename="labreport")
+router.register(r"patient-header-fields", HeaderFieldViewSet, basename="headerfield")
 router.register(r"lab-messages", LabInboundMessageViewSet, basename="labmessage")
 router.register(r"order-sets", OrderSetViewSet, basename="orderset")
 router.register(r"admin/orderables", OrderableAdminViewSet, basename="orderableadmin")
@@ -199,6 +209,13 @@ urlpatterns = router.urls + [
     path("lab-interface/hl7/", hl7_intake, name="lab-interface-hl7"),
     path("lab-interface/fhir/", fhir_intake, name="lab-interface-fhir"),
     path("lab-usage/", LabUsageView.as_view(), name="lab-usage"),
+    # patient chart header: layout, items, allergies
+    path("patient-header-config/", HeaderConfigView.as_view(), name="patient-header-config"),
+    path("patient-header/<int:patient_id>/", PatientHeaderView.as_view(), name="patient-header"),
+    path("patient-header/<int:patient_id>/values/", PatientHeaderValuesView.as_view(), name="patient-header-values"),
+    path("patient-header/<int:patient_id>/allergies/", PatientAllergiesView.as_view(), name="patient-allergies"),
+    path("patient-header/<int:patient_id>/allergies/<int:allergy_id>/", PatientAllergyDetailView.as_view(), name="patient-allergy"),
+    path("patient-header/<int:patient_id>/allergy-status/", PatientAllergyStatusView.as_view(), name="patient-allergy-status"),
     path("lab-interface/orders/", orders_pull, name="lab-interface-orders"),
     path("lab-interface/orders/ack/", orders_ack, name="lab-interface-orders-ack"),
     # ICD-10-CM code search for the order diagnosis picker (proxies NLM's free service)

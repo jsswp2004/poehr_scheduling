@@ -2,6 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import OrdersPanel from "../components/OrdersPanel";
+import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import BackButton from "../components/BackButton";
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { usePatientData } from "../hooks/usePatientData";
@@ -73,6 +74,8 @@ function OrdersPage() {
                 </Typography>
                 <BackButton to="/patients" />
             </Box>
+
+            <PatientChartHeader patientId={patient.user_id || patient.id} />
 
             <OrdersPanel patientId={patient.user_id || patient.id} />
         </Box>

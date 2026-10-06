@@ -16,6 +16,7 @@ import {
   Select as MUISelect,
 } from "@mui/material";
 import BackButton from "../components/BackButton";
+import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import InputAdornment from "@mui/material/InputAdornment";
 import { toast } from "../components/SimpleToast";
 import { API_BASE_URL } from "../config/api";
@@ -905,6 +906,7 @@ function PatientDetailPage() {
 
         <BackButton to="/patients" />
       </Box>
+      <PatientChartHeader patientId={patient.user_id || patient.id} />
       {/* Show profile picture if available */}
       {patient.profile_picture && (
         <div className="mb-3 text-center">

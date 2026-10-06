@@ -6,12 +6,15 @@ import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../config/api';
 import { getAccessToken } from '../utils/tokenManager';
 import { formatPhoneToInternational } from '../utils/phoneUtils';
+import { storedCareSetting, rememberCareSetting } from '../components/patients/CareSettingSidebar';
 
 export const usePatients = (navigate, userRole = null) => {
     const [patients, setPatients] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [provider, setProvider] = useState('');
+    // Sidebar tab: '' = all patients, else ambulatory / emergency / acute. Remembered between visits.
+    const [careSetting, setCareSettingState] = useState(() => storedCareSetting());
     const [page, setPage] = useState(1);
     const [totalSize, setTotalSize] = useState(0);
     const [showEmailModal, setShowEmailModal] = useState(false);
@@ -31,6 +34,12 @@ export const usePatients = (navigate, userRole = null) => {
 
     const memoizedSetProvider = useCallback((value) => {
         setProvider(value);
+    }, []);
+
+    const setCareSetting = useCallback((value) => {
+        setCareSettingState(value);
+        rememberCareSetting(value);
+        setPage(1); // a different list starts on its first page
     }, []);
 
     const memoizedSetPage = useCallback((value) => {
@@ -65,6 +74,7 @@ export const usePatients = (navigate, userRole = null) => {
                 params: {
                     search,
                     provider,
+                    care_setting: careSetting || undefined,
                     page,
                     page_size: rowsPerPage,
                 },
@@ -100,7 +110,7 @@ export const usePatients = (navigate, userRole = null) => {
         } finally {
             setLoading(false);
         }
-    }, [search, provider, page, navigate, userRole]);
+    }, [search, provider, careSetting, page, navigate, userRole]);
 
     const handleSendText = async (patient, token) => {
         // Open SMS modal instead of sending directly
@@ -260,7 +270,7 @@ export const usePatients = (navigate, userRole = null) => {
     // Auto-fetch patients when search changes
     useEffect(() => {
         fetchPatients();
-    }, [search, provider, page, fetchPatients]);
+    }, [search, provider, careSetting, page, fetchPatients]);
 
     return {
         patients,
@@ -269,6 +279,8 @@ export const usePatients = (navigate, userRole = null) => {
         setSearch: memoizedSetSearch,
         provider,
         setProvider: memoizedSetProvider,
+        careSetting,
+        setCareSetting,
         page,
         setPage: memoizedSetPage,
         totalSize,
