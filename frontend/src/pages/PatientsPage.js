@@ -408,10 +408,29 @@ function PatientsPage() {
           p: 0,
           height: "calc(100vh - 140px)", // Fixed: Changed from 120vh to 100vh
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
+          alignItems: "stretch",
           overflow: "hidden",
         }}
       >
+        {/* Care setting sidebar: full height, far left, outside the tabs */}
+        <CareSettingSidebar
+          value={patients.careSetting}
+          onChange={(value) => {
+            patients.setCareSetting(value);
+            if (tab !== "patients") setTab("patients");
+          }}
+        />
+
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
         {/* Chat system loading indicator */}
         {chat.chatSystemLoading && (
           <Box
@@ -554,30 +573,22 @@ function PatientsPage() {
         {/* Tab Content */}
         <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
           {tab === "patients" && (
-            <Box sx={{ display: "flex", alignItems: "stretch", minHeight: "100%" }}>
-              <CareSettingSidebar
-                value={patients.careSetting}
-                onChange={patients.setCareSetting}
-              />
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <PatientsTable
-                  patients={patients.patients}
-                  loading={patients.loading}
-                  search={patients.search}
-                  setSearch={patients.setSearch}
-                  provider={patients.provider}
-                  setProvider={patients.setProvider}
-                  providers={analytics.providers}
-                  page={patients.page}
-                  setPage={patients.setPage}
-                  totalPages={patients.totalPages}
-                  onSendText={handleSendText}
-                  onOpenEmailModal={handleOpenEmailModal}
-                  onDelete={handleDeletePatient}
-                  userRole={userRole}
-                />
-              </Box>
-            </Box>
+            <PatientsTable
+              patients={patients.patients}
+              loading={patients.loading}
+              search={patients.search}
+              setSearch={patients.setSearch}
+              provider={patients.provider}
+              setProvider={patients.setProvider}
+              providers={analytics.providers}
+              page={patients.page}
+              setPage={patients.setPage}
+              totalPages={patients.totalPages}
+              onSendText={handleSendText}
+              onOpenEmailModal={handleOpenEmailModal}
+              onDelete={handleDeletePatient}
+              userRole={userRole}
+            />
           )}
 
           {tab === "team" && (
@@ -692,6 +703,7 @@ function PatientsPage() {
           getAllUnreadCount={chat.getTotalUnreadCount}
           markRoomAsRead={chat.markRoomAsRead}
         />
+        </Box>
       </Box>
     </LocalizationProvider>
   );
