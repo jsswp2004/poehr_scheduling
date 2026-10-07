@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   Typography,
@@ -43,7 +43,10 @@ const VALUE_STYLE = {
  * Allergies are red when there are any, and a patient with nothing recorded reads
  * "Not documented" (different from "No known allergies").
  */
-function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persistent = false }) {
+function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persistent = false, onLoaded = null }) {
+  // Lets the page know which visit this banner is showing (its id, number and chart record).
+  const loadedRef = useRef(onLoaded);
+  loadedRef.current = onLoaded;
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -55,6 +58,7 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
       const res = await api.get(apiEndpoints.patientHeader(patientId), { headers, params: visitId ? { visit: visitId } : {} });
       setData(res.data);
       setFailed(false);
+      if (loadedRef.current) loadedRef.current(res.data);
     } catch (err) {
       setFailed(true);
     }
@@ -65,6 +69,7 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
     setData(null);
     setFailed(false);
     setEditing(false);
+    if (loadedRef.current) loadedRef.current(null);
   }, [patientId]);
 
   useEffect(() => {

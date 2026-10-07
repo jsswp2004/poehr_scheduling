@@ -100,6 +100,8 @@ function PatientsPage() {
   // the previous user's patient.
   const [selectedPatient, setSelectedPatient] = useState(null); // { id, name }
   const [chartTab, setChartTab] = useState("patient_list");
+  // What the patient header is showing: the visit that Orders, Documents and Flowsheets chart on.
+  const [headerData, setHeaderData] = useState(null);
   const showPatientContext = tab === "patients" || !!selectedPatient;
   const selectionKey = currentUser ? `powerSelectedPatient:${currentUser.id}` : null;
   useEffect(() => {
@@ -550,7 +552,7 @@ function PatientsPage() {
         {/* Patient header: only on the Patient List view, where it follows the selected patient
             (and reads "No patient selected" until one is chosen). */}
         {tab === "patients" && (
-          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} />
+          <PatientChartHeader persistent patientId={selectedPatient ? selectedPatient.id : null} onLoaded={setHeaderData} />
         )}
 
         {/* Chart tabs for the selected patient */}
@@ -642,6 +644,13 @@ function PatientsPage() {
               );
             }
             if (!selectedPatient) return <SelectPatientPrompt />;
+            // the visit in the patient header is the visit being charted on
+            const headerReady = !!headerData && headerData.patient === selectedPatient.id;
+            const chartVisit = {
+              loading: !headerReady,
+              appointmentId: headerReady ? headerData.appointment || null : null,
+              visitId: headerReady ? headerData.visit || null : null,
+            };
             if (current === "patient_info") {
               return (
                 <Box sx={TIGHT_PANEL}>
@@ -661,6 +670,7 @@ function PatientsPage() {
                     key={selectedPatient.id}
                     patientId={selectedPatient.id}
                     forcedSection={current === "results" ? "labs" : "orders"}
+                    chartVisit={chartVisit}
                     onShowLabs={() => setChartTab("results")}
                   />
                 </Box>
@@ -673,6 +683,7 @@ function PatientsPage() {
                     key={selectedPatient.id}
                     patientId={selectedPatient.id}
                     patientName={selectedPatient.name}
+                    chartVisit={chartVisit}
                   />
                 </Box>
               );
@@ -684,6 +695,7 @@ function PatientsPage() {
                     key={selectedPatient.id}
                     patientId={selectedPatient.id}
                     patientName={selectedPatient.name}
+                    chartVisit={chartVisit}
                   />
                 </Box>
               );

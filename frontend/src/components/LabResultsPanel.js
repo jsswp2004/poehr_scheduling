@@ -30,6 +30,7 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { api } from "../api/client";
+import PanelTitle from "./patients/PanelTitle";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
@@ -568,7 +569,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
     if (!canUpload) return null;
     return (
       <Box sx={{ mt: 4 }} data-testid="lab-upload-only">
-        <Typography variant="h6">Lab results</Typography>
+        <PanelTitle>Lab results</PanelTitle>
         <Paper variant="outlined" sx={{ p: 2, mt: 1 }}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }} justifyContent="space-between">
             <Typography variant="body2" color="text.secondary">
@@ -686,10 +687,10 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
   return (
     <Box sx={{ mt: 4 }} data-testid="lab-results-panel">
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }} sx={{ mb: 1 }}>
-        <Typography variant="h6">
+        <PanelTitle sx={{ mb: 0 }}>
           Lab results
           {needsReview.length > 0 && <Chip size="small" color="warning" sx={{ ml: 1 }} label={`${needsReview.length} to review`} />}
-        </Typography>
+        </PanelTitle>
         <Stack direction="row" spacing={2} alignItems="center">
           <FormControlLabel
             control={<Switch size="small" checked={onlyUnreviewed} onChange={(e) => setOnlyUnreviewed(e.target.checked)} />}
