@@ -26,13 +26,23 @@ export const COMING_SOON = {
 
 export const CLINICAL_ROLES = ["doctor", "nurse", "admin", "system_admin"];
 
-export function visibleChartTabs(role) {
+/**
+ * The tabs this role may see. `keys`, when given, is the clinic's and the person's own list for
+ * the current module: only those tabs, in that order. The Patient List is always kept, since it
+ * is how a patient gets chosen.
+ */
+export function visibleChartTabs(role, keys = null) {
   const clinical = CLINICAL_ROLES.includes(role);
-  return CHART_TABS.filter((t) => !t.clinical || clinical);
+  const allowed = CHART_TABS.filter((t) => !t.clinical || clinical);
+  if (!Array.isArray(keys) || keys.length === 0) return allowed;
+  const byKey = Object.fromEntries(allowed.map((t) => [t.value, t]));
+  const ordered = keys.map((k) => byKey[k]).filter(Boolean);
+  if (!ordered.some((t) => t.value === "patient_list")) ordered.unshift(byKey.patient_list);
+  return ordered;
 }
 
-export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null }) {
-  const tabs = visibleChartTabs(role);
+export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null }) {
+  const tabs = visibleChartTabs(role, keys);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
     <Box sx={{ flexShrink: 0, mb: 0.5, borderBottom: 1, borderColor: "divider", bgcolor: "#f5faff", display: "flex", alignItems: "center" }}>

@@ -20,6 +20,7 @@ import {
 } from "../components/patients";
 import RegisterPage from "./RegisterPage";
 import CareSettingSidebar from "../components/patients/CareSettingSidebar";
+import useChartTabs from "../hooks/useChartTabs";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
 import BedBoard from "../components/patients/BedBoard";
@@ -151,6 +152,24 @@ function PatientsPage() {
 
   // Custom hooks for each section
   const patients = usePatients(navigate, userRole);
+
+  // Which chart tabs show for this module, in what order, and which opens first: the clinic's
+  // default, then the person's own arrangement (Settings > Tab Management).
+  const careKey = patients.careSetting || "ambulatory";
+  const chartLayout = useChartTabs(careKey, !!currentUser);
+  const landedFor = useRef(null);
+  useEffect(() => {
+    if (!chartLayout.loaded) return;
+    if (landedFor.current === null) {
+      // first load: open on the person's tab, unless they have already picked one
+      landedFor.current = careKey;
+      if (chartTab === "patient_list") setChartTab(chartLayout.defaultTab);
+    } else if (landedFor.current !== careKey) {
+      // moved to another module: start on that module's tab
+      landedFor.current = careKey;
+      setChartTab(chartLayout.defaultTab);
+    }
+  }, [chartLayout.loaded, chartLayout.defaultTab, careKey, chartTab]);
   const team = useTeam(navigate);
   const appointments = usePatientsAppointments();
   const analytics = useAnalytics();
@@ -568,6 +587,7 @@ function PatientsPage() {
             value={chartTab}
             onChange={setChartTab}
             role={userRole}
+            keys={chartLayout.tabs}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
         ) : (
@@ -583,7 +603,7 @@ function PatientsPage() {
         {/* Tab Content */}
         <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
           {tab === "patients" && (() => {
-            const allowed = visibleChartTabs(userRole).map((t) => t.value);
+            const allowed = visibleChartTabs(userRole, chartLayout.tabs).map((t) => t.value);
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
             if (current === "patient_list") {
               const acute = patients.careSetting === "acute";
