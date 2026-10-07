@@ -719,9 +719,17 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
           display: section === "labs" ? "block" : "none",
           // On the chart's Results tab the content sits right under the tab strip: cancel the
           // Stack gap (the hidden Orders block before it still counts) and the panel's own top margin.
+          // It is also given the same raised card as the Documents tab, so both start at the same height.
           ...(forcedSection && {
             "&&": { mt: 0 },
             "& > [data-testid='lab-results-panel']": { mt: 0 },
+            ...(section === "labs" && {
+              boxShadow: 2,
+              borderRadius: 2,
+              bgcolor: "background.paper",
+              p: 3,
+              pt: 2,
+            }),
           }),
         }}
       >
