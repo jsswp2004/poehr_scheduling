@@ -403,20 +403,35 @@ def check_order(patient, name, code_system="", code=""):
 # --------------------------------------------------------------------------
 
 RXNAV = "https://rxnav.nlm.nih.gov/REST"
-RXNORM_TIMEOUT = 3
+RXNORM_TIMEOUT = 6  # RxNav can be slow on a cold request
+RXNORM_HEADERS = {"Accept": "application/json", "User-Agent": "POWER-Scheduling/1.0 (allergy lookup)"}
 RXNORM_CACHE_SECONDS = 12 * 3600
 _INGREDIENT_TTYS = ("IN", "MIN", "PIN")
 
 
 def _rx_get(path, params=None):
     base = getattr(settings, "ALLERGY_RXNORM_BASE_URL", RXNAV)
-    resp = requests.get(f"{base}{path}", params=params, timeout=RXNORM_TIMEOUT, headers={"Accept": "application/json"})
-    resp.raise_for_status()
-    return resp.json()
+    last = None
+    for _ in range(2):  # one retry: RxNav sometimes drops the first request
+        try:
+            resp = requests.get(f"{base}{path}", params=params, timeout=RXNORM_TIMEOUT, headers=RXNORM_HEADERS)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as exc:
+            last = exc
+    raise last
 
 
 def _rx_ingredient_for(rxcui):
-    """The ingredient (rxcui, name) a concept belongs to, or None."""
+    """The ingredient (rxcui, name) a concept belongs to, or None (also when this one lookup fails)."""
+    try:
+        return _rx_ingredient_lookup(rxcui)
+    except Exception as exc:
+        log.warning("RxNorm ingredient lookup failed for %s: %s", rxcui, exc)
+        return None
+
+
+def _rx_ingredient_lookup(rxcui):
     props = (_rx_get(f"/rxcui/{rxcui}/properties.json") or {}).get("properties") or {}
     if props.get("tty") in _INGREDIENT_TTYS:
         return {"code": str(props.get("rxcui") or rxcui), "display": props.get("name") or ""}
@@ -430,15 +445,16 @@ def _rx_ingredient_for(rxcui):
 
 def rxnorm_search(term, limit=8):
     """
-    Drug ingredients matching ``term`` from RxNorm. Returns (results, state),
-    state being "ok", "off" or "unavailable". Never raises.
+    Drug ingredients matching ``term`` from RxNorm. Returns (results, state, detail),
+    state being "ok", "off" or "unavailable" and detail a short reason when it
+    is not "ok". Never raises.
     """
     if not getattr(settings, "ALLERGY_RXNORM_ENABLED", True):
-        return [], "off"
+        return [], "off", "turned off in settings"
     key = "allergy:rxnorm:" + _norm(term)
     hit = cache.get(key)
     if hit is not None:
-        return hit, "ok"
+        return hit, "ok", ""
     try:
         data = _rx_get("/approximateTerm.json", {"term": term, "maxEntries": 12})
         cands = (data.get("approximateGroup") or {}).get("candidate") or []
@@ -455,11 +471,21 @@ def rxnorm_search(term, limit=8):
                 results.append({"display": f["display"].title() if f["display"].islower() else f["display"],
                                 "code": f["code"], "system": "rxnorm", "category": "medication",
                                 "source": "rxnorm"})
+        if not results:
+            return results, "ok", "RxNorm returned no drug ingredients for this text"
         cache.set(key, results, RXNORM_CACHE_SECONDS)
-        return results, "ok"
+        return results, "ok", ""
     except Exception as exc:  # network, timeout, bad JSON -- the form must keep working
         log.warning("RxNorm lookup failed for %r: %s", term, exc)
-        return [], "unavailable"
+        detail = type(exc).__name__
+        resp = getattr(exc, "response", None)
+        if resp is not None and getattr(resp, "status_code", None):
+            detail = f"HTTP {resp.status_code}"
+        elif isinstance(exc, requests.Timeout):
+            detail = "timed out"
+        elif isinstance(exc, requests.ConnectionError):
+            detail = "could not connect"
+        return [], "unavailable", detail
 
 
 def local_drug_matches(term, limit=8):
@@ -481,11 +507,11 @@ def local_drug_matches(term, limit=8):
 def search_substances(term, category=""):
     term = (term or "").strip()
     if len(term) < 2:
-        return {"results": [], "rxnorm": "idle"}
+        return {"results": [], "rxnorm": "idle", "rxnorm_detail": ""}
     t = _norm(term)
-    results, state = [], "idle"
+    results, state, detail = [], "idle", ""
     if category in ("", "medication"):
-        rx, state = rxnorm_search(term)
+        rx, state, detail = rxnorm_search(term)
         results.extend(rx)
         have = {_norm(r["display"]) for r in results}
         results.extend(r for r in local_drug_matches(term) if _norm(r["display"]) not in have)
@@ -493,7 +519,7 @@ def search_substances(term, category=""):
         matches = [c for c in catalog() if t in _norm(c["display"]) and (not category or c["category"] == category)]
         matches.sort(key=lambda c: (not _norm(c["display"]).startswith(t), len(c["display"]), c["display"]))
         results.extend({**c, "source": "catalog"} for c in matches[:12])
-    return {"results": results[:25], "rxnorm": state}
+    return {"results": results[:25], "rxnorm": state, "rxnorm_detail": detail}
 
 
 # --------------------------------------------------------------------------

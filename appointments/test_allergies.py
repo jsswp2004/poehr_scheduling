@@ -157,7 +157,58 @@ class SearchTests(TestCase):
         with mock.patch.object(al.requests, "get", side_effect=al.requests.ConnectionError("down")):
             out = al.search_substances("ibupro", "medication")
         self.assertEqual(out["rxnorm"], "unavailable")
+        self.assertEqual(out["rxnorm_detail"], "could not connect")
         self.assertEqual(out["results"][0]["display"], "Ibuprofen")
+
+    def test_rxnorm_timeout_and_http_error_are_described(self):
+        with mock.patch.object(al.requests, "get", side_effect=al.requests.Timeout("slow")):
+            self.assertEqual(al.search_substances("ibupro", "medication")["rxnorm_detail"], "timed out")
+        bad = mock.Mock(status_code=403)
+        err = al.requests.HTTPError("no", response=bad)
+        resp = mock.Mock()
+        resp.raise_for_status.side_effect = err
+        cache.clear()
+        with mock.patch.object(al.requests, "get", return_value=resp):
+            self.assertEqual(al.search_substances("ibupro", "medication")["rxnorm_detail"], "HTTP 403")
+
+    def test_first_request_failure_is_retried(self):
+        calls = {"n": 0}
+        real = self._fake_get
+
+        def flaky(url, params=None, **kw):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise al.requests.ConnectionError("blip")
+            return real(url, params, **kw)
+
+        with mock.patch.object(al.requests, "get", side_effect=flaky):
+            out = al.search_substances("amoxicillin", "medication")
+        self.assertEqual(out["rxnorm"], "ok")
+        self.assertTrue(any(r["source"] == "rxnorm" for r in out["results"]))
+
+    def test_one_failed_candidate_does_not_lose_the_others(self):
+        real = self._fake_get
+
+        def partly(url, params=None, **kw):
+            if "1665005" in url:
+                raise al.requests.ConnectionError("blip")
+            return real(url, params, **kw)
+
+        with mock.patch.object(al.requests, "get", side_effect=partly):
+            out = al.search_substances("amoxicillin", "medication")
+        self.assertEqual([r["code"] for r in out["results"] if r["source"] == "rxnorm"], ["723"])
+
+    def test_empty_rxnorm_answer_says_so_and_is_not_cached(self):
+        def empty(url, params=None, **kw):
+            resp = mock.Mock()
+            resp.raise_for_status = lambda: None
+            resp.json.return_value = {"approximateGroup": {"inputTerm": None}}
+            return resp
+
+        with mock.patch.object(al.requests, "get", side_effect=empty):
+            out = al.search_substances("zzzz", "medication")
+        self.assertEqual(out["rxnorm"], "ok")
+        self.assertIn("no drug ingredients", out["rxnorm_detail"])
 
 
 class AllergyApiTests(Base):

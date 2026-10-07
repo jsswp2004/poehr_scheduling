@@ -43,6 +43,7 @@ export default function AllergyAddForm({ busy, onAdd }) {
   const [picked, setPicked] = useState(null); // a search result, or null for free text
   const [options, setOptions] = useState([]);
   const [searchState, setSearchState] = useState("idle");
+  const [searchDetail, setSearchDetail] = useState("");
   const [category, setCategory] = useState("");
   const [type, setType] = useState("allergy");
   const [reactions, setReactions] = useState([]);
@@ -72,6 +73,7 @@ export default function AllergyAddForm({ busy, onAdd }) {
     if (text.length < 2 || (picked && picked.display === text)) {
       setOptions([]);
       setSearchState("idle");
+      setSearchDetail("");
       return undefined;
     }
     const ticket = ++latest.current;
@@ -84,10 +86,12 @@ export default function AllergyAddForm({ busy, onAdd }) {
         if (ticket !== latest.current) return;
         setOptions(Array.isArray(res?.data?.results) ? res.data.results : []);
         setSearchState(res?.data?.rxnorm || "idle");
+        setSearchDetail(res?.data?.rxnorm_detail || "");
       } catch (err) {
         if (ticket === latest.current) {
           setOptions([]);
           setSearchState("unavailable");
+          setSearchDetail("the server could not be reached");
         }
       }
     }, 300);
@@ -123,6 +127,13 @@ export default function AllergyAddForm({ busy, onAdd }) {
   return (
     <Box sx={{ mt: 2 }}>
       <Stack spacing={1}>
+        {searchDetail && !picked && (
+          <Typography variant="caption" color="warning.dark" data-testid="allergy-lookup-note">
+            {searchState === "unavailable"
+              ? `Drug code lookup (RxNorm) is unavailable: ${searchDetail}. Showing the local list; those entries save without a code.`
+              : `Drug code lookup (RxNorm): ${searchDetail}.`}
+          </Typography>
+        )}
         <Autocomplete
           freeSolo
           size="small"
