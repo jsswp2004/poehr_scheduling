@@ -34,6 +34,7 @@ import {
 } from "../components/patients/PatientChartTabs";
 import OrdersPanel from "../components/OrdersPanel";
 import ClinicalNotesPanel from "../components/ClinicalNotesPanel";
+import { PatientRecord } from "./PatientDetailPage";
 import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 
 // Hooks
@@ -51,6 +52,10 @@ import { getValidToken, clearAuthData } from "../utils/auth";
 import { API_BASE_URL } from "../config/api";
 
 // Team, Appointments, Analytics and Register are opened from the icons in the top header (?tab=...).
+// Chart tab content sits right under the tab strip: panels bring their own top margin
+// (a Paper with mt: 3), which left a big empty band, so it is cancelled here.
+const TIGHT_PANEL = { p: 0.5, "& > .MuiPaper-root": { mt: 0, pt: 2 } };
+
 const VIEW_TITLES = {
   team: "Team",
   appointments: "Appointments",
@@ -633,14 +638,25 @@ function PatientsPage() {
                 <ComingSoonPanel
                   title={COMING_SOON[current]}
                   patient={selectedPatient}
-                  onOpenRecord={() => navigate(`/patients/${selectedPatient.id}`)}
                 />
               );
             }
             if (!selectedPatient) return <SelectPatientPrompt />;
+            if (current === "patient_info") {
+              return (
+                <Box sx={TIGHT_PANEL}>
+                  <PatientRecord
+                    key={selectedPatient.id}
+                    id={selectedPatient.id}
+                    embedded
+                    onOpenNotes={() => setChartTab("documents")}
+                  />
+                </Box>
+              );
+            }
             if (current === "orders" || current === "results") {
               return (
-                <Box sx={{ p: 1 }}>
+                <Box sx={TIGHT_PANEL}>
                   <OrdersPanel
                     key={selectedPatient.id}
                     patientId={selectedPatient.id}
@@ -652,7 +668,7 @@ function PatientsPage() {
             }
             if (current === "documents") {
               return (
-                <Box sx={{ p: 1 }}>
+                <Box sx={TIGHT_PANEL}>
                   <ClinicalNotesPanel
                     key={selectedPatient.id}
                     patientId={selectedPatient.id}
@@ -663,7 +679,7 @@ function PatientsPage() {
             }
             if (current === "flowsheets") {
               return (
-                <Box sx={{ p: 1 }}>
+                <Box sx={TIGHT_PANEL}>
                   <VitalSignsFlowsheetPanel
                     key={selectedPatient.id}
                     patientId={selectedPatient.id}

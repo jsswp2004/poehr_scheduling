@@ -32,13 +32,11 @@ test("a stored tab the role cannot see falls back to Patient List", () => {
   expect(screen.getByTestId("chart-tab-patient_list")).toHaveAttribute("aria-selected", "true");
 });
 
-test("placeholder tabs say coming soon and Patient Info offers the full record", () => {
-  expect(Object.values(COMING_SOON)).toEqual(["Patient Info", "My Schedule", "Referral List", "Clinical Summary"]);
-  const open = jest.fn();
-  render(<ComingSoonPanel title="Patient Info" patient={{ id: 1, name: "Ann Lee" }} onOpenRecord={open} />);
+test("placeholder tabs say coming soon; Patient Info is a real tab now", () => {
+  expect(Object.values(COMING_SOON)).toEqual(["My Schedule", "Referral List", "Clinical Summary"]);
+  render(<ComingSoonPanel title="My Schedule" patient={{ id: 1, name: "Ann Lee" }} />);
   expect(screen.getByText(/Coming soon/)).toBeInTheDocument();
-  fireEvent.click(screen.getByText("Open full patient record"));
-  expect(open).toHaveBeenCalled();
+  expect(screen.queryByText("Open full patient record")).not.toBeInTheDocument();
 });
 
 test("persistent header with no patient shows the empty message", () => {
