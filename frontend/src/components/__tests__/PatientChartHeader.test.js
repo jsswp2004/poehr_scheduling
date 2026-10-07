@@ -26,7 +26,7 @@ const header = (over = {}) => ({
   visit: 9,
   items: [
     { key: "name", label: "Patient name", value: "Bcs, Test", emphasis: "strong" },
-    { key: "location", label: "Unit / clinic", value: "N43-PICU", emphasis: "none" },
+    { key: "location", label: "Location", value: "N43-PICU", emphasis: "none" },
     { key: "attending", label: "Attending", value: "Dr. Jeffrey Lee", emphasis: "none" },
     { key: "mrn", label: "MRN", value: "MRN-000012", emphasis: "none" },
     { key: "visit_id", label: "Visit ID", value: "", emphasis: "none" },
@@ -46,7 +46,7 @@ beforeEach(() => {
 test("shows the name first, then each item with its label; empty values show a dash", async () => {
   render(<PatientChartHeader patientId={3} />);
   await screen.findByText("Bcs, Test");
-  expect(screen.getByTestId("header-item-location")).toHaveTextContent("Unit / clinic:N43-PICU");
+  expect(screen.getByTestId("header-item-location")).toHaveTextContent("Location:N43-PICU");
   expect(screen.getByTestId("header-item-attending")).toHaveTextContent("Dr. Jeffrey Lee");
   expect(screen.getByTestId("header-item-mrn")).toHaveTextContent("MRN-000012");
   expect(screen.getByTestId("header-item-visit_id")).toHaveTextContent("Visit ID:—");

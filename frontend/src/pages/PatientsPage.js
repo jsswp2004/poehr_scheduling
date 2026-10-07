@@ -511,6 +511,13 @@ function PatientsPage() {
             value={patients.careSetting}
             onBack={() => navigate(-1)}
             onChange={(value) => {
+              // Moving to another module (Ambulatory, Emergency, Inpatient) starts clean: the
+              // header must not keep showing a patient from the module the user just left.
+              if (value !== patients.careSetting) {
+                selectPatient(null);
+                setHeaderData(null);
+                setChartTab("patient_list");
+              }
               patients.setCareSetting(value);
               if (tab !== "patients") handleTabChange(null, "patients");
             }}

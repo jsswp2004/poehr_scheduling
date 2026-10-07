@@ -39,7 +39,7 @@ MAX_CUSTOM_FIELDS = 20
 # key, label, what it shows
 BUILTIN_FIELDS = [
     ("name", "Patient name", "Last name, first name"),
-    ("location", "Unit / clinic", "Location, unit, room and bed for the visit, or the clinic's name"),
+    ("location", "Location", "Location, unit, room and bed for the visit, or the clinic's name"),
     ("attending", "Attending", "The visit's attending provider, or the patient's provider"),
     ("mrn", "MRN", "Medical record number"),
     ("visit_id", "Visit ID", "Visit number of the latest visit"),
