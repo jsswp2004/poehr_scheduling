@@ -261,13 +261,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       const token = await getValidToken();
       const res = await axios.get(apiEndpoints.patients, {
         headers: { Authorization: `Bearer ${token}` },
-        params: { search: inputValue, page_size: 10 },
+        params: { search: inputValue, page_size: 15 },
       });
       const results = res.data.results || res.data || [];
       setPatientOptions(
         results.map((p) => ({
           value: p.id,
           label: `${p.first_name} ${p.last_name}${p.mrn ? ` (${p.mrn})` : ""}`,
+          name: `${p.first_name} ${p.last_name}`.trim(),
+          detail: [p.mrn && `MRN ${p.mrn}`, p.date_of_birth && `DOB ${p.date_of_birth}`, p.legal_sex]
+            .filter(Boolean)
+            .join(" · ") || "No MRN on file",
           patient: p,
         }))
       );
@@ -610,9 +614,26 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             isLoading={searchingPatients}
             placeholder="Type a patient's name..."
             isClearable
+            // The server already filtered by name/MRN/username, so show every row it returned.
+            filterOption={() => true}
+            // Draw the list on top of the page (not inside the scrolling form pane, which clipped it).
+            menuPortalTarget={typeof document !== "undefined" ? document.body : undefined}
+            menuPosition="fixed"
+            menuPlacement="auto"
+            maxMenuHeight={440}
+            noOptionsMessage={({ inputValue }) =>
+              inputValue && inputValue.length >= 2 ? "No matching patients" : "Type at least 2 letters"
+            }
+            formatOptionLabel={(option) => (
+              <div style={{ lineHeight: 1.3, padding: "2px 0" }}>
+                <div style={{ fontWeight: 600, fontSize: 15 }}>{option.name}</div>
+                <div style={{ fontSize: 12, color: "#666" }}>{option.detail}</div>
+              </div>
+            )}
             styles={{
-              control: (base) => ({ ...base, minHeight: 40 }),
-              menu: (base) => ({ ...base, zIndex: 9999 }),
+              control: (base) => ({ ...base, minHeight: 44 }),
+              menuPortal: (base) => ({ ...base, zIndex: 2000 }),
+              option: (base) => ({ ...base, paddingTop: 8, paddingBottom: 8 }),
             }}
           />
         </Box>
