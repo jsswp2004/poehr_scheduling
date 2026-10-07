@@ -21,13 +21,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "./headerApi";
-
-const SEVERITIES = [
-  { value: "", label: "Not stated" },
-  { value: "mild", label: "Mild" },
-  { value: "moderate", label: "Moderate" },
-  { value: "severe", label: "Severe" },
-];
+import AllergyAddForm from "./AllergyAddForm";
 
 const VALUE_STYLE = {
   strong: { fontWeight: 700, fontSize: "1.15rem" },
@@ -155,9 +149,6 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
 }
 
 function HeaderEditDialog({ patientId, data, onChanged, onClose }) {
-  const [substance, setSubstance] = useState("");
-  const [reaction, setReaction] = useState("");
-  const [severity, setSeverity] = useState("");
   const [values, setValues] = useState(() => Object.fromEntries(data.custom_fields.map((f) => [f.key, f.value])));
   const [busy, setBusy] = useState(false);
 
@@ -180,17 +171,8 @@ function HeaderEditDialog({ patientId, data, onChanged, onClose }) {
     }
   };
 
-  const addAllergy = async () => {
-    const ok = await run(
-      (headers) => api.post(apiEndpoints.patientAllergies(patientId), { substance, reaction, severity }, { headers }),
-      "Could not add the allergy."
-    );
-    if (ok) {
-      setSubstance("");
-      setReaction("");
-      setSeverity("");
-    }
-  };
+  const addAllergy = (payload) =>
+    run((headers) => api.post(apiEndpoints.patientAllergies(patientId), payload, { headers }), "Could not add the allergy.");
 
   const setStatus = (a, status) =>
     run((headers) => api.patch(apiEndpoints.patientAllergy(patientId, a.id), { status }, { headers }), "Could not change the allergy.");
@@ -239,7 +221,12 @@ function HeaderEditDialog({ patientId, data, onChanged, onClose }) {
           <Stack key={a.id} direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }} data-testid={`allergy-${a.id}`}>
             <Chip color="error" size="small" label={a.substance} />
             <Typography variant="body2" sx={{ flex: 1 }}>
-              {[a.reaction, a.severity].filter(Boolean).join(", ")}
+              {[a.reaction_type === "intolerance" ? "Intolerance" : null, a.reaction, a.severity].filter(Boolean).join(", ")}
+              {a.code ? (
+                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                  {a.code_system === "rxnorm" ? "RxNorm" : "SNOMED"} {a.code}
+                </Typography>
+              ) : null}
             </Typography>
             <Button size="small" disabled={busy} onClick={() => setStatus(a, "inactive")}>
               Mark inactive
@@ -268,20 +255,7 @@ function HeaderEditDialog({ patientId, data, onChanged, onClose }) {
           </Box>
         )}
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ mt: 2 }}>
-          <TextField size="small" label="Allergic to" value={substance} onChange={(e) => setSubstance(e.target.value)} sx={{ flex: 2 }} />
-          <TextField size="small" label="Reaction" value={reaction} onChange={(e) => setReaction(e.target.value)} sx={{ flex: 2 }} />
-          <TextField size="small" select label="Severity" value={severity} onChange={(e) => setSeverity(e.target.value)} sx={{ flex: 1, minWidth: 120 }}>
-            {SEVERITIES.map((s) => (
-              <MenuItem key={s.value} value={s.value}>
-                {s.label}
-              </MenuItem>
-            ))}
-          </TextField>
-          <Button variant="contained" disabled={busy || !substance.trim()} onClick={addAllergy}>
-            Add
-          </Button>
-        </Stack>
+        <AllergyAddForm busy={busy} onAdd={addAllergy} />
 
         {data.custom_fields.length > 0 && (
           <>

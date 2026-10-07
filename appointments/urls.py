@@ -40,6 +40,7 @@ from .lab_views import LabReportViewSet
 from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
+from . import allergies as allergy_views
 from .patient_header import (
     HeaderConfigView,
     HeaderFieldViewSet,
@@ -226,6 +227,10 @@ urlpatterns = router.urls + [
     path("patient-header/<int:patient_id>/values/", PatientHeaderValuesView.as_view(), name="patient-header-values"),
     path("patient-header/<int:patient_id>/allergies/", PatientAllergiesView.as_view(), name="patient-allergies"),
     path("patient-header/<int:patient_id>/allergies/<int:allergy_id>/", PatientAllergyDetailView.as_view(), name="patient-allergy"),
+    path("patient-header/<int:patient_id>/allergies/fhir/", allergy_views.PatientAllergyFhirView.as_view(), name="patient-allergies-fhir"),
+    path("allergy-substances/", allergy_views.AllergySubstanceSearchView.as_view(), name="allergy-substances"),
+    path("allergy-reactions/", allergy_views.AllergyReactionsView.as_view(), name="allergy-reactions"),
+    path("allergy-check/", allergy_views.AllergyCheckView.as_view(), name="allergy-check"),
     path("patient-header/<int:patient_id>/allergy-status/", PatientAllergyStatusView.as_view(), name="patient-allergy-status"),
     path("lab-interface/orders/", orders_pull, name="lab-interface-orders"),
     path("lab-interface/orders/ack/", orders_ack, name="lab-interface-orders-ack"),

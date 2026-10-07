@@ -270,8 +270,17 @@ def update_draft_order(order, user, **changes):
 # sign / cosign
 # --------------------------------------------------------------------------
 
+def allergy_alerts_for(order):
+    """Allergy alerts for a medication order (an empty list for anything else)."""
+    if order.orderable_category != "medication" or not order.patient_id:
+        return []
+    from . import allergies
+
+    return allergies.check_order(order.patient, order.orderable_name, order.code_system, order.external_code)
+
+
 @transaction.atomic
-def sign_order(order, user):
+def sign_order(order, user, allergy_override_reason=""):
     order = _lock(order)
     if order.status != "draft":
         raise OrderWorkflowError("Only a draft order can be signed.")
@@ -290,29 +299,49 @@ def sign_order(order, user):
             errors=missing,
         )
 
+    # Allergy check: a matching allergy stops the signature until the signer
+    # gives a reason, which is kept on the order's history.
+    alerts = allergy_alerts_for(order)
+    override = str(allergy_override_reason or "").strip()[:300]
+    if alerts and not override:
+        raise OrderWorkflowError(
+            f"Allergy alert for '{order.orderable_name}': " + "; ".join(a["message"] for a in alerts)
+            + " Give a reason to sign anyway.",
+            status_code=409,
+            errors=[{"order": order.pk, "name": order.orderable_name, "allergy_alerts": alerts}],
+        )
+
     from_status = order.status
     order.cosign_required = needs_cosign(user, order.orderable)
     order.status = "pending_cosign" if order.cosign_required else "active"
     order.signed_by = user
     order.signed_at = timezone.now()
     order.save()
-    log_event(order, "signed", user, from_status=from_status, to_status=order.status,
-              detail={"cosign_required": order.cosign_required})
+    detail = {"cosign_required": order.cosign_required}
+    if alerts:
+        detail["allergy_override"] = {"reason": override, "alerts": alerts}
+    log_event(order, "signed", user, from_status=from_status, to_status=order.status, detail=detail)
     return order
 
 
 @transaction.atomic
-def sign_orders(orders, user):
+def sign_orders(orders, user, allergy_override_reason=""):
     """Sign several drafts together -- all or nothing."""
     signed, problems = [], []
+    allergy_stop = False
     for order in orders:
         try:
-            signed.append(sign_order(order, user))
+            signed.append(sign_order(order, user, allergy_override_reason))
         except OrderWorkflowError as exc:
-            problems.append({"order": order.pk, "name": order.orderable_name, "detail": exc.message})
+            problem = {"order": order.pk, "name": order.orderable_name, "detail": exc.message}
+            if exc.status_code == 409 and exc.errors:
+                allergy_stop = True
+                problem["allergy_alerts"] = exc.errors[0].get("allergy_alerts", [])
+            problems.append(problem)
     if problems:
         raise OrderWorkflowError(
             "Nothing was signed: " + "; ".join(f"{p['name']}: {p['detail']}" for p in problems),
+            status_code=409 if allergy_stop else 400,
             errors=problems,
         )
     return signed
