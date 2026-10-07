@@ -234,3 +234,20 @@ test("coded allergies show their code and intolerance in the list", async () => 
   expect(row).toHaveTextContent("Intolerance, Diarrhea, mild");
   expect(row).toHaveTextContent("SNOMED 47703008");
 });
+
+test("explains why a drug has no code when the RxNorm lookup fails on the server", async () => {
+  api.get.mockImplementation(async (url) => {
+    if (url === "/substances")
+      return { data: { rxnorm: "unavailable", rxnorm_detail: "timed out", results: [{ display: "Penicillin", code: "", system: "", category: "medication", source: "local" }] } };
+    if (url === "/reactions") return { data: { reactions: [] } };
+    return { data: header() };
+  });
+  render(<PatientChartHeader patientId={3} />);
+  await screen.findByText("Bcs, Test");
+  fireEvent.click(screen.getByLabelText("Update allergies and header details"));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.change(within(dialog).getByLabelText("Allergic to"), { target: { value: "penicillin" } });
+  const note = await within(dialog).findByTestId("allergy-lookup-note");
+  expect(note).toHaveTextContent("RxNorm) is unavailable: timed out");
+  expect(await screen.findByText("Local list, no code", { exact: false })).toBeInTheDocument();
+});
