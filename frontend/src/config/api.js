@@ -142,6 +142,7 @@ export const apiEndpoints = {
     patientAllergy: (patientId, allergyId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/${allergyId}/`,
     patientAllergyStatus: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergy-status/`,
     patientHeaderConfig: `${API_BASE_URL}/api/patient-header-config/`,
+    mySchedule: `${API_BASE_URL}/api/my-schedule/`,
     chartTabs: `${API_BASE_URL}/api/chart-tabs/`,
     chartTabsMine: `${API_BASE_URL}/api/chart-tabs/mine/`,
     chartTabsDefaults: `${API_BASE_URL}/api/chart-tabs/defaults/`,

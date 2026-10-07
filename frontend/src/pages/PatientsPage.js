@@ -21,6 +21,7 @@ import {
 import RegisterPage from "./RegisterPage";
 import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import useChartTabs from "../hooks/useChartTabs";
+import MySchedulePanel from "../components/patients/MySchedulePanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
 import BedBoard from "../components/patients/BedBoard";
@@ -660,6 +661,19 @@ function PatientsPage() {
             />
             )}
             </>
+              );
+            }
+            if (current === "my_schedule") {
+              return (
+                <MySchedulePanel
+                  userRole={userRole}
+                  providers={analytics.providers}
+                  selectedId={selectedPatient ? selectedPatient.id : null}
+                  onSelect={selectPatient}
+                  onOpenChart={openChart}
+                  onSendText={handleSendText}
+                  onOpenEmailModal={handleOpenEmailModal}
+                />
               );
             }
             if (COMING_SOON[current]) {

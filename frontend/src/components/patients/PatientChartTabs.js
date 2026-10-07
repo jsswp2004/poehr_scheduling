@@ -19,7 +19,6 @@ export const CHART_TABS = [
 
 // Tabs that have no page behind them yet.
 export const COMING_SOON = {
-  my_schedule: "My Schedule",
   referral_list: "Referral List",
   clinical_summary: "Clinical Summary",
 };
