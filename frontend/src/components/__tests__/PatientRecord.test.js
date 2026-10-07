@@ -25,10 +25,10 @@ test("embedded: just the record, no page chrome and no extra Back button or head
   expect(screen.queryByTestId("chart-header")).not.toBeInTheDocument();
 });
 
-test("standalone page still has the side bar shell, Back button and header", () => {
+test("standalone page has the side bar shell and header, and no Back button of its own", () => {
   render(<PatientDetailPage />);
   expect(screen.getByTestId("shell")).toBeInTheDocument();
-  expect(screen.getByText("Back to list")).toBeInTheDocument();
+  expect(screen.queryByText("Back to list")).not.toBeInTheDocument();
   expect(screen.getByTestId("chart-header")).toBeInTheDocument();
 });
 

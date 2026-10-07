@@ -17,7 +17,6 @@ import {
 } from "@mui/material";
 import ChartPageShell from "../components/patients/ChartPageShell";
 import PanelTitle from "../components/patients/PanelTitle";
-import BackButton from "../components/BackButton";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import InputAdornment from "@mui/material/InputAdornment";
 import { toast } from "../components/SimpleToast";
@@ -902,22 +901,8 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
           : { boxShadow: 2, borderRadius: 2, bgcolor: "background.paper", p: 3 }),
       }}
     >
-      {!embedded && (
-        <>
-          {/* Header with BackButton inline */}
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              mb: 2,
-            }}
-          >
-            <BackButton to="/patients" />
-          </Box>
-          <PatientChartHeader patientId={patient.user_id || patient.id} />
-        </>
-      )}
+      {/* The side bar already has a Back arrow, so the page has no Back button of its own. */}
+      {!embedded && <PatientChartHeader patientId={patient.user_id || patient.id} />}
       {/* Show profile picture if available */}
       {patient.profile_picture && (
         <div className="mb-3 text-center">
