@@ -894,12 +894,11 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       data-testid="patient-record"
       sx={{
         mt: 0,
-        boxShadow: 2,
-        borderRadius: 2,
-        bgcolor: "background.paper",
-        p: 3,
-        // Inside the chart tab it starts at the same height as the Documents card.
-        ...(embedded && { pt: 2 }),
+        // On its own page the record sits in a card. Inside the chart tab the form below is
+        // already a card (like Documents), so this outer box is plain to avoid a card in a card.
+        ...(embedded
+          ? { p: 0 }
+          : { boxShadow: 2, borderRadius: 2, bgcolor: "background.paper", p: 3 }),
       }}
     >
       {!embedded && (
@@ -942,7 +941,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       {editMode && (
         <Paper
           elevation={1}
-          sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "#f8f9fa" }}
+          sx={{ p: 3, ...(embedded && { pt: 2 }), mb: 3, borderRadius: 2, bgcolor: "#f8f9fa" }}
         >
           <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
             Profile Picture
@@ -1017,7 +1016,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       )}
       {!showAppointmentForm && (
         <form onSubmit={handleSubmit}>
-          <Paper elevation={2} sx={{ p: 3, borderRadius: 2 }}>
+          <Paper elevation={2} sx={{ p: 3, ...(embedded && { pt: 2 }), borderRadius: 2 }}>
             <Typography variant="h6" sx={{ mb: 3 }}>
               Patient Information
             </Typography>

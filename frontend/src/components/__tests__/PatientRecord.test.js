@@ -31,3 +31,12 @@ test("standalone page still has the side bar shell, Back button and header", () 
   expect(screen.getByText("Back to list")).toBeInTheDocument();
   expect(screen.getByTestId("chart-header")).toBeInTheDocument();
 });
+
+test("embedded record has no card of its own (no card inside a card); the standalone page keeps it", () => {
+  const { unmount } = render(<PatientRecord id="7" embedded />);
+  expect(getComputedStyle(screen.getByTestId("patient-record")).boxShadow).toBe("");
+  expect(getComputedStyle(screen.getByTestId("patient-record")).padding).toBe("0px");
+  unmount();
+  render(<PatientRecord id="7" />);
+  expect(getComputedStyle(screen.getByTestId("patient-record")).boxShadow).not.toBe("");
+});
