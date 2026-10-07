@@ -98,8 +98,8 @@ function PatientsTable({
                 sx={{
                     display: 'flex',
                     gap: 2,
-                    mb: 3,
-                    mt: 2,
+                    mb: 1,
+                    mt: 0.5,
                     flexWrap: 'wrap',
                     alignItems: 'center',
                     justifyContent: 'space-between',
