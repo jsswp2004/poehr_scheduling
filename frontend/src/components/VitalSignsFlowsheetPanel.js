@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, Fragment } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Box,
@@ -40,6 +40,7 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
+import PanelTitle from "./patients/PanelTitle";
 import { applyCalculations } from "../utils/calculations";
 
 // The shared `api` axios instance has no request interceptor of its own --
@@ -67,7 +68,13 @@ const SECTION_HEADER_BG = "#0d1b4c"; // matches the Sunrise-style dark navy sect
  * columns/data blob is written on Save (no per-keystroke autosave),
  * mirroring how Clinical Notes' Save Draft works.
  */
-function VitalSignsFlowsheetPanel({ patientId, patientName }) {
+function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
+  // On the Patients page the visit being charted is the one in the patient header (chartVisit);
+  // elsewhere (the standalone flowsheet page) the visit is still picked from a list.
+  const fixedVisit = chartVisit !== undefined;
+  const fixedVisitRef = useRef(fixedVisit);
+  fixedVisitRef.current = fixedVisit;
+  const headerAppointmentId = fixedVisit ? chartVisit?.appointmentId || "" : null;
   const [searchParams] = useSearchParams();
   // Deep-link support: Note History's Edit action for a flowsheet row
   // navigates here with ?appointment=<id> so the correct visit's flowsheet
@@ -91,6 +98,9 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
   const [appointments, setAppointments] = useState([]);
   const [appointmentId, setAppointmentId] = useState(requestedAppointmentId || "");
   const [loadingAppointments, setLoadingAppointments] = useState(true);
+  useEffect(() => {
+    if (headerAppointmentId !== null) setAppointmentId(headerAppointmentId);
+  }, [headerAppointmentId]);
 
   // Flowsheet types (templates) come from the flowsheet-builder now, not a
   // hardcoded list -- an admin can add new types (e.g. "Intake Screening")
@@ -237,6 +247,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
           requestedAppointmentId != null &&
           list.some((a) => a.id === requestedAppointmentId);
         setAppointmentId((current) => {
+          if (fixedVisitRef.current) return current;
           if (requestedIsValid) return requestedAppointmentId;
           return current || sorted[0].id;
         });
@@ -437,10 +448,8 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
 
   return (
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-        <Typography variant="h6">
-          Flowsheets{patientName ? ` - ${patientName}` : ""}
-        </Typography>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+        <PanelTitle sx={{ mb: 0 }}>Flowsheets</PanelTitle>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <Button
             variant="outlined"
@@ -472,23 +481,25 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
         </Stack>
       </Stack>
 
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <FormControl size="small" sx={{ minWidth: 320 }}>
-          <InputLabel id="flowsheet-appt-label">Appointment / Registration</InputLabel>
-          <Select
-            labelId="flowsheet-appt-label"
-            label="Appointment / Registration"
-            value={appointmentId}
-            onChange={(e) => setAppointmentId(e.target.value)}
-            disabled={loadingAppointments}
-          >
-            {appointments.map((a) => (
-              <MenuItem key={a.id} value={a.id}>
-                {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+      <Stack direction="row" spacing={2} sx={{ mb: 1.5 }}>
+        {!fixedVisit && (
+          <FormControl size="small" sx={{ minWidth: 320 }}>
+            <InputLabel id="flowsheet-appt-label">Appointment / Registration</InputLabel>
+            <Select
+              labelId="flowsheet-appt-label"
+              label="Appointment / Registration"
+              value={appointmentId}
+              onChange={(e) => setAppointmentId(e.target.value)}
+              disabled={loadingAppointments}
+            >
+              {appointments.map((a) => (
+                <MenuItem key={a.id} value={a.id}>
+                  {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
 
         <FormControl size="small" sx={{ minWidth: 220 }}>
           <InputLabel id="flowsheet-type-label">Flowsheet</InputLabel>
@@ -522,7 +533,9 @@ function VitalSignsFlowsheetPanel({ patientId, patientName }) {
         </Typography>
       ) : !appointmentId ? (
         <Typography variant="body2" color="text.secondary">
-          Select a visit to view or start its flowsheet.
+          {fixedVisit
+            ? "This patient has no visit yet. Register a visit to start a flowsheet."
+            : "Select a visit to view or start its flowsheet."}
         </Typography>
       ) : (
         <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 2, maxHeight: "70vh" }}>

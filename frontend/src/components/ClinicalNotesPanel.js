@@ -41,6 +41,7 @@ import DynamicNoteForm, {
   buildNotePreviewSections,
 } from "./DynamicNoteForm";
 import NotePreviewPane from "./NotePreviewPane";
+import PanelTitle from "./patients/PanelTitle";
 
 const NOTE_TYPE_BY_ROLE = {
   doctor: "doctor_assessment",
@@ -103,7 +104,11 @@ const authHeader = async () => {
  * page is responsible for that gate, but this component also checks the
  * role itself as a second line of defense.
  */
-function ClinicalNotesPanel({ patientId, patientName }) {
+function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
+  // On the Patients page the visit being documented is the one in the patient header (chartVisit);
+  // elsewhere (the standalone notes page) the visit is still picked from a list.
+  const fixedVisit = chartVisit !== undefined;
+  const headerAppointmentId = fixedVisit ? chartVisit?.appointmentId || "" : "";
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState(null);
   const [appointments, setAppointments] = useState([]);
@@ -119,6 +124,13 @@ function ClinicalNotesPanel({ patientId, patientName }) {
   const [draftId, setDraftId] = useState(null); // id of the note being drafted/edited
   const [amendsId, setAmendsId] = useState(null); // set when writing an addendum
   const [activeTab, setActiveTab] = useState("documentation");
+
+  // A new note (not an edited draft or an addendum) always belongs to the header's visit.
+  useEffect(() => {
+    if (fixedVisit && !draftId && !amendsId && headerAppointmentId && form.appointment !== headerAppointmentId) {
+      setForm((f) => ({ ...f, appointment: headerAppointmentId }));
+    }
+  }, [fixedVisit, draftId, amendsId, headerAppointmentId, form.appointment]);
 
   // NoteTemplate definitions for template-driven documentation types
   // (see TEMPLATE_DRIVEN_TYPES), keyed by code and cached across selections
@@ -708,15 +720,13 @@ function ClinicalNotesPanel({ patientId, patientName }) {
 
   return (
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        Clinical Documentation{patientName ? ` - ${patientName}` : ""}
-      </Typography>
+      <PanelTitle>Clinical Documentation</PanelTitle>
 
       {showTabs && (
         <Tabs
           value={currentTab}
           onChange={(e, newValue) => setActiveTab(newValue)}
-          sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+          sx={{ mb: 1.5, borderBottom: 1, borderColor: "divider" }}
         >
           <Tab label="Documentation" value="documentation" />
           <Tab label="Note History" value="history" />
@@ -736,7 +746,13 @@ function ClinicalNotesPanel({ patientId, patientName }) {
             />
           )}
           <Stack spacing={2}>
+            {fixedVisit && !chartVisit.loading && !chartVisit.appointmentId && (
+              <Typography variant="body2" color="text.secondary">
+                This patient has no visit yet. Register a visit to document on.
+              </Typography>
+            )}
             <Stack direction="row" spacing={2}>
+              {!fixedVisit && (
               <FormControl size="small" sx={{ width: "50%" }}>
                 <InputLabel id="appt-select-label">Appointment / Registration</InputLabel>
                 <Select
@@ -754,8 +770,9 @@ function ClinicalNotesPanel({ patientId, patientName }) {
                   ))}
                 </Select>
               </FormControl>
+              )}
 
-              <FormControl size="small" sx={{ width: "50%" }}>
+              <FormControl size="small" sx={{ width: fixedVisit ? "100%" : "50%" }}>
                 <InputLabel id="doc-type-select-label">Documentation Type</InputLabel>
                 <Select
                   labelId="doc-type-select-label"

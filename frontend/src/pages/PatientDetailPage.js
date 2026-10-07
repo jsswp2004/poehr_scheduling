@@ -16,6 +16,7 @@ import {
   Select as MUISelect,
 } from "@mui/material";
 import ChartPageShell from "../components/patients/ChartPageShell";
+import PanelTitle from "../components/patients/PanelTitle";
 import BackButton from "../components/BackButton";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -1017,9 +1018,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       {!showAppointmentForm && (
         <form onSubmit={handleSubmit}>
           <Paper elevation={2} sx={{ p: 3, ...(embedded && { pt: 2 }), borderRadius: 2 }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Patient Information
-            </Typography>
+            <PanelTitle>Patient Information</PanelTitle>
 
             {/* Two-column grid layout */}
             <Box

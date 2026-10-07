@@ -69,3 +69,21 @@ test("with its own inner tabs the Orders page keeps the normal gap above lab res
   await waitFor(() => expect(screen.getByTestId("lab-results-section-tab")).toBeInTheDocument());
   expect(getComputedStyle(document.getElementById("lab-results")).marginTop).toBe("24px");
 });
+
+test("with the header's visit (chartVisit) there is no visit picker, and the title is plain", async () => {
+  render(<OrdersPanel patientId={3} forcedSection="orders" chartVisit={{ loading: false, appointmentId: 55 }} />);
+  await waitFor(() => expect(screen.getByText("Place orders")).toBeInTheDocument());
+  expect(screen.queryByText("Visit / Registration")).toBeNull();
+  expect(screen.queryByText(/no visit yet/)).toBeNull();
+});
+
+test("without chartVisit the standalone page still has its visit picker", async () => {
+  render(<OrdersPanel patientId={3} forcedSection="orders" />);
+  await waitFor(() => expect(screen.getByText("Place orders")).toBeInTheDocument());
+  expect(screen.getAllByText("Visit / Registration").length).toBeGreaterThan(0);
+});
+
+test("a patient with no visit sees a short message instead of a picker", async () => {
+  render(<OrdersPanel patientId={3} forcedSection="orders" chartVisit={{ loading: false, appointmentId: null }} />);
+  await waitFor(() => expect(screen.getByText(/no visit yet/)).toBeInTheDocument());
+});

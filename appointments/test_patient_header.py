@@ -100,6 +100,22 @@ class HeaderContentTests(Base):
         again = {i["key"]: i for i in self.get(visit=first.pk).json()["items"]}
         self.assertEqual(again["location"]["value"], "OLD")
 
+    def test_header_carries_the_visit_chart_record_made_once(self):
+        from appointments.models import Appointment
+
+        self.assertIsNone(self.get().json()["appointment"])  # no visit yet
+        visit = Registration.objects.create(patient=self.profile, organization=self.org, admission_type="scheduled")
+        self.assertFalse(visit.appointment_id)  # a clinic visit is not given one at registration
+        first = self.get().json()
+        self.assertEqual(first["visit"], visit.pk)
+        self.assertTrue(first["appointment"])
+        visit.refresh_from_db()
+        self.assertEqual(visit.appointment_id, first["appointment"])
+        self.assertTrue(Appointment.all_objects.get(pk=first["appointment"]).title.startswith("Visit "))
+        # asking again reuses it
+        self.assertEqual(self.get().json()["appointment"], first["appointment"])
+        self.assertEqual(Appointment.all_objects.filter(patient=self.patient).count(), 1)
+
     def test_hidden_builtin_items_when_switched_on(self):
         Registration.objects.create(patient=self.profile, organization=self.org, admission_type="emergency", reason_for_visit="Fall")
         PatientHeaderConfig.objects.create(

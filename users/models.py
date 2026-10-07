@@ -838,8 +838,8 @@ class Registration(models.Model):
 
     def ensure_chart_appointment(self):
         """
-        Orders and flowsheets are charted against an Appointment, so every open ED visit gets one
-        (created once, linked here). It is marked in progress and arrived, and the reminder jobs skip it.
+        Orders, notes and flowsheets are charted against an Appointment, so every open ED visit gets one
+        (created once, linked here); any other visit gets one the first time it is charted on. It is marked in progress and arrived, and the reminder jobs skip it.
         """
         if self.appointment_id or not self.pk:
             return self.appointment
@@ -851,7 +851,7 @@ class Registration(models.Model):
         appointment = Appointment.all_objects.create(
             organization=self.organization or user.organization,
             patient=user,
-            title=f"ED visit {self.visit_number or ''}".strip(),
+            title=f"{'ED visit' if self.care_setting == 'emergency' else 'Visit'} {self.visit_number or ''}".strip(),
             description=self.reason_for_visit or "",
             appointment_datetime=self.arrival_time or timezone.now(),
             duration_minutes=60,

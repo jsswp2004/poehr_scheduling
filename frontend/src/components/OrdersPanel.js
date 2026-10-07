@@ -39,6 +39,7 @@ import { toast } from "./SimpleToast";
 import DynamicNoteForm from "./DynamicNoteForm";
 import IcdCodePicker, { dxLabel } from "./IcdCodePicker";
 import LabResultsPanel from "./LabResultsPanel";
+import PanelTitle from "./patients/PanelTitle";
 
 const authHeader = async () => {
   const token = await getValidToken();
@@ -98,7 +99,12 @@ const dxToText = (codes) => (codes || []).map(dxLabel).join("; ");
  * requirements, locking after signing) is enforced by the backend; this
  * screen just shows the right buttons and relays the server's messages.
  */
-function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
+function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chartVisit }) {
+  // On the Patients page the visit being charted is the one in the patient header (chartVisit);
+  // elsewhere (the standalone Orders page) the visit is still picked from a list.
+  const fixedVisit = chartVisit !== undefined;
+  const fixedVisitRef = useRef(fixedVisit);
+  fixedVisitRef.current = fixedVisit;
   const [me, setMe] = useState({ role: null, id: null });
   const [appointments, setAppointments] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -140,6 +146,11 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
     }
   };
 
+  const headerAppointmentId = fixedVisit ? chartVisit?.appointmentId || "" : null;
+  useEffect(() => {
+    if (headerAppointmentId !== null) setAppointmentId(headerAppointmentId);
+  }, [headerAppointmentId]);
+
   const loadAll = useCallback(async () => {
     if (!patientId) return;
     setLoading(true);
@@ -154,7 +165,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
       setAppointments(appts);
       setOrders(listOf(orderRes));
       setOrderSets(listOf(setRes));
-      setAppointmentId((cur) => cur || (appts[0] ? appts[0].id : ""));
+      setAppointmentId((cur) => (fixedVisitRef.current ? cur : cur || (appts[0] ? appts[0].id : "")));
     } catch (err) {
       toast.error(errorText(err, "Could not load orders."));
     } finally {
@@ -218,7 +229,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
   const addOrderable = async (orderable) => {
     if (!orderable) return;
     if (!appointmentId) {
-      toast.error("Select the visit this order belongs to first.");
+      toast.error(fixedVisit ? "This patient has no visit to place orders on yet." : "Select the visit this order belongs to first.");
       return;
     }
     const created = await run(async (headers) => {
@@ -238,7 +249,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
 
   const addOrderSet = async () => {
     if (!orderSetCode || !appointmentId) {
-      toast.error("Select a visit and an order set.");
+      toast.error(fixedVisit ? "Choose an order set (and make sure the patient has a visit)." : "Select a visit and an order set.");
       return;
     }
     const created = await run(async (headers) => {
@@ -591,25 +602,25 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
       <Stack spacing={3} sx={{ display: section === "orders" ? "flex" : "none" }}>
       {canPlace && (
         <Paper variant="outlined" sx={{ p: 2 }}>
-          <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 2 }}>
-            Place orders
-          </Typography>
+          <PanelTitle>Place orders</PanelTitle>
           <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
-            <FormControl size="small" sx={{ minWidth: 260 }}>
-              <InputLabel id="orders-appt-label">Visit / Registration</InputLabel>
-              <Select
-                labelId="orders-appt-label"
-                label="Visit / Registration"
-                value={appointmentId}
-                onChange={(e) => setAppointmentId(e.target.value)}
-              >
-                {appointments.map((a) => (
-                  <MenuItem key={a.id} value={a.id}>
-                    {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            {!fixedVisit && (
+              <FormControl size="small" sx={{ minWidth: 260 }}>
+                <InputLabel id="orders-appt-label">Visit / Registration</InputLabel>
+                <Select
+                  labelId="orders-appt-label"
+                  label="Visit / Registration"
+                  value={appointmentId}
+                  onChange={(e) => setAppointmentId(e.target.value)}
+                >
+                  {appointments.map((a) => (
+                    <MenuItem key={a.id} value={a.id}>
+                      {a.title} - {new Date(a.appointment_datetime).toLocaleString()}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
 
             <Autocomplete
               size="small"
@@ -662,11 +673,18 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
               Add set
             </Button>
           </Stack>
-          {appointments.length === 0 && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
-              This patient has no appointment or registration yet. Orders are placed against a visit.
-            </Typography>
-          )}
+          {fixedVisit
+            ? !chartVisit.loading &&
+              !chartVisit.appointmentId && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                  This patient has no visit yet. Register a visit to place orders.
+                </Typography>
+              )
+            : appointments.length === 0 && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: "block" }}>
+                  This patient has no appointment or registration yet. Orders are placed against a visit.
+                </Typography>
+              )}
         </Paper>
       )}
 

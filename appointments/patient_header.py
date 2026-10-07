@@ -300,6 +300,15 @@ def _custom_text(definition, raw):
     return raw
 
 
+def _chart_appointment_id(visit):
+    """The visit's chart record, made on first use for visits that were registered without one."""
+    if visit is None:
+        return None
+    if not visit.appointment_id:
+        visit.ensure_chart_appointment()
+    return visit.appointment_id
+
+
 def build_header(patient, visit_id=None):
     org = patient.organization
     profile = getattr(patient, "patient_profile", None)
@@ -355,6 +364,8 @@ def build_header(patient, visit_id=None):
     return {
         "patient": patient.pk,
         "visit": visit.pk if visit else None,
+        # the chart record (an Appointment) that Orders, Documents and Flowsheets are filed against for this visit
+        "appointment": _chart_appointment_id(visit),
         "items": items,
         "allergies": {
             "no_known_allergies": allergy_text == "No known allergies",
