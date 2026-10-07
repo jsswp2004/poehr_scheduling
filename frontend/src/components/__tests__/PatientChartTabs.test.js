@@ -59,3 +59,26 @@ test("listLabel renames only the first tab", () => {
   expect(screen.getByTestId("chart-tab-patient_list")).toHaveTextContent("ED Board");
   expect(screen.getByTestId("chart-tab-flowsheets")).toHaveTextContent("Flowsheets");
 });
+
+test("keys limit and order the tabs for the module, still filtered by role", () => {
+  const keys = ["documents", "orders", "patient_list", "clinical_summary"];
+  expect(visibleChartTabs("doctor", keys).map((t) => t.value)).toEqual(["documents", "orders", "patient_list", "clinical_summary"]);
+  // a registrar never gets clinical tabs, even if the layout lists them
+  expect(visibleChartTabs("registrar", keys).map((t) => t.value)).toEqual(["patient_list"]);
+});
+
+test("the Patient List is always kept, first, when a layout leaves it out", () => {
+  expect(visibleChartTabs("doctor", ["orders", "results"]).map((t) => t.value)).toEqual(["patient_list", "orders", "results"]);
+});
+
+test("unknown keys are ignored and an empty layout means every tab", () => {
+  expect(visibleChartTabs("doctor", ["orders", "bogus"]).map((t) => t.value)).toEqual(["patient_list", "orders"]);
+  expect(visibleChartTabs("doctor", []).length).toBe(9);
+  expect(visibleChartTabs("doctor", null).length).toBe(9);
+});
+
+test("the strip draws only the layout's tabs, in its order", () => {
+  render(<PatientChartTabs value="orders" onChange={() => {}} role="doctor" keys={["patient_list", "flowsheets", "orders"]} />);
+  const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
+  expect(tabs).toEqual(["Patient List", "Flowsheets", "Orders"]);
+});

@@ -38,6 +38,7 @@ from .analytics_views import AnalyticsReportView, ExportReportView
 from .icd10 import Icd10SearchView
 from .lab_views import LabReportViewSet
 from .locations import BedHoldView, LocationItemView, LocationTreeView
+from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .patient_header import (
     HeaderConfigView,
     HeaderFieldViewSet,
@@ -216,6 +217,9 @@ urlpatterns = router.urls + [
     path("locations/<str:kind>/", LocationItemView.as_view(), name="location-item-create"),
     path("locations/<str:kind>/<int:pk>/", LocationItemView.as_view(), name="location-item"),
     path("patient-header-config/", HeaderConfigView.as_view(), name="patient-header-config"),
+    path("chart-tabs/", ChartTabsView.as_view(), name="chart-tabs"),
+    path("chart-tabs/mine/", MyChartTabsView.as_view(), name="chart-tabs-mine"),
+    path("chart-tabs/defaults/", OrgChartTabsView.as_view(), name="chart-tabs-defaults"),
     path("patient-header/<int:patient_id>/", PatientHeaderView.as_view(), name="patient-header"),
     path("patient-header/<int:patient_id>/values/", PatientHeaderValuesView.as_view(), name="patient-header-values"),
     path("patient-header/<int:patient_id>/allergies/", PatientAllergiesView.as_view(), name="patient-allergies"),

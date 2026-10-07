@@ -1500,6 +1500,30 @@ class PatientHeaderValue(models.Model):
         unique_together = [("patient", "definition")]
 
 
+class ChartTabLayout(models.Model):
+    """
+    Which chart tabs (Patient List, Orders, Results, ...) show on the Patients page for one
+    module (Ambulatory, Emergency, Acute), in what order, and which one opens first.
+
+    A row with no user is the clinic's default. A row with a user is that person's own
+    arrangement, which can only reorder and hide what the clinic default makes available.
+    `items` is an ordered list: [{"key": "orders", "visible": true}, ...].
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="chart_tab_layouts")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.CASCADE, related_name="chart_tab_layouts")
+    care_setting = models.CharField(max_length=20)
+    items = models.JSONField(default=list)
+    default_tab = models.CharField(max_length=30, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "care_setting"], condition=models.Q(user__isnull=True), name="uniq_chart_tabs_org_default"),
+            models.UniqueConstraint(fields=["user", "care_setting"], condition=models.Q(user__isnull=False), name="uniq_chart_tabs_user"),
+        ]
+
+
 # ---------------------------------------------------------------------------
 # Locations: Location (hospital or clinic) > Unit > Room > Bed
 # Built in the Location Manager. Registration (the visit's place) and Scheduling
