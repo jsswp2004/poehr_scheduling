@@ -1,0 +1,1410 @@
+{
+ "source": "SNOMED CT International Patient Summary (IPS) free set, CC BY 4.0, (c) SNOMED International",
+ "system": "http://snomed.info/sct",
+ "concepts": [
+  {
+   "code": "418920007",
+   "display": "Adhesive agent",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "52454007",
+   "display": "Albumin",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "346313005",
+   "display": "Allergen extract vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "256350002",
+   "display": "Almond",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "391737006",
+   "display": "Almond oil",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "12503006",
+   "display": "Aluminum",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "264287008",
+   "display": "Animal dander",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "276310004",
+   "display": "Animal hair",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "57720001",
+   "display": "Anise oil",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "387293003",
+   "display": "Anthralin",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "735215001",
+   "display": "Apple",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "226491003",
+   "display": "Apple juice",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "11526002",
+   "display": "Aspartame",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "386936005",
+   "display": "Azelaic acid",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "836384003",
+   "display": "Bacillus anthracis antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "774702006",
+   "display": "Bacillus Calmette-Guerin antigen only product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "418268006",
+   "display": "Bacillus Calmette-Guerin antigen-containing product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836402002",
+   "display": "Bacillus Calmette-Guerin antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836368004",
+   "display": "Bacteria antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "256307007",
+   "display": "Banana",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "288328004",
+   "display": "Bee venom",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "91598004",
+   "display": "Benzoyl peroxide",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "255640000",
+   "display": "Biocide",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "412061001",
+   "display": "Blueberries",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "601000221108",
+   "display": "Bordetella pertussis antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "261243003",
+   "display": "Brass",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "726764009",
+   "display": "Broad bean",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "421556008",
+   "display": "Capsicum - pepper",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "9021002",
+   "display": "Carbaryl",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "256319004",
+   "display": "Carrot",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227493005",
+   "display": "Cashew nut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "346364006",
+   "display": "Cat allergy vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "260152009",
+   "display": "Cat dander",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "256326004",
+   "display": "Celery",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "23182003",
+   "display": "Cereal",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "102264005",
+   "display": "Cheese",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735248001",
+   "display": "Cherry",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "102262009",
+   "display": "Chocolate",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227388008",
+   "display": "Cinnamon",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "59351004",
+   "display": "Citrate",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "102259006",
+   "display": "Citrus fruit",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "11894001",
+   "display": "Clostridium botulinum toxin",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "116560007",
+   "display": "Clostridium perfringens epsilon toxin",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "863911006",
+   "display": "Clostridium tetani antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "26159005",
+   "display": "Clostridium tetani toxin",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "775641005",
+   "display": "Clostridium tetani toxoid adsorbed and Corynebacterium diphtheriae toxoid antigens only vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "777725002",
+   "display": "Clostridium tetani toxoid antigen adsorbed only vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "1101000221104",
+   "display": "Clostridium tetani toxoid antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "227389000",
+   "display": "Clove",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "710943006",
+   "display": "Cockroach protein",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "80237000",
+   "display": "Cocoa butter",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735211005",
+   "display": "Coconut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735245003",
+   "display": "Cod",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "66925006",
+   "display": "Copper",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "412357001",
+   "display": "Corn",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836381006",
+   "display": "Corynebacterium diphtheriae antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "707239006",
+   "display": "Corynebacterium spp toxin",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "289122001",
+   "display": "Cosmetic material",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "89889006",
+   "display": "Cotton fiber",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "260153004",
+   "display": "Cow dander",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "264295007",
+   "display": "Cow's milk protein",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836397001",
+   "display": "Coxiella burnetii antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "736159005",
+   "display": "Crab",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227395004",
+   "display": "Curry powder",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "726759005",
+   "display": "Cuttlefish",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "289949002",
+   "display": "Cypress pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "396031000",
+   "display": "Dimethicone",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "346405008",
+   "display": "Dog allergy vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "260154005",
+   "display": "Dog dander",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "63338004",
+   "display": "Drug flavoring",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "33008008",
+   "display": "Dust",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "61789006",
+   "display": "Dye",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "762766007",
+   "display": "Edible substance",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "303300008",
+   "display": "Egg protein",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "256443002",
+   "display": "Egg white",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "102263004",
+   "display": "Eggs (edible)",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "115589000",
+   "display": "Ethanolamine",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "12510000",
+   "display": "Eucalyptus oil",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "256435007",
+   "display": "Feather",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "227425007",
+   "display": "Figs",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735971005",
+   "display": "Fish",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "406774009",
+   "display": "Fish derived omega 3 fatty acid",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "735341005",
+   "display": "Fish oil",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "63766005",
+   "display": "Flour",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "256292005",
+   "display": "Flower and weed pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "255620007",
+   "display": "Food",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "59533004",
+   "display": "Food additive",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "72511004",
+   "display": "Fruit",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "116637007",
+   "display": "Fungus Antigen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "735030001",
+   "display": "Garlic",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227400003",
+   "display": "Ginger",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "57126000",
+   "display": "Glue",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "430503006",
+   "display": "Glutamate",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "89811004",
+   "display": "Gluten",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "2309006",
+   "display": "Gold",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "264331002",
+   "display": "Grain",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "256277009",
+   "display": "Grass pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "836380007",
+   "display": "Haemophilus influenzae type b antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "412145001",
+   "display": "Hair dye",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "256353000",
+   "display": "Hazelnut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836375003",
+   "display": "Hepatitis A virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836374004",
+   "display": "Hepatitis B virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "227374009",
+   "display": "Herbs and spices",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "442461000124102",
+   "display": "Hickory nut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "346467003",
+   "display": "Horse allergy vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "256417003",
+   "display": "Horse dander",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "128488006",
+   "display": "House dust",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "346468008",
+   "display": "House dust allergy vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "346469000",
+   "display": "House mite allergy vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836495005",
+   "display": "Human alphaherpesvirus 3 antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836379009",
+   "display": "Human papillomavirus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "1031000221108",
+   "display": "Human poliovirus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836377006",
+   "display": "Influenza virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "412150007",
+   "display": "Insect debris",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "736258006",
+   "display": "Insect salivary substance",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "280939008",
+   "display": "Insect venom",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "3829006",
+   "display": "Iron",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "836378001",
+   "display": "Japanese encephalitis virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "260176001",
+   "display": "Kiwi fruit",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "47703008",
+   "display": "Lactose",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "42416001",
+   "display": "Lanolin",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "111088007",
+   "display": "Latex",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "736162008",
+   "display": "Lobster",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "710179004",
+   "display": "Lupine seed",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "1003736004",
+   "display": "Mammalian milk based food",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "260179008",
+   "display": "Mango fruit",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735977009",
+   "display": "Marine crustacean",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836382004",
+   "display": "Measles morbillivirus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "28647000",
+   "display": "Meat",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "260177005",
+   "display": "Melon",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "425620007",
+   "display": "Metal",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "2799001",
+   "display": "Methylbenzethonium chloride",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "256419000",
+   "display": "Mouse epithelium",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "260156007",
+   "display": "Mouse urine proteins",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "836498007",
+   "display": "Mumps orthorubulavirus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "735045008",
+   "display": "Mushroom",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227150003",
+   "display": "Mussel",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "51905005",
+   "display": "Mustard",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836401009",
+   "display": "Neisseria meningitidis antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "33396006",
+   "display": "Nickel",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "13577000",
+   "display": "Nut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735046009",
+   "display": "Nutmeg",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "230034002",
+   "display": "Nuts and seeds",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "418504009",
+   "display": "Oat",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735979007",
+   "display": "Octopus",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "260126003",
+   "display": "Olive pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "735047000",
+   "display": "Onion",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "256306003",
+   "display": "Orange - fruit",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "116549003",
+   "display": "Organochlorine pesticide",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "119417004",
+   "display": "Organophosphate insecticide",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "736031006",
+   "display": "Oyster",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227408005",
+   "display": "Paprika",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "255667006",
+   "display": "Paraffin",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "428601009",
+   "display": "Paratyphoid vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "735049002",
+   "display": "Peach",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "762952008",
+   "display": "Peanut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "409568008",
+   "display": "Pentavalent botulinum toxoid vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "410853002",
+   "display": "Perfluorochemical",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "418785009",
+   "display": "Perfume",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "59545008",
+   "display": "Pesticide",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "227538001",
+   "display": "Pickle",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227511008",
+   "display": "Pine nut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "256313003",
+   "display": "Pineapple",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "1137358000",
+   "display": "Piper - pepper",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227512001",
+   "display": "Pistachio nut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "387398009",
+   "display": "Podophyllum resin",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "256259004",
+   "display": "Pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "320835005",
+   "display": "Pollen allergy preparations",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "256504004",
+   "display": "Polycarbonate dental material",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "83619009",
+   "display": "Polyvinyl alcohol",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "226934003",
+   "display": "Pork",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735053000",
+   "display": "Potato",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "28230009",
+   "display": "Poultry",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "227313005",
+   "display": "Pulse vegetable",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "311846002",
+   "display": "Pyrethroid insecticide",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "710183004",
+   "display": "Rabbit - meat",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "412153009",
+   "display": "Rabbit dander",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "836393002",
+   "display": "Rabies lyssavirus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "256303006",
+   "display": "Ragweed pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "227444000",
+   "display": "Raspberries",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "226915003",
+   "display": "Red meat",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "67324005",
+   "display": "Rice",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836387005",
+   "display": "Rotavirus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "43230003",
+   "display": "Rubber",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "836388000",
+   "display": "Rubella virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "412068007",
+   "display": "Rye",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836390004",
+   "display": "Salmonella enterica subspecies enterica serovar Typhi antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "128489003",
+   "display": "Sand",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "303314008",
+   "display": "Scorpion venom",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "44027008",
+   "display": "Seafood",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "264337003",
+   "display": "Seed",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "260167008",
+   "display": "Sesame seed",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "735029006",
+   "display": "Shellfish",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "278840001",
+   "display": "Shrimp",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "51420009",
+   "display": "Silicon",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "13652007",
+   "display": "Silicone",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "412156001",
+   "display": "Silk",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "41967008",
+   "display": "Silver",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "256355007",
+   "display": "Soyabean",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "7791007",
+   "display": "Soybean protein",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "303315009",
+   "display": "Spider venom",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "735006003",
+   "display": "Squid",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "102261002",
+   "display": "Strawberry",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836398006",
+   "display": "Streptococcus pneumoniae antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "767406000",
+   "display": "Sulfite and/or sulfite derivative",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "43735007",
+   "display": "Sulfur",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "415710007",
+   "display": "Terpene",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "418490008",
+   "display": "Tetanolysin",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "418794003",
+   "display": "Tetanospasmin",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836403007",
+   "display": "Tick-borne encephalitis virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "734881000",
+   "display": "Tomato",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "256260009",
+   "display": "Tree and shrub pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "256305004",
+   "display": "Tree resin",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "227144008",
+   "display": "Tuna fish",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "37146000",
+   "display": "Typhus vaccine",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "787859002",
+   "display": "Vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836389008",
+   "display": "Vaccinia virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "412070003",
+   "display": "Vanilla",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "836383009",
+   "display": "Vibrio cholerae antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "836369007",
+   "display": "Virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "260118006",
+   "display": "Wall pellitory pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "256352005",
+   "display": "Walnut - nut",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "256440004",
+   "display": "Wasp venom",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "419420009",
+   "display": "Watermelon",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "419604006",
+   "display": "Weed pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "412071004",
+   "display": "Wheat",
+   "category": "food",
+   "system": "snomed"
+  },
+  {
+   "code": "419633007",
+   "display": "White paraffin",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "774618008",
+   "display": "Whole cell Bordetella pertussis and Clostridium tetani toxoid adsorbed and Corynebacterium diphtheriae toxoid antigens only vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "14402002",
+   "display": "Wood",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "412161004",
+   "display": "Wool",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "772245002",
+   "display": "Wool alcohol",
+   "category": "other",
+   "system": "snomed"
+  },
+  {
+   "code": "260108001",
+   "display": "Wormwood pollen",
+   "category": "environment",
+   "system": "snomed"
+  },
+  {
+   "code": "836385002",
+   "display": "Yellow fever virus antigen-containing vaccine product",
+   "category": "biologic",
+   "system": "snomed"
+  },
+  {
+   "code": "418266005",
+   "display": "Yellow paraffin",
+   "category": "other",
+   "system": "snomed"
+  }
+ ]
+}

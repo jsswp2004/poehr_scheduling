@@ -24,6 +24,7 @@ from rest_framework.views import APIView
 
 from users.models import CustomUser, Organization, Registration
 
+from . import allergies as allergy_lib
 from .models import (
     HeaderFieldDefinition,
     PatientAllergy,
@@ -385,6 +386,11 @@ def _allergy_json(a):
         "reaction": a.reaction,
         "severity": a.severity,
         "status": a.status,
+        "category": a.category,
+        "code_system": a.code_system,
+        "code": a.code,
+        "reaction_type": a.reaction_type or "allergy",
+        "reactions": a.reactions or [],
     }
 
 
@@ -465,6 +471,16 @@ class PatientAllergiesView(APIView):
         substance = str(request.data.get("substance", "")).strip()
         reaction = str(request.data.get("reaction", "")).strip()
         severity = str(request.data.get("severity", "")).strip().lower()
+        coding, problem = allergy_lib.clean_coding(request.data)
+        if problem:
+            return Response({"detail": problem}, status=400)
+        reactions, problem = allergy_lib.clean_reactions(request.data.get("reactions"))
+        if problem:
+            return Response({"detail": problem}, status=400)
+        if reactions and not reaction:
+            reaction = allergy_lib.reactions_text(reactions)
+        elif reaction and not reactions:
+            reactions = [{"code": "", "display": reaction[:120]}]
         if not substance:
             return Response({"detail": "Say what the patient is allergic to."}, status=400)
         if len(substance) > 200 or len(reaction) > 200:
@@ -472,12 +488,17 @@ class PatientAllergiesView(APIView):
         if severity and severity not in dict(PatientAllergy.SEVERITY_CHOICES):
             return Response({"detail": "Severity must be mild, moderate or severe."}, status=400)
         duplicate = PatientAllergy.objects.filter(patient=patient, substance__iexact=substance, status="active").first()
+        if duplicate is None and coding["code"]:
+            duplicate = PatientAllergy.objects.filter(
+                patient=patient, status="active", code_system=coding["code_system"], code=coding["code"]
+            ).first()
         if duplicate:
             return Response({"detail": f"{duplicate.substance} is already on the list."}, status=400)
         with transaction.atomic():
             PatientAllergy.objects.create(
                 organization=patient.organization, patient=patient, substance=substance,
                 reaction=reaction, severity=severity, entered_by=request.user,
+                reactions=reactions, **coding,
             )
             # a real allergy replaces "no known allergies"
             PatientAllergyStatus.objects.filter(patient=patient).update(no_known_allergies=False)
@@ -506,8 +527,24 @@ class PatientAllergyDetailView(APIView):
             if request.data["status"] not in dict(PatientAllergy.STATUS_CHOICES):
                 return Response({"detail": "Status must be active or inactive."}, status=400)
             allergy.status = request.data["status"]
-        if "reaction" in request.data:
+        if "reactions" in request.data:
+            reactions, problem = allergy_lib.clean_reactions(request.data["reactions"])
+            if problem:
+                return Response({"detail": problem}, status=400)
+            allergy.reactions = reactions
+            allergy.reaction = allergy_lib.reactions_text(reactions)
+        elif "reaction" in request.data:
             allergy.reaction = str(request.data["reaction"]).strip()[:200]
+            allergy.reactions = [{"code": "", "display": allergy.reaction[:120]}] if allergy.reaction else []
+        if "reaction_type" in request.data:
+            if request.data["reaction_type"] not in dict(allergy_lib.REACTION_TYPES):
+                return Response({"detail": "Type must be allergy or intolerance."}, status=400)
+            allergy.reaction_type = request.data["reaction_type"]
+        if "category" in request.data:
+            category = str(request.data["category"] or "").strip().lower()
+            if category and category not in dict(allergy_lib.CATEGORIES):
+                return Response({"detail": "Unknown category."}, status=400)
+            allergy.category = category
         if "severity" in request.data:
             severity = str(request.data["severity"]).strip().lower()
             if severity and severity not in dict(PatientAllergy.SEVERITY_CHOICES):

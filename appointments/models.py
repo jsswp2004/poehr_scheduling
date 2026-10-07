@@ -1434,6 +1434,12 @@ class PatientAllergy(models.Model):
     reaction = models.CharField(max_length=200, blank=True)
     severity = models.CharField(max_length=10, choices=SEVERITY_CHOICES, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    # Coding (all optional -- a free-text allergy still works):
+    category = models.CharField(max_length=15, blank=True)      # medication/food/environment/biologic/other
+    code_system = models.CharField(max_length=10, blank=True)   # "", "rxnorm" or "snomed"
+    code = models.CharField(max_length=20, blank=True)
+    reaction_type = models.CharField(max_length=12, default="allergy")  # allergy / intolerance
+    reactions = models.JSONField(default=list, blank=True)      # [{"code": "", "display": "Rash"}]
     entered_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

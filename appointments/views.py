@@ -2338,8 +2338,14 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def sign(self, request, pk=None):
-        order = ow.sign_order(self.get_object(), request.user)
+        order = ow.sign_order(
+            self.get_object(), request.user, request.data.get("allergy_override_reason", "")
+        )
         return Response(self.get_serializer(order).data)
+
+    @action(detail=True, methods=["get"], url_path="allergy-check")
+    def allergy_check(self, request, pk=None):
+        return Response({"alerts": ow.allergy_alerts_for(self.get_object())})
 
     @action(detail=False, methods=["post"], url_path="sign")
     def sign_many(self, request):
@@ -2349,7 +2355,9 @@ class OrderViewSet(viewsets.ModelViewSet):
         orders = list(self.get_queryset().filter(pk__in=ids))
         if len(orders) != len(set(ids)):
             raise ow.OrderWorkflowError("One or more orders were not found.", 404)
-        signed = ow.sign_orders(orders, request.user)
+        signed = ow.sign_orders(
+            orders, request.user, request.data.get("allergy_override_reason", "")
+        )
         return Response(self.get_serializer(signed, many=True).data)
 
     @action(detail=True, methods=["post"])

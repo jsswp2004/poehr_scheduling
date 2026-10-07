@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
+  Alert,
   Box,
   Paper,
   Typography,
@@ -124,6 +125,9 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
 
   const [dialog, setDialog] = useState(null); // { kind, order }
   const [dialogText, setDialogText] = useState("");
+  const [allergyStop, setAllergyStop] = useState(null); // { items: [{ name, alerts }], retry }
+  const [overrideReason, setOverrideReason] = useState("");
+  const [draftAlerts, setDraftAlerts] = useState({}); // { [orderId]: [alert, ...] } for medication drafts
   const [labEntry, setLabEntry] = useState(null); // asks the lab results section below to open its entry form for an order
 
   const canPlace = ["doctor", "nurse", "admin", "system_admin"].includes(me.role);
@@ -208,16 +212,39 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
     return () => clearTimeout(searchTimer.current);
   }, [searchText]);
 
+  // Warn on a medication draft as soon as it is added, before anyone tries to sign it.
+  const checkedDrafts = useRef(new Set());
+  useEffect(() => {
+    const todo = orders.filter(
+      (o) => o.status === "draft" && o.orderable_category === "medication" && !checkedDrafts.current.has(o.id)
+    );
+    if (!todo.length) return;
+    todo.forEach((o) => checkedDrafts.current.add(o.id));
+    (async () => {
+      try {
+        const headers = await authHeader();
+        for (const o of todo) {
+          const res = await api.get(apiEndpoints.orderAllergyCheck(o.id), { headers });
+          const alerts = res?.data?.alerts;
+          if (Array.isArray(alerts) && alerts.length) setDraftAlerts((a) => ({ ...a, [o.id]: alerts }));
+        }
+      } catch (err) {
+        /* the check also runs when signing, so a failure here only loses the early warning */
+      }
+    })();
+  }, [orders]);
+
   const replaceOrder = (updated) =>
     setOrders((list) => list.map((o) => (o.id === updated.id ? updated : o)));
 
-  const run = async (fn, successMessage) => {
+  const run = async (fn, successMessage, onError) => {
     setBusy(true);
     try {
       const result = await fn(await authHeader());
       if (successMessage) toast.success(successMessage);
       return result;
     } catch (err) {
+      if (onError && onError(err)) return null; // the caller dealt with it (e.g. the allergy prompt)
       toast.error(errorText(err, "That did not work."));
       return null;
     } finally {
@@ -310,21 +337,43 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
     if (ok) setOrders((list) => list.filter((o) => o.id !== order.id));
   };
 
-  const signIds = async (ids, headers) => {
-    const res = await api.post(apiEndpoints.ordersSign, { ids }, { headers });
+  const signIds = async (ids, headers, reason = "") => {
+    const body = reason ? { ids, allergy_override_reason: reason } : { ids };
+    const res = await api.post(apiEndpoints.ordersSign, body, { headers });
     res.data.forEach(replaceOrder);
     return res.data;
   };
 
-  const handleSignAll = async () => {
+  // The server stops a signature (409) when a drug matches an active allergy. Show the alert and,
+  // if the signer gives a reason, try again with it -- the reason is kept on the order's history.
+  const askAllergyOverride = (err, retry) => {
+    const errors = err?.response?.data?.errors;
+    if (err?.response?.status !== 409 || !Array.isArray(errors) || !errors.some((e) => e.allergy_alerts)) return false;
+    setAllergyStop({
+      items: errors.filter((e) => e.allergy_alerts).map((e) => ({ name: e.name, alerts: e.allergy_alerts })),
+      retry,
+    });
+    setOverrideReason("");
+    return true;
+  };
+
+  const confirmAllergyOverride = async () => {
+    const { retry } = allergyStop;
+    const reason = overrideReason.trim();
+    setAllergyStop(null);
+    setOverrideReason("");
+    await retry(reason);
+  };
+
+  const signAll = async (reason = "") => {
     const drafts = orders.filter((o) => o.status === "draft");
     if (!drafts.length) return;
     const signed = await run(async (headers) => {
       for (const d of drafts) {
         if (edits[d.id]) await saveDraft(d, headers);
       }
-      return signIds(drafts.map((d) => d.id), headers);
-    });
+      return signIds(drafts.map((d) => d.id), headers, reason);
+    }, undefined, (err) => askAllergyOverride(err, signAll));
     if (signed) {
       toast.success(
         `${signed.length} order${signed.length === 1 ? "" : "s"} signed` +
@@ -334,13 +383,17 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
     }
   };
 
-  const handleSignOne = async (order) => {
+  const handleSignAll = () => signAll("");
+
+  const signOne = async (order, reason = "") => {
     const signed = await run(async (headers) => {
       if (edits[order.id]) await saveDraft(order, headers);
-      return signIds([order.id], headers);
-    });
+      return signIds([order.id], headers, reason);
+    }, undefined, (err) => askAllergyOverride(err, (r) => signOne(order, r)));
     if (signed) toast.success("Order signed.");
   };
+
+  const handleSignOne = (order) => signOne(order, "");
 
   // ---- signed-order actions --------------------------------------------
   const handleCosign = (order) =>
@@ -430,6 +483,16 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
               </span>
             </Tooltip>
           </Stack>
+
+          {(draftAlerts[order.id] || []).length > 0 && (
+            <Alert severity="error" data-testid={`allergy-alert-${order.id}`}>
+              <strong>Allergy alert</strong>
+              {draftAlerts[order.id].map((a) => (
+                <div key={a.allergy_id}>{a.message}</div>
+              ))}
+              <div>Signing will ask for a reason.</div>
+            </Alert>
+          )}
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
             <FormControl size="small" sx={{ minWidth: 150 }}>
@@ -791,6 +854,52 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
                 onClick={submitDialog}
               >
                 Confirm
+              </Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
+
+      <Dialog open={!!allergyStop} onClose={() => setAllergyStop(null)} fullWidth maxWidth="sm">
+        {allergyStop && (
+          <>
+            <DialogTitle>Allergy alert</DialogTitle>
+            <DialogContent>
+              <Stack spacing={1.5} sx={{ mt: 0.5 }}>
+                {allergyStop.items.map((item) => (
+                  <Alert key={item.name} severity="error" data-testid="allergy-stop-item">
+                    <strong>{item.name}</strong>
+                    {item.alerts.map((a) => (
+                      <div key={a.allergy_id}>
+                        {a.message}
+                        {a.severity ? ` Severity: ${a.severity}.` : ""}
+                      </div>
+                    ))}
+                  </Alert>
+                ))}
+                <TextField
+                  autoFocus
+                  fullWidth
+                  multiline
+                  minRows={2}
+                  label="Reason for signing anyway (required)"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  Your reason is saved on the order's history. Cancel to keep the order as a draft.
+                </Typography>
+              </Stack>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setAllergyStop(null)}>Cancel</Button>
+              <Button
+                variant="contained"
+                color="error"
+                disabled={busy || !overrideReason.trim()}
+                onClick={confirmAllergyOverride}
+              >
+                Sign anyway
               </Button>
             </DialogActions>
           </>
