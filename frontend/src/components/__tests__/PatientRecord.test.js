@@ -32,11 +32,12 @@ test("standalone page has the side bar shell and header, and no Back button of i
   expect(screen.getByTestId("chart-header")).toBeInTheDocument();
 });
 
-test("embedded record has no card of its own (no card inside a card); the standalone page keeps it", () => {
+test("neither the embedded nor the standalone record has an outer card or padding (the form below is the card), so the header sits tight under the top bar", () => {
   const { unmount } = render(<PatientRecord id="7" embedded />);
   expect(getComputedStyle(screen.getByTestId("patient-record")).boxShadow).toBe("");
   expect(getComputedStyle(screen.getByTestId("patient-record")).padding).toBe("0px");
   unmount();
   render(<PatientRecord id="7" />);
-  expect(getComputedStyle(screen.getByTestId("patient-record")).boxShadow).not.toBe("");
+  expect(getComputedStyle(screen.getByTestId("patient-record")).boxShadow).toBe("");
+  expect(getComputedStyle(screen.getByTestId("patient-record")).padding).toBe("0px");
 });

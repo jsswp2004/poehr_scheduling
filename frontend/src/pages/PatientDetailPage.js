@@ -894,15 +894,17 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       data-testid="patient-record"
       sx={{
         mt: 0,
-        // On its own page the record sits in a card. Inside the chart tab the form below is
-        // already a card (like Documents), so this outer box is plain to avoid a card in a card.
-        ...(embedded
-          ? { p: 0 }
-          : { boxShadow: 2, borderRadius: 2, bgcolor: "background.paper", p: 3 }),
+        // The form below is already a card, so this outer box is plain (no card in a card, no
+        // padding): the header then sits right under the top bar, as on the Patients page.
+        p: 0,
       }}
     >
       {/* The side bar already has a Back arrow, so the page has no Back button of its own. */}
-      {!embedded && <PatientChartHeader patientId={patient.user_id || patient.id} />}
+      {!embedded && (
+        <Box sx={{ "& > .MuiPaper-root": { mb: 1 } }}>
+          <PatientChartHeader patientId={patient.user_id || patient.id} />
+        </Box>
+      )}
       {/* Show profile picture if available */}
       {patient.profile_picture && (
         <div className="mb-3 text-center">
