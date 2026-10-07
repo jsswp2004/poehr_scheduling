@@ -894,10 +894,12 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       data-testid="patient-record"
       sx={{
         mt: 0,
-        boxShadow: embedded ? 0 : 2,
+        boxShadow: 2,
         borderRadius: 2,
         bgcolor: "background.paper",
-        p: embedded ? 1.5 : 3,
+        p: 3,
+        // Inside the chart tab it starts at the same height as the Documents card.
+        ...(embedded && { pt: 2 }),
       }}
     >
       {!embedded && (
