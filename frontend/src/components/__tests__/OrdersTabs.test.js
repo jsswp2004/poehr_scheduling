@@ -56,3 +56,16 @@ test("when the chart tab strip drives it, the inner tabs are hidden and the sect
   expect(screen.getByText("Place orders")).not.toBeVisible();
   expect(window.location.hash).toBe("");
 });
+
+test("on the chart's Results tab the lab block has no top gap (the Stack gap is cancelled)", async () => {
+  render(<OrdersPanel patientId={3} forcedSection="labs" />);
+  await waitFor(() => expect(screen.getByText("LAB PANEL BODY")).toBeVisible());
+  const block = document.getElementById("lab-results");
+  expect(getComputedStyle(block).marginTop).toBe("0px");
+});
+
+test("with its own inner tabs the Orders page keeps the normal gap above lab results", async () => {
+  render(<OrdersPanel patientId={3} />);
+  await waitFor(() => expect(screen.getByTestId("lab-results-section-tab")).toBeInTheDocument());
+  expect(getComputedStyle(document.getElementById("lab-results")).marginTop).toBe("24px");
+});

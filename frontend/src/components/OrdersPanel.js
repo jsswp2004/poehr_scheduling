@@ -713,7 +713,18 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null }) {
       </Stack>
 
       {/* Kept mounted (just hidden) so results stay loaded when switching tabs and "Enter results" can open its form. */}
-      <Box id="lab-results" sx={{ display: section === "labs" ? "block" : "none" }}>
+      <Box
+        id="lab-results"
+        sx={{
+          display: section === "labs" ? "block" : "none",
+          // On the chart's Results tab the content sits right under the tab strip: cancel the
+          // Stack gap (the hidden Orders block before it still counts) and the panel's own top margin.
+          ...(forcedSection && {
+            "&&": { mt: 0 },
+            "& > [data-testid='lab-results-panel']": { mt: 0 },
+          }),
+        }}
+      >
         <LabResultsPanel patientId={patientId} orders={orders} me={me} entryRequest={labEntry} />
       </Box>
 
