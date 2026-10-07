@@ -1,4 +1,4 @@
-import { Box, Tabs, Tab, Typography, Button } from "@mui/material";
+import { Box, Tabs, Tab, Typography } from "@mui/material";
 
 /**
  * The chart tab strip under the patient header on the Patients page.
@@ -19,7 +19,6 @@ export const CHART_TABS = [
 
 // Tabs that have no page behind them yet.
 export const COMING_SOON = {
-  patient_info: "Patient Info",
   my_schedule: "My Schedule",
   referral_list: "Referral List",
   clinical_summary: "Clinical Summary",
@@ -36,7 +35,7 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
   const tabs = visibleChartTabs(role);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
-    <Box sx={{ flexShrink: 0, mb: 1, borderBottom: 1, borderColor: "divider", bgcolor: "#f5faff", display: "flex", alignItems: "center" }}>
+    <Box sx={{ flexShrink: 0, mb: 0.5, borderBottom: 1, borderColor: "divider", bgcolor: "#f5faff", display: "flex", alignItems: "center" }}>
       <Tabs
         value={current}
         onChange={(e, v) => onChange(v)}
@@ -60,7 +59,7 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
 }
 
 /** Shown for the chart tabs that are planned but not built yet. */
-export function ComingSoonPanel({ title, patient, onOpenRecord }) {
+export function ComingSoonPanel({ title, patient }) {
   return (
     <Box sx={{ p: 3 }} data-testid="coming-soon-panel">
       <Typography variant="h6" sx={{ mb: 1 }}>
@@ -69,11 +68,6 @@ export function ComingSoonPanel({ title, patient, onOpenRecord }) {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Coming soon.{patient ? ` This tab will show ${title.toLowerCase()} for ${patient.name}.` : ""}
       </Typography>
-      {title === "Patient Info" && patient && onOpenRecord && (
-        <Button size="small" variant="outlined" onClick={onOpenRecord}>
-          Open full patient record
-        </Button>
-      )}
     </Box>
   );
 }

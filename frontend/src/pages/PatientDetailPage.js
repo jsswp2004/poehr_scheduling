@@ -483,8 +483,12 @@ const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
   );
 });
 
-function PatientDetailPage() {
-  const { id } = useParams();
+/**
+ * The full patient record. `PatientDetailPage` (below) shows it on its own page;
+ * the Patients page shows it inside the Patient Info tab with `embedded`, where the
+ * page chrome (side bar, Back button, patient header) is already on screen.
+ */
+export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
   const navigate = useNavigate();
 
   // Use custom hooks for data management
@@ -885,30 +889,33 @@ function PatientDetailPage() {
   }
 
   if (!patient) return <div>Loading patient details...</div>;
-  return (
-<ChartPageShell>
+  const record = (
     <Box
+      data-testid="patient-record"
       sx={{
         mt: 0,
-        boxShadow: 2,
+        boxShadow: embedded ? 0 : 2,
         borderRadius: 2,
         bgcolor: "background.paper",
-        p: 3,
+        p: embedded ? 1.5 : 3,
       }}
     >
-      {/* Header with BackButton inline */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 2,
-        }}
-      >
-
-        <BackButton to="/patients" />
-      </Box>
-      <PatientChartHeader patientId={patient.user_id || patient.id} />
+      {!embedded && (
+        <>
+          {/* Header with BackButton inline */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              mb: 2,
+            }}
+          >
+            <BackButton to="/patients" />
+          </Box>
+          <PatientChartHeader patientId={patient.user_id || patient.id} />
+        </>
+      )}
       {/* Show profile picture if available */}
       {patient.profile_picture && (
         <div className="mb-3 text-center">
@@ -1393,7 +1400,9 @@ function PatientDetailPage() {
               <Button
                 variant="outlined"
                 color="secondary"
-                onClick={() => navigate(`/patients/${patient.user_id || patient.id}/notes`)}
+                onClick={() =>
+                  onOpenNotes ? onOpenNotes() : navigate(`/patients/${patient.user_id || patient.id}/notes`)
+                }
               >
                 Clinical Notes
               </Button>
@@ -1428,14 +1437,19 @@ function PatientDetailPage() {
             appointmentToEdit={null}
             onSuccess={() => {
               setShowAppointmentForm(false);
-              navigate("/patients");
+              if (!embedded) navigate("/patients");
             }}
           />
         </div>
       )}
     </Box>
-  </ChartPageShell>
-);
+  );
+  return embedded ? record : <ChartPageShell>{record}</ChartPageShell>;
+}
+
+function PatientDetailPage() {
+  const { id } = useParams();
+  return <PatientRecord id={id} />;
 }
 
 export default PatientDetailPage;
