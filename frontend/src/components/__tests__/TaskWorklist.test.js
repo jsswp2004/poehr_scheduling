@@ -30,7 +30,7 @@ const META = (over = {}) => ({
     { value: "overdue", label: "Overdue" },
     { value: "upcoming", label: "Upcoming" },
     { value: "missed", label: "Missed" },
-    { value: "completed", label: "Last 24 h" },
+    { value: "completed", label: "Done (last 24 h)" },
     { value: "all", label: "All" },
   ],
   can_perform: true,
@@ -39,7 +39,9 @@ const META = (over = {}) => ({
   ...over,
 });
 
-const minutesAgo = (n) => new Date(Date.now() - n * 60000).toISOString();
+const NOW = new Date(2026, 9, 8, 14, 30);
+const NOWISO = NOW.toISOString();
+const minutesAgo = (n) => new Date(NOW.getTime() - n * 60000).toISOString();
 
 const TASK = (over = {}) => ({
   id: 21,
@@ -55,6 +57,7 @@ const TASK = (over = {}) => ({
   frequency: "bid",
   frequency_label: "Twice a day (BID)",
   due_at: minutesAgo(5),
+  due_now: true,
   is_prn: false,
   status: "pending",
   status_label: "Pending",
@@ -72,10 +75,12 @@ const TASK = (over = {}) => ({
   ...over,
 });
 
+afterEach(() => jest.useRealTimers());
 const COUNTS = { needs_action: 2, overdue: 1, upcoming: 4, missed: 0, completed: 3, all: 9 };
 let list;
 
 beforeEach(() => {
+  jest.useFakeTimers({ now: NOW, doNotFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "setImmediate", "clearImmediate", "nextTick", "queueMicrotask"] });
   Object.values(api).forEach((fn) => fn.mockReset());
   Object.values(toast).forEach((fn) => fn.mockReset());
   list = [TASK()];
@@ -92,71 +97,62 @@ beforeEach(() => {
   api.post.mockResolvedValue({ data: TASK({ status: "done" }) });
 });
 
-test("the clinic worklist shows the queues with counts and each task with patient and bed", async () => {
+test("the Task Manager is one grid for the day with filters and a legend", async () => {
   render(<TaskWorklist />);
-  expect(await screen.findByTestId("task-row-21")).toHaveTextContent("Amoxicillin 500 mg capsule");
-  expect(screen.getByTestId("task-row-21")).toHaveTextContent("Ann Lee");
-  expect(screen.getByTestId("task-row-21")).toHaveTextContent("4 West · 412 · A");
-  expect(screen.getByTestId("task-row-21")).toHaveTextContent("500 mg PO");
-  expect(screen.getByTestId("task-queue-needs_action")).toHaveTextContent("Due now and overdue (2)");
-  expect(screen.getByTestId("task-queue-overdue")).toHaveTextContent("(1)");
-  expect(screen.getByTestId("task-queue-all")).not.toHaveTextContent("(9)");
-  expect(screen.getByTestId("task-count")).toHaveTextContent("1 task");
-  // the first list asked for is the one that needs action
-  expect(api.get.mock.calls.find((c) => c[0] === "/order-tasks/")[1].params.queue).toBe("needs_action");
+  expect(await screen.findByTestId("grid-cell-21")).toBeInTheDocument();
+  expect(screen.getByText("Task Manager")).toBeInTheDocument();
+  expect(screen.getByTestId("legend-overdue")).toHaveTextContent("Overdue 1");
+  expect(screen.getByTestId("legend-due")).toHaveTextContent("Due now 1");
+  expect(screen.getByTestId("task-filter-assigned")).toBeInTheDocument();
 });
 
-test("an overdue task is flagged with how late it is", async () => {
-  list = [TASK({ overdue: true, minutes_late: 95 })];
+test("the filters ask the server for them", async () => {
   render(<TaskWorklist />);
-  expect(await screen.findByTestId("task-late-21")).toHaveTextContent("95 min late");
-});
-
-test("switching the queue and the filters asks the server for them", async () => {
-  render(<TaskWorklist />);
-  await screen.findByTestId("task-row-21");
-  fireEvent.click(screen.getByTestId("task-queue-missed"));
-  await waitFor(() => expect(api.get.mock.calls.some((c) => c[0] === "/order-tasks/" && c[1].params.queue === "missed")).toBe(true));
+  await screen.findByTestId("grid-cell-21");
   fireEvent.change(screen.getByTestId("task-search"), { target: { value: "amox" } });
   await waitFor(() => expect(api.get.mock.calls.some((c) => c[0] === "/order-tasks/" && c[1].params.q === "amox")).toBe(true));
   fireEvent.change(screen.getByTestId("task-filter-assigned"), { target: { value: "me" } });
   await waitFor(() => expect(api.get.mock.calls.some((c) => c[0] === "/order-tasks/" && c[1].params.assigned === "me")).toBe(true));
 });
 
-test("giving a dose on time sends the dose given and tells the menu badge", async () => {
-  const heard = jest.fn();
-  window.addEventListener("tasks-changed", heard);
+test("the arrows and the date box move between days; Today comes back", async () => {
   render(<TaskWorklist />);
-  fireEvent.click(await screen.findByTestId("task-complete-21"));
-  expect(screen.getByTestId("task-dose-given")).toHaveValue("500 mg");
-  expect(screen.queryByTestId("task-late-hint")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByTestId("task-action-submit"));
-  await waitFor(() => expect(api.post).toHaveBeenCalled());
-  expect(api.post.mock.calls[0][0]).toBe("/order-tasks/21/action/");
-  expect(api.post.mock.calls[0][1]).toMatchObject({ action: "complete", dose_given: "500 mg", route_given: "PO" });
-  await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Documented."));
-  expect(heard).toHaveBeenCalled();
-  window.removeEventListener("tasks-changed", heard);
+  await screen.findByTestId("grid-cell-21");
+  const lastParams = () => api.get.mock.calls.filter((c) => c[0] === "/order-tasks/").pop()[1].params;
+  const today = new Date(lastParams().from).getTime();
+  fireEvent.click(screen.getByTestId("day-prev"));
+  await waitFor(() => expect(new Date(lastParams().from).getTime()).toBeLessThan(today));
+  expect(lastParams().include_earlier).toBeUndefined(); // a past day does not drag in today's backlog
+  expect(screen.queryByTestId("grid-earlier-head")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByTestId("day-today"));
+  await waitFor(() => expect(new Date(lastParams().from).getTime()).toBe(today));
+  fireEvent.click(screen.getByTestId("day-next"));
+  await waitFor(() => expect(new Date(lastParams().from).getTime()).toBeGreaterThan(today));
+  fireEvent.change(screen.getByTestId("day-input"), { target: { value: "2026-10-01" } });
+  await waitFor(() => expect(new Date(lastParams().from).getTime()).toBe(new Date(2026, 9, 1).getTime()));
 });
 
-test("a dose far from its due time needs a note before anything is sent", async () => {
-  list = [TASK({ due_at: minutesAgo(180) })];
+test("a server error is shown", async () => {
+  api.get.mockImplementation((url) => {
+    if (url === "/order-task-meta/") return Promise.resolve({ data: META() });
+    return Promise.reject({ response: { status: 500, data: {} } });
+  });
   render(<TaskWorklist />);
-  fireEvent.click(await screen.findByTestId("task-complete-21"));
-  expect(screen.getByTestId("task-late-hint")).toHaveTextContent("60 minutes");
-  fireEvent.click(screen.getByTestId("task-action-submit"));
-  expect(await screen.findByTestId("task-action-error")).toHaveTextContent("outside its time window");
-  expect(api.post).not.toHaveBeenCalled();
-  fireEvent.change(screen.getByTestId("task-note"), { target: { value: "Patient was in radiology" } });
-  fireEvent.click(screen.getByTestId("task-action-submit"));
-  await waitFor(() => expect(api.post).toHaveBeenCalled());
-  expect(api.post.mock.calls[0][1].note).toBe("Patient was in radiology");
+  expect(await screen.findByText(/Could not load the tasks/)).toBeInTheDocument();
+});
+
+test("a role the server turns away gets a plain message", async () => {
+  api.get.mockReset();
+  api.get.mockRejectedValue({ response: { status: 403, data: {} } });
+  render(<TaskWorklist />);
+  expect(await screen.findByTestId("tasks-denied")).toBeInTheDocument();
 });
 
 test("holding needs a reason; the server's own message is shown when it refuses", async () => {
   render(<TaskWorklist />);
-  fireEvent.click(await screen.findByTestId("task-hold-21"));
-  fireEvent.click(screen.getByTestId("task-action-submit"));
+  fireEvent.click(await screen.findByTestId("grid-cell-21"));
+  fireEvent.click(await screen.findByTestId("task-completed-hold"));
+  fireEvent.click(await screen.findByTestId("task-action-submit"));
   expect(await screen.findByTestId("task-action-error")).toHaveTextContent("Say why it was held.");
   expect(api.post).not.toHaveBeenCalled();
   fireEvent.change(screen.getByTestId("task-reason"), { target: { value: "NPO" } });
@@ -167,32 +163,28 @@ test("holding needs a reason; the server's own message is shown when it refuses"
 
 test("refusing starts with 'Patient refused' as the reason", async () => {
   render(<TaskWorklist />);
-  fireEvent.click(await screen.findByTestId("task-refuse-21"));
-  expect(screen.getByTestId("task-reason")).toHaveValue("Patient refused");
+  fireEvent.click(await screen.findByTestId("grid-cell-21"));
+  fireEvent.click(await screen.findByTestId("task-completed-refuse"));
+  expect(await screen.findByTestId("task-reason")).toHaveValue("Patient refused");
   fireEvent.click(screen.getByTestId("task-action-submit"));
   await waitFor(() => expect(api.post).toHaveBeenCalled());
   expect(api.post.mock.calls[0][1]).toMatchObject({ action: "refuse", reason: "Patient refused" });
 });
 
-test("a user who may only view sees the tasks without any action buttons", async () => {
-  list = [TASK({ actions: [] })];
-  api.get.mockImplementationOnce(() => Promise.resolve({ data: META({ can_perform: false }) }));
+test("giving a dose from the full form sends the dose given", async () => {
   render(<TaskWorklist />);
-  await screen.findByTestId("task-row-21");
-  expect(screen.queryByTestId("task-complete-21")).not.toBeInTheDocument();
-  expect(screen.queryByTestId("task-hold-21")).not.toBeInTheDocument();
+  fireEvent.click(await screen.findByTestId("grid-cell-21"));
+  fireEvent.click(await screen.findByTestId("task-completed-more"));
+  expect(await screen.findByTestId("task-dose-given")).toHaveValue("500 mg");
+  fireEvent.click(screen.getByTestId("task-action-submit"));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][1]).toMatchObject({ action: "complete", dose_given: "500 mg", route_given: "PO" });
 });
 
-test("a role the server turns away gets a plain message", async () => {
-  api.get.mockReset();
-  api.get.mockRejectedValue({ response: { status: 403, data: {} } });
+test("opening a finished task shows its history and lets a nurse add a note", async () => {
+  list = [TASK({ status: "done", performed_by_initials: "JS", performed_at: NOWISO, actions: ["note"] })];
   render(<TaskWorklist />);
-  expect(await screen.findByTestId("tasks-denied")).toBeInTheDocument();
-});
-
-test("opening a row shows its history and lets a nurse add a note", async () => {
-  render(<TaskWorklist />);
-  fireEvent.click(await screen.findByTestId("task-row-21"));
+  fireEvent.click(await screen.findByTestId("grid-cell-21"));
   await waitFor(() => expect(screen.getByTestId("task-detail-dialog")).toHaveTextContent("created"));
   fireEvent.click(screen.getByTestId("task-add-note"));
   fireEvent.change(screen.getByTestId("task-note"), { target: { value: "Tolerated well" } });
@@ -201,20 +193,21 @@ test("opening a row shows its history and lets a nurse add a note", async () => 
   expect(api.post.mock.calls[0][1]).toMatchObject({ action: "note", note: "Tolerated well" });
 });
 
-test("the patient's Task List tab is scoped to that patient and has no patient column", async () => {
+test("the patient's Task List tab is that patient's grid", async () => {
   render(<TasksPanel patient={{ id: 3, name: "Ann Lee" }} />);
   expect(await screen.findByText("Tasks — Ann Lee")).toBeInTheDocument();
-  await screen.findByTestId("task-row-21");
+  await screen.findByTestId("grid-cell-21");
   const call = api.get.mock.calls.find((c) => c[0] === "/order-tasks/");
-  expect(call[1].params).toMatchObject({ patient: 3, queue: "all" });
-  expect(screen.queryByText("Patient / bed")).not.toBeInTheDocument();
+  expect(call[1].params).toMatchObject({ patient: 3, queue: "grid" });
+  expect(screen.queryByRole("columnheader", { name: "Patient / bed" })).not.toBeInTheDocument();
   expect(screen.queryByTestId("task-filter-assigned")).not.toBeInTheDocument();
 });
 
 test("an as-needed dose: the server's minimum-gap refusal asks for a reason, then gives it", async () => {
   render(<TaskWorklist patient={{ id: 3, name: "Ann Lee" }} />);
   fireEvent.click(await screen.findByTestId("task-prn"));
-  expect(await screen.findByTestId("prn-dialog")).toHaveTextContent("Acetaminophen 650 mg");
+  await screen.findByTestId("prn-dialog");
+  await waitFor(() => expect(screen.getByTestId("prn-dialog")).toHaveTextContent("Acetaminophen 650 mg"));
   fireEvent.change(screen.getByTestId("prn-reason"), { target: { value: "Pain 7/10" } });
   api.post.mockRejectedValueOnce({ response: { status: 409, data: { detail: "The last dose was given 08:00. At least 4 hours are needed between doses. Give a reason to give it anyway." } } });
   fireEvent.click(screen.getByTestId("prn-submit"));

@@ -9,19 +9,13 @@ import {
   DialogContent,
   DialogTitle,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import { toast } from "../SimpleToast";
-import { announceTaskChange, errorText, fmtDateTime, runTaskAction } from "./taskShared";
+import { announceTaskChange, errorText, fmtDateTime, fmtTime, runTaskAction } from "./taskShared";
 
 /** "Task Completed?" -- one question, Yes records it as done now. Late ones must say why, as everywhere else. */
 export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, onMore }) {
@@ -29,6 +23,7 @@ export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const late = Math.abs(Date.now() - new Date(task.due_at).getTime()) > graceMinutes * 60000;
+  const can = (a) => (task.actions || []).includes(a);
 
   const yes = async () => {
     if (late && !note.trim()) return setError("This is outside its time window. Say why in the note.");
@@ -72,10 +67,22 @@ export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, 
           </>
         )}
       </DialogContent>
-      <DialogActions sx={{ justifyContent: "space-between" }}>
-        <Button size="small" onClick={() => onMore(task)} disabled={busy} data-testid="task-completed-more">
-          More options
-        </Button>
+      <DialogActions sx={{ justifyContent: "space-between", flexWrap: "wrap" }}>
+        <Box>
+          <Button size="small" onClick={() => onMore(task, "complete")} disabled={busy} data-testid="task-completed-more">
+            More options
+          </Button>
+          {can("hold") && (
+            <Button size="small" onClick={() => onMore(task, "hold")} disabled={busy} data-testid="task-completed-hold">
+              Hold
+            </Button>
+          )}
+          {can("refuse") && (
+            <Button size="small" color="error" onClick={() => onMore(task, "refuse")} disabled={busy} data-testid="task-completed-refuse">
+              Refused
+            </Button>
+          )}
+        </Box>
         <Box>
           <Button onClick={onClose} disabled={busy} data-testid="task-completed-no">
             No
@@ -89,121 +96,197 @@ export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, 
   );
 }
 
-const STATE_WORD = { held: "Held", refused: "Refused", missed: "Missed", cancelled: "Cancelled" };
+export const DUE_BG = "#c8e6c9"; // light green: due now
+export const OVERDUE_BG = "#f8c9d4"; // light pink: overdue
+const WORD = { held: "Held", refused: "Refused", missed: "Missed" };
+const HOURS = Array.from({ length: 24 }, (_, h) => h);
+const LEFT = [150, 230, 120]; // widths of the three fixed columns
 
-/** The status square: empty while waiting, a check and the initials of whoever did it once done. */
-function StatusCell({ task, canPerform, onPick }) {
-  if (task.status === "pending") {
-    const box = (
-      <Box
-        component={canPerform ? "button" : "span"}
-        type={canPerform ? "button" : undefined}
-        aria-label={`Document ${task.title}`}
-        onClick={canPerform ? () => onPick(task) : undefined}
-        data-testid={`grid-status-${task.id}`}
-        sx={{
-          width: 56, height: 28, borderRadius: 1, bgcolor: "transparent", cursor: canPerform ? "pointer" : "default",
-          border: "2px solid", borderColor: task.overdue ? "error.main" : "divider", display: "inline-block",
-          "&:hover": canPerform ? { borderColor: "primary.main" } : undefined,
-        }}
-      />
+/** One task's mark inside its hour cell: pink/green when it needs doing, a check and initials when done. */
+function Mark({ task, canClick, onPick }) {
+  const time = fmtTime(task.due_at);
+  const can = (task.actions || []).includes("complete");
+  const clickable = task.status === "done" || task.status === "held" || task.status === "refused" || (canClick && can && (task.status === "pending" || task.status === "missed"));
+  let content;
+  let sx = {};
+  let word;
+  if (task.status === "done") {
+    word = "Done";
+    content = (
+      <>
+        <CheckIcon sx={{ fontSize: 16, color: "success.main" }} />
+        <b>{task.performed_by_initials}</b>
+      </>
     );
-    return task.overdue ? <Tooltip title={`${task.minutes_late} min late`}>{box}</Tooltip> : box;
+  } else if (task.status === "held" || task.status === "refused") {
+    word = WORD[task.status];
+    content = (
+      <>
+        <span>{word}</span>
+        <b>{task.performed_by_initials}</b>
+      </>
+    );
+    sx = { color: "warning.dark" };
+  } else if (task.status === "missed") {
+    word = "Missed";
+    content = <b>{time}</b>;
+    sx = { color: "#d32f2f", fontWeight: 700 };
+  } else {
+    word = task.overdue ? "Overdue" : task.due_now ? "Due" : "Scheduled";
+    content = <span>{time}</span>;
+    if (task.overdue) sx = { backgroundColor: OVERDUE_BG };
+    else if (task.due_now) sx = { backgroundColor: DUE_BG };
   }
-  const initials = task.performed_by_initials || "";
-  const done = task.status === "done";
-  return (
+  const tip = task.performed_at ? `Documented ${fmtDateTime(task.performed_at)}${task.performed_by_name ? ` by ${task.performed_by_name}` : ""}` : task.overdue ? `${task.minutes_late} min late` : "";
+  const box = (
     <Box
-      component="button"
-      type="button"
-      aria-label={`${done ? "Done" : STATE_WORD[task.status] || task.status_label}${initials ? ` by ${initials}` : ""}: ${task.title}`}
-      onClick={() => onPick(task)}
-      data-testid={`grid-status-${task.id}`}
-      sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, border: 0, bgcolor: "transparent", cursor: "pointer", p: 0.5, color: done ? "success.main" : "warning.main", font: "inherit" }}
+      component={clickable ? "button" : "span"}
+      type={clickable ? "button" : undefined}
+      aria-label={`${word}: ${task.title} at ${time}`}
+      data-testid={`grid-cell-${task.id}`}
+      data-state={task.status === "pending" ? (task.overdue ? "overdue" : task.due_now ? "due" : "scheduled") : task.status}
+      onClick={clickable ? () => onPick(task) : undefined}
+      sx={{
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, width: "100%", minHeight: 28, px: 0.5, border: 0, borderRadius: 0.5,
+        bgcolor: "transparent", font: "inherit", fontSize: 12, cursor: clickable ? "pointer" : "default", color: "text.primary",
+        "&:hover": clickable ? { outline: "2px solid", outlineColor: "primary.main" } : undefined, ...sx,
+      }}
     >
-      {done ? <CheckIcon fontSize="small" /> : <Typography variant="caption" fontWeight={700}>{STATE_WORD[task.status] || task.status_label}</Typography>}
-      <Typography variant="body2" fontWeight={700} component="span" sx={{ color: "text.primary" }}>
-        {initials}
-      </Typography>
+      {content}
     </Box>
   );
+  return tip ? <Tooltip title={tip}>{box}</Tooltip> : box;
 }
 
 /**
- * The last-24-hours grid: one row per task -- patient/bed, task, frequency, time, status.
- * Pending cells are empty squares you click to answer "Task Completed?"; finished ones show a check and the initials.
+ * The day grid, laid out like the eMAR: the task on the left, the hours of the day across the top, and each
+ * task's mark in the hour it is due. An "Earlier" column holds anything from before this day still waiting or missed.
  */
-export default function TaskGrid({ rows, loading, scoped, canPerform, graceMinutes, onOpen, onChanged, onMore }) {
+export default function TaskGrid({ rows, day, showEarlier, loading, scoped, canPerform, graceMinutes, onOpen, onChanged, onMore }) {
   const [asking, setAsking] = useState(null);
-  const cols = scoped ? 4 : 5;
+  const start = day.getTime();
+  const end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
+  const now = new Date();
+  const isToday = now.getTime() >= start && now.getTime() < end;
+  const hasEarlier = rows.some((t) => new Date(t.due_at).getTime() < start);
+  const earlier = showEarlier && hasEarlier;
+
+  // one line per order (per patient), each with its tasks sorted into the hour they fall in
+  const lines = [];
+  const byKey = new Map();
+  rows.forEach((t) => {
+    const key = `${t.patient}-${t.order}`;
+    let line = byKey.get(key);
+    if (!line) {
+      line = { key, first: t, cells: new Map() };
+      byKey.set(key, line);
+      lines.push(line);
+    }
+    const due = new Date(t.due_at);
+    const slot = due.getTime() < start ? "earlier" : due.getHours();
+    if (!line.cells.has(slot)) line.cells.set(slot, []);
+    line.cells.get(slot).push(t);
+  });
 
   const pick = (task) => {
-    if (task.status === "pending") setAsking(task);
+    if (task.status === "pending" || task.status === "missed") setAsking(task);
     else onOpen(task.id);
   };
 
+  const headCell = { position: "sticky", top: 0, zIndex: 3, backgroundColor: "grey.100", borderBottom: 1, borderColor: "divider", fontSize: 12, fontWeight: 600, p: 0.75, whiteSpace: "nowrap" };
+  const cell = { borderBottom: 1, borderRight: 1, borderColor: "divider", p: 0.25, verticalAlign: "middle", textAlign: "center", fontSize: 12, minWidth: 56 };
+  const fixed = [!scoped && "Patient / bed", "Task", "Frequency"].filter(Boolean);
+  const widths = scoped ? [LEFT[1], LEFT[2]] : LEFT;
+  const stickyAt = (i) => {
+    const w = widths.slice(0, i).reduce((a, b) => a + b, 0);
+    return { position: "sticky", left: w, zIndex: 2, backgroundColor: "background.paper", minWidth: widths[i], maxWidth: widths[i] };
+  };
+  const span = fixed.length + (earlier ? 1 : 0) + 24;
+
   return (
     <>
-      <TableContainer component={Paper} variant="outlined" data-testid="task-grid">
-        <Table size="small" aria-label="Last 24 hours" sx={{ "& td, & th": { borderRight: 1, borderColor: "divider" }, "& td:last-of-type, & th:last-of-type": { borderRight: 0 } }}>
-          <TableHead>
-            <TableRow>
-              {!scoped && <TableCell>Patient / bed</TableCell>}
-              <TableCell>Task</TableCell>
-              <TableCell>Frequency</TableCell>
-              <TableCell>Time</TableCell>
-              <TableCell align="center">Status</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={cols}>
+      <Paper variant="outlined" sx={{ overflow: "auto", maxHeight: "68vh" }} data-testid="task-grid">
+        <Box component="table" aria-label="Tasks by hour" sx={{ borderCollapse: "separate", borderSpacing: 0, width: "max-content", minWidth: "100%" }}>
+          <thead>
+            <tr>
+              {fixed.map((h, i) => (
+                <Box component="th" key={h} scope="col" sx={{ ...headCell, ...stickyAt(i), zIndex: 4, textAlign: "left", backgroundColor: "grey.100" }}>
+                  {h}
+                </Box>
+              ))}
+              {earlier && (
+                <Box component="th" scope="col" sx={{ ...headCell, textAlign: "center", minWidth: 64 }} data-testid="grid-earlier-head">
+                  Earlier
+                </Box>
+              )}
+              {HOURS.map((h) => (
+                <Box
+                  component="th"
+                  key={h}
+                  scope="col"
+                  data-testid={`grid-hour-${h}`}
+                  sx={{ ...headCell, textAlign: "center", minWidth: 56, ...(isToday && h === now.getHours() ? { backgroundColor: "#e3f2fd", color: "primary.main" } : {}) }}
+                >
+                  {`${h}:00`}
+                </Box>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {loading && lines.length === 0 && (
+              <tr>
+                <td colSpan={span} style={{ padding: 12 }}>
                   <CircularProgress size={20} />
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={cols} data-testid="task-empty">
+            {!loading && lines.length === 0 && (
+              <tr>
+                <td colSpan={span} style={{ padding: 12 }} data-testid="task-empty">
                   <Typography variant="body2" color="text.secondary">
-                    Nothing in the last 24 hours.
+                    No tasks for this day.
                   </Typography>
-                </TableCell>
-              </TableRow>
+                </td>
+              </tr>
             )}
-            {rows.map((t) => (
-              <TableRow key={t.id} data-testid={`grid-row-${t.id}`}>
-                {!scoped && (
-                  <TableCell>
-                    <Typography variant="body2">{t.patient_name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {[t.unit_name, t.room_name, t.bed_name].filter(Boolean).join(" · ")}
+            {lines.map((line) => {
+              const t = line.first;
+              const slots = earlier ? ["earlier", ...HOURS] : HOURS;
+              return (
+                <tr key={line.key} data-testid={`grid-row-${t.order}`}>
+                  {!scoped && (
+                    <Box component="td" sx={{ ...cell, ...stickyAt(0), textAlign: "left", p: 0.75 }}>
+                      <Typography variant="body2">{t.patient_name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {[t.unit_name, t.room_name, t.bed_name].filter(Boolean).join(" · ")}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Box component="td" sx={{ ...cell, ...stickyAt(scoped ? 0 : 1), textAlign: "left", p: 0.75 }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {t.title}
                     </Typography>
-                  </TableCell>
-                )}
-                <TableCell>
-                  <Typography variant="body2" fontWeight={600}>
-                    {t.title}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {[t.dose, t.route].filter(Boolean).join(" ")}
-                  </Typography>
-                </TableCell>
-                <TableCell>{t.frequency_label}</TableCell>
-                <TableCell>
-                  <Tooltip title={t.performed_at ? `Documented ${fmtDateTime(t.performed_at)}` : ""} disableHoverListener={!t.performed_at}>
-                    <span>{t.is_prn ? `PRN ${fmtDateTime(t.due_at)}` : fmtDateTime(t.due_at)}</span>
-                  </Tooltip>
-                </TableCell>
-                <TableCell align="center">
-                  <StatusCell task={t} canPerform={canPerform} onPick={pick} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                    <Typography variant="caption" color="text.secondary">
+                      {[t.dose, t.route].filter(Boolean).join(" ")}
+                      {t.instructions ? ` · ${t.instructions}` : ""}
+                    </Typography>
+                  </Box>
+                  <Box component="td" sx={{ ...cell, ...stickyAt(scoped ? 1 : 2), textAlign: "left", p: 0.75 }}>
+                    {t.frequency_label}
+                  </Box>
+                  {slots.map((slot) => (
+                    <Box component="td" key={slot} sx={cell} data-testid={`grid-slot-${t.order}-${slot}`}>
+                      {(line.cells.get(slot) || []).map((task) => (
+                        <Mark key={task.id} task={task} canClick={canPerform} onPick={pick} />
+                      ))}
+                    </Box>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </Box>
+      </Paper>
       {asking && (
         <TaskCompletedDialog
           task={asking}
@@ -213,9 +296,9 @@ export default function TaskGrid({ rows, loading, scoped, canPerform, graceMinut
             setAsking(null);
             onChanged();
           }}
-          onMore={(t) => {
+          onMore={(t, action) => {
             setAsking(null);
-            onMore(t);
+            onMore(t, action);
           }}
         />
       )}
