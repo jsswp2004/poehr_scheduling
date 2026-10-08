@@ -24,6 +24,7 @@ import MedicationIcon from "@mui/icons-material/Medication";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { PrnDialog, TaskActionDialog, TaskDetailDialog } from "./TaskDialogs";
+import TaskGrid from "./TaskGrid";
 import { STATUS_COLOR, authHeader, errorText, fmtDateTime, fmtTime, loadTaskMeta } from "./taskShared";
 
 const PAGE_SIZE = 50;
@@ -178,6 +179,18 @@ export default function TaskWorklist({ patient = null }) {
 
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
 
+      {queue === "completed" ? (
+        <TaskGrid
+          rows={rows}
+          loading={loading}
+          scoped={scoped}
+          canPerform={canPerform}
+          graceMinutes={meta?.grace_minutes ?? 60}
+          onOpen={setOpenId}
+          onChanged={() => load(true)}
+          onMore={(task) => setAct({ task, action: "complete" })}
+        />
+      ) : (
       <TableContainer component={Paper} variant="outlined">
         <Table size="small" aria-label="Tasks">
           <TableHead>
@@ -276,6 +289,7 @@ export default function TaskWorklist({ patient = null }) {
           </TableBody>
         </Table>
       </TableContainer>
+      )}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
         <Typography variant="caption" color="text.secondary" data-testid="task-count">
           {total} task{total === 1 ? "" : "s"}

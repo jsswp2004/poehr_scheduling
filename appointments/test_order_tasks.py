@@ -451,7 +451,31 @@ class ApiTests(Base):
     def test_completed_queue(self):
         ot.apply_action(self.due, self.nurse, "refuse", {})
         r = self.api().get("/api/order-tasks/?queue=completed").json()
-        self.assertEqual(r["results"][0]["status"], "refused")
+        row = next(x for x in r["results"] if x["id"] == self.due.pk)
+        self.assertEqual(row["status"], "refused")
+
+    def test_last_24h_grid_lists_documented_and_still_waiting_tasks(self):
+        # documented in the window: in, with the initials of whoever did it
+        ot.apply_action(self.due, self.nurse, "complete", {"note": "Patient was in X-ray"})
+        # due 3 h ago and still pending: in, so it can be ticked off from the grid
+        waiting = OrderTask.objects.exclude(pk=self.due.pk).first()
+        OrderTask.objects.filter(pk=waiting.pk).update(due_at=timezone.now() - timedelta(hours=3), status="pending")
+        r = self.api().get("/api/order-tasks/?queue=completed").json()
+        by_id = {x["id"]: x for x in r["results"]}
+        self.assertEqual(by_id[self.due.pk]["status"], "done")
+        expected = ((self.nurse.first_name or "")[:1] + (self.nurse.last_name or "")[:1]).upper() or self.nurse.username[:2].upper()
+        self.assertEqual(by_id[self.due.pk]["performed_by_initials"], expected)
+        self.assertEqual(by_id[waiting.pk]["status"], "pending")
+        self.assertEqual(by_id[waiting.pk]["performed_by_initials"], "")
+
+    def test_last_24h_grid_leaves_out_old_and_future_pending_tasks(self):
+        waiting = OrderTask.objects.exclude(pk=self.due.pk).first()
+        OrderTask.objects.filter(pk=waiting.pk).update(due_at=timezone.now() - timedelta(hours=30), status="pending")
+        ids = [x["id"] for x in self.api().get("/api/order-tasks/?queue=completed").json()["results"]]
+        self.assertNotIn(waiting.pk, ids)
+        OrderTask.objects.filter(pk=waiting.pk).update(due_at=timezone.now() + timedelta(hours=5))
+        ids = [x["id"] for x in self.api().get("/api/order-tasks/?queue=completed").json()["results"]]
+        self.assertNotIn(waiting.pk, ids)
 
     def test_prn_endpoints(self):
         prn = self.med({"frequency": "prn", "prn_reason": "pain", "min_interval_hours": 4})
