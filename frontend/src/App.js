@@ -29,6 +29,7 @@ import SettingsPage from './pages/SettingsPage';
 import { autoMigrate } from './utils/tokenMigration';
 import HolidaysTab from './pages/HolidaysPage';
 import EnvironmentProfilePage from './pages/EnvironmentProfilePage';
+import FacilityPicker from './components/facility/FacilityPicker';
 import AdminUserSearchPage from './pages/AdminUserSearchPage';
 import NoteTemplateBuilderPage from './pages/NoteTemplateBuilderPage';
 import FlowsheetBuilderPage from './pages/FlowsheetBuilderPage';
@@ -215,7 +216,7 @@ function AppContent() {
         <Route path="/create-profile" element={<PrivateRoute><CreateProfilePage /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
         <Route path="/holidays" element={<PrivateRoute><HolidaysTab /></PrivateRoute>} />
-        <Route path="/environment" element={<PrivateRoute><EnvironmentProfilePage /></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
+        <Route path="/environment" element={<PrivateRoute><FacilityPicker><EnvironmentProfilePage /></FacilityPicker></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
         <Route path="/note-builder" element={<PrivateRoute><NoteTemplateBuilderPage /></PrivateRoute>} />
         <Route path="/flowsheet-builder" element={<PrivateRoute><FlowsheetBuilderPage /></PrivateRoute>} />

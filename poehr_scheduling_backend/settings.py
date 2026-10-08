@@ -208,7 +208,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 # in preflight response").
 from corsheaders.defaults import default_headers as _cors_default_headers
 
-CORS_ALLOW_HEADERS = list(_cors_default_headers) + ["cache-control", "pragma"]
+CORS_ALLOW_HEADERS = list(_cors_default_headers) + ["cache-control", "pragma", "x-facility-id"]
 
 # Email settings
 #

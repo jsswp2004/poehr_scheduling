@@ -27,6 +27,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "./headerApi";
+import { applyToFacilities } from "../../utils/facilityScope";
 
 // Gives each switch a spoken name ("Show MRN") without drawing any extra text.
 const VISUALLY_HIDDEN = {
@@ -104,11 +105,13 @@ function PatientHeaderSettings() {
   const save = async () => {
     setBusy(true);
     try {
-      const headers = await authHeader();
-      const res = await api.put(
-        apiEndpoints.patientHeaderConfig,
-        { items: items.map((i) => ({ key: i.key, visible: i.visible })) },
-        { headers }
+      // one facility, or (All facilities) the same save for each facility in turn
+      const res = await applyToFacilities(async () =>
+        api.put(
+          apiEndpoints.patientHeaderConfig,
+          { items: items.map((i) => ({ key: i.key, visible: i.visible })) },
+          { headers: await authHeader() }
+        )
       );
       setItems(res.data.items);
       setSaved(snapshot(res.data.items));
@@ -124,10 +127,12 @@ function PatientHeaderSettings() {
     if (!window.confirm(`Delete "${item.label}"? Its values on every patient are deleted too.`)) return;
     setBusy(true);
     try {
-      const headers = await authHeader();
-      const fields = await api.get(apiEndpoints.patientHeaderFields, { headers });
-      const field = (fields.data || []).find((f) => f.item_key === item.key);
-      if (field) await api.delete(apiEndpoints.patientHeaderField(field.id), { headers });
+      await applyToFacilities(async () => {
+        const headers = await authHeader();
+        const fields = await api.get(apiEndpoints.patientHeaderFields, { headers });
+        const field = (fields.data || []).find((f) => f.item_key === item.key);
+        if (field) await api.delete(apiEndpoints.patientHeaderField(field.id), { headers });
+      });
       const next = items.filter((i) => i.key !== item.key);
       setItems(next);
       setSaved(snapshot(next)); // the server dropped it from the layout as well
@@ -252,8 +257,9 @@ function AddItemDialog({ onClose, onCreated }) {
   const create = async () => {
     setBusy(true);
     try {
-      const headers = await authHeader();
-      const res = await api.post(apiEndpoints.patientHeaderFields, { label, field_type: fieldType, alert }, { headers });
+      const res = await applyToFacilities(async () =>
+        api.post(apiEndpoints.patientHeaderFields, { label, field_type: fieldType, alert }, { headers: await authHeader() })
+      );
       onCreated(res.data);
     } catch (err) {
       toast.error(errorText(err, "Could not add the item."));

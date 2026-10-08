@@ -172,7 +172,8 @@ class HeaderFieldViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = HeaderFieldDefinition.objects.all()
         if user.role == "system_admin":
-            org_id = self.request.query_params.get("org")
+            # ?org=ID, else the facility the system admin is acting for (the Settings picker), else all
+            org_id = self.request.query_params.get("org") or user.organization_id
             return qs.filter(organization_id=org_id) if org_id else qs
         return qs.filter(organization=user.organization)
 

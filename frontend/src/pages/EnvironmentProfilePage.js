@@ -14,10 +14,6 @@ import {
   Tabs,
   Tab,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
 } from "@mui/material";
 import axios from "axios";
 import { API_BASE_URL } from '../config/api';
@@ -27,6 +23,8 @@ import ClinicEventsManagement from "../components/ClinicEventsManagement";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import { getValidToken } from "../utils/auth";
+import { applyToFacilities, useFacilityScope } from "../utils/facilityScope";
+import SingleFacilityOnly from "../components/facility/SingleFacilityOnly";
 
 const DAYS = [
   { label: "Mon", value: 1 },
@@ -45,8 +43,7 @@ function EnvironmentProfilePage() {
   const [loading, setLoading] = useState(true);
   const [tabKey, setTabKey] = useState("blocked-days");
   const [userRole, setUserRole] = useState("");
-  const [organizations, setOrganizations] = useState([]);
-  const [selectedOrganization, setSelectedOrganization] = useState("");
+  const facility = useFacilityScope(); // system administrators: which facility the picker above has chosen
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -71,54 +68,18 @@ function EnvironmentProfilePage() {
   }, [navigate]);
 
   useEffect(() => {
-    // Fetch organizations for system admin
-    const fetchOrganizations = async () => {
-      if (userRole === "system_admin") {
-        try {
-          const token = await getValidToken();
-          if (!token) return;
-          // Try the correct endpoint first: /api/users/organizations/
-          const res = await axios.get(`${API_BASE_URL}/api/users/organizations/`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          setOrganizations(res.data);
-          if (res.data.length > 0) {
-            setSelectedOrganization(res.data[0].id);
-          }
-        } catch (err) {
-          console.error("Failed to fetch organizations:", err);
-          setOrganizations([]);
-          console.log("No organizations found. System admin should create organizations first.");
-        }
-      }
-    };
-    fetchOrganizations();
-  }, [userRole]);
-
-  useEffect(() => {
     async function fetchSettings() {
       setLoading(true);
       try {
         const token = await getValidToken();
         if (!token) throw new Error("Not authenticated");
-        const params = {};
-        if (userRole === "system_admin" && selectedOrganization) {
-          params.organization_id = selectedOrganization;
-        }
-
-        console.log("Fetching settings with params:", params);
-        console.log("User role:", userRole);
-        console.log("Selected organization:", selectedOrganization);
-
         const res = await axios.get(
           `${API_BASE_URL}/api/settings/environment/`,
           {
             headers: { Authorization: `Bearer ${token}` },
-            params,
           }
         );
 
-        console.log("Settings response:", res.data);
         setBlockedDays(res.data.blocked_days || []);
         setStatus(""); // Clear any previous error status
       } catch (err) {
@@ -130,18 +91,11 @@ function EnvironmentProfilePage() {
       setLoading(false);
     }
 
-    console.log("Checking if should fetch settings:");
-    console.log("userRole:", userRole);
-    console.log("selectedOrganization:", selectedOrganization);
-    console.log("Condition userRole && (userRole !== 'system_admin' || selectedOrganization):", userRole && (userRole !== "system_admin" || selectedOrganization));
-
-    if (userRole && (userRole !== "system_admin" || selectedOrganization)) {
-      console.log("Fetching settings...");
+    // a system administrator picks the facility above first; the request then carries it
+    if (userRole && (userRole !== "system_admin" || facility.choice)) {
       fetchSettings();
-    } else {
-      console.log("Not fetching settings - condition not met");
     }
-  }, [userRole, selectedOrganization]);
+  }, [userRole, facility.choice]);
 
   const handleCheckbox = (dayValue) => {
     setBlockedDays((prev) =>
@@ -158,17 +112,15 @@ function EnvironmentProfilePage() {
       const token = await getValidToken();
       if (!token) throw new Error("Not authenticated");
       const payload = { blocked_days: blockedDays };
-      if (userRole === "system_admin" && selectedOrganization) {
-        payload.organization_id = selectedOrganization;
-      }
-      await axios.post(
-        `${API_BASE_URL}/api/settings/environment/`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
+      // one facility, or (All facilities) the same save for each facility in turn
+      await applyToFacilities(() =>
+        axios.post(`${API_BASE_URL}/api/settings/environment/`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
       );
       setStatus("Saved!");
     } catch (e) {
-      setStatus("Failed to save.");
+      setStatus(e.partial ? e.message : "Failed to save.");
       console.error(e);
     }
     setSaving(false);
@@ -216,38 +168,9 @@ function EnvironmentProfilePage() {
 
       {tabKey === "blocked-days" && (
         <Box sx={{ p: 2 }}>
-          {userRole === "system_admin" ? (
-            <>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Organization Default Blocked Days
-              </Typography>
-              <FormControl fullWidth sx={{ mb: 2 }}>
-                <InputLabel>Select Organization</InputLabel>
-                <Select
-                  value={selectedOrganization}
-                  label="Select Organization"
-                  onChange={(e) => setSelectedOrganization(e.target.value)}
-                  disabled={loading || saving || organizations.length === 0}
-                >
-                  {organizations.length === 0 ? (
-                    <MenuItem disabled>
-                      {loading ? "Loading organizations..." : "No organizations found"}
-                    </MenuItem>
-                  ) : (
-                    organizations.map((org) => (
-                      <MenuItem key={org.id} value={org.id}>
-                        {org.name}
-                      </MenuItem>
-                    ))
-                  )}
-                </Select>
-              </FormControl>
-            </>
-          ) : (
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              Organization Default Blocked Days
-            </Typography>
-          )}
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Organization Default Blocked Days
+          </Typography>
           <Table
             size="small"
             stickyHeader
@@ -311,8 +234,10 @@ function EnvironmentProfilePage() {
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             <b>Organization-wide setting:</b> Select which days are blocked by default for
-            {userRole === "system_admin" && selectedOrganization && organizations.length > 0
-              ? ` ${organizations.find(org => org.id === selectedOrganization)?.name || 'this organization'}'s`
+            {userRole === "system_admin" && facility.choice
+              ? facility.choice === "all"
+                ? " every facility's"
+                : ` ${facility.facilities.find((f) => String(f.id) === facility.choice)?.name || "this facility"}'s`
               : " your organization's"} scheduling.
             This affects all clinic appointments and is separate from individual provider availability.
           </Typography>
@@ -327,11 +252,17 @@ function EnvironmentProfilePage() {
           flexDirection: 'column',
           overflow: 'hidden'
         }}>
-          <ClinicEventsManagement />
+          <SingleFacilityOnly what="Clinic events">
+            <ClinicEventsManagement />
+          </SingleFacilityOnly>
         </Box>
       )}
 
-      {tabKey === "holidays" && <HolidaysTab />}
+      {tabKey === "holidays" && (
+        <SingleFacilityOnly what="Holidays">
+          <HolidaysTab />
+        </SingleFacilityOnly>
+      )}
 
       {tabKey === "organization" && (
         <Box sx={{ p: 2 }}>

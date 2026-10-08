@@ -23,6 +23,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
+import { applyToFacilities, isAllFacilities } from "../../utils/facilityScope";
 import { CARE_SETTINGS } from "../patients/CareSettingSidebar";
 import { CHART_TABS } from "../patients/PatientChartTabs";
 
@@ -236,13 +237,13 @@ function TabManagementSettings() {
     await load();
   };
   const saveDefaults = async (items, defaultTab) => {
-    const headers = await authHeader();
-    await api.put(apiEndpoints.chartTabsDefaults, { care_setting: care, items, default_tab: defaultTab || "patient_list" }, { headers });
+    await applyToFacilities(async () =>
+      api.put(apiEndpoints.chartTabsDefaults, { care_setting: care, items, default_tab: defaultTab || "patient_list" }, { headers: await authHeader() })
+    );
     await load();
   };
   const resetDefaults = async () => {
-    const headers = await authHeader();
-    await api.delete(`${apiEndpoints.chartTabsDefaults}?care_setting=${care}`, { headers });
+    await applyToFacilities(async () => api.delete(`${apiEndpoints.chartTabsDefaults}?care_setting=${care}`, { headers: await authHeader() }));
     await load();
   };
 
@@ -263,7 +264,7 @@ function TabManagementSettings() {
         ))}
       </ToggleButtonGroup>
 
-      {mineHere && (
+      {mineHere && !isAllFacilities() && (
         <TabEditor
           key={`mine-${care}-${version}`}
           testId="my-tabs"
