@@ -376,7 +376,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
 
             <Paper sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <TextField
                             label="Code"
                             value={code}
@@ -386,16 +386,16 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                             helperText={isNew ? "Stable machine key, e.g. 'discharge_note'" : "Locked once created"}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={5}>
+                    <Grid size={{ xs: 12, sm: 5 }}>
                         <TextField label="Name" value={name} fullWidth onChange={(e) => setName(e.target.value)} />
                     </Grid>
-                    <Grid item xs={12} sm={2}>
+                    <Grid size={{ xs: 12, sm: 2 }}>
                         <FormControlLabel
                             control={<Checkbox checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />}
                             label="Active"
                         />
                     </Grid>
-                    <Grid item xs={12} sm={1}>
+                    <Grid size={{ xs: 12, sm: 1 }}>
                         {version !== null && <Chip label={`v${version}`} />}
                     </Grid>
                 </Grid>
@@ -422,7 +422,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                         in that section at once, instead of editing each field individually.
                     </Typography>
                     <Grid container spacing={2} alignItems="center">
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <TextField
                                 select
                                 label="Section"
@@ -439,7 +439,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                 ))}
                             </TextField>
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <TextField
                                 label="Tab name"
                                 fullWidth
@@ -449,7 +449,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                 placeholder="e.g. Review of Systems"
                             />
                         </Grid>
-                        <Grid item xs={12} sm={4}>
+                        <Grid size={{ xs: 12, sm: 4 }}>
                             <Button
                                 variant="outlined"
                                 fullWidth
@@ -506,7 +506,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                         </AccordionSummary>
                         <AccordionDetails>
                             <Grid container spacing={2}>
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
                                         label="Tab"
                                         fullWidth
@@ -515,7 +515,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                         helperText="Optional -- groups sections onto a tab, e.g. 'Review of Systems'"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
                                         label="Section"
                                         fullWidth
@@ -524,7 +524,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                         helperText="Groups fields under a heading, e.g. 'History'"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
                                         label="Key"
                                         fullWidth
@@ -533,7 +533,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                         helperText="Stable id this value is stored under"
                                     />
                                 </Grid>
-                                <Grid item xs={12} sm={3}>
+                                <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
                                         label="Label"
                                         fullWidth
@@ -542,7 +542,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
                                         select
                                         label="Field Type"
@@ -558,7 +558,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     </TextField>
                                 </Grid>
                                 {DICTIONARY_FIELD_TYPES.has(f.field_type) && (
-                                    <Grid item xs={12} sm={4}>
+                                    <Grid size={{ xs: 12, sm: 4 }}>
                                         <TextField
                                             select
                                             label="Dictionary"
@@ -576,7 +576,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                         </TextField>
                                     </Grid>
                                 )}
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
@@ -589,7 +589,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12}>
+                                <Grid size={12}>
                                     <TextField
                                         label="Help text"
                                         fullWidth
@@ -598,7 +598,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     />
                                 </Grid>
 
-                                <Grid item xs={12} sm={6}>
+                                <Grid size={{ xs: 12, sm: 6 }}>
                                     <TextField
                                         select
                                         label="Depends on"
@@ -621,7 +621,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                                     </TextField>
                                 </Grid>
                                 {f.dependsOnClientId && (
-                                    <Grid item xs={12} sm={6}>
+                                    <Grid size={{ xs: 12, sm: 6 }}>
                                         {dependsOnOptions.length > 0 ? (
                                             <TextField
                                                 select
