@@ -39,6 +39,36 @@ class AdmitTests(Base):
         self.assertEqual(acute.json()["results"][0]["current_visit"]["bed_name"], "A")
         self.assertNotIn("Bcs", names(self.as_(self.admin).get(PATIENTS, {"care_setting": "ambulatory"})))
 
+    def test_acute_list_can_be_filtered_by_unit(self):
+        from appointments.models import Unit
+
+        self.admit()  # patient in 3 West
+        other = Unit.objects.create(facility=self.hospital, name="4 East", care_type="inpatient")
+        admin = self.as_(self.admin)
+        hit = admin.get(PATIENTS, {"care_setting": "acute", "unit": self.west.pk})
+        self.assertEqual(names(hit), ["Bcs"])
+        self.assertEqual(hit.json()["results"][0]["current_visit"]["unit_name"], "3 West")
+        self.assertEqual(hit.json()["results"][0]["current_visit"]["room_name"], "312")
+        miss = admin.get(PATIENTS, {"care_setting": "acute", "unit": other.pk})
+        self.assertEqual(names(miss), [])
+        # no filter, a blank one, or junk leaves the list alone
+        for value in ("", "abc", "0x1"):
+            self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute", "unit": value})), ["Bcs"])
+        self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute"})), ["Bcs"])
+
+    def test_unit_filter_follows_a_transfer(self):
+        from appointments.models import Unit
+
+        r = self.admit()
+        east = Unit.objects.create(facility=self.hospital, name="4 East", care_type="inpatient")
+        east_room = Room.objects.create(unit=east, name="401")
+        east_bed = Bed.objects.create(room=east_room, name="A")
+        t = self.as_(self.nurse).post(TRANSFER.format(r.json()["id"]), {"unit": east.pk, "room": east_room.pk, "bed": east_bed.pk}, format="json")
+        self.assertEqual(t.status_code, 200, t.content)
+        admin = self.as_(self.admin)
+        self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute", "unit": east.pk})), ["Bcs"])
+        self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute", "unit": self.west.pk})), [])
+
     def test_bed_must_be_free(self):
         self.admit()
         r = self.admit(patient=self.patient2)

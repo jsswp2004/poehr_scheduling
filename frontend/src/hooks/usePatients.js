@@ -13,6 +13,8 @@ export const usePatients = (navigate, userRole = null) => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [provider, setProvider] = useState('');
+    // Acute Care list: '' = every unit, else a unit id (the Unit column filter)
+    const [unit, setUnitState] = useState('');
     // Sidebar tab: '' = all patients, else ambulatory / emergency / acute. Remembered between visits.
     const [careSetting, setCareSettingState] = useState(() => storedCareSetting());
     const [page, setPage] = useState(1);
@@ -36,8 +38,14 @@ export const usePatients = (navigate, userRole = null) => {
         setProvider(value);
     }, []);
 
+    const setUnit = useCallback((value) => {
+        setUnitState(value);
+        setPage(1); // a filtered list starts on its first page
+    }, []);
+
     const setCareSetting = useCallback((value) => {
         setCareSettingState(value);
+        setUnitState(''); // the unit filter belongs to the Acute Care list
         rememberCareSetting(value);
         setPage(1); // a different list starts on its first page
     }, []);
@@ -75,6 +83,7 @@ export const usePatients = (navigate, userRole = null) => {
                     search,
                     provider,
                     care_setting: careSetting || undefined,
+                    unit: careSetting === 'acute' && unit ? unit : undefined,
                     page,
                     page_size: rowsPerPage,
                 },
@@ -110,7 +119,7 @@ export const usePatients = (navigate, userRole = null) => {
         } finally {
             setLoading(false);
         }
-    }, [search, provider, careSetting, page, navigate, userRole]);
+    }, [search, provider, careSetting, unit, page, navigate, userRole]);
 
     const handleSendText = async (patient, token) => {
         // Open SMS modal instead of sending directly
@@ -270,7 +279,7 @@ export const usePatients = (navigate, userRole = null) => {
     // Auto-fetch patients when search changes
     useEffect(() => {
         fetchPatients();
-    }, [search, provider, careSetting, page, fetchPatients]);
+    }, [search, provider, careSetting, unit, page, fetchPatients]);
 
     return {
         patients,
@@ -279,6 +288,8 @@ export const usePatients = (navigate, userRole = null) => {
         setSearch: memoizedSetSearch,
         provider,
         setProvider: memoizedSetProvider,
+        unit,
+        setUnit,
         careSetting,
         setCareSetting,
         page,
