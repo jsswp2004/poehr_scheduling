@@ -12,6 +12,7 @@ import TaskGrid, { DUE_BG, OVERDUE_BG } from "./TaskGrid";
 import { DEFAULT_COLUMNS, authHeader, errorText, loadTaskMeta } from "./taskShared";
 import { toast } from "../SimpleToast";
 import PatientChartHeader from "../patientHeader/PatientChartHeader";
+import { readLastPatient } from "./lastPatient";
 
 const PAGE_SIZE = 200;
 const MAX_PAGES = 5;
@@ -39,18 +40,20 @@ export default function TaskWorklist({ patient = null }) {
   const [rows, setRows] = useState([]);
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
-  const [assigned, setAssigned] = useState("");
+  // the last patient picked on the Patients page; the Patients filter starts on that patient when there is one
+  const [lastPatient] = useState(readLastPatient);
+  const [assigned, setAssigned] = useState(() => (!patient && lastPatient ? "patient" : "")); // "" = all patients, "me", or "patient"
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [error, setError] = useState("");
   const [act, setAct] = useState(null); // { task, action }
   const [openId, setOpenId] = useState(null);
   const [prn, setPrn] = useState(false);
-  const [picked, setPicked] = useState(null); // { id, name }: the one patient the manager is showing
   const [columns, setColumns] = useState(DEFAULT_COLUMNS);
   const [editingColumns, setEditingColumns] = useState(false);
   const [savingColumns, setSavingColumns] = useState(false);
   const [columnsError, setColumnsError] = useState("");
+  const picked = !scoped && assigned === "patient" ? lastPatient : null; // { id, name }: the patient the banner and grid show
   const seq = useRef(0);
 
   useEffect(() => {
@@ -106,7 +109,7 @@ export default function TaskWorklist({ patient = null }) {
         if (dayKey >= midnight().getTime()) params.include_earlier = 1;
         if (q.trim()) params.q = q.trim();
         if (type) params.task_type = type;
-        if (assigned) params.assigned = assigned;
+        if (assigned === "me") params.assigned = "me";
         const all = [];
         for (let page = 1; page <= MAX_PAGES; page += 1) {
           const list = await api.get(apiEndpoints.orderTasks, { headers, params: { ...params, page } });
@@ -174,10 +177,7 @@ export default function TaskWorklist({ patient = null }) {
 
       {picked && (
         <Box data-testid="task-patient-banner">
-          <PatientChartHeader patientId={picked.id} />
-          <Button size="small" onClick={() => setPicked(null)} sx={{ mb: 1, mt: -1 }} data-testid="task-show-all">
-            ← Show all patients
-          </Button>
+          <PatientChartHeader persistent patientId={picked.id} />
         </Box>
       )}
 
@@ -221,6 +221,7 @@ export default function TaskWorklist({ patient = null }) {
           <TextField select size="small" label="Patients" value={assigned} onChange={(e) => setAssigned(e.target.value)} sx={{ minWidth: 170 }} inputProps={{ "data-testid": "task-filter-assigned" }}>
             <MenuItem value="">All patients</MenuItem>
             <MenuItem value="me">Assigned to me</MenuItem>
+            {lastPatient && <MenuItem value="patient">{lastPatient.name || "Selected patient"}</MenuItem>}
           </TextField>
         )}
       </Stack>
@@ -255,7 +256,6 @@ export default function TaskWorklist({ patient = null }) {
         onOpen={setOpenId}
         onChanged={() => load(true)}
         onMore={(task, action) => setAct({ task, action })}
-        onSelectPatient={scoped ? null : setPicked}
       />
 
       {editingColumns && (

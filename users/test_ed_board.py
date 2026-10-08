@@ -294,3 +294,92 @@ class RegistrationListFilterTests(EdBoardBase):
         body = r.json()
         rows = body["results"] if isinstance(body, dict) else body
         self.assertEqual([x["id"] for x in rows], [open_b, open_a])
+
+
+class StatusLogicTests(EdBoardBase):
+    """STS: orders decide first (DC / ADM), then an assigned MD (TIP), then a patient waiting for a bed (WTBS)."""
+
+    def _order(self, vid, name, category="other", status="active"):
+        from appointments.models import Order, Orderable
+
+        appt = Registration.objects.get(pk=vid).appointment
+        item = Orderable.objects.create(code=name.lower().replace(" ", "_")[:60], name=name, category=category)
+        return Order.objects.create(
+            organization=self.org, appointment=appt, patient=appt.patient, ordering_provider=self.doctor,
+            orderable=item, orderable_name=name, orderable_category=category, status=status,
+        )
+
+    def sts(self, vid):
+        for r in self.board().json()["rows"]:
+            if r["visit"] and r["visit"]["registration"] == vid:
+                return r["visit"]["ed_status"]
+        self.fail("visit not on the board")
+
+    def edit(self, vid, body):
+        r = self.as_(self.nurse).patch(EDIT.format(vid), body, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        return r.json()
+
+    def test_a_patient_waiting_with_no_md_is_wtbs(self):
+        vid = self.er_visit()
+        self.assertEqual(self.sts(vid), "wtbs")
+
+    def test_a_patient_in_a_bed_with_no_md_has_no_status_yet(self):
+        vid = self.er_visit(bed=self.ed_bed_a)
+        self.assertEqual(self.sts(vid), "")
+
+    def test_assigning_an_md_changes_the_status_to_tip_at_once(self):
+        vid = self.er_visit()
+        self.assertEqual(self.sts(vid), "wtbs")
+        self.assertEqual(self.edit(vid, {"attending_provider": self.doctor.pk})["ed_status"], "tip")
+        self.assertEqual(self.sts(vid), "tip")
+        self.assertEqual(self.edit(vid, {"attending_provider": None})["ed_status"], "wtbs")
+
+    def test_an_admit_order_makes_it_adm_and_a_discharge_order_makes_it_dc(self):
+        vid = self.er_visit(bed=self.ed_bed_a, attending_provider=self.doctor.pk)
+        self.assertEqual(self.sts(vid), "tip")
+        admit = self._order(vid, "Admit to inpatient")
+        self.assertEqual(self.sts(vid), "admit_pending")
+        admit.status = "discontinued"
+        admit.save()
+        self.assertEqual(self.sts(vid), "tip")
+        self._order(vid, "Discharge patient home")
+        self.assertEqual(self.sts(vid), "discharge_pending")
+
+    def test_the_latest_of_an_admit_and_a_discharge_order_wins(self):
+        from appointments.models import Order
+
+        vid = self.er_visit(bed=self.ed_bed_a, attending_provider=self.doctor.pk)
+        first = self._order(vid, "Discharge patient")
+        later = self._order(vid, "Admit to telemetry")
+        Order.objects.filter(pk=first.pk).update(created_at=timezone.now() - timedelta(hours=2))
+        self.assertEqual(self.sts(vid), "admit_pending")
+        Order.objects.filter(pk=later.pk).update(created_at=timezone.now() - timedelta(hours=3))
+        self.assertEqual(self.sts(vid), "discharge_pending")
+
+    def test_drafts_and_lab_imaging_medication_orders_never_count(self):
+        vid = self.er_visit(bed=self.ed_bed_a, attending_provider=self.doctor.pk)
+        self._order(vid, "Admit to inpatient", status="draft")
+        self._order(vid, "Admission labs", category="laboratory")
+        self._order(vid, "Discharge medication reconciliation", category="medication")
+        self.assertEqual(self.sts(vid), "tip")
+
+    def test_an_order_beats_a_hand_picked_status_but_dispo_picked_by_hand_beats_tip(self):
+        vid = self.er_visit(bed=self.ed_bed_a, attending_provider=self.doctor.pk)
+        self.edit(vid, {"ed_status": "dispo"})
+        self.assertEqual(self.sts(vid), "dispo")
+        self._order(vid, "Admit to inpatient")
+        self.assertEqual(self.sts(vid), "admit_pending")
+
+    def test_a_status_the_clinic_removed_is_not_produced(self):
+        from users.ed_board import effective_status
+
+        class V:
+            ed_status = ""
+            attending_provider_id = 5
+
+        self.assertEqual(effective_status(V, "admit", {"tip", "wtbs"}, False), "tip")
+        self.assertEqual(effective_status(V, None, {"wtbs"}, False), "")
+        V.attending_provider_id = None
+        self.assertEqual(effective_status(V, None, {"wtbs"}, True), "wtbs")
+        self.assertEqual(effective_status(V, None, {"tip"}, True), "")

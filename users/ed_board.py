@@ -46,6 +46,44 @@ _BOARD_ORDER_STATUSES = ("pending_cosign", "active", "in_progress", "completed")
 _EKG = re.compile(r"\b(ekg|ecg|electrocardiogram)\b", re.I)
 _URINE = re.compile(r"urin|\bua\b", re.I)
 _CARDIAC = re.compile(r"troponin|\bbnp\b|ck-?mb|cardiac|\bkoe\b|echo", re.I)
+# A disposition order is found by its name ("Admit to inpatient", "Discharge patient"); lab, imaging and
+# medication orders are never one ("Admission labs" is a lab).
+_ADMIT = re.compile(r"\badmit(ted)?\b|\badmission order\b", re.I)
+_DISCHARGE = re.compile(r"\bdischarge\b", re.I)
+_NOT_DISPOSITION = ("laboratory", "imaging", "medication")
+
+
+def disposition_of(name, category):
+    """"admit", "discharge" or None for an order."""
+    if category in _NOT_DISPOSITION:
+        return None
+    if _DISCHARGE.search(name):
+        return "discharge"
+    if _ADMIT.search(name):
+        return "admit"
+    return None
+
+
+def effective_status(visit, dispo, keys, waiting):
+    """
+    The status the board shows. Orders decide first (a discharge order -> DC, an admit order -> ADM, the latest
+    wins), then a status someone picked by hand other than WTBS/TIP, then an assigned MD -> TIP, then a patient
+    still waiting for a bed -> WTBS. A status the clinic removed from its list is never produced.
+    """
+    if dispo == "discharge" and "discharge_pending" in keys:
+        return "discharge_pending"
+    if dispo == "admit" and "admit_pending" in keys:
+        return "admit_pending"
+    stored = visit.ed_status
+    if stored and stored not in ("wtbs", "tip"):
+        return stored
+    if visit.attending_provider_id and "tip" in keys:
+        return "tip"
+    if stored:
+        return stored
+    if waiting and "wtbs" in keys:
+        return "wtbs"
+    return stored
 
 
 def order_icons(name, category):
@@ -71,7 +109,8 @@ def order_icons(name, category):
 def chart_summaries(visits):
     """{registration id: {"vitals_last_at": iso or None, "orders": {icon: "pending" | "done"}}} in two queries."""
     by_appt = {v.appointment_id: v.pk for v in visits if v.appointment_id}
-    out = {v.pk: {"vitals_last_at": None, "orders": {}} for v in visits}
+    out = {v.pk: {"vitals_last_at": None, "orders": {}, "dispo": None} for v in visits}
+    dispo_at = {}
     if not by_appt:
         return out
 
@@ -85,10 +124,15 @@ def chart_summaries(visits):
         if latest and (current["vitals_last_at"] is None or latest > current["vitals_last_at"]):
             current["vitals_last_at"] = latest
 
-    for appt_id, name, category, status in Order.objects.filter(
+    for appt_id, name, category, status, created in Order.objects.filter(
         appointment_id__in=by_appt, status__in=_BOARD_ORDER_STATUSES
-    ).values_list("appointment_id", "orderable_name", "orderable_category", "status"):
-        icons = out[by_appt[appt_id]]["orders"]
+    ).values_list("appointment_id", "orderable_name", "orderable_category", "status", "created_at"):
+        visit_pk = by_appt[appt_id]
+        kind = disposition_of(name, category)
+        if kind and (visit_pk not in dispo_at or created >= dispo_at[visit_pk]):
+            dispo_at[visit_pk] = created
+            out[visit_pk]["dispo"] = kind
+        icons = out[visit_pk]["orders"]
         for icon in order_icons(name, category):
             if status == "completed":
                 icons.setdefault(icon, "done")
@@ -101,8 +145,8 @@ def chart_summaries(visits):
     return out
 
 
-def board_visit(visit, chart=None):
-    """One patient's row data on the board."""
+def board_visit(visit, chart=None, keys=None, waiting=False):
+    """One patient's row data on the board. With `keys` (the clinic's status values) the status follows orders, MD and waiting."""
     patient = visit.patient
     user = patient.user
     return {
@@ -117,7 +161,7 @@ def board_visit(visit, chart=None):
         "reason": visit.reason_for_visit,
         "complaint": visit.presenting_problem,
         "esi": visit.esi,
-        "ed_status": visit.ed_status,
+        "ed_status": effective_status(visit, (chart or {}).get("dispo"), keys, waiting) if keys is not None else visit.ed_status,
         "md": {"id": visit.attending_provider_id, "name": _name(visit.attending_provider)} if visit.attending_provider_id else None,
         "rn": {"id": visit.assigned_nurse_id, "name": _name(visit.assigned_nurse)} if visit.assigned_nurse_id else None,
         "resident": {"id": visit.resident_provider_id, "name": _name(visit.resident_provider)} if visit.resident_provider_id else None,
@@ -213,6 +257,7 @@ class EdBoardView(APIView):
         if raw and unit is None:
             return _bad("That is not an emergency department in this clinic.", 404)
         base = _board_base(org, unit, departments, request.user)
+        keys = {s["value"] for s in base["statuses"]}
         if unit is None:
             return Response({**base, "unit": None, "rows": []})
 
@@ -243,13 +288,13 @@ class EdBoardView(APIView):
                     "loc": bed_label(bed),
                     "bed_status": bed_status(bed, occupied),
                     "hold_reason": bed.hold_reason,
-                    "visit": board_visit(visit, chart[visit.pk]) if visit else None,
+                    "visit": board_visit(visit, chart[visit.pk], keys) if visit else None,
                 }
             )
 
         # in the ED but not in a bed yet (this department's, or not placed in any)
         for visit in waiting:
-            rows.append({"type": "waiting", "bed": None, "loc": "", "bed_status": "", "hold_reason": "", "visit": board_visit(visit, chart[visit.pk])})
+            rows.append({"type": "waiting", "bed": None, "loc": "", "bed_status": "", "hold_reason": "", "visit": board_visit(visit, chart[visit.pk], keys, waiting=True)})
         return Response({**base, "unit": unit.pk, "rows": rows})
 
 
@@ -360,4 +405,4 @@ class BoardUpdateView(APIView):
             visit.board_custom = custom
         visit.save()
         visit = Registration.objects.select_related(*_RELATED).get(pk=visit.pk)
-        return Response(board_visit(visit, chart_summaries([visit])[visit.pk]))
+        return Response(board_visit(visit, chart_summaries([visit])[visit.pk], status_keys(settings), waiting=visit.bed_id is None))

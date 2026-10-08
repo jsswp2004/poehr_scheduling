@@ -356,8 +356,36 @@ export default function EDBoard({
     const v = row.visit;
     if (col?.type === "custom") return customCell(col, v);
     switch (key) {
-      case "loc":
-        return row.type === "waiting" ? <b>WAITING</b> : row.loc;
+      case "loc": {
+        if (!v || !canEdit) return row.type === "waiting" ? <b>WAITING</b> : row.loc;
+        // every bed in the department; a bed that is taken, being cleaned or blocked cannot be picked
+        const deptBeds = (data?.rows || []).filter((r) => r.type === "bed");
+        return (
+          <Select
+            variant="standard"
+            disableUnderline
+            displayEmpty
+            value={row.bed ?? ""}
+            disabled={busy}
+            onChange={(e) => e.target.value !== "" && e.target.value !== row.bed && place(v.registration, e.target.value)}
+            renderValue={(val) => (val === "" ? <b>WAITING</b> : deptBeds.find((b) => b.bed === val)?.loc || row.loc)}
+            inputProps={{ "data-testid": `loc-${v.registration}`, "aria-label": `Location for ${v.name}` }}
+            sx={compact}
+          >
+            {row.type === "waiting" && (
+              <MenuItem value="" disabled>
+                WAITING
+              </MenuItem>
+            )}
+            {deptBeds.map((b) => (
+              <MenuItem key={b.bed} value={b.bed} disabled={b.bed !== row.bed && b.bed_status !== "available"}>
+                {b.loc}
+                {b.bed !== row.bed && b.bed_status !== "available" ? ` (${BED_LABEL[b.bed_status] || "In use"})` : ""}
+              </MenuItem>
+            ))}
+          </Select>
+        );
+      }
       case "los":
         return v ? formatLos(losMinutes(v.arrival_time, now)) : "";
       case "patient":
