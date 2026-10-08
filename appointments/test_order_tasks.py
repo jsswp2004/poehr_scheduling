@@ -477,6 +477,44 @@ class ApiTests(Base):
         ids = [x["id"] for x in self.api().get("/api/order-tasks/?queue=completed").json()["results"]]
         self.assertNotIn(waiting.pk, ids)
 
+    def window(self, start, end, **extra):
+        params = {"queue": "grid", "from": start.isoformat(), "to": end.isoformat(), **extra}
+        return self.api().get("/api/order-tasks/", params)
+
+    def test_day_grid_returns_the_windows_tasks_with_due_flags(self):
+        now = timezone.now()
+        r = self.window(now - timedelta(hours=6), now + timedelta(hours=18))
+        self.assertEqual(r.status_code, 200, r.content)
+        by_id = {x["id"]: x for x in r.json()["results"]}
+        self.assertTrue(by_id[self.due.pk]["overdue"])
+        self.assertTrue(by_id[self.due.pk]["due_now"])
+        self.assertIn(self.upcoming.pk, by_id)  # due in 10+ hours, inside the window
+        self.assertFalse(by_id[self.upcoming.pk]["due_now"])
+        self.assertFalse(by_id[self.upcoming.pk]["overdue"])
+
+    def test_day_grid_leaves_out_other_days_and_cancelled_tasks(self):
+        now = timezone.now()
+        r = self.window(now - timedelta(hours=6), now + timedelta(hours=1))
+        ids = [x["id"] for x in r.json()["results"]]
+        self.assertIn(self.due.pk, ids)
+        self.assertNotIn(self.upcoming.pk, ids)  # due later than the window ends
+        OrderTask.objects.filter(pk=self.due.pk).update(status="cancelled")
+        ids = [x["id"] for x in self.window(now - timedelta(hours=6), now + timedelta(hours=1)).json()["results"]]
+        self.assertNotIn(self.due.pk, ids)
+
+    def test_day_grid_earlier_unfinished_work_only_when_asked(self):
+        now = timezone.now()
+        OrderTask.objects.filter(pk=self.due.pk).update(due_at=now - timedelta(hours=30), status="missed")
+        start, end = now - timedelta(hours=2), now + timedelta(hours=22)
+        self.assertNotIn(self.due.pk, [x["id"] for x in self.window(start, end).json()["results"]])
+        r = self.window(start, end, include_earlier=1).json()["results"]
+        self.assertIn(self.due.pk, [x["id"] for x in r])
+
+    def test_day_grid_needs_a_valid_window(self):
+        now = timezone.now()
+        self.assertEqual(self.api().get("/api/order-tasks/?queue=grid").status_code, 400)
+        self.assertEqual(self.window(now, now - timedelta(hours=1)).status_code, 400)
+
     def test_prn_endpoints(self):
         prn = self.med({"frequency": "prn", "prn_reason": "pain", "min_interval_hours": 4})
         c = self.api()

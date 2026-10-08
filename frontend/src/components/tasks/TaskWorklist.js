@@ -1,48 +1,38 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  MenuItem,
-  Pagination,
-  Paper,
-  Stack,
-  Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tabs,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Chip, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
 import MedicationIcon from "@mui/icons-material/Medication";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { PrnDialog, TaskActionDialog, TaskDetailDialog } from "./TaskDialogs";
-import TaskGrid from "./TaskGrid";
-import { STATUS_COLOR, authHeader, errorText, fmtDateTime, fmtTime, loadTaskMeta } from "./taskShared";
+import TaskGrid, { DUE_BG, OVERDUE_BG } from "./TaskGrid";
+import { authHeader, errorText, loadTaskMeta } from "./taskShared";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 200;
+const MAX_PAGES = 5;
 const REFRESH_MS = 60000;
 
+const midnight = (d = new Date()) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const dayInput = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const fromDayInput = (v) => {
+  const [y, m, d] = (v || "").split("-").map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+};
+
 /**
- * The nurse worklist: queue tabs with counts, filters and a table, with Give / Hold / Refuse on each row.
- * With `patient` it is that patient's task list (the chart tab); without, the whole clinic (the Tasks page).
+ * The nurse worklist as one day grid: the tasks down the left, the hours of the day across the top, and each task
+ * in the hour it is due -- green when due, pink when overdue, red when missed, a check and initials when done.
+ * With `patient` it is that patient's grid (the chart tab); without, the whole clinic (the Tasks page).
  * The server decides what each person may see and do; this screen shows it and relays its messages.
  */
 export default function TaskWorklist({ patient = null }) {
   const scoped = !!patient;
   const [meta, setMeta] = useState(null);
-  const [queue, setQueue] = useState(scoped ? "all" : "needs_action");
+  const [day, setDay] = useState(() => midnight());
   const [counts, setCounts] = useState({});
   const [rows, setRows] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [type, setType] = useState("");
   const [assigned, setAssigned] = useState("");
@@ -64,6 +54,7 @@ export default function TaskWorklist({ patient = null }) {
     })();
   }, []);
 
+  const dayKey = day.getTime();
   const load = useCallback(
     async (quiet = false) => {
       const mine = ++seq.current;
@@ -72,17 +63,23 @@ export default function TaskWorklist({ patient = null }) {
       try {
         const headers = await authHeader();
         const base = patient ? { patient: patient.id } : {};
-        const params = { ...base, queue, page, page_size: PAGE_SIZE };
+        const from = new Date(dayKey);
+        const params = { ...base, queue: "grid", from: from.toISOString(), to: addDays(from, 1).toISOString(), page_size: PAGE_SIZE };
+        // anything still waiting or missed from before today stays visible from today on
+        if (dayKey >= midnight().getTime()) params.include_earlier = 1;
         if (q.trim()) params.q = q.trim();
         if (type) params.task_type = type;
         if (assigned) params.assigned = assigned;
-        const [list, qs] = await Promise.all([
-          api.get(apiEndpoints.orderTasks, { headers, params }),
-          api.get(apiEndpoints.orderTaskQueues, { headers, params: base }),
-        ]);
+        const all = [];
+        for (let page = 1; page <= MAX_PAGES; page += 1) {
+          const list = await api.get(apiEndpoints.orderTasks, { headers, params: { ...params, page } });
+          const got = list.data.results || [];
+          all.push(...got);
+          if (all.length >= (list.data.count || 0) || got.length === 0) break;
+        }
+        const qs = await api.get(apiEndpoints.orderTaskQueues, { headers, params: base });
         if (mine !== seq.current) return;
-        setRows(list.data.results || []);
-        setTotal(list.data.count || 0);
+        setRows(all);
         setCounts(qs.data.counts || {});
         setDenied(false);
       } catch (err) {
@@ -93,7 +90,7 @@ export default function TaskWorklist({ patient = null }) {
         if (mine === seq.current) setLoading(false);
       }
     },
-    [patient, queue, page, q, type, assigned]
+    [patient, dayKey, q, type, assigned]
   );
 
   useEffect(() => {
@@ -119,10 +116,13 @@ export default function TaskWorklist({ patient = null }) {
     );
   }
 
-  const queues = meta?.queues || [];
   const canPerform = !!meta?.can_perform;
-  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const cols = scoped ? 6 : 7;
+  const today = midnight();
+  const isToday = day.getTime() === today.getTime();
+  const overdue = counts.overdue || 0;
+  const dueNow = Math.max(0, (counts.needs_action || 0) - overdue);
+  const missed = counts.missed || 0;
+  const dayLabel = day.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
   return (
     <Box sx={{ p: 2 }} data-testid="task-worklist">
@@ -135,167 +135,76 @@ export default function TaskWorklist({ patient = null }) {
         )}
       </Stack>
 
-      <Tabs
-        value={queues.some((x) => x.value === queue) ? queue : false}
-        onChange={(_, v) => {
-          setQueue(v);
-          setPage(1);
-        }}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, py: 0.5, textTransform: "none" } }}
-        aria-label="Task queues"
-      >
-        {queues.map((x) => (
-          <Tab key={x.value} value={x.value} data-testid={`task-queue-${x.value}`} label={`${x.label}${counts[x.value] != null && x.value !== "all" ? ` (${counts[x.value]})` : ""}`} />
-        ))}
-      </Tabs>
-
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ my: 1.5 }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} sx={{ my: 1.5 }}>
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          <IconButton size="small" aria-label="Previous day" onClick={() => setDay(addDays(day, -1))} data-testid="day-prev">
+            <ChevronLeftIcon />
+          </IconButton>
+          <TextField
+            size="small"
+            type="date"
+            value={dayInput(day)}
+            onChange={(e) => {
+              const d = fromDayInput(e.target.value);
+              if (d) setDay(d);
+            }}
+            inputProps={{ "aria-label": "Day", "data-testid": "day-input" }}
+          />
+          <IconButton size="small" aria-label="Next day" onClick={() => setDay(addDays(day, 1))} data-testid="day-next">
+            <ChevronRightIcon />
+          </IconButton>
+          <Button size="small" onClick={() => setDay(today)} disabled={isToday} data-testid="day-today">
+            Today
+          </Button>
+        </Stack>
         <TextField
           size="small"
           label="Search"
           placeholder={scoped ? "Medication or task" : "Patient, medication or task"}
           value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(1);
-          }}
+          onChange={(e) => setQ(e.target.value)}
           inputProps={{ "data-testid": "task-search" }}
           sx={{ minWidth: 240 }}
         />
-        <TextField select size="small" label="Type" value={type} onChange={(e) => { setType(e.target.value); setPage(1); }} sx={{ minWidth: 150 }} inputProps={{ "data-testid": "task-filter-type" }}>
+        <TextField select size="small" label="Type" value={type} onChange={(e) => setType(e.target.value)} sx={{ minWidth: 150 }} inputProps={{ "data-testid": "task-filter-type" }}>
           <MenuItem value="">Any</MenuItem>
           <MenuItem value="medication">Medications</MenuItem>
           <MenuItem value="nursing">Nursing</MenuItem>
         </TextField>
         {!scoped && (
-          <TextField select size="small" label="Patients" value={assigned} onChange={(e) => { setAssigned(e.target.value); setPage(1); }} sx={{ minWidth: 170 }} inputProps={{ "data-testid": "task-filter-assigned" }}>
+          <TextField select size="small" label="Patients" value={assigned} onChange={(e) => setAssigned(e.target.value)} sx={{ minWidth: 170 }} inputProps={{ "data-testid": "task-filter-assigned" }}>
             <MenuItem value="">All patients</MenuItem>
             <MenuItem value="me">Assigned to me</MenuItem>
           </TextField>
         )}
       </Stack>
 
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }} data-testid="task-legend">
+        <Typography variant="subtitle2" sx={{ mr: 1 }}>
+          {dayLabel}
+        </Typography>
+        <Chip size="small" label={`Due now ${dueNow}`} sx={{ bgcolor: DUE_BG }} data-testid="legend-due" />
+        <Chip size="small" label={`Overdue ${overdue}`} sx={{ bgcolor: OVERDUE_BG }} data-testid="legend-overdue" />
+        <Chip size="small" variant="outlined" label={`Missed ${missed}`} sx={{ color: "#d32f2f", fontWeight: 700, borderColor: "#d32f2f" }} data-testid="legend-missed" />
+        <Typography variant="caption" color="text.secondary">
+          ✓ initials = done
+        </Typography>
+      </Stack>
+
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
 
-      {queue === "completed" ? (
-        <TaskGrid
-          rows={rows}
-          loading={loading}
-          scoped={scoped}
-          canPerform={canPerform}
-          graceMinutes={meta?.grace_minutes ?? 60}
-          onOpen={setOpenId}
-          onChanged={() => load(true)}
-          onMore={(task) => setAct({ task, action: "complete" })}
-        />
-      ) : (
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label="Tasks">
-          <TableHead>
-            <TableRow>
-              <TableCell>Due</TableCell>
-              {!scoped && <TableCell>Patient / bed</TableCell>}
-              <TableCell>Task</TableCell>
-              <TableCell>How often</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Documented</TableCell>
-              <TableCell align="right">Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={cols}>
-                  <CircularProgress size={20} />
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={cols} data-testid="task-empty">
-                  <Typography variant="body2" color="text.secondary">
-                    No tasks in this list.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map((t) => {
-              const can = (a) => (t.actions || []).includes(a);
-              return (
-                <TableRow key={t.id} hover sx={{ cursor: "pointer" }} onClick={() => setOpenId(t.id)} data-testid={`task-row-${t.id}`}>
-                  <TableCell>
-                    <Typography variant="body2">{t.is_prn ? "As needed" : fmtTime(t.due_at)}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {fmtDateTime(t.due_at)}
-                    </Typography>
-                    {t.overdue && <Chip size="small" color="error" sx={{ ml: 0.5 }} label={`${t.minutes_late} min late`} data-testid={`task-late-${t.id}`} />}
-                  </TableCell>
-                  {!scoped && (
-                    <TableCell>
-                      <Typography variant="body2">{t.patient_name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {[t.unit_name, t.room_name, t.bed_name].filter(Boolean).join(" · ")}
-                      </Typography>
-                    </TableCell>
-                  )}
-                  <TableCell>
-                    <Typography variant="body2" fontWeight={600}>
-                      {t.title}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {[t.dose, t.route].filter(Boolean).join(" ")}
-                      {t.instructions ? ` · ${t.instructions}` : ""}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>{t.frequency_label}</TableCell>
-                  <TableCell>
-                    <Chip size="small" color={STATUS_COLOR[t.status]} label={t.status_label} />
-                  </TableCell>
-                  <TableCell>
-                    {t.performed_at ? (
-                      <>
-                        <Typography variant="body2">{fmtDateTime(t.performed_at)}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {t.performed_by_name}
-                          {t.reason ? ` — ${t.reason}` : ""}
-                        </Typography>
-                      </>
-                    ) : null}
-                  </TableCell>
-                  <TableCell align="right" onClick={(e) => e.stopPropagation()}>
-                    <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                      {can("complete") && (
-                        <Button size="small" variant="contained" onClick={() => setAct({ task: t, action: "complete" })} data-testid={`task-complete-${t.id}`}>
-                          {t.task_type === "medication" ? "Give" : "Done"}
-                        </Button>
-                      )}
-                      {can("hold") && (
-                        <Button size="small" onClick={() => setAct({ task: t, action: "hold" })} data-testid={`task-hold-${t.id}`}>
-                          Hold
-                        </Button>
-                      )}
-                      {can("refuse") && (
-                        <Button size="small" color="error" onClick={() => setAct({ task: t, action: "refuse" })} data-testid={`task-refuse-${t.id}`}>
-                          Refused
-                        </Button>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      )}
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
-        <Typography variant="caption" color="text.secondary" data-testid="task-count">
-          {total} task{total === 1 ? "" : "s"}
-        </Typography>
-        {pages > 1 && <Pagination count={pages} page={page} onChange={(_, p) => setPage(p)} size="small" />}
-      </Stack>
+      <TaskGrid
+        rows={rows}
+        day={day}
+        showEarlier={dayKey >= today.getTime()}
+        loading={loading}
+        scoped={scoped}
+        canPerform={canPerform}
+        graceMinutes={meta?.grace_minutes ?? 60}
+        onOpen={setOpenId}
+        onChanged={() => load(true)}
+        onMore={(task, action) => setAct({ task, action })}
+      />
 
       {act && (
         <TaskActionDialog

@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from django.db.models import Q
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -126,6 +127,7 @@ def serialize(task, user, cfg, now, loc=None, detail=False):
         "status": task.status,
         "status_label": task.get_status_display(),
         "overdue": ot.is_overdue(task, now, cfg["grace_minutes"]),
+        "due_now": task.status == "pending" and task.due_at <= now + timedelta(minutes=ot.DUE_SOON_MINUTES),
         "minutes_late": late_minutes,
         "performed_by_name": _name(task.performed_by),
         "performed_by_initials": _initials(task.performed_by),
@@ -172,8 +174,28 @@ class TaskListView(APIView):
             term = p["q"].strip()
             qs = qs.filter(Q(patient__first_name__icontains=term) | Q(patient__last_name__icontains=term) | Q(title__icontains=term))
         queue = p.get("queue") or "needs_action"
-        qs = qs.filter(queue_q(queue, now, cfg))
-        qs = qs.order_by("patient_id", "due_at", "id") if queue == "completed" else qs.order_by("due_at", "id")
+        if queue == "grid":
+            # the day grid: every task due between ?from and ?to (ISO times, the caller's day), plus -- with
+            # ?include_earlier=1 -- anything from before that is still waiting or was missed
+            start, end = parse_datetime(p.get("from") or ""), parse_datetime(p.get("to") or "")
+            if start is None or end is None or end <= start:
+                return Response({"detail": "Give the day to show as from and to."}, status=400)
+            if timezone.is_naive(start):
+                start = timezone.make_aware(start)
+            if timezone.is_naive(end):
+                end = timezone.make_aware(end)
+            window = Q(due_at__gte=start, due_at__lt=end)
+            if p.get("include_earlier") in ("1", "true", "True"):
+                window |= Q(status__in=("pending", "missed"), due_at__lt=start)
+            qs = qs.filter(window).exclude(status="cancelled")
+        else:
+            qs = qs.filter(queue_q(queue, now, cfg))
+        if queue == "grid":
+            qs = qs.order_by("patient_id", "order_id", "due_at", "id")
+        elif queue == "completed":
+            qs = qs.order_by("patient_id", "due_at", "id")
+        else:
+            qs = qs.order_by("due_at", "id")
 
         try:
             size = max(1, min(int(p.get("page_size", PAGE_SIZE)), MAX_PAGE_SIZE))
