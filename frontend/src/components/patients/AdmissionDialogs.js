@@ -178,6 +178,62 @@ export function TransferDialog({ patient, onClose, onDone }) {
   );
 }
 
+/** Set or change the attending doctor of an admitted patient. The patient shows on that doctor's list. */
+export function AttendingDialog({ patient, providers = [], onClose, onDone }) {
+  const visit = patient && patient.current_visit;
+  const [attending, setAttending] = useState(visit && visit.attending_provider ? visit.attending_provider : "");
+  const { busy, problem, run } = useAction(onDone, onClose);
+  if (!patient || !visit) return null;
+
+  return (
+    <Dialog open onClose={busy ? undefined : onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Attending for {patient.full_name}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2} sx={{ mt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            {visit.attending_provider_name ? `Now: ${visit.attending_provider_name}.` : "No attending is set yet."} The patient appears on the
+            attending doctor's patient list.
+          </Typography>
+          <FormControl size="small" fullWidth>
+            <InputLabel id="change-attending">Attending provider</InputLabel>
+            <Select labelId="change-attending" label="Attending provider" value={attending} onChange={(e) => setAttending(e.target.value)} inputProps={{ "data-testid": "change-attending" }}>
+              <MenuItem value="">Not specified</MenuItem>
+              {providers.map((d) => (
+                <MenuItem key={d.id} value={d.id}>
+                  Dr. {d.first_name} {d.last_name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {problem && (
+            <Typography color="error" variant="body2" role="alert">
+              {problem}
+            </Typography>
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={busy}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          disabled={busy}
+          onClick={() =>
+            run(
+              apiEndpoints.admissionAttending(visit.id),
+              { attending_provider: toNull(attending) },
+              attending ? "Attending updated" : "Attending cleared"
+            )
+          }
+        >
+          Save
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 /** Discharge: ends the visit and frees the bed. */
 export function DischargeDialog({ patient, onClose, onDone }) {
   const [when, setWhen] = useState(nowLocal);

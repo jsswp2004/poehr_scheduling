@@ -227,6 +227,32 @@ class TransferView(APIView):
         return Response(RegistrationSerializer(visit).data)
 
 
+class AttendingView(APIView):
+    """POST {attending_provider}: set (or clear, with null) the attending doctor of an open visit."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, pk):
+        visit, org, err = _visit_for(request, pk)
+        if err:
+            return err
+        if visit.discharge_datetime is not None:
+            return _bad("This visit has been discharged, so the attending cannot be changed.")
+        raw = request.data.get("attending_provider")
+        attending = None
+        if raw not in (None, ""):
+            attending = CustomUser.objects.filter(pk=raw, role="doctor", organization=org).first()
+            if attending is None:
+                return _bad("That attending provider was not found.")
+        visit.attending_provider = attending
+        visit.save()
+        # the visit's chart appointment follows the attending, so orders and notes stay with them
+        if visit.appointment_id:
+            visit.appointment.provider = attending
+            visit.appointment.save(update_fields=["provider"])
+        return Response(RegistrationSerializer(visit).data)
+
+
 class DischargeView(APIView):
     """POST {discharge_datetime?, bed_needs_cleaning?}: end the visit and free the bed."""
 

@@ -128,3 +128,16 @@ test("an empty filtered list spans the whole table", () => {
   show({ careSetting: "acute", patients: [], unit: "7", units: [{ id: 7, name: "3 West" }] });
   expect(screen.getByText(/No inpatients right now/).closest("td")).toHaveAttribute("colspan", "6");
 });
+
+test("Acute and Emergency lists offer Attending; other lists and roles do not", () => {
+  const onChangeAttending = jest.fn();
+  const { unmount } = show({ careSetting: "acute", onChangeAttending });
+  fireEvent.click(screen.getByRole("button", { name: "Attending for Bob Ray" }));
+  expect(onChangeAttending).toHaveBeenCalledWith(rows[0]);
+  unmount();
+  const second = show({ careSetting: "ambulatory", onChangeAttending });
+  expect(screen.queryByRole("button", { name: "Attending for Bob Ray" })).toBeNull();
+  second.unmount();
+  show({ careSetting: "acute", onChangeAttending, userRole: "receptionist" });
+  expect(screen.queryByRole("button", { name: "Attending for Bob Ray" })).toBeNull();
+});

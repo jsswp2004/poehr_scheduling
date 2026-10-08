@@ -9,6 +9,7 @@ jest.mock(
       admissionAdmit: "/adm/admit/",
       admissionTransfer: (id) => `/adm/${id}/transfer/`,
       admissionDischarge: (id) => `/adm/${id}/discharge/`,
+      admissionAttending: (id) => `/adm/${id}/attending/`,
     },
   }),
   { virtual: true }
@@ -18,7 +19,7 @@ jest.mock("../SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn
 
 import { api } from "../../api/client";
 import { toast } from "../SimpleToast";
-import { AdmitDialog, TransferDialog, DischargeDialog } from "../patients/AdmissionDialogs";
+import { AdmitDialog, TransferDialog, DischargeDialog, AttendingDialog } from "../patients/AdmissionDialogs";
 
 const tree = [
   {
@@ -143,4 +144,51 @@ test("discharge can leave the bed available instead of marking it for cleaning",
   fireEvent.click(screen.getByRole("button", { name: "Discharge" }));
   await waitFor(() => expect(api.post).toHaveBeenCalled());
   expect(api.post.mock.calls[0][1].bed_needs_cleaning).toBe(false);
+});
+
+const docs = [
+  { id: 8, first_name: "Jeff", last_name: "Lee" },
+  { id: 9, first_name: "Mei", last_name: "Chen" },
+];
+
+test("attending dialog shows who it is now and posts the new doctor", async () => {
+  api.post.mockResolvedValue({ data: {} });
+  const onClose = jest.fn();
+  const onDone = jest.fn();
+  const bob = { ...admitted, current_visit: { ...admitted.current_visit, attending_provider: 8, attending_provider_name: "Dr. Jeff Lee" } };
+  render(<AttendingDialog patient={bob} providers={docs} onClose={onClose} onDone={onDone} />);
+  expect(screen.getByText(/Now: Dr. Jeff Lee/)).toBeInTheDocument();
+  pick("change-attending", "Dr. Mei Chen");
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(api.post).toHaveBeenCalledWith("/adm/90/attending/", { attending_provider: 9 }, expect.anything());
+  expect(toast.success).toHaveBeenCalledWith("Attending updated");
+  expect(onDone).toHaveBeenCalled();
+});
+
+test("attending dialog says when none is set and can clear it", async () => {
+  api.post.mockResolvedValue({ data: {} });
+  const onClose = jest.fn();
+  const bob = { ...admitted, current_visit: { ...admitted.current_visit, attending_provider: 9, attending_provider_name: "Dr. Mei Chen" } };
+  render(<AttendingDialog patient={bob} providers={docs} onClose={onClose} />);
+  pick("change-attending", "Not specified");
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(onClose).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][1]).toEqual({ attending_provider: null });
+  expect(toast.success).toHaveBeenCalledWith("Attending cleared");
+});
+
+test("attending dialog with no attending yet", () => {
+  render(<AttendingDialog patient={admitted} providers={docs} onClose={() => {}} />);
+  expect(screen.getByText(/No attending is set yet/)).toBeInTheDocument();
+});
+
+test("attending dialog shows the server's refusal and stays open", async () => {
+  api.post.mockRejectedValue({ response: { data: { detail: "That attending provider was not found." } } });
+  const onClose = jest.fn();
+  render(<AttendingDialog patient={admitted} providers={docs} onClose={onClose} />);
+  pick("change-attending", "Dr. Jeff Lee");
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  expect(await screen.findByRole("alert")).toHaveTextContent("not found");
+  expect(onClose).not.toHaveBeenCalled();
 });

@@ -137,8 +137,8 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                 queryset = queryset.filter(patient=user)
             elif user.role == "doctor":
                 queryset = queryset.filter(
-                    provider=user
-                )  # optional: show only their own patients
+                    Q(provider=user) | Q(registration__attending_provider=user)
+                ).distinct()
             elif user.role in ["registrar", "admin", "nurse"]:
                 pass  # ✅ Allow access to all appointments for their org
 

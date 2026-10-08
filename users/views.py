@@ -73,7 +73,9 @@ class RegistrationViewSet(viewsets.ModelViewSet):
         elif user.role not in ["doctor", "nurse", "registrar", "admin"]:
             return Registration.objects.none()
         elif user.role == "doctor":
-            qs = base.filter(patient__user__provider=user)
+            qs = base.filter(
+                Q(patient__user__provider=user) | Q(attending_provider=user)
+            ).distinct()
         else:
             qs = base.filter(organization=user.organization)
         # The registration form asks for one patient's visits that are still open (?patient=<id>&open=1).
@@ -831,9 +833,22 @@ def get_patients(request):
             return Response({"detail": "Access denied"}, status=403)
 
         if user.role == "doctor":
-            patients = Patient.objects.select_related(
-                "user", "user__provider", "organization"
-            ).filter(user__provider=user)
+            # A doctor sees their own panel plus anyone whose open visit lists
+            # them as attending (e.g. a clinic patient admitted to the hospital).
+            from django.db.models import Exists, OuterRef
+
+            attending_now = Registration.objects.filter(
+                patient=OuterRef("pk"),
+                attending_provider=user,
+                discharge_datetime__isnull=True,
+            )
+            patients = (
+                Patient.objects.select_related(
+                    "user", "user__provider", "organization"
+                )
+                .annotate(_attending_now=Exists(attending_now))
+                .filter(Q(user__provider=user) | Q(_attending_now=True))
+            )
         elif user.role == "system_admin":
             patients = Patient.objects.select_related(
                 "user", "user__provider", "organization"

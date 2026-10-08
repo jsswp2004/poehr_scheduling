@@ -9,6 +9,7 @@ from users.models import Registration
 ADMIT = "/api/users/admissions/admit/"
 TRANSFER = "/api/users/admissions/{}/transfer/"
 DISCHARGE = "/api/users/admissions/{}/discharge/"
+ATTENDING = "/api/users/admissions/{}/attending/"
 PATIENTS = "/api/users/patients/"
 
 
@@ -217,3 +218,118 @@ class NewerVisitTests(Base):
         admin = self.as_(self.admin)
         self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute"})), [])
         self.assertIn("Bcs", names(admin.get(PATIENTS, {"care_setting": "ambulatory"})))
+
+
+class DoctorVisibilityTests(Base):
+    """A doctor sees their own panel plus the patients whose open visit they attend."""
+
+    def setUp(self):
+        super().setUp()
+        from appointments.test_locations import make_user
+
+        self.chen = make_user("chen", "doctor", self.org, first_name="Mei", last_name="Chen")
+        body = {"patient": self.patient.pk, "unit": self.west.pk, "room": self.room.pk, "bed": self.bed_a.pk}
+        self.visit_id = self.as_(self.nurse).post(ADMIT, body, format="json").json()["id"]  # no attending yet
+
+    def test_a_doctor_who_is_not_attending_does_not_see_the_inpatient(self):
+        self.assertEqual(names(self.as_(self.chen).get(PATIENTS, {"care_setting": "acute"})), [])
+
+    def test_the_attending_sees_the_inpatient_without_owning_the_panel(self):
+        Registration.objects.filter(pk=self.visit_id).update(attending_provider=self.chen)
+        r = self.as_(self.chen).get(PATIENTS, {"care_setting": "acute"})
+        self.assertEqual(names(r), ["Bcs"])
+        self.assertEqual(len(r.json()["results"]), 1)  # no duplicates
+        self.assertEqual(r.json()["results"][0]["current_visit"]["bed_name"], "A")
+        # her own outpatient list is not cluttered with a patient who is in a bed
+        self.assertEqual(names(self.as_(self.chen).get(PATIENTS, {"care_setting": "ambulatory"})), [])
+
+    def test_the_panel_doctor_still_sees_their_patient(self):
+        self.assertEqual(names(self.as_(self.doctor).get(PATIENTS, {"care_setting": "acute"})), ["Bcs"])
+
+    def test_the_attending_can_open_the_visit_and_its_chart_appointment(self):
+        Registration.objects.filter(pk=self.visit_id).update(attending_provider=self.chen)
+        visit = Registration.objects.get(pk=self.visit_id)
+        visit.ensure_chart_appointment()
+        regs = self.as_(self.chen).get("/api/users/registrations/", {"patient": self.patient.pk, "open": 1}).json()
+        rows = regs["results"] if isinstance(regs, dict) else regs
+        self.assertEqual([r["id"] for r in rows], [self.visit_id])
+        # the appointments endpoint is tenant-scoped from the login token, so use a real token here
+        from rest_framework.test import APIClient
+        from rest_framework_simplejwt.tokens import AccessToken
+
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(self.chen)}")
+        appts = client.get("/api/appointments/", {"patient": self.patient.user.pk})
+        self.assertEqual(appts.status_code, 200)
+        data = appts.json()
+        data = data["results"] if isinstance(data, dict) else data
+        self.assertIn(visit.appointment_id, [a["id"] for a in data])
+
+    def test_a_doctor_who_is_not_attending_cannot_see_the_chart_appointment(self):
+        Registration.objects.get(pk=self.visit_id).ensure_chart_appointment()
+        regs = self.as_(self.chen).get("/api/users/registrations/", {"patient": self.patient.pk}).json()
+        rows = regs["results"] if isinstance(regs, dict) else regs
+        self.assertEqual(rows, [])
+
+    def test_discharged_visit_no_longer_shows_for_the_attending(self):
+        Registration.objects.filter(pk=self.visit_id).update(attending_provider=self.chen)
+        self.as_(self.nurse).post(DISCHARGE.format(self.visit_id), {}, format="json")
+        self.assertEqual(names(self.as_(self.chen).get(PATIENTS, {"care_setting": "acute"})), [])
+        self.assertEqual(names(self.as_(self.chen).get(PATIENTS)), [])
+
+
+class ChangeAttendingTests(Base):
+    """Setting the attending after admission is what puts the patient on that doctor's list."""
+
+    def setUp(self):
+        super().setUp()
+        from appointments.test_locations import make_user
+
+        self.chen = make_user("chen", "doctor", self.org, first_name="Mei", last_name="Chen")
+        body = {"patient": self.patient.pk, "unit": self.west.pk, "room": self.room.pk, "bed": self.bed_a.pk}
+        self.visit_id = self.as_(self.nurse).post(ADMIT, body, format="json").json()["id"]  # no attending yet
+
+    def make_other_org_nurse(self):
+        from appointments.test_locations import make_user
+
+        return make_user("nurse2", "nurse", self.other_org)
+
+    def set_attending(self, who, doctor_pk, visit_id=None):
+        return self.as_(who).post(ATTENDING.format(visit_id or self.visit_id), {"attending_provider": doctor_pk}, format="json")
+
+    def test_nurse_sets_attending_and_the_doctor_then_sees_the_patient(self):
+        self.assertEqual(names(self.as_(self.chen).get(PATIENTS, {"care_setting": "acute"})), [])
+        r = self.set_attending(self.nurse, self.chen.pk)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["attending_provider"], self.chen.pk)
+        self.assertEqual(names(self.as_(self.chen).get(PATIENTS, {"care_setting": "acute"})), ["Bcs"])
+
+    def test_changing_attending_moves_the_patient_between_doctors(self):
+        self.set_attending(self.nurse, self.chen.pk)
+        self.set_attending(self.nurse, self.doctor.pk)
+        self.assertEqual(Registration.objects.get(pk=self.visit_id).attending_provider, self.doctor)
+        self.assertEqual(names(self.as_(self.chen).get(PATIENTS, {"care_setting": "acute"})), [])
+
+    def test_attending_can_be_cleared(self):
+        self.set_attending(self.nurse, self.chen.pk)
+        self.assertEqual(self.set_attending(self.nurse, None).status_code, 200)
+        self.assertIsNone(Registration.objects.get(pk=self.visit_id).attending_provider)
+
+    def test_the_chart_appointment_follows_the_attending(self):
+        visit = Registration.objects.get(pk=self.visit_id)
+        visit.ensure_chart_appointment()
+        self.set_attending(self.nurse, self.chen.pk)
+        self.assertEqual(Registration.objects.get(pk=self.visit_id).appointment.provider, self.chen)
+
+    def test_only_a_doctor_of_the_clinic_can_be_attending(self):
+        self.assertEqual(self.set_attending(self.nurse, self.nurse.pk).status_code, 400)
+        self.assertEqual(self.set_attending(self.nurse, 999999).status_code, 400)
+
+    def test_patients_and_other_clinics_cannot_change_it(self):
+        self.assertEqual(self.set_attending(self.patient_user, self.chen.pk).status_code, 403)
+        stranger = self.make_other_org_nurse()
+        self.assertEqual(self.set_attending(stranger, self.chen.pk).status_code, 404)
+
+    def test_discharged_visit_is_locked(self):
+        self.as_(self.nurse).post(DISCHARGE.format(self.visit_id), {}, format="json")
+        self.assertEqual(self.set_attending(self.nurse, self.chen.pk).status_code, 400)
