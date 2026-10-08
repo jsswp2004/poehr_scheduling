@@ -18,11 +18,12 @@ import { toast } from "../SimpleToast";
 import { DEFAULT_COLUMNS, announceTaskChange, columnFor, errorText, fmtDateTime, fmtTime, minutesLabel, runTaskAction } from "./taskShared";
 
 /** "Task Completed?" -- one question, Yes records it as done now. Late ones must say why, as everywhere else. */
-export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, onMore }) {
+export function TaskCompletedDialog({ task, performedAt = null, graceMinutes = 60, onClose, onDone, onMore }) {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const late = Math.abs(Date.now() - new Date(task.due_at).getTime()) > graceMinutes * 60000;
+  const givenAt = performedAt ? performedAt.getTime() : Date.now();
+  const late = Math.abs(givenAt - new Date(task.due_at).getTime()) > graceMinutes * 60000;
   const can = (a) => (task.actions || []).includes(a);
 
   const yes = async () => {
@@ -31,6 +32,7 @@ export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, 
     setError("");
     try {
       const body = { note: note.trim() };
+      if (performedAt) body.performed_at = performedAt.toISOString();
       if (task.task_type === "medication") Object.assign(body, { dose_given: task.dose || "", route_given: task.route || "" });
       await runTaskAction(task.id, "complete", body);
       toast.success("Documented.");
@@ -53,6 +55,11 @@ export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, 
           {task.dose ? ` · ${task.dose}` : ""}
           {task.route ? ` ${task.route}` : ""}
         </Typography>
+        {performedAt && (
+          <Typography variant="body2" sx={{ mt: 1 }} data-testid="task-completed-at">
+            Given at {fmtDateTime(performedAt.toISOString())}
+          </Typography>
+        )}
         {error && (
           <Alert severity="error" sx={{ mt: 1.5 }} data-testid="task-completed-error">
             {error}
@@ -144,7 +151,7 @@ function Mark({ task, canClick, onPick }) {
       aria-label={`${word}: ${task.title} at ${time}`}
       data-testid={`grid-cell-${task.id}`}
       data-state={task.status === "pending" ? (task.overdue ? "overdue" : task.due_now ? "due" : "scheduled") : task.status}
-      onClick={clickable ? () => onPick(task) : undefined}
+      onClick={clickable ? (e) => { e.stopPropagation(); onPick(task); } : undefined}
       sx={{
         display: "flex", alignItems: "center", justifyContent: "center", gap: 0.5, width: "100%", minHeight: 28, px: 0.5, border: 0, borderRadius: 0.5,
         bgcolor: "transparent", font: "inherit", fontSize: 12, cursor: clickable ? "pointer" : "default", color: "text.primary",
@@ -162,7 +169,7 @@ function Mark({ task, canClick, onPick }) {
  * task's mark in the hour it is due. An "Earlier" column holds anything from before this day still waiting or missed.
  */
 export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEarlier, loading, scoped, canPerform, graceMinutes, onOpen, onChanged, onMore, onSelectPatient = null }) {
-  const [asking, setAsking] = useState(null);
+  const [asking, setAsking] = useState(null); // { task, at }
   const start = day.getTime();
   const end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
   const now = new Date();
@@ -178,19 +185,45 @@ export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEar
     const key = `${t.patient}-${t.order}`;
     let line = byKey.get(key);
     if (!line) {
-      line = { key, first: t, cells: new Map() };
+      line = { key, first: t, tasks: [], cells: new Map() };
       byKey.set(key, line);
       lines.push(line);
     }
+    line.tasks.push(t);
     const due = new Date(t.due_at);
     const slot = due.getTime() < start ? "earlier" : columnFor(columns, due.getHours() * 60 + due.getMinutes());
     if (!line.cells.has(slot)) line.cells.set(slot, []);
     line.cells.get(slot).push(t);
   });
 
+  const waiting = (t) => (t.status === "pending" || t.status === "missed") && (t.actions || []).includes("complete");
+
   const pick = (task) => {
-    if (task.status === "pending" || task.status === "missed") setAsking(task);
+    if (task.status === "pending" || task.status === "missed") setAsking({ task, at: null });
     else onOpen(task.id);
+  };
+
+  // Anywhere in a cell works, not only the small mark inside it. A cell with no task of its own, in a row that
+  // still has something waiting, records that task as given at this column's time.
+  const clickCell = (line, slot) => {
+    if (!canPerform) return;
+    const here = line.cells.get(slot) || [];
+    if (here.length > 0) {
+      const target = here.find(waiting) || here[0];
+      if (target) pick(target);
+      return;
+    }
+    if (slot === "earlier") return;
+    const at = new Date(start + slot * 60000);
+    if (at.getTime() > Date.now()) return;
+    const open = line.tasks.filter(waiting);
+    if (open.length === 0) return;
+    const task = open.reduce((best, t) => (Math.abs(new Date(t.due_at) - at) < Math.abs(new Date(best.due_at) - at) ? t : best));
+    setAsking({ task, at });
+  };
+  const canGive = (line, slot) => {
+    if (!canPerform || slot === "earlier" || (line.cells.get(slot) || []).length > 0) return false;
+    return start + slot * 60000 <= Date.now() && line.tasks.some(waiting);
   };
 
   const headCell = { position: "sticky", top: 0, zIndex: 3, backgroundColor: "grey.100", borderBottom: 1, borderColor: "divider", fontSize: 12, fontWeight: 600, p: 0.75, whiteSpace: "nowrap" };
@@ -288,7 +321,14 @@ export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEar
                     {t.frequency_label}
                   </Box>
                   {slots.map((slot) => (
-                    <Box component="td" key={slot} sx={cell} data-testid={`grid-slot-${t.order}-${slot}`}>
+                    <Box
+                      component="td"
+                      key={slot}
+                      sx={{ ...cell, ...(canPerform && ((line.cells.get(slot) || []).length > 0 || canGive(line, slot)) ? { cursor: "pointer", "&:hover": { backgroundColor: canGive(line, slot) ? "#f1f8ff" : undefined } } : {}) }}
+                      data-testid={`grid-slot-${t.order}-${slot}`}
+                      onClick={() => clickCell(line, slot)}
+                      {...(canGive(line, slot) ? { role: "button", "aria-label": `Document ${t.title} at ${minutesLabel(slot)}` } : {})}
+                    >
                       {(line.cells.get(slot) || []).map((task) => (
                         <Mark key={task.id} task={task} canClick={canPerform} onPick={pick} />
                       ))}
@@ -302,7 +342,8 @@ export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEar
       </Paper>
       {asking && (
         <TaskCompletedDialog
-          task={asking}
+          task={asking.task}
+          performedAt={asking.at}
           graceMinutes={graceMinutes}
           onClose={() => setAsking(null)}
           onDone={() => {

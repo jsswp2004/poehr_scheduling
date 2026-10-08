@@ -235,3 +235,77 @@ test("a patient's own chart grid has no patient links or second banner", async (
   expect(screen.queryByTestId("grid-patient-3")).not.toBeInTheDocument();
   expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument();
 });
+
+test("clicking anywhere in a task's cell, not only the small mark, opens Task Completed?", async () => {
+  await open();
+  fireEvent.click(screen.getByTestId("grid-slot-6-840"));
+  expect(await screen.findByText("Task Completed?")).toBeInTheDocument();
+  expect(screen.queryByTestId("task-completed-at")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByTestId("task-completed-yes"));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][0]).toBe("/order-tasks/3/action/");
+  expect(api.post.mock.calls[0][1].performed_at).toBeUndefined();
+});
+
+test("an empty cell in a row with something waiting records it as given at that column's time", async () => {
+  await open();
+  fireEvent.click(screen.getByTestId("grid-slot-7-780")); // the 1:00 PM column of the order due at noon, 60 min away
+  expect(await screen.findByText("Task Completed?")).toBeInTheDocument();
+  expect(screen.getByTestId("task-completed-at")).toHaveTextContent("1:00");
+  expect(screen.queryByTestId("task-completed-late")).not.toBeInTheDocument();
+  fireEvent.click(screen.getByTestId("task-completed-yes"));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  expect(api.post.mock.calls[0][0]).toBe("/order-tasks/4/action/");
+  expect(api.post.mock.calls[0][1]).toMatchObject({ action: "complete" });
+  expect(new Date(api.post.mock.calls[0][1].performed_at).getTime()).toBe(new Date(2026, 9, 8, 13, 0).getTime());
+});
+
+test("an empty cell far from the task's due time needs a note", async () => {
+  await open();
+  fireEvent.click(screen.getByTestId("grid-slot-5-300")); // 5:00 AM for the order whose open dose is due at 9 PM
+  expect(await screen.findByTestId("task-completed-late")).toBeInTheDocument();
+  fireEvent.click(screen.getByTestId("task-completed-yes"));
+  expect(screen.getByTestId("task-completed-error")).toHaveTextContent("Say why in the note");
+  expect(api.post).not.toHaveBeenCalled();
+});
+
+test("empty cells in the future do nothing", async () => {
+  await open();
+  fireEvent.click(screen.getByTestId("grid-slot-7-1080")); // 6:00 PM, later than now (2:30 PM)
+  expect(screen.queryByText("Task Completed?")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Document Folic Acid 1 mg at 18:00/ })).not.toBeInTheDocument();
+});
+
+test("a row with nothing left waiting has no clickable empty cells", async () => {
+  list = [TASK({ id: 1, due_at: at(9), status: "done", performed_by_initials: "JS", performed_at: at(9, 5) })];
+  await open();
+  fireEvent.click(screen.getByTestId("grid-slot-5-780"));
+  expect(screen.queryByText("Task Completed?")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /Document Amoxicillin/ })).not.toBeInTheDocument();
+});
+
+test("people who cannot document cannot click empty cells either", async () => {
+  meta = META({ can_perform: false });
+  await open();
+  fireEvent.click(screen.getByTestId("grid-slot-7-780"));
+  expect(screen.queryByText("Task Completed?")).not.toBeInTheDocument();
+});
+
+test("empty cells that can take a dose say so for screen readers", async () => {
+  await open();
+  expect(screen.getByRole("button", { name: "Document Folic Acid 1 mg at 13:00" })).toBeInTheDocument();
+});
+
+test("a custom minute column works the same way", async () => {
+  api.get.mockImplementation((url) => {
+    if (url === "/order-task-columns/") return Promise.resolve({ data: { columns: [720, 765, 780], is_default: false } });
+    if (url === "/order-task-meta/") return Promise.resolve({ data: meta });
+    if (url === "/order-tasks/queues/") return Promise.resolve({ data: { counts: {} } });
+    if (url === "/order-tasks/") return Promise.resolve({ data: { count: list.length, results: list } });
+    return Promise.reject(new Error(`unexpected ${url}`));
+  });
+  render(<TaskWorklist />);
+  await screen.findByTestId("grid-cell-4");
+  fireEvent.click(await screen.findByTestId("grid-slot-8-765")); // 12:45, the heparin order that was missed at 6:00
+  expect(await screen.findByTestId("task-completed-at")).toHaveTextContent("12:45");
+});
