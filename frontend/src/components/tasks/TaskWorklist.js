@@ -165,7 +165,7 @@ export default function TaskWorklist({ patient = null }) {
   const dayLabel = day.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric", year: "numeric" });
 
   return (
-    <Box sx={{ p: 2 }} data-testid="task-worklist">
+    <Box data-testid="task-worklist">
       {/* the patient banner sits above the page heading, as on the Patients page */}
       {picked && (
         <Box data-testid="task-patient-banner">
@@ -173,118 +173,119 @@ export default function TaskWorklist({ patient = null }) {
         </Box>
       )}
 
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-        <Typography variant="h6">{scoped ? `Tasks — ${patient.name}` : "Task Manager"}</Typography>
-        {scoped && canPerform && (
-          <Button variant="outlined" startIcon={<MedicationIcon />} onClick={() => setPrn(true)} data-testid="task-prn">
-            Give as-needed dose
-          </Button>
-        )}
-      </Stack>
-
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} sx={{ my: 1.5 }}>
-        <Stack direction="row" spacing={0.5} alignItems="center">
-          <IconButton size="small" aria-label="Previous day" onClick={() => setDay(addDays(day, -1))} data-testid="day-prev">
-            <ChevronLeftIcon />
-          </IconButton>
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }} data-testid="task-toolbar">
+          <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600, mr: 1 }}>
+            {scoped ? `Tasks — ${patient.name}` : "Task Manager"}
+          </Typography>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <IconButton size="small" aria-label="Previous day" onClick={() => setDay(addDays(day, -1))} data-testid="day-prev">
+              <ChevronLeftIcon />
+            </IconButton>
+            <TextField
+              size="small"
+              type="date"
+              value={dayInput(day)}
+              onChange={(e) => {
+                const d = fromDayInput(e.target.value);
+                if (d) setDay(d);
+              }}
+              inputProps={{ "aria-label": "Day", "data-testid": "day-input" }}
+            />
+            <IconButton size="small" aria-label="Next day" onClick={() => setDay(addDays(day, 1))} data-testid="day-next">
+              <ChevronRightIcon />
+            </IconButton>
+            <Button size="small" onClick={() => setDay(today)} disabled={isToday} data-testid="day-today">
+              Today
+            </Button>
+          </Stack>
           <TextField
             size="small"
-            type="date"
-            value={dayInput(day)}
-            onChange={(e) => {
-              const d = fromDayInput(e.target.value);
-              if (d) setDay(d);
-            }}
-            inputProps={{ "aria-label": "Day", "data-testid": "day-input" }}
+            label="Search"
+            placeholder={scoped ? "Medication or task" : "Patient, medication or task"}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            inputProps={{ "data-testid": "task-search" }}
+            sx={{ minWidth: 200 }}
           />
-          <IconButton size="small" aria-label="Next day" onClick={() => setDay(addDays(day, 1))} data-testid="day-next">
-            <ChevronRightIcon />
-          </IconButton>
-          <Button size="small" onClick={() => setDay(today)} disabled={isToday} data-testid="day-today">
-            Today
+          <TextField select size="small" label="Type" value={type} onChange={(e) => setType(e.target.value)} sx={{ minWidth: 120 }} inputProps={{ "data-testid": "task-filter-type" }}>
+            <MenuItem value="">Any</MenuItem>
+            <MenuItem value="medication">Medications</MenuItem>
+            <MenuItem value="nursing">Nursing</MenuItem>
+          </TextField>
+          {!scoped && (
+            <TextField select size="small" label="Patients" value={assigned} onChange={(e) => setAssigned(e.target.value)} sx={{ minWidth: 150 }} inputProps={{ "data-testid": "task-filter-assigned" }}>
+              <MenuItem value="">All patients</MenuItem>
+              <MenuItem value="me">Assigned to me</MenuItem>
+              {lastPatient && <MenuItem value="patient">{lastPatient.name || "Selected patient"}</MenuItem>}
+            </TextField>
+          )}
+          <Box sx={{ flexGrow: 1 }} />
+          {scoped && canPerform && (
+            <Button size="small" variant="outlined" startIcon={<MedicationIcon />} onClick={() => setPrn(true)} data-testid="task-prn">
+              Give as-needed dose
+            </Button>
+          )}
+          <Button size="small" startIcon={<ViewColumnIcon />} onClick={() => { setColumnsError(""); setEditingColumns(true); }} data-testid="columns-open">
+            Time columns
           </Button>
         </Stack>
-        <TextField
-          size="small"
-          label="Search"
-          placeholder={scoped ? "Medication or task" : "Patient, medication or task"}
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          inputProps={{ "data-testid": "task-search" }}
-          sx={{ minWidth: 240 }}
-        />
-        <TextField select size="small" label="Type" value={type} onChange={(e) => setType(e.target.value)} sx={{ minWidth: 150 }} inputProps={{ "data-testid": "task-filter-type" }}>
-          <MenuItem value="">Any</MenuItem>
-          <MenuItem value="medication">Medications</MenuItem>
-          <MenuItem value="nursing">Nursing</MenuItem>
-        </TextField>
-        {!scoped && (
-          <TextField select size="small" label="Patients" value={assigned} onChange={(e) => setAssigned(e.target.value)} sx={{ minWidth: 170 }} inputProps={{ "data-testid": "task-filter-assigned" }}>
-            <MenuItem value="">All patients</MenuItem>
-            <MenuItem value="me">Assigned to me</MenuItem>
-            {lastPatient && <MenuItem value="patient">{lastPatient.name || "Selected patient"}</MenuItem>}
-          </TextField>
-        )}
-      </Stack>
 
-      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }} data-testid="task-legend">
-        <Typography variant="subtitle2" sx={{ mr: 1 }}>
-          {dayLabel}
-        </Typography>
-        <Chip size="small" label={`Due now ${dueNow}`} sx={{ bgcolor: DUE_BG }} data-testid="legend-due" />
-        <Chip size="small" label={`Overdue ${overdue}`} sx={{ bgcolor: OVERDUE_BG }} data-testid="legend-overdue" />
-        <Chip size="small" variant="outlined" label={`Missed ${missed}`} sx={{ color: "#d32f2f", fontWeight: 700, borderColor: "#d32f2f" }} data-testid="legend-missed" />
-        <Typography variant="caption" color="text.secondary">
-          ✓ initials = done
-        </Typography>
-        <Box sx={{ flexGrow: 1 }} />
-        <Button size="small" startIcon={<ViewColumnIcon />} onClick={() => { setColumnsError(""); setEditingColumns(true); }} data-testid="columns-open">
-          Time columns
-        </Button>
-      </Stack>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }} data-testid="task-legend">
+          <Typography variant="subtitle2" sx={{ mr: 1 }}>
+            {dayLabel}
+          </Typography>
+          <Chip size="small" label={`Due now ${dueNow}`} sx={{ bgcolor: DUE_BG }} data-testid="legend-due" />
+          <Chip size="small" label={`Overdue ${overdue}`} sx={{ bgcolor: OVERDUE_BG }} data-testid="legend-overdue" />
+          <Chip size="small" variant="outlined" label={`Missed ${missed}`} sx={{ color: "#d32f2f", fontWeight: 700, borderColor: "#d32f2f" }} data-testid="legend-missed" />
+          <Typography variant="caption" color="text.secondary">
+            ✓ initials = done
+          </Typography>
+        </Stack>
 
-      {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
+        {error && <Alert severity="error" sx={{ mb: 0.5 }}>{error}</Alert>}
 
-      <TaskGrid
-        rows={rows}
-        day={day}
-        columns={columns}
-        showEarlier={dayKey >= today.getTime()}
-        loading={loading}
-        scoped={scoped}
-        canPerform={canPerform}
-        graceMinutes={meta?.grace_minutes ?? 60}
-        onOpen={setOpenId}
-        onChanged={() => load(true)}
-        onMore={(task, action) => setAct({ task, action })}
-      />
-
-      {editingColumns && (
-        <TaskColumnsDialog columns={columns} onClose={() => setEditingColumns(false)} onSave={saveColumns} saving={savingColumns} error={columnsError} />
-      )}
-      {act && (
-        <TaskActionDialog
-          task={act.task}
-          action={act.action}
+        <TaskGrid
+          rows={rows}
+          day={day}
+          columns={columns}
+          showEarlier={dayKey >= today.getTime()}
+          loading={loading}
+          scoped={scoped}
+          canPerform={canPerform}
           graceMinutes={meta?.grace_minutes ?? 60}
-          onClose={() => setAct(null)}
-          onDone={() => {
-            setAct(null);
-            load(true);
-          }}
+          onOpen={setOpenId}
+          onChanged={() => load(true)}
+          onMore={(task, action) => setAct({ task, action })}
         />
-      )}
-      {openId && <TaskDetailDialog taskId={openId} canNote={canPerform} onClose={() => setOpenId(null)} onChanged={() => load(true)} />}
-      {prn && patient && (
-        <PrnDialog
-          patient={patient}
-          onClose={() => setPrn(false)}
-          onDone={() => {
-            setPrn(false);
-            load(true);
-          }}
-        />
-      )}
+
+        {editingColumns && (
+          <TaskColumnsDialog columns={columns} onClose={() => setEditingColumns(false)} onSave={saveColumns} saving={savingColumns} error={columnsError} />
+        )}
+        {act && (
+          <TaskActionDialog
+            task={act.task}
+            action={act.action}
+            graceMinutes={meta?.grace_minutes ?? 60}
+            onClose={() => setAct(null)}
+            onDone={() => {
+              setAct(null);
+              load(true);
+            }}
+          />
+        )}
+        {openId && <TaskDetailDialog taskId={openId} canNote={canPerform} onClose={() => setOpenId(null)} onChanged={() => load(true)} />}
+        {prn && patient && (
+          <PrnDialog
+            patient={patient}
+            onClose={() => setPrn(false)}
+            onDone={() => {
+              setPrn(false);
+              load(true);
+            }}
+          />
+        )}
+      </Box>
     </Box>
   );
 }

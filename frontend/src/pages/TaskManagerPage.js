@@ -9,7 +9,7 @@ import TaskWorklist from "../components/tasks/TaskWorklist";
 function TaskManagerPage() {
   return (
     <ChartPageShell>
-      <Box data-testid="task-manager-page" sx={{ bgcolor: "background.paper", pb: 2 }}>
+      <Box data-testid="task-manager-page" sx={{ bgcolor: "background.paper", pb: 0.5 }}>
         <TaskWorklist />
       </Box>
     </ChartPageShell>
