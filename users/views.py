@@ -881,9 +881,15 @@ def get_patients(request):
                 .order_by("-created_at", "-pk")
                 .values("discharge_datetime")[:1]
             )
+            latest_unit = (
+                Registration.objects.filter(patient=OuterRef("pk"))
+                .order_by("-created_at", "-pk")
+                .values("unit")[:1]
+            )
             patients = patients.annotate(
                 _care_setting=Subquery(latest_setting),
                 _discharged_at=Subquery(latest_discharge),
+                _unit=Subquery(latest_unit),
             )
             if care_setting == "ambulatory":
                 # no visit, an ambulatory visit, or a visit that has ended (discharged)
@@ -895,6 +901,10 @@ def get_patients(request):
                 )
             else:
                 patients = patients.filter(_care_setting=care_setting, _discharged_at__isnull=True)
+            # the Unit column filter on the Acute Care list: patients whose current visit is in that unit
+            unit_id = request.GET.get("unit")
+            if unit_id and str(unit_id).isdigit():
+                patients = patients.filter(_unit=int(unit_id))
 
         logger.info(f"📊 Filtered patient count: {patients.count()}")
 

@@ -29,7 +29,8 @@ test("Acute Care shows location and attending with Transfer and Discharge, not A
   const onTransfer = jest.fn();
   const onDischarge = jest.fn();
   show({ careSetting: "acute", onTransfer, onDischarge });
-  expect(screen.getByTestId("patient-location-10")).toHaveTextContent(/^3 West › A$/);
+  expect(screen.getByTestId("patient-location-10")).toHaveTextContent(/^312 › A$/);
+  expect(screen.getByTestId("patient-unit-10")).toHaveTextContent(/^3 West$/);
   expect(screen.getByText("Dr. Jeffrey Lee")).toBeInTheDocument();
   expect(screen.queryByText("b@x.com")).toBeNull();
   expect(screen.queryByRole("button", { name: "Admit Bob Ray" })).toBeNull();
@@ -71,13 +72,13 @@ test("Emergency list offers Transfer, Admit and Discharge", () => {
   expect(onDischarge).toHaveBeenCalledWith(rows[0]);
 });
 
-test("the Location column shows only the unit and the bed", () => {
+test("the Location column shows only the room and the bed", () => {
   const visit = (v) => [{ ...rows[0], current_visit: { ...rows[0].current_visit, ...v } }];
   const cases = [
-    [{ unit_name: "3 West", room_name: "312", bed_name: "A" }, "3 West › A"],
-    [{ unit_name: "ED", room_name: "", bed_name: "" }, "ED"],
-    [{ unit_name: "", room_name: "", bed_name: "B" }, "B"],
-    [{ unit_name: "", room_name: "", bed_name: "", location: "General Hospital" }, "No bed assigned"],
+    [{ unit_name: "3 West", room_name: "312", bed_name: "A" }, "312 › A"],
+    [{ unit_name: "3 West", room_name: "312", bed_name: "" }, "312"],
+    [{ unit_name: "3 West", room_name: "", bed_name: "B" }, "B"],
+    [{ unit_name: "3 West", room_name: "", bed_name: "", location: "General Hospital › 3 West" }, "No bed assigned"],
   ];
   cases.forEach(([v, text]) => {
     const { unmount } = show({ careSetting: "acute", patients: visit(v) });
@@ -85,4 +86,45 @@ test("the Location column shows only the unit and the bed", () => {
     expect(screen.getByTestId("patient-location-10")).not.toHaveTextContent("General Hospital");
     unmount();
   });
+});
+
+test("Acute Care has a Unit column before Name, the other lists do not", () => {
+  show({ careSetting: "acute" });
+  const headers = screen.getAllByRole("columnheader").map((h) => h.textContent);
+  expect(headers.slice(0, 3)).toEqual(["Unit", "Name", "Location"]);
+  expect(screen.getByTestId("patient-unit-10")).toHaveTextContent("3 West");
+  expect(screen.getAllByRole("row")[1].querySelectorAll("td")[0]).toHaveTextContent("3 West");
+});
+
+test("other lists have no Unit column", () => {
+  show({ careSetting: "ambulatory" });
+  expect(screen.queryByTestId("unit-filter")).toBeNull();
+  expect(screen.queryByTestId("patient-unit-10")).toBeNull();
+  expect(screen.getAllByRole("columnheader")[0]).toHaveTextContent("Name");
+});
+
+test("the Unit header filters: it lists every unit, and picking one calls setUnit", () => {
+  const setUnit = jest.fn();
+  const units = [{ id: 7, name: "3 West" }, { id: 8, name: "4 East" }];
+  show({ careSetting: "acute", units, setUnit, unit: "" });
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: /Filter by unit/i }));
+  const options = screen.getAllByRole("option").map((o) => o.textContent);
+  expect(options).toEqual(["All units", "3 West", "4 East"]);
+  fireEvent.click(screen.getByRole("option", { name: "4 East" }));
+  expect(setUnit).toHaveBeenCalledWith("8");
+});
+
+test("an active unit filter shows in the header, and All units clears it", () => {
+  const setUnit = jest.fn();
+  const units = [{ id: 7, name: "3 West" }];
+  show({ careSetting: "acute", units, setUnit, unit: "7" });
+  expect(screen.getByRole("combobox", { name: /Filter by unit/i })).toHaveTextContent("Unit: 3 West");
+  fireEvent.mouseDown(screen.getByRole("combobox", { name: /Filter by unit/i }));
+  fireEvent.click(screen.getByRole("option", { name: "All units" }));
+  expect(setUnit).toHaveBeenCalledWith("");
+});
+
+test("an empty filtered list spans the whole table", () => {
+  show({ careSetting: "acute", patients: [], unit: "7", units: [{ id: 7, name: "3 West" }] });
+  expect(screen.getByText(/No inpatients right now/).closest("td")).toHaveAttribute("colspan", "6");
 });

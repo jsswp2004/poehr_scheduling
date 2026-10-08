@@ -59,6 +59,9 @@ function PatientsTable({
     onAdmit = null,
     onTransfer = null,
     onDischarge = null,
+    unit = '',
+    setUnit = null,
+    units = [],
 }) {
     const navigate = useNavigate();
     // On the Patients page the chart opens in place (under the patient header). Anywhere else it falls back to the standalone pages.
@@ -80,7 +83,7 @@ function PatientsTable({
     const inpatientView = careSetting === 'acute';
     // Transfer and Discharge apply to anyone in a bed or waiting in the ED, as well as inpatients
     const inHouseView = careSetting === 'acute' || careSetting === 'emergency';
-    const columnCount = 5;
+    const columnCount = inpatientView ? 6 : 5;
 
     if (loading) {
         return (
@@ -140,6 +143,28 @@ function PatientsTable({
                 <Table stickyHeader>
                     <TableHead>
                         <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                            {inpatientView && (
+                                <TableCell sx={{ fontWeight: 'bold' }}>
+                                    <MUISelect
+                                        variant="standard"
+                                        size="small"
+                                        displayEmpty
+                                        disableUnderline={false}
+                                        value={unit === '' || unit == null ? '' : String(unit)}
+                                        onChange={(e) => setUnit && setUnit(e.target.value)}
+                                        renderValue={(v) => (v ? `Unit: ${(units.find((u) => String(u.id) === String(v)) || {}).name || v}` : 'Unit')}
+                                        inputProps={{ 'aria-label': 'Filter by unit', 'data-testid': 'unit-filter' }}
+                                        sx={{ fontWeight: 'bold', fontSize: 'inherit', minWidth: 90, color: unit ? 'primary.main' : 'inherit' }}
+                                    >
+                                        <MenuItem value="">All units</MenuItem>
+                                        {units.map((u) => (
+                                            <MenuItem key={u.id} value={String(u.id)}>
+                                                {u.name}
+                                            </MenuItem>
+                                        ))}
+                                    </MUISelect>
+                                </TableCell>
+                            )}
                             <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
                             {inpatientView ? (
                                 <>
@@ -183,6 +208,13 @@ function PatientsTable({
                                         cursor: 'pointer',
                                     }}
                                 >
+                                    {inpatientView && (
+                                        <TableCell>
+                                            <Typography variant="body2" data-testid={`patient-unit-${patient.user_id}`}>
+                                                {patient.current_visit?.unit_name || ''}
+                                            </Typography>
+                                        </TableCell>
+                                    )}
                                     <TableCell>
                                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                                             {patient.full_name}
@@ -192,7 +224,7 @@ function PatientsTable({
                                         <>
                                             <TableCell>
                                                 <Typography variant="body2" data-testid={`patient-location-${patient.user_id}`}>
-                                                    {unitAndBed(patient.current_visit) || 'No bed assigned'}
+                                                    {roomAndBed(patient.current_visit) || 'No bed assigned'}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell>
@@ -376,11 +408,11 @@ function PatientsTable({
 }
 
 
-// The Location column shows only the unit and the bed ("3 West › A"), not the facility or room.
-const unitAndBed = (visit) => {
+// The Location column shows only the room and the bed ("312 › A"); the unit has its own column.
+const roomAndBed = (visit) => {
     if (!visit) return '';
-    if (!('unit_name' in visit) && !('bed_name' in visit)) return visit.location || ''; // older response
-    return [visit.unit_name, visit.bed_name].filter(Boolean).join(' › ');
+    if (!('room_name' in visit) && !('bed_name' in visit)) return visit.location || ''; // older response
+    return [visit.room_name, visit.bed_name].filter(Boolean).join(' › ');
 };
 
 export default React.memo(PatientsTable);
