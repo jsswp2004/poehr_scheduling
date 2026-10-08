@@ -38,7 +38,14 @@ def _bad(message, code=400):
 
 
 def latest_visit(patient):
-    return patient.registrations.order_by("-created_at", "-pk").first()
+    """The visit that says where the patient is now: an open inpatient visit, else an open ED visit,
+    else the most recent one. (A newer blank visit must not hide a patient who is still in a bed.)"""
+    visits = patient.registrations.order_by("-created_at", "-pk")
+    for setting in ("acute", "emergency"):
+        open_visit = visits.filter(care_setting=setting, discharge_datetime__isnull=True).first()
+        if open_visit is not None:
+            return open_visit
+    return visits.first()
 
 
 def is_open(visit):
