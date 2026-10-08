@@ -147,3 +147,29 @@ test("a load failure says so and does not crash", async () => {
   render(<TabManagementSettings />);
   expect(await screen.findByText("Not allowed.")).toBeInTheDocument();
 });
+
+describe("All facilities", () => {
+  const { configureFacilityScope, chooseFacility, resetFacilityScope, ALL } = require("../../utils/facilityScope");
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    configureFacilityScope([{ id: 1, name: "Alpha" }, { id: 2, name: "Bravo" }]);
+    chooseFacility(ALL);
+  });
+  afterEach(() => resetFacilityScope());
+
+  test("only the clinic default is offered (personal tabs belong to one facility)", async () => {
+    render(<TabManagementSettings />);
+    await screen.findByTestId("clinic-tabs");
+    expect(screen.queryByTestId("my-tabs")).not.toBeInTheDocument();
+  });
+
+  test("saving the clinic default is repeated for every facility", async () => {
+    render(<TabManagementSettings />);
+    await screen.findByTestId("clinic-tabs");
+    fireEvent.click(screen.getByLabelText("Show Results"));
+    fireEvent.click(screen.getByRole("button", { name: "Save clinic default" }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Tabs saved."));
+    expect(api.put).toHaveBeenCalledTimes(2);
+    expect(api.put.mock.calls.every(([url]) => url === "/tabs/defaults/")).toBe(true);
+  });
+});

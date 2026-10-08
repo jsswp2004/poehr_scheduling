@@ -147,3 +147,35 @@ test("explains when the settings can't be loaded", async () => {
   render(<PatientHeaderSettings />);
   expect(await screen.findByText("Choose a clinic (?org=ID).")).toBeInTheDocument();
 });
+
+describe("All facilities", () => {
+  const { configureFacilityScope, chooseFacility, resetFacilityScope, ALL } = require("../../utils/facilityScope");
+  const FACILITIES = [{ id: 1, name: "Alpha" }, { id: 2, name: "Bravo" }];
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    configureFacilityScope(FACILITIES);
+    chooseFacility(ALL);
+  });
+  afterEach(() => resetFacilityScope());
+
+  test("Save is sent once for every facility", async () => {
+    api.put.mockImplementation(async (url, body) => ({ data: config({ items: body.items.map((i) => row(i.key, i.key, i.visible)) }) }));
+    render(<PatientHeaderSettings />);
+    await screen.findByTestId("header-row-name");
+    fireEvent.click(screen.getByLabelText("Show MRN"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Patient header saved."));
+    expect(api.put).toHaveBeenCalledTimes(2);
+    expect(api.put.mock.calls[0][1]).toEqual(api.put.mock.calls[1][1]);
+  });
+
+  test("a facility that refuses is named, and the others are still saved", async () => {
+    api.put.mockResolvedValueOnce({ data: config() }).mockRejectedValueOnce({ response: { data: { detail: "Unknown header item: custom:x" } } });
+    render(<PatientHeaderSettings />);
+    await screen.findByTestId("header-row-name");
+    fireEvent.click(screen.getByLabelText("Show MRN"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.error.mock.calls[0][0]).toMatch(/Saved for 1 of 2 facilities. Not saved for: Bravo/);
+  });
+});

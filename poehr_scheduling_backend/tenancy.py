@@ -141,8 +141,52 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
             user, _validated_token = result
             if getattr(user, "role", None) == "staff":
                 self._enforce_staff_scope(request)
+            self._act_for_facility(request, user)
             set_current_organization(getattr(user, "organization", None))
         return result
+
+    FACILITY_HEADER = "HTTP_X_FACILITY_ID"
+
+    def _act_for_facility(self, request, user):
+        """
+        A system administrator may act for one facility at a time by sending
+        `X-Facility-Id: <organization id>` (the Settings facility picker does).
+        For that request the user object reports that facility as its
+        organization, so every tenant-scoped query and every view that reads
+        `request.user.organization` follows it. Nobody else can use this
+        header: for any other role it is ignored.
+
+        The change lives only on this in-memory object. save() puts the real
+        organization back first so the switch can never be written to the
+        database.
+        """
+        if getattr(user, "role", None) != "system_admin":
+            return
+        raw = request.META.get(self.FACILITY_HEADER, "")
+        if not raw:
+            return
+        from rest_framework.exceptions import ParseError
+
+        from users.models import Organization
+
+        try:
+            org = Organization.objects.get(pk=int(raw))
+        except (TypeError, ValueError, Organization.DoesNotExist):
+            raise ParseError("Unknown facility.")
+
+        real_org_id = user.organization_id
+        real_save = user.save
+
+        def safe_save(*args, **kwargs):
+            acting = user.organization_id
+            user.organization_id = real_org_id
+            try:
+                return real_save(*args, **kwargs)
+            finally:
+                user.organization = org if acting == org.pk else user.organization
+
+        user.organization = org
+        user.save = safe_save
 
     # Roster-staff logins ("My Shifts") may only touch these API prefixes.
     # Everything else (patients, appointments, users, billing, ...) is

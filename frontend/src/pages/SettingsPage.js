@@ -5,6 +5,8 @@ import UploadTab from "../components/UploadTab";
 import BackButton from "../components/BackButton";
 import PatientHeaderSettings from "../components/patientHeader/PatientHeaderSettings";
 import TabManagementSettings from "../components/chartTabs/TabManagementSettings";
+import FacilityPicker from "../components/facility/FacilityPicker";
+import SingleFacilityOnly from "../components/facility/SingleFacilityOnly";
 import { Box, Typography, Tabs, Tab } from "@mui/material";
 
 function SettingsPage() {
@@ -76,68 +78,74 @@ function SettingsPage() {
           </Box>
         </Box>
 
-        {tab === "maintenance" && (
-          <Box
-            sx={{
-              boxShadow: 2,
-              borderRadius: "0 0 8px 8px",
-              bgcolor: "background.paper",
-              p: 3,
-            }}
-          >
-            <MaintenancePage />
-          </Box>
-        )}
-        {tab === "env" && (
-          <Box
-            sx={{
-              boxShadow: 2,
-              borderRadius: "0 0 8px 8px",
-              bgcolor: "background.paper",
-              p: 3,
-            }}
-          >
-            {/*<Typography variant="h6" sx={{ mb: 2 }}>Environment Profile</Typography>*/}
-            <EnvironmentProfilePage />
-          </Box>
-        )}
-        {tab === "uploads" && (
-          <Box
-            sx={{
-              boxShadow: 2,
-              borderRadius: "0 0 8px 8px",
-              bgcolor: "background.paper",
-              p: 3,
-            }}
-          >
-            {}
-            <UploadTab />
-          </Box>
-        )}
-        {tab === "patient-header" && (
-          <Box
-            sx={{
-              boxShadow: 2,
-              borderRadius: "0 0 8px 8px",
-              bgcolor: "background.paper",
-              p: 3,
-            }}
-          >
-            <PatientHeaderSettings />
-          </Box>
-        )}
-        {tab === "tab-management" && (
-          <Box
-            sx={{
-              boxShadow: 2,
-              borderRadius: "0 0 8px 8px",
-              bgcolor: "background.paper",
-              p: 3,
-            }}
-          >
-            <TabManagementSettings />
-          </Box>
-        )}
+        <FacilityPicker>
+          {tab === "maintenance" && (
+            <Box
+              sx={{
+                boxShadow: 2,
+                borderRadius: "0 0 8px 8px",
+                bgcolor: "background.paper",
+                p: 3,
+              }}
+            >
+              <SingleFacilityOnly what="Provider schedules">
+                <MaintenancePage />
+              </SingleFacilityOnly>
+            </Box>
+          )}
+          {tab === "env" && (
+            <Box
+              sx={{
+                boxShadow: 2,
+                borderRadius: "0 0 8px 8px",
+                bgcolor: "background.paper",
+                p: 3,
+              }}
+            >
+              {/*<Typography variant="h6" sx={{ mb: 2 }}>Environment Profile</Typography>*/}
+              <EnvironmentProfilePage />
+            </Box>
+          )}
+          {tab === "uploads" && (
+            <Box
+              sx={{
+                boxShadow: 2,
+                borderRadius: "0 0 8px 8px",
+                bgcolor: "background.paper",
+                p: 3,
+              }}
+            >
+              {}
+              <SingleFacilityOnly what="An upload">
+                <UploadTab />
+              </SingleFacilityOnly>
+            </Box>
+          )}
+          {tab === "patient-header" && (
+            <Box
+              sx={{
+                boxShadow: 2,
+                borderRadius: "0 0 8px 8px",
+                bgcolor: "background.paper",
+                p: 3,
+              }}
+            >
+              <PatientHeaderSettings />
+            </Box>
+          )}
+          {tab === "tab-management" && (
+            <Box
+              sx={{
+                boxShadow: 2,
+                borderRadius: "0 0 8px 8px",
+                bgcolor: "background.paper",
+                p: 3,
+              }}
+            >
+              <TabManagementSettings />
+            </Box>
+          )}
+        </FacilityPicker>
       </Box>
     </div>
   );
