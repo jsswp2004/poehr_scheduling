@@ -1,16 +1,19 @@
 import { Box } from "@mui/material";
 import LabInbox from "../components/LabInbox";
-import BackButton from "../components/BackButton";
+import ChartPageShell from "../components/patients/ChartPageShell";
 
-/** Results inbox page (/lab-inbox): everything waiting for review, most urgent first. */
+/**
+ * Results inbox page (/lab-inbox): everything waiting for review, most urgent first.
+ * The care-setting side bar (folded to its icon strip) is on the left and carries the
+ * Back arrow, so the page has no Back button of its own and no card padding above the title.
+ */
 function LabInboxPage() {
   return (
-    <Box sx={{ mt: 0, boxShadow: 2, borderRadius: 2, bgcolor: "background.paper", p: 3 }}>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
-        <BackButton to="/patients" />
+    <ChartPageShell>
+      <Box data-testid="lab-inbox-page" sx={{ mt: 0, bgcolor: "background.paper", px: 2, pt: 1, pb: 2 }}>
+        <LabInbox />
       </Box>
-      <LabInbox />
-    </Box>
+    </ChartPageShell>
   );
 }
 
