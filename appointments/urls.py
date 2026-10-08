@@ -41,6 +41,16 @@ from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
 from . import allergies as allergy_views
+from .referral_views import (
+    DestinationDetailView,
+    DestinationListCreateView,
+    ReferralActionView,
+    ReferralDetailView,
+    ReferralListCreateView,
+    ReferralMetaView,
+    ReferralQueuesView,
+    ReferralSettingsView,
+)
 from .patient_header import (
     HeaderConfigView,
     HeaderFieldViewSet,
@@ -220,6 +230,15 @@ urlpatterns = router.urls + [
     path("locations/<str:kind>/<int:pk>/", LocationItemView.as_view(), name="location-item"),
     path("patient-header-config/", HeaderConfigView.as_view(), name="patient-header-config"),
     path("my-schedule/", MyScheduleView.as_view(), name="my-schedule"),
+    # referral manager
+    path("referrals/", ReferralListCreateView.as_view(), name="referrals"),
+    path("referrals/queues/", ReferralQueuesView.as_view(), name="referral-queues"),
+    path("referrals/<int:pk>/", ReferralDetailView.as_view(), name="referral-detail"),
+    path("referrals/<int:pk>/action/", ReferralActionView.as_view(), name="referral-action"),
+    path("referral-meta/", ReferralMetaView.as_view(), name="referral-meta"),
+    path("referral-destinations/", DestinationListCreateView.as_view(), name="referral-destinations"),
+    path("referral-destinations/<int:pk>/", DestinationDetailView.as_view(), name="referral-destination"),
+    path("referral-settings/", ReferralSettingsView.as_view(), name="referral-settings"),
     path("chart-tabs/", ChartTabsView.as_view(), name="chart-tabs"),
     path("chart-tabs/mine/", MyChartTabsView.as_view(), name="chart-tabs-mine"),
     path("chart-tabs/defaults/", OrgChartTabsView.as_view(), name="chart-tabs-defaults"),

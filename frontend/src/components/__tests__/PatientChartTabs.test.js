@@ -33,7 +33,7 @@ test("a stored tab the role cannot see falls back to Patient List", () => {
 });
 
 test("placeholder tabs say coming soon; Patient Info is a real tab now", () => {
-  expect(Object.values(COMING_SOON)).toEqual(["Referral List", "Clinical Summary"]);
+  expect(Object.values(COMING_SOON)).toEqual(["Clinical Summary"]);
   render(<ComingSoonPanel title="Referral List" patient={{ id: 1, name: "Ann Lee" }} />);
   expect(screen.getByText(/Coming soon/)).toBeInTheDocument();
   expect(screen.queryByText("Open full patient record")).not.toBeInTheDocument();

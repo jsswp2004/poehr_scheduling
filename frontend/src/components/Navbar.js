@@ -24,6 +24,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import GroupsIcon from "@mui/icons-material/Groups";
 import ScienceIcon from "@mui/icons-material/Science";
+import ForwardToInboxIcon from "@mui/icons-material/ForwardToInbox";
 import PeopleIcon from "@mui/icons-material/People";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -116,6 +117,14 @@ const MODULE_LINKS = [
     Icon: ScienceIcon,
     roles: ["doctor", "nurse", "system_admin"], // the roles that review results
     isActive: (path) => path.startsWith("/lab-inbox"),
+  },
+  {
+    key: "referrals",
+    label: "Referrals",
+    to: "/referrals",
+    Icon: ForwardToInboxIcon,
+    roles: ["doctor", "nurse", "registrar", "admin", "system_admin"], // the roles that work referrals
+    isActive: (path) => path.startsWith("/referrals"),
   },
 ];
 
@@ -383,6 +392,35 @@ function Navbar() {
   const [labWaiting, setLabWaiting] = useState({ count: 0, critical: 0, unmatched: 0 });
   const canSeeLab = ["doctor", "nurse", "system_admin"].includes(role);
 
+  // Referrals that need someone to act, and how many are overdue: a badge on the Referrals icon.
+  const [referralWaiting, setReferralWaiting] = useState({ count: 0, overdue: 0 });
+  const canSeeReferrals = ["doctor", "nurse", "registrar", "admin", "system_admin"].includes(role);
+  const refreshReferralWaiting = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const res = await axios.get(`${API_BASE_URL}/api/referrals/queues/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const counts = res.data.counts || {};
+      setReferralWaiting({ count: Number(counts.needs_action) || 0, overdue: Number(counts.overdue) || 0 });
+    } catch (err) {
+      setReferralWaiting({ count: 0, overdue: 0 });
+    }
+  }, []);
+  useEffect(() => {
+    if (!isAuthenticated || !canSeeReferrals) return undefined;
+    refreshReferralWaiting();
+    const timer = setInterval(refreshReferralWaiting, 120000);
+    window.addEventListener("focus", refreshReferralWaiting);
+    window.addEventListener("referrals-changed", refreshReferralWaiting);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refreshReferralWaiting);
+      window.removeEventListener("referrals-changed", refreshReferralWaiting);
+    };
+  }, [isAuthenticated, canSeeReferrals, refreshReferralWaiting, location.pathname]);
+
   // Unread team messages: the Patients page tells the header whenever the count changes.
   const [teamUnread, setTeamUnread] = useState(0);
   useEffect(() => {
@@ -532,6 +570,10 @@ function Navbar() {
                           ? `${label}: ${labWaiting.count} to review${
                               labWaiting.critical > 0 ? ` (${labWaiting.critical} critical)` : ""
                             }${labWaiting.unmatched > 0 ? `, ${labWaiting.unmatched} waiting for a patient` : ""}`
+                          : key === "referrals" && referralWaiting.count > 0
+                          ? `${label}: ${referralWaiting.count} need action${
+                              referralWaiting.overdue > 0 ? ` (${referralWaiting.overdue} overdue)` : ""
+                            }`
                           : label
                       }
                     >
@@ -567,6 +609,15 @@ function Navbar() {
                             max={99}
                             color={labWaiting.critical > 0 ? "error" : "warning"}
                             data-testid="lab-waiting-badge"
+                          >
+                            <Icon sx={{ color: "white" }} />
+                          </Badge>
+                        ) : key === "referrals" && referralWaiting.count > 0 ? (
+                          <Badge
+                            badgeContent={referralWaiting.count}
+                            max={99}
+                            color={referralWaiting.overdue > 0 ? "error" : "warning"}
+                            data-testid="referral-waiting-badge"
                           >
                             <Icon sx={{ color: "white" }} />
                           </Badge>
