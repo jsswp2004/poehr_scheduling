@@ -10,7 +10,7 @@ import PatientsTable from "../patients/PatientsTable";
 const rows = [
   {
     id: 1, user_id: 10, full_name: "Bob Ray", email: "b@x.com", phone_number: "1", provider_name: "Dr. A",
-    current_visit: { id: 90, care_setting: "acute", location: "General Hospital › 3 West › 312 › A", arrival_time: "2026-10-05T10:00:00Z", attending_provider_name: "Dr. Jeffrey Lee" },
+    current_visit: { id: 90, care_setting: "acute", location: "General Hospital › 3 West › 312 › A", unit_name: "3 West", room_name: "312", bed_name: "A", arrival_time: "2026-10-05T10:00:00Z", attending_provider_name: "Dr. Jeffrey Lee" },
   },
 ];
 
@@ -29,7 +29,7 @@ test("Acute Care shows location and attending with Transfer and Discharge, not A
   const onTransfer = jest.fn();
   const onDischarge = jest.fn();
   show({ careSetting: "acute", onTransfer, onDischarge });
-  expect(screen.getByTestId("patient-location-10")).toHaveTextContent("3 West › 312 › A");
+  expect(screen.getByTestId("patient-location-10")).toHaveTextContent(/^3 West › A$/);
   expect(screen.getByText("Dr. Jeffrey Lee")).toBeInTheDocument();
   expect(screen.queryByText("b@x.com")).toBeNull();
   expect(screen.queryByRole("button", { name: "Admit Bob Ray" })).toBeNull();
@@ -69,4 +69,20 @@ test("Emergency list offers Transfer, Admit and Discharge", () => {
   expect(onTransfer).toHaveBeenCalledWith(rows[0]);
   expect(onAdmit).toHaveBeenCalledWith(rows[0]);
   expect(onDischarge).toHaveBeenCalledWith(rows[0]);
+});
+
+test("the Location column shows only the unit and the bed", () => {
+  const visit = (v) => [{ ...rows[0], current_visit: { ...rows[0].current_visit, ...v } }];
+  const cases = [
+    [{ unit_name: "3 West", room_name: "312", bed_name: "A" }, "3 West › A"],
+    [{ unit_name: "ED", room_name: "", bed_name: "" }, "ED"],
+    [{ unit_name: "", room_name: "", bed_name: "B" }, "B"],
+    [{ unit_name: "", room_name: "", bed_name: "", location: "General Hospital" }, "No bed assigned"],
+  ];
+  cases.forEach(([v, text]) => {
+    const { unmount } = show({ careSetting: "acute", patients: visit(v) });
+    expect(screen.getByTestId("patient-location-10")).toHaveTextContent(new RegExp(`^${text}$`));
+    expect(screen.getByTestId("patient-location-10")).not.toHaveTextContent("General Hospital");
+    unmount();
+  });
 });

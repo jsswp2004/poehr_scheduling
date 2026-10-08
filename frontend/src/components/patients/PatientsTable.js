@@ -192,7 +192,7 @@ function PatientsTable({
                                         <>
                                             <TableCell>
                                                 <Typography variant="body2" data-testid={`patient-location-${patient.user_id}`}>
-                                                    {patient.current_visit?.location || 'No bed assigned'}
+                                                    {unitAndBed(patient.current_visit) || 'No bed assigned'}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell>
@@ -374,5 +374,13 @@ function PatientsTable({
         </Box>
     );
 }
+
+
+// The Location column shows only the unit and the bed ("3 West › A"), not the facility or room.
+const unitAndBed = (visit) => {
+    if (!visit) return '';
+    if (!('unit_name' in visit) && !('bed_name' in visit)) return visit.location || ''; // older response
+    return [visit.unit_name, visit.bed_name].filter(Boolean).join(' › ');
+};
 
 export default React.memo(PatientsTable);
