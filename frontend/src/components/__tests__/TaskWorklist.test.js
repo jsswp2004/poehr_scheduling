@@ -30,7 +30,7 @@ const META = (over = {}) => ({
     { value: "overdue", label: "Overdue" },
     { value: "upcoming", label: "Upcoming" },
     { value: "missed", label: "Missed" },
-    { value: "completed", label: "Done (last 24 h)" },
+    { value: "completed", label: "Last 24 h" },
     { value: "all", label: "All" },
   ],
   can_perform: true,

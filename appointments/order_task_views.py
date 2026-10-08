@@ -22,7 +22,7 @@ QUEUES = [
     ("overdue", "Overdue"),
     ("upcoming", "Upcoming"),
     ("missed", "Missed"),
-    ("completed", "Done (last 24 h)"),
+    ("completed", "Last 24 h"),
     ("all", "All"),
 ]
 
@@ -31,6 +31,16 @@ def _name(user):
     if user is None:
         return ""
     return (f"{user.first_name} {user.last_name}".strip()) or user.username
+
+
+def _initials(user):
+    """"JS" for Jess Salvacion; the first two letters of the username when there is no name."""
+    if user is None:
+        return ""
+    first, last = (user.first_name or "").strip(), (user.last_name or "").strip()
+    if first or last:
+        return (first[:1] + last[:1]).upper()
+    return (user.username or "")[:2].upper()
 
 
 def _iso(value):
@@ -65,7 +75,12 @@ def queue_q(key, now, cfg):
     if key == "missed":
         return Q(status="missed")
     if key == "completed":
-        return Q(status__in=("done", "held", "refused"), performed_at__gte=now - timedelta(hours=24))
+        # the last-24-hours grid: what was documented in that time, plus what is still waiting to be
+        # documented from it (due in the window and not yet done), so a nurse can tick it off there
+        window = now - timedelta(hours=24)
+        return Q(status__in=("done", "held", "refused"), performed_at__gte=window) | Q(
+            status="pending", due_at__gte=window, due_at__lte=soon
+        )
     return Q()
 
 
@@ -113,6 +128,7 @@ def serialize(task, user, cfg, now, loc=None, detail=False):
         "overdue": ot.is_overdue(task, now, cfg["grace_minutes"]),
         "minutes_late": late_minutes,
         "performed_by_name": _name(task.performed_by),
+        "performed_by_initials": _initials(task.performed_by),
         "performed_at": _iso(task.performed_at),
         "reason": task.reason,
         "note": task.note,
@@ -157,7 +173,7 @@ class TaskListView(APIView):
             qs = qs.filter(Q(patient__first_name__icontains=term) | Q(patient__last_name__icontains=term) | Q(title__icontains=term))
         queue = p.get("queue") or "needs_action"
         qs = qs.filter(queue_q(queue, now, cfg))
-        qs = qs.order_by("-performed_at", "-id") if queue == "completed" else qs.order_by("due_at", "id")
+        qs = qs.order_by("patient_id", "due_at", "id") if queue == "completed" else qs.order_by("due_at", "id")
 
         try:
             size = max(1, min(int(p.get("page_size", PAGE_SIZE)), MAX_PAGE_SIZE))
