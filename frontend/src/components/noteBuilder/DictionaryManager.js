@@ -156,7 +156,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                 </Alert>
             )}
             <Grid container spacing={2} sx={{ mb: 2 }}>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                     <TextField
                         label="Code"
                         value={code}
@@ -166,10 +166,10 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                         helperText={dictionary.isNew ? "Stable machine key, e.g. 'allergy_severity'" : "Locked once created"}
                     />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                     <TextField label="Name" value={name} fullWidth onChange={(e) => setName(e.target.value)} />
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                     <TextField
                         label="Description"
                         value={description}
@@ -188,7 +188,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
             </Typography>
             {items.map((it) => (
                 <Grid container spacing={1} key={it._key} sx={{ mb: 1 }} alignItems="center">
-                    <Grid item xs={5} sm={4}>
+                    <Grid size={{ xs: 5, sm: 4 }}>
                         <TextField
                             label="Value (stored)"
                             size="small"
@@ -197,7 +197,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                             onChange={(e) => updateItem(it._key, "value", e.target.value)}
                         />
                     </Grid>
-                    <Grid item xs={5} sm={5}>
+                    <Grid size={{ xs: 5, sm: 5 }}>
                         <TextField
                             label="Label (shown)"
                             size="small"
@@ -206,7 +206,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                             onChange={(e) => updateItem(it._key, "label", e.target.value)}
                         />
                     </Grid>
-                    <Grid item xs={2} sm={2}>
+                    <Grid size={{ xs: 2, sm: 2 }}>
                         <IconButton size="small" onClick={() => removeItem(it._key)}>
                             <DeleteIcon fontSize="small" />
                         </IconButton>
