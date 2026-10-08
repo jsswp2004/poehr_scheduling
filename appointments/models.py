@@ -1615,3 +1615,137 @@ class Bed(models.Model):
 
     def __str__(self):
         return f"{self.room} - {self.name}"
+
+
+# ---------------------------------------------------------------------------
+# Referrals
+# ---------------------------------------------------------------------------
+
+
+class ReferralDestination(models.Model):
+    """Where referrals can be sent: a colleague inside our facilities or an outside practice."""
+
+    KIND_CHOICES = [("internal", "Within our facilities"), ("external", "Outside practice")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="referral_destinations")
+    name = models.CharField(max_length=200)
+    specialty = models.CharField(max_length=80, blank=True)
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES, default="external")
+    provider = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    npi = models.CharField(max_length=10, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    fax = models.CharField(max_length=30, blank=True)
+    address = models.CharField(max_length=300, blank=True)
+    direct_address = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        unique_together = [("organization", "name", "specialty")]
+
+    def __str__(self):
+        return self.name
+
+
+class ReferralSettings(models.Model):
+    """A clinic's referral timers: how long a referral may wait before it is flagged overdue."""
+
+    DEFAULT_SCHEDULE_DAYS = {"routine": 14, "urgent": 3, "emergent": 1}
+    DEFAULT_REPORT_DAYS = 14
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="referral_settings")
+    schedule_days = models.JSONField(default=dict, blank=True)  # {"routine": 14, "urgent": 3, "emergent": 1}
+    report_days = models.PositiveIntegerField(default=14)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class Referral(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("sent", "Sent"),
+        ("scheduled", "Scheduled"),
+        ("seen", "Seen"),
+        ("report_received", "Report received"),
+        ("closed", "Closed"),
+        ("declined", "Declined"),
+        ("needs_info", "Needs more info"),
+        ("cancelled", "Cancelled"),
+        ("expired", "Expired"),
+    ]
+    URGENCY_CHOICES = [("routine", "Routine"), ("urgent", "Urgent"), ("emergent", "Emergent")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="referrals")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="referrals_received")
+    referring_provider = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="referrals_made"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="referrals_created"
+    )
+    assigned_to = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="referrals_assigned"
+    )
+
+    destination = models.ForeignKey(
+        ReferralDestination, null=True, blank=True, on_delete=models.SET_NULL, related_name="referrals"
+    )
+    destination_name = models.CharField(max_length=200, blank=True)  # frozen when sent
+    specialty = models.CharField(max_length=80, blank=True)
+    urgency = models.CharField(max_length=10, choices=URGENCY_CHOICES, default="routine")
+    reason = models.TextField(blank=True)
+    diagnosis_code = models.CharField(max_length=20, blank=True)
+    diagnosis_text = models.CharField(max_length=255, blank=True)
+    clinical_question = models.TextField(blank=True)
+
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default="draft")
+    signed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    signed_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    scheduled_for = models.DateTimeField(null=True, blank=True)
+    appointment_location = models.CharField(max_length=200, blank=True)
+    seen_at = models.DateTimeField(null=True, blank=True)
+    report_received_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    report_text = models.TextField(blank=True)
+    status_note = models.CharField(max_length=300, blank=True)  # decline / needs-info / cancel reason
+    clinical_snapshot = models.JSONField(default=dict, blank=True)  # allergies etc. as they were when sent
+
+    # when each wait runs out (set as the referral moves along; None = nothing is being waited on)
+    schedule_due = models.DateTimeField(null=True, blank=True)
+    report_due = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["organization", "status"])]
+
+    def __str__(self):
+        return f"Referral {self.pk} ({self.status})"
+
+
+class ReferralEvent(models.Model):
+    """Append-only history of everything that happens to a referral."""
+
+    referral = models.ForeignKey(Referral, on_delete=models.CASCADE, related_name="events")
+    event_type = models.CharField(max_length=30)
+    from_status = models.CharField(max_length=16, blank=True)
+    to_status = models.CharField(max_length=16, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]

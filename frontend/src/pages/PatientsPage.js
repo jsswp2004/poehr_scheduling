@@ -22,6 +22,7 @@ import RegisterPage from "./RegisterPage";
 import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import useChartTabs from "../hooks/useChartTabs";
 import MySchedulePanel from "../components/patients/MySchedulePanel";
+import ReferralsPanel from "../components/referrals/ReferralsPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
 import BedBoard from "../components/patients/BedBoard";
@@ -693,6 +694,10 @@ function PatientsPage() {
                   onOpenEmailModal={handleOpenEmailModal}
                 />
               );
+            }
+            if (current === "referral_list") {
+              if (!selectedPatient) return <SelectPatientPrompt />;
+              return <ReferralsPanel patient={selectedPatient} />;
             }
             if (COMING_SOON[current]) {
               return (
