@@ -31,6 +31,7 @@ CATALOG = [
     ("flowsheets", "Flowsheets", True),
     ("my_schedule", "My Schedule", False),
     ("referral_list", "Referral List", False),
+    ("task_list", "Task List", True),
     ("clinical_summary", "Clinical Summary", True),
 ]
 KEYS = [k for k, _, _ in CATALOG]

@@ -41,6 +41,16 @@ from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
 from . import allergies as allergy_views
+from .order_task_views import (
+    PrnGiveView,
+    PrnOrdersView,
+    TaskActionView,
+    TaskDetailView,
+    TaskListView,
+    TaskMetaView,
+    TaskQueuesView,
+    TaskSettingsView,
+)
 from .referral_views import (
     DestinationDetailView,
     DestinationListCreateView,
@@ -239,6 +249,15 @@ urlpatterns = router.urls + [
     path("referral-destinations/", DestinationListCreateView.as_view(), name="referral-destinations"),
     path("referral-destinations/<int:pk>/", DestinationDetailView.as_view(), name="referral-destination"),
     path("referral-settings/", ReferralSettingsView.as_view(), name="referral-settings"),
+    # nurse tasks
+    path("order-tasks/", TaskListView.as_view(), name="order-tasks"),
+    path("order-tasks/queues/", TaskQueuesView.as_view(), name="order-task-queues"),
+    path("order-tasks/prn/", PrnGiveView.as_view(), name="order-task-prn"),
+    path("order-tasks/prn-orders/", PrnOrdersView.as_view(), name="order-task-prn-orders"),
+    path("order-tasks/<int:pk>/", TaskDetailView.as_view(), name="order-task-detail"),
+    path("order-tasks/<int:pk>/action/", TaskActionView.as_view(), name="order-task-action"),
+    path("order-task-meta/", TaskMetaView.as_view(), name="order-task-meta"),
+    path("order-task-settings/", TaskSettingsView.as_view(), name="order-task-settings"),
     path("chart-tabs/", ChartTabsView.as_view(), name="chart-tabs"),
     path("chart-tabs/mine/", MyChartTabsView.as_view(), name="chart-tabs-mine"),
     path("chart-tabs/defaults/", OrgChartTabsView.as_view(), name="chart-tabs-defaults"),

@@ -39,6 +39,7 @@ from .serializers import (
     OrderSerializer,
     OrderInterfaceUpdateSerializer,
 )
+from . import order_tasks
 from . import orders_workflow as ow
 from .orders_csv import parse_orderable_csv, export_orderable_csv, sample_orderable_csv
 from datetime import timedelta
@@ -2560,6 +2561,7 @@ class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
             [c[0] for c in Orderable.CATEGORY_CHOICES],
             [c[0] for c in Orderable.CODE_SYSTEM_CHOICES],
             [c[0] for c in ORDER_PRIORITY_CHOICES],
+            list(order_tasks.FREQUENCIES),
         )
 
         # Checks that need the database: detail forms and who owns each code.
@@ -2571,10 +2573,14 @@ class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
                     NoteTemplate.objects.filter(kind="order_detail"), user, allow_global=True
                 )
             }
-            code_filter = Q()
-            for r in rows:
-                code_filter |= Q(code__iexact=r["code"])
-            existing = {o.code.lower(): o for o in Orderable.objects.filter(code_filter)} if rows else {}
+            # one query for every code in the file (a big catalog is thousands of rows)
+            from django.db.models.functions import Lower
+
+            wanted = list({r["code"].lower() for r in rows})
+            existing = {
+                o.code.lower(): o
+                for o in Orderable.objects.annotate(_lc=Lower("code")).filter(_lc__in=wanted)
+            }
             for r in rows:
                 form_code = r["detail_form_code"]
                 if form_code and form_code not in forms:
@@ -2594,30 +2600,52 @@ class OrderableAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        created = updated = 0
-        with transaction.atomic():
-            for r in rows:
-                fields = {
-                    "name": r["name"],
-                    "category": r["category"],
-                    "code_system": r["code_system"],
-                    "external_code": r["external_code"],
-                    "description": r["description"],
-                    "default_priority": r["default_priority"],
-                    "requires_cosign": r["requires_cosign"],
-                    "is_active": r["is_active"],
-                    "detail_template": forms.get(r["detail_form_code"]) if r["detail_form_code"] else None,
-                }
-                current = existing.get(r["code"].lower())
-                if current is None:
-                    Orderable.objects.create(code=r["code"], organization_id=org_id, **fields)
-                    created += 1
-                else:
-                    for k, val in fields.items():
-                        setattr(current, k, val)
-                    current.save()
-                    updated += 1
-        return Response({"created": created, "updated": updated, "total": created + updated})
+        # write in bulk: a few queries for the whole file instead of one per row, so a large
+        # catalog finishes well inside the server's request time limit
+        from django.db import IntegrityError
+
+        now = timezone.now()
+        to_create, to_update = [], []
+        for r in rows:
+            fields = {
+                "name": r["name"],
+                "category": r["category"],
+                "code_system": r["code_system"],
+                "external_code": r["external_code"],
+                "description": r["description"],
+                "default_priority": r["default_priority"],
+                "requires_cosign": r["requires_cosign"],
+                "is_active": r["is_active"],
+                "detail_template": forms.get(r["detail_form_code"]) if r["detail_form_code"] else None,
+            }
+            for extra in ("creates_tasks", "default_frequency"):
+                if extra in r:
+                    fields[extra] = r[extra]
+            current = existing.get(r["code"].lower())
+            if current is None:
+                to_create.append(Orderable(code=r["code"], organization_id=org_id, **fields))
+            else:
+                for k, val in fields.items():
+                    setattr(current, k, val)
+                current.updated_at = now
+                to_update.append(current)
+        try:
+            with transaction.atomic():
+                Orderable.objects.bulk_create(to_create, batch_size=500)
+                if to_update:
+                    Orderable.objects.bulk_update(
+                        to_update,
+                        ["name", "category", "code_system", "external_code", "description", "default_priority",
+                         "requires_cosign", "is_active", "detail_template", "updated_at"]
+                        + [k for k in ("creates_tasks", "default_frequency") if rows and k in rows[0]],
+                        batch_size=500,
+                    )
+        except IntegrityError:
+            return Response(
+                {"detail": "Someone else added one of these codes while the file was uploading. Nothing was saved; upload it again."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response({"created": len(to_create), "updated": len(to_update), "total": len(to_create) + len(to_update)})
 
 
 class OrderSetAdminViewSet(_CatalogAdminMixin, viewsets.ModelViewSet):

@@ -1189,6 +1189,7 @@ class OrderableSerializer(serializers.ModelSerializer):
     category_display = serializers.CharField(source="get_category_display", read_only=True)
     code_system_display = serializers.CharField(source="get_code_system_display", read_only=True)
     detail_template_detail = serializers.SerializerMethodField()
+    task_mode = serializers.CharField(read_only=True)
 
     class Meta:
         model = Orderable
@@ -1208,6 +1209,8 @@ class OrderableSerializer(serializers.ModelSerializer):
             "detail_template_detail",
             "organization",
             "is_active",
+            "task_mode",
+            "default_frequency",
         ]
 
     def get_detail_template_detail(self, obj):
@@ -1232,8 +1235,19 @@ class OrderableAdminSerializer(serializers.ModelSerializer):
             "detail_template",
             "organization",
             "is_active",
+            "creates_tasks",
+            "default_frequency",
+            "task_mode",
         ]
-        read_only_fields = ["id"]
+        read_only_fields = ["id", "task_mode"]
+
+    def validate_default_frequency(self, value):
+        from .order_tasks import FREQUENCIES
+
+        value = (value or "").strip().lower()
+        if value and value not in FREQUENCIES:
+            raise serializers.ValidationError("Choose a frequency from the list.")
+        return value
 
     def validate_detail_template(self, value):
         if value is not None and value.kind != "order_detail":
@@ -1353,6 +1367,7 @@ class OrderSerializer(serializers.ModelSerializer):
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     priority_display = serializers.CharField(source="get_priority_display", read_only=True)
     events = OrderEventSerializer(many=True, read_only=True)
+    task_mode = serializers.CharField(source="orderable.task_mode", read_only=True)
 
     # The only fields a client may send (on create; on a draft update only
     # priority / indication / diagnosis_codes / detail are applied).
@@ -1363,6 +1378,7 @@ class OrderSerializer(serializers.ModelSerializer):
         "indication",
         "diagnosis_codes",
         "detail",
+        "schedule",
         "order_set",
         "clinical_note",
     )
@@ -1387,6 +1403,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "detail_template_version",
             "detail_template_snapshot",
             "detail",
+            "schedule",
+            "task_mode",
             "priority",
             "priority_display",
             "indication",
@@ -1429,6 +1447,7 @@ class OrderSerializer(serializers.ModelSerializer):
                 "indication",
                 "diagnosis_codes",
                 "detail",
+                "schedule",
                 "order_set",
                 "clinical_note",
                 "events",
@@ -1460,6 +1479,7 @@ class OrderSerializer(serializers.ModelSerializer):
             diagnosis_codes=validated_data.get("diagnosis_codes"),
             order_set=validated_data.get("order_set"),
             clinical_note=validated_data.get("clinical_note"),
+            schedule=validated_data.get("schedule"),
         )
 
     def update(self, instance, validated_data):
@@ -1468,7 +1488,7 @@ class OrderSerializer(serializers.ModelSerializer):
         changes = {
             k: v
             for k, v in validated_data.items()
-            if k in ("priority", "indication", "diagnosis_codes", "detail")
+            if k in ("priority", "indication", "diagnosis_codes", "detail", "schedule")
         }
         return update_draft_order(instance, self.context["request"].user, **changes)
 

@@ -27,6 +27,7 @@ from django.utils import timezone
 
 from users.rights import user_has_right
 
+from . import order_tasks
 from .models import Order, OrderEvent
 
 OPEN_STATUSES = ("pending_cosign", "active", "in_progress")
@@ -137,6 +138,13 @@ def missing_required_detail(order):
     ]
 
 
+def _clean_schedule(value, orderable):
+    try:
+        return order_tasks.clean_schedule(value, orderable)
+    except order_tasks.TaskError as exc:
+        raise OrderWorkflowError(exc.message)
+
+
 def _clean_diagnosis_codes(value):
     out = []
     for item in value or []:
@@ -172,6 +180,7 @@ def create_draft_order(
     order_set=None,
     clinical_note=None,
     replaces=None,
+    schedule=None,
 ):
     if not _same_org(user, appointment.organization_id):
         raise OrderWorkflowError("That visit belongs to a different organization.", 403)
@@ -196,6 +205,9 @@ def create_draft_order(
         clinical_note=clinical_note,
         replaces=replaces,
     )
+    if schedule is None and orderable.default_frequency and orderable.task_mode != "none":
+        schedule = {"frequency": orderable.default_frequency}
+    order.schedule = _clean_schedule(schedule, orderable)
     freeze_orderable(order)
     order.save()
     log_event(
@@ -261,6 +273,9 @@ def update_draft_order(order, user, **changes):
             raise OrderWorkflowError("Order detail must be an object keyed by field key.")
         order.detail = changes["detail"]
         changed.append("detail")
+    if "schedule" in changes:
+        order.schedule = _clean_schedule(changes["schedule"], order.orderable)
+        changed.append("schedule")
     order.save()
     log_event(order, "updated", user, from_status="draft", to_status="draft", detail={"fields": changed})
     return order
@@ -299,6 +314,15 @@ def sign_order(order, user, allergy_override_reason=""):
             errors=missing,
         )
 
+    # A medication needs its schedule (and a nursing order that was given one needs it complete).
+    order.schedule = _clean_schedule(order.schedule, order.orderable)
+    sched_missing = order_tasks.schedule_missing(order)
+    if sched_missing:
+        raise OrderWorkflowError(
+            f"'{order.orderable_name}' needs {', '.join(sched_missing)} before it can be signed.",
+            errors=sched_missing,
+        )
+
     # Allergy check: a matching allergy stops the signature until the signer
     # gives a reason, which is kept on the order's history.
     alerts = allergy_alerts_for(order)
@@ -321,6 +345,8 @@ def sign_order(order, user, allergy_override_reason=""):
     if alerts:
         detail["allergy_override"] = {"reason": override, "alerts": alerts}
     log_event(order, "signed", user, from_status=from_status, to_status=order.status, detail=detail)
+    if order.status == "active":
+        order_tasks.generate_tasks(order)
     return order
 
 
@@ -359,6 +385,7 @@ def cosign_order(order, user):
     order.cosigned_at = timezone.now()
     order.save()
     log_event(order, "cosigned", user, from_status="pending_cosign", to_status="active")
+    order_tasks.generate_tasks(order)
     return order
 
 
@@ -376,6 +403,7 @@ def _finish(order, user, result_text, result_data, source, from_status):
         order.result_data = result_data
     order.save()
     log_event(order, "completed", user, from_status=from_status, to_status="completed", source=source)
+    order_tasks.cancel_future_tasks(order, user, "Order completed")
 
 
 @transaction.atomic
@@ -413,6 +441,7 @@ def discontinue_order(order, user, reason, *, source="user"):
     order.save()
     log_event(order, "discontinued", user, from_status=from_status, to_status="discontinued",
               source=source, detail={"reason": reason})
+    order_tasks.cancel_future_tasks(order, user, f"Order discontinued: {reason}")
     return order
 
 
@@ -431,6 +460,7 @@ def replace_order(order, user, reason):
         order_set=old.order_set,
         clinical_note=old.clinical_note,
         replaces=old,
+        schedule={k: v for k, v in (old.schedule or {}).items() if k not in ("first_due", "stop_at", "first_dose_now")},
     )
     log_event(old, "replaced", user, to_status=old.status, detail={"new_order": new.pk})
     return old, new
@@ -500,6 +530,7 @@ def apply_interface_update(
         order.save()
         log_event(order, "discontinued", user, from_status=from_status, to_status="discontinued",
                   source="interface", detail={"reason": order.discontinue_reason})
+        order_tasks.cancel_future_tasks(order, user, f"Order discontinued: {order.discontinue_reason}")
     else:
         # No status change: results may still be filed on an in-progress or
         # completed order (e.g. a corrected report).

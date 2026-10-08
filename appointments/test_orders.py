@@ -283,6 +283,57 @@ class CatalogAdminTests(OrdersBase):
         self.assertEqual((r.json()["created"], r.json()["updated"]), (0, 2))
         self.assertEqual(Orderable.objects.get(code="chest_xr").name, "Chest XR 2 view")
 
+    @staticmethod
+    def big_csv(n, extra=""):
+        head = "code,name,category,code_system,external_code,description,default_priority,requires_cosign,detail_form_code,is_active\n"
+        return head + "".join(f'item_{i},Item {i},nursing,local,,"note, {i}{extra}",routine,no,,yes\n' for i in range(n))
+
+    def test_large_catalog_uploads_in_a_handful_of_queries(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        with CaptureQueriesContext(connection) as q:
+            r = self.upload(self.big_csv(2000))
+        self.assertEqual((r.status_code, r.json()["created"]), (200, 2000), r.content)
+        self.assertLess(len(q), 40)  # not one query per row
+        with CaptureQueriesContext(connection) as q:
+            r = self.upload(self.big_csv(2000).replace("nursing", "medication"))
+        self.assertEqual((r.json()["created"], r.json()["updated"]), (0, 2000))
+        self.assertLess(len(q), 40)
+        row = Orderable.objects.get(code="item_7")
+        self.assertEqual((row.category, row.organization), ("medication", self.org))
+
+    def test_update_by_upload_changes_every_field_and_the_time(self):
+        self.upload(self.CSV)
+        before = Orderable.objects.get(code="cbc_diff").updated_at
+        csv_text = (
+            "code,name,description,default_priority,requires_cosign,is_active,category\n"
+            "cbc_diff,CBC new name,new text,stat,yes,no,laboratory\n"
+        )
+        r = self.upload(csv_text)
+        self.assertEqual((r.status_code, r.json()["updated"]), (200, 1), r.content)
+        o = Orderable.objects.get(code="cbc_diff")
+        self.assertEqual((o.name, o.description, o.default_priority, o.requires_cosign, o.is_active), ("CBC new name", "new text", "stat", True, False))
+        self.assertGreater(o.updated_at, before)
+
+    def test_a_file_with_every_line_wrapped_in_quotes_is_read_normally(self):
+        lines = self.CSV.strip().split("\n")
+        wrapped = "\r\n".join('"' + l.replace('"', '""') + '"' for l in lines) + "\r\n"
+        r = self.upload("\ufeff" + wrapped)
+        self.assertEqual((r.status_code, r.json()["created"]), (200, 2), r.content)
+        self.assertEqual(Orderable.objects.get(code="cbc_diff").external_code, "57021-8")
+
+    def test_a_normal_quoted_header_is_left_alone(self):
+        text = '"code","name"\n"a_b","Quoted, name"\n'
+        r = self.upload(text)
+        self.assertEqual((r.status_code, r.json()["created"]), (200, 1), r.content)
+        self.assertEqual(Orderable.objects.get(code="a_b").name, "Quoted, name")
+
+    def test_control_characters_from_a_database_export_are_dropped(self):
+        r = self.upload(self.big_csv(3, extra="\x00\x07"))
+        self.assertEqual((r.status_code, r.json()["created"]), (200, 3), r.content)
+        self.assertEqual(Orderable.objects.get(code="item_1").description, "note, 1")
+
     def test_bad_csv_saves_nothing_and_lists_problems(self):
         bad = self.CSV + "x y,Bad code,nope,local,,routine,maybe,missing_form\n"
         r = self.upload(bad)
