@@ -14,6 +14,12 @@ Columns (header row required; order doesn't matter; extra columns are ignored):
   requires_cosign                 yes/no (also true/false, 1/0)
   detail_form_code                code of an "Order detail form" template (optional)
   is_active                       yes/no (default yes)
+  creates_tasks                   optional: yes | no | auto (blank = auto: medications make nurse tasks,
+                                  nursing orders do when given a frequency, everything else does not)
+  default_frequency               optional: the usual frequency key (daily, bid, tid, q4h, prn ...)
+
+The two task columns are only applied when they are in the file, so an older file that lacks them
+never changes how an existing order behaves.
 
 Blank cells take the default. The whole file is validated first and every
 problem is reported as {row, column, message}; nothing is saved unless the
@@ -36,10 +42,12 @@ COLUMNS = [
     "detail_form_code",
     "is_active",
 ]
+TASK_COLUMNS = ["creates_tasks", "default_frequency"]
 
 _TRUE = {"yes", "y", "true", "t", "1"}
 _FALSE = {"no", "n", "false", "f", "0"}
 _SLUG = re.compile(r"^[-a-zA-Z0-9_]+$")
+_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 MAX_ROWS = 2000
 
 
@@ -58,10 +66,30 @@ def _bool(value, default):
     return default, False
 
 
-def parse_orderable_csv(text, categories, code_systems, priorities):
+def unwrap_quoted_lines(text):
+    """
+    Some tools (a text paste saved from Excel, "quote everything" exports) wrap each whole line in
+    quotes, which turns every row into one big cell. When the header line is wrapped that way, take
+    the outer quotes off every line (and turn "" back into ").
+    """
+    lines = text.splitlines()
+    first = next((l for l in lines if l.strip()), "")
+    if not (len(first) > 2 and first.startswith('"') and first.endswith('"') and "," in first):
+        return text
+    if len(next(csv.reader([first]))) != 1:
+        return text  # a normal quoted header with several cells
+    out = []
+    for line in lines:
+        if line.startswith('"') and line.endswith('"') and len(line) >= 2:
+            line = line[1:-1].replace('""', '"')
+        out.append(line)
+    return "\n".join(out) + "\n"
+
+
+def parse_orderable_csv(text, categories, code_systems, priorities, frequencies=()):
     """Return (rows, errors). `categories` etc. are the allowed values."""
     errors = []
-    reader = csv.DictReader(io.StringIO(text.lstrip("\ufeff")))
+    reader = csv.DictReader(io.StringIO(unwrap_quoted_lines(text.lstrip("\ufeff"))))
     if not reader.fieldnames:
         return [], [_err(0, "", "The file is empty.")]
     header = {(h or "").strip().lower(): h for h in reader.fieldnames}
@@ -73,9 +101,11 @@ def parse_orderable_csv(text, categories, code_systems, priorities):
 
     def cell(raw, name):
         key = header.get(name)
-        return (raw.get(key) or "").strip() if key is not None else ""
+        # control characters (a NUL from a database export, for one) can't be stored: drop them
+        return _CONTROL.sub("", raw.get(key) or "").strip() if key is not None else ""
 
     rows, seen = [], {}
+    has_creates, has_freq = "creates_tasks" in header, "default_frequency" in header
     for index, raw in enumerate(reader, start=2):
         if index - 1 > MAX_ROWS:
             errors.append(_err(index, "", f"More than {MAX_ROWS} rows; split the file."))
@@ -121,6 +151,19 @@ def parse_orderable_csv(text, categories, code_systems, priorities):
         row["is_active"], ok = _bool(cell(raw, "is_active"), True)
         if not ok:
             errors.append(_err(index, "is_active", "Use yes or no."))
+        if has_creates:
+            value = cell(raw, "creates_tasks").lower()
+            if value in ("", "auto"):
+                row["creates_tasks"] = None
+            else:
+                row["creates_tasks"], ok = _bool(value, None)
+                if not ok:
+                    errors.append(_err(index, "creates_tasks", "Use yes, no or auto."))
+        if has_freq:
+            freq = cell(raw, "default_frequency").lower()
+            if freq and freq not in frequencies:
+                errors.append(_err(index, "default_frequency", f"'{freq}' is not one of: {', '.join(frequencies)}."))
+            row["default_frequency"] = freq
         rows.append(row)
 
     if not rows and not errors:
@@ -136,7 +179,7 @@ def export_orderable_csv(orderables):
     """CSV text for an iterable of Orderable rows, in the upload format."""
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\r\n")
-    writer.writerow(COLUMNS)
+    writer.writerow(COLUMNS + TASK_COLUMNS)
     for o in orderables:
         writer.writerow(
             [
@@ -150,24 +193,27 @@ def export_orderable_csv(orderables):
                 _yn(o.requires_cosign),
                 o.detail_template.code if o.detail_template_id else "",
                 _yn(o.is_active),
+                "" if o.creates_tasks is None else _yn(o.creates_tasks),
+                o.default_frequency,
             ]
         )
     return out.getvalue()
 
 
 SAMPLE_ROWS = [
-    ["cbc_with_diff", "CBC with differential", "laboratory", "loinc", "57021-8", "Complete blood count with automated differential", "routine", "no", "", "yes"],
-    ["bmp", "Basic metabolic panel", "laboratory", "loinc", "51990-0", "", "routine", "no", "", "yes"],
-    ["xr_chest_2v", "Chest X-ray, 2 views", "imaging", "local", "", "PA and lateral", "routine", "no", "", "yes"],
-    ["cardiology_referral", "Referral: Cardiology", "referral", "local", "", "", "routine", "no", "", "yes"],
-    ["vitals_q4h", "Vital signs every 4 hours", "nursing", "local", "", "", "routine", "no", "", "yes"],
-    ["office_visit_est", "Established patient office visit", "procedure", "cpt", "99213", "CPT code entered by the clinic", "routine", "yes", "", "yes"],
+    ["cbc_with_diff", "CBC with differential", "laboratory", "loinc", "57021-8", "Complete blood count with automated differential", "routine", "no", "", "yes", "", ""],
+    ["bmp", "Basic metabolic panel", "laboratory", "loinc", "51990-0", "", "routine", "no", "", "yes", "", ""],
+    ["xr_chest_2v", "Chest X-ray, 2 views", "imaging", "local", "", "PA and lateral", "routine", "no", "", "yes", "", ""],
+    ["cardiology_referral", "Referral: Cardiology", "referral", "local", "", "", "routine", "no", "", "yes", "", ""],
+    ["vitals_q4h", "Vital signs every 4 hours", "nursing", "local", "", "", "routine", "no", "", "yes", "yes", "q4h"],
+    ["office_visit_est", "Established patient office visit", "procedure", "cpt", "99213", "CPT code entered by the clinic", "routine", "yes", "", "yes", "", ""],
+    ["amoxicillin_500_cap", "Amoxicillin 500 mg capsule", "medication", "local", "", "", "routine", "no", "", "yes", "", "tid"],
 ]
 
 
 def sample_orderable_csv():
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\r\n")
-    writer.writerow(COLUMNS)
+    writer.writerow(COLUMNS + TASK_COLUMNS)
     writer.writerows(SAMPLE_ROWS)
     return out.getvalue()

@@ -41,6 +41,8 @@ import DynamicNoteForm from "./DynamicNoteForm";
 import IcdCodePicker, { dxLabel } from "./IcdCodePicker";
 import LabResultsPanel from "./LabResultsPanel";
 import PanelTitle from "./patients/PanelTitle";
+import OrderSchedule from "./tasks/OrderSchedule";
+import { scheduleSummary } from "./tasks/taskShared";
 
 const authHeader = async () => {
   const token = await getValidToken();
@@ -301,6 +303,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
       indication: order.indication || "",
       dx: order.diagnosis_codes || [],
       detail: order.detail || {},
+      schedule: order.schedule || {},
     };
 
   const setDraftField = (order, patch) =>
@@ -315,6 +318,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
         indication: v.indication,
         diagnosis_codes: v.dx,
         detail: v.detail,
+        schedule: v.schedule,
       },
       { headers }
     );
@@ -539,6 +543,13 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
             </Box>
           )}
 
+          <OrderSchedule
+            order={order}
+            value={v.schedule}
+            disabled={busy}
+            onChange={(schedule) => setDraftField(order, { schedule })}
+          />
+
           <Stack direction="row" spacing={1} justifyContent="flex-end">
             <Button size="small" disabled={busy || !edits[order.id]} onClick={() => handleSaveDraft(order)}>
               Save draft
@@ -565,6 +576,11 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
             {order.placer_order_number}
             {order.filler_order_number ? ` / ${order.filler_order_number}` : ""}
           </Typography>
+          {scheduleSummary(order.schedule) && (
+            <Typography variant="caption" display="block" color="text.secondary" data-testid={`schedule-summary-${order.id}`}>
+              {scheduleSummary(order.schedule)}
+            </Typography>
+          )}
           {order.diagnosis_codes && order.diagnosis_codes.length > 0 && (
             <Typography variant="caption" display="block" color="text.secondary">
               Dx: {dxToText(order.diagnosis_codes)}

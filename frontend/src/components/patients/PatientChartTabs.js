@@ -14,6 +14,7 @@ export const CHART_TABS = [
   { value: "flowsheets", label: "Flowsheets", clinical: true },
   { value: "my_schedule", label: "My Schedule", clinical: false },
   { value: "referral_list", label: "Referral List", clinical: false },
+  { value: "task_list", label: "Task List", clinical: true },
   { value: "clinical_summary", label: "Clinical Summary", clinical: true },
 ];
 

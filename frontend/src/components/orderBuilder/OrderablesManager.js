@@ -38,6 +38,7 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { jwtDecode } from "jwt-decode";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
+import { FREQUENCY_OPTIONS } from "../tasks/taskShared";
 import {
     CATEGORIES,
     CODE_SYSTEMS,
@@ -61,9 +62,19 @@ const EMPTY = {
     description: "",
     default_priority: "routine",
     requires_cosign: false,
+    creates_tasks: null,
+    default_frequency: "",
     detail_template: "",
     is_active: true,
 };
+
+const TASK_CHOICES = [
+    { value: "auto", label: "Automatic (medications yes; nursing only when given a frequency)" },
+    { value: "yes", label: "Always make nurse tasks" },
+    { value: "no", label: "Never make nurse tasks" },
+];
+const tasksToChoice = (v) => (v === true ? "yes" : v === false ? "no" : "auto");
+const choiceToTasks = (v) => (v === "yes" ? true : v === "no" ? false : null);
 
 function OrderableDialog({ initial, forms, locked, onClose, onSaved }) {
     const isNew = !initial.id;
@@ -89,6 +100,8 @@ function OrderableDialog({ initial, forms, locked, onClose, onSaved }) {
                 description: form.description,
                 default_priority: form.default_priority,
                 requires_cosign: form.requires_cosign,
+                creates_tasks: form.creates_tasks,
+                default_frequency: form.default_frequency || "",
                 detail_template: form.detail_template || null,
                 is_active: form.is_active,
             };
@@ -208,6 +221,47 @@ function OrderableDialog({ initial, forms, locked, onClose, onSaved }) {
                             ))}
                         </Select>
                     </FormControl>
+                    {["medication", "nursing", "other", "procedure"].includes(form.category) && (
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                            <FormControl size="small" fullWidth>
+                                <InputLabel id="ob-tasks">Nurse tasks</InputLabel>
+                                <Select
+                                    labelId="ob-tasks"
+                                    label="Nurse tasks"
+                                    value={tasksToChoice(form.creates_tasks)}
+                                    disabled={locked}
+                                    onChange={(e) => setForm((f) => ({ ...f, creates_tasks: choiceToTasks(e.target.value) }))}
+                                    inputProps={{ "data-testid": "ob-tasks" }}
+                                >
+                                    {TASK_CHOICES.map((c) => (
+                                        <MenuItem key={c.value} value={c.value}>
+                                            {c.label}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                            <FormControl size="small" sx={{ minWidth: 220 }}>
+                                <InputLabel id="ob-freq">Usual frequency</InputLabel>
+                                <Select
+                                    labelId="ob-freq"
+                                    label="Usual frequency"
+                                    value={form.default_frequency || ""}
+                                    disabled={locked}
+                                    onChange={set("default_frequency")}
+                                    inputProps={{ "data-testid": "ob-frequency" }}
+                                >
+                                    <MenuItem value="">
+                                        <em>None</em>
+                                    </MenuItem>
+                                    {FREQUENCY_OPTIONS.map((f) => (
+                                        <MenuItem key={f.value} value={f.value}>
+                                            {f.label}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Stack>
+                    )}
                     <Stack direction="row" spacing={2}>
                         <FormControlLabel
                             control={
@@ -339,7 +393,15 @@ function OrderablesManager() {
                 setUploadErrors(data.errors);
                 setError(data.detail || "The CSV has problems. Nothing was saved.");
             } else {
-                setError(errorText(e, "Couldn't upload that CSV."));
+                const code = e?.response?.status;
+                setError(
+                    errorText(
+                        e,
+                        code
+                            ? `Couldn't upload that CSV (the server answered ${code}). Try 500 rows or fewer at a time, and check the file for unusual characters.`
+                            : "Couldn't reach the server to upload that CSV. Check your connection and try again, or upload fewer rows."
+                    )
+                );
             }
         } finally {
             setUploading(false);

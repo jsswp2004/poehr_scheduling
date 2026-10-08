@@ -957,6 +957,15 @@ class Orderable(models.Model):
         help_text="Leave blank for an orderable available to all organizations",
     )
     is_active = models.BooleanField(default=True)
+    creates_tasks = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="Nurse tasks: blank follows the category (medications and nursing orders), yes always, no never",
+    )
+    default_frequency = models.CharField(
+        max_length=20, blank=True, help_text="Optional frequency offered first when this is ordered (e.g. bid, q8h)"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -965,6 +974,19 @@ class Orderable(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.code})"
+
+    @property
+    def task_mode(self):
+        """"required" (a schedule must be given), "optional" (tasks if one is given) or "none"."""
+        if self.creates_tasks is False:
+            return "none"
+        if self.creates_tasks is True:
+            return "required" if self.category == "medication" else "optional"
+        if self.category == "medication":
+            return "required"
+        if self.category == "nursing":
+            return "optional"
+        return "none"
 
 
 class OrderSet(models.Model):
@@ -1067,6 +1089,12 @@ class Order(models.Model):
     )
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="draft")
+    schedule = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="How often and when it is given/done: frequency, dose, route, first_due, stop_at... ({} = no nurse tasks)",
+    )
+    tasks_generated_until = models.DateTimeField(null=True, blank=True)
     order_set = models.ForeignKey(
         OrderSet, on_delete=models.SET_NULL, null=True, blank=True, related_name="orders"
     )
@@ -1749,3 +1777,79 @@ class ReferralEvent(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
+
+
+# ---------------------------------------------------------------- nurse tasks
+
+
+class OrderTask(models.Model):
+    """One thing a nurse has to do for a signed order: a dose to give, a weight to take, ..."""
+
+    STATUS_CHOICES = [
+        ("pending", "To do"),
+        ("done", "Done"),
+        ("held", "Held"),
+        ("refused", "Refused"),
+        ("missed", "Missed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="order_tasks", null=True, blank=True)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="tasks")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="order_tasks")
+    task_type = models.CharField(max_length=20, default="medication")
+    title = models.CharField(max_length=255)
+    dose = models.CharField(max_length=120, blank=True)
+    route = models.CharField(max_length=40, blank=True)
+    instructions = models.TextField(blank=True)
+    frequency = models.CharField(max_length=20, blank=True)
+    due_at = models.DateTimeField()
+    is_prn = models.BooleanField(default=False)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="pending")
+    performed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="order_tasks_done"
+    )
+    performed_at = models.DateTimeField(null=True, blank=True)
+    reason = models.CharField(max_length=300, blank=True)
+    note = models.TextField(blank=True)
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["due_at", "id"]
+        indexes = [
+            models.Index(fields=["organization", "status", "due_at"]),
+            models.Index(fields=["patient", "due_at"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(fields=["order", "due_at"], condition=models.Q(is_prn=False), name="uniq_order_task_slot"),
+        ]
+
+    def __str__(self):
+        return f"{self.title} due {self.due_at:%Y-%m-%d %H:%M} ({self.status})"
+
+
+class OrderTaskEvent(models.Model):
+    """Append-only history of a task."""
+
+    task = models.ForeignKey(OrderTask, on_delete=models.CASCADE, related_name="events")
+    event_type = models.CharField(max_length=30)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
+class TaskSettings(models.Model):
+    """A clinic's task rules: the window a task may be late by, and its medication pass times."""
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="task_settings")
+    grace_minutes = models.PositiveIntegerField(default=60)
+    missed_after_hours = models.PositiveIntegerField(default=12)
+    look_ahead_hours = models.PositiveIntegerField(default=24)
+    pass_times = models.JSONField(default=dict, blank=True, help_text="frequency -> list of HH:MM, e.g. {'bid': ['09:00','21:00']}")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)

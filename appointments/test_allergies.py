@@ -369,7 +369,8 @@ class SigningTests(Base):
                                       severity="severe", reaction="Anaphylaxis")
 
     def draft(self, orderable):
-        return ow.create_draft_order(self.doctor, self.appt, orderable)
+        sched = {"frequency": "bid", "dose": "500 mg", "route": "PO"} if orderable.category == "medication" else None
+        return ow.create_draft_order(self.doctor, self.appt, orderable, schedule=sched)
 
     def api(self):
         c = APIClient()
