@@ -25,7 +25,7 @@ import MySchedulePanel from "../components/patients/MySchedulePanel";
 import ReferralsPanel from "../components/referrals/ReferralsPanel";
 import TasksPanel from "../components/tasks/TasksPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
-import { AdmitDialog, TransferDialog, DischargeDialog } from "../components/patients/AdmissionDialogs";
+import { AdmitDialog, TransferDialog, DischargeDialog, AttendingDialog } from "../components/patients/AdmissionDialogs";
 import BedBoard from "../components/patients/BedBoard";
 import { useLocationTree } from "../components/locations/LocationPicker";
 import AcuteViewTabs from "../components/patients/AcuteViewTabs";
@@ -678,6 +678,7 @@ function PatientsPage() {
               onAdmit={(p) => setAdmission({ mode: "admit", patient: p })}
               onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
               onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
+              onChangeAttending={(p) => setAdmission({ mode: "attending", patient: p })}
             />
             )}
             </>
@@ -864,6 +865,14 @@ function PatientsPage() {
         )}
         {admission && admission.mode === "transfer" && (
           <TransferDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={afterAdmissionChange} />
+        )}
+        {admission && admission.mode === "attending" && (
+          <AttendingDialog
+            patient={admission.patient}
+            providers={analytics.providers}
+            onClose={() => setAdmission(null)}
+            onDone={afterAdmissionChange}
+          />
         )}
         {admission && admission.mode === "discharge" && (
           <DischargeDialog patient={admission.patient} onClose={() => setAdmission(null)} onDone={afterAdmissionChange} />

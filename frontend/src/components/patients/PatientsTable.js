@@ -28,6 +28,7 @@ import {
     Hotel as AdmitIcon,
     SwapHoriz as TransferIcon,
     ExitToApp as DischargeIcon,
+    ManageAccounts as AttendingIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -59,6 +60,7 @@ function PatientsTable({
     onAdmit = null,
     onTransfer = null,
     onDischarge = null,
+    onChangeAttending = null,
     unit = '',
     setUnit = null,
     units = [],
@@ -280,6 +282,18 @@ function PatientsTable({
                                                         sx={{ color: '#0277bd' }}
                                                     >
                                                         <TransferIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+                                            {canAdmit && inHouseView && onChangeAttending && (
+                                                <Tooltip title="Attending">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={`Attending for ${patient.full_name}`}
+                                                        onClick={(e) => { e.stopPropagation(); onChangeAttending(patient); }}
+                                                        sx={{ color: '#6a1b9a' }}
+                                                    >
+                                                        <AttendingIcon fontSize="small" />
                                                     </IconButton>
                                                 </Tooltip>
                                             )}

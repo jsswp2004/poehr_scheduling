@@ -110,6 +110,7 @@ export const apiEndpoints = {
     admissionAdmit: `${API_BASE_URL}/api/users/admissions/admit/`,
     admissionTransfer: (id) => `${API_BASE_URL}/api/users/admissions/${id}/transfer/`,
     admissionDischarge: (id) => `${API_BASE_URL}/api/users/admissions/${id}/discharge/`,
+    admissionAttending: (id) => `${API_BASE_URL}/api/users/admissions/${id}/attending/`,
     admissionBoard: (id) => `${API_BASE_URL}/api/users/admissions/${id}/board/`,
     edBoard: `${API_BASE_URL}/api/users/ed-board/`,
     edBoardPreference: `${API_BASE_URL}/api/users/ed-board/preference/`,
