@@ -12,7 +12,7 @@ from rest_framework.views import APIView
 from users.models import Registration
 
 from . import order_tasks as ot
-from .models import Order, OrderTask, TaskSettings
+from .models import Order, OrderTask, TaskGridColumns, TaskSettings
 from .patient_header import _target_org
 
 PAGE_SIZE = 50
@@ -395,3 +395,49 @@ class TaskSettingsView(APIView):
             values["pass_times"] = merged
         TaskSettings.objects.update_or_create(organization=org, defaults={**values, "updated_by": request.user})
         return Response(self._json(org, True))
+
+
+DEFAULT_COLUMNS = [h * 60 for h in range(24)]
+MAX_COLUMNS = 1440
+
+
+class TaskColumnsView(APIView):
+    """GET / PUT / DELETE the signed-in person's own time columns (minutes after midnight); none saved means hourly."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @staticmethod
+    def _json(minutes):
+        return {"columns": minutes or DEFAULT_COLUMNS, "is_default": not minutes}
+
+    def get(self, request):
+        denied = _need_view(request)
+        if denied:
+            return denied
+        saved = TaskGridColumns.objects.filter(user=request.user).first()
+        return Response(self._json(saved.minutes if saved else []))
+
+    def put(self, request):
+        denied = _need_view(request)
+        if denied:
+            return denied
+        raw = request.data.get("columns")
+        if not isinstance(raw, list) or not raw:
+            return Response({"detail": "Keep at least one time column."}, status=400)
+        minutes = set()
+        for value in raw:
+            if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 1439:
+                return Response({"detail": "Each time column must be a time of day."}, status=400)
+            minutes.add(value)
+        if len(minutes) > MAX_COLUMNS:
+            return Response({"detail": f"At most {MAX_COLUMNS} columns."}, status=400)
+        ordered = sorted(minutes)
+        TaskGridColumns.objects.update_or_create(user=request.user, defaults={"minutes": ordered})
+        return Response(self._json(ordered))
+
+    def delete(self, request):
+        denied = _need_view(request)
+        if denied:
+            return denied
+        TaskGridColumns.objects.filter(user=request.user).delete()
+        return Response(self._json([]))

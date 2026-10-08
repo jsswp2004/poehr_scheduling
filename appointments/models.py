@@ -1853,3 +1853,14 @@ class TaskSettings(models.Model):
     pass_times = models.JSONField(default=dict, blank=True, help_text="frequency -> list of HH:MM, e.g. {'bid': ['09:00','21:00']}")
     updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class TaskGridColumns(models.Model):
+    """The time columns a person has set up on their Task Manager grid (minutes after midnight, in order)."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="task_grid_columns")
+    minutes = models.JSONField(default=list, blank=True, help_text="Minutes after midnight, e.g. [540, 585, 600]")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user_id}: {len(self.minutes)} columns"

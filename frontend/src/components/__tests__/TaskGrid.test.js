@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 
-jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn() } }), { virtual: true });
+jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() } }), { virtual: true });
 jest.mock(
   "../../config/api",
   () => ({
@@ -10,6 +10,8 @@ jest.mock(
       orderTask: (id) => `/order-tasks/${id}/`,
       orderTaskAction: (id) => `/order-tasks/${id}/action/`,
       orderTaskMeta: "/order-task-meta/",
+      orderTaskColumns: "/order-task-columns/",
+      patientHeader: (id) => `/header/${id}/`,
     },
   }),
   { virtual: true }
@@ -49,6 +51,8 @@ beforeEach(() => {
   ];
   api.get.mockImplementation((url) => {
     if (url === "/order-task-meta/") return Promise.resolve({ data: meta });
+    if (url === "/order-task-columns/") return Promise.resolve({ data: { columns: Array.from({ length: 24 }, (_, h) => h * 60), is_default: true } });
+    if (url === "/header/3/") return Promise.resolve({ data: { items: [{ key: "name", label: "Name", value: "LEE, ANN", emphasis: "strong" }, { key: "allergies", label: "Allergies", value: "Penicillin", emphasis: "alert" }] } });
     if (url === "/order-tasks/queues/") return Promise.resolve({ data: { counts: { needs_action: 2, overdue: 1, missed: 1 } } });
     if (url === "/order-tasks/") return Promise.resolve({ data: { count: list.length, results: list } });
     const m = /^\/order-tasks\/(\d+)\/$/.exec(url);
@@ -67,8 +71,8 @@ const open = async () => {
 test("the hours of the day run across the top and the task details down the left", async () => {
   await open();
   ["Patient / bed", "Task", "Frequency"].forEach((h) => expect(screen.getByRole("columnheader", { name: h })).toBeInTheDocument());
-  expect(screen.getByTestId("grid-hour-0")).toHaveTextContent("0:00");
-  expect(screen.getByTestId("grid-hour-23")).toHaveTextContent("23:00");
+  expect(screen.getByTestId("grid-col-0")).toHaveTextContent("0:00");
+  expect(screen.getByTestId("grid-col-1380")).toHaveTextContent("23:00");
   const row = screen.getByTestId("grid-row-5");
   expect(row).toHaveTextContent("Ann Lee");
   expect(row).toHaveTextContent("4 West · 412 · A");
@@ -78,10 +82,10 @@ test("the hours of the day run across the top and the task details down the left
 
 test("each task sits in its own hour and one order shows all its times on one line", async () => {
   await open();
-  expect(within(screen.getByTestId("grid-slot-5-9")).getByTestId("grid-cell-1")).toBeInTheDocument();
-  expect(within(screen.getByTestId("grid-slot-5-21")).getByTestId("grid-cell-2")).toBeInTheDocument();
+  expect(within(screen.getByTestId("grid-slot-5-540")).getByTestId("grid-cell-1")).toBeInTheDocument();
+  expect(within(screen.getByTestId("grid-slot-5-1260")).getByTestId("grid-cell-2")).toBeInTheDocument();
   expect(screen.getAllByTestId("grid-row-5")).toHaveLength(1);
-  expect(within(screen.getByTestId("grid-slot-6-14")).getByTestId("grid-cell-3")).toHaveTextContent("2:15");
+  expect(within(screen.getByTestId("grid-slot-6-840")).getByTestId("grid-cell-3")).toHaveTextContent("2:15");
 });
 
 test("done shows a check and initials; due is green; overdue is pink; missed is red and bold", async () => {
@@ -203,4 +207,31 @@ test("a patient's own chart grid drops the patient column", async () => {
   await screen.findByTestId("grid-cell-1");
   expect(screen.queryByRole("columnheader", { name: "Patient / bed" })).toBeNull();
   expect(screen.getByRole("columnheader", { name: "Task" })).toBeInTheDocument();
+});
+
+test("clicking a patient's name shows only that patient with the patient banner", async () => {
+  list = [...list, TASK({ id: 7, order: 10, patient: 4, patient_name: "Bob Ray", title: "Insulin" })];
+  await open();
+  expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument();
+  fireEvent.click(screen.getAllByTestId("grid-patient-3")[0]);
+  const banner = await screen.findByTestId("task-patient-banner");
+  await waitFor(() => expect(banner).toHaveTextContent("LEE, ANN"));
+  expect(banner).toHaveTextContent("Penicillin");
+  await waitFor(() => expect(api.get.mock.calls.filter((c) => c[0] === "/order-tasks/").pop()[1].params.patient).toBe(3));
+});
+
+test("Show all patients clears the banner and the filter", async () => {
+  await open();
+  fireEvent.click(screen.getAllByTestId("grid-patient-3")[0]);
+  await screen.findByTestId("task-patient-banner");
+  fireEvent.click(screen.getByTestId("task-show-all"));
+  await waitFor(() => expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument());
+  await waitFor(() => expect(api.get.mock.calls.filter((c) => c[0] === "/order-tasks/").pop()[1].params.patient).toBeUndefined());
+});
+
+test("a patient's own chart grid has no patient links or second banner", async () => {
+  render(<TaskWorklist patient={{ id: 3, name: "Ann Lee" }} />);
+  await screen.findByTestId("grid-cell-1");
+  expect(screen.queryByTestId("grid-patient-3")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument();
 });

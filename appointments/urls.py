@@ -50,6 +50,7 @@ from .order_task_views import (
     TaskMetaView,
     TaskQueuesView,
     TaskSettingsView,
+    TaskColumnsView,
 )
 from .referral_views import (
     DestinationDetailView,
@@ -258,6 +259,7 @@ urlpatterns = router.urls + [
     path("order-tasks/<int:pk>/action/", TaskActionView.as_view(), name="order-task-action"),
     path("order-task-meta/", TaskMetaView.as_view(), name="order-task-meta"),
     path("order-task-settings/", TaskSettingsView.as_view(), name="order-task-settings"),
+    path("order-task-columns/", TaskColumnsView.as_view(), name="order-task-columns"),
     path("chart-tabs/", ChartTabsView.as_view(), name="chart-tabs"),
     path("chart-tabs/mine/", MyChartTabsView.as_view(), name="chart-tabs-mine"),
     path("chart-tabs/defaults/", OrgChartTabsView.as_view(), name="chart-tabs-defaults"),
