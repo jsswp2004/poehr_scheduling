@@ -232,6 +232,14 @@ test("with a patient last selected on the Patients page, the banner and that pat
   expect(screen.getByTestId("task-filter-assigned")).toHaveValue("patient");
 });
 
+test("the patient banner sits above the Task Manager heading", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
+  render(<TaskWorklist />);
+  const banner = await screen.findByTestId("task-patient-banner");
+  const heading = screen.getByText("Task Manager");
+  expect(banner.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+});
+
 test("choosing All patients removes the banner and shows every task", async () => {
   rememberPatient({ id: 3, name: "Ann Lee" });
   render(<TaskWorklist />);

@@ -166,6 +166,13 @@ export default function TaskWorklist({ patient = null }) {
 
   return (
     <Box sx={{ p: 2 }} data-testid="task-worklist">
+      {/* the patient banner sits above the page heading, as on the Patients page */}
+      {picked && (
+        <Box data-testid="task-patient-banner">
+          <PatientChartHeader persistent patientId={picked.id} />
+        </Box>
+      )}
+
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Typography variant="h6">{scoped ? `Tasks — ${patient.name}` : "Task Manager"}</Typography>
         {scoped && canPerform && (
@@ -174,12 +181,6 @@ export default function TaskWorklist({ patient = null }) {
           </Button>
         )}
       </Stack>
-
-      {picked && (
-        <Box data-testid="task-patient-banner">
-          <PatientChartHeader persistent patientId={picked.id} />
-        </Box>
-      )}
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} sx={{ my: 1.5 }}>
         <Stack direction="row" spacing={0.5} alignItems="center">
