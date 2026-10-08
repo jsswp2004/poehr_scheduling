@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
 import { toast } from "../SimpleToast";
-import { announceTaskChange, errorText, fmtDateTime, fmtTime, runTaskAction } from "./taskShared";
+import { DEFAULT_COLUMNS, announceTaskChange, columnFor, errorText, fmtDateTime, fmtTime, minutesLabel, runTaskAction } from "./taskShared";
 
 /** "Task Completed?" -- one question, Yes records it as done now. Late ones must say why, as everywhere else. */
 export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, onMore }) {
@@ -99,7 +99,6 @@ export function TaskCompletedDialog({ task, graceMinutes = 60, onClose, onDone, 
 export const DUE_BG = "#c8e6c9"; // light green: due now
 export const OVERDUE_BG = "#f8c9d4"; // light pink: overdue
 const WORD = { held: "Held", refused: "Refused", missed: "Missed" };
-const HOURS = Array.from({ length: 24 }, (_, h) => h);
 const LEFT = [150, 230, 120]; // widths of the three fixed columns
 
 /** One task's mark inside its hour cell: pink/green when it needs doing, a check and initials when done. */
@@ -162,7 +161,7 @@ function Mark({ task, canClick, onPick }) {
  * The day grid, laid out like the eMAR: the task on the left, the hours of the day across the top, and each
  * task's mark in the hour it is due. An "Earlier" column holds anything from before this day still waiting or missed.
  */
-export default function TaskGrid({ rows, day, showEarlier, loading, scoped, canPerform, graceMinutes, onOpen, onChanged, onMore }) {
+export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEarlier, loading, scoped, canPerform, graceMinutes, onOpen, onChanged, onMore, onSelectPatient = null }) {
   const [asking, setAsking] = useState(null);
   const start = day.getTime();
   const end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
@@ -170,6 +169,7 @@ export default function TaskGrid({ rows, day, showEarlier, loading, scoped, canP
   const isToday = now.getTime() >= start && now.getTime() < end;
   const hasEarlier = rows.some((t) => new Date(t.due_at).getTime() < start);
   const earlier = showEarlier && hasEarlier;
+  const nowColumn = isToday ? columnFor(columns, now.getHours() * 60 + now.getMinutes()) : null;
 
   // one line per order (per patient), each with its tasks sorted into the hour they fall in
   const lines = [];
@@ -183,7 +183,7 @@ export default function TaskGrid({ rows, day, showEarlier, loading, scoped, canP
       lines.push(line);
     }
     const due = new Date(t.due_at);
-    const slot = due.getTime() < start ? "earlier" : due.getHours();
+    const slot = due.getTime() < start ? "earlier" : columnFor(columns, due.getHours() * 60 + due.getMinutes());
     if (!line.cells.has(slot)) line.cells.set(slot, []);
     line.cells.get(slot).push(t);
   });
@@ -201,7 +201,7 @@ export default function TaskGrid({ rows, day, showEarlier, loading, scoped, canP
     const w = widths.slice(0, i).reduce((a, b) => a + b, 0);
     return { position: "sticky", left: w, zIndex: 2, backgroundColor: "background.paper", minWidth: widths[i], maxWidth: widths[i] };
   };
-  const span = fixed.length + (earlier ? 1 : 0) + 24;
+  const span = fixed.length + (earlier ? 1 : 0) + columns.length;
 
   return (
     <>
@@ -219,15 +219,15 @@ export default function TaskGrid({ rows, day, showEarlier, loading, scoped, canP
                   Earlier
                 </Box>
               )}
-              {HOURS.map((h) => (
+              {columns.map((m) => (
                 <Box
                   component="th"
-                  key={h}
+                  key={m}
                   scope="col"
-                  data-testid={`grid-hour-${h}`}
-                  sx={{ ...headCell, textAlign: "center", minWidth: 56, ...(isToday && h === now.getHours() ? { backgroundColor: "#e3f2fd", color: "primary.main" } : {}) }}
+                  data-testid={`grid-col-${m}`}
+                  sx={{ ...headCell, textAlign: "center", minWidth: 56, ...(m === nowColumn ? { backgroundColor: "#e3f2fd", color: "primary.main" } : {}) }}
                 >
-                  {`${h}:00`}
+                  {minutesLabel(m)}
                 </Box>
               ))}
             </tr>
@@ -251,12 +251,25 @@ export default function TaskGrid({ rows, day, showEarlier, loading, scoped, canP
             )}
             {lines.map((line) => {
               const t = line.first;
-              const slots = earlier ? ["earlier", ...HOURS] : HOURS;
+              const slots = earlier ? ["earlier", ...columns] : columns;
               return (
                 <tr key={line.key} data-testid={`grid-row-${t.order}`}>
                   {!scoped && (
                     <Box component="td" sx={{ ...cell, ...stickyAt(0), textAlign: "left", p: 0.75 }}>
-                      <Typography variant="body2">{t.patient_name}</Typography>
+                      {onSelectPatient ? (
+                        <Box
+                          component="button"
+                          type="button"
+                          onClick={() => onSelectPatient({ id: t.patient, name: t.patient_name })}
+                          aria-label={`Show ${t.patient_name} only`}
+                          data-testid={`grid-patient-${t.patient}`}
+                          sx={{ p: 0, border: 0, bgcolor: "transparent", font: "inherit", fontSize: "0.875rem", color: "primary.main", cursor: "pointer", textAlign: "left", textDecoration: "underline" }}
+                        >
+                          {t.patient_name}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2">{t.patient_name}</Typography>
+                      )}
                       <Typography variant="caption" color="text.secondary">
                         {[t.unit_name, t.room_name, t.bed_name].filter(Boolean).join(" · ")}
                       </Typography>

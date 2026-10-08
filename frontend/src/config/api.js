@@ -156,6 +156,7 @@ export const apiEndpoints = {
     orderTaskPrnOrders: `${API_BASE_URL}/api/order-tasks/prn-orders/`,
     orderTaskMeta: `${API_BASE_URL}/api/order-task-meta/`,
     orderTaskSettings: `${API_BASE_URL}/api/order-task-settings/`,
+    orderTaskColumns: `${API_BASE_URL}/api/order-task-columns/`,
     patientHeader: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/`,
     patientHeaderValues: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/values/`,
     patientAllergies: (patientId) => `${API_BASE_URL}/api/patient-header/${patientId}/allergies/`,

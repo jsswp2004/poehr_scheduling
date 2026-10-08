@@ -82,6 +82,46 @@ export function missingSchedule(order, schedule) {
   return missing;
 }
 
+/** The grid's default time columns: every hour, as minutes after midnight. */
+export const DEFAULT_COLUMNS = Array.from({ length: 24 }, (_, h) => h * 60);
+export const MAX_COLUMNS = 1440;
+
+/** 585 -> "9:45". */
+export const minutesLabel = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+
+/** "09:45" (a time input's value) -> 585, or null when it is not a time. */
+export function parseClock(value) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(value || "");
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h < 24 && min < 60 ? h * 60 + min : null;
+}
+
+/** 585 -> "09:45", for a time input. */
+export const clockValue = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/** Every `step` minutes from `start` to `end` inclusive: (480, 510, 15) -> [480, 495, 510]. */
+export function expandRange(start, end, step) {
+  const out = [];
+  if (start == null || end == null || !(step >= 1) || end < start) return out;
+  for (let t = start; t <= end; t += step) out.push(t);
+  return out;
+}
+
+/** Add times to a column list: no duplicates, in time order. */
+export const mergeColumns = (columns, extra) => [...new Set([...columns, ...extra])].sort((a, b) => a - b);
+
+/** The column a task falls in: the latest column at or before its time, or the first one if it is earlier than all. */
+export function columnFor(columns, minute) {
+  let found = columns[0];
+  for (const c of columns) {
+    if (c <= minute) found = c;
+    else break;
+  }
+  return found;
+}
+
 export async function loadTaskMeta() {
   const res = await api.get(apiEndpoints.orderTaskMeta, { headers: await authHeader() });
   return res.data;

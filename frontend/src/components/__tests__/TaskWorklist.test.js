@@ -12,6 +12,8 @@ jest.mock(
       orderTaskPrn: "/order-tasks/prn/",
       orderTaskPrnOrders: "/order-tasks/prn-orders/",
       orderTaskMeta: "/order-task-meta/",
+      orderTaskColumns: "/order-task-columns/",
+      patientHeader: (id) => `/header/${id}/`,
     },
   }),
   { virtual: true }

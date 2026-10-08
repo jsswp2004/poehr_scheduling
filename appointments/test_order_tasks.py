@@ -645,3 +645,45 @@ class CatalogCsvTests(Base):
         text = self.api(self.admin).get("/api/admin/orderables/sample-csv/").content.decode()
         self.assertIn("creates_tasks,default_frequency", text.splitlines()[0])
         self.assertEqual(self.upload(text).status_code, 200)
+
+
+class ColumnsTests(Base):
+    URL = "/api/order-task-columns/"
+
+    def test_default_is_hourly(self):
+        r = self.api().get(self.URL).json()
+        self.assertTrue(r["is_default"])
+        self.assertEqual(r["columns"], [h * 60 for h in range(24)])
+
+    def test_save_sorts_and_removes_duplicates_and_is_remembered(self):
+        c = self.api()
+        r = c.put(self.URL, {"columns": [600, 585, 600, 540]}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json(), {"columns": [540, 585, 600], "is_default": False})
+        self.assertEqual(self.api().get(self.URL).json()["columns"], [540, 585, 600])
+
+    def test_each_person_has_their_own(self):
+        self.api(self.nurse).put(self.URL, {"columns": [480, 960]}, format="json")
+        self.assertTrue(self.api(self.doctor).get(self.URL).json()["is_default"])
+        self.assertEqual(self.api(self.nurse).get(self.URL).json()["columns"], [480, 960])
+
+    def test_reset_goes_back_to_hourly(self):
+        c = self.api()
+        c.put(self.URL, {"columns": [480]}, format="json")
+        r = c.delete(self.URL).json()
+        self.assertTrue(r["is_default"])
+        self.assertEqual(len(r["columns"]), 24)
+
+    def test_bad_columns_are_refused(self):
+        c = self.api()
+        for bad in ([], None, "9:00", [1440], [-1], ["540"], [True], [5.5]):
+            self.assertEqual(c.put(self.URL, {"columns": bad}, format="json").status_code, 400, bad)
+        self.assertEqual(c.put(self.URL, {"columns": list(range(1440))}, format="json").status_code, 200)
+
+    def test_only_people_who_can_see_tasks(self):
+        self.assertEqual(self.api(self.registrar).get(self.URL).status_code, 403)
+        self.assertEqual(self.api(self.registrar).put(self.URL, {"columns": [60]}, format="json").status_code, 403)
+        self.assertEqual(self.api(self.admin).get(self.URL).status_code, 200)
+
+    def test_needs_a_login(self):
+        self.assertEqual(APIClient().get(self.URL).status_code, 401)

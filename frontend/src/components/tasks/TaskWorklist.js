@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, Chip, IconButton, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import ViewColumnIcon from "@mui/icons-material/ViewColumn";
 import MedicationIcon from "@mui/icons-material/Medication";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { PrnDialog, TaskActionDialog, TaskDetailDialog } from "./TaskDialogs";
+import TaskColumnsDialog from "./TaskColumnsDialog";
 import TaskGrid, { DUE_BG, OVERDUE_BG } from "./TaskGrid";
-import { authHeader, errorText, loadTaskMeta } from "./taskShared";
+import { DEFAULT_COLUMNS, authHeader, errorText, loadTaskMeta } from "./taskShared";
+import { toast } from "../SimpleToast";
+import PatientChartHeader from "../patientHeader/PatientChartHeader";
 
 const PAGE_SIZE = 200;
 const MAX_PAGES = 5;
@@ -42,6 +46,11 @@ export default function TaskWorklist({ patient = null }) {
   const [act, setAct] = useState(null); // { task, action }
   const [openId, setOpenId] = useState(null);
   const [prn, setPrn] = useState(false);
+  const [picked, setPicked] = useState(null); // { id, name }: the one patient the manager is showing
+  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+  const [editingColumns, setEditingColumns] = useState(false);
+  const [savingColumns, setSavingColumns] = useState(false);
+  const [columnsError, setColumnsError] = useState("");
   const seq = useRef(0);
 
   useEffect(() => {
@@ -54,6 +63,34 @@ export default function TaskWorklist({ patient = null }) {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get(apiEndpoints.orderTaskColumns, { headers: await authHeader() });
+        if (Array.isArray(res.data?.columns) && res.data.columns.length > 0) setColumns(res.data.columns);
+      } catch (err) {
+        // the hourly default stays; the grid still works
+      }
+    })();
+  }, []);
+
+  const saveColumns = async (next) => {
+    setSavingColumns(true);
+    setColumnsError("");
+    try {
+      const headers = await authHeader();
+      const isDefault = next.length === DEFAULT_COLUMNS.length && next.every((m, i) => m === DEFAULT_COLUMNS[i]);
+      const res = isDefault ? await api.delete(apiEndpoints.orderTaskColumns, { headers }) : await api.put(apiEndpoints.orderTaskColumns, { columns: next }, { headers });
+      setColumns(res.data.columns);
+      setEditingColumns(false);
+      toast.success("Time columns saved.");
+    } catch (err) {
+      setColumnsError(errorText(err, "Could not save the columns."));
+    } finally {
+      setSavingColumns(false);
+    }
+  };
+
   const dayKey = day.getTime();
   const load = useCallback(
     async (quiet = false) => {
@@ -62,7 +99,7 @@ export default function TaskWorklist({ patient = null }) {
       setError("");
       try {
         const headers = await authHeader();
-        const base = patient ? { patient: patient.id } : {};
+        const base = patient ? { patient: patient.id } : picked ? { patient: picked.id } : {};
         const from = new Date(dayKey);
         const params = { ...base, queue: "grid", from: from.toISOString(), to: addDays(from, 1).toISOString(), page_size: PAGE_SIZE };
         // anything still waiting or missed from before today stays visible from today on
@@ -90,7 +127,7 @@ export default function TaskWorklist({ patient = null }) {
         if (mine === seq.current) setLoading(false);
       }
     },
-    [patient, dayKey, q, type, assigned]
+    [patient, picked, dayKey, q, type, assigned]
   );
 
   useEffect(() => {
@@ -134,6 +171,15 @@ export default function TaskWorklist({ patient = null }) {
           </Button>
         )}
       </Stack>
+
+      {picked && (
+        <Box data-testid="task-patient-banner">
+          <PatientChartHeader patientId={picked.id} />
+          <Button size="small" onClick={() => setPicked(null)} sx={{ mb: 1, mt: -1 }} data-testid="task-show-all">
+            ← Show all patients
+          </Button>
+        </Box>
+      )}
 
       <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }} sx={{ my: 1.5 }}>
         <Stack direction="row" spacing={0.5} alignItems="center">
@@ -189,6 +235,10 @@ export default function TaskWorklist({ patient = null }) {
         <Typography variant="caption" color="text.secondary">
           ✓ initials = done
         </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <Button size="small" startIcon={<ViewColumnIcon />} onClick={() => { setColumnsError(""); setEditingColumns(true); }} data-testid="columns-open">
+          Time columns
+        </Button>
       </Stack>
 
       {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
@@ -196,6 +246,7 @@ export default function TaskWorklist({ patient = null }) {
       <TaskGrid
         rows={rows}
         day={day}
+        columns={columns}
         showEarlier={dayKey >= today.getTime()}
         loading={loading}
         scoped={scoped}
@@ -204,8 +255,12 @@ export default function TaskWorklist({ patient = null }) {
         onOpen={setOpenId}
         onChanged={() => load(true)}
         onMore={(task, action) => setAct({ task, action })}
+        onSelectPatient={scoped ? null : setPicked}
       />
 
+      {editingColumns && (
+        <TaskColumnsDialog columns={columns} onClose={() => setEditingColumns(false)} onSave={saveColumns} saving={savingColumns} error={columnsError} />
+      )}
       {act && (
         <TaskActionDialog
           task={act.task}
