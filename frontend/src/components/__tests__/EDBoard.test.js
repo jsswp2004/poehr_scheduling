@@ -203,6 +203,40 @@ test("a waiting patient can be assigned a Ready bed", async () => {
   await waitFor(() => expect(api.post).toHaveBeenCalledWith("/adm/91/transfer/", { unit: 5, bed: 2 }, expect.anything()));
 });
 
+test("LOC is a dropdown of every bed in the department; only Ready beds can be picked", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  fireEvent.mouseDown(within(screen.getByTestId("loc-90").closest(".MuiInputBase-root")).getByRole("combobox"));
+  const options = screen.getAllByRole("option").map((o) => o.textContent);
+  expect(options).toEqual(["3525A", "3525B", "3525C (Cleaning)", "3525D (Blocked)"]);
+  expect(screen.getByRole("option", { name: "3525A" })).toHaveAttribute("aria-selected", "true");
+  expect(screen.getByRole("option", { name: "3525C (Cleaning)" })).toHaveAttribute("aria-disabled", "true");
+});
+
+test("picking a Ready bed in LOC moves the patient there", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-bed-1");
+  pick("loc-90", "3525B");
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/adm/90/transfer/", { unit: 5, bed: 2 }, expect.anything()));
+  expect(toast.success).toHaveBeenCalledWith("Patient placed");
+});
+
+test("a waiting patient's LOC reads WAITING and can be set to a Ready bed", async () => {
+  render(<EDBoard userRole="nurse" />);
+  await screen.findByTestId("ed-waiting-91");
+  expect(within(screen.getByTestId("ed-waiting-91")).getByText("WAITING")).toBeInTheDocument();
+  pick("loc-91", "3525B");
+  await waitFor(() => expect(api.post).toHaveBeenCalledWith("/adm/91/transfer/", { unit: 5, bed: 2 }, expect.anything()));
+});
+
+test("LOC is plain text for someone who cannot edit the board, and for empty beds", async () => {
+  render(<EDBoard userRole="patient" />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.queryByTestId("loc-90")).not.toBeInTheDocument();
+  expect(within(screen.getByTestId("ed-bed-1")).getByText("3525A")).toBeInTheDocument();
+  expect(within(screen.getByTestId("ed-waiting-91")).getByText("WAITING")).toBeInTheDocument();
+});
+
 test("transfer, discharge and admit hand the patient to the page, and the name opens the chart", async () => {
   const onTransfer = jest.fn();
   const onDischarge = jest.fn();

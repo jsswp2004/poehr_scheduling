@@ -168,7 +168,7 @@ function Mark({ task, canClick, onPick }) {
  * The day grid, laid out like the eMAR: the task on the left, the hours of the day across the top, and each
  * task's mark in the hour it is due. An "Earlier" column holds anything from before this day still waiting or missed.
  */
-export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEarlier, loading, scoped, canPerform, graceMinutes, onOpen, onChanged, onMore, onSelectPatient = null }) {
+export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEarlier, loading, scoped, canPerform, graceMinutes, onOpen, onChanged, onMore }) {
   const [asking, setAsking] = useState(null); // { task, at }
   const start = day.getTime();
   const end = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1).getTime();
@@ -289,20 +289,7 @@ export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEar
                 <tr key={line.key} data-testid={`grid-row-${t.order}`}>
                   {!scoped && (
                     <Box component="td" sx={{ ...cell, ...stickyAt(0), textAlign: "left", p: 0.75 }}>
-                      {onSelectPatient ? (
-                        <Box
-                          component="button"
-                          type="button"
-                          onClick={() => onSelectPatient({ id: t.patient, name: t.patient_name })}
-                          aria-label={`Show ${t.patient_name} only`}
-                          data-testid={`grid-patient-${t.patient}`}
-                          sx={{ p: 0, border: 0, bgcolor: "transparent", font: "inherit", fontSize: "0.875rem", color: "primary.main", cursor: "pointer", textAlign: "left", textDecoration: "underline" }}
-                        >
-                          {t.patient_name}
-                        </Box>
-                      ) : (
-                        <Typography variant="body2">{t.patient_name}</Typography>
-                      )}
+                      <Typography variant="body2">{t.patient_name}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         {[t.unit_name, t.room_name, t.bed_name].filter(Boolean).join(" · ")}
                       </Typography>

@@ -17,6 +17,8 @@ jest.mock(
   { virtual: true }
 );
 jest.mock("../../utils/auth", () => ({ getValidToken: async () => ({ access_token: "t" }) }), { virtual: true });
+jest.mock("../../utils/tokenManager", () => ({ getAccessToken: () => "tok" }), { virtual: true });
+jest.mock("jwt-decode", () => ({ jwtDecode: () => ({ user_id: 7 }) }));
 jest.mock("../SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn() } }), { virtual: true });
 
 import { api } from "../../api/client";
@@ -61,7 +63,10 @@ beforeEach(() => {
   });
   api.post.mockResolvedValue({ data: {} });
 });
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+  jest.useRealTimers();
+  window.sessionStorage.clear();
+});
 
 const open = async () => {
   render(<TaskWorklist />);
@@ -209,30 +214,50 @@ test("a patient's own chart grid drops the patient column", async () => {
   expect(screen.getByRole("columnheader", { name: "Task" })).toBeInTheDocument();
 });
 
-test("clicking a patient's name shows only that patient with the patient banner", async () => {
+const choose = async (label, option) => {
+  fireEvent.mouseDown(screen.getByLabelText(label));
+  fireEvent.click(await screen.findByRole("option", { name: option }));
+};
+const rememberPatient = (patient) => window.sessionStorage.setItem("powerSelectedPatient:7", JSON.stringify(patient));
+const taskCalls = () => api.get.mock.calls.filter((c) => c[0] === "/order-tasks/");
+
+test("with a patient last selected on the Patients page, the banner and that patient's tasks show first", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
   list = [...list, TASK({ id: 7, order: 10, patient: 4, patient_name: "Bob Ray", title: "Insulin" })];
-  await open();
-  expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument();
-  fireEvent.click(screen.getAllByTestId("grid-patient-3")[0]);
+  render(<TaskWorklist />);
   const banner = await screen.findByTestId("task-patient-banner");
   await waitFor(() => expect(banner).toHaveTextContent("LEE, ANN"));
   expect(banner).toHaveTextContent("Penicillin");
-  await waitFor(() => expect(api.get.mock.calls.filter((c) => c[0] === "/order-tasks/").pop()[1].params.patient).toBe(3));
+  await waitFor(() => expect(taskCalls().pop()[1].params.patient).toBe(3));
+  expect(screen.getByTestId("task-filter-assigned")).toHaveValue("patient");
 });
 
-test("Show all patients clears the banner and the filter", async () => {
-  await open();
-  fireEvent.click(screen.getAllByTestId("grid-patient-3")[0]);
+test("choosing All patients removes the banner and shows every task", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
+  render(<TaskWorklist />);
   await screen.findByTestId("task-patient-banner");
-  fireEvent.click(screen.getByTestId("task-show-all"));
+  await choose("Patients", "All patients");
   await waitFor(() => expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument());
-  await waitFor(() => expect(api.get.mock.calls.filter((c) => c[0] === "/order-tasks/").pop()[1].params.patient).toBeUndefined());
+  await waitFor(() => expect(taskCalls().pop()[1].params.patient).toBeUndefined());
+  // and the patient is still in the list to come back to
+  await choose("Patients", "Ann Lee");
+  await screen.findByTestId("task-patient-banner");
+  await waitFor(() => expect(taskCalls().pop()[1].params.patient).toBe(3));
 });
 
-test("a patient's own chart grid has no patient links or second banner", async () => {
+test("with nobody selected there is no banner, all patients show, and names are plain text", async () => {
+  await open();
+  expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument();
+  expect(taskCalls().pop()[1].params.patient).toBeUndefined();
+  expect(screen.queryByTestId("grid-patient-3")).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: /show .* only/i })).toBeNull();
+  expect(screen.getByTestId("task-filter-assigned")).toHaveValue("");
+});
+
+test("a patient's own chart grid has no banner of its own", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
   render(<TaskWorklist patient={{ id: 3, name: "Ann Lee" }} />);
   await screen.findByTestId("grid-cell-1");
-  expect(screen.queryByTestId("grid-patient-3")).not.toBeInTheDocument();
   expect(screen.queryByTestId("task-patient-banner")).not.toBeInTheDocument();
 });
 
