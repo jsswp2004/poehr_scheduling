@@ -58,6 +58,10 @@ import { API_BASE_URL } from "../config/api";
 // (a Paper with mt: 3), which left a big empty band, so it is cancelled here.
 const TIGHT_PANEL = { p: 0.5, "& > .MuiPaper-root": { mt: 0, pt: 2 } };
 
+// Team, Appointments, Analytics and Register sit right next to the side bar, so their title and
+// content get a small gap on both sides (the chart tabs bring their own spacing).
+const SIDE_GAP = { pl: 2, pr: 2 };
+
 const VIEW_TITLES = {
   team: "Team",
   appointments: "Appointments",
@@ -592,7 +596,7 @@ function PatientsPage() {
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
         ) : (
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0, ...SIDE_GAP }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }} data-testid="view-title">
               {VIEW_TITLES[tab] || ""}
             </Typography>
@@ -602,7 +606,7 @@ function PatientsPage() {
         )}
 
         {/* Tab Content */}
-        <Box sx={{ flex: 1, overflow: "auto", minHeight: 0 }}>
+        <Box sx={{ flex: 1, overflow: "auto", minHeight: 0, ...(tab === "patients" ? {} : SIDE_GAP) }}>
           {tab === "patients" && (() => {
             const allowed = visibleChartTabs(userRole, chartLayout.tabs).map((t) => t.value);
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
