@@ -232,6 +232,14 @@ test("with a patient last selected on the Patients page, the banner and that pat
   expect(screen.getByTestId("task-filter-assigned")).toHaveValue("patient");
 });
 
+test("the heading, day arrows, search, filters and Time columns share one compact toolbar", async () => {
+  await open();
+  const bar = screen.getByTestId("task-toolbar");
+  expect(bar).toHaveTextContent("Task Manager");
+  ["day-prev", "day-next", "day-input", "task-search", "task-filter-type", "task-filter-assigned", "columns-open"].forEach((id) => expect(within(bar).getByTestId(id)).toBeInTheDocument());
+  expect(screen.getByTestId("task-legend")).not.toContainElement(screen.getByTestId("columns-open"));
+});
+
 test("the patient banner sits above the Task Manager heading", async () => {
   rememberPatient({ id: 3, name: "Ann Lee" });
   render(<TaskWorklist />);
