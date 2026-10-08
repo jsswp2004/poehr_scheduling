@@ -183,3 +183,37 @@ class TransferAndDischargeTests(Base):
         from appointments.test_locations import make_user
 
         return make_user("nurse2", "nurse", self.other_org)
+
+
+class NewerVisitTests(Base):
+    """A newer blank visit must not hide a patient who is still in a bed."""
+
+    def admit(self):
+        body = {"patient": self.patient.pk, "unit": self.west.pk, "room": self.room.pk, "bed": self.bed_a.pk}
+        return self.as_(self.nurse).post(ADMIT, body, format="json")
+
+    def test_inpatient_stays_on_acute_list_when_a_newer_blank_visit_exists(self):
+        self.admit()
+        Registration.objects.create(patient=self.patient, organization=self.org, admission_type="scheduled")
+        admin = self.as_(self.admin)
+        acute = admin.get(PATIENTS, {"care_setting": "acute"})
+        self.assertEqual(names(acute), ["Bcs"])
+        self.assertEqual(acute.json()["results"][0]["current_visit"]["bed_name"], "A")
+        self.assertEqual(acute.json()["results"][0]["current_visit"]["care_setting"], "acute")
+        self.assertNotIn("Bcs", names(admin.get(PATIENTS, {"care_setting": "ambulatory"})))
+        self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute", "unit": self.west.pk})), ["Bcs"])
+
+    def test_inpatient_outranks_an_open_ed_visit(self):
+        self.admit()
+        Registration.objects.create(patient=self.patient, organization=self.org, admission_type="emergency")
+        admin = self.as_(self.admin)
+        self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute"})), ["Bcs"])
+        self.assertNotIn("Bcs", names(admin.get(PATIENTS, {"care_setting": "emergency"})))
+
+    def test_discharged_inpatient_with_a_newer_blank_visit_is_ambulatory(self):
+        r = self.admit()
+        self.as_(self.nurse).post(DISCHARGE.format(r.json()["id"]), {}, format="json")
+        Registration.objects.create(patient=self.patient, organization=self.org, admission_type="scheduled")
+        admin = self.as_(self.admin)
+        self.assertEqual(names(admin.get(PATIENTS, {"care_setting": "acute"})), [])
+        self.assertIn("Bcs", names(admin.get(PATIENTS, {"care_setting": "ambulatory"})))

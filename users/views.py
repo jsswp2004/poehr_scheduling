@@ -865,46 +865,35 @@ def get_patients(request):
             logger.info(f"🔍 Applying provider filter: {provider_id}")
             patients = patients.filter(user__provider_id=provider_id)
 
-        # Sidebar tabs: a patient belongs to the care setting of their latest visit
-        # (no visit on file, or a discharged one, counts as Ambulatory).
+        # Sidebar tabs: a patient belongs to the care setting of their *current* visit: an open
+        # inpatient (acute) visit first, then an open ED visit, else Ambulatory. A newer blank or
+        # ambulatory visit never hides a patient who is still in a bed.
         care_setting = request.GET.get("care_setting")
         if care_setting in ("ambulatory", "emergency", "acute"):
-            from django.db.models import OuterRef, Subquery
+            from django.db.models import Exists, OuterRef, Subquery
 
-            latest_setting = (
-                Registration.objects.filter(patient=OuterRef("pk"))
-                .order_by("-created_at", "-pk")
-                .values("care_setting")[:1]
-            )
-            latest_discharge = (
-                Registration.objects.filter(patient=OuterRef("pk"))
-                .order_by("-created_at", "-pk")
-                .values("discharge_datetime")[:1]
-            )
-            latest_unit = (
-                Registration.objects.filter(patient=OuterRef("pk"))
-                .order_by("-created_at", "-pk")
-                .values("unit")[:1]
-            )
+            def open_visits(setting):
+                return Registration.objects.filter(
+                    patient=OuterRef("pk"), care_setting=setting, discharge_datetime__isnull=True
+                )
+
             patients = patients.annotate(
-                _care_setting=Subquery(latest_setting),
-                _discharged_at=Subquery(latest_discharge),
-                _unit=Subquery(latest_unit),
+                _has_acute=Exists(open_visits("acute")),
+                _has_emergency=Exists(open_visits("emergency")),
             )
             if care_setting == "ambulatory":
-                # no visit, an ambulatory visit, or a visit that has ended (discharged)
-                patients = patients.filter(
-                    Q(_care_setting="ambulatory")
-                    | Q(_care_setting="")
-                    | Q(_care_setting__isnull=True)
-                    | Q(_discharged_at__isnull=False)
-                )
+                patients = patients.filter(_has_acute=False, _has_emergency=False)
+            elif care_setting == "emergency":
+                patients = patients.filter(_has_emergency=True, _has_acute=False)
             else:
-                patients = patients.filter(_care_setting=care_setting, _discharged_at__isnull=True)
-            # the Unit column filter on the Acute Care list: patients whose current visit is in that unit
-            unit_id = request.GET.get("unit")
-            if unit_id and str(unit_id).isdigit():
-                patients = patients.filter(_unit=int(unit_id))
+                patients = patients.filter(_has_acute=True)
+                # the Unit column filter on the Acute Care list: patients whose open inpatient visit is in that unit
+                unit_id = request.GET.get("unit")
+                if unit_id and str(unit_id).isdigit():
+                    in_unit = Registration.objects.filter(
+                        patient=OuterRef("pk"), care_setting="acute", discharge_datetime__isnull=True, unit_id=int(unit_id)
+                    )
+                    patients = patients.filter(Exists(in_unit))
 
         logger.info(f"📊 Filtered patient count: {patients.count()}")
 
