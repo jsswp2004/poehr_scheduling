@@ -156,7 +156,23 @@ STATIC_URL = "static/"
 
 # Media files
 MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+
+def resolve_media_root(environ=os.environ, isdir=os.path.isdir):
+    """Where uploaded files (profile pictures, logos, consent forms) are kept.
+
+    On Render the normal filesystem is wiped at every deploy and restart, so uploads must live on the
+    persistent disk (mounted at /var/data). MEDIA_ROOT can also be set explicitly; otherwise local ./media.
+    """
+    explicit = environ.get("MEDIA_ROOT")
+    if explicit:
+        return explicit
+    if isdir("/var/data"):
+        return "/var/data/media"
+    return os.path.join(BASE_DIR, "media")
+
+
+MEDIA_ROOT = resolve_media_root()
 
 # Primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
