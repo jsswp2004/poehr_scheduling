@@ -36,6 +36,7 @@ from .serializers import (
 )
 from .rights import RIGHTS, RIGHT_CODES, role_default_rights, effective_rights, user_has_right
 from .permissions import HasRight
+from .facility_scope import assigned_facility_ids, visit_facility_q
 from appointments.models import Appointment  # Add this import
 from .stripe_service import StripeService
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -896,12 +897,25 @@ def get_patients(request):
                 _has_acute=Exists(open_visits("acute")),
                 _has_emergency=Exists(open_visits("emergency")),
             )
+            # a user assigned to specific facilities sees only the inpatients and ED patients of those
+            # (a visit not placed anywhere yet still shows); ambulatory is not tied to a hospital
+            here = visit_facility_q(user)
+
+            def open_here(setting):
+                return Registration.objects.filter(
+                    here, patient=OuterRef("pk"), care_setting=setting, discharge_datetime__isnull=True
+                )
+
             if care_setting == "ambulatory":
                 patients = patients.filter(_has_acute=False, _has_emergency=False)
             elif care_setting == "emergency":
                 patients = patients.filter(_has_emergency=True, _has_acute=False)
+                if here is not None:
+                    patients = patients.filter(Exists(open_here("emergency")))
             else:
                 patients = patients.filter(_has_acute=True)
+                if here is not None:
+                    patients = patients.filter(Exists(open_here("acute")))
                 # the Unit column filter on the Acute Care list: patients whose open inpatient visit is in that unit
                 unit_id = request.GET.get("unit")
                 if unit_id and str(unit_id).isdigit():
@@ -1157,6 +1171,61 @@ class UserViewSet(viewsets.ModelViewSet):
         "provider__last_name",
     ]
 
+
+
+def _facility_payload(target):
+    from appointments.models import Facility
+
+    available = Facility.objects.filter(organization_id=target.organization_id).order_by("name", "id")
+    chosen = sorted(target.facilities.filter(organization_id=target.organization_id).values_list("pk", flat=True))
+    return {
+        "user_id": target.id,
+        "organization": target.organization_id,
+        "facility_ids": chosen,
+        "restricted": bool(chosen) and target.role != "system_admin",
+        "facilities": [{"id": f.pk, "name": f.name, "kind": f.kind, "is_active": f.is_active} for f in available],
+    }
+
+
+@api_view(["GET", "PUT"])
+@permission_classes([IsAuthenticated, HasRight("users.manage_rights")])
+def user_facilities(request, user_id):
+    """
+    Which hospitals or clinics a person works at.
+
+    GET: the facilities of the person's organization and the ones they are assigned to.
+    PUT {"facility_ids": [..]}: set the assignment; an empty list removes the restriction.
+
+    With an assignment, that person's Acute and ED patient lists, bed board and unit pickers show
+    only those facilities. System administrators are never restricted. Same reach as the rights
+    screen: a system admin can do anyone, an admin only people in their own organization.
+    """
+    from appointments.models import Facility
+
+    target = generics.get_object_or_404(CustomUser, pk=user_id)
+    if request.user.role != "system_admin" and target.organization_id != request.user.organization_id:
+        return Response(
+            {"detail": "You can only manage facilities for users in your own organization."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    if request.method == "GET":
+        return Response(_facility_payload(target))
+
+    raw = request.data.get("facility_ids")
+    if not isinstance(raw, list) or any(isinstance(v, bool) or not str(v).isdigit() for v in raw):
+        return Response(
+            {"detail": "Expected 'facility_ids' as a list of facility ids."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    wanted = {int(v) for v in raw}
+    found = set(Facility.objects.filter(pk__in=wanted, organization_id=target.organization_id).values_list("pk", flat=True))
+    if found != wanted:
+        return Response(
+            {"detail": "Every facility must belong to this person's organization."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    target.facilities.set(found)
+    return Response(_facility_payload(target))
 
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
@@ -2152,7 +2221,9 @@ def get_current_user(request):
 
     if request.method == "GET":
         serializer = UserSerializer(user)
-        return Response(serializer.data)
+        ids = assigned_facility_ids(user)
+        # the facilities this person is limited to (empty = all); only an administrator can change them
+        return Response({**serializer.data, "facility_ids": sorted(ids) if ids is not None else []})
 
     elif request.method == "PATCH":
         serializer = UserSerializer(user, data=request.data, partial=True)

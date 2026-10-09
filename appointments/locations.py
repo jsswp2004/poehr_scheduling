@@ -14,6 +14,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from users.facility_scope import assigned_facility_ids
 from users.models import Organization, Registration
 
 from .models import Appointment, Bed, Facility, Room, Unit
@@ -115,9 +116,12 @@ def unit_check(org, unit):
 # tree
 # --------------------------------------------------------------------------
 
-def build_tree(org, active_only=False):
+def build_tree(org, active_only=False, facility_ids=None):
+    """The location tree; `facility_ids` (a set) limits it to the facilities a user is assigned to."""
     occupied = occupied_beds(org)
     facilities = Facility.objects.filter(organization=org)
+    if facility_ids is not None:
+        facilities = facilities.filter(pk__in=facility_ids)
     if active_only:
         facilities = facilities.filter(is_active=True)
     out = []
@@ -192,12 +196,14 @@ class LocationTreeView(APIView):
         if org is None:
             return Response({"organization": None, "can_edit": False, "locations": []})
         active_only = request.query_params.get("active") in ("1", "true", "yes")
+        # a person assigned to specific facilities sees only those (system admins never are limited)
+        facility_ids = assigned_facility_ids(request.user) if org.pk == request.user.organization_id else None
         return Response(
             {
                 "organization": org.pk,
                 "can_edit": request.user.role in ADMIN_ROLES,
                 "care_types": [{"value": v, "label": l} for v, l in Unit.CARE_TYPE_CHOICES],
-                "locations": build_tree(org, active_only=active_only),
+                "locations": build_tree(org, active_only=active_only, facility_ids=facility_ids),
             }
         )
 

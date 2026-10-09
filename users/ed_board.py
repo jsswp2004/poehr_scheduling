@@ -19,6 +19,7 @@ from appointments.locations import bed_status
 from appointments.models import Bed, Order, Unit, VitalSignsFlowsheet
 
 from .admissions import ROLES, _bad, _org
+from .facility_scope import limit_to_facilities
 from .board_config import BUILTIN_VIEW_KEYS, DEFAULT_STATUSES, bed_label, all_view_payloads, get_settings, roster_for, status_keys
 from .models import CustomUser, Registration, StatusBoardPreference, StatusBoardView
 
@@ -246,11 +247,10 @@ class EdBoardView(APIView):
         if org is None:
             return _bad("No clinic is selected.")
 
-        units = list(
-            Unit.objects.filter(facility__organization=org, care_type="emergency", is_active=True, facility__is_active=True)
-            .select_related("facility")
-            .order_by("facility__name", "name")
-        )
+        units = Unit.objects.filter(facility__organization=org, care_type="emergency", is_active=True, facility__is_active=True)
+        if org.pk == request.user.organization_id:
+            units = limit_to_facilities(units, request.user, "facility_id")  # only the user's own facilities
+        units = list(units.select_related("facility").order_by("facility__name", "name"))
         departments = [{"id": u.pk, "name": u.name, "facility": u.facility_id, "facility_name": u.facility.name} for u in units]
         raw = request.query_params.get("unit")
         unit = next((u for u in units if str(u.pk) == str(raw)), None) if raw else (units[0] if units else None)

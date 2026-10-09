@@ -34,6 +34,7 @@ import { useNavigate } from "react-router-dom";
 import CreatableSelect from "react-select/creatable";
 import { notifyProfileUpdated } from "../utils/events";
 import { API_BASE_URL } from "../config/api";
+import UserFacilitiesPanel from "../components/profile/UserFacilitiesPanel";
 
 function ProfilePage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -1541,6 +1542,7 @@ function ProfilePage() {
                     )}
                   </Paper>
                 </Collapse>
+                {user && user.role !== "patient" && <UserFacilitiesPanel user={user} />}
               </Box>
             )}
         </Box>
