@@ -19,6 +19,11 @@ test("several facilities: the full label names the facility, the short one never
   ]);
 });
 
+test("a facility with no inpatient units does not bring the facility name into the labels", () => {
+  const options = unitOptionsFrom(tree(fac("Riverside Hospital (Demo)", unit(1, "Medicine")), fac("Riverside Family Clinic", unit(5, "Exam rooms", "outpatient")), fac("Empty Annex")));
+  expect(options).toEqual([{ id: 1, name: "Medicine", short: "Medicine" }]);
+});
+
 test("only inpatient units are offered", () => {
   expect(unitOptionsFrom(tree(fac("A", unit(1, "Ward"), unit(2, "Clinic", "outpatient"), unit(3, "ED", "emergency"))))).toEqual([{ id: 1, name: "Ward", short: "Ward" }]);
 });
