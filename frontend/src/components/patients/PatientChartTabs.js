@@ -8,6 +8,7 @@ import { Box, Tabs, Tab, Typography } from "@mui/material";
 export const CHART_TABS = [
   { value: "patient_list", label: "Patient List", clinical: false },
   { value: "orders", label: "Orders", clinical: true },
+  { value: "prescriptions", label: "Prescriptions", clinical: true },
   { value: "results", label: "Results", clinical: true },
   { value: "patient_info", label: "Patient Info", clinical: false },
   { value: "documents", label: "Documents", clinical: true },

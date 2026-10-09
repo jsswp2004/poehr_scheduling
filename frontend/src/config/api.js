@@ -147,6 +147,17 @@ export const apiEndpoints = {
     referralDestinations: `${API_BASE_URL}/api/referral-destinations/`,
     referralDestination: (id) => `${API_BASE_URL}/api/referral-destinations/${id}/`,
     referralSettings: `${API_BASE_URL}/api/referral-settings/`,
+    // Rx writer
+    prescriptions: `${API_BASE_URL}/api/prescriptions/`,
+    prescription: (id) => `${API_BASE_URL}/api/prescriptions/${id}/`,
+    prescriptionAction: (id) => `${API_BASE_URL}/api/prescriptions/${id}/action/`,
+    prescriptionPdf: (id) => `${API_BASE_URL}/api/prescriptions/${id}/pdf/`,
+    prescriptionMeta: `${API_BASE_URL}/api/prescription-meta/`,
+    prescriptionDrugs: `${API_BASE_URL}/api/prescription-drugs/`,
+    pharmacies: `${API_BASE_URL}/api/pharmacies/`,
+    pharmacy: (id) => `${API_BASE_URL}/api/pharmacies/${id}/`,
+    patientPharmacy: (id) => `${API_BASE_URL}/api/patient-pharmacy/${id}/`,
+    prescriberProfile: `${API_BASE_URL}/api/prescriber-profile/`,
     // Task Manager
     orderTasks: `${API_BASE_URL}/api/order-tasks/`,
     orderTaskQueues: `${API_BASE_URL}/api/order-tasks/queues/`,

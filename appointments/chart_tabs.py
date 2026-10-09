@@ -25,6 +25,7 @@ LIST_TAB = "patient_list"  # always shown: it is how a patient gets chosen
 CATALOG = [
     ("patient_list", "Patient List", False),
     ("orders", "Orders", True),
+    ("prescriptions", "Prescriptions", True),
     ("results", "Results", True),
     ("patient_info", "Patient Info", False),
     ("documents", "Documents", True),
