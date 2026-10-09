@@ -30,6 +30,7 @@ import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog, AttendingDialog } from "../components/patients/AdmissionDialogs";
 import BedBoard from "../components/patients/BedBoard";
 import { useLocationTree } from "../components/locations/LocationPicker";
+import { unitOptionsFrom } from "../components/patients/unitOptions";
 import AcuteViewTabs from "../components/patients/AcuteViewTabs";
 import EDBoard from "../components/edBoard/EDBoard";
 import {
@@ -162,16 +163,9 @@ function PatientsPage() {
 
   // Custom hooks for each section
   const patients = usePatients(navigate, userRole);
-  // Units for the Unit column filter on the Acute Care list (inpatient units; the facility is added when there are several)
+  // Units for the Unit column filter on the Acute Care list (inpatient units; the open list adds the facility when there are several, the closed filter does not)
   const locationTree = useLocationTree();
-  const unitOptions = React.useMemo(() => {
-    const facilities = locationTree || [];
-    return facilities.flatMap((f) =>
-      (f.units || [])
-        .filter((u) => u.care_type === "inpatient")
-        .map((u) => ({ id: u.id, name: facilities.length > 1 ? `${u.name} (${f.name})` : u.name }))
-    );
-  }, [locationTree]);
+  const unitOptions = React.useMemo(() => unitOptionsFrom(locationTree), [locationTree]);
 
   // Which chart tabs show for this module, in what order, and which opens first: the clinic's
   // default, then the person's own arrangement (Settings > Tab Management).

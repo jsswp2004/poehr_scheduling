@@ -167,7 +167,11 @@ function PatientsTable({
                                         disableUnderline={false}
                                         value={unit === '' || unit == null ? '' : String(unit)}
                                         onChange={(e) => setUnit && setUnit(e.target.value)}
-                                        renderValue={(v) => (v ? `Unit: ${(units.find((u) => String(u.id) === String(v)) || {}).name || v}` : 'Unit')}
+                                        renderValue={(v) => {
+                                            // the closed filter shows the unit's own name only; the open list still carries the facility
+                                            const chosen = units.find((u) => String(u.id) === String(v)) || {};
+                                            return v ? `Unit: ${chosen.short || chosen.name || v}` : 'Unit';
+                                        }}
                                         inputProps={{ 'aria-label': 'Filter by unit', 'data-testid': 'unit-filter' }}
                                         sx={{ fontWeight: 'bold', fontSize: 'inherit', minWidth: 90, color: unit ? 'primary.main' : 'inherit' }}
                                     >
