@@ -17,7 +17,7 @@ const ToastTestContainer = ({ toastTestSections }) => {
 
             <Grid container spacing={2}>
                 {toastTestSections.map((section) => (
-                    <Grid item xs={12} sm={6} key={section.id}>
+                    <Grid size={{ xs: 12, sm: 6 }} key={section.id}>
                         <ToastTestSection
                             title={section.title}
                             tests={section.tests}

@@ -400,7 +400,7 @@ class ListScopeTests(RxBase):
         self.assertEqual(ids("cancelled"), {gone["id"]})
         self.assertEqual(len(ids("all")), 4)
         counts = self.as_(self.doctor).get(QUEUES).json()["counts"]
-        self.assertEqual(counts, {"needs_signing": 1, "to_send": 1, "sent": 1, "cancelled": 1, "all": 4})
+        self.assertEqual(counts, {"needs_signing": 1, "to_send": 1, "renewals": 0, "sent": 1, "cancelled": 1, "all": 4})
         # the counts follow the search / prescriber / patient filters, but not the queue itself
         self.assertEqual(self.as_(self.doctor).get(QUEUES, {"q": "metfor"}).json()["counts"]["all"], 1)
         self.assertEqual(self.as_(self.doctor2).get(QUEUES, {"prescriber": "me"}).json()["counts"]["all"], 0)
@@ -480,7 +480,7 @@ class MetaAndSearchTests(RxBase):
         self.assertTrue(ready["Jeffrey Lee"])
         self.assertFalse(ready["Ann Roe"])
         self.assertFalse(r["can_sign"])
-        self.assertEqual([q["value"] for q in r["queues"]], ["needs_signing", "to_send", "sent", "cancelled", "all"])
+        self.assertEqual([q["value"] for q in r["queues"]], ["needs_signing", "to_send", "renewals", "sent", "cancelled", "all"])
         self.assertTrue(self.as_(self.doctor).get(META).json()["can_sign"])
         self.assertEqual(self.as_(self.registrar).get(META).status_code, 403)
 

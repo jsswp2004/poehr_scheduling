@@ -52,6 +52,12 @@ from .order_task_views import (
     TaskSettingsView,
     TaskColumnsView,
 )
+from .home_med_views import (
+    HomeMedicationActionView,
+    HomeMedicationDetailView,
+    HomeMedicationListCreateView,
+    MedReviewView,
+)
 from .prescription_views import (
     DrugSearchView,
     PatientPharmacyView,
@@ -59,6 +65,8 @@ from .prescription_views import (
     PharmacyListCreateView,
     PrescriberProfileView,
     PrescriptionActionView,
+    PrescriptionFavoriteDetailView,
+    PrescriptionFavoriteListCreateView,
     PrescriptionDetailView,
     PrescriptionListCreateView,
     PrescriptionQueuesView,
@@ -269,6 +277,12 @@ urlpatterns = router.urls + [
     path("prescriptions/<int:pk>/", PrescriptionDetailView.as_view(), name="prescription-detail"),
     path("prescriptions/<int:pk>/action/", PrescriptionActionView.as_view(), name="prescription-action"),
     path("prescriptions/<int:pk>/pdf/", PrescriptionPdfView.as_view(), name="prescription-pdf"),
+    path("home-medications/", HomeMedicationListCreateView.as_view(), name="home-medications"),
+    path("home-medications/review/", MedReviewView.as_view(), name="home-medication-review"),
+    path("home-medications/<int:pk>/", HomeMedicationDetailView.as_view(), name="home-medication-detail"),
+    path("home-medications/<int:pk>/action/", HomeMedicationActionView.as_view(), name="home-medication-action"),
+    path("prescription-favorites/", PrescriptionFavoriteListCreateView.as_view(), name="prescription-favorites"),
+    path("prescription-favorites/<int:pk>/", PrescriptionFavoriteDetailView.as_view(), name="prescription-favorite"),
     path("prescription-meta/", PrescriptionMetaView.as_view(), name="prescription-meta"),
     path("prescription-drugs/", DrugSearchView.as_view(), name="prescription-drugs"),
     path("pharmacies/", PharmacyListCreateView.as_view(), name="pharmacies"),

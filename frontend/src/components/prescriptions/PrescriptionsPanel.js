@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TextField, Typography,
+  Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, Tab, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Tabs, TextField, Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import { api } from "../../api/client";
@@ -9,7 +9,8 @@ import useMe from "../referrals/useMe";
 import PrescriptionFormDialog from "./PrescriptionFormDialog";
 import PrescriptionDetailDialog from "./PrescriptionDetailDialog";
 import PrescriberProfileDialog from "./PrescriberProfileDialog";
-import { RX_ROLES, STATUS_COLOR, authHeader, errorText, fmtDate, loadMeta } from "./rxShared";
+import HomeMedsPanel from "./HomeMedsPanel";
+import { RX_ROLES, STATUS_COLOR, authHeader, errorText, fmtDate, fmtDay, loadMeta } from "./rxShared";
 
 const FILTERS = [
   { value: "", label: "All" },
@@ -26,7 +27,8 @@ export default function PrescriptionsPanel({ patient }) {
   const [filter, setFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [form, setForm] = useState(null); // { prescription } when open
+  const [view, setView] = useState("rx"); // "rx" | "home"
+  const [form, setForm] = useState(null); // { prescription, defaults } when open
   const [detailId, setDetailId] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [bump, setBump] = useState(0);
@@ -69,8 +71,16 @@ export default function PrescriptionsPanel({ patient }) {
 
   return (
     <Box sx={{ p: 2 }} data-testid="rx-panel">
+      <Typography variant="h6" sx={{ mb: 0.5 }}>Prescriptions — {patient.name}</Typography>
+      <Tabs value={view} onChange={(_, v) => setView(v)} sx={{ minHeight: 36, mb: 1, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, py: 0.5, textTransform: "none" } }} aria-label="Prescriptions and home medications">
+        <Tab value="rx" label="Prescriptions" data-testid="rx-view-rx" />
+        <Tab value="home" label="Home medications" data-testid="rx-view-home" />
+      </Tabs>
+      {view === "home" && (
+        <HomeMedsPanel patient={patient} me={me} onPrescribe={(med) => setForm({ prescription: null, defaults: med })} />
+      )}
+      {view === "rx" && (<>
       <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 1.5, flexWrap: "wrap", rowGap: 1 }}>
-        <Typography variant="h6" sx={{ mr: 1 }}>Prescriptions — {patient.name}</Typography>
         <TextField select size="small" label="Show" value={filter} onChange={(e) => setFilter(e.target.value)} sx={{ minWidth: 130 }} inputProps={{ "data-testid": "rx-filter" }}>
           {FILTERS.map((f) => <MenuItem key={f.value || "all"} value={f.value}>{f.label}</MenuItem>)}
         </TextField>
@@ -79,7 +89,7 @@ export default function PrescriptionsPanel({ patient }) {
           <Button size="small" onClick={() => setProfileOpen(true)} data-testid="rx-my-details">My prescriber details</Button>
         )}
         {allowed && (
-          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setForm({ prescription: null })} data-testid="rx-new">
+          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setForm({ prescription: null, defaults: null })} data-testid="rx-new">
             New prescription
           </Button>
         )}
@@ -115,6 +125,7 @@ export default function PrescriptionsPanel({ patient }) {
                   <TableCell>
                     <Chip size="small" color={STATUS_COLOR[r.status] || "default"} label={r.status_label} />
                     {r.delivery_method && <Chip size="small" variant="outlined" sx={{ ml: 0.5 }} label={r.delivery_method === "fax" ? "Faxed" : "Printed"} />}
+                    {r.renewal_due && <Chip size="small" color="warning" sx={{ ml: 0.5 }} label="Renewal due" title={`Supply runs out ${fmtDay(r.runs_out_on)}`} data-testid={`rx-renewal-due-${r.id}`} />}
                   </TableCell>
                 </TableRow>
               ))}
@@ -122,6 +133,7 @@ export default function PrescriptionsPanel({ patient }) {
           </Table>
         </TableContainer>
       )}
+      </>)}
 
       <PrescriptionFormDialog
         open={!!form}
@@ -129,6 +141,7 @@ export default function PrescriptionsPanel({ patient }) {
         onSaved={afterSave}
         patient={patient}
         prescription={form?.prescription || null}
+        defaults={form?.defaults || null}
         meta={meta}
         me={me}
       />
@@ -138,7 +151,7 @@ export default function PrescriptionsPanel({ patient }) {
         me={me}
         onClose={() => { setDetailId(null); load(); }}
         onChanged={() => load()}
-        onEdit={(rx) => { setDetailId(null); setForm({ prescription: rx }); }}
+        onEdit={(rx) => { setDetailId(null); setForm({ prescription: rx, defaults: null }); }}
         onSetupProfile={() => setProfileOpen(true)}
         refreshKey={bump}
       />

@@ -410,7 +410,7 @@ function OrganizationManagement() {
                     </Typography>
 
                     <Grid container spacing={2} alignItems="center">
-                        <Grid item>
+                        <Grid size="auto">
                             <Avatar
                                 src={getLogoUrl(userOrganization.logo)}
                                 sx={{ width: 60, height: 60 }}
@@ -424,7 +424,7 @@ function OrganizationManagement() {
                                 <Business />
                             </Avatar>
                         </Grid>
-                        <Grid item xs>
+                        <Grid size="grow">
                             <Typography variant="h6">{userOrganization.name}</Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Created: {formatDate(userOrganization.created_at)}
@@ -439,7 +439,7 @@ function OrganizationManagement() {
                             )}
                         </Grid>
                         {isAdmin && (
-                            <Grid item>
+                            <Grid size="auto">
                                 <Button
                                     variant="outlined"
                                     startIcon={<Edit />}

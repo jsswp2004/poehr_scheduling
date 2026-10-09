@@ -63,7 +63,7 @@ const UserInfoPanel = ({
           Profile Information
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               label="First Name"
               value={currentUser.first_name || ""}
@@ -72,7 +72,7 @@ const UserInfoPanel = ({
               variant="outlined"
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               label="Last Name"
               value={currentUser.last_name || ""}
@@ -81,7 +81,7 @@ const UserInfoPanel = ({
               variant="outlined"
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               label="Email"
               value={currentUser.email || ""}
@@ -90,7 +90,7 @@ const UserInfoPanel = ({
               variant="outlined"
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Box>
               <TextField
                 label="Phone Number"

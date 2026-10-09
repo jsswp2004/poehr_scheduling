@@ -12,7 +12,7 @@ import PrescriptionFormDialog from "./PrescriptionFormDialog";
 import PrescriptionDetailDialog from "./PrescriptionDetailDialog";
 import PrescriberProfileDialog from "./PrescriberProfileDialog";
 import RxPatientPicker from "./RxPatientPicker";
-import { RX_ROLES, STATUS_COLOR, authHeader, errorText, fmtDate, loadMeta } from "./rxShared";
+import { RX_ROLES, STATUS_COLOR, authHeader, errorText, fmtDate, fmtDay, loadMeta } from "./rxShared";
 
 const PAGE_SIZE = 25;
 
@@ -200,6 +200,7 @@ export default function PrescriptionWorklist({ me = {} }) {
                   <TableCell>
                     <Chip size="small" color={STATUS_COLOR[r.status] || "default"} label={r.status_label} />
                     {r.delivery_method && <Chip size="small" variant="outlined" sx={{ ml: 0.5 }} label={r.delivery_method === "fax" ? "Faxed" : "Printed"} />}
+                    {r.renewal_due && <Chip size="small" color="warning" sx={{ ml: 0.5 }} label="Renewal due" title={`Supply runs out ${fmtDay(r.runs_out_on)}`} data-testid={`rx-renewal-due-${r.id}`} />}
                   </TableCell>
                 </TableRow>
               ))}

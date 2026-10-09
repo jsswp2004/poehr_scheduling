@@ -330,7 +330,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
 
             <Paper sx={{ p: 2, mb: 3 }}>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} sm={3}>
+                    <Grid size={{ xs: 12, sm: 3 }}>
                         <TextField
                             label="Code"
                             value={code}
@@ -340,10 +340,10 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                             helperText={isNew ? "Stable machine key, e.g. 'intake_screening'" : "Locked once created"}
                         />
                     </Grid>
-                    <Grid item xs={12} sm={4}>
+                    <Grid size={{ xs: 12, sm: 4 }}>
                         <TextField label="Name" value={name} fullWidth onChange={(e) => setName(e.target.value)} />
                     </Grid>
-                    <Grid item xs={12} sm={2}>
+                    <Grid size={{ xs: 12, sm: 2 }}>
                         <TextField
                             label="Sort Order"
                             type="number"
@@ -353,13 +353,13 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                             helperText="Position in the Flowsheet dropdown"
                         />
                     </Grid>
-                    <Grid item xs={12} sm={2}>
+                    <Grid size={{ xs: 12, sm: 2 }}>
                         <FormControlLabel
                             control={<Checkbox checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />}
                             label="Active"
                         />
                     </Grid>
-                    <Grid item xs={12} sm={1}>
+                    <Grid size={{ xs: 12, sm: 1 }}>
                         {version !== null && <Chip label={`v${version}`} />}
                     </Grid>
                 </Grid>
@@ -411,7 +411,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                     </AccordionSummary>
                     <AccordionDetails>
                         <Grid container spacing={2}>
-                            <Grid item xs={12} sm={3}>
+                            <Grid size={{ xs: 12, sm: 3 }}>
                                 <TextField
                                     label="Section"
                                     fullWidth
@@ -420,7 +420,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                     helperText="Groups rows under a heading, e.g. 'Vital Signs'"
                                 />
                             </Grid>
-                            <Grid item xs={12} sm={3}>
+                            <Grid size={{ xs: 12, sm: 3 }}>
                                 <TextField
                                     label="Key"
                                     fullWidth
@@ -429,7 +429,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                     helperText="Stable id this value is stored under"
                                 />
                             </Grid>
-                            <Grid item xs={12} sm={3}>
+                            <Grid size={{ xs: 12, sm: 3 }}>
                                 <TextField
                                     label="Label"
                                     fullWidth
@@ -437,7 +437,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                     onChange={(e) => updateRow(r.clientId, { label: e.target.value })}
                                 />
                             </Grid>
-                            <Grid item xs={12} sm={3}>
+                            <Grid size={{ xs: 12, sm: 3 }}>
                                 <TextField
                                     label="Unit"
                                     fullWidth
@@ -447,7 +447,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                 />
                             </Grid>
 
-                            <Grid item xs={12} sm={4}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
                                 <TextField
                                     select
                                     label="Field Type"
@@ -463,7 +463,7 @@ function FlowsheetTemplateEditor({ templateCode, onBack }) {
                                 </TextField>
                             </Grid>
                             {r.field_type === "dropdown" && (
-                                <Grid item xs={12} sm={4}>
+                                <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
                                         select
                                         label="Dictionary"

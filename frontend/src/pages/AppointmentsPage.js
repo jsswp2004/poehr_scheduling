@@ -285,7 +285,7 @@ function AppointmentsPage() {
       </Box>
       <Grid container spacing={3}>
         {/* Summary Panel */}
-        <Grid item xs={12}>
+        <Grid size={12}>
           <Paper
             sx={{
               p: 2,
@@ -354,7 +354,7 @@ function AppointmentsPage() {
         </Grid>
 
         {/* Today's Appointments Panel */}
-        <Grid item xs={12}>
+        <Grid size={12}>
           <Paper
             sx={{
               p: 2,
@@ -496,7 +496,7 @@ function AppointmentsPage() {
         </Grid>
 
         {/* Appointments Table Panel */}
-        <Grid item xs={12}>
+        <Grid size={12}>
           <Paper
             sx={{
               p: 3,

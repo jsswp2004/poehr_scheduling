@@ -69,7 +69,7 @@ const SubscriptionTierSelector = ({ selectedTier, onTierSelect, disabled = false
 
       <Grid container spacing={2} justifyContent="center">
         {Object.entries(SUBSCRIPTION_TIERS).map(([tierKey, tier]) => (
-          <Grid item xs={12} sm={6} md={4} key={tierKey}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }} key={tierKey}>
             <Card
               sx={{
                 position: 'relative',

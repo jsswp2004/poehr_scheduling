@@ -652,6 +652,7 @@ function PatientsPage() {
                 onOpenPatient={(p) => openChart(p, "orders")}
                 onTransfer={(p) => setAdmission({ mode: "transfer", patient: p })}
                 onDischarge={(p) => setAdmission({ mode: "discharge", patient: p })}
+                onChangeAttending={(p) => setAdmission({ mode: "attending", patient: p })}
               />
             ) : (
             <PatientsTable

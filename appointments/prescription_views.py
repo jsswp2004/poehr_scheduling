@@ -11,14 +11,14 @@ from users.models import CustomUser
 from . import allergies
 from . import prescriptions as rxs
 from . import rx_transport
-from .models import PatientPharmacy, Pharmacy, PrescriberProfile, Prescription
+from .models import PatientPharmacy, Pharmacy, PrescriberProfile, Prescription, PrescriptionFavorite
 from .order_tasks import FREQUENCY_LABELS, ROUTES
 from .patient_header import _patient_for, _target_org
 from .prescription_pdf import build_pdf
 
 PAGE_SIZE = 25
 MAX_PAGE_SIZE = 100
-RELATED = ("patient", "prescriber", "pharmacy", "signed_by", "replaces")
+RELATED = ("patient", "prescriber", "pharmacy", "signed_by", "replaces", "renews")
 
 
 def _name(user):
@@ -48,6 +48,7 @@ def _scope(request):
 QUEUES = [
     ("needs_signing", "Needs signing"),
     ("to_send", "To print or fax"),
+    ("renewals", "Due for renewal"),
     ("sent", "Sent"),
     ("cancelled", "Cancelled"),
     ("all", "All"),
@@ -96,6 +97,9 @@ def serialize(rx, user, detail=False):
         "cancelled_at": _iso(rx.cancelled_at), "cancel_reason": rx.cancel_reason,
         "print_count": rx.print_count,
         "replaces": rx.replaces_id,
+        "renews": rx.renews_id,
+        "runs_out_on": rxs.runs_out_at(rx).date().isoformat() if rxs.runs_out_at(rx) else None,
+        "renewal_due": rxs.renewal_due(rx) if rx.status in ("signed", "sent") else False,
         "controlled": rxs.is_controlled(rx.drug_name),
         "actions": rxs.allowed_actions(user, rx),
     }
@@ -226,20 +230,31 @@ class PrescriptionListCreateView(APIView):
         qs, _org = _scope(request)
         p = request.query_params
         qs = _narrow(request, qs)
-        if p.get("queue") in QUEUE_STATUS:
+        due_order = None
+        if p.get("queue") == "renewals":
+            due_order = rxs.renewals_due(qs)
+            qs = qs.filter(pk__in=due_order)
+        elif p.get("queue") in QUEUE_STATUS:
             qs = qs.filter(status=QUEUE_STATUS[p["queue"]])
         elif p.get("status") in rxs.STATUS_LABELS:
             qs = qs.filter(status=p["status"])
         elif p.get("status") == "active":
             qs = qs.filter(status__in=["signed", "sent"])
         qs = qs.order_by("-created_at", "-id")
+        if due_order is not None:
+            position = {pk: i for i, pk in enumerate(due_order)}
+            ordered = sorted(qs, key=lambda r: position[r.pk])
+            qs = None
         try:
             size = max(1, min(int(p.get("page_size", PAGE_SIZE)), MAX_PAGE_SIZE))
             page = max(1, int(p.get("page", 1)))
         except (TypeError, ValueError):
             size, page = PAGE_SIZE, 1
-        count = qs.count()
-        rows = list(qs[(page - 1) * size: page * size])
+        if qs is None:  # the renewal queue is ordered by when the supply runs out
+            count, rows = len(ordered), ordered[(page - 1) * size: page * size]
+        else:
+            count = qs.count()
+            rows = list(qs[(page - 1) * size: page * size])
         return Response({"count": count, "page": page, "page_size": size, "results": [serialize(r, request.user) for r in rows]})
 
     def post(self, request):
@@ -278,6 +293,7 @@ class PrescriptionQueuesView(APIView):
         qs, _org = _scope(request)
         qs = _narrow(request, qs)
         counts = {key: qs.filter(status=status).count() for key, status in QUEUE_STATUS.items()}
+        counts["renewals"] = len(rxs.renewals_due(qs))
         counts["all"] = qs.count()
         return Response({"counts": counts})
 
@@ -325,7 +341,7 @@ class PrescriptionDetailView(APIView):
 
 
 class PrescriptionActionView(APIView):
-    """POST {action: sign | fax | cancel | revise, ...}  (printing has its own endpoint)."""
+    """POST {action: sign | fax | cancel | revise | renew, ...}  (printing has its own endpoint)."""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -348,6 +364,9 @@ class PrescriptionActionView(APIView):
                 rxs.cancel(rx, request.user, d.get("reason", ""))
             elif action == "revise":
                 new = rxs.revise(rx, request.user)
+                return Response(serialize(qs.get(pk=new.pk), request.user, detail=True), status=201)
+            elif action == "renew":
+                new = rxs.renew(rx, request.user)
                 return Response(serialize(qs.get(pk=new.pk), request.user, detail=True), status=201)
             else:
                 return Response({"detail": "Unknown action."}, status=400)
@@ -631,3 +650,117 @@ class PrescriberProfileView(APIView):
         prof.save()
         target = CustomUser.objects.get(pk=target.pk)
         return Response(_profile_json(target))
+
+
+# ---------------------------------------------------------------- favorites
+
+FAVORITE_FIELDS = (
+    "drug_name", "code_system", "code", "strength", "form", "dose", "route", "frequency", "duration_days", "prn", "prn_reason",
+    "sig_extra", "quantity", "quantity_unit", "days_supply", "refills", "dispense_as_written", "indication_code",
+    "indication_text", "note_to_pharmacist",
+)
+
+
+def serialize_favorite(fav):
+    data = {key: getattr(fav, key) for key in FAVORITE_FIELDS}
+    data["quantity"] = format(fav.quantity.normalize(), "f") if fav.quantity is not None else None
+    data.update({
+        "id": fav.pk,
+        "label": fav.label or " ".join(x for x in (fav.drug_name, fav.strength) if x),
+        "frequency_label": FREQUENCY_LABELS.get(fav.frequency, ""),
+        "sig": rxs.build_sig(fav),
+        "controlled": rxs.is_controlled(fav.drug_name),
+    })
+    return data
+
+
+def _favorite_values(request, org, data):
+    """Validated favorite fields from a request body, or from an existing prescription when {from_prescription} is given."""
+    if data.get("from_prescription"):
+        qs, _org = _scope(request)
+        rx = qs.filter(pk=data["from_prescription"]).first()
+        if rx is None:
+            return None, Response({"detail": "Prescription not found."}, status=404)
+        if rxs.is_controlled(rx.drug_name):
+            return None, Response({"detail": rxs.CONTROLLED_MESSAGE}, status=400)
+        values = {key: getattr(rx, key) for key in FAVORITE_FIELDS}
+    else:
+        body = {k: v for k, v in data.items() if k in FAVORITE_FIELDS}
+        values, err = _clean_fields(request, org, body, creating=False)
+        if err:
+            return None, err
+        if not values.get("drug_name"):
+            return None, Response({"detail": "Choose the drug."}, status=400)
+        values.pop("pharmacy", None)
+        values.pop("prescriber", None)
+    values["label"] = str(data.get("label") or "").strip()[:80]
+    return values, None
+
+
+def _favorite_org(request):
+    org = _target_org(request) or getattr(request.user, "organization", None)
+    if org is None:
+        return None, Response({"detail": "Favorites belong to a clinic."}, status=400)
+    return org, None
+
+
+class PrescriptionFavoriteListCreateView(APIView):
+    """Favorites are private to the person who saved them."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        denied = _need_staff(request)
+        if denied:
+            return denied
+        qs = PrescriptionFavorite.objects.filter(owner=request.user)
+        term = (request.query_params.get("q") or "").strip()
+        if term:
+            qs = qs.filter(Q(drug_name__icontains=term) | Q(label__icontains=term))
+        return Response({"results": [serialize_favorite(f) for f in qs]})
+
+    def post(self, request):
+        denied = _need_staff(request)
+        if denied:
+            return denied
+        org, err = _favorite_org(request)
+        if err:
+            return err
+        values, err = _favorite_values(request, org, request.data)
+        if err:
+            return err
+        same = {k: v for k, v in values.items() if k not in ("label", "indication_code", "indication_text", "note_to_pharmacist", "sig_extra")}
+        for existing in PrescriptionFavorite.objects.filter(owner=request.user, drug_name__iexact=values["drug_name"]):
+            if all(getattr(existing, k) == v for k, v in same.items()):
+                return Response({"detail": "That is already one of your favorites."}, status=409)
+        fav = PrescriptionFavorite.objects.create(organization=org, owner=request.user, **values)
+        return Response(serialize_favorite(fav), status=201)
+
+
+class PrescriptionFavoriteDetailView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get(self, request, pk):
+        denied = _need_staff(request)
+        if denied:
+            return None, denied
+        fav = PrescriptionFavorite.objects.filter(pk=pk, owner=request.user).first()
+        if fav is None:
+            return None, Response({"detail": "Favorite not found."}, status=404)
+        return fav, None
+
+    def patch(self, request, pk):
+        fav, err = self._get(request, pk)
+        if err:
+            return err
+        if "label" in request.data:
+            fav.label = str(request.data.get("label") or "").strip()[:80]
+            fav.save(update_fields=["label"])
+        return Response(serialize_favorite(fav))
+
+    def delete(self, request, pk):
+        fav, err = self._get(request, pk)
+        if err:
+            return err
+        fav.delete()
+        return Response(status=204)

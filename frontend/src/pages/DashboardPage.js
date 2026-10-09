@@ -729,7 +729,7 @@ function DashboardPage() {
                       Profile Information
                     </Typography>
                     <Grid container spacing={1.5}>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           label="First Name"
                           value={currentUser.first_name || ""}
@@ -738,7 +738,7 @@ function DashboardPage() {
                           variant="outlined"
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           label="Last Name"
                           value={currentUser.last_name || ""}
@@ -747,7 +747,7 @@ function DashboardPage() {
                           variant="outlined"
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           label="Email"
                           value={currentUser.email || ""}
@@ -756,7 +756,7 @@ function DashboardPage() {
                           variant="outlined"
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <TextField
                           label="Role"
                           value={currentUser.role || ""}
@@ -765,7 +765,7 @@ function DashboardPage() {
                           variant="outlined"
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6}>
+                      <Grid size={{ xs: 12, sm: 6 }}>
                         <Box>
                           <TextField
                             label="Phone Number"

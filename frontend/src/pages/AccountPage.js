@@ -1021,7 +1021,7 @@ function AccountPage() {
                         )}
 
                         <Grid container spacing={2}>
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <Typography variant="body2" color="text.secondary">
                                     First Name
                                 </Typography>
@@ -1029,7 +1029,7 @@ function AccountPage() {
                                     {accountData?.first_name || "Not set"}
                                 </Typography>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <Typography variant="body2" color="text.secondary">
                                     Last Name
                                 </Typography>
@@ -1037,7 +1037,7 @@ function AccountPage() {
                                     {accountData?.last_name || "Not set"}
                                 </Typography>
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <Typography variant="body2" color="text.secondary">
                                     Email
                                 </Typography>
@@ -1045,7 +1045,7 @@ function AccountPage() {
                                     {accountData?.email || "Not set"}
                                 </Typography>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <Typography variant="body2" color="text.secondary">
                                     Phone
                                 </Typography>
@@ -1053,7 +1053,7 @@ function AccountPage() {
                                     {accountData?.phone_number || "Not set"}
                                 </Typography>
                             </Grid>
-                            <Grid item xs={6}>
+                            <Grid size={6}>
                                 <Typography variant="body2" color="text.secondary">
                                     Role
                                 </Typography>
@@ -1061,7 +1061,7 @@ function AccountPage() {
                                     {accountData?.role || "Not set"}
                                 </Typography>
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <Typography variant="body2" color="text.secondary">
                                     Organization
                                     {isSystemAdmin && (
@@ -1386,7 +1386,7 @@ function AccountPage() {
                 <DialogTitle>Edit Account Details</DialogTitle>
                 <DialogContent>
                     <Grid container spacing={2} sx={{ mt: 1 }}>
-                        <Grid item xs={6}>
+                        <Grid size={6}>
                             <TextField
                                 fullWidth
                                 label="First Name"
@@ -1399,7 +1399,7 @@ function AccountPage() {
                                 }
                             />
                         </Grid>
-                        <Grid item xs={6}>
+                        <Grid size={6}>
                             <TextField
                                 fullWidth
                                 label="Last Name"
@@ -1412,7 +1412,7 @@ function AccountPage() {
                                 }
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 label="Email"
@@ -1423,7 +1423,7 @@ function AccountPage() {
                                 }
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 label="Phone Number"
@@ -1457,7 +1457,7 @@ function AccountPage() {
                 <DialogContent>
                     <Grid container spacing={2} sx={{ mt: 1 }}>
                         {planOptions.map((plan) => (
-                            <Grid item xs={12} md={4} key={plan.value}>
+                            <Grid size={{ xs: 12, md: 4 }} key={plan.value}>
                                 <Box
                                     sx={{
                                         cursor: "pointer",
@@ -1518,7 +1518,7 @@ function AccountPage() {
                 <DialogTitle>Add Payment Method</DialogTitle>
                 <DialogContent dividers>
                     <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 label="Card number"
@@ -1536,7 +1536,7 @@ function AccountPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
                                 fullWidth
                                 label="Expiry (MM/YY)"
@@ -1552,7 +1552,7 @@ function AccountPage() {
                                 autoComplete="cc-exp"
                             />
                         </Grid>
-                        <Grid item xs={12} md={6}>
+                        <Grid size={{ xs: 12, md: 6 }}>
                             <TextField
                                 fullWidth
                                 label="CVC"
@@ -1570,7 +1570,7 @@ function AccountPage() {
                             />
                         </Grid>
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 label="Billing address"
@@ -1616,7 +1616,7 @@ function AccountPage() {
                     </Alert>
 
                     <Grid container spacing={2}>
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <FormControl fullWidth>
                                 <InputLabel>Cancellation Type</InputLabel>
                                 <Select
@@ -1637,7 +1637,7 @@ function AccountPage() {
                         </Grid>
 
                         {!cancellationData.immediate && (
-                            <Grid item xs={12}>
+                            <Grid size={12}>
                                 <TextField
                                     fullWidth
                                     label="End Date"
@@ -1654,7 +1654,7 @@ function AccountPage() {
                             </Grid>
                         )}
 
-                        <Grid item xs={12}>
+                        <Grid size={12}>
                             <TextField
                                 fullWidth
                                 label="Reason for Cancellation (Optional)"
@@ -1749,7 +1749,7 @@ function AccountPage() {
                         <Grid container spacing={2}>
                             {Object.entries(exportFormData.include_data).map(
                                 ([key, value]) => (
-                                    <Grid item xs={6} key={key}>
+                                    <Grid size={6} key={key}>
                                         <Button
                                             variant={value ? "contained" : "outlined"}
                                             fullWidth

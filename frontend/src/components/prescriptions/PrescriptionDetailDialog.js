@@ -23,12 +23,12 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import {
-  STATUS_COLOR, announceChange, authHeader, errorText, fmtDate, fmtDateTime, openPdf, pdfErrorText, runAction,
+  STATUS_COLOR, announceChange, authHeader, errorText, fmtDate, fmtDateTime, fmtDay, openPdf, pdfErrorText, runAction, saveFavorite,
 } from "./rxShared";
 
 const EVENT_LABEL = {
   created: "Draft created", edited: "Draft edited", signed: "Signed", printed: "Printed", reprinted: "Printed again",
-  faxed: "Faxed", faxed_again: "Faxed again", cancelled: "Cancelled", revision_started: "Revision started",
+  faxed: "Faxed", faxed_again: "Faxed again", cancelled: "Cancelled", revision_started: "Revision started", renewal_started: "Renewal started",
 };
 
 function Row({ label, children }) {
@@ -152,6 +152,23 @@ export default function PrescriptionDetailDialog({ open, id, onClose, onChanged,
     }
   };
 
+  const renew = async () => {
+    const data = await act("renew", {});
+    if (data) {
+      toast.success("A renewal draft was made. Review it, then sign.");
+      onEdit && onEdit(data);
+    }
+  };
+
+  const favorite = async () => {
+    try {
+      await saveFavorite({ from_prescription: rx.id });
+      toast.success("Saved to your favorites.");
+    } catch (err) {
+      toast.error(errorText(err, "Could not save the favorite."));
+    }
+  };
+
   const openFax = () => {
     setFax({ fax_number: rx.pharmacy_detail?.fax || "", confirmation: "", note: "" });
     setPanel("fax");
@@ -198,6 +215,10 @@ export default function PrescriptionDetailDialog({ open, id, onClose, onChanged,
               {rx.sent_at ? `${rx.delivery_method === "fax" ? "Faxed" : "Printed"} ${fmtDateTime(rx.sent_at)}${rx.delivery_detail?.fax_number ? ` to ${rx.delivery_detail.fax_number}` : ""}${rx.delivery_detail?.confirmation ? ` (${rx.delivery_detail.confirmation})` : ""}` : ""}
             </Row>
             <Row label="Cancelled">{rx.cancelled_at ? `${fmtDateTime(rx.cancelled_at)} — ${rx.cancel_reason}` : ""}</Row>
+            {rx.runs_out_on && ["signed", "sent"].includes(rx.status) && (
+              <Row label="Supply runs out"><span data-testid="rx-runs-out">{fmtDay(rx.runs_out_on)}{rx.renewal_due ? " — due for renewal" : ""}</span></Row>
+            )}
+            {rx.renews && <Row label="Renews">{`Prescription ${rx.renews}`}</Row>}
             {rx.replaces && <Row label="Replaces">{`Prescription ${rx.replaces}`}</Row>}
             {rx.replaced_by?.length > 0 && <Row label="Replaced by">{rx.replaced_by.map((n) => `Prescription ${n}`).join(", ")}</Row>}
 
@@ -301,6 +322,8 @@ export default function PrescriptionDetailDialog({ open, id, onClose, onChanged,
         {rx && <Button onClick={() => showPdf(false)} disabled={busy} data-testid="rx-preview">{isDraft ? "Preview" : "View PDF"}</Button>}
         {rx && actions.includes("print") && <Button onClick={() => showPdf(true)} disabled={busy} data-testid="rx-print">Print</Button>}
         {rx && actions.includes("fax") && <Button onClick={openFax} disabled={busy} data-testid="rx-fax">Record fax</Button>}
+        {rx && actions.includes("renew") && <Button onClick={renew} disabled={busy} data-testid="rx-renew">Renew</Button>}
+        {rx && !rx.controlled && <Button onClick={favorite} disabled={busy} data-testid="rx-favorite">Save as favorite</Button>}
         {rx && actions.includes("revise") && <Button onClick={revise} disabled={busy} data-testid="rx-revise">Revise</Button>}
         {rx && actions.includes("cancel") && <Button color="error" onClick={() => setPanel("cancel")} disabled={busy} data-testid="rx-cancel">Cancel prescription</Button>}
         {rx && canSign && <Button variant="contained" onClick={sign} disabled={busy || missing.length > 0} data-testid="rx-sign">Sign</Button>}
