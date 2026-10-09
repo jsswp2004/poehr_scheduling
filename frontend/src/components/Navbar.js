@@ -32,6 +32,7 @@ import BarChartIcon from "@mui/icons-material/BarChart";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ForumIcon from "@mui/icons-material/Forum";
+import PolicyIcon from "@mui/icons-material/Policy";
 import useSecureUnread from "../hooks/secureMessages/useSecureUnread";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
@@ -155,7 +156,15 @@ const MODULE_LINKS = [
     to: "/secure-messages",
     Icon: ForumIcon,
     roles: SECURE_MESSAGE_ROLES,
-    isActive: (path) => path.startsWith("/secure-messages"),
+    isActive: (path) => path.startsWith("/secure-messages") && !path.startsWith("/secure-messages/audit"),
+  },
+  {
+    key: "secure-audit",
+    label: "Messaging Audit Log",
+    to: "/secure-messages/audit",
+    Icon: PolicyIcon,
+    roles: ["admin", "system_admin"], // the roles that hold the audit right by default (the server decides)
+    isActive: (path) => path.startsWith("/secure-messages/audit"),
   },
 ];
 
@@ -481,13 +490,6 @@ function Navbar() {
     };
   }, [isAuthenticated, canSeeTasks, refreshTaskWaiting, location.pathname]);
 
-  // Unread team messages: the Patients page tells the header whenever the count changes.
-  const [teamUnread, setTeamUnread] = useState(0);
-  useEffect(() => {
-    const onUnread = (e) => setTeamUnread(Number(e.detail) || 0);
-    window.addEventListener("team-unread-changed", onUnread);
-    return () => window.removeEventListener("team-unread-changed", onUnread);
-  }, []);
   const refreshLabWaiting = useCallback(async () => {
     const token = getAccessToken();
     if (!token) return;
@@ -627,9 +629,7 @@ function Navbar() {
                     <Tooltip
                       key={key}
                       title={
-                        key === "team" && teamUnread > 0
-                          ? `${label}: ${teamUnread} unread`
-                          : key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0
+                        key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0
                           ? `${label}: ${labWaiting.count} to review${
                               labWaiting.critical > 0 ? ` (${labWaiting.critical} critical)` : ""
                             }${labWaiting.unmatched > 0 ? `, ${labWaiting.unmatched} waiting for a patient` : ""}`
@@ -666,11 +666,7 @@ function Navbar() {
                         aria-current={active ? "page" : undefined}
                         data-testid={`nav-module-${key}`}
                       >
-                        {key === "team" && teamUnread > 0 ? (
-                          <Badge badgeContent={teamUnread} max={99} color="error" data-testid="team-unread-badge">
-                            <Icon sx={{ color: "white" }} />
-                          </Badge>
-                        ) : key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0 ? (
+                        {key === "lab-inbox" && labWaiting.count + labWaiting.unmatched > 0 ? (
                           <Badge
                             badgeContent={labWaiting.count + labWaiting.unmatched}
                             max={99}

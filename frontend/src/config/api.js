@@ -93,6 +93,8 @@ export const apiEndpoints = {
     secureRetract: (messageId) => `${API_BASE_URL}/api/secure-messages/messages/${messageId}/retract/`,
     secureAttachment: (id) => `${API_BASE_URL}/api/secure-messages/attachments/${id}/`,
     secureUnread: `${API_BASE_URL}/api/secure-messages/unread-count/`,
+    secureAudit: `${API_BASE_URL}/api/secure-messages/audit/`,
+    secureAuditThread: (id) => `${API_BASE_URL}/api/secure-messages/audit/threads/${id}/`,
 
     // Organization endpoints
     organizations: `${API_BASE_URL}/api/users/organizations/`,

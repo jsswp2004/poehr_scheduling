@@ -36,10 +36,6 @@ from .views import (
     UploadPatientsCSV,
     get_current_user,
     get_team_members,
-    # Offline Chat Message APIs
-    get_unread_messages,
-    mark_messages_read,
-    get_chat_rooms_with_unread,
     # Debug functions
     debug_stripe_config,
     debug_delete_user,
@@ -125,10 +121,6 @@ urlpatterns = [
         "trial-reminders/", send_trial_reminders, name="send-trial-reminders"
     ),  # Trial reminders endpoint
     path("team/", get_team_members, name="team-list"),
-    # Offline Chat Message API Endpoints
-    path("unread-messages/", get_unread_messages, name="get-unread-messages"),
-    path("mark-messages-read/", mark_messages_read, name="mark-messages-read"),
-    path("chat-rooms/", get_chat_rooms_with_unread, name="get-chat-rooms-with-unread"),
     # Debug endpoint for Stripe configuration
     path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),
     # Debug endpoint for user deletion

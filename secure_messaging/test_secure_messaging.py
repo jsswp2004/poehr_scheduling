@@ -595,6 +595,24 @@ class AuditTests(MsgBase):
         recent = (timezone.now() + timezone.timedelta(days=1)).isoformat()
         self.assertEqual(self.as_(self.admin).get(API + "audit/", {"since": recent}).json()["events"], [])
 
+    def test_log_is_newest_first_in_pages_and_can_end_at_a_time(self):
+        t = self.direct(self.doctor, self.nurse)
+        for i in range(105):
+            AuditEvent.objects.create(organization=self.org, user=self.doctor, action="send", thread_id=t, message_id=i)
+        page1 = self.as_(self.admin).get(API + "audit/").json()
+        self.assertEqual(len(page1["events"]), 100)
+        self.assertTrue(page1["has_more"])
+        ids = [e["id"] for e in page1["events"]]
+        self.assertEqual(ids, sorted(ids, reverse=True))
+        page2 = self.as_(self.admin).get(API + "audit/", {"before": ids[-1]}).json()
+        self.assertFalse(page2["has_more"])
+        self.assertTrue(page2["events"])
+        self.assertTrue(all(e["id"] < ids[-1] for e in page2["events"]))
+        self.assertEqual(self.as_(self.admin).get(API + "audit/", {"before": "x"}).status_code, 400)
+        self.assertEqual(self.as_(self.admin).get(API + "audit/", {"until": "garbage"}).status_code, 400)
+        old = (timezone.now() - timezone.timedelta(days=1)).isoformat()
+        self.assertEqual(self.as_(self.admin).get(API + "audit/", {"until": old}).json()["events"], [])
+
     def test_transcript_includes_retracted_text_and_is_itself_logged(self):
         t = self.direct(self.doctor, self.nurse)
         mid = self.send(self.doctor, t, "wrong chart note").json()["id"]

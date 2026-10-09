@@ -570,7 +570,7 @@ class UnreadCountView(APIView):
 # --------------------------------------------------------------------------
 
 class AuditListView(APIView):
-    """GET ?user=&patient=&thread=&action=&since=: who did what. Never includes message text."""
+    """GET ?user=&patient=&thread=&action=&since=&until=&before=<id>: who did what, newest first, 100 at a time. Never includes message text."""
 
     permission_classes = AUDIT_PERMS
 
@@ -593,8 +593,22 @@ class AuditListView(APIView):
             if since is None:
                 return _bad("Invalid since.")
             rows = rows.filter(at__gte=since)
+        if qp.get("until"):
+            from django.utils.dateparse import parse_datetime
+
+            until = parse_datetime(qp["until"])
+            if until is None:
+                return _bad("Invalid until.")
+            rows = rows.filter(at__lte=until)
+        if qp.get("before"):
+            if not str(qp["before"]).isdigit():
+                return _bad("Invalid before.")
+            rows = rows.filter(pk__lt=int(qp["before"]))
+        rows = list(rows.order_by("-id")[:101])
+        more, rows = len(rows) > 100, rows[:100]
         return Response(
             {
+                "has_more": more,
                 "events": [
                     {
                         "id": r.pk,
@@ -608,7 +622,7 @@ class AuditListView(APIView):
                         "patient_id": r.patient_id,
                         "detail": r.detail,
                     }
-                    for r in rows[:200]
+                    for r in rows
                 ]
             }
         )
