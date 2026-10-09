@@ -127,6 +127,24 @@ test("an active unit filter shows in the header, and All units clears it", () =>
   expect(setUnit).toHaveBeenCalledWith("");
 });
 
+test("with several facilities the closed filter shows only the unit's name; the open list keeps the facility", () => {
+  const units = [
+    { id: 7, name: "Medicine (Riverside Hospital)", short: "Medicine" },
+    { id: 8, name: "Medicine (Harbor Hospital)", short: "Medicine" },
+  ];
+  show({ careSetting: "acute", units, setUnit: jest.fn(), unit: "7" });
+  const filter = screen.getByRole("combobox", { name: /Filter by unit/i });
+  expect(filter).toHaveTextContent("Unit: Medicine");
+  expect(filter).not.toHaveTextContent("Riverside");
+  fireEvent.mouseDown(filter);
+  expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["All units", "Medicine (Riverside Hospital)", "Medicine (Harbor Hospital)"]);
+});
+
+test("a unit with no short name still shows its full name", () => {
+  show({ careSetting: "acute", units: [{ id: 7, name: "3 West" }], setUnit: jest.fn(), unit: "7" });
+  expect(screen.getByRole("combobox", { name: /Filter by unit/i })).toHaveTextContent("Unit: 3 West");
+});
+
 test("an empty filtered list spans the whole table", () => {
   show({ careSetting: "acute", patients: [], unit: "7", units: [{ id: 7, name: "3 West" }] });
   expect(screen.getByText(/No inpatients right now/).closest("td")).toHaveAttribute("colspan", "6");
