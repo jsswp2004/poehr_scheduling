@@ -34,6 +34,7 @@ CATALOG = [
     ("referral_list", "Referral List", False),
     ("task_list", "Task List", True),
     ("clinical_summary", "Clinical Summary", True),
+    ("messages", "Messages", False),
 ]
 KEYS = [k for k, _, _ in CATALOG]
 CLINICAL = {k for k, _, c in CATALOG if c}

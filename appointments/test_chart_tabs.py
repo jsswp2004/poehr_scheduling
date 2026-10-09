@@ -57,7 +57,7 @@ class BuiltInTests(Base):
 
     def test_non_clinical_roles_never_get_clinical_tabs(self):
         out = self.layout(self.registrar)
-        self.assertEqual(out["tabs"], ["patient_list", "patient_info", "my_schedule", "referral_list"])
+        self.assertEqual(out["tabs"], ["patient_list", "patient_info", "my_schedule", "referral_list", "messages"])
 
     def test_patients_are_refused_and_anonymous_too(self):
         self.client.force_authenticate(self.patient)

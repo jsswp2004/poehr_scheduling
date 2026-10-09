@@ -58,6 +58,10 @@ RIGHTS = [
     ("messages.send", "Send SMS/email messages", "Messaging"),
     ("messages.view_logs", "View message logs (all users, not just own)", "Messaging"),
 
+    # Secure messaging (staff to staff, in-app)
+    ("secure_messaging.use", "Use secure staff messaging", "Secure Messaging"),
+    ("secure_messaging.audit", "View the secure messaging audit log and read full transcripts", "Secure Messaging"),
+
     # Data Import/Export
     ("csv.upload_providers", "Upload CSV -- providers", "Data Import/Export"),
     ("csv.upload_patients", "Upload CSV -- patients", "Data Import/Export"),
@@ -180,6 +184,13 @@ ROLE_DEFAULT_RIGHTS = {
     },
     "system_admin": _ALL_RIGHTS,
 }
+
+
+# Secure staff messaging: every clinical and front-office role may use it; only admins may audit it.
+# (Roster "staff" logins and patients never get it.)
+for _role in ("doctor", "nurse", "receptionist", "registrar", "admin"):
+    ROLE_DEFAULT_RIGHTS[_role] = set(ROLE_DEFAULT_RIGHTS[_role]) | {"secure_messaging.use"}
+ROLE_DEFAULT_RIGHTS["admin"] = set(ROLE_DEFAULT_RIGHTS["admin"]) | {"secure_messaging.audit"}
 
 
 def role_default_rights(role):

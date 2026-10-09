@@ -170,6 +170,7 @@ urlpatterns = [
     path("api/staffing/", include("staffing.urls")),
     path("api/sms/", include("users.urls")),  # or sms.urls
     path("api/messages/", include("users.urls")),
+    path("api/secure-messages/", include("secure_messaging.urls")),
     path("api/communicator/", include("communicator.urls")),
 ]
 
