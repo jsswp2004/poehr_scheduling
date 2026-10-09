@@ -31,6 +31,7 @@ import {
     ManageAccounts as AttendingIcon,
     TaskAlt as TasksIcon,
     ForwardToInbox as ReferralsIcon,
+    Medication as RxIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -85,6 +86,7 @@ function PatientsTable({
     // The Task Manager and Referral Manager pages open for this patient: the patient is selected first, so each
     // page shows that patient's banner and list (the same roles the navigation bar offers them to).
     const canOpenTasks = canAccessClinicalDocs;
+    const canOpenRx = canAccessClinicalDocs;
     const canOpenReferrals = ["doctor", "nurse", "registrar", "admin", "system_admin"].includes(userRole);
     const openManager = (patient, path) => {
         if (onSelect) onSelect(patient);
@@ -386,6 +388,19 @@ function PatientsTable({
                                                         sx={{ color: '#00838f' }}
                                                     >
                                                         <TasksIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+
+                                            {canOpenRx && (
+                                                <Tooltip title="Prescription Manager">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={`Prescription Manager for ${patient.full_name}`}
+                                                        onClick={(e) => { e.stopPropagation(); openManager(patient, '/prescriptions'); }}
+                                                        sx={{ color: '#2e7d32' }}
+                                                    >
+                                                        <RxIcon fontSize="small" />
                                                     </IconButton>
                                                 </Tooltip>
                                             )}

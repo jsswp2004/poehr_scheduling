@@ -152,6 +152,7 @@ export const apiEndpoints = {
     prescription: (id) => `${API_BASE_URL}/api/prescriptions/${id}/`,
     prescriptionAction: (id) => `${API_BASE_URL}/api/prescriptions/${id}/action/`,
     prescriptionPdf: (id) => `${API_BASE_URL}/api/prescriptions/${id}/pdf/`,
+    prescriptionQueues: `${API_BASE_URL}/api/prescriptions/queues/`,
     prescriptionMeta: `${API_BASE_URL}/api/prescription-meta/`,
     prescriptionDrugs: `${API_BASE_URL}/api/prescription-drugs/`,
     pharmacies: `${API_BASE_URL}/api/pharmacies/`,

@@ -22,6 +22,7 @@ PHARMS = "/api/pharmacies/"
 PHARM = "/api/pharmacies/{}/"
 PATIENT_PHARM = "/api/patient-pharmacy/{}/"
 PROFILE = "/api/prescriber-profile/"
+QUEUES = "/api/prescriptions/queues/"
 GOOD_NPI = "1234567893"
 
 
@@ -382,6 +383,32 @@ class ListScopeTests(RxBase):
         self.assertEqual(self.as_(self.outsider).get(DETAIL.format(a["id"])).status_code, 404)
         self.assertEqual(self.as_(self.outsider).post(ACTION.format(a["id"]), {"action": "sign"}, format="json").status_code, 404)
 
+    def test_queues_filter_and_count(self):
+        draft = self.make()
+        to_send = self.signed(drug_name="Lisinopril", strength="10 mg", form="tablet", dose="1 tablet", frequency="daily", quantity="30", quantity_unit="tablets", days_supply=30)
+        sent = self.signed(drug_name="Metformin", strength="500 mg", form="tablet", dose="1 tablet", frequency="bid", quantity="60", quantity_unit="tablets", days_supply=30)
+        self.assertEqual(self.as_(self.doctor).post(PDF.format(sent["id"]), {}, format="json").status_code, 200)
+        gone = self.signed(drug_name="Ibuprofen", strength="400 mg", form="tablet", dose="1 tablet", frequency="q8h", quantity="20", quantity_unit="tablets", days_supply=7)
+        self.assertEqual(self.act(gone["id"], "cancel", reason="Entered in error").status_code, 200)
+
+        def ids(queue, **extra):
+            return {r["id"] for r in self.as_(self.doctor).get(LIST, {"queue": queue, **extra}).json()["results"]}
+
+        self.assertEqual(ids("needs_signing"), {draft["id"]})
+        self.assertEqual(ids("to_send"), {to_send["id"]})
+        self.assertEqual(ids("sent"), {sent["id"]})
+        self.assertEqual(ids("cancelled"), {gone["id"]})
+        self.assertEqual(len(ids("all")), 4)
+        counts = self.as_(self.doctor).get(QUEUES).json()["counts"]
+        self.assertEqual(counts, {"needs_signing": 1, "to_send": 1, "sent": 1, "cancelled": 1, "all": 4})
+        # the counts follow the search / prescriber / patient filters, but not the queue itself
+        self.assertEqual(self.as_(self.doctor).get(QUEUES, {"q": "metfor"}).json()["counts"]["all"], 1)
+        self.assertEqual(self.as_(self.doctor2).get(QUEUES, {"prescriber": "me"}).json()["counts"]["all"], 0)
+        self.assertEqual(self.as_(self.doctor).get(QUEUES, {"patient": self.patient.pk}).json()["counts"]["all"], 4)
+        # other clinics see nothing, and roles that can't prescribe are refused
+        self.assertEqual(self.as_(self.outsider).get(QUEUES).json()["counts"]["all"], 0)
+        self.assertEqual(self.as_(self.registrar).get(QUEUES).status_code, 403)
+
     def test_paging(self):
         for _ in range(3):
             self.make()
@@ -453,6 +480,7 @@ class MetaAndSearchTests(RxBase):
         self.assertTrue(ready["Jeffrey Lee"])
         self.assertFalse(ready["Ann Roe"])
         self.assertFalse(r["can_sign"])
+        self.assertEqual([q["value"] for q in r["queues"]], ["needs_signing", "to_send", "sent", "cancelled", "all"])
         self.assertTrue(self.as_(self.doctor).get(META).json()["can_sign"])
         self.assertEqual(self.as_(self.registrar).get(META).status_code, 403)
 

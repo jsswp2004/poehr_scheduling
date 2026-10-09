@@ -161,6 +161,14 @@ test("the Referral Manager icon selects the patient, then opens the Referral Man
   expect(screen.getByTestId("where")).toHaveTextContent("/referrals");
 });
 
+test("the Prescription Manager icon selects the patient, then opens the Prescription Manager", () => {
+  const onSelect = jest.fn();
+  show({ careSetting: "ambulatory", onSelect });
+  fireEvent.click(screen.getByRole("button", { name: "Prescription Manager for Bob Ray" }));
+  expect(onSelect).toHaveBeenCalledWith(rows[0]);
+  expect(screen.getByTestId("where")).toHaveTextContent("/prescriptions");
+});
+
 test("the manager icons still open their page where no patient selection is kept", () => {
   show({ careSetting: "ambulatory" });
   fireEvent.click(screen.getByRole("button", { name: "Task Manager for Bob Ray" }));
@@ -171,10 +179,12 @@ test("each role sees only the manager icons it may open", () => {
   const { unmount } = show({ userRole: "doctor" });
   expect(screen.getByRole("button", { name: "Task Manager for Bob Ray" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Referral Manager for Bob Ray" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Prescription Manager for Bob Ray" })).toBeInTheDocument();
   unmount();
   const reg = show({ userRole: "registrar" });
   expect(screen.queryByRole("button", { name: "Task Manager for Bob Ray" })).toBeNull();
   expect(screen.getByRole("button", { name: "Referral Manager for Bob Ray" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Prescription Manager for Bob Ray" })).toBeNull();
   reg.unmount();
   show({ userRole: "receptionist" });
   expect(screen.queryByRole("button", { name: "Task Manager for Bob Ray" })).toBeNull();

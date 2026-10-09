@@ -45,6 +45,31 @@ def _scope(request):
     return qs.none(), None
 
 
+QUEUES = [
+    ("needs_signing", "Needs signing"),
+    ("to_send", "To print or fax"),
+    ("sent", "Sent"),
+    ("cancelled", "Cancelled"),
+    ("all", "All"),
+]
+QUEUE_STATUS = {"needs_signing": "draft", "to_send": "signed", "sent": "sent", "cancelled": "cancelled"}
+
+
+def _narrow(request, qs):
+    """The filters the list and the queue counts share: patient, prescriber, search text."""
+    p = request.query_params
+    if p.get("patient"):
+        qs = qs.filter(patient_id=p["patient"])
+    if p.get("prescriber") == "me":
+        qs = qs.filter(prescriber=request.user)
+    elif p.get("prescriber"):
+        qs = qs.filter(prescriber_id=p["prescriber"])
+    if p.get("q"):
+        term = p["q"].strip()
+        qs = qs.filter(Q(drug_name__icontains=term) | Q(patient__first_name__icontains=term) | Q(patient__last_name__icontains=term))
+    return qs
+
+
 def serialize(rx, user, detail=False):
     data = {
         "id": rx.pk,
@@ -200,19 +225,13 @@ class PrescriptionListCreateView(APIView):
             return denied
         qs, _org = _scope(request)
         p = request.query_params
-        if p.get("patient"):
-            qs = qs.filter(patient_id=p["patient"])
-        if p.get("status") in rxs.STATUS_LABELS:
+        qs = _narrow(request, qs)
+        if p.get("queue") in QUEUE_STATUS:
+            qs = qs.filter(status=QUEUE_STATUS[p["queue"]])
+        elif p.get("status") in rxs.STATUS_LABELS:
             qs = qs.filter(status=p["status"])
         elif p.get("status") == "active":
             qs = qs.filter(status__in=["signed", "sent"])
-        if p.get("prescriber") == "me":
-            qs = qs.filter(prescriber=request.user)
-        elif p.get("prescriber"):
-            qs = qs.filter(prescriber_id=p["prescriber"])
-        if p.get("q"):
-            term = p["q"].strip()
-            qs = qs.filter(Q(drug_name__icontains=term) | Q(patient__first_name__icontains=term) | Q(patient__last_name__icontains=term))
         qs = qs.order_by("-created_at", "-id")
         try:
             size = max(1, min(int(p.get("page_size", PAGE_SIZE)), MAX_PAGE_SIZE))
@@ -245,6 +264,22 @@ class PrescriptionListCreateView(APIView):
         rxs.log_event(rx, "created", request.user, to_status="draft")
         rx = Prescription.objects.select_related(*RELATED).get(pk=rx.pk)
         return Response(serialize(rx, request.user, detail=True), status=201)
+
+
+class PrescriptionQueuesView(APIView):
+    """GET -- how many prescriptions sit in each queue (same patient / prescriber / search filters as the list)."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        denied = _need_staff(request)
+        if denied:
+            return denied
+        qs, _org = _scope(request)
+        qs = _narrow(request, qs)
+        counts = {key: qs.filter(status=status).count() for key, status in QUEUE_STATUS.items()}
+        counts["all"] = qs.count()
+        return Response({"counts": counts})
 
 
 class PrescriptionDetailView(APIView):
@@ -385,6 +420,7 @@ class PrescriptionMetaView(APIView):
             "capabilities": rx_transport.capabilities(),
             "controlled_message": rxs.CONTROLLED_MESSAGE,
             "can_sign": request.user.role in rxs.SIGN_ROLES,
+            "queues": [{"value": k, "label": v} for k, v in QUEUES],
         })
 
 

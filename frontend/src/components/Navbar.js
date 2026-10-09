@@ -26,6 +26,7 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import ScienceIcon from "@mui/icons-material/Science";
 import ForwardToInboxIcon from "@mui/icons-material/ForwardToInbox";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import MedicationIcon from "@mui/icons-material/Medication";
 import PeopleIcon from "@mui/icons-material/People";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -126,6 +127,14 @@ const MODULE_LINKS = [
     Icon: ForwardToInboxIcon,
     roles: ["doctor", "nurse", "registrar", "admin", "system_admin"], // the roles that work referrals
     isActive: (path) => path.startsWith("/referrals"),
+  },
+  {
+    key: "prescriptions",
+    label: "Prescriptions",
+    to: "/prescriptions",
+    Icon: MedicationIcon,
+    roles: ["doctor", "nurse", "admin", "system_admin"], // the roles that write prescriptions
+    isActive: (path) => path.startsWith("/prescriptions"),
   },
   {
     key: "tasks",
