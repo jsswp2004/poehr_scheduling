@@ -12,6 +12,7 @@ import {
   DialogTitle,
   FormControlLabel,
   Link,
+  MenuItem,
   Paper,
   Stack,
   Switch,
@@ -22,20 +23,27 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { toast } from "./SimpleToast";
 import { ReportItemsTable, authHeader, errorText, fmt, openReportDocument } from "./LabResultsPanel";
+import PatientChartHeader from "./patientHeader/PatientChartHeader";
+import { readLastPatient } from "./tasks/lastPatient";
 
 /**
  * Results inbox: every lab report waiting for review across the organization,
  * critical values first, then other abnormal results, then the oldest. Any
  * doctor or nurse can review any report here -- the ordering provider, a
  * covering provider or a nurse. "Mine only" narrows it to results for orders
- * you placed. The server decides who may see and review; this screen shows
- * the list and relays its messages.
+ * you placed. "Patients" narrows it to the patient last selected on the Patients
+ * page (their banner shows at the top) or shows everyone's. The server decides who
+ * may see and review; this screen shows the list and relays its messages.
  */
 function LabInbox() {
   const [data, setData] = useState({ results: [], count: 0, critical: 0, truncated: false });
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
   const [mine, setMine] = useState(false);
+  // the last patient picked on the Patients page; the list starts on that patient when there is one
+  const [lastPatient] = useState(readLastPatient);
+  const [whom, setWhom] = useState(() => (lastPatient ? "patient" : "")); // "" = all patients, or "patient"
+  const picked = whom === "patient" ? lastPatient : null; // { id, name }: the patient the banner and list show
   const [open, setOpen] = useState(null); // report being looked at
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,11 +56,14 @@ function LabInbox() {
     setLoading(true);
     try {
       const headers = await authHeader();
-      const res = await api.get(apiEndpoints.labReportsInbox, { headers, params: mine ? { mine: 1 } : {} });
+      const params = {};
+      if (mine) params.mine = 1;
+      if (picked) params.patient = picked.id;
+      const res = await api.get(apiEndpoints.labReportsInbox, { headers, params });
       setData(res.data);
       setDenied(false);
       window.dispatchEvent(new Event("lab-inbox-changed")); // refreshes the badge on the menu icon
-      if (res.data.unmatched > 0) {
+      if (res.data.unmatched > 0 && !picked) {
         try {
           const list = await api.get(apiEndpoints.labMessages, { headers });
           setWaiting(list.data.results || []);
@@ -71,7 +82,7 @@ function LabInbox() {
     } finally {
       setLoading(false);
     }
-  }, [mine]);
+  }, [mine, picked]);
 
   useEffect(() => {
     load();
@@ -134,119 +145,143 @@ function LabInbox() {
 
   return (
     <Box data-testid="lab-inbox">
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} justifyContent="space-between" alignItems={{ sm: "center" }} sx={{ mb: 2 }}>
-        <Typography variant="h5">
-          Lab results to review
-          {data.count > 0 && <Chip size="small" color="warning" sx={{ ml: 1 }} label={data.count} />}
-        </Typography>
-        <Stack direction="row" spacing={2} alignItems="center">
+      {/* the patient banner sits flush at the top, above the heading, as on the Patients page */}
+      {picked && (
+        <Box data-testid="lab-patient-banner">
+          <PatientChartHeader persistent patientId={picked.id} />
+        </Box>
+      )}
+
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }} data-testid="lab-toolbar">
+          <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600, mr: 1 }}>
+            Lab results to review
+            {data.count > 0 && <Chip size="small" color="warning" sx={{ ml: 1 }} label={data.count} />}
+          </Typography>
+          <TextField
+            select
+            size="small"
+            label="Patients"
+            value={whom}
+            onChange={(e) => setWhom(e.target.value)}
+            sx={{ minWidth: 150 }}
+            inputProps={{ "data-testid": "lab-filter-patients" }}
+          >
+            <MenuItem value="">All patients</MenuItem>
+            {lastPatient && <MenuItem value="patient">{lastPatient.name || "Selected patient"}</MenuItem>}
+          </TextField>
           <FormControlLabel
             control={<Switch size="small" checked={mine} onChange={(e) => setMine(e.target.checked)} />}
             label="Mine only (orders I placed)"
+            sx={{ ml: 0.5 }}
           />
+          <Box sx={{ flexGrow: 1 }} />
           <Button size="small" onClick={load} disabled={loading}>
             Refresh
           </Button>
         </Stack>
-      </Stack>
 
-      {waiting.length > 0 && (
-        <Paper variant="outlined" data-testid="lab-unmatched" sx={{ p: 1.5, mb: 2, borderColor: "warning.main", borderWidth: 2 }}>
-          <Typography variant="subtitle1" sx={{ mb: 0.5 }}>
-            Results waiting for a patient ({waiting.length})
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            These arrived from the lab but could not be matched safely to one patient, so they are not in any chart yet. Check the name and
-            date of birth, then file each to the right patient by MRN, or dismiss it.
-          </Typography>
+        {!picked && waiting.length > 0 && (
+          <Paper variant="outlined" data-testid="lab-unmatched" sx={{ p: 1.5, mb: 2, borderColor: "warning.main", borderWidth: 2 }}>
+            <Typography variant="subtitle1" sx={{ mb: 0.5 }}>
+              Results waiting for a patient ({waiting.length})
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              These arrived from the lab but could not be matched safely to one patient, so they are not in any chart yet. Check the name and
+              date of birth, then file each to the right patient by MRN, or dismiss it.
+            </Typography>
+            <Stack spacing={1}>
+              {waiting.map((m) => (
+                <Paper key={m.id} variant="outlined" data-testid={`unmatched-${m.id}`} sx={{ p: 1 }}>
+                  <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
+                    <Box>
+                      <Typography variant="subtitle2">{m.patient_hint || "No patient details"}</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {[m.lab, `Received ${fmt(m.received_at)}`].filter(Boolean).join(" · ")}
+                      </Typography>
+                      <Typography variant="caption" color="warning.dark" display="block">
+                        {m.detail}
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={0.5}>
+                      <Button size="small" variant="contained" onClick={() => startResolve(m, "assign")}>
+                        Assign to patient
+                      </Button>
+                      <Button size="small" onClick={() => startResolve(m, "dismiss")}>
+                        Dismiss
+                      </Button>
+                    </Stack>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          </Paper>
+        )}
+
+        {data.critical > 0 && (
+          <Alert severity="error" sx={{ mb: 1 }}>
+            {data.critical === 1 ? "1 critical result is" : `${data.critical} critical results are`} waiting for review.
+          </Alert>
+        )}
+        {data.truncated && (
+          <Alert severity="info" sx={{ mb: 1 }}>
+            Showing the {data.results.length} most urgent of {data.count}. Review some to see the rest.
+          </Alert>
+        )}
+
+        {loading ? (
+          <Box sx={{ p: 4, textAlign: "center" }}>
+            <CircularProgress size={28} />
+          </Box>
+        ) : data.results.length === 0 ? (
+          <Paper variant="outlined" sx={{ p: 3 }}>
+            <Typography color="text.secondary">
+              {mine ? "Nothing waiting on your orders." : picked ? `Nothing waiting for review for ${picked.name || "this patient"}.` : "Nothing waiting for review."}
+            </Typography>
+          </Paper>
+        ) : (
           <Stack spacing={1}>
-            {waiting.map((m) => (
-              <Paper key={m.id} variant="outlined" data-testid={`unmatched-${m.id}`} sx={{ p: 1 }}>
+            {data.results.map((report) => (
+              <Paper
+                key={report.id}
+                variant="outlined"
+                data-testid={`inbox-row-${report.id}`}
+                sx={{ p: 1.5, borderColor: report.has_critical ? "error.main" : undefined, borderWidth: report.has_critical ? 2 : 1 }}
+              >
                 <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
                   <Box>
-                    <Typography variant="subtitle2">{m.patient_hint || "No patient details"}</Typography>
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      {[m.lab, `Received ${fmt(m.received_at)}`].filter(Boolean).join(" · ")}
+                    <Typography variant="subtitle2">
+                      <Link component={RouterLink} to={`/patients/${report.patient}/orders`} underline="hover">
+                        {report.patient_name}
+                      </Link>
+                      {" — "}
+                      {report.title}
                     </Typography>
-                    <Typography variant="caption" color="warning.dark" display="block">
-                      {m.detail}
+                    <Typography variant="caption" color="text.secondary">
+                      {[
+                        report.performing_lab,
+                        report.resulted_at ? `Resulted ${fmt(report.resulted_at)}` : "",
+                        report.order_name ? `Order: ${report.order_name}` : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </Typography>
                   </Box>
-                  <Stack direction="row" spacing={0.5}>
-                    <Button size="small" variant="contained" onClick={() => startResolve(m, "assign")}>
-                      Assign to patient
-                    </Button>
-                    <Button size="small" onClick={() => startResolve(m, "dismiss")}>
-                      Dismiss
+                  <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+                    {report.has_critical && <Chip size="small" color="error" label="Critical value" />}
+                    {report.has_abnormal && !report.has_critical && <Chip size="small" color="warning" variant="outlined" label="Abnormal" />}
+                    {report.source === "scan" && <Chip size="small" variant="outlined" label="Scanned document" />}
+                    <Button size="small" variant="contained" onClick={() => openReport(report)}>
+                      Review
                     </Button>
                   </Stack>
                 </Stack>
               </Paper>
             ))}
           </Stack>
-        </Paper>
-      )}
+        )}
 
-      {data.critical > 0 && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {data.critical === 1 ? "1 critical result is" : `${data.critical} critical results are`} waiting for review.
-        </Alert>
-      )}
-      {data.truncated && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Showing the {data.results.length} most urgent of {data.count}. Review some to see the rest.
-        </Alert>
-      )}
-
-      {loading ? (
-        <Box sx={{ p: 4, textAlign: "center" }}>
-          <CircularProgress size={28} />
-        </Box>
-      ) : data.results.length === 0 ? (
-        <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography color="text.secondary">{mine ? "Nothing waiting on your orders." : "Nothing waiting for review."}</Typography>
-        </Paper>
-      ) : (
-        <Stack spacing={1}>
-          {data.results.map((report) => (
-            <Paper
-              key={report.id}
-              variant="outlined"
-              data-testid={`inbox-row-${report.id}`}
-              sx={{ p: 1.5, borderColor: report.has_critical ? "error.main" : undefined, borderWidth: report.has_critical ? 2 : 1 }}
-            >
-              <Stack direction={{ xs: "column", md: "row" }} spacing={1} justifyContent="space-between" alignItems={{ md: "center" }}>
-                <Box>
-                  <Typography variant="subtitle2">
-                    <Link component={RouterLink} to={`/patients/${report.patient}/orders`} underline="hover">
-                      {report.patient_name}
-                    </Link>
-                    {" — "}
-                    {report.title}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {[
-                      report.performing_lab,
-                      report.resulted_at ? `Resulted ${fmt(report.resulted_at)}` : "",
-                      report.order_name ? `Order: ${report.order_name}` : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </Typography>
-                </Box>
-                <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
-                  {report.has_critical && <Chip size="small" color="error" label="Critical value" />}
-                  {report.has_abnormal && !report.has_critical && <Chip size="small" color="warning" variant="outlined" label="Abnormal" />}
-                  {report.source === "scan" && <Chip size="small" variant="outlined" label="Scanned document" />}
-                  <Button size="small" variant="contained" onClick={() => openReport(report)}>
-                    Review
-                  </Button>
-                </Stack>
-              </Stack>
-            </Paper>
-          ))}
-        </Stack>
-      )}
+      </Box>
 
       <Dialog open={!!resolve} onClose={() => !busy && setResolve(null)} fullWidth maxWidth="xs">
         {resolve && (

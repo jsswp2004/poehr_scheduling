@@ -11,9 +11,11 @@ test("the lab inbox sits inside the side bar shell, with no Back button of its o
   expect(screen.queryByText(/back/i)).not.toBeInTheDocument();
 });
 
-test("no card padding above the inbox title (tight under the top bar)", () => {
+test("no padding above the inbox: the patient banner sits flush under the top bar", () => {
   render(<LabInboxPage />);
   const page = getComputedStyle(screen.getByTestId("lab-inbox-page"));
   expect(page.boxShadow).toBe("");
-  expect(page.paddingTop).toBe("8px");
+  expect(page.paddingTop).toBe(""); // no top or side padding set at all
+  expect(page.paddingLeft).toBe("");
+  expect(page.paddingBottom).toBe("4px");
 });

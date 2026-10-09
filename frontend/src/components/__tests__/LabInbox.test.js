@@ -17,6 +17,9 @@ jest.mock(
 );
 jest.mock("../../utils/auth", () => ({ getValidToken: async () => ({ access_token: "t" }) }), { virtual: true });
 jest.mock("../SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn() } }), { virtual: true });
+jest.mock("../../utils/tokenManager", () => ({ getAccessToken: () => "tok" }), { virtual: true });
+jest.mock("jwt-decode", () => ({ jwtDecode: () => ({ user_id: 7 }) }));
+jest.mock("../patientHeader/PatientChartHeader", () => ({ patientId }) => <div data-testid="banner-stub">banner for {patientId}</div>, { virtual: true });
 
 import { api } from "../../api/client";
 import { toast } from "../SimpleToast";
@@ -47,7 +50,16 @@ const inbox = (results, over = {}) => ({
 });
 const renderInbox = () => render(<MemoryRouter><LabInbox /></MemoryRouter>);
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  window.sessionStorage.clear();
+});
+const rememberPatient = (patient) => window.sessionStorage.setItem("powerSelectedPatient:7", JSON.stringify(patient));
+const choose = async (label, option) => {
+  fireEvent.mouseDown(screen.getByLabelText(label));
+  fireEvent.click(await screen.findByRole("option", { name: option }));
+};
+const inboxCalls = () => api.get.mock.calls.filter((c) => c[0] === "/inbox");
 
 test("lists waiting reports in the order the server sent, critical ones flagged and a critical banner", async () => {
   api.get.mockResolvedValue(inbox([
@@ -194,4 +206,87 @@ test("a server refusal on assign is shown and the dialog stays open", async () =
   fireEvent.click(screen.getByRole("button", { name: "File to chart" }));
   await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No patient in this organization has that MRN."));
   expect(screen.getByLabelText("Patient MRN")).toBeInTheDocument();
+});
+
+describe("patient banner and Patients filter (like the Task and Referral Managers)", () => {
+  const route = (results, over = {}) =>
+    api.get.mockImplementation((url) => {
+      if (url === "/inbox") return Promise.resolve(inbox(results, over));
+      if (url === "/msgs") return Promise.resolve({ data: { results: [waitingMsg(1)] } });
+      return Promise.resolve({ data: {} });
+    });
+
+  test("with nobody selected there is no banner and every patient's results show", async () => {
+    route([row(1)]);
+    renderInbox();
+    await screen.findByTestId("inbox-row-1");
+    expect(screen.queryByTestId("lab-patient-banner")).not.toBeInTheDocument();
+    expect(screen.getByTestId("lab-filter-patients")).toHaveValue("");
+    expect(inboxCalls()[0][1].params).toEqual({});
+  });
+
+  test("the last selected patient's banner sits above the heading and the list is narrowed to them", async () => {
+    rememberPatient({ id: 41, name: "Pat 1" });
+    route([row(1)]);
+    renderInbox();
+    const banner = await screen.findByTestId("lab-patient-banner");
+    expect(banner).toHaveTextContent("banner for 41");
+    // the banner comes before the toolbar (heading) in the page
+    const toolbar = screen.getByTestId("lab-toolbar");
+    expect(banner.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByLabelText("Patients")).toHaveTextContent("Pat 1");
+    await screen.findByTestId("inbox-row-1");
+    expect(inboxCalls()[0][1].params).toEqual({ patient: 41 });
+  });
+
+  test("choosing All patients hides the banner and asks for everyone", async () => {
+    rememberPatient({ id: 41, name: "Pat 1" });
+    route([row(1)]);
+    renderInbox();
+    await screen.findByTestId("lab-patient-banner");
+    await choose("Patients", "All patients");
+    await waitFor(() => expect(screen.queryByTestId("lab-patient-banner")).not.toBeInTheDocument());
+    await waitFor(() => expect(inboxCalls().pop()[1].params).toEqual({}));
+    await choose("Patients", "Pat 1");
+    expect(await screen.findByTestId("lab-patient-banner")).toBeInTheDocument();
+    await waitFor(() => expect(inboxCalls().pop()[1].params).toEqual({ patient: 41 }));
+  });
+
+  test("Mine only and the patient filter work together", async () => {
+    rememberPatient({ id: 41, name: "Pat 1" });
+    route([row(1)]);
+    renderInbox();
+    await screen.findByTestId("inbox-row-1");
+    fireEvent.click(screen.getByLabelText(/Mine only/));
+    await waitFor(() => expect(inboxCalls().pop()[1].params).toEqual({ mine: 1, patient: 41 }));
+  });
+
+  test("results waiting for a patient show only on the all-patients view", async () => {
+    rememberPatient({ id: 41, name: "Pat 1" });
+    route([row(1)], { unmatched: 1 });
+    renderInbox();
+    await screen.findByTestId("inbox-row-1");
+    expect(screen.queryByTestId("lab-unmatched")).not.toBeInTheDocument();
+    expect(api.get.mock.calls.some((c) => c[0] === "/msgs")).toBe(false);
+    await choose("Patients", "All patients");
+    expect(await screen.findByTestId("lab-unmatched")).toBeInTheDocument();
+  });
+
+  test("an empty list for the selected patient says so by name", async () => {
+    rememberPatient({ id: 41, name: "Pat 1" });
+    route([]);
+    renderInbox();
+    expect(await screen.findByText("Nothing waiting for review for Pat 1.")).toBeInTheDocument();
+  });
+
+  test("the toolbar keeps the title with the count, the filters and Refresh on one row", async () => {
+    route([row(1), row(2)]);
+    renderInbox();
+    await screen.findByTestId("inbox-row-1");
+    const toolbar = screen.getByTestId("lab-toolbar");
+    expect(within(toolbar).getByText(/Lab results to review/)).toBeInTheDocument();
+    expect(within(toolbar).getByLabelText("Patients")).toBeInTheDocument();
+    expect(within(toolbar).getByLabelText(/Mine only/)).toBeInTheDocument();
+    expect(within(toolbar).getByRole("button", { name: "Refresh" })).toBeInTheDocument();
+  });
 });

@@ -676,6 +676,22 @@ class InboxTests(Base):
         self.client.force_authenticate(self.outsider)
         self.assertEqual(self.client.get(self.INBOX, {"summary": "1"}).json()["count"], 0)
 
+    def test_patient_filter_narrows_the_inbox_and_its_counts(self):
+        second = make_user("pat3", "patient", self.org)
+        mine = self.make("for first", items=[{"test_name": "K", "value": "7", "abnormal_flag": "HH"}])
+        theirs = self.make("for second", patient=second.pk)
+        self.client.force_authenticate(self.nurse)
+        both = self.client.get(self.INBOX).json()
+        self.assertEqual({r["id"] for r in both["results"]}, {mine, theirs})
+        one = self.client.get(self.INBOX, {"patient": self.patient.pk}).json()
+        self.assertEqual([r["id"] for r in one["results"]], [mine])
+        self.assertEqual((one["count"], one["critical"]), (1, 1))
+        other = self.client.get(self.INBOX, {"patient": second.pk}).json()
+        self.assertEqual([r["id"] for r in other["results"]], [theirs])
+        self.assertEqual((other["count"], other["critical"]), (1, 0))
+        # the menu badge (summary) is not narrowed unless asked
+        self.assertEqual(self.client.get(self.INBOX, {"summary": "1"}).json()["count"], 2)
+
     def test_reviewed_and_in_error_reports_leave_the_inbox(self):
         a, b, c = self.make("a"), self.make("b"), self.make("c")
         self.client.force_authenticate(self.doctor)
