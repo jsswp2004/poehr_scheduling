@@ -80,6 +80,7 @@ export const apiEndpoints = {
     // Rights / permissions management (Security Settings, admin/system_admin only)
     rightsCatalog: `${API_BASE_URL}/api/users/rights-catalog/`,
     userRights: (userId) => `${API_BASE_URL}/api/users/${userId}/rights/`,
+    userFacilities: (userId) => `${API_BASE_URL}/api/users/${userId}/facilities/`,
 
     // Organization endpoints
     organizations: `${API_BASE_URL}/api/users/organizations/`,

@@ -28,6 +28,15 @@ class CustomUser(AbstractUser):
         blank=True,
         related_name="users",
     )
+    # Which hospitals or clinics this person works at. Empty means no restriction (they see every
+    # facility of the organization); once set, their patient lists, bed board and unit filters show
+    # only these. System admins are never restricted. See users/facility_scope.py.
+    facilities = models.ManyToManyField(
+        "appointments.Facility",
+        blank=True,
+        related_name="assigned_users",
+        help_text="Facilities this user works at. Leave empty for no restriction.",
+    )
 
     provider = models.ForeignKey(
         "self",
