@@ -26,7 +26,7 @@ const TodaysAppointmentsPanel = ({
     formatAppointmentTime
 }) => {
     return (
-        <Grid item xs={12}>
+        <Grid size={12}>
             <Paper
                 sx={{
                     p: 2,

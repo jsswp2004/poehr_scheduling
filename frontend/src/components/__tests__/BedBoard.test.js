@@ -18,7 +18,7 @@ const tree = [
       {
         id: 5, name: "3 West", care_type: "inpatient", bed_count: 4, occupied_count: 1, rooms: [
           { id: 7, name: "312", beds: [
-            { id: 11, name: "A", status: "occupied", occupant: "Bcs, Test", patient: 3, patient_user_id: 30, registration: 90, visit_number: "VN-000090" },
+            { id: 11, name: "A", status: "occupied", occupant: "Bcs, Test", patient: 3, patient_user_id: 30, registration: 90, visit_number: "VN-000090", attending_provider: 8, attending_provider_name: "Dr. Jeffrey Lee" },
             { id: 12, name: "B", status: "available" },
             { id: 13, name: "C", status: "cleaning" },
             { id: 14, name: "D", status: "blocked", hold_reason: "Broken rail" },
@@ -97,4 +97,38 @@ test("says so when there are no inpatient units, and shows load errors", async (
   api.get.mockRejectedValue({ response: { data: { detail: "Not allowed." } } });
   render(<BedBoard userRole="nurse" />);
   expect(await screen.findByText("Not allowed.")).toBeInTheDocument();
+});
+
+test("an occupied bed shows its attending and opens the attending dialog for that patient", async () => {
+  const onChangeAttending = jest.fn();
+  render(<BedBoard userRole="nurse" onChangeAttending={onChangeAttending} />);
+  expect(await screen.findByTestId("board-attending-11")).toHaveTextContent("Dr. Jeffrey Lee");
+  fireEvent.click(screen.getByRole("button", { name: "Attending for Bcs, Test" }));
+  const patient = onChangeAttending.mock.calls[0][0];
+  expect(patient).toMatchObject({ id: 3, user_id: 30, full_name: "Bcs, Test" });
+  // the dialog reads the current attending from the visit
+  expect(patient.current_visit).toMatchObject({ id: 90, attending_provider: 8, attending_provider_name: "Dr. Jeffrey Lee" });
+});
+
+test("a bed with no attending says so, and empty beds have no attending button", async () => {
+  api.get.mockResolvedValue({
+    data: { locations: [{ ...tree[0], units: [{ ...tree[0].units[0], rooms: [{ id: 7, name: "312", beds: [
+      { id: 11, name: "A", status: "occupied", occupant: "Bcs, Test", patient: 3, patient_user_id: 30, registration: 90, attending_provider: null, attending_provider_name: "" },
+      { id: 12, name: "B", status: "available" },
+    ] }] }] }] },
+  });
+  render(<BedBoard userRole="doctor" onChangeAttending={jest.fn()} />);
+  expect(await screen.findByTestId("board-attending-11")).toHaveTextContent("No attending set");
+  expect(screen.getAllByRole("button", { name: /^Attending for / })).toHaveLength(1);
+  expect(screen.queryByTestId("board-attending-12")).toBeNull();
+});
+
+test("the attending button needs a front-line role and a handler", async () => {
+  const { unmount } = render(<BedBoard userRole="receptionist" onChangeAttending={jest.fn()} />);
+  await screen.findByTestId("board-unit-5");
+  expect(screen.queryByRole("button", { name: "Attending for Bcs, Test" })).toBeNull();
+  unmount();
+  render(<BedBoard userRole="nurse" />);
+  await screen.findByTestId("board-unit-5");
+  expect(screen.queryByRole("button", { name: "Attending for Bcs, Test" })).toBeNull();
 });

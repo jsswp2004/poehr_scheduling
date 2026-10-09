@@ -11,6 +11,12 @@ export const RX_ADMIN_ROLES = ["admin", "system_admin"];
 export const STATUS_COLOR = { draft: "default", signed: "info", sent: "success", cancelled: "error" };
 
 export const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString() : "");
+/** A date-only value ("2026-10-20") shown as that day, not shifted by the time zone. */
+export const fmtDay = (iso) => {
+  if (!iso) return "";
+  const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
+  return y && m && d ? new Date(y, m - 1, d).toLocaleDateString() : "";
+};
 export const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString() : "");
 
 const ROUTE_PHRASE = {
@@ -79,6 +85,11 @@ export async function pdfErrorText(err, fallback) {
     }
   }
   return errorText(err, fallback);
+}
+
+export async function saveFavorite(body) {
+  const res = await api.post(apiEndpoints.prescriptionFavorites, body, { headers: await authHeader() });
+  return res.data;
 }
 
 export const announceChange = () => window.dispatchEvent(new Event("prescriptions-changed"));

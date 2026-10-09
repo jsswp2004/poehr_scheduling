@@ -22,7 +22,8 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import IcdCodePicker, { dxLabel } from "../IcdCodePicker";
 import PharmacyDialog from "./PharmacyDialog";
-import { authHeader, buildSig, errorText, pharmacyLine } from "./rxShared";
+import FavoritesDialog from "./FavoritesDialog";
+import { authHeader, buildSig, errorText, pharmacyLine, saveFavorite } from "./rxShared";
 
 const BLANK = {
   drug_name: "", code_system: "", code: "", strength: "", form: "", dose: "", route: "PO", frequency: "",
@@ -45,12 +46,13 @@ const fromRx = (rx, pharmacies) => ({
  * Write or edit a draft prescription. Nothing is signed or sent from here: the prescribing doctor signs it
  * from the prescription, then it is printed or faxed. Controlled substances can't be chosen.
  */
-export default function PrescriptionFormDialog({ open, onClose, onSaved, patient, prescription = null, meta, me }) {
+export default function PrescriptionFormDialog({ open, onClose, onSaved, patient, prescription = null, defaults = null, meta, me }) {
   const [form, setForm] = useState(BLANK);
   const [pharmacies, setPharmacies] = useState([]);
   const [drugOptions, setDrugOptions] = useState([]);
   const [drugText, setDrugText] = useState("");
   const [addPharmacy, setAddPharmacy] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const seq = useRef(0);
@@ -81,13 +83,17 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
       if (cancelled) return;
       setPharmacies(list);
       if (prescription) setForm(fromRx(prescription, list));
-      else setForm({ ...BLANK, prescriber: isDoctor ? me.id : "", pharmacy: preferred });
-      setDrugText(prescription ? prescription.drug_name : "");
+      else {
+        // `defaults` prefill a new prescription (from a home medication, a favorite, or a renewal); the amounts come with them
+        const start = defaults ? fromRx(defaults, list) : BLANK;
+        setForm({ ...start, prescriber: isDoctor ? me.id : "", pharmacy: preferred || start.pharmacy });
+      }
+      setDrugText(prescription ? prescription.drug_name : defaults?.drug_name || "");
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, prescription, patient, isDoctor, me]);
+  }, [open, prescription, defaults, patient, isDoctor, me]);
 
   useEffect(() => {
     const term = drugText.trim();
@@ -115,29 +121,50 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
     }
   };
 
-  const save = async () => {
-    setError("");
-    const drug = (form.drug_name || drugText).trim();
-    if (!drug) return setError("Choose the drug.");
-    if (!editing && !form.prescriber) return setError("Choose the prescribing doctor.");
+  // start from a favorite: its drug, directions and amounts replace the form; the doctor and pharmacy stay as chosen
+  const useFavorite = (fav) => {
+    setForm((f) => ({ ...fromRx(fav, pharmacies), prescriber: f.prescriber, pharmacy: f.pharmacy }));
+    setDrugText(fav.drug_name || "");
+    setShowFavorites(false);
+  };
+
+  const body = () => {
     const dx = form.dx[0];
-    const body = {
-      drug_name: drug, code_system: form.code_system, code: form.code, strength: form.strength, form: form.form,
+    return {
+      drug_name: (form.drug_name || drugText).trim(), code_system: form.code_system, code: form.code, strength: form.strength, form: form.form,
       dose: form.dose, route: form.route, frequency: form.frequency, duration_days: form.duration_days === "" ? null : Number(form.duration_days),
       prn: form.prn, prn_reason: form.prn_reason, sig_extra: form.sig_extra,
       quantity: form.quantity === "" ? null : form.quantity, quantity_unit: form.quantity_unit,
       days_supply: form.days_supply === "" ? null : Number(form.days_supply), refills: Number(form.refills) || 0,
       dispense_as_written: form.dispense_as_written, note_to_pharmacist: form.note_to_pharmacist,
       indication_code: dx ? dx.code : "", indication_text: dx ? dx.description || "" : "",
-      pharmacy: form.pharmacy ? form.pharmacy.id : null,
     };
-    if (form.prescriber) body.prescriber = form.prescriber;
+  };
+
+  const saveAsFavorite = async () => {
+    setError("");
+    if (!body().drug_name) return setError("Choose the drug first.");
+    try {
+      await saveFavorite(body());
+      toast.success("Saved to your favorites.");
+    } catch (err) {
+      setError(errorText(err, "Could not save the favorite."));
+    }
+  };
+
+  const save = async () => {
+    setError("");
+    const drug = (form.drug_name || drugText).trim();
+    if (!drug) return setError("Choose the drug.");
+    if (!editing && !form.prescriber) return setError("Choose the prescribing doctor.");
+    const payload = { ...body(), drug_name: drug, pharmacy: form.pharmacy ? form.pharmacy.id : null };
+    if (form.prescriber) payload.prescriber = form.prescriber;
     setBusy(true);
     try {
       const headers = await authHeader();
       const res = editing
-        ? await api.patch(apiEndpoints.prescription(prescription.id), body, { headers })
-        : await api.post(apiEndpoints.prescriptions, { ...body, patient: patient.id }, { headers });
+        ? await api.patch(apiEndpoints.prescription(prescription.id), payload, { headers })
+        : await api.post(apiEndpoints.prescriptions, { ...payload, patient: patient.id }, { headers });
       if (!editing && form.pharmacy && !hadPreferred.current) {
         // the first pharmacy chosen for a patient becomes their preferred one
         try {
@@ -277,12 +304,15 @@ export default function PrescriptionFormDialog({ open, onClose, onSaved, patient
           </Stack>
         </DialogContent>
         <DialogActions>
+          {!editing && <Button onClick={() => setShowFavorites(true)} disabled={busy} sx={{ mr: "auto" }} data-testid="rx-open-favorites">Favorites</Button>}
+          <Button onClick={saveAsFavorite} disabled={busy} data-testid="rx-save-favorite">Save as favorite</Button>
           <Button onClick={onClose} disabled={busy}>Cancel</Button>
           <Button variant="contained" onClick={save} disabled={busy} data-testid="rx-form-save">
             {busy ? <CircularProgress size={18} /> : editing ? "Save draft" : "Create draft"}
           </Button>
         </DialogActions>
       </Dialog>
+      <FavoritesDialog open={showFavorites} onClose={() => setShowFavorites(false)} onUse={useFavorite} />
       <PharmacyDialog
         open={addPharmacy}
         onClose={() => setAddPharmacy(false)}

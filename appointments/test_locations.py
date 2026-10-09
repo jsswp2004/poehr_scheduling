@@ -84,6 +84,13 @@ class TreeTests(Base):
         self.assertEqual(units["3 West"]["bed_count"], 2)
         self.assertEqual(units["3 West"]["occupied_count"], 0)
 
+    def test_an_occupied_bed_shows_who_the_attending_is(self):
+        self.assertEqual(self.register(bed=self.bed_a.pk, attending_provider=self.doctor.pk).status_code, 201)
+        self.assertEqual(self.register(bed=self.bed_b.pk, patient=self.patient2).status_code, 201)
+        beds = {b["name"]: b for b in self.as_(self.admin).get(TREE).json()["locations"][0]["units"][0]["rooms"][0]["beds"]}
+        self.assertEqual((beds["A"]["attending_provider"], beds["A"]["attending_provider_name"]), (self.doctor.pk, "Dr. Jeffrey Lee"))
+        self.assertEqual((beds["B"]["attending_provider"], beds["B"]["attending_provider_name"]), (None, ""))
+
     def test_other_clinics_never_see_this_tree(self):
         outsider = make_user("out", "doctor", self.other_org)
         self.assertEqual(self.as_(outsider).get(TREE).json()["locations"], [])

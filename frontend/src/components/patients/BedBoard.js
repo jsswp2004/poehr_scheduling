@@ -18,6 +18,7 @@ import {
 } from "@mui/material";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ExitToAppIcon from "@mui/icons-material/ExitToApp";
+import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import CleaningServicesIcon from "@mui/icons-material/CleaningServices";
 import BlockIcon from "@mui/icons-material/Block";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
@@ -37,10 +38,10 @@ const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
 
 /**
  * Who is in which bed on the inpatient units, with the actions staff need on the spot:
- * move or discharge the patient, mark the bed for cleaning, block it, or free it again.
+ * move or discharge the patient, change the attending, mark the bed for cleaning, block it, or free it again.
  * `refreshKey` reloads the board after something changes elsewhere on the page.
  */
-export default function BedBoard({ userRole, refreshKey = 0, onOpenPatient, onTransfer, onDischarge }) {
+export default function BedBoard({ userRole, refreshKey = 0, onOpenPatient, onTransfer, onDischarge, onChangeAttending }) {
   const [data, setData] = useState(null);
   const [problem, setProblem] = useState("");
   const [blocking, setBlocking] = useState(null); // bed being blocked
@@ -94,6 +95,8 @@ export default function BedBoard({ userRole, refreshKey = 0, onOpenPatient, onTr
       care_setting: "acute",
       location: [unit.facility.name, unit.name, room.name, bed.name].join(" › "),
       discharge_datetime: null,
+      attending_provider: bed.attending_provider || null,
+      attending_provider_name: bed.attending_provider_name || "",
     },
   });
 
@@ -146,13 +149,18 @@ export default function BedBoard({ userRole, refreshKey = 0, onOpenPatient, onTr
                           <Typography variant="caption">{c.label}</Typography>
                         </Stack>
                         {b.status === "occupied" ? (
-                          <Typography
-                            variant="body2"
-                            sx={{ cursor: onOpenPatient ? "pointer" : "default", textDecoration: onOpenPatient ? "underline" : "none" }}
-                            onClick={() => onOpenPatient && onOpenPatient(patientFor(b, u, r))}
-                          >
-                            {b.occupant}
-                          </Typography>
+                          <>
+                            <Typography
+                              variant="body2"
+                              sx={{ cursor: onOpenPatient ? "pointer" : "default", textDecoration: onOpenPatient ? "underline" : "none" }}
+                              onClick={() => onOpenPatient && onOpenPatient(patientFor(b, u, r))}
+                            >
+                              {b.occupant}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" display="block" noWrap data-testid={`board-attending-${b.id}`}>
+                              {b.attending_provider_name || "No attending set"}
+                            </Typography>
+                          </>
                         ) : (
                           <Typography variant="body2" color="text.secondary" sx={{ minHeight: 20 }}>
                             {b.hold_reason || " "}
@@ -162,6 +170,7 @@ export default function BedBoard({ userRole, refreshKey = 0, onOpenPatient, onTr
                           <Box sx={{ display: "flex", gap: 0.5, mt: 0.5 }}>
                             {b.status === "occupied" && (
                               <>
+                                {onChangeAttending && act(`Attending for ${b.occupant}`, <ManageAccountsIcon fontSize="small" />, () => onChangeAttending(patientFor(b, u, r)), "#6a1b9a")}
                                 {onTransfer && act(`Transfer ${b.occupant}`, <SwapHorizIcon fontSize="small" />, () => onTransfer(patientFor(b, u, r)), "#0277bd")}
                                 {onDischarge && act(`Discharge ${b.occupant}`, <ExitToAppIcon fontSize="small" />, () => onDischarge(patientFor(b, u, r)), "#ef6c00")}
                               </>

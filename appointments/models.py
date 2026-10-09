@@ -1842,6 +1842,7 @@ class Prescription(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
     appointment = models.ForeignKey("appointments.Appointment", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     replaces = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replaced_by")
+    renews = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="renewed_by")
 
     # the drug
     drug_name = models.CharField(max_length=200)
@@ -1910,6 +1911,107 @@ class PrescriptionEvent(models.Model):
 
     class Meta:
         ordering = ["created_at", "id"]
+
+
+class PrescriptionFavorite(models.Model):
+    """A prescriber's saved prescription (drug, directions and amounts) to start the next one from."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="prescription_favorites")
+    owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="prescription_favorites")
+    label = models.CharField(max_length=80, blank=True)
+    drug_name = models.CharField(max_length=200)
+    code_system = models.CharField(max_length=10, blank=True)
+    code = models.CharField(max_length=20, blank=True)
+    strength = models.CharField(max_length=60, blank=True)
+    form = models.CharField(max_length=40, blank=True)
+    dose = models.CharField(max_length=60, blank=True)
+    route = models.CharField(max_length=20, blank=True)
+    frequency = models.CharField(max_length=10, blank=True)
+    duration_days = models.PositiveIntegerField(null=True, blank=True)
+    prn = models.BooleanField(default=False)
+    prn_reason = models.CharField(max_length=120, blank=True)
+    sig_extra = models.CharField(max_length=300, blank=True)
+    quantity = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    quantity_unit = models.CharField(max_length=30, blank=True)
+    days_supply = models.PositiveIntegerField(null=True, blank=True)
+    refills = models.PositiveSmallIntegerField(default=0)
+    dispense_as_written = models.BooleanField(default=False)
+    indication_code = models.CharField(max_length=20, blank=True)
+    indication_text = models.CharField(max_length=255, blank=True)
+    note_to_pharmacist = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["label", "drug_name", "id"]
+        indexes = [models.Index(fields=["owner"])]
+
+    def __str__(self):
+        return f"{self.label or self.drug_name} ({self.owner_id})"
+
+
+class HomeMedication(models.Model):
+    """A medicine the patient takes at home, kept on the patient's own list (medication reconciliation)."""
+
+    SOURCE_CHOICES = [
+        ("patient", "Patient"),
+        ("family", "Family or caregiver"),
+        ("pharmacy", "Pharmacy record"),
+        ("outside", "Outside records"),
+        ("our_rx", "Our prescription"),
+    ]
+    STATUS_CHOICES = [("active", "Taking"), ("stopped", "Stopped")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="home_medications")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="home_medications")
+    drug_name = models.CharField(max_length=200)
+    code_system = models.CharField(max_length=10, blank=True)
+    code = models.CharField(max_length=20, blank=True)
+    strength = models.CharField(max_length=60, blank=True)
+    form = models.CharField(max_length=40, blank=True)
+    dose = models.CharField(max_length=60, blank=True)
+    route = models.CharField(max_length=20, blank=True)
+    frequency = models.CharField(max_length=10, blank=True)
+    prn = models.BooleanField(default=False)
+    prn_reason = models.CharField(max_length=120, blank=True)
+    sig_extra = models.CharField(max_length=300, blank=True)       # "with food", or the patient's own words
+    indication_text = models.CharField(max_length=255, blank=True)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="patient")
+    outside_prescriber = models.CharField(max_length=120, blank=True)
+    last_taken = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    stopped_at = models.DateTimeField(null=True, blank=True)
+    stopped_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    stop_reason = models.CharField(max_length=255, blank=True)
+    from_prescription = models.ForeignKey("appointments.Prescription", null=True, blank=True, on_delete=models.SET_NULL, related_name="home_entries")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # so the Rx sentence builder can describe a home medicine the same way
+    duration_days = None
+
+    class Meta:
+        ordering = ["status", "drug_name", "id"]
+        indexes = [models.Index(fields=["patient", "status"])]
+
+    def __str__(self):
+        return f"{self.drug_name} ({self.status}) for {self.patient_id}"
+
+
+class MedReview(models.Model):
+    """One medication reconciliation: who confirmed the home list, when, and what it said."""
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="med_reviews")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="med_reviews")
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    reviewed_at = models.DateTimeField(auto_now_add=True)
+    note = models.CharField(max_length=500, blank=True)
+    snapshot = models.JSONField(default=list, blank=True)  # the active home medicines as confirmed
+
+    class Meta:
+        ordering = ["-reviewed_at", "-id"]
 
 
 # ---------------------------------------------------------------- nurse tasks

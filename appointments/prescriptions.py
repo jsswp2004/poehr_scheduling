@@ -20,7 +20,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from . import allergies
-from .models import PatientAllergy, PatientAllergyStatus, PatientPharmacy, Prescription, PrescriptionEvent
+from .models import HomeMedication, PatientAllergy, PatientAllergyStatus, PatientPharmacy, Prescription, PrescriptionEvent
 from .order_tasks import FREQUENCIES, ROUTES
 
 DRAFT_ROLES = ("doctor", "nurse", "admin", "system_admin")  # may create / edit drafts and see prescriptions
@@ -180,6 +180,8 @@ def allowed_actions(user, rx):
         if rx.status in ("signed", "sent") and can_cancel(user, rx):
             out.append("cancel")
         out.append("revise")
+        if rx.status in ("signed", "sent"):
+            out.append("renew")
     return out
 
 
@@ -310,6 +312,8 @@ def duplicates_for(rx):
     qs = Prescription.objects.filter(patient=rx.patient, status__in=["signed", "sent"]).exclude(pk=rx.pk)
     if rx.replaces_id:
         qs = qs.exclude(pk=rx.replaces_id)
+    if rx.renews_id:
+        qs = qs.exclude(pk=rx.renews_id)
     for other in qs:
         if not (_norm_keys(other) & mine):
             continue
@@ -375,6 +379,11 @@ def sign(rx, user, allergy_override_reason="", duplicate_reason=""):
     if dups:
         detail["duplicate_override"] = {"reason": dup_reason, "duplicates": dups}
     log_event(rx, "signed", user, from_status="draft", to_status="signed", detail=detail)
+
+    # what a patient has been prescribed is what they now take: keep the home medication list up to date
+    from . import home_meds
+
+    home_meds.add_from_prescription(rx, user)
 
     if rx.replaces_id:
         old = Prescription.objects.select_for_update().filter(pk=rx.replaces_id).first()
@@ -490,6 +499,78 @@ def revise(rx, user):
     )
     log_event(copy, "created", user, to_status="draft", detail={"revises": rx.pk})
     log_event(rx, "revision_started", user, detail={"new_prescription": copy.pk})
+    return copy
+
+
+RENEWAL_AHEAD_DAYS = 14   # a prescription is "due for renewal" this long before it runs out
+RENEWAL_BEHIND_DAYS = 90  # ... and for this long after (then it is just an old prescription)
+
+
+def runs_out_at(rx):
+    """When the supply runs out: the days' supply for the fill and every refill, counted from signing."""
+    if rx.status not in ("signed", "sent") or not rx.days_supply:
+        return None
+    start = rx.signed_at or rx.created_at
+    return start + timedelta(days=rx.days_supply * (1 + (rx.refills or 0)))
+
+
+def _followed_up(rx):
+    """True when something newer already carries on the drug: another prescription, or the patient stopped taking it."""
+    mine = _norm_keys(rx)
+    later = Prescription.objects.filter(patient=rx.patient, pk__gt=rx.pk, status__in=["draft", "signed", "sent"])
+    if any(_norm_keys(other) & mine for other in later):
+        return True
+    start = rx.signed_at or rx.created_at
+    return HomeMedication.objects.filter(
+        patient=rx.patient, status="stopped", drug_name__iexact=rx.drug_name, stopped_at__gte=start
+    ).exists()
+
+
+def renewal_due(rx, now=None):
+    now = now or timezone.now()
+    end = runs_out_at(rx)
+    if end is None:
+        return False
+    if end > now + timedelta(days=RENEWAL_AHEAD_DAYS) or end < now - timedelta(days=RENEWAL_BEHIND_DAYS):
+        return False
+    return not _followed_up(rx)
+
+
+def renewals_due(queryset, now=None):
+    """The signed / sent prescriptions in `queryset` that are due for renewal, soonest to run out first."""
+    now = now or timezone.now()
+    found = []
+    for rx in queryset.filter(status__in=["signed", "sent"], days_supply__isnull=False):
+        if renewal_due(rx, now):
+            found.append((runs_out_at(rx), rx.pk))
+    found.sort()
+    return [pk for _end, pk in found]
+
+
+@transaction.atomic
+def renew(rx, user):
+    """A new draft that carries on a signed / sent prescription. The old one stays as it is."""
+    rx = _lock(rx)
+    if rx.status not in ("signed", "sent"):
+        raise RxError("Only a signed prescription can be renewed.", 409)
+    if user.role not in DRAFT_ROLES:
+        raise RxError("Not allowed.", 403)
+    existing = Prescription.objects.filter(renews=rx, status="draft").first()
+    if existing:
+        return existing
+    pharmacy = preferred_pharmacy(rx.patient) or (rx.pharmacy if rx.pharmacy_id and rx.pharmacy.is_active else None)
+    copy = Prescription.objects.create(
+        organization=rx.organization, patient=rx.patient, prescriber=user if user.role == "doctor" else rx.prescriber,
+        created_by=user, appointment=None, renews=rx,
+        drug_name=rx.drug_name, code_system=rx.code_system, code=rx.code, strength=rx.strength, form=rx.form,
+        dose=rx.dose, route=rx.route, frequency=rx.frequency, duration_days=rx.duration_days, prn=rx.prn,
+        prn_reason=rx.prn_reason, sig_extra=rx.sig_extra, quantity=rx.quantity, quantity_unit=rx.quantity_unit,
+        days_supply=rx.days_supply, refills=rx.refills, dispense_as_written=rx.dispense_as_written,
+        indication_code=rx.indication_code, indication_text=rx.indication_text,
+        note_to_pharmacist=rx.note_to_pharmacist, pharmacy=pharmacy,
+    )
+    log_event(copy, "created", user, to_status="draft", detail={"renews": rx.pk})
+    log_event(rx, "renewal_started", user, detail={"new_prescription": copy.pk})
     return copy
 
 

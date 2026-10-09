@@ -12,7 +12,7 @@ import TodayIcon from '@mui/icons-material/Today';
  */
 const SummaryPanel = ({ userName, greeting, totalToday, doctorPatientMap }) => {
     return (
-        <Grid item xs={12}>
+        <Grid size={12}>
             <Paper
                 sx={{
                     p: 2,

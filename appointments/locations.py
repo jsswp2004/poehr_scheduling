@@ -40,7 +40,7 @@ def occupied_beds(org, exclude_registration=None):
     """{bed_id: registration} for every bed currently held by a visit with no discharge time."""
     qs = Registration.objects.filter(
         bed__room__unit__facility__organization=org, bed__isnull=False, discharge_datetime__isnull=True
-    ).select_related("patient__user")
+    ).select_related("patient__user", "attending_provider")
     if exclude_registration is not None:
         qs = qs.exclude(pk=exclude_registration)
     return {r.bed_id: r for r in qs}
@@ -149,6 +149,12 @@ def build_tree(org, active_only=False):
                             "registration": reg.pk if reg else None,
                             "patient": reg.patient_id if reg else None,
                             "patient_user_id": reg.patient.user_id if reg else None,
+                            "attending_provider": reg.attending_provider_id if reg else None,
+                            "attending_provider_name": (
+                                f"Dr. {reg.attending_provider.first_name} {reg.attending_provider.last_name}".strip()
+                                if reg and reg.attending_provider_id
+                                else ""
+                            ),
                         }
                     )
                     if b.is_active:
