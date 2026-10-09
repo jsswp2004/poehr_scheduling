@@ -30,6 +30,8 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import ReferralFormDialog from "./ReferralFormDialog";
 import ReferralDetailDialog from "./ReferralDetailDialog";
+import PatientChartHeader from "../patientHeader/PatientChartHeader";
+import { readLastPatient } from "../tasks/lastPatient";
 import { STATUS_COLOR, URGENCY_COLOR, authHeader, errorText, fmtDate, fmtDateTime, loadMeta, overdueText } from "./referralShared";
 
 const PAGE_SIZE = 25;
@@ -113,6 +115,9 @@ export default function ReferralWorklist({ patient = null, me = {}, defaultQueue
   const [page, setPage] = useState(1);
   const [q, setQ] = useState("");
   const [urgency, setUrgency] = useState("");
+  // the last patient picked on the Patients page; the Patients filter starts on that patient when there is one
+  const [lastPatient] = useState(readLastPatient);
+  const [whom, setWhom] = useState(() => (!patient && lastPatient ? "patient" : "")); // "" = all patients, or "patient"
   const [assigned, setAssigned] = useState("");
   const [ordering, setOrdering] = useState("urgency");
   const [loading, setLoading] = useState(true);
@@ -121,6 +126,7 @@ export default function ReferralWorklist({ patient = null, me = {}, defaultQueue
   const [openId, setOpenId] = useState(null);
   const [pickPatient, setPickPatient] = useState(false);
   const [creating, setCreating] = useState(null); // patient {id, name} while the new-referral form is open
+  const picked = !scoped && whom === "patient" ? lastPatient : null; // { id, name }: the patient the banner and list show
   const seq = useRef(0);
 
   useEffect(() => {
@@ -139,7 +145,7 @@ export default function ReferralWorklist({ patient = null, me = {}, defaultQueue
     setError("");
     try {
       const headers = await authHeader();
-      const base = patient ? { patient: patient.id } : {};
+      const base = patient ? { patient: patient.id } : picked ? { patient: picked.id } : {};
       const params = { ...base, queue, page, page_size: PAGE_SIZE, ordering };
       if (q.trim()) params.q = q.trim();
       if (urgency) params.urgency = urgency;
@@ -160,7 +166,7 @@ export default function ReferralWorklist({ patient = null, me = {}, defaultQueue
     } finally {
       if (mine === seq.current) setLoading(false);
     }
-  }, [patient, queue, page, q, urgency, assigned, ordering]);
+  }, [patient, picked, queue, page, q, urgency, assigned, ordering]);
 
   useEffect(() => {
     const timer = setTimeout(load, q ? 300 : 0);
@@ -185,177 +191,193 @@ export default function ReferralWorklist({ patient = null, me = {}, defaultQueue
 
   const startNew = () => {
     if (patient) setCreating(patient);
+    else if (picked) setCreating(picked);
     else setPickPatient(true);
   };
 
   return (
-    <Box sx={{ p: 2 }} data-testid="referral-worklist">
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-        <Typography variant="h6">{scoped ? `Referrals — ${patient.name}` : "Referral Manager"}</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={startNew} data-testid="referral-new">
-          New referral
-        </Button>
-      </Stack>
+    <Box data-testid="referral-worklist">
+      {/* the patient banner sits flush at the top, above the heading, as on the Patients page */}
+      {picked && (
+        <Box data-testid="referral-patient-banner">
+          <PatientChartHeader persistent patientId={picked.id} />
+        </Box>
+      )}
 
-      <Tabs
-        value={queues.some((x) => x.value === queue) ? queue : false}
-        onChange={(_, v) => {
-          setQueue(v);
-          setPage(1);
-        }}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, py: 0.5, textTransform: "none" } }}
-        aria-label="Referral queues"
-      >
-        {queues.map((x) => (
-          <Tab
-            key={x.value}
-            value={x.value}
-            data-testid={`referral-queue-${x.value}`}
-            label={`${x.label}${counts[x.value] != null && x.value !== "all" ? ` (${counts[x.value]})` : ""}`}
+      <Box sx={{ px: 2, pb: 1 }}>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 0.5 }} data-testid="referral-toolbar">
+          <Typography variant="subtitle1" noWrap sx={{ fontWeight: 600, mr: 1 }}>
+            {scoped ? `Referrals — ${patient.name}` : "Referral Manager"}
+          </Typography>
+          <TextField
+            size="small"
+            label="Search"
+            placeholder={scoped ? "Specialty, destination, reason" : "Patient, specialty, destination"}
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
+            inputProps={{ "data-testid": "referral-search" }}
+            sx={{ minWidth: 200 }}
           />
-        ))}
-      </Tabs>
+          <TextField select size="small" label="Urgency" value={urgency} onChange={(e) => { setUrgency(e.target.value); setPage(1); }} sx={{ minWidth: 120 }} inputProps={{ "data-testid": "referral-filter-urgency" }}>
+            <MenuItem value="">Any</MenuItem>
+            {(meta?.urgencies || []).map((u) => (
+              <MenuItem key={u.value} value={u.value}>
+                {u.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField select size="small" label="Assigned" value={assigned} onChange={(e) => { setAssigned(e.target.value); setPage(1); }} sx={{ minWidth: 130 }} inputProps={{ "data-testid": "referral-filter-assigned" }}>
+            <MenuItem value="">Anyone</MenuItem>
+            <MenuItem value="me">Me</MenuItem>
+            <MenuItem value="none">Nobody</MenuItem>
+          </TextField>
+          {!scoped && (
+            <TextField select size="small" label="Patients" value={whom} onChange={(e) => { setWhom(e.target.value); setPage(1); }} sx={{ minWidth: 150 }} inputProps={{ "data-testid": "referral-filter-patients" }}>
+              <MenuItem value="">All patients</MenuItem>
+              {lastPatient && <MenuItem value="patient">{lastPatient.name || "Selected patient"}</MenuItem>}
+            </TextField>
+          )}
+          <TextField select size="small" label="Order" value={ordering} onChange={(e) => setOrdering(e.target.value)} sx={{ minWidth: 140 }} inputProps={{ "data-testid": "referral-ordering" }}>
+            <MenuItem value="urgency">Most urgent first</MenuItem>
+            <MenuItem value="oldest">Oldest first</MenuItem>
+            <MenuItem value="newest">Newest first</MenuItem>
+          </TextField>
+          <Box sx={{ flexGrow: 1 }} />
+          <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={startNew} data-testid="referral-new">
+            New referral
+          </Button>
+        </Stack>
 
-      <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ my: 1.5 }}>
-        <TextField
-          size="small"
-          label="Search"
-          placeholder={scoped ? "Specialty, destination, reason" : "Patient, specialty, destination"}
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
+        <Tabs
+          value={queues.some((x) => x.value === queue) ? queue : false}
+          onChange={(_, v) => {
+            setQueue(v);
             setPage(1);
           }}
-          inputProps={{ "data-testid": "referral-search" }}
-          sx={{ minWidth: 240 }}
-        />
-        <TextField select size="small" label="Urgency" value={urgency} onChange={(e) => { setUrgency(e.target.value); setPage(1); }} sx={{ minWidth: 140 }} inputProps={{ "data-testid": "referral-filter-urgency" }}>
-          <MenuItem value="">Any</MenuItem>
-          {(meta?.urgencies || []).map((u) => (
-            <MenuItem key={u.value} value={u.value}>
-              {u.label}
-            </MenuItem>
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{ minHeight: 36, borderBottom: 1, borderColor: "divider", "& .MuiTab-root": { minHeight: 36, py: 0.5, textTransform: "none" } }}
+          aria-label="Referral queues"
+        >
+          {queues.map((x) => (
+            <Tab
+              key={x.value}
+              value={x.value}
+              data-testid={`referral-queue-${x.value}`}
+              label={`${x.label}${counts[x.value] != null && x.value !== "all" ? ` (${counts[x.value]})` : ""}`}
+            />
           ))}
-        </TextField>
-        <TextField select size="small" label="Assigned" value={assigned} onChange={(e) => { setAssigned(e.target.value); setPage(1); }} sx={{ minWidth: 160 }} inputProps={{ "data-testid": "referral-filter-assigned" }}>
-          <MenuItem value="">Anyone</MenuItem>
-          <MenuItem value="me">Me</MenuItem>
-          <MenuItem value="none">Nobody</MenuItem>
-        </TextField>
-        <TextField select size="small" label="Order" value={ordering} onChange={(e) => setOrdering(e.target.value)} sx={{ minWidth: 160 }} inputProps={{ "data-testid": "referral-ordering" }}>
-          <MenuItem value="urgency">Most urgent first</MenuItem>
-          <MenuItem value="oldest">Oldest first</MenuItem>
-          <MenuItem value="newest">Newest first</MenuItem>
-        </TextField>
-      </Stack>
+        </Tabs>
 
-      {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
+        {error && <Alert severity="error" sx={{ my: 0.5 }}>{error}</Alert>}
 
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small" aria-label="Referrals">
-          <TableHead>
-            <TableRow>
-              {!scoped && <TableCell>Patient</TableCell>}
-              <TableCell>Specialty / send to</TableCell>
-              <TableCell>Urgency</TableCell>
-              <TableCell>Status</TableCell>
-              <TableCell>Next date</TableCell>
-              <TableCell>Referred by</TableCell>
-              <TableCell>Assigned</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading && rows.length === 0 && (
+        <TableContainer component={Paper} variant="outlined" sx={{ mt: 0.5 }}>
+          <Table size="small" aria-label="Referrals">
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={scoped ? 6 : 7}>
-                  <CircularProgress size={20} />
-                </TableCell>
+                {!scoped && <TableCell>Patient</TableCell>}
+                <TableCell>Specialty / send to</TableCell>
+                <TableCell>Urgency</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Next date</TableCell>
+                <TableCell>Referred by</TableCell>
+                <TableCell>Assigned</TableCell>
               </TableRow>
-            )}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={scoped ? 6 : 7} data-testid="referral-empty">
-                  <Typography variant="body2" color="text.secondary">
-                    No referrals in this list.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            )}
-            {rows.map((r) => (
-              <TableRow key={r.id} hover sx={{ cursor: "pointer" }} onClick={() => setOpenId(r.id)} data-testid={`referral-row-${r.id}`}>
-                {!scoped && <TableCell>{r.patient_name}</TableCell>}
-                <TableCell>
-                  <Typography variant="body2">{r.specialty || "—"}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {r.destination_name}
-                  </Typography>
-                </TableCell>
-                <TableCell>
-                  <Chip size="small" variant="outlined" color={URGENCY_COLOR[r.urgency]} label={r.urgency_label} />
-                </TableCell>
-                <TableCell>
-                  <Chip size="small" color={STATUS_COLOR[r.status]} label={r.status_label} />
-                  {r.overdue && <Chip size="small" color="error" sx={{ ml: 0.5 }} label={overdueText(r)} data-testid={`referral-overdue-${r.id}`} />}
-                </TableCell>
-                <TableCell>
-                  {r.scheduled_for && ["scheduled", "seen"].includes(r.status)
-                    ? fmtDateTime(r.scheduled_for)
-                    : r.status === "report_received"
-                    ? fmtDate(r.report_received_at)
-                    : r.schedule_due
-                    ? `Schedule by ${fmtDate(r.schedule_due)}`
-                    : r.report_due
-                    ? `Report by ${fmtDate(r.report_due)}`
-                    : ""}
-                </TableCell>
-                <TableCell>{r.referring_provider_name}</TableCell>
-                <TableCell>{r.assigned_to_name}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
-        <Typography variant="caption" color="text.secondary" data-testid="referral-count">
-          {total} referral{total === 1 ? "" : "s"}
-        </Typography>
-        {pages > 1 && <Pagination count={pages} page={page} onChange={(_, p) => setPage(p)} size="small" />}
-      </Stack>
+            </TableHead>
+            <TableBody>
+              {loading && rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={scoped ? 6 : 7}>
+                    <CircularProgress size={20} />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && rows.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={scoped ? 6 : 7} data-testid="referral-empty">
+                    <Typography variant="body2" color="text.secondary">
+                      No referrals in this list.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+              {rows.map((r) => (
+                <TableRow key={r.id} hover sx={{ cursor: "pointer" }} onClick={() => setOpenId(r.id)} data-testid={`referral-row-${r.id}`}>
+                  {!scoped && <TableCell>{r.patient_name}</TableCell>}
+                  <TableCell>
+                    <Typography variant="body2">{r.specialty || "—"}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {r.destination_name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Chip size="small" variant="outlined" color={URGENCY_COLOR[r.urgency]} label={r.urgency_label} />
+                  </TableCell>
+                  <TableCell>
+                    <Chip size="small" color={STATUS_COLOR[r.status]} label={r.status_label} />
+                    {r.overdue && <Chip size="small" color="error" sx={{ ml: 0.5 }} label={overdueText(r)} data-testid={`referral-overdue-${r.id}`} />}
+                  </TableCell>
+                  <TableCell>
+                    {r.scheduled_for && ["scheduled", "seen"].includes(r.status)
+                      ? fmtDateTime(r.scheduled_for)
+                      : r.status === "report_received"
+                      ? fmtDate(r.report_received_at)
+                      : r.schedule_due
+                      ? `Schedule by ${fmtDate(r.schedule_due)}`
+                      : r.report_due
+                      ? `Report by ${fmtDate(r.report_due)}`
+                      : ""}
+                  </TableCell>
+                  <TableCell>{r.referring_provider_name}</TableCell>
+                  <TableCell>{r.assigned_to_name}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+          <Typography variant="caption" color="text.secondary" data-testid="referral-count">
+            {total} referral{total === 1 ? "" : "s"}
+          </Typography>
+          {pages > 1 && <Pagination count={pages} page={page} onChange={(_, p) => setPage(p)} size="small" />}
+        </Stack>
 
-      <PatientPicker
-        open={pickPatient}
-        onClose={() => setPickPatient(false)}
-        onPick={(p) => {
-          setPickPatient(false);
-          setCreating(p);
-        }}
-      />
-      {creating && (
-        <ReferralFormDialog
-          open
-          patient={creating}
-          meta={meta}
-          me={me}
-          onClose={() => setCreating(null)}
-          onSaved={(ref) => {
-            setCreating(null);
-            setOpenId(ref.id);
-            load();
+        <PatientPicker
+          open={pickPatient}
+          onClose={() => setPickPatient(false)}
+          onPick={(p) => {
+            setPickPatient(false);
+            setCreating(p);
           }}
         />
-      )}
-      {openId && (
-        <ReferralDetailDialog
-          referralId={openId}
-          open
-          meta={meta}
-          me={me}
-          onClose={() => setOpenId(null)}
-          onChanged={() => load()}
-        />
-      )}
+        {creating && (
+          <ReferralFormDialog
+            open
+            patient={creating}
+            meta={meta}
+            me={me}
+            onClose={() => setCreating(null)}
+            onSaved={(ref) => {
+              setCreating(null);
+              setOpenId(ref.id);
+              load();
+            }}
+          />
+        )}
+        {openId && (
+          <ReferralDetailDialog
+            referralId={openId}
+            open
+            meta={meta}
+            me={me}
+            onClose={() => setOpenId(null)}
+            onChanged={() => load()}
+          />
+        )}
+      </Box>
     </Box>
   );
 }

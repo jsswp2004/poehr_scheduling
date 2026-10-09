@@ -13,11 +13,14 @@ jest.mock(
       referralDestinations: "/referral-destinations/",
       patients: "/patients/",
       icd10Search: "/icd/",
+      patientHeader: (id) => `/header/${id}/`,
     },
   }),
   { virtual: true }
 );
 jest.mock("../../utils/auth", () => ({ getValidToken: async () => ({ access_token: "t" }) }), { virtual: true });
+jest.mock("../../utils/tokenManager", () => ({ getAccessToken: () => "tok" }), { virtual: true });
+jest.mock("jwt-decode", () => ({ jwtDecode: () => ({ user_id: 7 }) }));
 jest.mock("../SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn() } }), { virtual: true });
 
 import { api } from "../../api/client";
@@ -81,6 +84,7 @@ beforeEach(() => {
     if (url === "/referral-meta/") return Promise.resolve({ data: META });
     if (url === "/referrals/queues/") return Promise.resolve({ data: { counts: COUNTS } });
     if (url === "/referrals/") return Promise.resolve({ data: { count: list.length, results: list } });
+    if (url === "/header/3/") return Promise.resolve({ data: { items: [{ key: "name", label: "Name", value: "LEE, ANN", emphasis: "strong" }, { key: "allergies", label: "Allergies", value: "Penicillin", emphasis: "alert" }] } });
     if (url === "/referral-destinations/") return Promise.resolve({ data: [{ id: 1, name: "Heart Group", specialty: "Cardiology", kind: "external" }] });
     if (url === "/patients/") return Promise.resolve({ data: { results: [{ user_id: 3, first_name: "Ann", last_name: "Lee" }] } });
     const m = /^\/referrals\/(\d+)\/$/.exec(url);
@@ -90,6 +94,13 @@ beforeEach(() => {
 });
 
 const ME = { role: "doctor", id: 5 };
+afterEach(() => window.sessionStorage.clear());
+const rememberPatient = (patient) => window.sessionStorage.setItem("powerSelectedPatient:7", JSON.stringify(patient));
+const listCalls = () => api.get.mock.calls.filter((c) => c[0] === "/referrals/");
+const choose = async (label, option) => {
+  fireEvent.mouseDown(screen.getByLabelText(label));
+  fireEvent.click(await screen.findByRole("option", { name: option }));
+};
 
 test("worklist shows queue counts and the referral rows", async () => {
   render(<ReferralWorklist me={ME} />);
@@ -229,4 +240,65 @@ test("someone who may not use referrals sees a plain message", async () => {
   api.get.mockRejectedValue({ response: { status: 403, data: { detail: "Not allowed." } } });
   render(<ReferralWorklist me={{ role: "patient" }} />);
   expect(await screen.findByTestId("referrals-denied")).toBeInTheDocument();
+});
+
+test("with a patient last selected on the Patients page, the banner and that patient's referrals show first", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
+  render(<ReferralWorklist me={ME} />);
+  const banner = await screen.findByTestId("referral-patient-banner");
+  await waitFor(() => expect(banner).toHaveTextContent("LEE, ANN"));
+  expect(banner).toHaveTextContent("Penicillin");
+  await waitFor(() => expect(listCalls().pop()[1].params.patient).toBe(3));
+  expect(screen.getByTestId("referral-filter-patients")).toHaveValue("patient");
+  const counts = api.get.mock.calls.filter((c) => c[0] === "/referrals/queues/").pop();
+  expect(counts[1].params.patient).toBe(3);
+});
+
+test("choosing All patients removes the banner and shows every referral, and the patient can be chosen again", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
+  render(<ReferralWorklist me={ME} />);
+  await screen.findByTestId("referral-patient-banner");
+  await choose("Patients", "All patients");
+  await waitFor(() => expect(screen.queryByTestId("referral-patient-banner")).not.toBeInTheDocument());
+  await waitFor(() => expect(listCalls().pop()[1].params.patient).toBeUndefined());
+  await choose("Patients", "Ann Lee");
+  await screen.findByTestId("referral-patient-banner");
+  await waitFor(() => expect(listCalls().pop()[1].params.patient).toBe(3));
+});
+
+test("with nobody selected there is no banner and all patients show", async () => {
+  render(<ReferralWorklist me={ME} />);
+  await screen.findByTestId("referral-row-11");
+  expect(screen.queryByTestId("referral-patient-banner")).not.toBeInTheDocument();
+  expect(listCalls().pop()[1].params.patient).toBeUndefined();
+  expect(screen.getByTestId("referral-filter-patients")).toHaveValue("");
+});
+
+test("the banner sits above the heading, and a patient's own chart tab has no banner or Patients filter", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
+  const { unmount } = render(<ReferralWorklist me={ME} />);
+  const banner = await screen.findByTestId("referral-patient-banner");
+  expect(banner.compareDocumentPosition(screen.getByText("Referral Manager")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  unmount();
+  render(<ReferralWorklist patient={{ id: 3, name: "Ann Lee" }} me={ME} />);
+  await screen.findByTestId("referral-row-11");
+  expect(screen.queryByTestId("referral-patient-banner")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("referral-filter-patients")).not.toBeInTheDocument();
+});
+
+test("the heading, filters and New referral share one compact toolbar", async () => {
+  await (async () => render(<ReferralWorklist me={ME} />))();
+  await screen.findByTestId("referral-row-11");
+  const bar = screen.getByTestId("referral-toolbar");
+  expect(bar).toHaveTextContent("Referral Manager");
+  ["referral-search", "referral-filter-urgency", "referral-filter-assigned", "referral-filter-patients", "referral-ordering", "referral-new"].forEach((id) => expect(within(bar).getByTestId(id)).toBeInTheDocument());
+});
+
+test("with a patient showing in the banner, New referral goes straight to that patient", async () => {
+  rememberPatient({ id: 3, name: "Ann Lee" });
+  render(<ReferralWorklist me={ME} />);
+  await screen.findByTestId("referral-row-11");
+  fireEvent.click(screen.getByTestId("referral-new"));
+  expect(await screen.findByTestId("referral-form")).toHaveTextContent("New referral — Ann Lee");
+  expect(screen.queryByTestId("referral-patient-picker")).not.toBeInTheDocument();
 });

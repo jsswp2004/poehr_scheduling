@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, useLocation } from "react-router-dom";
 
 jest.mock("../patients/SearchField", () => () => null, { virtual: true });
 jest.mock("@fortawesome/react-fontawesome", () => ({ FontAwesomeIcon: () => null }), { virtual: true });
@@ -14,9 +14,12 @@ const rows = [
   },
 ];
 
+const Where = () => <div data-testid="where">{useLocation().pathname}</div>;
+
 const show = (props) =>
   render(
     <MemoryRouter>
+      <Where />
       <PatientsTable
         patients={rows} loading={false} search="" setSearch={() => {}} provider="" setProvider={() => {}} providers={[]}
         page={1} setPage={() => {}} totalPages={1} onSendText={() => {}} onOpenEmailModal={() => {}} onDelete={() => {}}
@@ -140,4 +143,40 @@ test("Acute and Emergency lists offer Attending; other lists and roles do not", 
   second.unmount();
   show({ careSetting: "acute", onChangeAttending, userRole: "receptionist" });
   expect(screen.queryByRole("button", { name: "Attending for Bob Ray" })).toBeNull();
+});
+
+test("the Task Manager icon selects the patient, then opens the Task Manager", () => {
+  const onSelect = jest.fn();
+  show({ careSetting: "ambulatory", onSelect });
+  fireEvent.click(screen.getByRole("button", { name: "Task Manager for Bob Ray" }));
+  expect(onSelect).toHaveBeenCalledWith(rows[0]);
+  expect(screen.getByTestId("where")).toHaveTextContent("/tasks");
+});
+
+test("the Referral Manager icon selects the patient, then opens the Referral Manager", () => {
+  const onSelect = jest.fn();
+  show({ careSetting: "ambulatory", onSelect });
+  fireEvent.click(screen.getByRole("button", { name: "Referral Manager for Bob Ray" }));
+  expect(onSelect).toHaveBeenCalledWith(rows[0]);
+  expect(screen.getByTestId("where")).toHaveTextContent("/referrals");
+});
+
+test("the manager icons still open their page where no patient selection is kept", () => {
+  show({ careSetting: "ambulatory" });
+  fireEvent.click(screen.getByRole("button", { name: "Task Manager for Bob Ray" }));
+  expect(screen.getByTestId("where")).toHaveTextContent("/tasks");
+});
+
+test("each role sees only the manager icons it may open", () => {
+  const { unmount } = show({ userRole: "doctor" });
+  expect(screen.getByRole("button", { name: "Task Manager for Bob Ray" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Referral Manager for Bob Ray" })).toBeInTheDocument();
+  unmount();
+  const reg = show({ userRole: "registrar" });
+  expect(screen.queryByRole("button", { name: "Task Manager for Bob Ray" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Referral Manager for Bob Ray" })).toBeInTheDocument();
+  reg.unmount();
+  show({ userRole: "receptionist" });
+  expect(screen.queryByRole("button", { name: "Task Manager for Bob Ray" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Referral Manager for Bob Ray" })).toBeNull();
 });
