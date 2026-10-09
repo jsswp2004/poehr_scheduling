@@ -52,6 +52,18 @@ from .order_task_views import (
     TaskSettingsView,
     TaskColumnsView,
 )
+from .prescription_views import (
+    DrugSearchView,
+    PatientPharmacyView,
+    PharmacyDetailView,
+    PharmacyListCreateView,
+    PrescriberProfileView,
+    PrescriptionActionView,
+    PrescriptionDetailView,
+    PrescriptionListCreateView,
+    PrescriptionMetaView,
+    PrescriptionPdfView,
+)
 from .referral_views import (
     DestinationDetailView,
     DestinationListCreateView,
@@ -250,6 +262,17 @@ urlpatterns = router.urls + [
     path("referral-destinations/", DestinationListCreateView.as_view(), name="referral-destinations"),
     path("referral-destinations/<int:pk>/", DestinationDetailView.as_view(), name="referral-destination"),
     path("referral-settings/", ReferralSettingsView.as_view(), name="referral-settings"),
+    # Rx writer
+    path("prescriptions/", PrescriptionListCreateView.as_view(), name="prescriptions"),
+    path("prescriptions/<int:pk>/", PrescriptionDetailView.as_view(), name="prescription-detail"),
+    path("prescriptions/<int:pk>/action/", PrescriptionActionView.as_view(), name="prescription-action"),
+    path("prescriptions/<int:pk>/pdf/", PrescriptionPdfView.as_view(), name="prescription-pdf"),
+    path("prescription-meta/", PrescriptionMetaView.as_view(), name="prescription-meta"),
+    path("prescription-drugs/", DrugSearchView.as_view(), name="prescription-drugs"),
+    path("pharmacies/", PharmacyListCreateView.as_view(), name="pharmacies"),
+    path("pharmacies/<int:pk>/", PharmacyDetailView.as_view(), name="pharmacy-detail"),
+    path("patient-pharmacy/<int:patient_id>/", PatientPharmacyView.as_view(), name="patient-pharmacy"),
+    path("prescriber-profile/", PrescriberProfileView.as_view(), name="prescriber-profile"),
     # nurse tasks
     path("order-tasks/", TaskListView.as_view(), name="order-tasks"),
     path("order-tasks/queues/", TaskQueuesView.as_view(), name="order-task-queues"),
