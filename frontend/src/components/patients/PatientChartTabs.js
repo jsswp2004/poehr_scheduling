@@ -19,10 +19,8 @@ export const CHART_TABS = [
   { value: "clinical_summary", label: "Clinical Summary", clinical: true },
 ];
 
-// Tabs that have no page behind them yet.
-export const COMING_SOON = {
-  clinical_summary: "Clinical Summary",
-};
+// Tabs that have no page behind them yet (none at the moment: every chart tab has its page).
+export const COMING_SOON = {};
 
 export const CLINICAL_ROLES = ["doctor", "nurse", "admin", "system_admin"];
 
