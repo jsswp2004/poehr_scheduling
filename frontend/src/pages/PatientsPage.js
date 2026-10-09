@@ -23,6 +23,7 @@ import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import useChartTabs from "../hooks/useChartTabs";
 import MySchedulePanel from "../components/patients/MySchedulePanel";
 import ReferralsPanel from "../components/referrals/ReferralsPanel";
+import PrescriptionsPanel from "../components/prescriptions/PrescriptionsPanel";
 import TasksPanel from "../components/tasks/TasksPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { AdmitDialog, TransferDialog, DischargeDialog, AttendingDialog } from "../components/patients/AdmissionDialogs";
@@ -704,6 +705,10 @@ function PatientsPage() {
             if (current === "task_list") {
               if (!selectedPatient) return <SelectPatientPrompt />;
               return <TasksPanel patient={selectedPatient} />;
+            }
+            if (current === "prescriptions") {
+              if (!selectedPatient) return <SelectPatientPrompt />;
+              return <PrescriptionsPanel key={selectedPatient.id} patient={selectedPatient} />;
             }
             if (COMING_SOON[current]) {
               return (

@@ -7,7 +7,7 @@ jest.mock("../../utils/auth", () => ({ getValidToken: async () => ({ access_toke
 import { api } from "../../api/client";
 import useChartTabs from "../../hooks/useChartTabs";
 
-const EVERY = ["patient_list", "orders", "results", "patient_info", "documents", "flowsheets", "my_schedule", "referral_list", "task_list", "clinical_summary"];
+const EVERY = ["patient_list", "orders", "prescriptions", "results", "patient_info", "documents", "flowsheets", "my_schedule", "referral_list", "task_list", "clinical_summary"];
 const reply = {
   data: {
     settings: {
