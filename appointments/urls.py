@@ -52,6 +52,7 @@ from .order_task_views import (
     TaskSettingsView,
     TaskColumnsView,
 )
+from .clinical_summary import ClinicalSummaryView, ProblemDetailView, ProblemListView
 from .home_med_views import (
     HomeMedicationActionView,
     HomeMedicationDetailView,
@@ -277,6 +278,9 @@ urlpatterns = router.urls + [
     path("prescriptions/<int:pk>/", PrescriptionDetailView.as_view(), name="prescription-detail"),
     path("prescriptions/<int:pk>/action/", PrescriptionActionView.as_view(), name="prescription-action"),
     path("prescriptions/<int:pk>/pdf/", PrescriptionPdfView.as_view(), name="prescription-pdf"),
+    path("clinical-summary/", ClinicalSummaryView.as_view(), name="clinical-summary"),
+    path("problem-list/", ProblemListView.as_view(), name="problem-list"),
+    path("problem-list/<int:pk>/", ProblemDetailView.as_view(), name="problem-detail"),
     path("home-medications/", HomeMedicationListCreateView.as_view(), name="home-medications"),
     path("home-medications/review/", MedReviewView.as_view(), name="home-medication-review"),
     path("home-medications/<int:pk>/", HomeMedicationDetailView.as_view(), name="home-medication-detail"),

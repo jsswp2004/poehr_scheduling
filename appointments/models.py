@@ -2099,3 +2099,38 @@ class TaskGridColumns(models.Model):
 
     def __str__(self):
         return f"{self.user_id}: {len(self.minutes)} columns"
+
+
+# ---------------------------------------------------------------- problem list
+
+
+class ProblemListEntry(models.Model):
+    """One problem on a patient's chart. Never deleted: a wrong entry is marked 'entered in error'."""
+
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("chronic", "Chronic"),
+        ("resolved", "Resolved"),
+        ("entered_in_error", "Entered in error"),
+    ]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="problem_entries")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="problem_entries")
+    description = models.CharField(max_length=255)
+    code_system = models.CharField(max_length=10, blank=True, default="icd10cm")
+    code = models.CharField(max_length=20, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
+    onset_date = models.DateField(null=True, blank=True)
+    resolved_date = models.DateField(null=True, blank=True)
+    note = models.CharField(max_length=300, blank=True)
+    entered_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["description", "id"]
+        indexes = [models.Index(fields=["organization", "patient", "status"])]
+
+    def __str__(self):
+        return f"{self.description} ({self.patient_id})"

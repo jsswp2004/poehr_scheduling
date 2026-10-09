@@ -32,8 +32,8 @@ test("a stored tab the role cannot see falls back to Patient List", () => {
   expect(screen.getByTestId("chart-tab-patient_list")).toHaveAttribute("aria-selected", "true");
 });
 
-test("placeholder tabs say coming soon; Patient Info is a real tab now", () => {
-  expect(Object.values(COMING_SOON)).toEqual(["Clinical Summary"]);
+test("the placeholder panel still says coming soon, though no tab uses it now", () => {
+  expect(COMING_SOON).toEqual({}); // every chart tab has its page now
   render(<ComingSoonPanel title="Referral List" patient={{ id: 1, name: "Ann Lee" }} />);
   expect(screen.getByText(/Coming soon/)).toBeInTheDocument();
   expect(screen.queryByText("Open full patient record")).not.toBeInTheDocument();
