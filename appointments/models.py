@@ -1779,6 +1779,139 @@ class ReferralEvent(models.Model):
         ordering = ["created_at", "id"]
 
 
+# ---------------------------------------------------------------- prescriptions
+
+
+class PrescriberProfile(models.Model):
+    """What a prescription must show about the prescriber beyond their name and NPI."""
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="prescriber_profile")
+    license_number = models.CharField(max_length=40, blank=True)
+    license_state = models.CharField(max_length=2, blank=True)
+    dea_number = models.CharField(max_length=15, blank=True)  # kept for later e-prescribing; not used on printed Rx yet
+    practice_name = models.CharField(max_length=200, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    fax = models.CharField(max_length=30, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class Pharmacy(models.Model):
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="pharmacies")
+    name = models.CharField(max_length=200)
+    address = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=80, blank=True)
+    state = models.CharField(max_length=2, blank=True)
+    zip_code = models.CharField(max_length=10, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    fax = models.CharField(max_length=30, blank=True)
+    ncpdp_id = models.CharField(max_length=7, blank=True)  # needed later for electronic prescribing
+    npi = models.CharField(max_length=10, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        verbose_name_plural = "pharmacies"
+
+    def __str__(self):
+        return self.name
+
+
+class PatientPharmacy(models.Model):
+    """The pharmacy a patient prefers (one per patient for now)."""
+
+    patient = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="preferred_pharmacy")
+    pharmacy = models.ForeignKey(Pharmacy, on_delete=models.CASCADE, related_name="+")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class Prescription(models.Model):
+    STATUS_CHOICES = [
+        ("draft", "Draft"),
+        ("signed", "Signed"),
+        ("sent", "Given / sent"),
+        ("cancelled", "Cancelled"),
+    ]
+    METHOD_CHOICES = [("", "Not yet"), ("print", "Printed"), ("fax", "Faxed"), ("erx", "Electronic")]
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="prescriptions")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prescriptions_received")
+    prescriber = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="prescriptions_written")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    appointment = models.ForeignKey("appointments.Appointment", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    replaces = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replaced_by")
+
+    # the drug
+    drug_name = models.CharField(max_length=200)
+    code_system = models.CharField(max_length=10, blank=True)  # "rxnorm" when picked from the search
+    code = models.CharField(max_length=20, blank=True)
+    strength = models.CharField(max_length=60, blank=True)    # "500 mg"
+    form = models.CharField(max_length=40, blank=True)        # "tablet"
+
+    # the directions (sig) -- structured, and the sentence built from it
+    dose = models.CharField(max_length=60, blank=True)        # "1 tablet"
+    route = models.CharField(max_length=20, blank=True)
+    frequency = models.CharField(max_length=10, blank=True)   # key of order_tasks.FREQUENCIES
+    duration_days = models.PositiveIntegerField(null=True, blank=True)
+    prn = models.BooleanField(default=False)
+    prn_reason = models.CharField(max_length=120, blank=True)
+    sig_extra = models.CharField(max_length=300, blank=True)  # "with food"
+    sig = models.CharField(max_length=500, blank=True)        # the finished sentence, frozen when signed
+
+    # how much
+    quantity = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    quantity_unit = models.CharField(max_length=30, blank=True)  # "tablets"
+    days_supply = models.PositiveIntegerField(null=True, blank=True)
+    refills = models.PositiveSmallIntegerField(default=0)
+    dispense_as_written = models.BooleanField(default=False)
+
+    indication_code = models.CharField(max_length=20, blank=True)
+    indication_text = models.CharField(max_length=255, blank=True)
+    note_to_pharmacist = models.CharField(max_length=500, blank=True)
+
+    # where it goes
+    pharmacy = models.ForeignKey(Pharmacy, null=True, blank=True, on_delete=models.SET_NULL, related_name="prescriptions")
+    pharmacy_snapshot = models.JSONField(default=dict, blank=True)  # name/address/phone/fax as they were when sent
+
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="draft")
+    signed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    signed_at = models.DateTimeField(null=True, blank=True)
+    delivery_method = models.CharField(max_length=6, choices=METHOD_CHOICES, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivery_detail = models.JSONField(default=dict, blank=True)  # fax number / confirmation / vendor id
+    print_count = models.PositiveIntegerField(default=0)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancel_reason = models.CharField(max_length=300, blank=True)
+    clinical_snapshot = models.JSONField(default=dict, blank=True)  # prescriber, patient and allergies as signed
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["organization", "status"]), models.Index(fields=["patient", "status"])]
+
+    def __str__(self):
+        return f"Rx {self.pk} {self.drug_name} ({self.status})"
+
+
+class PrescriptionEvent(models.Model):
+    """Append-only history of everything that happens to a prescription."""
+
+    prescription = models.ForeignKey(Prescription, on_delete=models.CASCADE, related_name="events")
+    event_type = models.CharField(max_length=30)
+    from_status = models.CharField(max_length=10, blank=True)
+    to_status = models.CharField(max_length=10, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    detail = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+
 # ---------------------------------------------------------------- nurse tasks
 
 
