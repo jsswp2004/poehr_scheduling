@@ -61,6 +61,7 @@ from .prescription_views import (
     PrescriptionActionView,
     PrescriptionDetailView,
     PrescriptionListCreateView,
+    PrescriptionQueuesView,
     PrescriptionMetaView,
     PrescriptionPdfView,
 )
@@ -264,6 +265,7 @@ urlpatterns = router.urls + [
     path("referral-settings/", ReferralSettingsView.as_view(), name="referral-settings"),
     # Rx writer
     path("prescriptions/", PrescriptionListCreateView.as_view(), name="prescriptions"),
+    path("prescriptions/queues/", PrescriptionQueuesView.as_view(), name="prescription-queues"),
     path("prescriptions/<int:pk>/", PrescriptionDetailView.as_view(), name="prescription-detail"),
     path("prescriptions/<int:pk>/action/", PrescriptionActionView.as_view(), name="prescription-action"),
     path("prescriptions/<int:pk>/pdf/", PrescriptionPdfView.as_view(), name="prescription-pdf"),

@@ -18,6 +18,7 @@ import ClinicalNotesPage from './pages/ClinicalNotesPage';
 import OrdersPage from './pages/OrdersPage';
 import LabInboxPage from './pages/LabInboxPage';
 import ReferralManagerPage from './pages/ReferralManagerPage';
+import PrescriptionManagerPage from './pages/PrescriptionManagerPage';
 import TaskManagerPage from './pages/TaskManagerPage';
 import OrderBuilderPage from './pages/OrderBuilderPage';
 import LocationManagerPage from './pages/LocationManagerPage';
@@ -211,6 +212,7 @@ function AppContent() {
         <Route path="/patients/:id/orders" element={<PrivateRoute><OrdersPage /></PrivateRoute>} />
         <Route path="/lab-inbox" element={<PrivateRoute><LabInboxPage /></PrivateRoute>} />
         <Route path="/referrals" element={<PrivateRoute><ReferralManagerPage /></PrivateRoute>} />
+        <Route path="/prescriptions" element={<PrivateRoute><PrescriptionManagerPage /></PrivateRoute>} />
         <Route path="/tasks" element={<PrivateRoute><TaskManagerPage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><AccountPage /></PrivateRoute>} />
