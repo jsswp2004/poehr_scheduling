@@ -104,7 +104,7 @@ src/
 
 ## Integration Points
 
-- **Chat System**: Maintains integration with `useChat` and `useOnlineStatus`
+- **Chat System**: Online status via `useOnlineStatus`; staff messaging moved to Secure Messages
 - **Authentication**: Uses existing auth hooks and utilities
 - **API Layer**: Maintains all existing API endpoints
 - **Toast Notifications**: Preserves user feedback system

@@ -20,6 +20,7 @@ import LabInboxPage from './pages/LabInboxPage';
 import ReferralManagerPage from './pages/ReferralManagerPage';
 import PrescriptionManagerPage from './pages/PrescriptionManagerPage';
 import SecureMessagesPage from './pages/SecureMessagesPage';
+import SecureMessagesAuditPage from './pages/SecureMessagesAuditPage';
 import TaskManagerPage from './pages/TaskManagerPage';
 import OrderBuilderPage from './pages/OrderBuilderPage';
 import LocationManagerPage from './pages/LocationManagerPage';
@@ -56,7 +57,6 @@ import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import WebSocketTest from './components/WebSocketTest';
 import WebSocketDirectTest from './components/WebSocketDirectTest';
-import ChatTestPage from './pages/ChatTestPage';
 import DebugAvailability from './components/DebugAvailability';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
@@ -215,6 +215,7 @@ function AppContent() {
         <Route path="/referrals" element={<PrivateRoute><ReferralManagerPage /></PrivateRoute>} />
         <Route path="/prescriptions" element={<PrivateRoute><PrescriptionManagerPage /></PrivateRoute>} />
         <Route path="/secure-messages" element={<PrivateRoute><SecureMessagesPage /></PrivateRoute>} />
+        <Route path="/secure-messages/audit" element={<PrivateRoute><SecureMessagesAuditPage /></PrivateRoute>} />
         <Route path="/tasks" element={<PrivateRoute><TaskManagerPage /></PrivateRoute>} />
         <Route path="/admin" element={<PrivateRoute><AdminPage /></PrivateRoute>} />
         <Route path="/account" element={<PrivateRoute><AccountPage /></PrivateRoute>} />
@@ -234,7 +235,6 @@ function AppContent() {
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />        <Route path="/toast-test" element={<ToastTestPage />} />
         <Route path="/websocket-test" element={<WebSocketTest />} />
         <Route path="/websocket-direct-test" element={<WebSocketDirectTest />} />
-        <Route path="/chat-test" element={<ChatTestPage />} />
         <Route path="/debug-availability" element={<PrivateRoute><DebugAvailability /></PrivateRoute>} />
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
         <Route path="/check-in" element={<PrivateRoute><CheckInPage /></PrivateRoute>} />

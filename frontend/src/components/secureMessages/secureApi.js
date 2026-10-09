@@ -39,6 +39,8 @@ export const secure = {
   people: (q, all) => call("get", apiEndpoints.securePeople, null, { params: { ...(q ? { q } : {}), ...(all ? { all: 1 } : {}) } }),
   addMember: (id, user) => call("post", apiEndpoints.secureMembers(id), { user }),
   removeMember: (id, user) => call("delete", apiEndpoints.secureMember(id, user)),
+  audit: (params) => call("get", apiEndpoints.secureAudit, null, { params }),
+  auditThread: (id) => call("get", apiEndpoints.secureAuditThread(id)),
   unread: () => call("get", apiEndpoints.secureUnread),
   picture: (id, thumb) => call("get", apiEndpoints.secureAttachment(id), null, { responseType: "blob", params: thumb ? { size: "thumb" } : {} }),
 };

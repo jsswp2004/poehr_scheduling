@@ -9,7 +9,6 @@ import { getAccessToken } from "../utils/tokenManager";
 
 // Components
 import BackButton from "../components/BackButton";
-import MessagesModal from "../components/MessagesModal";
 import SMSModal from "../components/SMSModal";
 import {
   PatientsTable,
@@ -48,7 +47,6 @@ import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 
 // Hooks
 import useOnlineStatus from "../hooks/useOnlineStatus";
-import useChat from "../hooks/useChat";
 import { usePatients } from "../hooks/usePatients";
 import { useTeam } from "../hooks/useTeam";
 import { usePatientsAppointments } from "../hooks/usePatientsAppointments";
@@ -148,16 +146,8 @@ function PatientsPage() {
     [selectPatient]
   );
 
-  // Chat and online status
-  const {
-    getUserOnlineStatus,
-    isConnected: onlineStatusConnected,
-    websocketConnection,
-    sendMessage,
-    lastMessage: lastMessageFromOnlineStatus,
-  } = useOnlineStatus();
-
-  const [messagesModalOpen, setMessagesModalOpen] = useState(false);
+  // Being on this page keeps the person shown as online to colleagues.
+  useOnlineStatus();
 
   // Authentication
   // const { isSystemAdmin } = useAuth(); // Commented out since not used
@@ -201,14 +191,6 @@ function PatientsPage() {
 
   // Subscription access control
   const { userTier, permissions } = useSubscriptionAccess();
-
-  // Initialize chat
-  const chat = useChat(
-    currentUser,
-    websocketConnection,
-    sendMessage,
-    lastMessageFromOnlineStatus
-  );
 
   // Get current user from token
   useEffect(() => {
@@ -299,37 +281,6 @@ function PatientsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]); // analytics.fetchOrganizationData is stable
 
-  // Toast notifications for new chat messages
-  useEffect(() => {
-    if (
-      lastMessageFromOnlineStatus &&
-      lastMessageFromOnlineStatus.type === "new_message"
-    ) {
-      const message = lastMessageFromOnlineStatus.message;
-
-      if (
-        message &&
-        message.sender_id !== currentUser?.id &&
-        !messagesModalOpen
-      ) {
-        toast.info(
-          `💬 ${message.sender_name}: ${message.content.length > 50
-            ? message.content.substring(0, 50) + "..."
-            : message.content
-          }`,
-          {
-            position: "top-right",
-            autoClose: 4000,
-            hideProgressBar: false,
-            closeOnClick: true,
-            pauseOnHover: true,
-            draggable: true,
-          }
-        );
-      }
-    }
-  }, [lastMessageFromOnlineStatus, currentUser, messagesModalOpen]);
-
   // Fetch data based on active tab
   useEffect(() => {
     if (!token) return;
@@ -379,14 +330,8 @@ function PatientsPage() {
   //   return currentUser.first_name || currentUser.username || "User";
   // };
 
-  // Messages handlers
-  const handleOpenMessages = () => {
-    setMessagesModalOpen(true);
-  };
-
-  const handleCloseMessages = () => {
-    setMessagesModalOpen(false);
-  };
+  // The Team tab's Messages button opens secure messaging
+  const handleOpenMessages = () => navigate("/secure-messages");
 
   // Email handlers
   const handleOpenEmailModal = (patient) => {
@@ -401,16 +346,6 @@ function PatientsPage() {
   const handleSendText = (patient) => {
     patients.handleSendText(patient, token);
   };
-
-  // The Team icon in the top header shows unread messages.
-  const teamUnread = chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0;
-  useEffect(() => {
-    try {
-      window.dispatchEvent(new CustomEvent("team-unread-changed", { detail: teamUnread }));
-    } catch (err) {
-      // the badge is only a convenience
-    }
-  }, [teamUnread]);
 
   const handleDeletePatient = (patientId) => {
     const doomed = (patients.patients || []).find((p) => p.id === patientId);
@@ -477,36 +412,6 @@ function PatientsPage() {
     analytics.downloadCSVReport(reportName, token);
   };
 
-  // Memoized chat handlers to prevent infinite loops
-  // const handleStartChat = useCallback((targetUser) => {
-  //   if (chat && chat.startChatWithUser) {
-  //     // Transform targetUser to ensure it has user_id property for chat system compatibility
-  //     const chatTargetUser = {
-  //       ...targetUser,
-  //       user_id: targetUser.id || targetUser.user_id // Use id if user_id doesn't exist
-  //     };
-
-  //     // Pass the transformed targetUser object to useChat
-  //     chat.startChatWithUser(chatTargetUser);
-  //   }
-  // }, [chat]);
-
-  const handleSendChatMessage = useCallback(
-    (targetUser, content) => {
-      if (chat && chat.sendMessage) {
-        // Transform targetUser to ensure it has user_id property for chat system compatibility
-        const chatTargetUser = {
-          ...targetUser,
-          user_id: targetUser.id || targetUser.user_id, // Use id if user_id doesn't exist
-        };
-
-        // Pass the transformed targetUser object to useChat
-        chat.sendMessage(chatTargetUser, content);
-      }
-    },
-    [chat]
-  );
-
   if (!token || !currentUser) {
     return (
       <Box
@@ -567,29 +472,6 @@ function PatientsPage() {
             overflow: "hidden",
           }}
         >
-        {/* Chat system loading indicator */}
-        {chat.chatSystemLoading && (
-          <Box
-            sx={{
-              position: "fixed",
-              top: 10,
-              right: 10,
-              background: "#007bff",
-              color: "white",
-              padding: "8px 12px",
-              borderRadius: "4px",
-              fontSize: "12px",
-              zIndex: 1000,
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
-            <CircularProgress size={16} sx={{ color: "white" }} />
-            Initializing chat system...
-          </Box>
-        )}
-
         {/* Patient header: only on the Patient List view, where it follows the selected patient
             (and reads "No patient selected" until one is chosen). */}
         {tab === "patients" && (
@@ -793,9 +675,6 @@ function PatientsPage() {
               setTeamPage={team.setTeamPage}
               teamTotalPages={team.teamTotalPages}
               onOpenMessages={handleOpenMessages}
-              totalUnreadCount={
-                chat.getTotalUnreadCount ? chat.getTotalUnreadCount() : 0
-              }
               onSendText={handleTeamSendText}
               onOpenEmailModal={handleTeamOpenEmailModal}
             />
@@ -897,27 +776,6 @@ function PatientsPage() {
           loading={patients.sendingSMS}
         />
 
-        {/* Messages Modal */}
-        <MessagesModal
-          open={messagesModalOpen}
-          onClose={handleCloseMessages}
-          currentUser={currentUser}
-          teamMembers={team.team}
-          onSendMessage={handleSendChatMessage}
-          getRoomMessages={chat.getRoomMessages}
-          getTypingUsersForRoom={chat.getTypingUsersForRoom}
-          isLoading={chat.isLoading}
-          connectionStatus={
-            onlineStatusConnected ? "connected" : "disconnected"
-          }
-          operationStatus={chat.operationStatus}
-          chatError={chat.lastError}
-          onRetryConnection={() => window.location.reload()}
-          getUserOnlineStatus={getUserOnlineStatus}
-          getUnreadCountForUser={chat.getUnreadCountForUser}
-          getAllUnreadCount={chat.getTotalUnreadCount}
-          markRoomAsRead={chat.markRoomAsRead}
-        />
         </Box>
       </Box>
     </LocalizationProvider>
