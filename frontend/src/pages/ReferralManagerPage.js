@@ -11,7 +11,7 @@ function ReferralManagerPage() {
   const me = useMe();
   return (
     <ChartPageShell>
-      <Box data-testid="referral-manager-page" sx={{ bgcolor: "background.paper", pb: 2 }}>
+      <Box data-testid="referral-manager-page" sx={{ bgcolor: "background.paper", pb: 0.5 }}>
         <ReferralWorklist me={me} />
       </Box>
     </ChartPageShell>

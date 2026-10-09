@@ -29,6 +29,8 @@ import {
     SwapHoriz as TransferIcon,
     ExitToApp as DischargeIcon,
     ManageAccounts as AttendingIcon,
+    TaskAlt as TasksIcon,
+    ForwardToInbox as ReferralsIcon,
 } from '@mui/icons-material';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -79,6 +81,15 @@ function PatientsTable({
     const canAccessClinicalDocs = ["doctor", "nurse", "admin", "system_admin"].includes(
         userRole
     );
+
+    // The Task Manager and Referral Manager pages open for this patient: the patient is selected first, so each
+    // page shows that patient's banner and list (the same roles the navigation bar offers them to).
+    const canOpenTasks = canAccessClinicalDocs;
+    const canOpenReferrals = ["doctor", "nurse", "registrar", "admin", "system_admin"].includes(userRole);
+    const openManager = (patient, path) => {
+        if (onSelect) onSelect(patient);
+        navigate(path);
+    };
 
     // Admit / transfer / discharge are done by the front-line roles (the server enforces the same list).
     const canAdmit = ["doctor", "nurse", "registrar", "admin", "system_admin"].includes(userRole);
@@ -364,6 +375,32 @@ function PatientsTable({
                                                         </IconButton>
                                                     </Tooltip>
                                                 </>
+                                            )}
+
+                                            {canOpenTasks && (
+                                                <Tooltip title="Task Manager">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={`Task Manager for ${patient.full_name}`}
+                                                        onClick={(e) => { e.stopPropagation(); openManager(patient, '/tasks'); }}
+                                                        sx={{ color: '#00838f' }}
+                                                    >
+                                                        <TasksIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
+                                            )}
+
+                                            {canOpenReferrals && (
+                                                <Tooltip title="Referral Manager">
+                                                    <IconButton
+                                                        size="small"
+                                                        aria-label={`Referral Manager for ${patient.full_name}`}
+                                                        onClick={(e) => { e.stopPropagation(); openManager(patient, '/referrals'); }}
+                                                        sx={{ color: '#ef6c00' }}
+                                                    >
+                                                        <ReferralsIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Tooltip>
                                             )}
 
                                             <Tooltip title="Send Email">
