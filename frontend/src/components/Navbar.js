@@ -31,6 +31,8 @@ import PeopleIcon from "@mui/icons-material/People";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import ForumIcon from "@mui/icons-material/Forum";
+import useSecureUnread from "../hooks/secureMessages/useSecureUnread";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
 
@@ -50,6 +52,9 @@ const STAFF_MODULE_ROLES = [
 // apart by that parameter.
 // Views of the Patients page that have their own header icon (opened with ?tab=...).
 const PATIENTS_PAGE_VIEWS = ["appointments", "team", "analytics", "register"];
+
+// Roles that can use secure staff messaging (the server decides; this only hides the icon).
+const SECURE_MESSAGE_ROLES = ["doctor", "nurse", "registrar", "receptionist", "admin"];
 
 const MODULE_LINKS = [
   {
@@ -143,6 +148,14 @@ const MODULE_LINKS = [
     Icon: TaskAltIcon,
     roles: ["doctor", "nurse", "admin", "system_admin"], // the roles that see nurse tasks
     isActive: (path) => path.startsWith("/tasks"),
+  },
+  {
+    key: "secure-messages",
+    label: "Secure Messages",
+    to: "/secure-messages",
+    Icon: ForumIcon,
+    roles: SECURE_MESSAGE_ROLES,
+    isActive: (path) => path.startsWith("/secure-messages"),
   },
 ];
 
@@ -508,6 +521,9 @@ function Navbar() {
 
   const isSystemAdmin = role === "system_admin";
 
+  // Unread secure messages: a badge on the Secure Messages icon.
+  const secureUnread = useSecureUnread(isAuthenticated && SECURE_MESSAGE_ROLES.includes(role));
+
   // Module links this user may see, with the current page flagged.
   const currentTab = new URLSearchParams(location.search).get("tab");
   const moduleLinks = MODULE_LINKS.filter(
@@ -621,6 +637,8 @@ function Navbar() {
                           ? `${label}: ${referralWaiting.count} need action${
                               referralWaiting.overdue > 0 ? ` (${referralWaiting.overdue} overdue)` : ""
                             }`
+                          : key === "secure-messages" && secureUnread.unread > 0
+                          ? `${label}: ${secureUnread.unread} unread${secureUnread.urgent > 0 ? ` (${secureUnread.urgent} urgent)` : ""}`
                           : key === "tasks" && taskWaiting.count > 0
                           ? `${label}: ${taskWaiting.count} due${taskWaiting.overdue > 0 ? ` (${taskWaiting.overdue} overdue)` : ""}`
                           : label
@@ -676,6 +694,15 @@ function Navbar() {
                             max={99}
                             color={taskWaiting.overdue > 0 ? "error" : "warning"}
                             data-testid="task-waiting-badge"
+                          >
+                            <Icon sx={{ color: "white" }} />
+                          </Badge>
+                        ) : key === "secure-messages" && secureUnread.unread > 0 ? (
+                          <Badge
+                            badgeContent={secureUnread.unread}
+                            max={99}
+                            color={secureUnread.urgent > 0 ? "error" : "warning"}
+                            data-testid="secure-unread-badge"
                           >
                             <Icon sx={{ color: "white" }} />
                           </Badge>

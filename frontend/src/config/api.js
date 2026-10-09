@@ -82,6 +82,18 @@ export const apiEndpoints = {
     userRights: (userId) => `${API_BASE_URL}/api/users/${userId}/rights/`,
     userFacilities: (userId) => `${API_BASE_URL}/api/users/${userId}/facilities/`,
 
+    // Secure staff messaging
+    securePeople: `${API_BASE_URL}/api/secure-messages/people/`,
+    secureThreads: `${API_BASE_URL}/api/secure-messages/threads/`,
+    secureThread: (id) => `${API_BASE_URL}/api/secure-messages/threads/${id}/`,
+    secureMessages: (id) => `${API_BASE_URL}/api/secure-messages/threads/${id}/messages/`,
+    secureRead: (id) => `${API_BASE_URL}/api/secure-messages/threads/${id}/read/`,
+    secureMembers: (id) => `${API_BASE_URL}/api/secure-messages/threads/${id}/members/`,
+    secureMember: (id, userId) => `${API_BASE_URL}/api/secure-messages/threads/${id}/members/${userId}/`,
+    secureRetract: (messageId) => `${API_BASE_URL}/api/secure-messages/messages/${messageId}/retract/`,
+    secureAttachment: (id) => `${API_BASE_URL}/api/secure-messages/attachments/${id}/`,
+    secureUnread: `${API_BASE_URL}/api/secure-messages/unread-count/`,
+
     // Organization endpoints
     organizations: `${API_BASE_URL}/api/users/organizations/`,
     organizationDetail: (id) => `${API_BASE_URL}/api/users/organizations/${id}/`,
