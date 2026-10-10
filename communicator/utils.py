@@ -39,6 +39,27 @@ def format_phone_to_international(phone):
     return phone
 
 
+def set_contacts_opt_out(phone, opted_out, method=None):
+    """
+    Record an SMS opt-out / opt-in on every Contact with this phone number.
+    Returns the number of contacts updated.
+    """
+    from django.utils import timezone
+    from .models import Contact
+
+    formatted = format_phone_to_international(phone)
+    if not formatted:
+        return 0
+    qs = Contact.objects.filter(phone_e164=formatted)
+    if opted_out:
+        return qs.update(
+            sms_opt_out=True,
+            sms_opt_out_date=timezone.now(),
+            sms_opt_out_method=method or "STOP",
+        )
+    return qs.update(sms_opt_out=False, sms_opt_out_date=None, sms_opt_out_method=None)
+
+
 def send_sms(to: str, message: str, user=None, organization=None, bypass_opt_out=False):
     # Determine organization scope
     org = (
@@ -119,6 +140,28 @@ def send_sms(to: str, message: str, user=None, organization=None, bypass_opt_out
                 f"✅ SMS allowed: User {target_user.username} (ID: {target_user.id}) has consented and not opted out"
             )
         else:
+            # Not a registered user: honour opt-outs recorded on Contacts.
+            from .models import Contact
+
+            opted_out_contact = Contact.objects.filter(
+                phone_e164=formatted_phone, sms_opt_out=True
+            ).first()
+            if opted_out_contact:
+                print(
+                    f"❌ SMS blocked: Contact {opted_out_contact.id} has opted out"
+                )
+                MessageLog.objects.create(
+                    user=user,
+                    organization=org,
+                    recipient=formatted_phone,
+                    body=message,
+                    message_type="sms",
+                    status="blocked_opted_out",
+                    provider_id=f"Contact opted out via {opted_out_contact.sms_opt_out_method}",
+                )
+                raise Exception(
+                    "SMS blocked: Recipient has opted out of SMS notifications"
+                )
             print(
                 f"⚠️ SMS proceeding: No user found for phone number: {to} (formatted: {formatted_phone})"
             )

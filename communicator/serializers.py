@@ -3,10 +3,46 @@ from .models import Contact, MessageLog
 
 
 class ContactSerializer(serializers.ModelSerializer):
+    opted_out = serializers.SerializerMethodField()
+
     class Meta:
         model = Contact
-        fields = ["id", "name", "phone", "email", "uploaded_by", "created_at"]
-        read_only_fields = ["id", "uploaded_by", "created_at"]
+        fields = [
+            "id",
+            "name",
+            "phone",
+            "email",
+            "uploaded_by",
+            "created_at",
+            "opted_out",
+        ]
+        read_only_fields = ["id", "uploaded_by", "created_at", "opted_out"]
+
+    def _opted_out_phones(self):
+        """Phones of registered users who replied STOP, loaded once per request."""
+        cache = self.context.setdefault("_opted_out_phones", None)
+        if cache is None:
+            from users.models import CustomUser
+            from .utils import format_phone_to_international
+
+            cache = {
+                format_phone_to_international(p)
+                for p in CustomUser.objects.filter(sms_opt_out=True)
+                .exclude(phone_number__isnull=True)
+                .exclude(phone_number="")
+                .values_list("phone_number", flat=True)
+            }
+            self.context["_opted_out_phones"] = cache
+        return cache
+
+    def get_opted_out(self, obj):
+        if obj.sms_opt_out:
+            return True
+        if not obj.phone:
+            return False
+        from .utils import format_phone_to_international
+
+        return format_phone_to_international(obj.phone) in self._opted_out_phones()
 
 
 class MessageLogSerializer(serializers.ModelSerializer):
