@@ -82,7 +82,10 @@ class UserSerializer(serializers.ModelSerializer):
             "last_seen",
             "sms_consent",
             "sms_consent_date",  # ✅ Add SMS consent fields
+            "is_active",
+            "removed_at",
         )
+        read_only_fields = ("is_active", "removed_at")  # changed only by users/removal.py
         extra_kwargs = {
             "password": {"write_only": True, "required": False},
             "provider": {"required": False, "allow_null": True},

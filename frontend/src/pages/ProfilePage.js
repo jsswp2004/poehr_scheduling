@@ -35,10 +35,12 @@ import CreatableSelect from "react-select/creatable";
 import { notifyProfileUpdated } from "../utils/events";
 import { API_BASE_URL } from "../config/api";
 import UserFacilitiesPanel from "../components/profile/UserFacilitiesPanel";
+import RemoveUserDialog from "../components/profile/RemoveUserDialog";
 
 function ProfilePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [removeTarget, setRemoveTarget] = useState(null);
 
   const navigate = useNavigate();
   const token = localStorage.getItem("access_token");
@@ -180,72 +182,23 @@ function ProfilePage() {
       toast.error("Search failed.");
     }
   };
-  const handleDelete = async (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this user?"
+  const handleRemoved = async (result) => {
+    setRemoveTarget(null);
+    toast.success(
+      result.result === "deleted"
+        ? `${result.name} was deleted.`
+        : `${result.name} was removed and deactivated. Their orders and notes keep their name.`
     );
-    if (!confirmDelete) return;
+    if (searchQuery.trim()) await handleSearch();
+  };
 
+  const handleRestore = async (person) => {
     try {
-      console.log(`🗑️ Attempting to delete user ${id}...`);
-
-      // Attempt to delete the user
-      await axios.delete(`${API_BASE_URL}/api/users/${id}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      console.log(`🔄 Delete request completed, now validating deletion...`);
-
-      // Validate that the user is actually deleted from the backend
-      try {
-        await axios.get(`${API_BASE_URL}/api/users/${id}/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        // If we get here, the user still exists - deletion failed
-        console.log(`❌ Validation failed: User ${id} still exists in backend`);
-        toast.error("Delete failed - user still exists in database");
-
-      } catch (validationErr) {
-        if (validationErr.response?.status === 404) {
-          // User doesn't exist anymore - deletion was successful!
-          console.log(`✅ Validation confirmed: User ${id} successfully deleted from backend`);
-          toast.success("User successfully deleted!");
-
-          // Refresh the table to show current state
-          if (searchQuery.trim()) {
-            console.log("🔄 Refreshing search results after confirmed deletion...");
-            await handleSearch();
-          } else {
-            setSearchResults((prev) => prev.filter((u) => u.id !== id));
-          }
-        } else {
-          // Some other error during validation
-          console.log(`❌ Validation error: ${validationErr.response?.status}`);
-          toast.error("Could not validate deletion - please refresh and check");
-        }
-      }
-
+      await axios.post(`${API_BASE_URL}/api/users/${person.id}/restore/`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      toast.success(`${person.first_name} ${person.last_name} was restored. Set their facilities and rights again.`);
+      if (searchQuery.trim()) await handleSearch();
     } catch (err) {
-      console.error("❌ Delete request failed:", err);
-
-      if (err.response?.status === 404) {
-        console.log("🎯 User doesn't exist - already deleted");
-        toast.success("User was already deleted!");
-
-        // Refresh table to show current state
-        if (searchQuery.trim()) {
-          await handleSearch();
-        } else {
-          setSearchResults((prev) => prev.filter((u) => u.id !== id));
-        }
-      } else if (err.response?.status === 403) {
-        toast.error("Permission denied. You cannot delete this user.");
-      } else if (err.response?.status === 401) {
-        toast.error("Authentication failed. Please log in again.");
-      } else {
-        toast.error("Failed to delete user. Please try again.");
-      }
+      toast.error(err.response?.data?.error || "Could not restore this person.");
     }
   };
 
@@ -693,6 +646,11 @@ function ProfilePage() {
                         }}
                       >
                         {result.first_name} {result.last_name}
+                        {result.is_active === false && (
+                          <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#fdecea", color: "#b71c1c", fontSize: "0.7rem" }}>
+                            Removed
+                          </span>
+                        )}
                       </td>
                       <td
                         style={{
@@ -786,14 +744,24 @@ function ProfilePage() {
                               textAlign: "center",
                             }}
                           >
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDelete(result.id)}
-                              sx={{ padding: "4px" }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
+                            {result.is_active === false ? (
+                              result.removed_at ? (
+                                <Button size="small" onClick={() => handleRestore(result)} sx={{ fontSize: "0.75rem", px: 1, py: 0.25 }}>
+                                  Restore
+                                </Button>
+                              ) : null
+                            ) : (
+                              <IconButton
+                                size="small"
+                                color="error"
+                                aria-label={`Remove ${result.first_name} ${result.last_name} from the organization`}
+                                title="Remove from organization"
+                                onClick={() => setRemoveTarget(result)}
+                                sx={{ padding: "4px" }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            )}
                           </td>
                         )}
                     </tr>
@@ -802,6 +770,9 @@ function ProfilePage() {
               </table>
             </Box>
           </Box>
+        )}
+        {removeTarget && (
+          <RemoveUserDialog user={removeTarget} onClose={() => setRemoveTarget(null)} onDone={handleRemoved} />
         )}
         <Divider sx={{ mb: 3 }} />
         <Box

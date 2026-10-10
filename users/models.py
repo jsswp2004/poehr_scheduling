@@ -38,6 +38,13 @@ class CustomUser(AbstractUser):
         help_text="Facilities this user works at. Leave empty for no restriction.",
     )
 
+    # Set when an administrator removed this person from the organization but their record had to be
+    # kept (they have orders, notes, etc.). The account is also made inactive. See users/removal.py.
+    removed_at = models.DateTimeField(null=True, blank=True)
+    removed_by = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="removed_users"
+    )
+
     provider = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,

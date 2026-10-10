@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 from .admissions import AdmitView, TransferView, DischargeView, AttendingView
+from .removal import user_removal, user_restore
 from .board_builder import StatusSettingsView, StatusViewDetailView, StatusViewListView, StatusViewUndoView
 from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView
 from .views import (
@@ -89,6 +90,8 @@ urlpatterns = [
     path("rights-catalog/", rights_catalog, name="rights-catalog"),
     path("<int:user_id>/rights/", user_rights, name="user-rights"),
     path("<int:user_id>/facilities/", user_facilities, name="user-facilities"),
+    path("<int:user_id>/removal/", user_removal, name="user-removal"),
+    path("<int:user_id>/restore/", user_restore, name="user-restore"),
     path("", include("django_rest_passwordreset.urls", namespace="password_reset")),
     path("send-sms/", send_sms, name="send-sms"),
     path("send-sms-email/", send_sms_email, name="send-sms-email"),
