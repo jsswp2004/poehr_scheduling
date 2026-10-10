@@ -47,6 +47,7 @@ class ContactSerializer(serializers.ModelSerializer):
 
 class MessageLogSerializer(serializers.ModelSerializer):
     organization_name = serializers.SerializerMethodField()
+    sent_by = serializers.SerializerMethodField()
 
     class Meta:
         model = MessageLog
@@ -62,6 +63,7 @@ class MessageLogSerializer(serializers.ModelSerializer):
             "provider_id",
             "created_at",
             "organization_name",
+            "sent_by",
         ]
         read_only_fields = [
             "id",
@@ -69,7 +71,15 @@ class MessageLogSerializer(serializers.ModelSerializer):
             "organization",
             "created_at",
             "organization_name",
+            "sent_by",
         ]
+
+    def get_sent_by(self, obj):
+        """Display name of the sender; empty for inbound replies and system logs."""
+        user = getattr(obj, "user", None)
+        if not user:
+            return ""
+        return (user.get_full_name() or user.get_username() or "").strip()
 
     def get_organization_name(self, obj):
         """Return the organization name of the user who sent the message"""

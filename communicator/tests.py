@@ -180,3 +180,64 @@ class ContactOptOutTest(TestCase):
         client.post("/api/communicator/sms-webhook/", {"From": "+13015550199", "Body": "START"})
         self.contact.refresh_from_db()
         self.assertFalse(self.contact.sms_opt_out)
+
+
+class CsvUploadTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="uploader", password="pass")
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def upload(self, raw: bytes, name="people.csv"):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        return self.client.post(
+            "/api/communicator/upload/",
+            {"file": SimpleUploadedFile(name, raw, content_type="text/csv")},
+            format="multipart",
+        )
+
+    def test_excel_bom_and_header_case(self):
+        res = self.upload("﻿Name, Phone ,EMAIL\nAnn,3015550111,a@b.com\n".encode("utf-8"))
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["created"], 1)
+
+    def test_uppercase_extension_and_short_rows(self):
+        res = self.upload(b"name,phone,email\nBob,3015550112\n,,\n", name="PEOPLE.CSV")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["created"], 1)
+        self.assertEqual(len(res.data["errors"]), 1)
+
+    def test_rejects_non_csv(self):
+        self.assertEqual(self.upload(b"x", name="a.txt").status_code, 400)
+
+
+class MessageLogApiTest(TestCase):
+    def setUp(self):
+        User = get_user_model()
+        self.user = User.objects.create_user(username="logger", password="pass", first_name="Lee", last_name="Ng")
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+        from .models import MessageLog
+
+        MessageLog.objects.create(user=self.user, recipient="+13015550101", body="Hi", message_type="sms", status="sent")
+        MessageLog.objects.create(user=self.user, recipient="a@b.com", body="Yo", message_type="email", status="sent")
+
+    def test_filter_and_sent_by(self):
+        res = self.client.get("/api/communicator/logs/?page=1&message_type=sms")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.data["count"], 1)
+        self.assertEqual(res.data["results"][0]["sent_by"], "Lee Ng")
+
+    def test_reply_is_tagged_with_contact_owner_organization(self):
+        from .models import MessageLog
+        from users.models import Organization
+
+        org = Organization.objects.create(name="Clinic")
+        self.user.organization = org
+        self.user.save()
+        Contact.objects.create(name="C", phone="3015550177", uploaded_by=self.user)
+        APIClient().post("/api/communicator/sms-webhook/", {"From": "+13015550177", "Body": "STOP"})
+        log = MessageLog.objects.get(message_type="webhook")
+        self.assertEqual(log.organization, org)

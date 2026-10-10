@@ -108,21 +108,21 @@ class BulkUploadView(APIView):
             if not file:
                 return Response({"error": "No file provided"}, status=400)
 
-            if not file.name.endswith(".csv"):
+            if not file.name.lower().endswith(".csv"):
                 return Response({"error": "File must be a CSV file"}, status=400)
 
-            # Read and decode file with proper error handling
+            # Read and decode: utf-8-sig strips the BOM that Excel adds to
+            # "CSV UTF-8" exports; cp1252 covers plain Excel "CSV" exports.
+            raw = file.read()
             try:
-                decoded = file.read().decode("utf-8").splitlines()
+                decoded = raw.decode("utf-8-sig").splitlines()
             except UnicodeDecodeError:
                 try:
-                    # Try with different encoding
-                    file.seek(0)  # Reset file pointer
-                    decoded = file.read().decode("utf-8-sig").splitlines()
+                    decoded = raw.decode("cp1252").splitlines()
                 except UnicodeDecodeError:
                     return Response(
                         {
-                            "error": "Unable to decode file. Please ensure it is UTF-8 encoded."
+                            "error": "Unable to decode file. Please save it as a UTF-8 CSV."
                         },
                         status=400,
                     )
@@ -133,6 +133,10 @@ class BulkUploadView(APIView):
             # Parse CSV with error handling
             try:
                 reader = csv.DictReader(decoded)
+                # Headers are matched ignoring case and surrounding spaces.
+                reader.fieldnames = [
+                    (h or "").strip().lower() for h in (reader.fieldnames or [])
+                ]
 
                 # Validate headers
                 expected_headers = {"name", "phone", "email"}
@@ -155,9 +159,9 @@ class BulkUploadView(APIView):
                 ):  # Start at 2 because row 1 is headers
                     try:
                         # Validate required fields
-                        name = row.get("name", "").strip()
-                        phone = row.get("phone", "").strip()
-                        email = row.get("email", "").strip()
+                        name = (row.get("name") or "").strip()
+                        phone = (row.get("phone") or "").strip()
+                        email = (row.get("email") or "").strip()
 
                         if not name:
                             errors.append(f"Row {row_num}: Name is required")
@@ -410,13 +414,14 @@ class SMSWebhookView(APIView):
                 # Send generic help response for unrecognized messages
                 self._send_generic_help(from_phone, logger)
 
-            # Create message log entry
+            # Create message log entry, tagged with the organization of the
+            # person who replied so their admins can see it in the log.
             MessageLog.objects.create(
                 message_type="webhook",
                 body=f"Webhook: {body}",
                 recipient=from_phone,
                 status="received",
-                organization=None,
+                organization=self._organization_for_phone(from_phone),
                 user=None,
             )
 
@@ -426,6 +431,27 @@ class SMSWebhookView(APIView):
         except Exception as e:
             logger.error(f"❌ SMS Webhook error: {str(e)}", exc_info=True)
             return HttpResponse("ERROR", status=500, content_type="text/plain")
+
+    def _organization_for_phone(self, phone_number):
+        """Organization of the registered user or contact owner behind a phone number."""
+        try:
+            from users.models import CustomUser
+            from .utils import format_phone_to_international
+
+            formatted = format_phone_to_international(phone_number)
+            user = CustomUser.objects.filter(phone_number__in=[formatted, phone_number]).first()
+            if user and user.organization:
+                return user.organization
+            contact = (
+                Contact.objects.filter(phone_e164=formatted)
+                .select_related("uploaded_by__organization")
+                .first()
+            )
+            if contact and contact.uploaded_by:
+                return contact.uploaded_by.organization
+        except Exception:
+            pass
+        return None
 
     def _handle_opt_out(self, phone_number, message_body, logger):
         """Handle SMS opt-out request"""
