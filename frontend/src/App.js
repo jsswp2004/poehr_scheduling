@@ -60,13 +60,14 @@ import WebSocketDirectTest from './components/WebSocketDirectTest';
 import DebugAvailability from './components/DebugAvailability';
 import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import SimpleFooter from './components/SimpleFooter';
 import CheckInPage from './pages/CheckInPage';
 import StaffingPage from './pages/StaffingPage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/check-in'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/check-in', '/privacy'].includes(location.pathname);
 
   // Run token migration on app startup
   useEffect(() => {
@@ -201,6 +202,7 @@ function AppContent() {
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/terms" element={<PrivacyAndTermsPage />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/security" element={<DataSecurityPage />} />
         <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
