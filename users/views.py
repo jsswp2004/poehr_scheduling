@@ -191,7 +191,19 @@ class UserDetailView(RetrieveUpdateDestroyAPIView):
         return super().patch(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
-        """Delete a user with proper permission checks"""
+        """Same as the Remove-from-organization action: delete if no history, otherwise deactivate."""
+        from .removal import _problem, remove_user
+
+        target = CustomUser.objects.filter(pk=kwargs.get("pk")).first()
+        if target is None:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        problem = _problem(request, target)
+        if problem:
+            return Response({"error": problem[0]}, status=problem[1])
+        return remove_user(request, target)
+
+    def _retired_delete(self, request, *args, **kwargs):
+        """The earlier delete, no longer reachable (kept for reference)."""
         try:
             user_id = kwargs.get("pk")
             logger.info(f"🗑️ DELETE request for user ID: {user_id}")
