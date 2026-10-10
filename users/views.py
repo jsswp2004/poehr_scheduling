@@ -2235,7 +2235,14 @@ def get_current_user(request):
         serializer = UserSerializer(user)
         ids = assigned_facility_ids(user)
         # the facilities this person is limited to (empty = all); only an administrator can change them
-        return Response({**serializer.data, "facility_ids": sorted(ids) if ids is not None else []})
+        return Response(
+            {
+                **serializer.data,
+                "facility_ids": sorted(ids) if ids is not None else [],
+                # lets clients (e.g. the mobile app) show or hide features by permission
+                "rights": sorted(effective_rights(user)),
+            }
+        )
 
     elif request.method == "PATCH":
         serializer = UserSerializer(user, data=request.data, partial=True)
