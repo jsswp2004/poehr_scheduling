@@ -81,10 +81,24 @@ def user_removal(request, user_id):
     problem = _problem(request, target)
     if problem:
         return Response({"error": problem[0]}, status=problem[1])
+    if request.method == "GET":
+        reasons = history_of(target)
+        return Response({"action": "deactivate" if reasons else "delete", "history": reasons, "already_removed": not target.is_active})
+    return remove_user(request, target)
+
+
+def remove_user(request, target):
+    """Delete the person if they have no history, otherwise deactivate them. Assumes _problem() already passed."""
+    if request.method == "GET":
+        reasons = history_of(target)
+        return Response({"action": "deactivate" if reasons else "delete", "history": reasons, "already_removed": not target.is_active})
+    return remove_user(request, target)
+
+
+def remove_user(request, target):
+    """Delete the person if they have no history, otherwise deactivate them. Assumes _problem() already passed."""
     reasons = history_of(target)
     action = "deactivate" if reasons else "delete"
-    if request.method == "GET":
-        return Response({"action": action, "history": reasons, "already_removed": not target.is_active})
     if not target.is_active and action == "deactivate":
         return Response({"error": "This person is already removed."}, status=400)
     name = f"{target.first_name} {target.last_name}".strip() or target.username

@@ -189,3 +189,45 @@ class SerializerTests(RemovalBase):
         rows = rows if isinstance(rows, list) else rows.get("results", [])
         mine = [u for u in rows if u["id"] == self.doctor.pk]
         self.assertTrue(mine and mine[0]["is_active"] is False and mine[0]["removed_at"])
+
+
+class OldDeleteRouteTests(RemovalBase):
+    """The plain DELETE /api/users/<id>/ (used by older screens) follows the same rules."""
+
+    def test_delete_route_deletes_a_person_with_no_history(self):
+        r = self.as_(self.admin).delete(f"/api/users/{self.nurse.pk}/")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(CustomUser.objects.filter(pk=self.nurse.pk).exists())
+
+    def test_delete_route_never_deletes_someone_with_history(self):
+        self.give_history(self.doctor)
+        r = self.as_(self.admin).delete(f"/api/users/{self.doctor.pk}/")
+        self.assertEqual(r.json()["result"], "deactivated")
+        self.assertTrue(CustomUser.objects.filter(pk=self.doctor.pk, is_active=False).exists())
+
+    def test_delete_route_keeps_the_guards(self):
+        self.assertEqual(self.as_(self.nurse).delete(f"/api/users/{self.admin2.pk}/").status_code, 403)
+        self.assertEqual(self.as_(self.admin).delete(f"/api/users/{self.admin.pk}/").status_code, 400)
+        self.assertEqual(self.as_(self.admin).delete(f"/api/users/{self.outsider.pk}/").status_code, 404)
+        self.assertEqual(self.as_(self.admin).delete("/api/users/999999/").status_code, 404)
+
+
+class OldDeleteRouteTests(RemovalBase):
+    """The plain DELETE /api/users/<id>/ (used by older screens) follows the same rules."""
+
+    def test_delete_route_deletes_a_person_with_no_history(self):
+        r = self.as_(self.admin).delete(f"/api/users/{self.nurse.pk}/")
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(CustomUser.objects.filter(pk=self.nurse.pk).exists())
+
+    def test_delete_route_never_deletes_someone_with_history(self):
+        self.give_history(self.doctor)
+        r = self.as_(self.admin).delete(f"/api/users/{self.doctor.pk}/")
+        self.assertEqual(r.json()["result"], "deactivated")
+        self.assertTrue(CustomUser.objects.filter(pk=self.doctor.pk, is_active=False).exists())
+
+    def test_delete_route_keeps_the_guards(self):
+        self.assertEqual(self.as_(self.nurse).delete(f"/api/users/{self.admin2.pk}/").status_code, 403)
+        self.assertEqual(self.as_(self.admin).delete(f"/api/users/{self.admin.pk}/").status_code, 400)
+        self.assertEqual(self.as_(self.admin).delete(f"/api/users/{self.outsider.pk}/").status_code, 404)
+        self.assertEqual(self.as_(self.admin).delete("/api/users/999999/").status_code, 404)

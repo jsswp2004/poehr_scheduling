@@ -108,8 +108,15 @@ export const useCreateProfile = () => {
             await axios.post(`${API_BASE_URL}/api/auth/register/`, formPayload, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            toast.success('Registration successful! Please login.');
-            navigate('/login');
+            // An administrator adding someone stays signed in and goes back to Profile;
+            // only a brand-new person registering themselves is sent to the login page.
+            if (localStorage.getItem('access_token')) {
+                toast.success('Profile created.');
+                navigate('/profile');
+            } else {
+                toast.success('Registration successful! Please login.');
+                navigate('/login');
+            }
         } catch (error) {
             console.error('Registration error:', error);
             toast.error('Registration failed. Please try again.');
