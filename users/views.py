@@ -2248,10 +2248,10 @@ def get_team_members(request):
         return Response({"detail": "Access denied"}, status=403)
 
     if user.role == "system_admin":
-        members = CustomUser.objects.exclude(role="patient")
+        members = CustomUser.objects.exclude(role="patient").filter(is_active=True)
     else:
         members = CustomUser.objects.exclude(role="patient").filter(
-            organization=user.organization
+            organization=user.organization, is_active=True
         )
 
     search = request.GET.get("search")

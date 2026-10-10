@@ -81,6 +81,8 @@ export const apiEndpoints = {
     rightsCatalog: `${API_BASE_URL}/api/users/rights-catalog/`,
     userRights: (userId) => `${API_BASE_URL}/api/users/${userId}/rights/`,
     userFacilities: (userId) => `${API_BASE_URL}/api/users/${userId}/facilities/`,
+    userRemoval: (userId) => `${API_BASE_URL}/api/users/${userId}/removal/`,
+    userRestore: (userId) => `${API_BASE_URL}/api/users/${userId}/restore/`,
 
     // Secure staff messaging
     securePeople: `${API_BASE_URL}/api/secure-messages/people/`,
