@@ -13,8 +13,25 @@ class Contact(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # Normalized phone (+1XXXXXXXXXX), maintained automatically in save().
+    phone_e164 = models.CharField(max_length=20, blank=True, db_index=True, editable=False)
+
+    # SMS opt-out state for contacts who are not registered users.
+    sms_opt_out = models.BooleanField(default=False)
+    sms_opt_out_date = models.DateTimeField(null=True, blank=True)
+    sms_opt_out_method = models.CharField(max_length=20, null=True, blank=True)
+
     def __str__(self) -> str:
         return self.name
+
+    def save(self, *args, **kwargs):
+        from .utils import format_phone_to_international
+
+        self.phone_e164 = format_phone_to_international(self.phone) if self.phone else ""
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "phone" in update_fields:
+            kwargs["update_fields"] = list(update_fields) + ["phone_e164"]
+        super().save(*args, **kwargs)
 
 
 class MessageLog(models.Model):

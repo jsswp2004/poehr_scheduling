@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from rest_framework.pagination import PageNumberPagination
 import csv
 import logging
 from django.http import HttpResponse
@@ -43,9 +44,41 @@ class MessageLogFilter(django_filters.FilterSet):
         fields = ["message_type", "created_at__gte", "created_at__lte", "organization"]
 
 
+class OptInPageNumberPagination(PageNumberPagination):
+    """Paginate only when the client sends ?page=. Existing clients (the web
+    app) keep receiving the full plain list; the mobile app opts in."""
+
+    page_size = 50
+    page_size_query_param = "page_size"
+    max_page_size = 200
+
+    def paginate_queryset(self, queryset, request, view=None):
+        if self.page_query_param not in request.query_params:
+            return None
+        return super().paginate_queryset(queryset, request, view)
+
+
+def _as_bool(value, default=False):
+    """Accept real booleans as well as 'true'/'false' strings from form posts."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _classify_send_failure(exc):
+    """'skipped' = blocked by consent/opt-out rules; 'failed' = anything else."""
+    text = str(exc).lower()
+    if "opted out" in text or "not consented" in text:
+        return "skipped"
+    return "failed"
+
+
 class ContactViewSet(viewsets.ModelViewSet):
     serializer_class = ContactSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = OptInPageNumberPagination
 
     def get_queryset(self):
         import logging
@@ -186,12 +219,52 @@ class SendBulkMessageView(APIView):
     permission_classes = [permissions.IsAuthenticated, HasRight("messages.send")]
 
     def post(self, request):
-        message = request.data.get("message")
+        message = (request.data.get("message") or "").strip()
+        if not message:
+            return Response({"error": "Message is required"}, status=400)
+
         subject = request.data.get("subject", "Notification")
-        send_email_flag = request.data.get("send_email", False)
-        send_sms_flag = request.data.get("send_sms", True)
+        send_email_flag = _as_bool(request.data.get("send_email"), False)
+        send_sms_flag = _as_bool(request.data.get("send_sms"), True)
+        if not (send_sms_flag or send_email_flag):
+            return Response({"error": "Choose at least one channel"}, status=400)
 
         contacts = Contact.objects.filter(uploaded_by=request.user)
+
+        # Optional: send to a subset instead of every contact.
+        contact_ids = request.data.get("contact_ids")
+        if contact_ids is not None:
+            if not isinstance(contact_ids, list):
+                return Response({"error": "contact_ids must be a list"}, status=400)
+            contacts = contacts.filter(id__in=contact_ids)
+
+        total = contacts.count()
+
+        # Optional guard: the client states how many recipients it expects.
+        confirm_count = request.data.get("confirm_count")
+        if confirm_count is not None:
+            try:
+                expected = int(confirm_count)
+            except (TypeError, ValueError):
+                return Response({"error": "confirm_count must be a number"}, status=400)
+            if expected != total:
+                return Response(
+                    {
+                        "error": "Recipient count changed. Review and try again.",
+                        "recipient_count": total,
+                    },
+                    status=409,
+                )
+
+        results = {
+            "sms_sent": 0,
+            "sms_skipped": 0,
+            "sms_failed": 0,
+            "email_sent": 0,
+            "email_failed": 0,
+        }
+        organization = getattr(request.user, "organization", None)
+
         for contact in contacts:
             if send_sms_flag and contact.phone:
                 try:
@@ -199,10 +272,12 @@ class SendBulkMessageView(APIView):
                         contact.phone,
                         message,
                         user=request.user,
-                        organization=getattr(request.user, "organization", None),
+                        organization=organization,
                     )
-                except Exception:
-                    pass
+                    results["sms_sent"] += 1
+                except Exception as exc:
+                    key = _classify_send_failure(exc)
+                    results["sms_skipped" if key == "skipped" else "sms_failed"] += 1
             if send_email_flag and contact.email:
                 try:
                     send_email(
@@ -210,17 +285,21 @@ class SendBulkMessageView(APIView):
                         subject,
                         message,
                         user=request.user,
-                        organization=getattr(request.user, "organization", None),
+                        organization=organization,
                     )
+                    results["email_sent"] += 1
                 except Exception:
-                    pass
+                    results["email_failed"] += 1
 
-        return Response({"sent": contacts.count()})
+        # "sent" keeps its original meaning (contacts processed) so existing
+        # clients are unaffected; use "results" for what actually happened.
+        return Response({"sent": total, "recipient_count": total, "results": results})
 
 
 class MessageLogViewSet(viewsets.ModelViewSet):
     serializer_class = MessageLogSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = OptInPageNumberPagination
     http_method_names = ["get", "delete"]
     filter_backends = [DjangoFilterBackend]
     filterset_class = MessageLogFilter
@@ -357,6 +436,17 @@ class SMSWebhookView(APIView):
             # Format phone number to match database format
             formatted_phone = format_phone_to_international(phone_number)
 
+            # Record the opt-out on any matching Contacts (non-user recipients)
+            from .utils import set_contacts_opt_out
+
+            contacts_updated = set_contacts_opt_out(
+                phone_number,
+                True,
+                "UNSUBSCRIBE" if "UNSUBSCRIBE" in message_body else "STOP",
+            )
+            if contacts_updated:
+                logger.info(f"✅ {contacts_updated} contact(s) opted out for {formatted_phone}")
+
             # Find user by phone number
             user = CustomUser.objects.filter(phone_number=formatted_phone).first()
 
@@ -401,7 +491,7 @@ class SMSWebhookView(APIView):
                 logger.warning(
                     f"⚠️ No user found for phone number: {phone_number} (formatted: {formatted_phone})"
                 )
-                return False
+                return contacts_updated > 0
 
         except Exception as e:
             logger.error(f"❌ Error handling opt-out: {str(e)}", exc_info=True)
@@ -415,6 +505,13 @@ class SMSWebhookView(APIView):
 
             # Format phone number to match database format
             formatted_phone = format_phone_to_international(phone_number)
+
+            # Clear the opt-out on any matching Contacts (non-user recipients)
+            from .utils import set_contacts_opt_out
+
+            contacts_updated = set_contacts_opt_out(phone_number, False)
+            if contacts_updated:
+                logger.info(f"✅ {contacts_updated} contact(s) opted back in for {formatted_phone}")
 
             # Find user by phone number
             user = CustomUser.objects.filter(phone_number=formatted_phone).first()
@@ -451,7 +548,7 @@ class SMSWebhookView(APIView):
                 logger.warning(
                     f"⚠️ No user found for phone number: {phone_number} (formatted: {formatted_phone})"
                 )
-                return False
+                return contacts_updated > 0
 
         except Exception as e:
             logger.error(f"❌ Error handling opt-in: {str(e)}", exc_info=True)
