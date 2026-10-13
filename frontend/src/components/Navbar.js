@@ -23,6 +23,7 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import GroupsIcon from "@mui/icons-material/Groups";
+import VideocamIcon from "@mui/icons-material/Videocam";
 import ScienceIcon from "@mui/icons-material/Science";
 import ForwardToInboxIcon from "@mui/icons-material/ForwardToInbox";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
@@ -118,6 +119,14 @@ const MODULE_LINKS = [
     Icon: GroupsIcon,
     roles: [...STAFF_MODULE_ROLES, "staff"], // Staffing-only logins use this module too
     isActive: (path) => path.startsWith("/staffing"),
+  },
+  {
+    key: "telehealth",
+    label: "Telehealth",
+    to: "/telehealth",
+    Icon: VideocamIcon,
+    roles: ["doctor", "nurse", "receptionist", "registrar", "admin", "system_admin"],
+    isActive: (path) => path.startsWith("/telehealth"),
   },
   {
     key: "lab-inbox",
