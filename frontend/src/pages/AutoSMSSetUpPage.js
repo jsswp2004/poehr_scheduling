@@ -19,7 +19,7 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import MessageLogTable from "../components/MessageLogTable";
 
-function AutoSMSSetUpPage() {
+function AutoSMSSetUpPage({ embedded = false }) {
   const [frequency, setFrequency] = useState("weekly");
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [startDate, setStartDate] = useState(new Date());
@@ -138,12 +138,13 @@ function AutoSMSSetUpPage() {
   return (
     <Box
       sx={{
-        boxShadow: 2,
+        // `embedded` = shown inside the Communicator shell, which is already the card.
+        boxShadow: embedded ? 0 : 2,
         borderRadius: 2,
         bgcolor: "background.paper",
-        p: 3,
+        p: embedded ? 0 : 3,
         height: "100%",
-        maxHeight: "90vh",
+        maxHeight: embedded ? "none" : "90vh",
         overflowY: "auto", // Enable scrolling if content overflows
       }}
     >

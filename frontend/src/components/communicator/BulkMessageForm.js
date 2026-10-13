@@ -29,24 +29,24 @@ const BulkMessageForm = ({
 }) => {
     return (
         <Box>
-            <Paper elevation={3} sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 3 }}>
+            <Paper variant="outlined" sx={{ p: 1.5 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
                     Send Bulk Message
                 </Typography>
 
                 {/* Contact Count Alert */}
                 {contacts.length === 0 ? (
-                    <Alert severity="warning" sx={{ mb: 3 }}>
+                    <Alert severity="warning" sx={{ mb: 1 }}>
                         You need to add contacts before you can send messages. Switch to the Contacts tab to add contacts.
                     </Alert>
                 ) : (
-                    <Alert severity="info" sx={{ mb: 3 }}>
+                    <Alert severity="info" sx={{ mb: 1 }}>
                         This message will be sent to all {contacts.length} contacts in your list.
                     </Alert>
                 )}
 
                 {/* Delivery Method Selection */}
-                <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
+                <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
                     <FormControlLabel
                         control={
                             <Checkbox
@@ -84,10 +84,11 @@ const BulkMessageForm = ({
                 {messageForm.send_email && (
                     <TextField
                         fullWidth
+                        size="small"
                         label="Email Subject"
                         value={messageForm.subject}
                         onChange={(e) => onMessageChange('subject', e.target.value)}
-                        sx={{ mb: 3 }}
+                        sx={{ mb: 1.5 }}
                     />
                 )}
 
@@ -95,22 +96,20 @@ const BulkMessageForm = ({
                 <TextField
                     fullWidth
                     multiline
-                    rows={6}
+                    rows={5}
                     label="Message"
                     value={messageForm.message}
                     onChange={(e) => onMessageChange('message', e.target.value)}
                     placeholder="Enter your message here..."
-                    sx={{ mb: 3 }}
+                    sx={{ mb: 1.5 }}
                 />
 
                 {/* Send Button */}
                 <Button
                     variant="contained"
-                    size="large"
                     startIcon={<SendIcon />}
                     onClick={onSendMessage}
                     disabled={contacts.length === 0 || sending}
-                    sx={{ mr: 2 }}
                 >
                     {sending ? 'Sending...' : `Send to ${contacts.length} Contacts`}
                 </Button>
