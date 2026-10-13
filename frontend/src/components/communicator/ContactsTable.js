@@ -43,9 +43,10 @@ const ContactsTable = ({
     return (
         <Box>
             {/* Action Buttons */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
                 <Button
                     variant="contained"
+                    size="small"
                     startIcon={<AddIcon />}
                     onClick={onAddContact}
                 >
@@ -54,6 +55,7 @@ const ContactsTable = ({
 
                 <Button
                     variant="outlined"
+                    size="small"
                     startIcon={<UploadIcon />}
                     onClick={onUploadClick}
                 >
@@ -62,6 +64,7 @@ const ContactsTable = ({
 
                 <Button
                     variant="text"
+                    size="small"
                     onClick={onDownloadTemplate}
                 >
                     Download Template
@@ -69,6 +72,7 @@ const ContactsTable = ({
 
                 <Button
                     variant="text"
+                    size="small"
                     startIcon={<PrintIcon />}
                     onClick={() => onPrintContacts(contacts)}
                     disabled={contacts.length === 0}
@@ -78,25 +82,25 @@ const ContactsTable = ({
             </Box>
 
             {/* Loading Indicator */}
-            {loading && <LinearProgress sx={{ mb: 2 }} />}
+            {loading && <LinearProgress sx={{ mb: 1 }} />}
 
             {/* Contacts Table */}
-            <TableContainer component={Paper} elevation={3}>
-                <Table>
+            <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
                     <TableHead>
-                        <TableRow sx={{ bgcolor: 'primary.light' }}>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Phone</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Created</TableCell>
-                            <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                        <TableRow>
+                            <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Phone</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Created</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
                         </TableRow>
                     </TableHead>
 
                     <TableBody>
                         {contacts.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
                                     <Typography variant="body1" color="text.secondary">
                                         No contacts found. Add contacts manually or upload a CSV file.
                                     </Typography>
@@ -109,7 +113,7 @@ const ContactsTable = ({
 
                                     <TableCell>
                                         {hasPhone(contact) ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                                 <SmsIcon fontSize="small" color="success" />
                                                 {contact.phone}
                                             </Box>
@@ -120,7 +124,7 @@ const ContactsTable = ({
 
                                     <TableCell>
                                         {hasEmail(contact) ? (
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                                                 <EmailIcon fontSize="small" color="info" />
                                                 {contact.email}
                                             </Box>

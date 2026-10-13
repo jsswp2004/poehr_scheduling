@@ -18,7 +18,6 @@ import {
   FileUploadDialog,
   CommunicatorHeader,
 } from "../components/communicator";
-import BackButton from "../components/BackButton";
 import { toast } from "../components/SimpleToast";
 import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
 import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
@@ -173,19 +172,15 @@ function CommunicatorPage() {
   };
 
   return (
-    <Box sx={{ mt: 4, p: 3 }}>
-      {/* Header with Tabs */}
+    <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+      {/* Title row + tabs (same layout as the Staffing Center) */}
       <CommunicatorHeader
         currentTab={tab}
         contactsCount={contacts.contacts.length}
         onTabChange={setTab}
         isAdmin={isAdmin}
+        backTo="/login?redirect=communicator"
       />
-
-      {/* Back Button */}
-      <Box sx={{ position: "absolute", top: 16, right: 16 }}>
-        <BackButton to="/login?redirect=communicator" />
-      </Box>
 
       {/* Contacts Tab */}
       {tab === "contacts" && (
@@ -217,10 +212,10 @@ function CommunicatorPage() {
       )}
 
       {/* Email Tab (admin-only, same auto-messaging setup as the Messages page) */}
-      {tab === "email" && isAdmin && <AutoEmailSetUpPage />}
+      {tab === "email" && isAdmin && <AutoEmailSetUpPage embedded />}
 
       {/* SMS Tab (admin-only, same auto-messaging setup as the Messages page) */}
-      {tab === "sms" && isAdmin && <AutoSMSSetUpPage />}
+      {tab === "sms" && isAdmin && <AutoSMSSetUpPage embedded />}
 
       {/* Contact Form Dialog */}
       <ContactFormDialog
