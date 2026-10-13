@@ -58,10 +58,10 @@ function buildPrintHtml({ title, meta, sections }) {
         <title>${escapeHtml(title)}</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 30px; color: #222; }
-          .header { border-bottom: 2px solid #1976d2; padding-bottom: 10px; margin-bottom: 20px; }
-          .header h1 { color: #1976d2; margin: 0 0 4px; font-size: 20px; }
+          .header { border-bottom: 2px solid #2563eb; padding-bottom: 10px; margin-bottom: 20px; }
+          .header h1 { color: #2563eb; margin: 0 0 4px; font-size: 20px; }
           .meta-line { margin: 2px 0; color: #555; font-size: 13px; }
-          .tab-heading { font-size: 15px; text-transform: uppercase; color: #1976d2; margin: 18px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
+          .tab-heading { font-size: 15px; text-transform: uppercase; color: #2563eb; margin: 18px 0 8px; border-bottom: 1px solid #ddd; padding-bottom: 4px; }
           .section-heading { font-size: 13px; color: #444; margin: 12px 0 4px; }
           .entry { margin: 4px 0; font-size: 13px; line-height: 1.4; }
           .empty { color: #999; font-style: italic; }

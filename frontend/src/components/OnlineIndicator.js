@@ -13,7 +13,7 @@ const StatusDot = styled(Box, {
   width: 8,
   height: 8,
   borderRadius: '50%',
-  backgroundColor: isOnline ? '#4caf50' : '#757575', // Green for online, gray for offline
+  backgroundColor: isOnline ? '#10b981' : '#64748b', // Green for online, gray for offline
   border: `2px solid ${theme.palette.background.paper}`,
   zIndex: 1,
 }));
@@ -66,18 +66,18 @@ const OnlineIndicator = ({
           sx={{
             width: 36,
             height: 36,
-            backgroundColor: isOnline ? '#e8f5e8' : '#f5f5f5',
+            backgroundColor: isOnline ? '#e8f5e8' : '#f8fafc',
             '&:hover': {
-              backgroundColor: isOnline ? '#d4edda' : '#e9ecef',
+              backgroundColor: isOnline ? '#d1fae5' : '#e2e8f0',
             },
-            border: `1px solid ${isOnline ? '#4caf50' : '#757575'}`,
+            border: `1px solid ${isOnline ? '#10b981' : '#64748b'}`,
             transition: 'all 0.3s ease',
           }}
         >
           <ChatIcon 
             sx={{ 
               fontSize: 18, 
-              color: isOnline ? '#2e7d32' : '#616161' 
+              color: isOnline ? '#047857' : '#616161' 
             }} 
           />
         </IconButton>

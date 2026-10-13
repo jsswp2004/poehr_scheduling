@@ -380,7 +380,7 @@ const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
                                     width: 16,
                                     height: 16,
                                     border: '2px solid #ccc',
-                                    borderTop: '2px solid #1976d2',
+                                    borderTop: '2px solid #2563eb',
                                     borderRadius: '50%',
                                     animation: 'spin 1s linear infinite',
                                     '@keyframes spin': {

@@ -104,7 +104,7 @@ test("done shows a check and initials; due is green; overdue is pink; missed is 
   expect(screen.getByTestId("grid-cell-4")).toHaveAttribute("data-state", "overdue");
   const missed = screen.getByTestId("grid-cell-5");
   expect(missed).toHaveAttribute("data-state", "missed");
-  expect(missed).toHaveStyle({ color: "#d32f2f", fontWeight: 700 });
+  expect(missed).toHaveStyle({ color: "#dc2626", fontWeight: 700 });
   expect(screen.getByTestId("grid-cell-2")).toHaveAttribute("data-state", "scheduled");
 });
 

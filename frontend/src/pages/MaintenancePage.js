@@ -505,14 +505,14 @@ function MaintenancePage() {
                     overflowX: "hidden",
                     boxShadow: "none",
                     borderRadius: 0,
-                    border: "0px solid #e0e0e0",
+                    border: "0px solid #e2e8f0",
                     minHeight: "300px",
                     maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
                     },
                     "&::-webkit-scrollbar-track": {
-                      background: "#f1f1f1",
+                      background: "#f1f5f9",
                     },
                     "&::-webkit-scrollbar-thumb": {
                       background: "#888",
@@ -639,14 +639,14 @@ function MaintenancePage() {
                     overflowX: "hidden",
                     boxShadow: "none",
                     borderRadius: 0,
-                    border: "0px solid #e0e0e0",
+                    border: "0px solid #e2e8f0",
                     minHeight: "300px",
                     maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
                     },
                     "&::-webkit-scrollbar-track": {
-                      background: "#f1f1f1",
+                      background: "#f1f5f9",
                     },
                     "&::-webkit-scrollbar-thumb": {
                       background: "#888",

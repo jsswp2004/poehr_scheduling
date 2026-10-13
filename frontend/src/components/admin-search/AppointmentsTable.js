@@ -32,7 +32,7 @@ const AppointmentsTable = ({
                 size="small"
                 sx={{ '& tbody tr:nth-of-type(odd)': { backgroundColor: '#f7fafc' } }}
             >
-                <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                <TableHead sx={{ bgcolor: '#dbeafe' }}>
                     <TableRow>
                         <TableCell><b>Clinic Event</b></TableCell>
                         <TableCell><b>Patient</b></TableCell>

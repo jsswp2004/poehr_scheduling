@@ -5,7 +5,7 @@ function ProfilePictureUpload({ onFileUpload }) {
     return (
         <Paper
             elevation={1}
-            sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}
+            sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8fafc' }}
         >
             <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
                 Profile Picture

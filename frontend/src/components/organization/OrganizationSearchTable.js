@@ -52,7 +52,7 @@ const OrganizationSearchTable = ({
 
             <Table size="small">
                 <TableHead>
-                    <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                    <TableRow sx={{ bgcolor: '#f8fafc' }}>
                         <TableCell sx={{ fontWeight: 'bold' }}>Logo</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Created</TableCell>
@@ -66,7 +66,7 @@ const OrganizationSearchTable = ({
                             hover
                             sx={{
                                 cursor: 'pointer',
-                                backgroundColor: editingOrganization?.id === org.id ? '#e3f2fd' : 'inherit'
+                                backgroundColor: editingOrganization?.id === org.id ? '#dbeafe' : 'inherit'
                             }}
                             onClick={() => onEditOrganization(org)}
                         >

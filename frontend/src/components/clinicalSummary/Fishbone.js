@@ -30,7 +30,7 @@ export function cellDescription(cell) {
   return parts.join(", ");
 }
 
-const colorFor = (cell) => (cell.critical ? "#b71c1c" : cell.flag ? "#c62828" : "#1a1a1a");
+const colorFor = (cell) => (cell.critical ? "#991b1b" : cell.flag ? "#b91c1c" : "#1a1a1a");
 
 /** One value inside the diagram: the number sits on baseline `y`, the small name on baseline `ly`. */
 function Value({ cell, x, y, ly }) {
@@ -63,7 +63,7 @@ export function BmpFishbone({ panel }) {
   const c = byKey(panel);
   return (
     <svg viewBox="0 0 340 124" width="100%" style={{ maxWidth: 380 }} role="group" aria-label="Basic metabolic panel" data-testid="fishbone-bmp">
-      <g stroke="#546e7a" strokeWidth="1.6" fill="none">
+      <g stroke="#475569" strokeWidth="1.6" fill="none">
         <line x1="6" y1="62" x2="270" y2="62" />
         <line x1="90" y1="12" x2="90" y2="112" />
         <line x1="172" y1="12" x2="172" y2="112" />
@@ -86,7 +86,7 @@ export function CbcFishbone({ panel }) {
   const c = byKey(panel);
   return (
     <svg viewBox="0 0 300 124" width="100%" style={{ maxWidth: 340 }} role="group" aria-label="Complete blood count" data-testid="fishbone-cbc">
-      <g stroke="#546e7a" strokeWidth="1.6" fill="none">
+      <g stroke="#475569" strokeWidth="1.6" fill="none">
         <line x1="92" y1="18" x2="208" y2="106" />
         <line x1="208" y1="18" x2="92" y2="106" />
       </g>

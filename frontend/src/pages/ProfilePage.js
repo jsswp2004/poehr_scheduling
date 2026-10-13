@@ -501,7 +501,7 @@ function ProfilePage() {
               p: { xs: 1, sm: 2 },
               maxHeight: 400,
               overflowY: "auto",
-              bgcolor: "#fafafa",
+              bgcolor: "#f8fafc",
               width: "100%",
             }}
           >
@@ -519,7 +519,7 @@ function ProfilePage() {
                   height: "8px",
                 },
                 "&::-webkit-scrollbar-track": {
-                  backgroundColor: "#f1f1f1",
+                  backgroundColor: "#f1f5f9",
                   borderRadius: "4px",
                 },
                 "&::-webkit-scrollbar-thumb": {
@@ -541,7 +541,7 @@ function ProfilePage() {
                 }}
               >
                 <thead>
-                  <tr style={{ backgroundColor: "#e3f2fd" }}>
+                  <tr style={{ backgroundColor: "#dbeafe" }}>
                     <th
                       style={{
                         padding: "8px 12px",
@@ -632,7 +632,7 @@ function ProfilePage() {
                       key={result.id}
                       style={{
                         backgroundColor:
-                          index % 2 === 0 ? "#ffffff" : "#f8f9fa",
+                          index % 2 === 0 ? "#ffffff" : "#f8fafc",
                         borderBottom: "1px solid #eee",
                       }}
                     >
@@ -647,7 +647,7 @@ function ProfilePage() {
                       >
                         {result.first_name} {result.last_name}
                         {result.is_active === false && (
-                          <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#fdecea", color: "#b71c1c", fontSize: "0.7rem" }}>
+                          <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#fdecea", color: "#991b1b", fontSize: "0.7rem" }}>
                             Removed
                           </span>
                         )}
@@ -935,8 +935,8 @@ function ProfilePage() {
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      bgcolor: "#f8f9fa",
-                      border: "1px solid #e0e0e0",
+                      bgcolor: "#f8fafc",
+                      border: "1px solid #e2e8f0",
                     }}
                   >
                     <Typography variant="body1" sx={{ fontWeight: 500 }}>
@@ -966,8 +966,8 @@ function ProfilePage() {
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      bgcolor: "#f8f9fa",
-                      border: "1px solid #e0e0e0",
+                      bgcolor: "#f8fafc",
+                      border: "1px solid #e2e8f0",
                     }}
                   >
                     <Typography
@@ -1008,7 +1008,7 @@ function ProfilePage() {
                   sx: !isEditing
                     ? {
                       color: "#333",
-                      backgroundColor: "#f8f9fa",
+                      backgroundColor: "#f8fafc",
                       WebkitTextFillColor: "#333",
                     }
                     : {},
@@ -1030,7 +1030,7 @@ function ProfilePage() {
                   sx: !isEditing
                     ? {
                       color: "#333",
-                      backgroundColor: "#f8f9fa",
+                      backgroundColor: "#f8fafc",
                       WebkitTextFillColor: "#333",
                     }
                     : {},
@@ -1053,7 +1053,7 @@ function ProfilePage() {
                   sx: !isEditing
                     ? {
                       color: "#333",
-                      backgroundColor: "#f8f9fa",
+                      backgroundColor: "#f8fafc",
                       WebkitTextFillColor: "#333",
                     }
                     : {},
@@ -1077,7 +1077,7 @@ function ProfilePage() {
                   sx: !isEditing
                     ? {
                       color: "#333",
-                      backgroundColor: "#f8f9fa",
+                      backgroundColor: "#f8fafc",
                       WebkitTextFillColor: "#333",
                     }
                     : {},
@@ -1120,8 +1120,8 @@ function ProfilePage() {
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      bgcolor: "#f8f9fa",
-                      border: "1px solid #e0e0e0",
+                      bgcolor: "#f8fafc",
+                      border: "1px solid #e2e8f0",
                     }}
                   >
                     <Typography
@@ -1236,7 +1236,7 @@ function ProfilePage() {
             <Collapse in={showPasswordForm}>
               <Paper
                 elevation={1}
-                sx={{ p: 3, borderRadius: 2, bgcolor: "#f8f9fa" }}
+                sx={{ p: 3, borderRadius: 2, bgcolor: "#f8fafc" }}
               >
                 {(() => {
                   const decoded = jwtDecode(token);
@@ -1387,7 +1387,7 @@ function ProfilePage() {
                 <Collapse in={showRightsPanel}>
                   <Paper
                     elevation={1}
-                    sx={{ p: 3, borderRadius: 2, bgcolor: "#f8f9fa" }}
+                    sx={{ p: 3, borderRadius: 2, bgcolor: "#f8fafc" }}
                   >
                     {rightsLoading ? (
                       <Box

@@ -191,7 +191,7 @@ function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect
       <TableContainer component={Paper} sx={{ flex: 1, minHeight: 0 }}>
         <Table stickyHeader>
           <TableHead>
-            <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+            <TableRow sx={{ bgcolor: "#dbeafe" }}>
               <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
               <TableCell sx={{ fontWeight: "bold" }}>Reason</TableCell>
@@ -227,7 +227,7 @@ function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect
                     data-testid={`schedule-row-${appointment.id}`}
                     onClick={() => onSelect && onSelect(patient)}
                     sx={{
-                      "&:hover": { bgcolor: "#f5f5f5" },
+                      "&:hover": { bgcolor: "#f8fafc" },
                       "&.Mui-selected, &.Mui-selected:hover": { bgcolor: "#cfe8fc" },
                       cursor: "pointer",
                       opacity: loading ? 0.6 : 1,
@@ -282,7 +282,7 @@ function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Orders">
-                              <IconButton size="small" aria-label={`Orders for ${patient.full_name}`} onClick={(e) => { e.stopPropagation(); open(patient, "orders", `/patients/${patient.user_id}/orders`); }} sx={{ color: "#2e7d32" }}>
+                              <IconButton size="small" aria-label={`Orders for ${patient.full_name}`} onClick={(e) => { e.stopPropagation(); open(patient, "orders", `/patients/${patient.user_id}/orders`); }} sx={{ color: "#047857" }}>
                                 <OrdersIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>

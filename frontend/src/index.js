@@ -2,18 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
-import { CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { CssBaseline, ThemeProvider } from '@mui/material';
+import theme from './theme';
 // Import Font Awesome initialization
 import './utils/fontAwesome';
 import 'react-toastify/dist/ReactToastify.css';
-
-const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: { main: '#1976d2' },
-    secondary: { main: '#9c27b0' },
-  },
-});
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

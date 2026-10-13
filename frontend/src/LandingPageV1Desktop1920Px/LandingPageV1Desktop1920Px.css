@@ -321,7 +321,7 @@ VISUAL LOCATION: Appears at top of page below navigation header
 }
 .landing-page-v-1-desktop-1920-px .btn-free-trial {
   
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
   border-radius: 16px;
   padding: 20px 40px;
   margin-left: 40px;
@@ -611,27 +611,27 @@ VISUAL LOCATION: Third section from top, below hero section
   z-index: 0;
 }
 .landing-page-v-1-desktop-1920-px .choose-your-plan {
-  color: #212529;
+  color: #1e293b;
   text-align: center;
-  font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
+  font-family: var(--header-h1-font-family, "Inter", sans-serif);
   font-size: clamp(36px, 6vw, 72px); /* Responsive font size */
   letter-spacing: var(--header-h1-letter-spacing, -0.02em);
   font-weight: var(--header-h1-font-weight, 700);
   position: relative;
   align-self: stretch;
   line-height: 1.1;
-  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #1e293b 0%, var(--color-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 .landing-page-v-1-desktop-1920-px
   .whether-you-re-aiming-to-simplify-patient-scheduling-reduce-no-shows-or-optimize-your-clinic-s-workflow-power-gives-you-the-tools-to-schedule-with-confidence-and-efficiency {
-  color: #212529;
+  color: #1e293b;
   text-align: center;
   font-family: var(
     --paragraph-p2-regular-font-family,
-    "Inter-Regular",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p2-regular-font-size, 18px);
@@ -688,11 +688,11 @@ VISUAL LOCATION: Third section from top, below hero section
   position: relative;
 }
 .landing-page-v-1-desktop-1920-px .personal {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p1-semibold-font-family,
-    "Inter-SemiBold",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p1-semibold-font-size, 24px);
@@ -702,9 +702,9 @@ VISUAL LOCATION: Third section from top, below hero section
   align-self: stretch;
 }
 .landing-page-v-1-desktop-1920-px ._0 {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
-  font-family: var(--header-h4-font-family, "Inter-Bold", sans-serif);
+  font-family: var(--header-h4-font-family, "Inter", sans-serif);
   font-size: var(--header-h4-font-size, 36px);
   letter-spacing: var(--header-h4-letter-spacing, -0.02em);
   font-weight: var(--header-h4-font-weight, 700);
@@ -712,11 +712,11 @@ VISUAL LOCATION: Third section from top, below hero section
   align-self: stretch;
 }
 .landing-page-v-1-desktop-1920-px .capture-ideas-and-find-them-quickly {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p2-medium-font-family,
-    "Inter-Medium",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p2-medium-font-size, 18px);
@@ -754,11 +754,11 @@ VISUAL LOCATION: Third section from top, below hero section
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px .sync-unlimited-devices {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p3-regular-font-family,
-    "Inter-Regular",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p3-regular-font-size, 16px);
@@ -776,11 +776,11 @@ VISUAL LOCATION: Third section from top, below hero section
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px ._10-gb-monthly-uploads {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p3-regular-font-family,
-    "Inter-Regular",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p3-regular-font-size, 16px);
@@ -798,11 +798,11 @@ VISUAL LOCATION: Third section from top, below hero section
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px ._200-mb-max-note-size {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p3-regular-font-family,
-    "Inter-Regular",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p3-regular-font-size, 16px);
@@ -821,11 +821,11 @@ VISUAL LOCATION: Third section from top, below hero section
 }
 .landing-page-v-1-desktop-1920-px
   .customize-home-dashboard-and-access-extra-widgets {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p3-regular-font-family,
-    "Inter-Regular",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p3-regular-font-size, 16px);
@@ -843,11 +843,11 @@ VISUAL LOCATION: Third section from top, below hero section
   overflow: visible;
 }
 .landing-page-v-1-desktop-1920-px .connect-primary-google-calendar-account {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p3-regular-font-family,
-    "Inter-Regular",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p3-regular-font-size, 16px);
@@ -866,11 +866,11 @@ VISUAL LOCATION: Third section from top, below hero section
 }
 .landing-page-v-1-desktop-1920-px
   .add-due-dates-reminders-and-notifications-to-your-tasks {
-  color: #212529;
+  color: #1e293b;
   text-align: left;
   font-family: var(
     --paragraph-p3-regular-font-family,
-    "Inter-Regular",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p3-regular-font-size, 16px);
@@ -881,7 +881,7 @@ VISUAL LOCATION: Third section from top, below hero section
   flex: 1;
 }
 .landing-page-v-1-desktop-1920-px .btn-get-started {
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
   border-radius: 16px;
   border: none;
   padding: 16px 32px;
@@ -907,7 +907,7 @@ VISUAL LOCATION: Third section from top, below hero section
   text-align: left;
   font-family: var(
     --paragraph-p3-medium-font-family,
-    "Inter-Medium",
+    "Inter",
     sans-serif
   );
   font-size: var(--paragraph-p3-medium-font-size, 16px);
@@ -1007,7 +1007,7 @@ VISUAL LOCATION: Third section from top, below hero section
 /* Popular plan styling */
 .landing-page-v-1-desktop-1920-px .pricing-card.popular {
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border: 2px solid #3b82f6;
+  border: 2px solid var(--color-primary);
   transform: scale(1.05);
   box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25);
 }
@@ -1044,7 +1044,7 @@ VISUAL LOCATION: Third section from top, below hero section
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: clamp(28px, 6vw, 48px);
   font-weight: 800;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -1102,7 +1102,7 @@ VISUAL LOCATION: Third section from top, below hero section
 .landing-page-v-1-desktop-1920-px .btn-plan {
   width: 100%;
   height: 52px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -1226,11 +1226,11 @@ VISUAL LOCATION: Final section at bottom of page
 .footer-brand-name {
   font-size: clamp(16px, 3vw, 20px);
   font-weight: 700;
-  background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  font-family: "Inter-Bold", sans-serif;
+  font-family: "Inter", sans-serif;
   
 }
 
@@ -1239,7 +1239,7 @@ VISUAL LOCATION: Final section at bottom of page
   line-height: 1.6;
   font-size: clamp(12px, 2vw, 16px);
   max-width: 300px;
-  font-family: "Inter-Regular", sans-serif;
+  font-family: "Inter", sans-serif;
   text-align: center;
 }
 
@@ -1254,7 +1254,7 @@ VISUAL LOCATION: Final section at bottom of page
   font-weight: 600;
   color: #f1f5f9;
   margin-bottom: 8px;
-  font-family: "Inter-SemiBold", sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .footer-links {
@@ -1268,11 +1268,11 @@ VISUAL LOCATION: Final section at bottom of page
   text-decoration: none;
   transition: all 0.3s ease;
   font-size: clamp(12px, 2vw, 16px);
-  font-family: "Inter-Regular", sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .footer-link:hover {
-  color: #3b82f6;
+  color: var(--color-primary);
   transform: translateX(4px);
 }
 
@@ -1290,7 +1290,7 @@ VISUAL LOCATION: Final section at bottom of page
 .footer-copyright {
   color: #94a3b8;
   font-size: clamp(10px, 1.5vw, 14px);
-  font-family: "Inter-Regular", sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .footer-legal-links {
@@ -1304,11 +1304,11 @@ VISUAL LOCATION: Final section at bottom of page
   text-decoration: none;
   font-size: clamp(12px, 2vw, 16px);
   transition: color 0.3s ease;
-  font-family: "Inter-Regular", sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
 .footer-legal-link:hover {
-  color: #3b82f6;
+  color: var(--color-primary);
 }
 
 /* Responsive design for pricing section */
@@ -1982,7 +1982,7 @@ VISUAL LOCATION: Fourth section from top, below pricing section
 
 /* Read More button */
 .landing-page-v-1-desktop-1920-px .btn-read-more {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #2563eb 100%);
   color: #ffffff;
   padding: 16px 32px;
   border-radius: 8px;
@@ -2378,7 +2378,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
 
 .landing-page-v-1-desktop-1920-px .quote-symbol {
   font-size: 48px;
-  color: #3b82f6;
+  color: var(--color-primary);
   font-weight: bold;
   line-height: 1;
   margin-bottom: 12px;
@@ -2413,7 +2413,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2484,13 +2484,13 @@ VISUAL LOCATION: Seventh section from top, below work management section
 }
 
 .landing-page-v-1-desktop-1920-px .ellipse-12 {
-  background: #3b82f6;
+  background: var(--color-primary);
   transform: scale(1.2);
 }
 
 .landing-page-v-1-desktop-1920-px .ellipse-12:hover,
 .landing-page-v-1-desktop-1920-px .ellipse-13:hover {
-  background: #3b82f6;
+  background: var(--color-primary);
   transform: scale(1.2);
 }
 
@@ -2650,7 +2650,7 @@ VISUAL LOCATION: Eighth section from top, near bottom of page before footer
 .landing-page-v-1-desktop-1920-px .platform-icon {
   font-size: 16px;
   font-weight: 500;
-  color: #374151;
+  color: #334155;
   text-align: center;
   padding: 12px 20px;
   border-radius: 8px;
@@ -2780,13 +2780,13 @@ VISUAL LOCATION: Sixth section from top, below efficient scheduling section
 .landing-page-v-1-desktop-1920-px .power-scheduling {
   color: #1e293b;
   text-align: left;
-  font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
+  font-family: var(--header-h1-font-family, "Inter", sans-serif);
   font-size: clamp(36px, 6vw, 64px);
   letter-spacing: var(--header-h1-letter-spacing, -0.02em);
   font-weight: var(--header-h1-font-weight, 700);
   position: relative;
   line-height: 1.1;
-  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #1e293b 0%, var(--color-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -2795,7 +2795,7 @@ VISUAL LOCATION: Sixth section from top, below efficient scheduling section
 .landing-page-v-1-desktop-1920-px .keep-your-patient-schedule-organized-with-power-upload-clinic-events-holidays-staff-lists-and-provider-lists-directly-from-the-app-manage-availability-and-block-times-seamlessly-easily-send-text-and-email-messages-to-patients-including-automated-appointment-reminders-and-bulk-sms-notifications-keep-all-essential-clinic-information-and-communication-in-one-secure-user-friendly-platform {
   color: #475569;
   text-align: left;
-  font-family: var(--paragraph-p2-regular-font-family, "Inter-Regular", sans-serif);
+  font-family: var(--paragraph-p2-regular-font-family, "Inter", sans-serif);
   font-size: var(--paragraph-p2-regular-font-size, 18px);
   line-height: var(--paragraph-p2-regular-line-height, 28px);
   letter-spacing: var(--paragraph-p2-regular-letter-spacing, -0.02em);
@@ -2845,7 +2845,7 @@ VISUAL LOCATION: Sixth section from top, below efficient scheduling section
 }
 
 .landing-page-v-1-desktop-1920-px .btn-get-started3 {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #2563eb 100%);
   border-radius: 12px;
   padding: 16px 32px;
   display: flex;
@@ -2945,20 +2945,20 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
 .landing-page-v-1-desktop-1920-px .power-together {
   color: #1e293b;
   text-align: left;
-  font-family: var(--header-h1-font-family, "Inter-Bold", sans-serif);
+  font-family: var(--header-h1-font-family, "Inter", sans-serif);
   font-size: clamp(36px, 6vw, 64px);
   letter-spacing: var(--header-h1-letter-spacing, -0.02em);
   font-weight: var(--header-h1-font-weight, 700);
   position: relative;
   line-height: 1.1;
-  background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #1e293b 0%, var(--color-primary) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
 .landing-page-v-1-desktop-1920-px .content4 .btn-get-started3 {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, #2563eb 100%);
   border-radius: 12px;
   padding: 16px 32px;
   display: flex;
@@ -2980,7 +2980,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
 .landing-page-v-1-desktop-1920-px .try-it-now  {
   color: #ffffff;
   text-align: center;
-  font-family: var(--paragraph-p2-medium-font-family, "Inter-Medium", sans-serif);
+  font-family: var(--paragraph-p2-medium-font-family, "Inter", sans-serif);
   font-size: var(--paragraph-p2-medium-font-size, 18px);
   line-height: var(--paragraph-p2-medium-line-height, 23px);
   letter-spacing: -0.01em;
@@ -2991,7 +2991,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
 .landing-page-v-1-desktop-1920-px .get-started3  {
   color: #ffffff;
   text-align: center;
-  font-family: var(--paragraph-p2-medium-font-family, "Inter-Medium", sans-serif);
+  font-family: var(--paragraph-p2-medium-font-family, "Inter", sans-serif);
   font-size: var(--paragraph-p2-medium-font-size, 18px);
   line-height: var(--paragraph-p2-medium-line-height, 23px);
   letter-spacing: -0.01em;
@@ -3030,7 +3030,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
 .landing-page-v-1-desktop-1920-px .work-together-image .ellipse-162 {
   width: 12px;
   height: 12px;
-  background: #3b82f6;
+  background: var(--color-primary);
   border-radius: 50%;
   position: absolute;
 }

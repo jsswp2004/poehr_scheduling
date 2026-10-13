@@ -136,7 +136,7 @@ function Mark({ task, canClick, onPick }) {
   } else if (task.status === "missed") {
     word = "Missed";
     content = <b>{time}</b>;
-    sx = { color: "#d32f2f", fontWeight: 700 };
+    sx = { color: "#dc2626", fontWeight: 700 };
   } else {
     word = task.overdue ? "Overdue" : task.due_now ? "Due" : "Scheduled";
     content = <span>{time}</span>;
@@ -258,7 +258,7 @@ export default function TaskGrid({ rows, day, columns = DEFAULT_COLUMNS, showEar
                   key={m}
                   scope="col"
                   data-testid={`grid-col-${m}`}
-                  sx={{ ...headCell, textAlign: "center", minWidth: 56, ...(m === nowColumn ? { backgroundColor: "#e3f2fd", color: "primary.main" } : {}) }}
+                  sx={{ ...headCell, textAlign: "center", minWidth: 56, ...(m === nowColumn ? { backgroundColor: "#dbeafe", color: "primary.main" } : {}) }}
                 >
                   {minutesLabel(m)}
                 </Box>

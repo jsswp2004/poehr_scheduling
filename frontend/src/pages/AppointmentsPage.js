@@ -376,7 +376,7 @@ function AppointmentsPage() {
             </Box>{" "}
             <TableContainer sx={{ maxHeight: "300px", overflow: "auto" }}>
               <Table size="small" stickyHeader>
-                <TableHead sx={{ bgcolor: "#e3f2fd" }}>
+                <TableHead sx={{ bgcolor: "#dbeafe" }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
                     <TableCell sx={{ fontWeight: "bold" }}>Patient</TableCell>
@@ -542,7 +542,7 @@ function AppointmentsPage() {
                   "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f7fafc" },
                 }}
               >
-                <TableHead sx={{ bgcolor: "#e3f2fd" }}>
+                <TableHead sx={{ bgcolor: "#dbeafe" }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: "bold" }}>
                       Clinic Event
@@ -631,11 +631,11 @@ function AppointmentsPage() {
                                 alignItems: "center",
                                 gap: 1,
                                 "&:hover": {
-                                  backgroundColor: "#e3f2fd",
-                                  color: "#1976d2",
-                                  borderColor: "#1976d2",
+                                  backgroundColor: "#dbeafe",
+                                  color: "#2563eb",
+                                  borderColor: "#2563eb",
                                   boxShadow:
-                                    "0 2px 8px 0 rgba(25, 118, 210, 0.10)",
+                                    "0 2px 8px 0 rgba(37, 99, 235, 0.10)",
                                 },
                               }}
                               title="View Appointment Details"
@@ -661,9 +661,9 @@ function AppointmentsPage() {
                                 gap: 1,
                                 transition: "background 0.2s, color 0.2s",
                                 "&:hover": {
-                                  backgroundColor: "#ffebee",
-                                  color: "#d32f2f",
-                                  borderColor: "#d32f2f",
+                                  backgroundColor: "#fee2e2",
+                                  color: "#dc2626",
+                                  borderColor: "#dc2626",
                                   boxShadow:
                                     "0 2px 8px 0 rgba(211, 47, 47, 0.10)",
                                 },

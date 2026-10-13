@@ -20,11 +20,11 @@ export const useCommunicatorUtils = () => {
             .header {
               text-align: center;
               margin-bottom: 30px;
-              border-bottom: 2px solid #1976d2;
+              border-bottom: 2px solid #2563eb;
               padding-bottom: 10px;
             }
             .header h1 {
-              color: #1976d2;
+              color: #2563eb;
               margin: 0;
             }
             .header p {
@@ -42,12 +42,12 @@ export const useCommunicatorUtils = () => {
               text-align: left;
             }
             th {
-              background-color: #1976d2;
+              background-color: #2563eb;
               color: white;
               font-weight: bold;
             }
             tr:nth-child(even) {
-              background-color: #f5f5f5;
+              background-color: #f8fafc;
             }
             .footer {
               margin-top: 30px;

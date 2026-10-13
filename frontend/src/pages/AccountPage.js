@@ -612,11 +612,11 @@ function AccountPage() {
             }</title>
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; }
-          h1 { color: #1976d2; border-bottom: 2px solid #1976d2; padding-bottom: 10px; }
+          h1 { color: #2563eb; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
           table { width: 100%; border-collapse: collapse; margin-top: 20px; }
           th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-          th { background-color: #f5f5f5; font-weight: bold; }
-          tr:nth-child(even) { background-color: #f9f9f9; }
+          th { background-color: #f8fafc; font-weight: bold; }
+          tr:nth-child(even) { background-color: #f8fafc; }
           .header-info { margin-bottom: 20px; }
           .print-date { text-align: right; font-size: 12px; color: #666; }
         </style>
@@ -906,7 +906,7 @@ function AccountPage() {
                     }}
                 >
                     {/* Account Details Section */}
-                    <Box sx={{ backgroundColor: "#f9f9f9", p: 3, borderRadius: 2 }}>
+                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
                         <Box
                             sx={{
                                 display: "flex",
@@ -934,7 +934,7 @@ function AccountPage() {
 
                         {/* System Admin Organization Search */}
                         {isSystemAdmin && (
-                            <Box sx={{ mb: 3, p: 2, backgroundColor: "#e3f2fd", borderRadius: 1 }}>
+                            <Box sx={{ mb: 3, p: 2, backgroundColor: "#dbeafe", borderRadius: 1 }}>
                                 <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
                                     System Admin: Search Organizations
                                 </Typography>
@@ -986,7 +986,7 @@ function AccountPage() {
                                                         p: 1.5,
                                                         borderBottom: "1px solid #eee",
                                                         cursor: "pointer",
-                                                        "&:hover": { backgroundColor: "#f5f5f5" },
+                                                        "&:hover": { backgroundColor: "#f8fafc" },
                                                         "&:last-child": { borderBottom: "none" },
                                                     }}
                                                     onClick={() => selectOrganization(org)}
@@ -1086,7 +1086,7 @@ function AccountPage() {
                     </Box>
 
                     {/* Payment Methods Section */}
-                    <Box sx={{ backgroundColor: "#f9f9f9", p: 3, borderRadius: 2 }}>
+                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
                         <Typography variant="h6" gutterBottom>
                             <CreditCard sx={{ mr: 1, verticalAlign: "middle" }} />
                             Payment Methods
@@ -1171,7 +1171,7 @@ function AccountPage() {
                     </Box>
 
                     {/* Billing History Section */}
-                    <Box sx={{ backgroundColor: "#f9f9f9", p: 3, borderRadius: 2 }}>
+                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
                         <Box
                             sx={{
                                 display: "flex",
@@ -1263,7 +1263,7 @@ function AccountPage() {
                     }}
                 >
                     {/* Current Plan Section */}
-                    <Box sx={{ backgroundColor: "#f9f9f9", p: 3, borderRadius: 2 }}>
+                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
                         <Typography variant="h6" gutterBottom>
                             <Business sx={{ mr: 1, verticalAlign: "middle" }} />
                             Current Plan:{" "}
@@ -1307,7 +1307,7 @@ function AccountPage() {
                     </Box>
 
                     {/* Cancellation Notice Section */}
-                    <Box sx={{ backgroundColor: "#f9f9f9", p: 3, borderRadius: 2 }}>
+                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
                         <Typography variant="h6" gutterBottom color="error">
                             <Warning sx={{ mr: 1, verticalAlign: "middle" }} />
                             Cancellation Notice
@@ -1327,7 +1327,7 @@ function AccountPage() {
                     </Box>
 
                     {/* Data Management Section */}
-                    <Box sx={{ backgroundColor: "#f9f9f9", p: 3, borderRadius: 2 }}>
+                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
                         <Typography variant="h6" gutterBottom>
                             <Storage sx={{ mr: 1, verticalAlign: "middle" }} />
                             Data Management
@@ -1362,7 +1362,7 @@ function AccountPage() {
                         </Box>
 
                         <Box
-                            sx={{ mt: 2, p: 2, backgroundColor: "#fff3cd", borderRadius: 1 }}
+                            sx={{ mt: 2, p: 2, backgroundColor: "#fef3c7", borderRadius: 1 }}
                         >
                             <Typography variant="body2" color="text.secondary">
                                 <strong>Data Export:</strong> Download all your organization's
@@ -1463,8 +1463,8 @@ function AccountPage() {
                                         cursor: "pointer",
                                         border:
                                             selectedPlan === plan.value
-                                                ? "2px solid #1976d2"
-                                                : "1px solid #e0e0e0",
+                                                ? "2px solid #2563eb"
+                                                : "1px solid #e2e8f0",
                                         borderRadius: 2,
                                         p: 3,
                                     }}

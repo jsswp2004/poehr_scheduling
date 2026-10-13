@@ -168,7 +168,7 @@ const CheckInPage = () => {
   };
 
   return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f5f5f5", py: 3 }}>
+    <Box sx={{ minHeight: "100vh", bgcolor: "#f8fafc", py: 3 }}>
       <Container maxWidth="md">
         <BackButton />
 
@@ -178,7 +178,7 @@ const CheckInPage = () => {
             variant="h3"
             fontWeight={700}
             sx={{
-              color: "#1976d2",
+              color: "#2563eb",
               mb: 1,
               fontSize: { xs: "2rem", md: "3rem" },
             }}
@@ -200,7 +200,7 @@ const CheckInPage = () => {
           sx={{
             p: { xs: 3, md: 4 },
             mb: 4,
-            background: "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
+            background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
             borderRadius: 3,
           }}
         >
@@ -231,7 +231,7 @@ const CheckInPage = () => {
                 borderRadius: 2,
                 "&:hover": {
                   "& > fieldset": {
-                    borderColor: "#1976d2",
+                    borderColor: "#2563eb",
                   },
                 },
               },
@@ -243,7 +243,7 @@ const CheckInPage = () => {
             }}
             InputProps={{
               endAdornment: searchLoading && (
-                <CircularProgress size={24} sx={{ color: "#1976d2" }} />
+                <CircularProgress size={24} sx={{ color: "#2563eb" }} />
               ),
             }}
           />
@@ -252,7 +252,7 @@ const CheckInPage = () => {
         {/* Results Table */}
         {appointments.length > 0 && (
           <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
-            <Box sx={{ p: 3, bgcolor: "#e3f2fd" }}>
+            <Box sx={{ p: 3, bgcolor: "#dbeafe" }}>
               <Typography variant="h6" fontWeight={600} color="primary">
                 Today's Appointments ({appointments.length})
               </Typography>
@@ -260,7 +260,7 @@ const CheckInPage = () => {
 
             <TableContainer>
               <Table>
-                <TableHead sx={{ bgcolor: "#f5f5f5" }}>
+                <TableHead sx={{ bgcolor: "#f8fafc" }}>
                   <TableRow>
                     <TableCell sx={{ fontWeight: "bold", fontSize: "1rem" }}>
                       Time
@@ -288,8 +288,8 @@ const CheckInPage = () => {
                         key={appointment.id}
                         hover
                         sx={{
-                          "&:nth-of-type(odd)": { bgcolor: "#fafafa" },
-                          "&:hover": { bgcolor: "#e3f2fd" },
+                          "&:nth-of-type(odd)": { bgcolor: "#f8fafc" },
+                          "&:hover": { bgcolor: "#dbeafe" },
                         }}
                       >
                         <TableCell sx={{ fontSize: "1.1rem", fontWeight: 500 }}>
@@ -314,7 +314,7 @@ const CheckInPage = () => {
                             sx={{
                               transform: "scale(1.3)",
                               "&.Mui-checked": {
-                                color: "#4caf50",
+                                color: "#10b981",
                               },
                             }}
                           />

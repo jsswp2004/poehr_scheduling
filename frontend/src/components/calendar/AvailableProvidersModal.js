@@ -87,7 +87,7 @@ const AvailableProvidersModal = ({
                 alignItems: 'center',
                 gap: 1
             }}>
-                <FontAwesomeIcon icon={faUserMd} style={{ color: '#1976d2' }} />
+                <FontAwesomeIcon icon={faUserMd} style={{ color: '#2563eb' }} />
                 Available Providers
             </DialogTitle>
 
@@ -111,7 +111,7 @@ const AvailableProvidersModal = ({
                                     }}
                                 >
                                     <ListItemAvatar>
-                                        <Avatar sx={{ bgcolor: '#1976d2' }}>
+                                        <Avatar sx={{ bgcolor: '#2563eb' }}>
                                             <FontAwesomeIcon icon={faUserMd} />
                                         </Avatar>
                                     </ListItemAvatar>

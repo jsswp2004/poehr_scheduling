@@ -15,7 +15,7 @@ const LoginContainer = ({ formData, loading, handleSubmit, handleChange }) => {
         <Box
             sx={{
                 minHeight: '100vh',
-                bgcolor: '#f5f6fa',
+                bgcolor: '#f8fafc',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'

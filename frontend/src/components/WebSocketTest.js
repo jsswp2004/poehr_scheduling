@@ -106,7 +106,7 @@ const WebSocketTest = () => {
               <strong>Last Message:</strong>
             </Typography>
             <Box component="pre" sx={{
-              backgroundColor: '#f5f5f5',
+              backgroundColor: '#f8fafc',
               padding: 1,
               borderRadius: 1,
               fontSize: '0.8rem',

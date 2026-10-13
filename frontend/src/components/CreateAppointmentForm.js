@@ -110,7 +110,7 @@ function CreateAppointmentForm({
       <Paper elevation={3} sx={{ flex: 1, p: 3, borderRadius: 3, minWidth: 340 }}>
         <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
           {editMode ? 'Edit Appointment' : 'Create Appointment'}
-          {patientName && <span style={{ color: '#1976d2' }}> for {patientName}</span>}
+          {patientName && <span style={{ color: '#2563eb' }}> for {patientName}</span>}
         </Typography>
 
         <form onSubmit={onFormSubmit}>

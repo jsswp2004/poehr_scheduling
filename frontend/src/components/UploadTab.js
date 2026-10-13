@@ -171,9 +171,9 @@ function UploadTab() {
         height: "calc(100vh - 240px)", // Adjust for header height
       }}
     >
-      <Table size="small" stickyHeader sx={{ bgcolor: '#f5faff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
+      <Table size="small" stickyHeader sx={{ bgcolor: '#eff6ff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
         <TableHead>
-          <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+          <TableRow sx={{ bgcolor: '#dbeafe' }}>
             <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Items</TableCell>
             <TableCell sx={{ fontWeight: 'bold', width: 400 }}>Description</TableCell>
             <TableCell sx={{ fontWeight: 'bold', width: 300 }}>Actions</TableCell>
@@ -181,7 +181,7 @@ function UploadTab() {
         </TableHead>
         <TableBody>
           {/* Clinic Events */}
-          <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+          <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#eff6ff' } }}>
             <TableCell>Clinic Events</TableCell>
             <TableCell>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
@@ -253,7 +253,7 @@ function UploadTab() {
               </Stack>
             </TableCell>
           </TableRow>          {/* Availability */}
-          <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#f0f4ff' } }}>
+          <TableRow sx={{ '&:nth-of-type(odd)': { bgcolor: '#eff6ff' } }}>
             <TableCell>Availability</TableCell>
             <TableCell>
               <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>

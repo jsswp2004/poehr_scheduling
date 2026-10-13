@@ -45,7 +45,7 @@ const UserSearchTable = ({
                     }}
                 >
                     <thead>
-                        <tr style={{ backgroundColor: '#e3f2fd' }}>
+                        <tr style={{ backgroundColor: '#dbeafe' }}>
                             <th
                                 style={{
                                     padding: '8px 12px',
@@ -122,7 +122,7 @@ const UserSearchTable = ({
                             <tr
                                 key={result.id}
                                 style={{
-                                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                                    backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8fafc',
                                     borderBottom: '1px solid #eee',
                                 }}
                             >
@@ -172,9 +172,9 @@ const UserSearchTable = ({
                                         textOverflow: 'ellipsis',
                                         whiteSpace: 'nowrap',
                                         fontWeight: 'bold',
-                                        color: result.role === 'Doctor' ? '#2e7d32' :
-                                            result.role === 'Admin' ? '#d32f2f' :
-                                                result.role === 'system_admin' ? '#7b1fa2' : '#757575',
+                                        color: result.role === 'Doctor' ? '#047857' :
+                                            result.role === 'Admin' ? '#dc2626' :
+                                                result.role === 'system_admin' ? '#7b1fa2' : '#64748b',
                                     }}
                                 >
                                     {result.role}
@@ -200,9 +200,9 @@ const UserSearchTable = ({
                                                 size="small"
                                                 onClick={() => onDeleteUser(result)}
                                                 sx={{
-                                                    color: '#d32f2f',
+                                                    color: '#dc2626',
                                                     '&:hover': {
-                                                        backgroundColor: '#ffebee',
+                                                        backgroundColor: '#fee2e2',
                                                     },
                                                 }}
                                             >

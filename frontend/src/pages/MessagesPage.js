@@ -45,7 +45,7 @@ function MessagesPage() {
           alignItems: "center",
           mb: -1,
           borderRadius: 2,
-          bgcolor: "#f5faff",
+          bgcolor: "#eff6ff",
           //boxShadow: 1,
           minHeight: 48,
           p: 0,

@@ -68,7 +68,7 @@ const TextFormattingGuide = () => {
                     variant="subtitle2"
                     sx={{
                         mb: 1,
-                        color: "#2c3e50",
+                        color: "#1e293b",
                         fontSize: "0.8rem",
                         fontWeight: 600,
                     }}
@@ -108,7 +108,7 @@ const TextFormattingGuide = () => {
                     variant="subtitle2"
                     sx={{
                         mb: 1,
-                        color: "#2c3e50",
+                        color: "#1e293b",
                         fontSize: "0.8rem",
                         fontWeight: 600,
                     }}

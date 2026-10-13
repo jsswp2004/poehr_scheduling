@@ -93,7 +93,7 @@ const AppointmentsTable = ({
                             '& tbody tr:nth-of-type(odd)': { backgroundColor: '#f7fafc' },
                         }}
                     >
-                        <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                        <TableHead sx={{ bgcolor: '#dbeafe' }}>
                             <TableRow>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Clinic Event</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
@@ -153,10 +153,10 @@ const AppointmentsTable = ({
                                                         alignItems: 'center',
                                                         gap: 1,
                                                         '&:hover': {
-                                                            backgroundColor: '#e3f2fd',
-                                                            color: '#1976d2',
-                                                            borderColor: '#1976d2',
-                                                            boxShadow: '0 2px 8px 0 rgba(25, 118, 210, 0.10)',
+                                                            backgroundColor: '#dbeafe',
+                                                            color: '#2563eb',
+                                                            borderColor: '#2563eb',
+                                                            boxShadow: '0 2px 8px 0 rgba(37, 99, 235, 0.10)',
                                                         },
                                                     }}
                                                     title="View Appointment Details"
@@ -181,9 +181,9 @@ const AppointmentsTable = ({
                                                         gap: 1,
                                                         transition: 'background 0.2s, color 0.2s',
                                                         '&:hover': {
-                                                            backgroundColor: '#ffebee',
-                                                            color: '#d32f2f',
-                                                            borderColor: '#d32f2f',
+                                                            backgroundColor: '#fee2e2',
+                                                            color: '#dc2626',
+                                                            borderColor: '#dc2626',
                                                             boxShadow: '0 2px 8px 0 rgba(211, 47, 47, 0.10)',
                                                         },
                                                     }}

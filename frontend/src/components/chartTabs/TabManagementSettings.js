@@ -86,7 +86,7 @@ function TabEditor({ title, description, initialItems, initialDefault, readOnly,
         {description}
       </Typography>
 
-      <Paper variant="outlined" sx={{ mb: 1.5, p: 1.5, bgcolor: "#f7fbff" }} data-testid={`${testId}-preview`}>
+      <Paper variant="outlined" sx={{ mb: 1.5, p: 1.5, bgcolor: "#eff6ff" }} data-testid={`${testId}-preview`}>
         <Typography variant="caption" color="text.secondary">
           Tabs, in order
         </Typography>

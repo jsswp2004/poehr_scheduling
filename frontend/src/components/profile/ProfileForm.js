@@ -213,11 +213,11 @@ const ProfileForm = ({
                                     ...base,
                                     minHeight: 56, // Match MUI TextField height
                                     backgroundColor: '#ffffff', // Solid white background
-                                    border: state.isFocused ? '2px solid #1976d2' : '1px solid #c4c4c4',
+                                    border: state.isFocused ? '2px solid #2563eb' : '1px solid #c4c4c4',
                                     borderRadius: 4,
-                                    boxShadow: state.isFocused ? '0 0 0 1px #1976d2' : 'none',
+                                    boxShadow: state.isFocused ? '0 0 0 1px #2563eb' : 'none',
                                     '&:hover': {
-                                        borderColor: state.isFocused ? '#1976d2' : '#000',
+                                        borderColor: state.isFocused ? '#2563eb' : '#000',
                                     },
                                 }),
                                 valueContainer: (base) => ({
@@ -247,30 +247,30 @@ const ProfileForm = ({
                                 option: (base, state) => ({
                                     ...base,
                                     backgroundColor: state.isSelected
-                                        ? '#1976d2'
+                                        ? '#2563eb'
                                         : state.isFocused
-                                            ? '#e3f2fd'
+                                            ? '#dbeafe'
                                             : '#ffffff',
                                     color: state.isSelected ? '#ffffff' : '#000',
                                     '&:hover': {
-                                        backgroundColor: state.isSelected ? '#1976d2' : '#e3f2fd',
+                                        backgroundColor: state.isSelected ? '#2563eb' : '#dbeafe',
                                     },
                                 }),
                                 multiValue: (base) => ({
                                     ...base,
-                                    backgroundColor: '#e3f2fd',
+                                    backgroundColor: '#dbeafe',
                                 }),
                                 multiValueLabel: (base) => ({
                                     ...base,
-                                    color: '#1976d2',
+                                    color: '#2563eb',
                                     backgroundColor: 'transparent',
                                 }),
                                 multiValueRemove: (base) => ({
                                     ...base,
-                                    color: '#1976d2',
+                                    color: '#2563eb',
                                     backgroundColor: 'transparent',
                                     '&:hover': {
-                                        backgroundColor: '#1976d2',
+                                        backgroundColor: '#2563eb',
                                         color: 'white',
                                     },
                                 }),

@@ -69,7 +69,7 @@
 .team-card:hover {
   transform: translateY(-8px);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
 }
 
 .team-image img {

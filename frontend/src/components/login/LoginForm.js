@@ -62,7 +62,7 @@ const LoginForm = ({ formData, loading, onSubmit, onChange }) => {
                         style={{
                             display: 'block',
                             marginBottom: 8,
-                            color: '#1976d2',
+                            color: '#2563eb',
                             textDecoration: 'none',
                             fontWeight: 500
                         }}
@@ -75,7 +75,7 @@ const LoginForm = ({ formData, loading, onSubmit, onChange }) => {
                         <Link
                             to="/register"
                             style={{
-                                color: '#1976d2',
+                                color: '#2563eb',
                                 textDecoration: 'none',
                                 fontWeight: 500
                             }}

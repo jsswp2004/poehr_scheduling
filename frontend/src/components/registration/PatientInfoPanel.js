@@ -37,7 +37,7 @@ const PatientInfoPanel = ({
 }) => {
     if (!registeredPatient) {
         return (
-            <Box sx={{ flex: '0 0 70%', pl: 2, borderLeft: '1px solid #e0e0e0' }}>
+            <Box sx={{ flex: '0 0 70%', pl: 2, borderLeft: '1px solid #e2e8f0' }}>
                 <Typography
                     variant="h5"
                     fontWeight={700}
@@ -69,7 +69,7 @@ const PatientInfoPanel = ({
     }
 
     return (
-        <Box sx={{ flex: '0 0 70%', pl: 2, borderLeft: '1px solid #e0e0e0' }}>
+        <Box sx={{ flex: '0 0 70%', pl: 2, borderLeft: '1px solid #e2e8f0' }}>
             <Box
                 sx={{
                     display: 'flex',
@@ -147,7 +147,7 @@ const PatientInfoPanel = ({
                         disabled={!editMode}
                         InputProps={
                             !editMode
-                                ? { style: { color: '#333', background: '#f5f5f5' } }
+                                ? { style: { color: '#333', background: '#f8fafc' } }
                                 : {}
                         }
                     />
@@ -160,7 +160,7 @@ const PatientInfoPanel = ({
                         disabled={!editMode}
                         InputProps={
                             !editMode
-                                ? { style: { color: '#333', background: '#f5f5f5' } }
+                                ? { style: { color: '#333', background: '#f8fafc' } }
                                 : {}
                         }
                     />
@@ -177,7 +177,7 @@ const PatientInfoPanel = ({
                         disabled={!editMode}
                         InputProps={
                             !editMode
-                                ? { style: { color: '#333', background: '#f5f5f5' } }
+                                ? { style: { color: '#333', background: '#f8fafc' } }
                                 : {}
                         }
                     />
@@ -191,7 +191,7 @@ const PatientInfoPanel = ({
                         disabled={!editMode}
                         InputProps={
                             !editMode
-                                ? { style: { color: '#333', background: '#f5f5f5' } }
+                                ? { style: { color: '#333', background: '#f8fafc' } }
                                 : {}
                         }
                     />
@@ -206,7 +206,7 @@ const PatientInfoPanel = ({
                             value={patientEditData.provider || ''}
                             onChange={onPatientEditChange}
                             label="Provider"
-                            sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                            sx={!editMode ? { color: '#333', background: '#f8fafc' } : {}}
                         >
                             <MenuItem value="">Select a provider</MenuItem>
                             {doctors.map((doc) => (
@@ -224,7 +224,7 @@ const PatientInfoPanel = ({
                             value={patientEditData.organization || ''}
                             onChange={onPatientEditChange}
                             label="Organization"
-                            sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                            sx={!editMode ? { color: '#333', background: '#f8fafc' } : {}}
                         >
                             <MenuItem value="">Select an organization</MenuItem>
                             {organizations.map((org) => (
@@ -251,7 +251,7 @@ const PatientInfoPanel = ({
                         disabled={!editMode}
                         InputProps={
                             !editMode
-                                ? { style: { color: '#333', background: '#f5f5f5' } }
+                                ? { style: { color: '#333', background: '#f8fafc' } }
                                 : {}
                         }
                     />
@@ -266,7 +266,7 @@ const PatientInfoPanel = ({
                         InputLabelProps={{ shrink: true }}
                         InputProps={
                             !editMode
-                                ? { style: { color: '#333', background: '#f5f5f5' } }
+                                ? { style: { color: '#333', background: '#f8fafc' } }
                                 : {}
                         }
                     />
@@ -282,7 +282,7 @@ const PatientInfoPanel = ({
                     disabled={!editMode}
                     InputProps={
                         !editMode
-                            ? { style: { color: '#333', background: '#f5f5f5' } }
+                            ? { style: { color: '#333', background: '#f8fafc' } }
                             : {}
                     }
                 />
@@ -299,7 +299,7 @@ const PatientInfoPanel = ({
                     rows={4}
                     InputProps={
                         !editMode
-                            ? { style: { color: '#333', background: '#f5f5f5' } }
+                            ? { style: { color: '#333', background: '#f8fafc' } }
                             : {}
                     }
                 />

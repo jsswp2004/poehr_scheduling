@@ -237,7 +237,7 @@ export default function TaskWorklist({ patient = null }) {
           </Typography>
           <Chip size="small" label={`Due now ${dueNow}`} sx={{ bgcolor: DUE_BG }} data-testid="legend-due" />
           <Chip size="small" label={`Overdue ${overdue}`} sx={{ bgcolor: OVERDUE_BG }} data-testid="legend-overdue" />
-          <Chip size="small" variant="outlined" label={`Missed ${missed}`} sx={{ color: "#d32f2f", fontWeight: 700, borderColor: "#d32f2f" }} data-testid="legend-missed" />
+          <Chip size="small" variant="outlined" label={`Missed ${missed}`} sx={{ color: "#dc2626", fontWeight: 700, borderColor: "#dc2626" }} data-testid="legend-missed" />
           <Typography variant="caption" color="text.secondary">
             ✓ initials = done
           </Typography>

@@ -78,7 +78,7 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
         component="section"
         aria-label="Patient header"
         data-testid="patient-chart-header-empty"
-        sx={{ p: 1.5, mb: 1, borderLeft: "6px solid", borderLeftColor: "grey.400", bgcolor: "#f7fbff", flexShrink: 0 }}
+        sx={{ p: 1.5, mb: 1, borderLeft: "6px solid", borderLeftColor: "grey.400", bgcolor: "#eff6ff", flexShrink: 0 }}
       >
         <Typography variant="body2" color="text.secondary">
           {!patientId ? "No patient selected. Select a patient from the list." : "Patient header could not be loaded."}
@@ -100,7 +100,7 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
       component="section"
       aria-label="Patient header"
       data-testid="patient-chart-header"
-      sx={{ p: 1.5, mb: persistent ? 1 : 2, flexShrink: 0, borderLeft: "6px solid", borderLeftColor: "primary.main", bgcolor: "#f7fbff" }}
+      sx={{ p: 1.5, mb: persistent ? 1 : 2, flexShrink: 0, borderLeft: "6px solid", borderLeftColor: "primary.main", bgcolor: "#eff6ff" }}
     >
       <Stack direction="row" alignItems="flex-start" spacing={2}>
         <Box sx={{ flex: 1, minWidth: 0 }}>

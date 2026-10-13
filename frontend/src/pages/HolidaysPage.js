@@ -357,8 +357,8 @@ function HolidaysTab() {
                 height: "32px",
               },
               "& .MuiTableHead-root .MuiTableCell-root": {
-                backgroundColor: "#f5f5f5",
-                borderBottom: "2px solid #e0e0e0",
+                backgroundColor: "#f8fafc",
+                borderBottom: "2px solid #e2e8f0",
                 position: "sticky",
                 top: 0,
                 zIndex: 1,

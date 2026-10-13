@@ -45,8 +45,8 @@ const REFRESH_MS = 30000;
 
 const ROW_COLORS = {
   available: "#90ee90",
-  cleaning: "#fff3cd",
-  blocked: "#f8d7da",
+  cleaning: "#fef3c7",
+  blocked: "#fee2e2",
   waiting: "#fffde7",
   occupiedA: "#ffffff",
   occupiedB: "#eef1f5",
@@ -726,7 +726,7 @@ export default function EDBoard({
                     selected={selected}
                     aria-selected={clickable ? selected : undefined}
                     onClick={clickable ? (e) => rowClicked(e, row) : undefined}
-                    sx={{ bgcolor: bg, cursor: clickable ? "pointer" : "default", outline: selected ? "2px solid #1976d2" : "none", outlineOffset: "-2px" }}
+                    sx={{ bgcolor: bg, cursor: clickable ? "pointer" : "default", outline: selected ? "2px solid #2563eb" : "none", outlineOffset: "-2px" }}
                   >
                     {columns.map((c) => {
                       let cellBg = colors.cells[c.key];

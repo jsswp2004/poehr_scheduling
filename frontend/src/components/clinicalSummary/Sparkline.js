@@ -10,7 +10,7 @@ export default function Sparkline({ points, width = 84, height = 24, label }) {
   const last = coords[coords.length - 1].split(",");
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label || "Trend"} data-testid="sparkline">
-      <polyline points={coords.join(" ")} fill="none" stroke="#546e7a" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <polyline points={coords.join(" ")} fill="none" stroke="#475569" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
       <circle cx={last[0]} cy={last[1]} r="2.2" fill="#37474f" />
     </svg>
   );

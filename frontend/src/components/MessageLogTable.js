@@ -157,9 +157,9 @@ function MessageLogTable({ type }) {
             h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
             table { width: 100%; border-collapse: collapse; margin-top: 20px; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-            th { background-color: #f5f5f5; font-weight: bold; }
-            tr:nth-child(even) { background-color: #f9f9f9; }
-            .summary { margin-bottom: 20px; padding: 10px; background-color: #f8f9fa; border: 1px solid #e9ecef; }
+            th { background-color: #f8fafc; font-weight: bold; }
+            tr:nth-child(even) { background-color: #f8fafc; }
+            .summary { margin-bottom: 20px; padding: 10px; background-color: #f8fafc; border: 1px solid #e2e8f0; }
           </style>
         </head>
         <body>
@@ -352,7 +352,7 @@ function MessageLogTable({ type }) {
       >
         {" "}
         <TableHead>
-          <TableRow sx={{ bgcolor: "#f5f5f5" }}>
+          <TableRow sx={{ bgcolor: "#f8fafc" }}>
             <TableCell>Recipient</TableCell>
             <TableCell>Organization</TableCell>
             {type === "email" && <TableCell>Subject</TableCell>}
