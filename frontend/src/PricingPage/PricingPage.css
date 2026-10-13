@@ -446,7 +446,7 @@
 /* Pricing cards container */
 .pricing-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 32px;
   max-width: 1200px;
   margin: 0 auto;
@@ -740,14 +740,8 @@
 
 @media (max-width: 768px) {
   .header {
-    padding: 16px 24px;
-    flex-direction: column;
-    gap: 16px;
-  }
-  
-  .frame-375 {
-    flex-direction: column;
-    gap: 16px;
+    padding: 12px 24px;
+    gap: 12px;
   }
   
   .nav-menu {
@@ -774,6 +768,11 @@
   .pricing-cards {
     grid-template-columns: 1fr;
     gap: 20px;
+  }
+
+  .pricing-panels {
+    grid-template-columns: 1fr;
+    gap: 24px;
   }
   
   .pricing-card.popular {
@@ -813,6 +812,10 @@
   }
   
   .pricing-card {
+    padding: 24px 20px;
+  }
+
+  .pricing-panel {
     padding: 24px 20px;
   }
   

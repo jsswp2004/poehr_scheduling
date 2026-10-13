@@ -203,7 +203,7 @@ function EnrollmentPage() {
               onChange={handleChange}
               size="small"
             />
-            <Stack direction="row" spacing={2}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <TextField
                 label="City"
                 name="city"
@@ -219,7 +219,7 @@ function EnrollmentPage() {
                 value={formData.state || ''}
                 onChange={handleChange}
                 size="small"
-                sx={{ minWidth: 150 }}
+                sx={{ minWidth: { sm: 150 } }}
                 helperText="Sets the staffing rules that apply"
               >
                 <MenuItem value="">Select</MenuItem>
@@ -235,7 +235,7 @@ function EnrollmentPage() {
                 value={formData.postal_code || ''}
                 onChange={handleChange}
                 size="small"
-                sx={{ minWidth: 110 }}
+                sx={{ minWidth: { sm: 110 } }}
               />
             </Stack>
             <TextField
@@ -362,14 +362,18 @@ function EnrollmentPage() {
     <StripeProvider>
       <div className="enrollment-page">
         <Header />
-        <Container maxWidth="md" sx={{ my: 4 }}>
-          <Paper elevation={4} sx={{ p: 4 }}>
+        <Container maxWidth="md" sx={{ my: { xs: 2, sm: 4 }, px: { xs: 1.5, sm: 3 } }}>
+          <Paper elevation={4} sx={{ p: { xs: 2, sm: 4 } }}>
             <Typography variant="h5" sx={{ mb: 3, fontWeight: 700, textAlign: 'center' }}>
               Create Your Account
             </Typography>
 
             {/* Progress Stepper */}
-            <Stepper activeStep={currentStep} sx={{ mb: 4 }}>
+            <Stepper
+              activeStep={currentStep}
+              alternativeLabel
+              sx={{ mb: 4, '& .MuiStepLabel-label': { fontSize: { xs: '0.75rem', sm: '0.875rem' } } }}
+            >
               {steps.map((label) => (
                 <Step key={label}>
                   <StepLabel>{label}</StepLabel>
