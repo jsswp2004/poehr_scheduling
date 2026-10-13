@@ -54,6 +54,10 @@ RIGHTS = [
     ("checkin.manage", "Check-in search & update arrival status", "Scheduling & Patients"),
     ("patients.delete", "Delete a patient record", "Scheduling & Patients"),
 
+    # Telehealth
+    ("telehealth.conduct", "Conduct telehealth video visits as the provider", "Telehealth"),
+    ("telehealth.manage", "Manage telehealth: create sessions, send join links, end stale visits", "Telehealth"),
+
     # Messaging
     ("messages.send", "Send SMS/email messages", "Messaging"),
     ("messages.view_logs", "View message logs (all users, not just own)", "Messaging"),
@@ -184,6 +188,13 @@ ROLE_DEFAULT_RIGHTS = {
     },
     "system_admin": _ALL_RIGHTS,
 }
+
+
+# Telehealth: providers run their own visits; front office sets them up and can end a stale one.
+for _role in ("doctor", "nurse"):
+    ROLE_DEFAULT_RIGHTS[_role] = set(ROLE_DEFAULT_RIGHTS[_role]) | {"telehealth.conduct"}
+for _role in ("receptionist", "registrar", "admin"):
+    ROLE_DEFAULT_RIGHTS[_role] = set(ROLE_DEFAULT_RIGHTS[_role]) | {"telehealth.manage"}
 
 
 # Secure staff messaging: every clinical and front-office role may use it; only admins may audit it.

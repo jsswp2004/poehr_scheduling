@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "TelehealthChimeMeetings",
+      "Effect": "Allow",
+      "Action": [
+        "chime:CreateMeeting",
+        "chime:GetMeeting",
+        "chime:DeleteMeeting",
+        "chime:CreateAttendee",
+        "chime:DeleteAttendee"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
