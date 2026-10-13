@@ -131,7 +131,7 @@ function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect
 
   return (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }} data-testid="my-schedule">
-      <Box sx={{ display: "flex", gap: 1.5, mb: 1, mt: 0.5, flexWrap: "wrap", alignItems: "center", flexShrink: 0 }}>
+      <Box sx={{ display: "flex", gap: 1, mb: 1, mt: 0, flexWrap: "wrap", alignItems: "center", flexShrink: 0 }}>
         <Tooltip title="Previous day">
           <IconButton size="small" aria-label="Previous day" onClick={() => setDay(shiftDay(day, -1))}>
             <PrevIcon />
@@ -188,29 +188,29 @@ function MySchedulePanel({ userRole, providers = [], selectedId = null, onSelect
         </Alert>
       )}
 
-      <TableContainer component={Paper} sx={{ flex: 1, minHeight: 0 }}>
-        <Table stickyHeader>
+      <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, minHeight: 0 }}>
+        <Table size="small" stickyHeader>
           <TableHead>
-            <TableRow sx={{ bgcolor: "#dbeafe" }}>
-              <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Name</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Reason</TableCell>
-              {!isDoctor && <TableCell sx={{ fontWeight: "bold" }}>Provider</TableCell>}
-              <TableCell sx={{ fontWeight: "bold" }}>Location</TableCell>
-              <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
+            <TableRow>
+              <TableCell sx={{ fontWeight: 600 }}>Time</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Reason</TableCell>
+              {!isDoctor && <TableCell sx={{ fontWeight: 600 }}>Provider</TableCell>}
+              <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+              <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
               <TableCell sx={{ fontWeight: "bold", textAlign: "center" }}>Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading && rows === null ? (
               <TableRow>
-                <TableCell colSpan={columnCount} sx={{ textAlign: "center", py: 4 }}>
+                <TableCell colSpan={columnCount} sx={{ textAlign: "center", py: 3 }}>
                   <CircularProgress size={24} />
                 </TableCell>
               </TableRow>
             ) : rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columnCount} sx={{ textAlign: "center", py: 4 }} data-testid="schedule-empty">
+                <TableCell colSpan={columnCount} sx={{ textAlign: "center", py: 3 }} data-testid="schedule-empty">
                   {isDoctor ? "You have no appointments on this day." : "No appointments on this day."}
                 </TableCell>
               </TableRow>

@@ -9,6 +9,7 @@ import { getAccessToken } from "../utils/tokenManager";
 
 // Components
 import BackButton from "../components/BackButton";
+import SchedulerAssistantDock, { SCHEDULER_CHANGED_EVENT } from "../components/SchedulerAssistantDock";
 import SMSModal from "../components/SMSModal";
 import {
   PatientsTable,
@@ -309,6 +310,20 @@ function PatientsPage() {
     appointments.appointmentsQuery,
   ]);
 
+  // The Scheduler assistant dispatches this after a confirmed change (a request approved or denied, an arrival
+  // recorded); reload the appointment lists so the screen matches.
+  const reloadAppointmentsRef = useRef(null);
+  reloadAppointmentsRef.current = () => {
+    if (!token) return;
+    appointments.fetchTodaysAppointments(token);
+    appointments.fetchAppointments(appointments.appointmentsQuery, token);
+  };
+  useEffect(() => {
+    const onChanged = () => reloadAppointmentsRef.current && reloadAppointmentsRef.current();
+    window.addEventListener(SCHEDULER_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(SCHEDULER_CHANGED_EVENT, onChanged);
+  }, []);
+
   // Handle appointments search
   useEffect(() => {
     if (tab === "appointments" && token) {
@@ -489,7 +504,7 @@ function PatientsPage() {
           />
         ) : (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0, ...SIDE_GAP }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }} data-testid="view-title">
+            <Typography variant="h5" data-testid="view-title">
               {VIEW_TITLES[tab] || ""}
             </Typography>
             {/* With a patient selected the sidebar's Back button is the only one. */}
@@ -778,6 +793,10 @@ function PatientsPage() {
 
         </Box>
       </Box>
+      {/* Scheduler assistant: only on the Appointments view (the Scheduler), not the chart views */}
+      {token && tab === "appointments" && (
+        <SchedulerAssistantDock onNavigate={(route) => route === "appointments" && handleTabChange(null, "appointments")} />
+      )}
     </LocalizationProvider>
   );
 }
