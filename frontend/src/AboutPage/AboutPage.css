@@ -58,7 +58,7 @@
 
 .team-card {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   padding: 32px;
   text-align: center;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);

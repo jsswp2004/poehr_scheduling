@@ -186,11 +186,11 @@
 
 .tab-container {
   display: flex;
-  background: linear-gradient(135deg, #dbeafe 0%, #c7d2fe 50%, #ddd6fe 100%);
+  background: var(--color-primary-tint);
   border-radius: 12px;
   padding: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  border: 1px solid #93c5fd;
+  border: 1px solid #bfdbfe;
 }
 
 .tab-item {
@@ -237,7 +237,7 @@
 /* Individual pricing panel */
 .pricing-panel {
   background: white;
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   padding: 40px 32px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   border: 2px solid #e2e8f0;
@@ -274,7 +274,7 @@
 .panel-badge {
   display: inline-block;
   padding: 6px 16px;
-  border-radius: 20px;
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -455,7 +455,7 @@
 /* Individual pricing card */
 .pricing-card {
   background: white;
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   padding: 40px 32px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
