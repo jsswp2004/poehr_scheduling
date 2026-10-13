@@ -107,7 +107,8 @@ const MODULE_LINKS = [
     label: "Patient Portal",
     to: "/dashboard",
     Icon: MedicalInformationIcon,
-    roles: null, // every signed-in user
+    roles: null, // every signed-in user ...
+    notFor: ["staff"], // ... except Staffing-only logins, who have no business in the portal
     isActive: (path) => path === "/dashboard",
   },
   {
@@ -115,7 +116,7 @@ const MODULE_LINKS = [
     label: "Staffing",
     to: "/staffing",
     Icon: GroupsIcon,
-    roles: STAFF_MODULE_ROLES,
+    roles: [...STAFF_MODULE_ROLES, "staff"], // Staffing-only logins use this module too
     isActive: (path) => path.startsWith("/staffing"),
   },
   {
@@ -529,7 +530,7 @@ function Navbar() {
   // Module links this user may see, with the current page flagged.
   const currentTab = new URLSearchParams(location.search).get("tab");
   const moduleLinks = MODULE_LINKS.filter(
-    (m) => !m.roles || m.roles.includes(role)
+    (m) => (!m.roles || m.roles.includes(role)) && !(m.notFor && m.notFor.includes(role))
   ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab) }));
 
   // Add greeting function

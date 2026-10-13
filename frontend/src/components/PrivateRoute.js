@@ -1,12 +1,28 @@
 import { Navigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
 
-function PrivateRoute({ children }) {
+// blockRoles/blockedTo: roles that may be signed in but must not open this page
+// (for example Staffing-only "staff" logins and the patient portal).
+function PrivateRoute({ children, blockRoles = [], blockedTo = '/solutions' }) {
   const token = localStorage.getItem('access_token');
   console.log('🛡️ PrivateRoute: Checking authentication, token exists:', !!token);
 
   if (!token) {
     console.log('❌ PrivateRoute: No token found, redirecting to login');
     return <Navigate to="/login" />;
+  }
+
+  if (blockRoles.length > 0) {
+    let role = '';
+    try {
+      role = jwtDecode(token).role || '';
+    } catch (err) {
+      role = '';
+    }
+    if (blockRoles.includes(role)) {
+      console.log('⛔ PrivateRoute: role not allowed on this page, redirecting');
+      return <Navigate to={blockedTo} replace />;
+    }
   }
 
   console.log('✅ PrivateRoute: Token found, allowing access');
