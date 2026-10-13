@@ -116,6 +116,12 @@ function StaffingStaffView({ tab, onTabChange }) {
   useEffect(() => { loadMe(); }, [loadMe]);
   useEffect(() => { loadShifts(); }, [loadShifts]);
   useEffect(() => { loadTimeOff(); }, [loadTimeOff]);
+  // The assistant changed something (time off, call-out): reload what is on screen.
+  useEffect(() => {
+    const refresh = () => { loadTimeOff(); loadShifts(); };
+    window.addEventListener("staffing-data-changed", refresh);
+    return () => window.removeEventListener("staffing-data-changed", refresh);
+  }, [loadTimeOff, loadShifts]);
 
   const mine = useMemo(() => shifts.filter((s) => me && s.staff === me.id), [shifts, me]);
   const byDate = useMemo(() => {

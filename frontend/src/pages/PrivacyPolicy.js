@@ -20,7 +20,7 @@ const SECTIONS = [
       "Sign-in credentials: your username and a password stored only in protected (hashed) form.",
       "Schedule information: shifts, assignments, availability and unit coverage settings.",
       "Time-off requests: dates, the type of request, any reason or note you choose to enter, and the decision made on it.",
-      "Assistant conversations: if you use the in-app assistant, the questions you type, the answers it gives, and which staffing lookups it ran to answer. These are kept for 30 days and then deleted.",
+      "Assistant conversations: if you use the in-app assistant, the questions you type, the answers it gives, which staffing lookups it ran, and any change it prepared for you to confirm (such as a time-off request). These are kept for 30 days and then deleted.",
       "A user ID that links the information above to your account.",
     ],
     after: "We do not collect your location, contacts, photos, advertising identifiers or browsing history, and we do not read other apps on your device.",
@@ -59,7 +59,7 @@ const SECTIONS = [
     title: "7. Service providers",
     body: [
       "We use cloud hosting and infrastructure providers to run the service, and message-delivery providers to send email and text alerts. They handle information only to provide those services to us and are not permitted to use it for their own purposes.",
-      "The in-app assistant is powered by Anthropic, which processes your question and the schedule and staffing details needed to answer it, solely to produce the answer. Staff accounts can only ask about their own schedule. Managers and administrators can ask about staff in their own organization, within what their role allows. We do not send time-off reasons or shift notes to the assistant.",
+      "The in-app assistant is powered by Anthropic, which processes your question and the schedule and staffing details needed to answer it, solely to produce the answer. Staff accounts can only ask about their own schedule. Managers and administrators can ask about staff in their own organization, within what their role allows. We do not send saved time-off reasons or shift notes to the assistant. If you type a reason into the chat yourself, it is sent to Anthropic along with your message. The assistant can prepare a time-off request or a call-out report for you, but nothing is submitted until you press the confirm button in the app.",
     ],
   },
   {
