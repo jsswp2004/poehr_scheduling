@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "communicator",
     "staffing",
     "secure_messaging",
+    "telehealth",
     "poehr_scheduling_backend.core",
     "django_cron",
     "anymail",
@@ -199,7 +200,30 @@ REST_FRAMEWORK = {
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
     ],
+    # Only views that opt in with throttle_classes are throttled (Telehealth's public join
+    # endpoints and its assistant). Nothing else in the app changes.
+    "DEFAULT_THROTTLE_RATES": {
+        "telehealth_join": "60/min",
+        "telehealth_assistant": "30/min",
+    },
 }
+
+# ---- Telehealth (video visits, Amazon Chime SDK) ------------------------------------
+# The AWS side needs a BAA (AWS Artifact) and an IAM role with the actions in
+# telehealth/iam_policy.json. No access keys here: boto3 uses the role.
+TELEHEALTH_APPOINTMENT_MODEL = "appointments.Appointment"
+TELEHEALTH_CHIME_API_REGION = os.environ.get("TELEHEALTH_CHIME_API_REGION", "us-east-1")
+TELEHEALTH_CHIME_MEDIA_REGION = os.environ.get("TELEHEALTH_CHIME_MEDIA_REGION", "us-east-1")
+# Where the patient page lives. The text message link is <this>/join#<token>.
+TELEHEALTH_PUBLIC_URL = os.environ.get("TELEHEALTH_PUBLIC_URL", "http://localhost:3000/telehealth")
+# Single-use link lifetime. Keep it short: the text is also written to the Communicator message log.
+TELEHEALTH_LINK_TTL_MINUTES = int(os.environ.get("TELEHEALTH_LINK_TTL_MINUTES", "120"))
+TELEHEALTH_REJOIN_TTL_SECONDS = int(os.environ.get("TELEHEALTH_REJOIN_TTL_SECONDS", "7200"))
+# Start an unsigned draft ClinicalNote when a visit ends. Off until you decide to turn it on.
+TELEHEALTH_CREATE_CHART_DRAFT = os.environ.get("TELEHEALTH_CREATE_CHART_DRAFT", "").lower() in ("1", "true", "yes")
+# Staff assistant. Off unless a backend is named, e.g. "telehealth.assistant.anthropic_backend.complete".
+# Read the PHI notes in telehealth/README.md (BAA with the model provider) before turning it on.
+TELEHEALTH_ASSISTANT_BACKEND = os.environ.get("TELEHEALTH_ASSISTANT_BACKEND") or None
 
 from datetime import timedelta
 

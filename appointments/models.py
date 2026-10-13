@@ -93,6 +93,12 @@ class Appointment(models.Model):
         "Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="appointments"
     )
 
+    # A telehealth video visit. Drives the Telehealth module (/telehealth): only
+    # video appointments get a session, a join link and a waiting room.
+    is_video = models.BooleanField(
+        default=False, help_text="This visit is held by video (Telehealth)"
+    )
+
     # Patient arrival tracking fields
     arrived = models.BooleanField(
         default=False, help_text="Whether the patient has arrived for the appointment"
