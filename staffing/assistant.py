@@ -15,12 +15,14 @@ Setup (Render environment):
   ANTHROPIC_MODEL        optional. Defaults to DEFAULT_MODEL below.
   ASSISTANT_ENABLED      optional. Set to "False" to switch the assistant off.
   ASSISTANT_RATE_LIMIT_PER_HOUR   optional. Questions per user per hour (default 40).
+  ASSISTANT_LOG_RETENTION_DAYS    optional. Logged exchanges older than this are deleted (default 30).
 
 Operational notes:
   * gunicorn's default worker timeout is 30 s, so the whole exchange has a hard
     24 s budget (DEADLINE_SECONDS) and degrades to a friendly message.
   * Each exchange is logged to AssistantMessage (question, answer, tool names and
-    arguments) for support and audit. Raw tool results are NOT stored.
+    arguments) for support and audit. Raw tool results are NOT stored. Rows older
+    than the retention period (30 days) are deleted automatically.
 """
 
 import datetime
@@ -48,6 +50,9 @@ HISTORY_TURNS = 6          # previous question/answer pairs sent back for follow
 DEADLINE_SECONDS = 24      # whole exchange; gunicorn kills a worker at 30 s
 MIN_CALL_SECONDS = 4       # don't start another model call with less time than this
 DEFAULT_RATE_LIMIT = 40    # questions per user per hour
+DEFAULT_RETENTION_DAYS = 30
+PURGE_EVERY_SECONDS = 3600  # at most one purge per hour per worker
+_last_purge = 0.0
 
 TIMEOUT_ANSWER = "That is taking longer than expected. Please try again, or ask for a shorter date range."
 EMPTY_ANSWER = "I couldn't find an answer to that. Try asking another way."
@@ -144,6 +149,28 @@ def _rate_limit():
         return max(1, int(os.environ.get("ASSISTANT_RATE_LIMIT_PER_HOUR", DEFAULT_RATE_LIMIT)))
     except ValueError:
         return DEFAULT_RATE_LIMIT
+
+
+def _retention_days():
+    try:
+        return max(1, int(os.environ.get("ASSISTANT_LOG_RETENTION_DAYS", DEFAULT_RETENTION_DAYS)))
+    except ValueError:
+        return DEFAULT_RETENTION_DAYS
+
+
+def _purge_old_messages():
+    """Delete logged exchanges past the retention period. Runs opportunistically (the
+    hosting plan has no scheduler) and never lets a failure affect the user's request."""
+    global _last_purge
+    now = time.monotonic()
+    if _last_purge and now - _last_purge < PURGE_EVERY_SECONDS:
+        return
+    _last_purge = now
+    try:
+        cutoff = timezone.now() - datetime.timedelta(days=_retention_days())
+        AssistantMessage.objects.filter(created_at__lt=cutoff).delete()
+    except Exception:  # noqa: BLE001
+        logging.getLogger(__name__).exception("Assistant log purge failed")
 
 
 def _history(user, conversation_id):
@@ -259,6 +286,8 @@ class AssistantMessageView(APIView):
             conversation_id = uuid.UUID(str(data.get("conversation_id"))) if data.get("conversation_id") else uuid.uuid4()
         except ValueError:
             conversation_id = uuid.uuid4()
+
+        _purge_old_messages()
 
         since = timezone.now() - datetime.timedelta(hours=1)
         if AssistantMessage.objects.filter(user=user, created_at__gte=since).count() >= _rate_limit():
