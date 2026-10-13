@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Box, Button, CircularProgress, Drawer, IconButton, InputBase, Paper, Tooltip, Typography,
+  Box, Button, CircularProgress, IconButton, InputBase, Paper, Slide, Tooltip, Typography,
 } from "@mui/material";
 import ChatIcon from "@mui/icons-material/Chat";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -34,7 +34,11 @@ const QUICK = [
   "Who is unscheduled this week?",
 ];
 
-const PANEL_WIDTH = 400;
+const PANEL_WIDTH = 380;
+// Keep the floating card clear of the navy header (64px) and the footer bar (~24px).
+const GAP_TOP = 76;
+const GAP_BOTTOM = 40;
+const GAP_RIGHT = 16;
 
 const errorText = (e) => {
   const d = e?.response?.data;
@@ -97,7 +101,7 @@ function StaffingAssistantDock({ onNavigate }) {
             onClick={() => setOpen(true)}
             aria-label="Open assistant"
             sx={{
-              position: "fixed", right: 0, top: "38%", zIndex: 1200, minWidth: 0, width: 36, height: 96,
+              position: "fixed", right: 0, top: "38%", zIndex: 1250, minWidth: 0, width: 36, height: 96,
               borderRadius: "14px 0 0 14px", flexDirection: "column", gap: 0.5,
               bgcolor: "primary.main", color: "#fff", boxShadow: 4,
               "&:hover": { bgcolor: "primary.dark" },
@@ -109,12 +113,17 @@ function StaffingAssistantDock({ onNavigate }) {
         </Tooltip>
       )}
 
-      <Drawer
-        anchor="right"
-        variant="persistent"
-        open={open}
-        PaperProps={{ sx: { width: { xs: "100%", sm: PANEL_WIDTH }, maxWidth: "100%" } }}
-      >
+      <Slide direction="left" in={open} mountOnEnter unmountOnExit>
+        <Paper
+          elevation={8}
+          role="dialog"
+          aria-label="Staffing assistant"
+          sx={{
+            position: "fixed", zIndex: 1250, top: GAP_TOP, bottom: GAP_BOTTOM, right: GAP_RIGHT,
+            width: PANEL_WIDTH, maxWidth: `calc(100vw - ${GAP_RIGHT * 2}px)`,
+            borderRadius: 3, overflow: "hidden", border: 1, borderColor: "divider",
+          }}
+        >
         <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
           <Box sx={{ display: "flex", alignItems: "center", px: 1.5, py: 1, borderBottom: 1, borderColor: "divider" }}>
             <ChatIcon color="primary" fontSize="small" />
@@ -215,7 +224,8 @@ function StaffingAssistantDock({ onNavigate }) {
             </IconButton>
           </Box>
         </Box>
-      </Drawer>
+        </Paper>
+      </Slide>
     </>
   );
 }
