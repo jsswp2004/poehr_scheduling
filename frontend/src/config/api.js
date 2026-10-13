@@ -292,6 +292,7 @@ export const apiEndpoints = {
     staffingTimeOffResolve: (id) => `${API_BASE_URL}/api/staffing/time-off/${id}/resolve/`,
     staffingTimeOffCover: (id) => `${API_BASE_URL}/api/staffing/time-off/${id}/cover-candidates/`,
     staffingMyTimeOff: `${API_BASE_URL}/api/staffing/me/time-off/`,
+    staffingAssistant: `${API_BASE_URL}/api/staffing/assistant/message/`,
     staffingReportUnscheduled: `${API_BASE_URL}/api/staffing/reports/unscheduled/`,
     staffingReportLaborHours: `${API_BASE_URL}/api/staffing/reports/labor-hours/`,
     staffingReportCoverageCompliance: `${API_BASE_URL}/api/staffing/reports/coverage-compliance/`,

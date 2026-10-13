@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Container, Divider, Link, Paper, Stack, Typography } from "@mui/material";
 
-const UPDATED = "October 10, 2026";
+const UPDATED = "October 13, 2026";
 const EMAIL = "info@powerhealthcareit.com";
 
 const SECTIONS = [
@@ -20,6 +20,7 @@ const SECTIONS = [
       "Sign-in credentials: your username and a password stored only in protected (hashed) form.",
       "Schedule information: shifts, assignments, availability and unit coverage settings.",
       "Time-off requests: dates, the type of request, any reason or note you choose to enter, and the decision made on it.",
+      "Assistant conversations: if you use the in-app assistant, the questions you type, the answers it gives, and which staffing lookups it ran to answer. These are kept for 30 days and then deleted.",
       "A user ID that links the information above to your account.",
     ],
     after: "We do not collect your location, contacts, photos, advertising identifiers or browsing history, and we do not read other apps on your device.",
@@ -27,7 +28,7 @@ const SECTIONS = [
   {
     title: "3. Patient information",
     body: [
-      "POWER Staffing does not collect or display patient health information. Coverage planning uses unit census numbers (how many patients a unit has), not information about individual patients.",
+      "POWER Staffing does not collect or display patient health information. Coverage planning uses unit census numbers (how many patients a unit has), not information about individual patients. Please do not enter patient information into time-off notes or into the assistant.",
     ],
   },
   {
@@ -36,6 +37,7 @@ const SECTIONS = [
       "To provide scheduling, staffing coverage and time-off features to you and your organization.",
       "To sign you in and keep your account secure.",
       "To send staffing alerts and reminders, as described in the next section.",
+      "To answer your questions in the in-app assistant, using only the schedule and staffing information your role is allowed to see.",
       "To respond to your questions and support requests.",
     ],
     after: "We do not use your information for advertising, and we do not build advertising profiles.",
@@ -57,6 +59,7 @@ const SECTIONS = [
     title: "7. Service providers",
     body: [
       "We use cloud hosting and infrastructure providers to run the service, and message-delivery providers to send email and text alerts. They handle information only to provide those services to us and are not permitted to use it for their own purposes.",
+      "The in-app assistant is powered by Anthropic, which processes your question and the schedule and staffing details needed to answer it, solely to produce the answer. Staff accounts can only ask about their own schedule. Managers and administrators can ask about staff in their own organization, within what their role allows. We do not send time-off reasons or shift notes to the assistant.",
     ],
   },
   {
@@ -72,6 +75,7 @@ const SECTIONS = [
     title: "9. Retention and deletion",
     body: [
       "Your organization controls its staff records. When an organization administrator removes a staff member, the account is deleted. If the person has documented activity in the organization's records, the account is deactivated instead, so their access ends while those records stay accurately attributed.",
+      "Assistant conversations are deleted automatically after 30 days.",
       `You can ask us to delete your account and the staffing information we hold about you by emailing ${EMAIL}. We may need to keep certain records where the law or your organization's recordkeeping obligations require it.`,
     ],
   },

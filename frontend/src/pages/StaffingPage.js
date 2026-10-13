@@ -19,6 +19,7 @@ import StaffingReportsTab from "./StaffingReportsTab";
 import StaffingUnitsTab from "./StaffingUnitsTab";
 import StaffingTimeOffTab from "./StaffingTimeOffTab";
 import StaffingRulesTab from "./StaffingRulesTab";
+import StaffingAssistantDock from "../components/StaffingAssistantDock";
 
 const ADMIN_ROLES = ["admin", "system_admin"];
 const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
@@ -239,6 +240,7 @@ function StaffingPage() {
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}
       </Box>
       )}
+      {role && orgReady && <StaffingAssistantDock onNavigate={setTab} />}
     </Box>
   );
 }
