@@ -64,10 +64,12 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import SimpleFooter from './components/SimpleFooter';
 import CheckInPage from './pages/CheckInPage';
 import StaffingPage from './pages/StaffingPage';
+import TelehealthPage from './pages/TelehealthPage';
+import TelehealthJoinPage from './pages/TelehealthJoinPage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/check-in', '/privacy'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/check-in', '/privacy', '/telehealth/join'].includes(location.pathname);
 
   // Run token migration on app startup
   useEffect(() => {
@@ -241,6 +243,8 @@ function AppContent() {
         <Route path="/communicator" element={<PrivateRoute><CommunicatorPage /></PrivateRoute>} />
         <Route path="/check-in" element={<PrivateRoute><CheckInPage /></PrivateRoute>} />
         <Route path="/staffing" element={<PrivateRoute><StaffingPage /></PrivateRoute>} />
+        <Route path="/telehealth" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><TelehealthPage /></PrivateRoute>} />
+        <Route path="/telehealth/join" element={<TelehealthJoinPage />} />
       </Routes>
       {showNavbar && <SimpleFooter />}
     </>
