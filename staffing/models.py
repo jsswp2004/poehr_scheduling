@@ -646,3 +646,39 @@ class OrgStaffingRule(models.Model):
 
     def __str__(self):
         return f"{self.organization_id} -> {self.rule_id}"
+
+
+# --- In-app assistant ------------------------------------------------------
+class AssistantMessage(models.Model):
+    """
+    One question/answer exchange with the in-app staffing assistant.
+
+    This is the support + audit log. It deliberately stores only the question,
+    the answer and WHICH tools ran (with their arguments) -- never the raw data
+    the tools returned (rosters, phone numbers, ...), so the log does not become
+    a second copy of the staffing data.
+    """
+
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    user_role = models.CharField(max_length=20, blank=True, default="")
+    conversation_id = models.UUIDField(db_index=True)
+    question = models.TextField()
+    answer = models.TextField(blank=True, default="")
+    tools_used = models.JSONField(default=list, blank=True)
+    model = models.CharField(max_length=60, blank=True, default="")
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    error = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["user", "-created_at"], name="staffing_as_user_created_idx")]
+
+    def __str__(self):
+        return f"{self.user_id} @ {self.created_at:%Y-%m-%d %H:%M}: {self.question[:40]}"
