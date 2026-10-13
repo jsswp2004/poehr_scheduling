@@ -209,7 +209,7 @@ function StaffingRulesTab({ isAdmin = false }) {
   };
 
   // ---- row actions ----
-  const useRule = async (ruleId) => {
+  const applyRule = async (ruleId) => {
     try {
       await axios.put(apiEndpoints.staffingRuleSelection, { rule_id: ruleId }, { headers });
       flash(ruleId ? "Your organization now uses this rule." : "Your organization is back on its state's standard rule.");
@@ -351,7 +351,7 @@ function StaffingRulesTab({ isAdmin = false }) {
               : "Only administrators can change which rule applies."}
         </Typography>
         {isAdmin && !usingStateDefault && (
-          <Button variant="outlined" onClick={() => useRule(null)}>
+          <Button variant="outlined" onClick={() => applyRule(null)}>
             Use my state's standard
           </Button>
         )}
@@ -432,7 +432,7 @@ function StaffingRulesTab({ isAdmin = false }) {
                   </TableCell>
                   <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                     {isAdmin && r.status === "active" && !inUse && (
-                      <Button size="small" onClick={() => useRule(r.id)}>
+                      <Button size="small" onClick={() => applyRule(r.id)}>
                         Use
                       </Button>
                     )}
