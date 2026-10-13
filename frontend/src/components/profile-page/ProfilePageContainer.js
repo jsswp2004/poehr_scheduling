@@ -413,7 +413,7 @@ const ProfilePageContainer = ({
                                   : result.role === "Admin"
                                     ? "#dc2626"
                                     : result.role === "system_admin"
-                                      ? "#7b1fa2"
+                                      ? "#1d4ed8"
                                       : "#64748b",
                             }}
                           >

@@ -174,7 +174,7 @@ const UserSearchTable = ({
                                         fontWeight: 'bold',
                                         color: result.role === 'Doctor' ? '#047857' :
                                             result.role === 'Admin' ? '#dc2626' :
-                                                result.role === 'system_admin' ? '#7b1fa2' : '#64748b',
+                                                result.role === 'system_admin' ? '#1d4ed8' : '#64748b',
                                     }}
                                 >
                                     {result.role}

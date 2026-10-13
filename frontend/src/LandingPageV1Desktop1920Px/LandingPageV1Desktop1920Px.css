@@ -322,7 +322,7 @@ VISUAL LOCATION: Appears at top of page below navigation header
 .landing-page-v-1-desktop-1920-px .btn-free-trial {
   
   background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   padding: 20px 40px;
   margin-left: 40px;
   display: flex;
@@ -654,7 +654,7 @@ VISUAL LOCATION: Third section from top, below hero section
 }
 .landing-page-v-1-desktop-1920-px .price-board {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   border: 2px solid transparent;
   background-image: linear-gradient(#ffffff, #ffffff), linear-gradient(135deg, #e2e8f0, #cbd5e1);
   background-origin: border-box;
@@ -882,7 +882,7 @@ VISUAL LOCATION: Third section from top, below hero section
 }
 .landing-page-v-1-desktop-1920-px .btn-get-started {
   background: linear-gradient(135deg, var(--color-primary) 0%, #1d4ed8 100%);
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   border: none;
   padding: 16px 32px;
   display: flex;
@@ -988,7 +988,7 @@ VISUAL LOCATION: Third section from top, below hero section
   flex: 1;
   max-width: 360px;
   background: white;
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   padding: 40px 32px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   border: 1px solid #e2e8f0;
@@ -1639,7 +1639,7 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
 /* Try POWER button */
 .landing-page-v-1-desktop-1920-px .btn-try-power {
   background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   padding: 20px 40px;
   display: flex;
   align-items: center;
@@ -2108,7 +2108,7 @@ RESPONSIVE DESIGN FOR BTN-READ-MORE BUTTON
 .landing-page-v-1-desktop-1920-px .security-icon {
   width: 80px;
   height: 80px;
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2136,8 +2136,8 @@ RESPONSIVE DESIGN FOR BTN-READ-MORE BUTTON
 }
 
 .landing-page-v-1-desktop-1920-px .lock-icon {
-  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
-  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
 }
 
 .landing-page-v-1-desktop-1920-px .lock-icon::before {
@@ -2328,7 +2328,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
 .landing-page-v-1-desktop-1920-px .client,
 .landing-page-v-1-desktop-1920-px .client2 {
   background: #ffffff;
-  border-radius: 20px;
+  border-radius: var(--radius-card);
   padding: 40px 32px;
   display: flex;
   flex-direction: column;
@@ -3003,7 +3003,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
   max-width: 500px;
   height: 400px;
   background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3277,7 +3277,7 @@ RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT2 SECTION
     width: 100%;
     max-width: 320px;
     height: 213px;
-    border-radius: 16px;
+    border-radius: var(--radius-card);
   }
   
   .landing-page-v-1-desktop-1920-px .hero-section {
@@ -3294,7 +3294,7 @@ RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT2 SECTION
   height: auto;
   aspect-ratio: 1 / 1;
   object-fit: cover;
-  border-radius: 16px;
+  border-radius: var(--radius-card);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.10);
   transition: box-shadow 0.2s, transform 0.2s;
 }
@@ -3520,7 +3520,7 @@ COMPREHENSIVE RESPONSIVE DESIGN FOR PRICING SECTION
   
   .landing-page-v-1-desktop-1920-px .pricing-card {
     padding: 24px 16px;
-    border-radius: 16px;
+    border-radius: var(--radius-card);
     max-width: 100%;
   }
   
