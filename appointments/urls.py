@@ -40,6 +40,7 @@ from .lab_views import LabReportViewSet
 from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
+from .scheduler_assistant import (AssistantActionCancelView as SchedulerAssistantCancelView, AssistantActionConfirmView as SchedulerAssistantConfirmView, AssistantMessageView as SchedulerAssistantMessageView)
 from . import allergies as allergy_views
 from .order_task_views import (
     PrnGiveView,
@@ -263,6 +264,10 @@ urlpatterns = router.urls + [
     path("locations/<str:kind>/<int:pk>/", LocationItemView.as_view(), name="location-item"),
     path("patient-header-config/", HeaderConfigView.as_view(), name="patient-header-config"),
     path("my-schedule/", MyScheduleView.as_view(), name="my-schedule"),
+    # in-app Scheduler assistant (read tools + confirm-before-act cards)
+    path("scheduler-assistant/message/", SchedulerAssistantMessageView.as_view(), name="scheduler-assistant-message"),
+    path("scheduler-assistant/actions/<uuid:pk>/confirm/", SchedulerAssistantConfirmView.as_view(), name="scheduler-assistant-action-confirm"),
+    path("scheduler-assistant/actions/<uuid:pk>/cancel/", SchedulerAssistantCancelView.as_view(), name="scheduler-assistant-action-cancel"),
     # referral manager
     path("referrals/", ReferralListCreateView.as_view(), name="referrals"),
     path("referrals/queues/", ReferralQueuesView.as_view(), name="referral-queues"),

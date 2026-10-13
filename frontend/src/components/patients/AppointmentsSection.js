@@ -230,7 +230,7 @@ function AppointmentsSection({
 
     if (loading) {
         return (
-            <Box sx={{ textAlign: 'center', py: 4 }}>
+            <Box sx={{ textAlign: 'center', py: 3 }}>
                 <CircularProgress />
                 <Typography sx={{ mt: 2 }}>Loading appointments...</Typography>
             </Box>
@@ -244,11 +244,8 @@ function AppointmentsSection({
                 value={appointmentsTab}
                 onChange={(e, newVal) => setAppointmentsTab(newVal)}
                 sx={{
-                    mb: 3,
-                    '& .MuiTabs-indicator': {
-                        height: 3,
-                        borderRadius: 1,
-                    },
+                    mb: 1.5, minHeight: 40, borderBottom: 1, borderColor: 'divider',
+                    '& .MuiTab-root': { minHeight: 40, py: 0.5 },
                 }}
             >
                 <Tab label="Calendar View" value="calendar" />
@@ -263,7 +260,7 @@ function AppointmentsSection({
             {/* Today's Appointments */}
             {appointmentsTab === 'today' && (
                 <Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 1 }}>
                         <Typography variant="h6" sx={{ color: 'primary.main' }}>
                             Today's Appointments Summary
                         </Typography>
@@ -275,7 +272,7 @@ function AppointmentsSection({
                     {/* Column filters -- narrows the table below without ever
                         removing a row from the underlying data or refetching;
                         a status change never drops a patient out of this list. */}
-                    <Paper variant="outlined" sx={{ p: 1.5, mb: 2 }}>
+                    <Paper variant="outlined" sx={{ p: 1.5, mb: 1 }}>
                         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                             <TextField
                                 size="small"
@@ -340,26 +337,26 @@ function AppointmentsSection({
                     </Paper>
 
                     {todaysAppointments.length === 0 ? (
-                        <Paper sx={{ p: 3, textAlign: 'center' }}>
+                        <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                             <Typography color="text.secondary">
                                 No appointments scheduled for today
                             </Typography>
                         </Paper>
                     ) : displayedTodaysAppointments.length === 0 ? (
-                        <Paper sx={{ p: 3, textAlign: 'center' }}>
+                        <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                             <Typography color="text.secondary">
                                 No appointments match the current filters
                             </Typography>
                         </Paper>
                     ) : (
-                        <TableContainer component={Paper}>
+                        <TableContainer component={Paper} variant="outlined">
                             <Table size="small">
                                 <TableHead>
-                                    <TableRow sx={{ bgcolor: '#dbeafe' }}>
+                                    <TableRow>
                                         {TODAY_COLUMNS.map((col) => (
                                             <TableCell
                                                 key={col.field}
-                                                sx={{ fontWeight: 'bold', textAlign: col.align || 'left' }}
+                                                sx={{ fontWeight: 600, textAlign: col.align || 'left' }}
                                             >
                                                 <TableSortLabel
                                                     active={todaySort.field === col.field}
@@ -478,11 +475,11 @@ function AppointmentsSection({
             {/* Pending Requests */}
             {appointmentsTab === 'pending' && (
                 <Box>
-                    <Typography variant="h6" sx={{ color: 'primary.main', mb: 2 }}>
+                    <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
                         Pending Appointment Requests
                     </Typography>
                     {pendingRequests.length === 0 ? (
-                        <Paper sx={{ p: 3, textAlign: 'center' }}>
+                        <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                             <Typography color="text.secondary">
                                 No pending requests right now.
                             </Typography>
@@ -490,10 +487,11 @@ function AppointmentsSection({
                     ) : (
                         <TableContainer
                             component={Paper}
-                            sx={{ borderRadius: 2, boxShadow: 2, minWidth: 900 }}
+                            variant="outlined"
+                            sx={{ minWidth: 900 }}
                         >
                             <Table size="small">
-                                <TableHead sx={{ bgcolor: '#dbeafe' }}>
+                                <TableHead>
                                     <TableRow>
                                         <TableCell><b>Patient</b></TableCell>
                                         <TableCell><b>Provider</b></TableCell>
@@ -554,7 +552,7 @@ function AppointmentsSection({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        mb: 3
+                        mb: 1
                     }}>
                         <Typography variant="h6" sx={{ color: 'primary.main' }}>
                             Appointments List
@@ -574,7 +572,7 @@ function AppointmentsSection({
 
                     {/* Appointments Table */}
                     {appointmentsResults.length === 0 ? (
-                        <Paper sx={{ p: 3, textAlign: 'center' }}>
+                        <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                             <Typography color="text.secondary">
                                 {appointmentsQuery ? 'No appointments found matching your search' : 'No appointments found'}
                             </Typography>
@@ -582,13 +580,14 @@ function AppointmentsSection({
                     ) : (
                         <TableContainer
                             component={Paper}
-                            sx={{ borderRadius: 2, boxShadow: 2, minWidth: 900 }}
+                            variant="outlined"
+                            sx={{ minWidth: 900 }}
                         >
                             <Table
                                 size="small"
                                 sx={{ "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f7fafc" } }}
                             >
-                                <TableHead sx={{ bgcolor: "#dbeafe" }}>
+                                <TableHead>
                                     <TableRow>
                                         <TableCell>
                                             <b>Clinic Event</b>
