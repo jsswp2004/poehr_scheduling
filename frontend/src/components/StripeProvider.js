@@ -38,11 +38,11 @@ const StripeProvider = ({ children }) => {
       <div>
         <div style={{
           padding: '16px',
-          backgroundColor: '#fff3cd',
+          backgroundColor: '#fef3c7',
           border: '1px solid #ffeaa7',
           borderRadius: '4px',
           marginBottom: '16px',
-          color: '#856404'
+          color: '#92400e'
         }}>
           ⚠️ Payment features are currently unavailable. Stripe configuration needed.
         </div>

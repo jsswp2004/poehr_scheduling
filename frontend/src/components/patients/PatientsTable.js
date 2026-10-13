@@ -157,7 +157,7 @@ function PatientsTable({
             <TableContainer component={Paper} sx={{ flex: 1, minHeight: 0 }}>
                 <Table stickyHeader>
                     <TableHead>
-                        <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                        <TableRow sx={{ bgcolor: '#dbeafe' }}>
                             {inpatientView && (
                                 <TableCell sx={{ fontWeight: 'bold' }}>
                                     <MUISelect
@@ -222,7 +222,7 @@ function PatientsTable({
                                     data-testid={`patient-row-${patient.user_id}`}
                                     onClick={() => onSelect && onSelect(patient)}
                                     sx={{
-                                        '&:hover': { bgcolor: '#f5f5f5' },
+                                        '&:hover': { bgcolor: '#f8fafc' },
                                         '&.Mui-selected, &.Mui-selected:hover': { bgcolor: '#cfe8fc' },
                                         cursor: 'pointer',
                                     }}
@@ -365,7 +365,7 @@ function PatientsTable({
                                                         <IconButton
                                                             size="small"
                                                             onClick={(e) => { e.stopPropagation(); openChart(patient, 'orders', `/patients/${patient.user_id}/orders`); }}
-                                                            sx={{ color: '#2e7d32' }}
+                                                            sx={{ color: '#047857' }}
                                                         >
                                                             <OrdersIcon fontSize="small" />
                                                         </IconButton>
@@ -402,7 +402,7 @@ function PatientsTable({
                                                         size="small"
                                                         aria-label={`Prescription Manager for ${patient.full_name}`}
                                                         onClick={(e) => { e.stopPropagation(); openManager(patient, '/prescriptions'); }}
-                                                        sx={{ color: '#2e7d32' }}
+                                                        sx={{ color: '#047857' }}
                                                     >
                                                         <RxIcon fontSize="small" />
                                                     </IconButton>

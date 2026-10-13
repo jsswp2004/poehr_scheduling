@@ -403,7 +403,7 @@ function OrganizationManagement() {
         <Box>
             {/* User's Organization Section */}
             {userOrganization && (
-                <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8f9fa' }}>
+                <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8fafc' }}>
                     <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Business color="primary" />
                         Your Organization

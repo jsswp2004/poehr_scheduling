@@ -248,9 +248,9 @@ function AutoSMSSetUpPage() {
               sx={{
                 mt: 2,
                 p: 2,
-                bgcolor: "#f8f9fa",
+                bgcolor: "#f8fafc",
                 borderRadius: 1,
-                border: "1px solid #e9ecef",
+                border: "1px solid #e2e8f0",
               }}
             >
               <Typography variant="body2" color="text.secondary">

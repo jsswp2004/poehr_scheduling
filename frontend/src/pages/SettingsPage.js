@@ -31,7 +31,7 @@ function SettingsPage() {
             alignItems: "center",
             mb: -1, // Negative margin to pull content up and connect to tabs
             borderRadius: 2,
-            bgcolor: "#f5faff",
+            bgcolor: "#eff6ff",
             boxShadow: 0,
             minHeight: 48,
             p: 0,

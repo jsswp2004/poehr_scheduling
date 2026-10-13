@@ -115,7 +115,7 @@ function TeamTable({
             <TableContainer component={Paper} sx={{ flex: 1, minHeight: 0 }}>
                 <Table stickyHeader>
                     <TableHead>
-                        <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                        <TableRow sx={{ bgcolor: '#dbeafe' }}>
                             <TableCell sx={{ fontWeight: 'bold' }}>Name</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Role</TableCell>
                             <TableCell sx={{ fontWeight: 'bold' }}>Email</TableCell>
@@ -139,7 +139,7 @@ function TeamTable({
                                     <TableRow
                                         key={member.id}
                                         sx={{
-                                            '&:hover': { bgcolor: '#f5f5f5' },
+                                            '&:hover': { bgcolor: '#f8fafc' },
                                             cursor: 'pointer',
                                         }}
                                     >

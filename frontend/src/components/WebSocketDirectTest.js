@@ -28,7 +28,7 @@ const WebSocketDirectTest = () => {
                         Use this tool to diagnose WebSocket connection issues with Azure deployment.
                     </Typography>
 
-                    <Box sx={{ mb: 3, p: 2, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                    <Box sx={{ mb: 3, p: 2, backgroundColor: '#f8fafc', borderRadius: 1 }}>
                         <Typography variant="body2"><strong>Current URL:</strong> {currentUrl}</Typography>
                         <Typography variant="body2"><strong>Environment:</strong> {isProduction ? 'Production (Azure)' : 'Development'}</Typography>
                         <Typography variant="body2"><strong>WebSocket URL:</strong> {wsUrl}</Typography>

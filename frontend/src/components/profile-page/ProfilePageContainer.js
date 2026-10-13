@@ -118,7 +118,7 @@ const ProfilePageContainer = ({
         </Stack>
 
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3, backgroundColor: '#f5faff' }}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 3, backgroundColor: '#eff6ff' }}>
           <Tabs
             value={activeTab}
             onChange={handleTabChange}
@@ -282,7 +282,7 @@ const ProfilePageContainer = ({
                     }}
                   >
                     <thead>
-                      <tr style={{ backgroundColor: "#e3f2fd" }}>
+                      <tr style={{ backgroundColor: "#dbeafe" }}>
                         <th
                           style={{
                             padding: "8px 12px",
@@ -357,7 +357,7 @@ const ProfilePageContainer = ({
                           key={result.id}
                           style={{
                             backgroundColor:
-                              index % 2 === 0 ? "#ffffff" : "#f8f9fa",
+                              index % 2 === 0 ? "#ffffff" : "#f8fafc",
                             borderBottom: "1px solid #eee",
                           }}
                         >
@@ -409,12 +409,12 @@ const ProfilePageContainer = ({
                               fontWeight: "bold",
                               color:
                                 result.role === "Doctor"
-                                  ? "#2e7d32"
+                                  ? "#047857"
                                   : result.role === "Admin"
-                                    ? "#d32f2f"
+                                    ? "#dc2626"
                                     : result.role === "system_admin"
                                       ? "#7b1fa2"
-                                      : "#757575",
+                                      : "#64748b",
                             }}
                           >
                             {result.role}
@@ -442,9 +442,9 @@ const ProfilePageContainer = ({
                               size="small"
                               onClick={() => handleDeleteUser(result)}
                               sx={{
-                                color: "#d32f2f",
+                                color: "#dc2626",
                                 "&:hover": {
-                                  backgroundColor: "#ffebee",
+                                  backgroundColor: "#fee2e2",
                                 },
                               }}
                             >

@@ -78,7 +78,7 @@ function PatientInformationForm({
                             }
                             InputProps={
                                 !editMode
-                                    ? { style: { color: '#333', background: '#f5f5f5' } }
+                                    ? { style: { color: '#333', background: '#f8fafc' } }
                                     : {}
                             }
                         />
@@ -103,7 +103,7 @@ function PatientInformationForm({
                             }
                             InputProps={
                                 !editMode
-                                    ? { style: { color: '#333', background: '#f5f5f5' } }
+                                    ? { style: { color: '#333', background: '#f8fafc' } }
                                     : {}
                             }
                         />
@@ -134,7 +134,7 @@ function PatientInformationForm({
                             }
                             InputProps={
                                 !editMode
-                                    ? { style: { color: '#333', background: '#f5f5f5' } }
+                                    ? { style: { color: '#333', background: '#f8fafc' } }
                                     : {}
                             }
                         />
@@ -179,7 +179,7 @@ function PatientInformationForm({
                             }
                             InputProps={
                                 !editMode
-                                    ? { style: { color: '#333', background: '#f5f5f5' } }
+                                    ? { style: { color: '#333', background: '#f8fafc' } }
                                     : {}
                             }
                         />
@@ -227,7 +227,7 @@ function PatientInformationForm({
                             InputProps={{
                                 ...(editMode
                                     ? {}
-                                    : { style: { color: '#333', background: '#f5f5f5' } }),
+                                    : { style: { color: '#333', background: '#f8fafc' } }),
                                 startAdornment: (
                                     <InputAdornment position="start">📞</InputAdornment>
                                 ),
@@ -261,7 +261,7 @@ function PatientInformationForm({
                             InputLabelProps={{ shrink: true }}
                             InputProps={
                                 !editMode
-                                    ? { style: { color: '#333', background: '#f5f5f5' } }
+                                    ? { style: { color: '#333', background: '#f8fafc' } }
                                     : {}
                             }
                         />
@@ -278,7 +278,7 @@ function PatientInformationForm({
                                     editMode && (!formData.provider || formData.provider === '')
                                 }
                                 sx={
-                                    !editMode ? { color: '#333', background: '#f5f5f5' } : {}
+                                    !editMode ? { color: '#333', background: '#f8fafc' } : {}
                                 }
                             >
                                 <MenuItem value="">Select a provider</MenuItem>
@@ -329,7 +329,7 @@ function PatientInformationForm({
                                     (!formData.organization || formData.organization === '')
                                 }
                                 sx={
-                                    !editMode ? { color: '#333', background: '#f5f5f5' } : {}
+                                    !editMode ? { color: '#333', background: '#f8fafc' } : {}
                                 }
                             >
                                 <MenuItem value="">Select an organization</MenuItem>
@@ -366,7 +366,7 @@ function PatientInformationForm({
                                 required
                                 disabled
                                 InputProps={{
-                                    style: { color: '#333', background: '#f5f5f5' },
+                                    style: { color: '#333', background: '#f8fafc' },
                                 }}
                             />
                         )}
@@ -390,7 +390,7 @@ function PatientInformationForm({
                     }
                     InputProps={
                         !editMode
-                            ? { style: { color: '#333', background: '#f5f5f5' } }
+                            ? { style: { color: '#333', background: '#f8fafc' } }
                             : {}
                     }
                     sx={{ mb: 2 }}
@@ -436,8 +436,8 @@ function PatientInformationForm({
                         color="warning"
                         onClick={onResetPassword}
                         sx={{
-                            borderColor: '#ff9800',
-                            color: '#ff9800',
+                            borderColor: '#d97706',
+                            color: '#d97706',
                             '&:hover': {
                                 borderColor: '#f57c00',
                                 backgroundColor: '#fff3e0',

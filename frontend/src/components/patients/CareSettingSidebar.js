@@ -70,7 +70,7 @@ function CareSettingSidebar({ value = DEFAULT_CARE_SETTING, onChange, compact = 
         transition: "width 0.2s",
         borderRight: 1,
         borderColor: "divider",
-        bgcolor: "#f5faff",
+        bgcolor: "#eff6ff",
         overflow: "hidden",
         display: "flex",
         flexDirection: "column",

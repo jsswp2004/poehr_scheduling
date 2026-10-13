@@ -468,7 +468,7 @@ function PatientDetailPage() {
                 </div>
             )}      {/* Upload profile picture in edit mode */}
             {editMode && (
-                <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8f9fa' }}>
+                <Paper elevation={1} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#f8fafc' }}>
                     <Typography variant="h6" sx={{ mb: 2, color: 'primary.main' }}>
                         Profile Picture
                     </Typography>
@@ -548,7 +548,7 @@ function PatientDetailPage() {
                                 disabled={!editMode}
                                 error={editMode && (!formData.first_name || formData.first_name.trim() === '')}
                                 helperText={editMode && (!formData.first_name || formData.first_name.trim() === '') ? 'First name is required' : ''}
-                                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                                InputProps={!editMode ? { style: { color: '#333', background: '#f8fafc' } } : {}}
                             />
 
                             <TextField
@@ -561,7 +561,7 @@ function PatientDetailPage() {
                                 disabled={!editMode}
                                 error={editMode && (!formData.last_name || formData.last_name.trim() === '')}
                                 helperText={editMode && (!formData.last_name || formData.last_name.trim() === '') ? 'Last name is required' : ''}
-                                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                                InputProps={!editMode ? { style: { color: '#333', background: '#f8fafc' } } : {}}
                             />
 
                             <TextField
@@ -575,7 +575,7 @@ function PatientDetailPage() {
                                 error={editMode && (!formData.username || formData.username.trim() === '' || formData.username.length < 3)}
                                 helperText={editMode && (!formData.username || formData.username.trim() === '') ? 'Username is required' :
                                     editMode && formData.username && formData.username.length < 3 ? 'Username must be at least 3 characters' : ''}
-                                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                                InputProps={!editMode ? { style: { color: '#333', background: '#f8fafc' } } : {}}
                             />
 
                             <TextField
@@ -593,7 +593,7 @@ function PatientDetailPage() {
                                 error={editMode && (!formData.email || formData.email.trim() === '' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email))}
                                 helperText={editMode && (!formData.email || formData.email.trim() === '') ? 'Email is required' :
                                     editMode && formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ? 'Invalid email format' : ''}
-                                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                                InputProps={!editMode ? { style: { color: '#333', background: '#f8fafc' } } : {}}
                             />
 
                             <TextField
@@ -612,7 +612,7 @@ function PatientDetailPage() {
                                     editMode && formData.phone_number && formData.phone_number.length > 0 && formData.phone_number.length < 10 ?
                                         'Phone number must be at least 10 digits' : editMode ? 'Format: (555) 123-4567' : ''}
                                 InputProps={{
-                                    ...(editMode ? {} : { style: { color: '#333', background: '#f5f5f5' } }),
+                                    ...(editMode ? {} : { style: { color: '#333', background: '#f8fafc' } }),
                                     startAdornment: <InputAdornment position="start">📞</InputAdornment>,
                                 }}
                             />
@@ -632,7 +632,7 @@ function PatientDetailPage() {
                                 error={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '')}
                                 helperText={editMode && (!formData.date_of_birth || formData.date_of_birth.trim() === '') ? 'Date of birth is required' : ''}
                                 InputLabelProps={{ shrink: true }}
-                                InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                                InputProps={!editMode ? { style: { color: '#333', background: '#f8fafc' } } : {}}
                             />
 
                             <FormControl fullWidth disabled={!editMode} required>
@@ -644,7 +644,7 @@ function PatientDetailPage() {
                                     label="Provider"
                                     required
                                     error={editMode && (!formData.provider || formData.provider === '')}
-                                    sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                                    sx={!editMode ? { color: '#333', background: '#f8fafc' } : {}}
                                 >
                                     <MenuItem value="">Select a provider</MenuItem>
                                     {Array.isArray(doctors) && doctors.map((doc) => (
@@ -676,7 +676,7 @@ function PatientDetailPage() {
                                     label="Organization"
                                     required
                                     error={editMode && (!formData.organization || formData.organization === '')}
-                                    sx={!editMode ? { color: '#333', background: '#f5f5f5' } : {}}
+                                    sx={!editMode ? { color: '#333', background: '#f8fafc' } : {}}
                                 >
                                     <MenuItem value="">Select an organization</MenuItem>
                                     {organizations.map((org) => (
@@ -704,7 +704,7 @@ function PatientDetailPage() {
                                     fullWidth
                                     required
                                     disabled
-                                    InputProps={{ style: { color: '#333', background: '#f5f5f5' } }}
+                                    InputProps={{ style: { color: '#333', background: '#f8fafc' } }}
                                 />
                             )}
                         </Stack>
@@ -721,7 +721,7 @@ function PatientDetailPage() {
                         multiline
                         rows={4}
                         helperText={editMode ? 'Optional - medical history, allergies, or other notes' : ''}
-                        InputProps={!editMode ? { style: { color: '#333', background: '#f5f5f5' } } : {}}
+                        InputProps={!editMode ? { style: { color: '#333', background: '#f8fafc' } } : {}}
                         sx={{ mb: 2 }}
                     />
 
@@ -763,8 +763,8 @@ function PatientDetailPage() {
                             color="warning"
                             onClick={handleResetPassword}
                             sx={{
-                                borderColor: '#ff9800',
-                                color: '#ff9800',
+                                borderColor: '#d97706',
+                                color: '#d97706',
                                 '&:hover': {
                                     borderColor: '#f57c00',
                                     backgroundColor: '#fff3e0'

@@ -169,7 +169,7 @@ function PatientHeaderSettings() {
       {problem && <Alert severity="warning" sx={{ mb: 2 }}>{problem}</Alert>}
       {!canEdit && !problem && <Alert severity="info" sx={{ mb: 2 }}>Only an administrator can change the patient header.</Alert>}
 
-      <Paper variant="outlined" sx={{ mb: 2, p: 1.5, bgcolor: "#f7fbff" }} aria-label="Preview" data-testid="header-preview">
+      <Paper variant="outlined" sx={{ mb: 2, p: 1.5, bgcolor: "#eff6ff" }} aria-label="Preview" data-testid="header-preview">
         <Typography variant="caption" color="text.secondary">
           Preview
         </Typography>

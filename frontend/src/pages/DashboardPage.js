@@ -856,7 +856,7 @@ function DashboardPage() {
                                   href="https://powerhealthcareit.com/terms" 
                                   target="_blank" 
                                   rel="noopener noreferrer"
-                                  style={{ color: '#1976d2', textDecoration: 'underline' }}
+                                  style={{ color: '#2563eb', textDecoration: 'underline' }}
                                 >
                                   Privacy Policy and Terms
                                 </a>.

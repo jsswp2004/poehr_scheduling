@@ -131,13 +131,13 @@ export const SubscriptionGate = ({
         return (
             <div style={{
                 padding: '20px',
-                border: '2px dashed #1976d2',
+                border: '2px dashed #2563eb',
                 borderRadius: '8px',
                 textAlign: 'center',
-                backgroundColor: '#f5f5f5',
+                backgroundColor: '#f8fafc',
                 margin: '10px 0'
             }}>
-                <h4 style={{ color: '#1976d2', margin: '0 0 10px 0' }}>
+                <h4 style={{ color: '#2563eb', margin: '0 0 10px 0' }}>
                     🚀 Upgrade to Clinic Plan
                 </h4>
                 <p style={{ margin: '0 0 15px 0', color: '#666' }}>
@@ -145,7 +145,7 @@ export const SubscriptionGate = ({
                 </p>
                 <button 
                     style={{
-                        backgroundColor: '#1976d2',
+                        backgroundColor: '#2563eb',
                         color: 'white',
                         border: 'none',
                         padding: '10px 20px',

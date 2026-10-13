@@ -12,7 +12,7 @@ const SimpleFooter = () => {
         right: 0,
         height: '21px', // 1/3 of navbar height (64px)
         minHeight: '21px',
-        bgcolor: 'primary.main', // Same color as navbar
+        bgcolor: '#0f172a', // Matches the navbar's dark navy
         boxShadow: 1,
         zIndex: 1200 // Ensure it stays above other content
       }}

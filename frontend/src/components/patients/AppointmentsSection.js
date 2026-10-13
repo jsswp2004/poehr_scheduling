@@ -355,7 +355,7 @@ function AppointmentsSection({
                         <TableContainer component={Paper}>
                             <Table size="small">
                                 <TableHead>
-                                    <TableRow sx={{ bgcolor: '#e3f2fd' }}>
+                                    <TableRow sx={{ bgcolor: '#dbeafe' }}>
                                         {TODAY_COLUMNS.map((col) => (
                                             <TableCell
                                                 key={col.field}
@@ -493,7 +493,7 @@ function AppointmentsSection({
                             sx={{ borderRadius: 2, boxShadow: 2, minWidth: 900 }}
                         >
                             <Table size="small">
-                                <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                                <TableHead sx={{ bgcolor: '#dbeafe' }}>
                                     <TableRow>
                                         <TableCell><b>Patient</b></TableCell>
                                         <TableCell><b>Provider</b></TableCell>
@@ -588,7 +588,7 @@ function AppointmentsSection({
                                 size="small"
                                 sx={{ "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f7fafc" } }}
                             >
-                                <TableHead sx={{ bgcolor: "#e3f2fd" }}>
+                                <TableHead sx={{ bgcolor: "#dbeafe" }}>
                                     <TableRow>
                                         <TableCell>
                                             <b>Clinic Event</b>

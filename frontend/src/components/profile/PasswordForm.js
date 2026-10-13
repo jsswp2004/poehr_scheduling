@@ -45,10 +45,10 @@ const PasswordForm = ({
             {/* Password Change Form */}
             <Collapse in={showPasswordChange}>
                 <Box sx={{
-                    backgroundColor: '#fafafa',
+                    backgroundColor: '#f8fafc',
                     padding: 3,
                     borderRadius: 2,
-                    border: '1px solid #e0e0e0',
+                    border: '1px solid #e2e8f0',
                 }}>
                     <Stack spacing={3}>
                         <TextField

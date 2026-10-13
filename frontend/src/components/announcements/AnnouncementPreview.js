@@ -13,8 +13,8 @@ const AnnouncementPreview = ({ announcement }) => {
             <Paper
                 sx={{
                     p: 3,
-                    bgcolor: "#f8f9fa",
-                    border: "1px solid #e9ecef",
+                    bgcolor: "#f8fafc",
+                    border: "1px solid #e2e8f0",
                     height: "auto",
                     overflow: "visible",
                 }}
@@ -42,7 +42,7 @@ const AnnouncementPreview = ({ announcement }) => {
                             style={{
                                 marginBottom: "16px",
                                 fontWeight: "bold",
-                                color: "#2c3e50",
+                                color: "#1e293b",
                                 borderBottom: "2px solid #3498db",
                                 paddingBottom: "8px",
                                 fontSize: "1.5rem",
@@ -97,7 +97,7 @@ const AnnouncementPreview = ({ announcement }) => {
                                     <AttachFileIcon
                                         sx={{ fontSize: 16, color: "#7f8c8d" }}
                                     />
-                                    <Typography variant="body2" sx={{ color: "#2c3e50" }}>
+                                    <Typography variant="body2" sx={{ color: "#1e293b" }}>
                                         {file.name}
                                     </Typography>
                                 </Box>

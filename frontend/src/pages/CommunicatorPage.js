@@ -114,7 +114,7 @@ function CommunicatorPage() {
             style={{
               marginRight: "10px",
               padding: "5px 15px",
-              backgroundColor: "#d32f2f",
+              backgroundColor: "#dc2626",
               color: "white",
               border: "none",
               borderRadius: "4px",
@@ -127,7 +127,7 @@ function CommunicatorPage() {
             onClick={() => toast.dismiss()}
             style={{
               padding: "5px 15px",
-              backgroundColor: "#757575",
+              backgroundColor: "#64748b",
               color: "white",
               border: "none",
               borderRadius: "4px",

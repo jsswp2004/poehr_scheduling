@@ -29,9 +29,9 @@ import { authHeader, errorText } from "../patientHeader/headerApi";
 
 const COLORS = {
   available: { bg: "#e8f5e9", border: "#66bb6a", label: "Available" },
-  occupied: { bg: "#e3f2fd", border: "#42a5f5", label: "Occupied" },
+  occupied: { bg: "#dbeafe", border: "#42a5f5", label: "Occupied" },
   cleaning: { bg: "#fff8e1", border: "#ffb300", label: "Cleaning" },
-  blocked: { bg: "#ffebee", border: "#ef5350", label: "Blocked" },
+  blocked: { bg: "#fee2e2", border: "#ef5350", label: "Blocked" },
 };
 
 const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
@@ -178,11 +178,11 @@ export default function BedBoard({ userRole, refreshKey = 0, onOpenPatient, onTr
                             {b.status === "available" && (
                               <>
                                 {act(`Mark bed ${b.name} for cleaning`, <CleaningServicesIcon fontSize="small" />, () => setHold(b, "cleaning"), "#f9a825")}
-                                {act(`Block bed ${b.name}`, <BlockIcon fontSize="small" />, () => { setReason(""); setBlocking(b); }, "#c62828")}
+                                {act(`Block bed ${b.name}`, <BlockIcon fontSize="small" />, () => { setReason(""); setBlocking(b); }, "#b91c1c")}
                               </>
                             )}
                             {(b.status === "cleaning" || b.status === "blocked") &&
-                              act(`Make bed ${b.name} available`, <CheckCircleOutlineIcon fontSize="small" />, () => setHold(b, ""), "#2e7d32")}
+                              act(`Make bed ${b.name} available`, <CheckCircleOutlineIcon fontSize="small" />, () => setHold(b, ""), "#047857")}
                           </Box>
                         )}
                       </Box>

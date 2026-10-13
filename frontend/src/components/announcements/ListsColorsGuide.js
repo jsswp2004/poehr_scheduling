@@ -48,7 +48,7 @@ const ListsColorsGuide = () => {
                     variant="subtitle2"
                     sx={{
                         mb: 1,
-                        color: "#2c3e50",
+                        color: "#1e293b",
                         fontSize: "0.8rem",
                         fontWeight: 600,
                     }}
@@ -88,7 +88,7 @@ const ListsColorsGuide = () => {
                     variant="subtitle2"
                     sx={{
                         mb: 1,
-                        color: "#2c3e50",
+                        color: "#1e293b",
                         fontSize: "0.8rem",
                         fontWeight: 600,
                     }}
@@ -128,7 +128,7 @@ const ListsColorsGuide = () => {
                     variant="subtitle2"
                     sx={{
                         mb: 1,
-                        color: "#2c3e50",
+                        color: "#1e293b",
                         fontSize: "0.8rem",
                         fontWeight: 600,
                     }}
@@ -137,7 +137,7 @@ const ListsColorsGuide = () => {
                 </Typography>
                 <Box
                     sx={{
-                        background: "#f8f9fa",
+                        background: "#f8fafc",
                         p: 1.5,
                         borderRadius: 1,
                         border: "1px solid #ddd",

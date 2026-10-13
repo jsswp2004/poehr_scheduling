@@ -174,10 +174,10 @@ function EnvironmentProfilePage() {
           <Table
             size="small"
             stickyHeader
-            sx={{ bgcolor: "#f5faff", borderRadius: 2 }}
+            sx={{ bgcolor: "#eff6ff", borderRadius: 2 }}
           >
             <TableHead>
-              <TableRow sx={{ bgcolor: "#e3f2fd" }}>
+              <TableRow sx={{ bgcolor: "#dbeafe" }}>
                 <TableCell
                   sx={{ fontWeight: "bold", width: 180, fontSize: "1rem" }}
                 >
@@ -199,7 +199,7 @@ function EnvironmentProfilePage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              <TableRow sx={{ "&:nth-of-type(odd)": { bgcolor: "#f0f4ff" } }}>
+              <TableRow sx={{ "&:nth-of-type(odd)": { bgcolor: "#eff6ff" } }}>
                 <TableCell className="text-start">
                   <b>Organization Blocked Days</b>
                 </TableCell>

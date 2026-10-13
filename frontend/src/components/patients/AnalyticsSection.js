@@ -181,7 +181,7 @@ function AnalyticsSection({
           overflow: "hidden"
         }}>
           {/* Report Header */}
-          <Box sx={{ mb: 2, pb: 2, borderBottom: "2px solid #1976d2", flexShrink: 0 }}>
+          <Box sx={{ mb: 2, pb: 2, borderBottom: "2px solid #2563eb", flexShrink: 0 }}>
             <Typography variant="h6" sx={{ color: "primary.main", mb: 1 }}>
               {selectedReportName}
             </Typography>
@@ -198,7 +198,7 @@ function AnalyticsSection({
           </Box>
 
           {/* Filter Summary */}
-          <Box sx={{ mb: 2, p: 2, bgcolor: "#f5f5f5", borderRadius: 1, flexShrink: 0 }}>
+          <Box sx={{ mb: 2, p: 2, bgcolor: "#f8fafc", borderRadius: 1, flexShrink: 0 }}>
             <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
               Applied Filters:
             </Typography>
@@ -233,7 +233,7 @@ function AnalyticsSection({
               flex: 1, 
               overflow: "auto",
               minHeight: 0,
-              border: "1px solid #e0e0e0",
+              border: "1px solid #e2e8f0",
               borderRadius: 1
             }}>
               <Table stickyHeader size="small">
@@ -244,7 +244,7 @@ function AnalyticsSection({
                         key={header}
                         sx={{
                           fontWeight: "bold",
-                          bgcolor: "#1976d2",
+                          bgcolor: "#2563eb",
                           color: "white",
                         }}
                       >
@@ -260,7 +260,7 @@ function AnalyticsSection({
                   {previewData.records.map((record, index) => (
                     <TableRow
                       key={index}
-                      sx={{ "&:nth-of-type(even)": { bgcolor: "#f9f9f9" } }}
+                      sx={{ "&:nth-of-type(even)": { bgcolor: "#f8fafc" } }}
                     >
                       {Object.keys(record).map((key) => {
                         let value = record[key] || "N/A";
@@ -313,7 +313,7 @@ function AnalyticsSection({
                 justifyContent: "center",
                 flex: 1,
                 minHeight: 200,
-                bgcolor: "#f9f9f9",
+                bgcolor: "#f8fafc",
                 borderRadius: 1,
                 border: "2px dashed #ccc",
               }}
@@ -690,13 +690,13 @@ function AnalyticsSection({
                                 font-family: Arial, sans-serif;
                                 margin: 20px;
                                 text-align: center;
-                                color: #d32f2f;
+                                color: #dc2626;
                             }
                             .error-container {
                                 padding: 40px;
-                                border: 2px solid #d32f2f;
+                                border: 2px solid #dc2626;
                                 border-radius: 10px;
-                                background-color: #ffebee;
+                                background-color: #fee2e2;
                                 margin: 50px auto;
                                 max-width: 600px;
                             }
@@ -712,7 +712,7 @@ function AnalyticsSection({
                             }
                             button {
                                 padding: 12px 24px;
-                                background-color: #d32f2f;
+                                background-color: #dc2626;
                                 color: white;
                                 border: none;
                                 border-radius: 5px;
@@ -758,14 +758,14 @@ function AnalyticsSection({
                             }
                             .header {
                                 text-align: center;
-                                border-bottom: 2px solid #1976d2;
+                                border-bottom: 2px solid #2563eb;
                                 padding-bottom: 20px;
                                 margin-bottom: 30px;
                             }
                             .report-title {
                                 font-size: 24px;
                                 font-weight: bold;
-                                color: #1976d2;
+                                color: #2563eb;
                                 margin-bottom: 10px;
                             }
                             .report-info {
@@ -773,20 +773,20 @@ function AnalyticsSection({
                                 color: #666;
                             }
                             .filters {
-                                background-color: #f5f5f5;
+                                background-color: #f8fafc;
                                 padding: 15px;
                                 border-radius: 5px;
                                 margin-bottom: 20px;
                             }
                             .filters h3 {
                                 margin-top: 0;
-                                color: #1976d2;
+                                color: #2563eb;
                                 font-size: 16px;
                             }
                             .no-data-container {
                                 text-align: center;
                                 padding: 60px 20px;
-                                background-color: #f9f9f9;
+                                background-color: #f8fafc;
                                 border-radius: 10px;
                                 border: 2px dashed #ccc;
                             }
@@ -816,7 +816,7 @@ function AnalyticsSection({
                                 font-size: 14px;
                             }
                             .print-btn {
-                                background-color: #1976d2;
+                                background-color: #2563eb;
                             }
                             .close-btn {
                                 background-color: #666;
@@ -899,14 +899,14 @@ function AnalyticsSection({
                     }
                     .header {
                         text-align: center;
-                        border-bottom: 2px solid #1976d2;
+                        border-bottom: 2px solid #2563eb;
                         padding-bottom: 20px;
                         margin-bottom: 30px;
                     }
                     .report-title {
                         font-size: 24px;
                         font-weight: bold;
-                        color: #1976d2;
+                        color: #2563eb;
                         margin-bottom: 10px;
                     }
                     .report-info {
@@ -914,14 +914,14 @@ function AnalyticsSection({
                         color: #666;
                     }
                     .filters {
-                        background-color: #f5f5f5;
+                        background-color: #f8fafc;
                         padding: 15px;
                         border-radius: 5px;
                         margin-bottom: 20px;
                     }
                     .filters h3 {
                         margin-top: 0;
-                        color: #1976d2;
+                        color: #2563eb;
                         font-size: 16px;
                     }
                     .summary-section, .details-section, .records-section {
@@ -929,7 +929,7 @@ function AnalyticsSection({
                         page-break-inside: avoid;
                     }
                     .summary-section h3, .details-section h3, .records-section h3 {
-                        color: #1976d2;
+                        color: #2563eb;
                         border-bottom: 1px solid #ddd;
                         padding-bottom: 10px;
                         margin-bottom: 20px;
@@ -944,9 +944,9 @@ function AnalyticsSection({
                         display: flex;
                         justify-content: space-between;
                         padding: 10px;
-                        background-color: #f9f9f9;
+                        background-color: #f8fafc;
                         border-radius: 5px;
-                        border-left: 4px solid #1976d2;
+                        border-left: 4px solid #2563eb;
                     }
                     .stat-label {
                         font-weight: 500;
@@ -954,7 +954,7 @@ function AnalyticsSection({
                     }
                     .stat-value {
                         font-weight: bold;
-                        color: #1976d2;
+                        color: #2563eb;
                     }
                     .data-table {
                         width: 100%;
@@ -969,12 +969,12 @@ function AnalyticsSection({
                         font-size: 12px;
                     }
                     .data-table th {
-                        background-color: #1976d2;
+                        background-color: #2563eb;
                         color: white;
                         font-weight: bold;
                     }
                     .data-table tr:nth-child(even) {
-                        background-color: #f9f9f9;
+                        background-color: #f8fafc;
                     }
                     .status-badge {
                         padding: 2px 6px;
@@ -982,16 +982,16 @@ function AnalyticsSection({
                         font-size: 11px;
                         font-weight: bold;
                     }
-                    .status-completed { background-color: #d4edda; color: #155724; }
-                    .status-cancelled { background-color: #f8d7da; color: #721c24; }
-                    .status-no-show { background-color: #fff3cd; color: #856404; }
-                    .status-paid { background-color: #d4edda; color: #155724; }
-                    .status-pending { background-color: #fff3cd; color: #856404; }
+                    .status-completed { background-color: #d1fae5; color: #065f46; }
+                    .status-cancelled { background-color: #fee2e2; color: #991b1b; }
+                    .status-no-show { background-color: #fef3c7; color: #92400e; }
+                    .status-paid { background-color: #d1fae5; color: #065f46; }
+                    .status-pending { background-color: #fef3c7; color: #92400e; }
                     .status-processed { background-color: #d1ecf1; color: #0c5460; }
-                    .status-blocked { background-color: #f8d7da; color: #721c24; }
-                    .frequency-high { background-color: #d4edda; color: #155724; }
-                    .frequency-medium { background-color: #fff3cd; color: #856404; }
-                    .frequency-low { background-color: #f8d7da; color: #721c24; }
+                    .status-blocked { background-color: #fee2e2; color: #991b1b; }
+                    .frequency-high { background-color: #d1fae5; color: #065f46; }
+                    .frequency-medium { background-color: #fef3c7; color: #92400e; }
+                    .frequency-low { background-color: #fee2e2; color: #991b1b; }
                     @media print {
                         body { margin: 0; }
                         .no-print { display: none; }
@@ -1035,7 +1035,7 @@ function AnalyticsSection({
                 ${detailedContent}
                 
                 <div class="no-print" style="text-align: center; margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px;">
-                    <button onclick="window.print()" style="padding: 12px 24px; background-color: #1976d2; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; font-size: 14px;">Print Report</button>
+                    <button onclick="window.print()" style="padding: 12px 24px; background-color: #2563eb; color: white; border: none; border-radius: 5px; cursor: pointer; margin-right: 10px; font-size: 14px;">Print Report</button>
                     <button onclick="window.close()" style="padding: 12px 24px; background-color: #666; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Close Window</button>
                 </div>
             </body>
@@ -1314,7 +1314,7 @@ function AnalyticsSection({
                             key={report}
                             sx={{
                               "&:nth-of-type(odd)": {
-                                backgroundColor: "#f9f9f9",
+                                backgroundColor: "#f8fafc",
                               },
                               "&:hover": {
                                 backgroundColor: "#f0f7ff",
@@ -1341,7 +1341,7 @@ function AnalyticsSection({
                                   size="small"
                                   onClick={() => handleRunReport(report)}
                                   sx={{
-                                    color: "#2e7d32",
+                                    color: "#047857",
                                     "&:hover": {
                                       backgroundColor: "#e8f5e8",
                                     },
@@ -1354,9 +1354,9 @@ function AnalyticsSection({
                                   size="small"
                                   onClick={() => onDownloadReport(report)}
                                   sx={{
-                                    color: "#1976d2",
+                                    color: "#2563eb",
                                     "&:hover": {
-                                      backgroundColor: "#e3f2fd",
+                                      backgroundColor: "#dbeafe",
                                     },
                                   }}
                                   title="Download"
@@ -1383,9 +1383,9 @@ function AnalyticsSection({
                                   size="small"
                                   onClick={() => handleDeleteReport(report)}
                                   sx={{
-                                    color: "#d32f2f",
+                                    color: "#dc2626",
                                     "&:hover": {
-                                      backgroundColor: "#ffebee",
+                                      backgroundColor: "#fee2e2",
                                     },
                                   }}
                                   title="Delete"
@@ -1571,7 +1571,7 @@ function AnalyticsSection({
                             key={report}
                             sx={{
                               "&:nth-of-type(odd)": {
-                                backgroundColor: "#f9f9f9",
+                                backgroundColor: "#f8fafc",
                               },
                               "&:hover": {
                                 backgroundColor: "#f0f7ff",
@@ -1598,7 +1598,7 @@ function AnalyticsSection({
                                   size="small"
                                   onClick={() => handleRunReport(report)}
                                   sx={{
-                                    color: "#2e7d32",
+                                    color: "#047857",
                                     "&:hover": {
                                       backgroundColor: "#e8f5e8",
                                     },
@@ -1611,9 +1611,9 @@ function AnalyticsSection({
                                   size="small"
                                   onClick={() => onDownloadReport(report)}
                                   sx={{
-                                    color: "#1976d2",
+                                    color: "#2563eb",
                                     "&:hover": {
-                                      backgroundColor: "#e3f2fd",
+                                      backgroundColor: "#dbeafe",
                                     },
                                   }}
                                   title="Download"
@@ -1640,9 +1640,9 @@ function AnalyticsSection({
                                   size="small"
                                   onClick={() => handleDeleteReport(report)}
                                   sx={{
-                                    color: "#d32f2f",
+                                    color: "#dc2626",
                                     "&:hover": {
-                                      backgroundColor: "#ffebee",
+                                      backgroundColor: "#fee2e2",
                                     },
                                   }}
                                   title="Delete"

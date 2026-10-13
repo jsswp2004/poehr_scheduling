@@ -425,7 +425,7 @@ const SimpleAddressAutocomplete = memo(function SimpleAddressAutocomplete({
                   width: 16,
                   height: 16,
                   border: "2px solid #ccc",
-                  borderTop: "2px solid #1976d2",
+                  borderTop: "2px solid #2563eb",
                   borderRadius: "50%",
                   animation: "spin 1s linear infinite",
                   "@keyframes spin": {
@@ -929,7 +929,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       {editMode && (
         <Paper
           elevation={1}
-          sx={{ p: 3, ...(embedded && { pt: 2 }), mb: 3, borderRadius: 2, bgcolor: "#f8f9fa" }}
+          sx={{ p: 3, ...(embedded && { pt: 2 }), mb: 3, borderRadius: 2, bgcolor: "#f8fafc" }}
         >
           <Typography variant="h6" sx={{ mb: 2, color: "primary.main" }}>
             Profile Picture
@@ -1038,7 +1038,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                   }
                   InputProps={
                     !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      ? { style: { color: "#333", background: "#f8fafc" } }
                       : {}
                   }
                 />
@@ -1063,7 +1063,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                   }
                   InputProps={
                     !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      ? { style: { color: "#333", background: "#f8fafc" } }
                       : {}
                   }
                 />
@@ -1094,7 +1094,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                   }
                   InputProps={
                     !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      ? { style: { color: "#333", background: "#f8fafc" } }
                       : {}
                   }
                 />
@@ -1136,7 +1136,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                   }
                   InputProps={
                     !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      ? { style: { color: "#333", background: "#f8fafc" } }
                       : {}
                   }
                 />
@@ -1179,7 +1179,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                   InputProps={{
                     ...(editMode
                       ? {}
-                      : { style: { color: "#333", background: "#f5f5f5" } }),
+                      : { style: { color: "#333", background: "#f8fafc" } }),
                     startAdornment: (
                       <InputAdornment position="start">📞</InputAdornment>
                     ),
@@ -1213,7 +1213,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                   InputLabelProps={{ shrink: true }}
                   InputProps={
                     !editMode
-                      ? { style: { color: "#333", background: "#f5f5f5" } }
+                      ? { style: { color: "#333", background: "#f8fafc" } }
                       : {}
                   }
                 />
@@ -1231,7 +1231,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                       (!formData.provider || formData.provider === "")
                     }
                     sx={
-                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
+                      !editMode ? { color: "#333", background: "#f8fafc" } : {}
                     }
                   >
                     <MenuItem value="">Select a provider</MenuItem>
@@ -1283,7 +1283,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                       (!formData.organization || formData.organization === "")
                     }
                     sx={
-                      !editMode ? { color: "#333", background: "#f5f5f5" } : {}
+                      !editMode ? { color: "#333", background: "#f8fafc" } : {}
                     }
                   >
                     <MenuItem value="">Select an organization</MenuItem>
@@ -1321,7 +1321,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                     required
                     disabled
                     InputProps={{
-                      style: { color: "#333", background: "#f5f5f5" },
+                      style: { color: "#333", background: "#f8fafc" },
                     }}
                   />
                 )}
@@ -1345,7 +1345,7 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
               }
               InputProps={
                 !editMode
-                  ? { style: { color: "#333", background: "#f5f5f5" } }
+                  ? { style: { color: "#333", background: "#f8fafc" } }
                   : {}
               }
               sx={{ mb: 2 }}
@@ -1400,8 +1400,8 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
                   color="warning"
                   onClick={handleResetPassword}
                   sx={{
-                    borderColor: "#ff9800",
-                    color: "#ff9800",
+                    borderColor: "#d97706",
+                    color: "#d97706",
                     "&:hover": {
                       borderColor: "#f57c00",
                       backgroundColor: "#fff3e0",

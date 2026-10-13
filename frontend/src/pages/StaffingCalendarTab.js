@@ -33,10 +33,10 @@ import StaffingCalendarToolbar, {
 const localizer = momentLocalizer(moment);
 
 const SHIFT_COLORS = {
-  day: "#1976d2",
+  day: "#2563eb",
   evening: "#f57c00",
   night: "#5e35b1",
-  custom: "#546e7a",
+  custom: "#475569",
 };
 
 // Shift types each unit pattern uses (mirrors the backend's hppd.SHIFT_PATTERNS).
@@ -223,7 +223,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
   );
 
   const eventPropGetter = (event) => {
-    const color = SHIFT_COLORS[event.resource.shift_type] || "#546e7a";
+    const color = SHIFT_COLORS[event.resource.shift_type] || "#475569";
     return {
       style: {
         backgroundColor: color,

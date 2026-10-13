@@ -367,7 +367,7 @@ const SupportPage = () => {
               </button>
               
               <div className="modal-info-card">
-                <h4 className="modal-info-title" style={{color: '#2c3e50', marginBottom: '20px'}}>✅ Step 2: Set Up Your Account Details</h4>
+                <h4 className="modal-info-title" style={{color: '#1e293b', marginBottom: '20px'}}>✅ Step 2: Set Up Your Account Details</h4>
                 <ul className="modal-info-list" style={{lineHeight: '1.6', color: '#333'}}>
                   <li><strong>You'll now fill out a form with your practice information:</strong></li>
                   <br />

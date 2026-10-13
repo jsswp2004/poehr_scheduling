@@ -103,7 +103,7 @@
 }
 
 .solutions:hover, .resources2:hover, .pricing2:hover {
-  color: #3b82f6;
+  color: var(--color-primary-on-dark);
 }
 
 .down-arrow2, .down-arrow3, .down-arrow4 {
@@ -181,7 +181,7 @@
 
 /* Dropdown item focus states for accessibility */
 .dropdown-item:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid var(--color-primary-on-dark);
   outline-offset: -2px;
   background: rgba(59, 130, 246, 0.1);
   color: #ffffff;
@@ -198,43 +198,42 @@
   padding-bottom: 10px;
 }
 
-/* Login Button Styling */
+/* Login Button Styling (secondary: outlined on the dark header) */
 .btn-login {
-
   padding: 12px 24px;
-  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-  border: none;
-  border-radius: 12px;
+  min-height: 44px;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid #475569;
+  border-radius: var(--radius-control);
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 8px rgba(251, 191, 36, 0.3);
+  transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 .btn-login:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 12px rgba(251, 191, 36, 0.4);
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #94a3b8;
 }
 
 .login {
   font-size: 14px;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
 
-/* Try POWER for Free Button */
+/* Try POWER for Free Button (primary) */
 .btn-free-trial2 {
   padding: 12px 24px;
-  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  border-radius: 8px;
+  min-height: 44px;
+  box-sizing: border-box;
+  background: var(--color-primary);
+  border-radius: var(--radius-control);
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  transition: background 0.2s ease;
 }
 
 .btn-free-trial2:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+  background: var(--color-primary-hover);
 }
 
 .try-power-for-free {

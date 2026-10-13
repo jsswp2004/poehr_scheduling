@@ -150,7 +150,7 @@ const AnnouncementDisplay = () => {
                               height: 'auto',
                               maxHeight: '120px',
                               borderRadius: '4px',
-                              border: '1px solid #e0e0e0',
+                              border: '1px solid #e2e8f0',
                               objectFit: 'cover'
                             }}
                           />

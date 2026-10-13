@@ -94,7 +94,7 @@ const OrganizationForm = ({
                 <Box>
                     <Avatar
                         src={previewLogo || getLogoUrl(currentOrganization.logo)}
-                        sx={{ width: 80, height: 80, border: '2px solid #e0e0e0' }}
+                        sx={{ width: 80, height: 80, border: '2px solid #e2e8f0' }}
                         onError={() => {
                             console.log(`Main logo failed to load for ${currentOrganization.name}:`, currentOrganization.logo);
                             console.log('Attempted URL:', getLogoUrl(currentOrganization.logo));

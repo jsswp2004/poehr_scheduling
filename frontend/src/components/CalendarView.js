@@ -177,7 +177,7 @@ const CalendarView = memo(function CalendarView({
                   sx={{
                     width: "12px",
                     height: "12px",
-                    backgroundColor: "#28a745",
+                    backgroundColor: "#047857",
                     borderRadius: "50%",
                     display: "flex",
                     alignItems: "center",
@@ -406,22 +406,22 @@ const CalendarView = memo(function CalendarView({
             },
           }}
           eventPropGetter={(event) => {
-            let backgroundColor = "#3174ad";
-            let borderColor = "#3174ad";
+            let backgroundColor = "#2563eb";
+            let borderColor = "#2563eb";
 
             switch (event.resource?.type) {
               case "appointment":
-                backgroundColor = "#3174ad";
+                backgroundColor = "#2563eb";
                 break;
               case "availability":
                 // Check if the availability is blocked or available (check both field names)
                 const isBlocked = event.resource?.data?.isBlocked || event.resource?.data?.is_blocked;
                 if (isBlocked) {
-                  backgroundColor = "#dc3545"; // Red for blocked
-                  borderColor = "#dc3545";
+                  backgroundColor = "#dc2626"; // Red for blocked
+                  borderColor = "#dc2626";
                 } else {
-                  backgroundColor = "#28a745"; // Green for available
-                  borderColor = "#28a745";
+                  backgroundColor = "#047857"; // Green for available
+                  borderColor = "#047857";
                 }
                 break;
               case "clinic_event":
@@ -429,12 +429,12 @@ const CalendarView = memo(function CalendarView({
                 borderColor = "#ffc107";
                 break;
               case "holiday":
-                backgroundColor = "#dc3545";
-                borderColor = "#dc3545";
+                backgroundColor = "#dc2626";
+                borderColor = "#dc2626";
                 break;
               default:
-                backgroundColor = "#3174ad";
-                borderColor = "#3174ad";
+                backgroundColor = "#2563eb";
+                borderColor = "#2563eb";
                 break;
             }
 

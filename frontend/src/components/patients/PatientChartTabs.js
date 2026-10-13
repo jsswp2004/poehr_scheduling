@@ -44,7 +44,7 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
   const tabs = visibleChartTabs(role, keys);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
-    <Box sx={{ flexShrink: 0, mb: 0.5, borderBottom: 1, borderColor: "divider", bgcolor: "#f5faff", display: "flex", alignItems: "center" }}>
+    <Box sx={{ flexShrink: 0, mb: 0.5, borderBottom: 1, borderColor: "divider", bgcolor: "#eff6ff", display: "flex", alignItems: "center" }}>
       <Tabs
         value={current}
         onChange={(e, v) => onChange(v)}

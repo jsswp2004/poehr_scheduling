@@ -320,7 +320,7 @@ function Navbar() {
             style={{
               marginRight: "10px",
               padding: "5px 15px",
-              backgroundColor: "#d32f2f",
+              backgroundColor: "#dc2626",
               color: "white",
               border: "none",
               borderRadius: "4px",
@@ -333,7 +333,7 @@ function Navbar() {
             onClick={() => toast.dismiss()}
             style={{
               padding: "5px 15px",
-              backgroundColor: "#757575",
+              backgroundColor: "#64748b",
               color: "white",
               border: "none",
               borderRadius: "4px",
@@ -400,7 +400,7 @@ function Navbar() {
             style={{
               marginRight: "10px",
               padding: "5px 15px",
-              backgroundColor: "#d32f2f",
+              backgroundColor: "#dc2626",
               color: "white",
               border: "none",
               borderRadius: "4px",
@@ -413,7 +413,7 @@ function Navbar() {
             onClick={() => toast.dismiss()}
             style={{
               padding: "5px 15px",
-              backgroundColor: "#757575",
+              backgroundColor: "#64748b",
               color: "white",
               border: "none",
               borderRadius: "4px",
@@ -581,7 +581,7 @@ function Navbar() {
               color: "white",
               fontWeight: 450,
               letterSpacing: 1,
-              fontFamily: "Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
+              fontFamily: "inherit",
             }}
           >
             {location.pathname === "/communicator"
@@ -600,8 +600,7 @@ function Navbar() {
                 ml: 2,
                 flex: 1,
                 textAlign: "center",
-                fontFamily:
-                  "Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif",
+                fontFamily: "inherit",
               }}
             >
               {organizationName}
@@ -800,14 +799,14 @@ function Navbar() {
                     component="span"
                     sx={{
                       background: "white",
-                      color: "#1976d2",
+                      color: "#2563eb",
                       fontWeight: 700,
                       fontSize: "0.95em",
                       borderRadius: "7px",
                       px: 1.5,
                       ml: 1.5,
                       border: "2px solid",
-                      borderColor: "#1976d2",
+                      borderColor: "#2563eb",
                       display: "inline-block",
                     }}
                   >
@@ -821,14 +820,14 @@ function Navbar() {
                 sx={{
                   ml: 1,
                   color: "white",
-                  border: "2px solid #1976d2",
+                  border: "2px solid #2563eb",
                   borderRadius: 1,
                   p: 1,
                   transition: "background 0.2s, color 0.2s, border-color 0.2s",
                   "&:hover": {
                     background: "rgba(211, 47, 47, 0.10)", // red tint
-                    color: "#d32f2f", // MUI error.main
-                    borderColor: "#d32f2f",
+                    color: "#dc2626", // MUI error.main
+                    borderColor: "#dc2626",
                     boxShadow: "0 0 0 2px #d32f2f33",
                     cursor: "pointer",
                   },

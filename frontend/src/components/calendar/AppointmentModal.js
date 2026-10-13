@@ -165,7 +165,7 @@ const AppointmentModal = ({
                             sx={{
                                 '& .MuiInputBase-input.Mui-disabled': {
                                     WebkitTextFillColor: 'rgba(0, 0, 0, 0.87)',
-                                    backgroundColor: '#f5f5f5',
+                                    backgroundColor: '#f8fafc',
                                 },
                                 '& .MuiInputLabel-root.Mui-disabled': {
                                     color: 'rgba(0, 0, 0, 0.6)',

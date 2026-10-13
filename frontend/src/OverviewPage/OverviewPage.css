@@ -130,7 +130,7 @@
 .highlight-item:hover {
   transform: translateX(4px);
   background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%);
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
 }
 
 .highlight-icon {
@@ -141,7 +141,7 @@
 .highlight-text {
   font-size: 14px;
   font-weight: 500;
-  color: #374151;
+  color: #334155;
 }
 
 /* ===================================================================
@@ -173,7 +173,7 @@
 .feature-panel:hover {
   transform: translateY(-8px);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
-  border-color: #3b82f6;
+  border-color: var(--color-primary);
 }
 
 .panel-header {

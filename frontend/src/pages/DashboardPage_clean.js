@@ -396,7 +396,7 @@ function DashboardPage() {
                                                 style={{ width: "100%", borderCollapse: "collapse" }}
                                             >
                                                 <thead>
-                                                    <tr style={{ backgroundColor: "#f5f5f5" }}>
+                                                    <tr style={{ backgroundColor: "#f8fafc" }}>
                                                         <th
                                                             style={{
                                                                 padding: "12px 8px",

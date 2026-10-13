@@ -49,7 +49,7 @@ const TodaysAppointmentsPanel = ({
 
                 <TableContainer sx={{ maxHeight: '300px', overflow: 'auto' }}>
                     <Table size="small" stickyHeader>
-                        <TableHead sx={{ bgcolor: '#e3f2fd' }}>
+                        <TableHead sx={{ bgcolor: '#dbeafe' }}>
                             <TableRow>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Time</TableCell>
                                 <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>

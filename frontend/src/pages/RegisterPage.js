@@ -350,7 +350,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         elevation={2}
         sx={{
           borderRadius: 3,
-          border: '1px solid #e0e0e0',
+          border: '1px solid #e2e8f0',
           minHeight: "60vh",
           maxHeight: "calc(100vh - 200px)",
           overflowY: "auto",

@@ -98,8 +98,8 @@ const AppointmentsList = ({
                                 <TableRow
                                     key={appointment.id}
                                     sx={{
-                                        backgroundColor: editingId === appointment.id ? '#f5f5f5' : 'inherit',
-                                        '&:hover': { backgroundColor: '#fafafa' }
+                                        backgroundColor: editingId === appointment.id ? '#f8fafc' : 'inherit',
+                                        '&:hover': { backgroundColor: '#f8fafc' }
                                     }}
                                 >
                                     <TableCell>

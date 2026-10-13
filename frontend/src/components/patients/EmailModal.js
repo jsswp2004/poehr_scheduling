@@ -66,7 +66,7 @@ function EmailModal({
             <DialogContent>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                     {/* Recipient Info */}
-                    <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                    <Box sx={{ p: 2, bgcolor: '#f8fafc', borderRadius: 1 }}>
                         <Typography variant="body2" color="text.secondary">
                             To: {selectedPatient?.email}
                         </Typography>
