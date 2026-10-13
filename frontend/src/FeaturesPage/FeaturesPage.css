@@ -55,7 +55,7 @@
 
 .feature-panels {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 40px;
   max-width: 1200px;
   margin: 0 auto;
@@ -109,17 +109,35 @@
 
 /* Responsive styles */
 @media (max-width: 768px) {
-  .page-title-section {
+  .features-page .page-title-section {
     padding-left: 32px;
     padding-right: 32px;
   }
-  .features-section {
+  .features-page .features-section {
     padding-left: 32px;
     padding-right: 32px;
   }
 }
 
 @media (max-width: 480px) {
+  .features-page .page-title-section,
+  .features-page .features-section {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .features-page .features-section {
+    padding-bottom: 64px;
+  }
+  .features-page .feature-panels {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .features-page .feature-panel {
+    padding: 28px 20px;
+  }
+  .features-page .panel-title {
+    font-size: 24px;
+  }
   .page-title {
     font-size: 32px;
   }

@@ -249,10 +249,17 @@
   .header {
     padding: 12px 24px;
     flex-wrap: wrap;
+    align-content: flex-start;
+    row-gap: 8px;
+    height: auto;
+    min-height: 0;
   }
   
   .frame-375 {
     gap: 20px;
+    flex-wrap: wrap;
+    min-width: 0;
+    max-width: 100%;
   }
   
   .nav-menu {
@@ -279,6 +286,34 @@
   
   .power-it-systems {
     display: none; /* Hide text on very small screens */
+  }
+
+  .header .frame-375 {
+    width: 100%;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .header .btn {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .nav-menu {
+    gap: 16px;
+  }
+
+  .btn {
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .btn-login, .btn-free-trial2 {
+    padding: 8px 12px;
+    min-height: 40px;
+    font-size: 13px;
   }
   
   .nav-menu {
