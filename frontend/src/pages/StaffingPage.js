@@ -20,12 +20,14 @@ import StaffingUnitsTab from "./StaffingUnitsTab";
 import StaffingTimeOffTab from "./StaffingTimeOffTab";
 import StaffingRulesTab from "./StaffingRulesTab";
 import StaffingAssistantDock from "../components/StaffingAssistantDock";
+import StaffingStaffView from "./StaffingStaffView";
 
 const ADMIN_ROLES = ["admin", "system_admin"];
-const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar"];
+const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar", "staff"];
 
 function StaffingPage() {
   const [tab, setTab] = useState("calendar");
+  const [staffTab, setStaffTab] = useState("shifts");
   const [role, setRole] = useState("");
   // Organization switcher (system admin only). Everyone else is ready at once.
   const [orgs, setOrgs] = useState([]);
@@ -46,7 +48,7 @@ function StaffingPage() {
       const decoded = jwtDecode(token);
       const userRole = decoded.role || "";
       if (!ALLOWED_ROLES.includes(userRole)) {
-        navigate("/dashboard");
+        navigate("/solutions");
         return;
       }
       setRole(userRole);
@@ -108,7 +110,7 @@ function StaffingPage() {
 
   // Light poll so an open emergency call-out is visible from any tab.
   useEffect(() => {
-    if (!role || !orgReady) return undefined;
+    if (!role || !orgReady || role === "staff") return undefined;
     let cancelled = false;
     const check = async () => {
       try {
@@ -136,6 +138,22 @@ function StaffingPage() {
 
   const isAdmin = ADMIN_ROLES.includes(role);
   const isSystemAdmin = role === "system_admin";
+  const isStaff = role === "staff";
+
+  // Staff accounts get their own schedule, time off and assistant -- the web twin of the phone app.
+  if (isStaff) {
+    return (
+      <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
+          <Typography variant="h5">Staffing</Typography>
+          <Box sx={{ flex: 1 }} />
+          <BackButton to="/solutions" sx={{ mb: 0 }} />
+        </Box>
+        <StaffingStaffView tab={staffTab} onTabChange={setStaffTab} />
+        <StaffingAssistantDock mode="staff" onNavigate={setStaffTab} />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
@@ -240,7 +258,7 @@ function StaffingPage() {
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}
       </Box>
       )}
-      {role && orgReady && <StaffingAssistantDock onNavigate={setTab} />}
+      {role && orgReady && <StaffingAssistantDock mode="manager" onNavigate={setTab} />}
     </Box>
   );
 }

@@ -86,11 +86,11 @@ export const useLogin = () => {
         } else if (redirectTo === 'staffing') {
             console.log('Login Debug - Redirecting to staffing path');
             // Check if user has admin/clinical-staff privileges for the Staffing module
-            if (['admin', 'system_admin', 'doctor', 'nurse', 'registrar'].includes(userRole)) {
+            if (['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'staff'].includes(userRole)) {
                 navigate('/staffing');
             } else {
-                toast.error('Access denied. Staffing requires admin or clinical staff privileges.');
-                navigate('/dashboard');
+                toast.error('Access denied. Staffing requires a staff, admin or clinical account.');
+                navigate('/solutions');
             }
         } else if (redirectTo === 'portal') {
             console.log('Login Debug - Portal redirect requested, but checking role first');
@@ -117,6 +117,9 @@ export const useLogin = () => {
             } else if (userRole === 'registrar') {
                 console.log('Login Debug - Registrar detected, going to /patients');
                 navigate('/patients');
+            } else if (userRole === 'staff') {
+                console.log('Login Debug - Staff login detected, going to /staffing');
+                navigate('/staffing');
             } else {
                 console.log('Login Debug - Default case, going to /dashboard');
                 navigate('/dashboard'); // Default for patients

@@ -12,26 +12,35 @@ import { getAccessToken } from "../utils/tokenManager";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 
 /**
- * Right-docked, collapsible staffing assistant for the Staffing Center (managers only).
+ * Right-docked, collapsible staffing assistant for the Staffing Center (managers and staff).
  * Collapsed it is a slim tab on the right edge; open it is a side panel that leaves the page usable.
  * The server decides what the signed-in user may see; the conversation is cleared on reload.
  *
- * Props: onNavigate(tabKey) - switches the Staffing Center tab for the quick-action buttons.
+ * Props: mode ("manager" | "staff"), onNavigate(tabKey) - switches the Staffing Center tab for the quick-action buttons.
  */
 
 // Screens the server may suggest, mapped to Staffing Center tabs. Anything else is ignored.
-const ROUTE_TO_TAB = {
+const MANAGER_ROUTE_TO_TAB = {
   "/(tabs)/calendar": "calendar",
   "/(tabs)/reports": "reports",
   "/(tabs)/timeoff": "timeoff",
   "/(tabs)/roster": "roster",
 };
+const STAFF_ROUTE_TO_TAB = {
+  "/(staff)/upcoming": "shifts",
+  "/(staff)/timeoff": "timeoff",
+};
 
-const QUICK = [
+const QUICK_MANAGER = [
   "Who is working today?",
   "Is coverage met today?",
   "Any pending time-off requests?",
   "Who is unscheduled this week?",
+];
+const QUICK_STAFF = [
+  "What's my coverage today?",
+  "What are my shifts next week?",
+  "What's the status of my time-off requests?",
 ];
 
 const PANEL_WIDTH = 380;
@@ -48,7 +57,10 @@ const errorText = (e) => {
   return e?.message || "Something went wrong.";
 };
 
-function StaffingAssistantDock({ onNavigate }) {
+function StaffingAssistantDock({ mode = "manager", onNavigate }) {
+  const staff = mode === "staff";
+  const ROUTE_TO_TAB = staff ? STAFF_ROUTE_TO_TAB : MANAGER_ROUTE_TO_TAB;
+  const QUICK = staff ? QUICK_STAFF : QUICK_MANAGER;
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState("");
@@ -146,10 +158,14 @@ function StaffingAssistantDock({ onNavigate }) {
             {msgs.length === 0 && (
               <Box>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  Ask about coverage, schedules, time off, and staffing.
+                  {staff
+                    ? "Ask about your own schedule, coverage, or time off."
+                    : "Ask about coverage, schedules, time off, and staffing."}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
-                  I only show what your role allows. Please don&apos;t enter patient information.
+                  {staff
+                    ? "I can only show your own information. Please don't enter patient information."
+                    : "I only show what your role allows. Please don't enter patient information."}
                 </Typography>
                 {QUICK.map((q) => (
                   <Button
