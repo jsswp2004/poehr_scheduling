@@ -6,9 +6,13 @@ In-app staffing assistant.
   ->   {"conversation_id": "<uuid>", "answer": "...", "actions": [{"label", "route"}]}
 
 A signed-in admin, scheduler or staff member asks a question. Claude answers it
-using a small set of READ-ONLY tools (staffing/assistant_tools.py) that call the
+using a small set of READ tools (staffing/assistant_tools.py) that call the
 existing staffing views AS THAT USER, so the app's own role and organization
 rules decide what they can see. Staff only ever get own-data tools.
+
+It can also PREPARE a few changes (staffing/assistant_actions.py). It never
+performs them: the app shows a confirmation card and the change only runs when
+the user taps Confirm (POST /api/staffing/assistant/actions/<id>/confirm/).
 
 Setup (Render environment):
   ANTHROPIC_API_KEY      required. Without it the endpoint answers 503.
@@ -37,8 +41,8 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import assistant_tools, org_scope
-from .models import AssistantMessage
+from . import assistant_actions, assistant_tools, org_scope
+from .models import AssistantMessage, AssistantPendingAction
 
 logger = logging.getLogger(__name__)
 
@@ -117,7 +121,6 @@ def build_system_prompt(mode, today):
 
 How to answer:
 - Answer ONLY from tool results. Never guess, estimate or invent staffing data. If a tool returns nothing, say so plainly. If a tool returns an error, explain it in one plain sentence.
-- You can only read information. You cannot change schedules, approve requests, send messages or file time off. If asked to, say so and point the user to the matching screen in the app.
 - Coverage status words: "met", "at risk" (met now but would fall short if pending time off is approved or a spare is missing), "not met". "unknown" means no census has been entered for that unit.
 - Keep answers short and easy to read on a phone: one or two sentences, then a few short lines if needed. No tables, headings or markdown symbols. Use dates like "Tue Oct 14" and 12-hour times like "7:00 am".
 - This is a staffing tool, not a clinical one. Do not give medical or clinical advice. If the user types patient information, tell them not to enter patient details here.
@@ -127,13 +130,18 @@ How to answer:
 Who you are talking to: a staff member.
 - You can only share THEIR OWN schedule, their own time-off requests, and the staffing status of the shifts they are scheduled on.
 - If they ask about another person's schedule or contact details, other staff, rosters or reports, say you can only share their own information and suggest asking their manager.
-- For "my coverage", explain whether the units and shifts they are working are adequately staffed (met, at risk or not met), using the head-counts the tool gives."""
+- For "my coverage", explain whether the units and shifts they are working are adequately staffed (met, at risk or not met), using the head-counts the tool gives.
+- You can PREPARE two changes for them: a planned time-off request (propose_time_off_request) and a report that they can't make a shift (propose_emergency_callout). You never submit anything yourself: the app shows a confirmation card, and nothing happens until they tap Confirm on it. After preparing one, say in one short sentence what you prepared and ask them to review it and tap Confirm. Never say it was sent, submitted or done. If they reply "yes" or "confirm" in the chat, tell them to tap the Confirm button on the card.
+- For "I can't make my shift", look up their shifts first (get_my_shifts) to get the shift_id for the day they mean. Call-outs are only for today or tomorrow; for later dates prepare a time-off request. If a tool refuses, explain why in one sentence.
+- Do not ask for medical details. A reason is optional.
+- You cannot approve requests, assign cover or message anyone; point them to their manager."""
     else:
         role = """
 Who you are talking to: a manager or scheduler. They may ask about anyone in their organization.
 - If a name matches more than one person, ask which one they mean before giving a schedule.
 - To find cover for a call-out, first look up the pending call-outs to get the request id. Only administrators can look up cover candidates; if the tool refuses, say so.
-- If results seem to span several organizations, mention that."""
+- If results seem to span several organizations, mention that.
+- You can only read information. You cannot change schedules, approve or deny requests, assign cover, send messages or file time off. If asked to, say so and point the user to the matching screen in the app."""
     return common + role
 
 
@@ -169,6 +177,7 @@ def _purge_old_messages():
     try:
         cutoff = timezone.now() - datetime.timedelta(days=_retention_days())
         AssistantMessage.objects.filter(created_at__lt=cutoff).delete()
+        AssistantPendingAction.objects.filter(created_at__lt=cutoff).delete()
     except Exception:  # noqa: BLE001
         logging.getLogger(__name__).exception("Assistant log purge failed")
 
@@ -221,13 +230,14 @@ def _log(user, org, conversation_id, question, answer="", used=None, model="", t
 
 
 def _converse(client, model, system, tools, messages, user, org_id):
-    """The tool loop. Returns (answer, tools_used, input_tokens, output_tokens)."""
+    """The tool loop. Returns (answer, tools_used, input_tokens, output_tokens, confirmation_cards)."""
     started = time.monotonic()
     used, tokens_in, tokens_out = [], 0, 0
+    cards = []  # confirmation cards for changes the model prepared (never performed)
     for _ in range(MAX_TOOL_ROUNDS):
         remaining = DEADLINE_SECONDS - (time.monotonic() - started)
         if remaining < MIN_CALL_SECONDS:
-            return TIMEOUT_ANSWER, used, tokens_in, tokens_out
+            return TIMEOUT_ANSWER, used, tokens_in, tokens_out, cards
         response = client.messages.create(
             model=model,
             max_tokens=MAX_OUTPUT_TOKENS,
@@ -240,7 +250,7 @@ def _converse(client, model, system, tools, messages, user, org_id):
         tokens_out += response.usage.output_tokens
         if response.stop_reason != "tool_use":
             text = "".join(b.text for b in response.content if getattr(b, "type", "") == "text").strip()
-            return text or EMPTY_ANSWER, used, tokens_in, tokens_out
+            return text or EMPTY_ANSWER, used, tokens_in, tokens_out, cards
 
         messages.append({"role": "assistant", "content": response.content})
         results = []
@@ -249,6 +259,8 @@ def _converse(client, model, system, tools, messages, user, org_id):
             if getattr(block, "type", "") != "tool_use":
                 continue
             result, is_error = assistant_tools.run_tool(user, block.name, block.input, org_id)
+            if isinstance(result, dict) and "pending_action" in result:
+                cards.append(result.pop("pending_action"))
             used.append({"tool": block.name, "args": block.input, "error": is_error})
             results.append(
                 {
@@ -259,7 +271,7 @@ def _converse(client, model, system, tools, messages, user, org_id):
                 }
             )
         messages.append({"role": "user", "content": results})
-    return TIMEOUT_ANSWER, used, tokens_in, tokens_out
+    return TIMEOUT_ANSWER, used, tokens_in, tokens_out, cards
 
 
 # --------------------------------------------------------------------------
@@ -311,7 +323,7 @@ class AssistantMessageView(APIView):
 
         try:
             client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"].strip(), max_retries=1)
-            answer, used, tokens_in, tokens_out = _converse(client, model, system, tools, messages, user, org_id)
+            answer, used, tokens_in, tokens_out, cards = _converse(client, model, system, tools, messages, user, org_id)
         except Exception as exc:  # noqa: BLE001
             logger.exception("assistant request failed")
             _log(user, org, conversation_id, question, model=model, error=type(exc).__name__)
@@ -325,5 +337,39 @@ class AssistantMessageView(APIView):
                 "conversation_id": str(conversation_id),
                 "answer": answer,
                 "actions": _actions(mode, used),
+                "confirmations": cards,
             }
         )
+
+
+class _ActionView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _gate(self, request):
+        if assistant_tools.mode_for(request.user) is None:
+            return Response({"error": "The assistant isn't available for this account."}, status=403)
+        return None
+
+
+class AssistantActionConfirmView(_ActionView):
+    """POST .../assistant/actions/<id>/confirm/ -- run a change the assistant prepared."""
+
+    def post(self, request, pk):
+        blocked = self._gate(request)
+        if blocked:
+            return blocked
+        if not _enabled():  # the kill switch also stops changes
+            return Response({"error": "The assistant isn't available right now."}, status=503)
+        code, payload = assistant_actions.confirm(request.user, pk)
+        return Response(payload, status=code)
+
+
+class AssistantActionCancelView(_ActionView):
+    """POST .../assistant/actions/<id>/cancel/ -- discard a prepared change."""
+
+    def post(self, request, pk):
+        blocked = self._gate(request)
+        if blocked:
+            return blocked
+        code, payload = assistant_actions.cancel(request.user, pk)
+        return Response(payload, status=code)

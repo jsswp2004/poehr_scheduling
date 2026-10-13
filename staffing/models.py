@@ -1,3 +1,4 @@
+import uuid
 from django.conf import settings
 from django.db import models
 from users.models import Organization
@@ -682,3 +683,51 @@ class AssistantMessage(models.Model):
 
     def __str__(self):
         return f"{self.user_id} @ {self.created_at:%Y-%m-%d %H:%M}: {self.question[:40]}"
+
+
+class AssistantPendingAction(models.Model):
+    """
+    A change the in-app assistant has PREPARED for a user but not performed.
+
+    The model can only create these (through "propose" tools). Nothing runs
+    until the same signed-in user taps Confirm in the app, which calls the
+    confirm endpoint -- the model has no way to confirm. A row is single-use,
+    belongs to one user, and expires after a few minutes. `params` holds only
+    what the action needs (dates, ids, message text); it is purged with the
+    assistant log.
+    """
+
+    STATUS_PENDING = "pending"
+    STATUS_CONFIRMED = "confirmed"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Waiting for confirmation"),
+        (STATUS_CONFIRMED, "Confirmed and done"),
+        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_FAILED, "Confirmed but failed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    organization = models.ForeignKey(
+        Organization, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    action_type = models.CharField(max_length=40)
+    params = models.JSONField(default=dict, blank=True)
+    summary = models.CharField(max_length=500)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    target_org_id = models.PositiveIntegerField(null=True, blank=True)  # system admin acting in another org
+    result_message = models.CharField(max_length=300, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    expires_at = models.DateTimeField()
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "status"], name="staffing_apa_user_status_idx")]
+
+    def __str__(self):
+        return f"{self.action_type} ({self.status}) for user {self.user_id}"

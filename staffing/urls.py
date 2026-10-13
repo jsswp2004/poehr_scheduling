@@ -1,7 +1,7 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .assistant import AssistantMessageView
+from .assistant import AssistantActionCancelView, AssistantActionConfirmView, AssistantMessageView
 from .compliance_views import CoverageStatusView, OrgLocationView
 from .rules_views import (
     RuleAuditView,
@@ -73,6 +73,16 @@ urlpatterns = [
         name="staffing-accept-invite",
     ),
     path("assistant/message/", AssistantMessageView.as_view(), name="staffing-assistant-message"),
+    path(
+        "assistant/actions/<uuid:pk>/confirm/",
+        AssistantActionConfirmView.as_view(),
+        name="staffing-assistant-action-confirm",
+    ),
+    path(
+        "assistant/actions/<uuid:pk>/cancel/",
+        AssistantActionCancelView.as_view(),
+        name="staffing-assistant-action-cancel",
+    ),
     path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
     path("location/", OrgLocationView.as_view(), name="staffing-location"),
     path("rules/", RulesListCreateView.as_view(), name="staffing-rules"),

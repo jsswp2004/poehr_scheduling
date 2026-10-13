@@ -6,6 +6,7 @@ import ChatIcon from "@mui/icons-material/Chat";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import SendIcon from "@mui/icons-material/Send";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import AddCommentOutlinedIcon from "@mui/icons-material/AddCommentOutlined";
 import axios from "axios";
 import { getAccessToken } from "../utils/tokenManager";
@@ -15,6 +16,9 @@ import { apiEndpoints, getAuthHeaders } from "../config/api";
  * Right-docked, collapsible staffing assistant for the Staffing Center (managers and staff).
  * Collapsed it is a slim tab on the right edge; open it is a side panel that leaves the page usable.
  * The server decides what the signed-in user may see; the conversation is cleared on reload.
+ *
+ * The assistant can PREPARE a change (time off, a call-out). It shows as a confirmation card and nothing
+ * happens until the user presses the confirm button; the server runs it, never the chat model.
  *
  * Props: mode ("manager" | "staff"), onNavigate(tabKey) - switches the Staffing Center tab for the quick-action buttons.
  */
@@ -86,11 +90,41 @@ function StaffingAssistantDock({ mode = "manager", onNavigate }) {
       );
       convoId.current = res.data.conversation_id;
       const actions = (res.data.actions || []).filter((a) => ROUTE_TO_TAB[a.route]).slice(0, 2);
-      setMsgs((m) => [...m, { from: "assistant", text: res.data.answer, actions }]);
+      const cards = (res.data.confirmations || []).map((c) => ({ ...c, state: "waiting" }));
+      setMsgs((m) => [...m, { from: "assistant", text: res.data.answer, actions, cards }]);
     } catch (e) {
       setMsgs((m) => [...m, { from: "assistant", text: errorText(e), failed: true }]);
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Update one confirmation card in place.
+  const setCard = (cardId, patch) =>
+    setMsgs((all) =>
+      all.map((m) =>
+        m.cards ? { ...m, cards: m.cards.map((c) => (c.id === cardId ? { ...c, ...patch } : c)) } : m,
+      ),
+    );
+
+  const decide = async (card, verb) => {
+    if (card.state !== "waiting") return;
+    setCard(card.id, { state: "working" });
+    try {
+      const res = await axios.post(
+        apiEndpoints.staffingAssistantAction(card.id, verb),
+        {},
+        { headers: getAuthHeaders(getAccessToken()), timeout: 30000 },
+      );
+      if (verb === "confirm") {
+        setCard(card.id, { state: "done", result: res.data.message });
+        // Let the open page (My Shifts / Time Off) reload.
+        window.dispatchEvent(new Event("staffing-data-changed"));
+      } else {
+        setCard(card.id, { state: "cancelled", result: res.data.message });
+      }
+    } catch (e) {
+      setCard(card.id, { state: "failed", result: errorText(e) });
     }
   };
 
@@ -195,6 +229,50 @@ function StaffingAssistantDock({ mode = "manager", onNavigate }) {
                   >
                     <Typography variant="body2" component="div">{m.text}</Typography>
                   </Paper>
+                  {(m.cards || []).map((c) => (
+                    <Paper
+                      key={c.id}
+                      variant="outlined"
+                      sx={{ mt: 0.75, p: 1.25, borderRadius: 3, width: "100%", borderColor: "primary.main" }}
+                    >
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{c.title}</Typography>
+                      <Typography variant="body2" sx={{ mt: 0.25 }}>{c.summary}</Typography>
+                      {c.state === "waiting" || c.state === "working" ? (
+                        <>
+                          {!!c.warning && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+                              {c.warning}
+                            </Typography>
+                          )}
+                          <Box sx={{ mt: 1, display: "flex", gap: 1, justifyContent: "flex-end" }}>
+                            <Button size="small" disabled={c.state === "working"} onClick={() => decide(c, "cancel")} sx={{ textTransform: "none" }}>
+                              Cancel
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              disabled={c.state === "working"}
+                              onClick={() => decide(c, "confirm")}
+                              sx={{ textTransform: "none", borderRadius: 4 }}
+                            >
+                              {c.state === "working" ? "Working…" : c.confirm_label}
+                            </Button>
+                          </Box>
+                        </>
+                      ) : (
+                        <Box sx={{ mt: 0.75, display: "flex", alignItems: "flex-start", gap: 0.75 }}>
+                          {c.state === "done" && <CheckCircleOutlineIcon fontSize="small" color="success" />}
+                          <Typography
+                            variant="body2"
+                            role="status"
+                            color={c.state === "failed" ? "error" : c.state === "done" ? "success.main" : "text.secondary"}
+                          >
+                            {c.result}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Paper>
+                  ))}
                   {!!m.actions?.length && (
                     <Box sx={{ mt: 0.5, display: "flex", gap: 0.75, flexWrap: "wrap" }}>
                       {m.actions.map((a) => (

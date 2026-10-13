@@ -238,6 +238,8 @@ def _shift_row(s, include_staff=True):
     if include_staff:
         row["staff"] = s.get("staff_name")
         row["profession"] = s.get("profession")
+    else:
+        row["shift_id"] = s.get("id")  # lets the assistant prepare a call-out for this exact shift
     return row
 
 
