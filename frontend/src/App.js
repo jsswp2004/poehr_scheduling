@@ -205,7 +205,7 @@ function AppContent() {
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/overview" element={<OverviewPage />} />
         <Route path="/security" element={<DataSecurityPage />} />
-        <Route path="/dashboard" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
+        <Route path="/dashboard" element={<PrivateRoute blockRoles={["staff"]} blockedTo="/staffing"><DashboardPage /></PrivateRoute>} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/patients" element={<PrivateRoute><PatientsPage /></PrivateRoute>} />
