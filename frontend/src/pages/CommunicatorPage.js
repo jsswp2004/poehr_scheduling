@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -19,6 +19,7 @@ import {
   CommunicatorHeader,
 } from "../components/communicator";
 import { toast } from "../components/SimpleToast";
+import CommunicatorAssistantDock, { COMMUNICATOR_CHANGED_EVENT } from "../components/CommunicatorAssistantDock";
 import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
 import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
 
@@ -65,6 +66,22 @@ function CommunicatorPage() {
   const contactForm = useContactForm();
   const bulkMessaging = useBulkMessaging(token);
   const utils = useCommunicatorUtils();
+
+  // The assistant dispatches this after a confirmed change (a contact it added, a message it sent).
+  const refreshRef = useRef(null);
+  refreshRef.current = contacts.refreshContacts;
+  useEffect(() => {
+    const onChanged = () => refreshRef.current && refreshRef.current();
+    window.addEventListener(COMMUNICATOR_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(COMMUNICATOR_CHANGED_EVENT, onChanged);
+  }, []);
+
+  // Buttons under an assistant answer.
+  const handleAssistantNavigate = (route) => {
+    if (route === "contacts") setTab("contacts");
+    else if (route === "send") setTab("message");
+    else if (route === "logs") navigate("/messages");
+  };
 
   // File upload with success callback
   const fileUpload = useFileUpload(token, (data) => {
@@ -216,6 +233,8 @@ function CommunicatorPage() {
 
       {/* SMS Tab (admin-only, same auto-messaging setup as the Messages page) */}
       {tab === "sms" && isAdmin && <AutoSMSSetUpPage embedded />}
+
+      {token && <CommunicatorAssistantDock onNavigate={handleAssistantNavigate} />}
 
       {/* Contact Form Dialog */}
       <ContactFormDialog

@@ -294,6 +294,8 @@ export const apiEndpoints = {
     staffingMyTimeOff: `${API_BASE_URL}/api/staffing/me/time-off/`,
     staffingAssistant: `${API_BASE_URL}/api/staffing/assistant/message/`,
     staffingAssistantAction: (id, verb) => `${API_BASE_URL}/api/staffing/assistant/actions/${id}/${verb}/`,
+    communicatorAssistant: `${API_BASE_URL}/api/communicator/assistant/message/`,
+    communicatorAssistantAction: (id, verb) => `${API_BASE_URL}/api/communicator/assistant/actions/${id}/${verb}/`,
     staffingMe: `${API_BASE_URL}/api/staffing/me/`,
     staffingMyTimeOffCancel: (id) => `${API_BASE_URL}/api/staffing/me/time-off/${id}/cancel/`,
     staffingReportUnscheduled: `${API_BASE_URL}/api/staffing/reports/unscheduled/`,
