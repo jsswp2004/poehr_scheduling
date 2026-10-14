@@ -14,9 +14,10 @@ from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from appointments.models import Appointment
-from poehr_scheduling_backend.tenancy import clear_current_organization
+from poehr_scheduling_backend.tenancy import clear_current_organization, set_current_organization
 from users.models import Organization
 
+from . import services
 from .models import TelehealthAuditEvent, TelehealthSession
 
 MEETING = {"MeetingId": "meeting-1", "MediaRegion": "us-east-1", "MediaPlacement": {}}
@@ -370,7 +371,7 @@ class VisitRecordTests(TenantTestCase):
             self.assertEqual(set(event.metadata), {"place_of_service", "modifier", "modality"})
 
 
-class VideoFlagOnAppointmentTests(TenantTestCase):
+class VideoVisitFromAppointmentTypeTests(TenantTestCase):
     """The Video visit checkbox on the appointment form saves through the normal appointment API."""
 
     def setUp(self):
@@ -391,25 +392,28 @@ class VideoFlagOnAppointmentTests(TenantTestCase):
             **extra,
         }
 
-    def test_new_appointments_are_not_video_by_default(self):
+    def test_telehealth_appointment_type_is_a_video_visit(self):
+        """The existing Appointment Type 'Telehealth Visit' is all staff need to set."""
+        r = self.client.post("/api/appointments/", self._body(title="Telehealth Visit"), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        appt = Appointment.all_objects.get(pk=r.json()["id"])
+        self.assertTrue(services.appointment_is_video(appt))
+        set_current_organization(self.org)
+        self.assertIn(appt.pk, [a.pk for a in services.video_appointments(appt.appointment_datetime.date())])
+
+    def test_other_appointment_types_are_not_video(self):
         r = self.client.post("/api/appointments/", self._body(), format="json")
         self.assertEqual(r.status_code, 201, r.content)
-        self.assertFalse(r.json()["is_video"])
+        appt = Appointment.all_objects.get(pk=r.json()["id"])
+        self.assertFalse(services.appointment_is_video(appt))
+        set_current_organization(self.org)
+        self.assertNotIn(appt.pk, [a.pk for a in services.video_appointments(appt.appointment_datetime.date())])
 
-    def test_video_flag_saves_and_can_be_changed(self):
-        r = self.client.post("/api/appointments/", self._body(is_video=True), format="json")
-        self.assertEqual(r.status_code, 201, r.content)
-        self.assertTrue(r.json()["is_video"])
-        pk = r.json()["id"]
-        r = self.client.patch(f"/api/appointments/{pk}/", {"is_video": False}, format="json")
-        self.assertEqual(r.status_code, 200, r.content)
-        self.assertFalse(Appointment.all_objects.get(pk=pk).is_video)
-
-    def test_repeating_video_visits_stay_video(self):
+    def test_repeating_telehealth_visits_stay_video(self):
         r = self.client.post(
             "/api/appointments/",
             self._body(
-                is_video=True,
+                title="Telehealth Visit",
                 recurrence="weekly",
                 recurrence_end_date=(timezone.now() + timedelta(days=60)).date().isoformat(),
             ),
@@ -418,4 +422,4 @@ class VideoFlagOnAppointmentTests(TenantTestCase):
         self.assertEqual(r.status_code, 201, r.content)
         series = Appointment.all_objects.filter(patient=self.patient)
         self.assertGreater(series.count(), 1)
-        self.assertFalse(series.filter(is_video=False).exists())
+        self.assertTrue(all(services.appointment_is_video(a) for a in series))

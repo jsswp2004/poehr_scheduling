@@ -8,6 +8,7 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.apps import apps
 from django.conf import settings
+from django.db.models import Q
 
 from users.rights import user_has_right
 
@@ -31,8 +32,13 @@ def patient_mobile(appointment):
     return appointment.patient.phone_number
 
 
+VIDEO_TYPE_KEYWORD = "telehealth"
+
+
 def appointment_is_video(appointment):
-    return bool(appointment.is_video)
+    """A video visit is any appointment whose Appointment Type (its title) contains
+    "Telehealth", e.g. "Telehealth Visit". The is_video flag is a manual override."""
+    return bool(appointment.is_video) or VIDEO_TYPE_KEYWORD in (appointment.title or "").lower()
 
 
 def video_appointments(day, provider_user_id=None):
@@ -44,7 +50,10 @@ def video_appointments(day, provider_user_id=None):
     Appointment = apps.get_model(settings.TELEHEALTH_APPOINTMENT_MODEL)
     qs = (
         Appointment.objects.select_related("patient", "provider")
-        .filter(is_video=True, appointment_datetime__date=day)
+        .filter(
+            Q(is_video=True) | Q(title__icontains=VIDEO_TYPE_KEYWORD),
+            appointment_datetime__date=day,
+        )
         .exclude(status__in=_HIDDEN_STATUSES)
     )
     if provider_user_id is not None:
