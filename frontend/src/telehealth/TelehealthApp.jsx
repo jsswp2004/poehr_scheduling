@@ -127,10 +127,10 @@ export default function TelehealthApp({ canConduct = true, canManage = true, wsU
       }),
     end: (item, { confirmed = false } = {}) =>
       run(async () => {
-        if (!confirmed && !window.confirm(`End the visit with ${item.patient_display} for everyone?`)) return;
+        if (!confirmed && !window.confirm(`End the session with ${item.patient_display} for everyone?`)) return;
         await staffApi.end(item.session.id);
-        setNotice({ kind: "info", text: `Visit with ${item.patient_display} ended.` });
-        await reloadToday();
+        setNotice({ kind: "info", text: `Session with ${item.patient_display} ended.` });
+        await Promise.all([reloadToday(), schedule.reload()]);
       }),
   };
 

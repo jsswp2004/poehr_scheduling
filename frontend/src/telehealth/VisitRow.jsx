@@ -19,6 +19,8 @@ export default function VisitRow({ item, nowMs, offsetMs, busy, canConduct, canM
   const waiting = isWaiting(state);
   const disabled = busy || readOnly;
   const canSend = canManage || canConduct;
+  // Any session that exists and hasn't ended can be ended, on any day, so stale ones don't linger.
+  const canEnd = state !== "no-session" && state !== "ended";
 
   return (
     <li className="th-row" data-state={state}>
@@ -64,12 +66,12 @@ export default function VisitRow({ item, nowMs, offsetMs, busy, canConduct, canM
                 Rejoin visit
               </button>
             )}
-            {canSend && (
-              <button type="button" className="th-btn th-btn--quiet" disabled={disabled} onClick={() => actions.end(item)}>
-                End visit
-              </button>
-            )}
           </>
+        )}
+        {canSend && canEnd && (
+          <button type="button" className="th-btn th-btn--quiet" disabled={busy} onClick={() => actions.end(item)}>
+            End session
+          </button>
         )}
       </span>
     </li>
