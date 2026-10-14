@@ -64,7 +64,7 @@ function WaitingPanel({ items, nowMs, offsetMs, busy, canConduct, actions }) {
   );
 }
 
-export function TodayTab({ schedule, date, boardProps }) {
+export function TodayTab({ schedule, boardProps }) {
   const [filter, setFilter] = useState("all");
   const counts = Object.fromEntries(
     FILTERS.map((f) => [f.id, schedule.items.filter((i) => f.match(visitState(i.session))).length])
@@ -87,7 +87,6 @@ export function TodayTab({ schedule, date, boardProps }) {
             </button>
           ))}
         </div>
-        <h2 className="th-day">{formatDay(date)}</h2>
       </div>
       <div className="th-today">
         <div className="th-today-main">

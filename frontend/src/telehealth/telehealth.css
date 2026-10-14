@@ -990,6 +990,12 @@
   gap: 1rem;
   flex-wrap: wrap;
 }
+.th-titlebar-end {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
 .th-assistant {
   position: fixed;
   top: 0;
