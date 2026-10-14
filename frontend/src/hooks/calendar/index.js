@@ -5,3 +5,4 @@ export { useCalendarData } from './useCalendarData';
 export { useAppointmentModal } from './useAppointmentModal';
 export { useAvailabilityModal } from './useAvailabilityModal';
 export { useBlockedAvailabilityModal } from './useBlockedAvailabilityModal';
+export { useCalendarPatients } from './useCalendarPatients';

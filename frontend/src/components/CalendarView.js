@@ -24,7 +24,6 @@ import {
   faStethoscope,
   faCalendarAlt,
 } from "@fortawesome/free-solid-svg-icons";
-import { useNavigate } from "react-router-dom";
 
 // Components
 import BackButton from "./BackButton";
@@ -39,7 +38,7 @@ import { useCalendarData } from "../hooks/calendar/useCalendarData";
 import { useAppointmentModal } from "../hooks/calendar/useAppointmentModal";
 import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
 import { useBlockedAvailabilityModal } from "../hooks/calendar/useBlockedAvailabilityModal";
-import { usePatients } from "../hooks/usePatients";
+import { useCalendarPatients } from "../hooks/calendar/useCalendarPatients";
 import { useClinicEvents } from "../hooks/useClinicEvents";
 
 const localizer = momentLocalizer(moment);
@@ -50,7 +49,6 @@ const CalendarView = memo(function CalendarView({
 }) {
   console.log('🏗️ CalendarView: Component rendering...');
   console.warn('🚨 DEBUG: CalendarView component is definitely loading!');
-  const navigate = useNavigate();
 
   // State for available providers modal
   const [showProvidersModal, setShowProvidersModal] = useState(false);
@@ -86,9 +84,9 @@ const CalendarView = memo(function CalendarView({
     }
   }, [availabilityEvents]);
 
-  // Patients hook for patient search in appointment modal - ONLY for doctors
-  // Note: We always call usePatients but it will handle role-based logic internally
-  const { patients } = usePatients(navigate, userRole);
+  // Patients for the appointment dialog's search: every patient, searched on the server
+  // (not the Patients page list, which is filtered by care setting).
+  const { patients, searchPatients } = useCalendarPatients(userRole);
 
   // Clinic events hook for appointment title dropdown
   const { clinicEvents: eventTypes } = useClinicEvents();
@@ -462,6 +460,7 @@ const CalendarView = memo(function CalendarView({
           onSubmit={appointmentModal.handleSubmit}
           onDelete={appointmentModal.handleDelete}
           patients={patients}
+          onPatientSearch={searchPatients}
           eventTypes={eventTypes}
         />
 
