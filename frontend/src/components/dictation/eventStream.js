@@ -141,3 +141,18 @@ export function readTranscriptEvent(message) {
   }
   return null;
 }
+
+/**
+ * A short, plain-language reason for an exception event from the speech service.
+ * Contains only the service's own error name and message (never any dictated words).
+ */
+export function describeStreamError(event) {
+  const name = (event && event.name) || "Exception";
+  const message = ((event && event.message) || "").replace(/\s+/g, " ").trim().slice(0, 160);
+  if (/no new audio|timed out/i.test(message)) return "Dictation stopped: no sound reached the speech service. Check that the right microphone is selected and not muted.";
+  if (name === "LimitExceededException") return "Dictation stopped: too many dictation sessions are open for this AWS account. Try again in a moment.";
+  if (/AccessDenied|NotAuthorized|Forbidden|signature|credential|security token|expired/i.test(name + " " + message)) {
+    return `Dictation stopped: the speech service refused the request (${name}). Ask an administrator to check the AWS permissions for dictation.`;
+  }
+  return `Dictation stopped: the speech service reported a problem (${name}${message ? `: ${message}` : ""}).`;
+}

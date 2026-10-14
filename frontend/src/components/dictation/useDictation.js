@@ -4,7 +4,7 @@ import { apiEndpoints } from "../../config/api";
 import { authHeader } from "../patientHeader/headerApi";
 import { captureSupported, startCapture } from "./audioCapture";
 import { applyVoiceCommands } from "./commands";
-import { decodeMessage, encodeAudioEvent, readTranscriptEvent } from "./eventStream";
+import { decodeMessage, describeStreamError, encodeAudioEvent, readTranscriptEvent } from "./eventStream";
 
 // Only one microphone at a time: starting a new dictation stops the one already running.
 let activeStop = null;
@@ -122,7 +122,8 @@ export default function useDictation({ onText } = {}) {
         }
         if (!parsed) return;
         if (parsed.type === "error") {
-          safe(() => setError("Dictation stopped: the speech service reported a problem."));
+          console.error("Dictation: the speech service sent an error", parsed.name, parsed.message);
+          safe(() => setError(describeStreamError(parsed)));
           stop();
           return;
         }
