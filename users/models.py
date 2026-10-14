@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone
 
 from .us_states import US_STATE_CHOICES
@@ -285,9 +285,10 @@ class Patient(models.Model):
     # store (avoids holding a full SSN at rest).
     ssn_last4 = models.CharField(max_length=4, blank=True)
     preferred_language = models.CharField(max_length=100, blank=True)
-    # System-generated Medical Record Number, assigned once on first save
-    # (see save() below). Format: MRN-000001.
-    mrn = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    # System-generated Medical Record Number, assigned once, before the patient is
+    # first saved (see save() below and MRNCounter). Format: MRN-000001. Required and
+    # unique in the database: a patient can never exist without one.
+    mrn = models.CharField(max_length=20, unique=True, editable=False)
 
     # -- Emergency Contact ----------------------------------------------
     emergency_contact_name = models.CharField(max_length=255, blank=True)
@@ -335,16 +336,38 @@ class Patient(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        if not self.mrn:
-            # MRN depends on the auto-incremented pk, so it can only be
-            # assigned after the first save -- do one more lightweight
-            # save (update_fields keeps this to a single-column UPDATE).
-            self.mrn = f"MRN-{self.pk:06d}"
-            super().save(update_fields=["mrn"])
+        if self.mrn:
+            return super().save(*args, **kwargs)
+        # No MRN yet: take the next number and save the patient with it in ONE transaction,
+        # so there is never a saved patient without an MRN (and a failed save gives the
+        # number back).
+        with transaction.atomic():
+            self.mrn = f"MRN-{MRNCounter.next_number():06d}"
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"mrn"}
+            return super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.user.first_name} {self.user.last_name}"
+
+
+class MRNCounter(models.Model):
+    """A single row that hands out Medical Record Numbers, one per patient, never reused.
+
+    Numbers come from here, not from the patient's database id, so an MRN can be assigned
+    before the patient row exists (the field is therefore required, not blank-able).
+    """
+
+    last_number = models.PositiveBigIntegerField(default=0)
+
+    @classmethod
+    def next_number(cls):
+        with transaction.atomic():
+            counter, _ = cls.objects.select_for_update().get_or_create(pk=1)
+            counter.last_number += 1
+            counter.save(update_fields=["last_number"])
+            return counter.last_number
 
 
 class Organization(models.Model):
