@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import SchedulerImage from "../assets/Scheduler.png";
 import CommunicatorImage from "../assets/communicator.png";
 import PortalImage from "../assets/Portal.png";
-import CheckInImage from "../assets/check_in.png";
 import StaffingImage from "../assets/dashboard_clinician.png";
 import DocumentationImage from "../assets/documentation.png";
 import TelehealthImage from "../assets/telehealth.jpg";
@@ -33,10 +32,6 @@ export const SolutionsPage = ({ className }) => {
     // Always navigate to login with portal redirect (to dashboard)
     navigate("/login?redirect=portal");
   };
-  const handleCheckInClick = () => {
-    // Always navigate to login with check-in redirect (to dashboard)
-    navigate("/login?redirect=check-in");
-  };
   const handleStaffingClick = () => {
     // Always navigate to login with staffing redirect
     navigate("/login?redirect=staffing");
@@ -56,10 +51,10 @@ export const SolutionsPage = ({ className }) => {
         >
           <img
             src={DocumentationImage}
-            alt="POWER Documentation"
+            alt="POWER Notes"
             className="solution-image"
           />
-          <div className="solution-label">POWER Documentation</div>
+          <div className="solution-label">POWER Notes</div>
         </div>
         <div
           className="solution-button"
@@ -92,14 +87,6 @@ export const SolutionsPage = ({ className }) => {
         >
           <img src={PortalImage} alt="POWER Patient Portal" className="solution-image" />
           <div className="solution-label">POWER Patient Portal</div>
-        </div>
-        <div
-          className="solution-button"
-          onClick={handleCheckInClick}
-          style={{ cursor: "pointer" }}
-        >
-          <img src={CheckInImage} alt="POWER Check-In" className="solution-image" />
-          <div className="solution-label">POWER Check-In</div>
         </div>
         <div
           className="solution-button"

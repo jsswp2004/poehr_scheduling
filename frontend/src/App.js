@@ -69,7 +69,7 @@ import TelehealthJoinPage from './pages/TelehealthJoinPage';
 
 function AppContent() {
   const location = useLocation();
-  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/check-in', '/privacy', '/telehealth/join'].includes(location.pathname);
+  const showNavbar = !['/', '/login', '/register', '/forgot-password', '/pricing', '/features', '/overview', '/about', '/contact', '/enroll', '/security', '/support', '/solutions', '/privacy', '/telehealth/join'].includes(location.pathname);
 
   // Run token migration on app startup
   useEffect(() => {
