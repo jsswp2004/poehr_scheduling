@@ -20,6 +20,7 @@ import useForceUpdate from "../utils/useForceUpdate";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
 import DescriptionIcon from "@mui/icons-material/Description";
+import HowToRegIcon from "@mui/icons-material/HowToReg";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import GroupsIcon from "@mui/icons-material/Groups";
@@ -59,6 +60,14 @@ const PATIENTS_PAGE_VIEWS = ["appointments", "team", "analytics", "register"];
 const SECURE_MESSAGE_ROLES = ["doctor", "nurse", "registrar", "receptionist", "admin"];
 
 const MODULE_LINKS = [
+  {
+    key: "check-in",
+    label: "Check-In",
+    to: "/check-in",
+    Icon: HowToRegIcon,
+    roles: ["admin", "system_admin", "registrar"], // the roles the Check-In page allows
+    isActive: (path) => path.startsWith("/check-in"),
+  },
   {
     key: "documentation",
     label: "Documentation",
