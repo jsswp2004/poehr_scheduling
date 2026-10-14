@@ -1,5 +1,5 @@
 import { TextDecoder, TextEncoder } from "util";
-import { crc32, decodeMessage, encodeAudioEvent, encodeMessage, readTranscriptEvent } from "../dictation/eventStream";
+import { crc32, decodeMessage, describeStreamError, encodeAudioEvent, encodeMessage, readTranscriptEvent } from "../dictation/eventStream";
 import { appendText, applyVoiceCommands } from "../dictation/commands";
 import { CHUNK_SAMPLES, Downsampler } from "../dictation/audioCapture";
 
@@ -116,5 +116,15 @@ describe("downsampling", () => {
 
   test("a chunk is 100 ms", () => {
     expect(CHUNK_SAMPLES).toBe(1600);
+  });
+});
+
+describe("service error wording", () => {
+  test("says what went wrong without including any dictated words", () => {
+    expect(describeStreamError({ name: "BadRequestException", message: "Your request timed out because no new audio was received for 15 seconds." })).toMatch(/no sound reached/);
+    expect(describeStreamError({ name: "LimitExceededException", message: "" })).toMatch(/too many dictation sessions/);
+    expect(describeStreamError({ name: "AccessDeniedException", message: "not authorized" })).toMatch(/AWS permissions/);
+    expect(describeStreamError({ name: "InternalFailureException", message: "boom" })).toBe("Dictation stopped: the speech service reported a problem (InternalFailureException: boom).");
+    expect(describeStreamError(null)).toMatch(/Exception/);
   });
 });
