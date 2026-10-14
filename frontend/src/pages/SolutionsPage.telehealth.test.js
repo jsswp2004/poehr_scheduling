@@ -15,6 +15,12 @@ test('the Telehealth button signs in and then goes to Telehealth', () => {
   expect(mockNavigate).toHaveBeenCalledWith('/login?redirect=telehealth');
 });
 
+test('the Dictate button signs in and then goes to Dictate', () => {
+  render(<SolutionsPage />);
+  fireEvent.click(screen.getByText('POWER Dictate'));
+  expect(mockNavigate).toHaveBeenCalledWith('/login?redirect=dictate');
+});
+
 test('the other solution buttons are still there', () => {
   render(<SolutionsPage />);
   ['POWER Scheduler', 'POWER Communicator', 'POWER Staffing'].forEach((name) =>

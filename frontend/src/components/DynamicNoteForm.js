@@ -21,6 +21,7 @@ import {
   Tab,
 } from "@mui/material";
 import { INTERPRETATION_SUFFIX, applyCalculations, computeCalc } from "../utils/calculations";
+import DictationTextField from "./dictation/DictationTextField";
 
 /**
  * Renders a form for any structured (non-SOAP) ClinicalNote from a
@@ -221,7 +222,7 @@ function DynamicNoteForm({ template, values, onChange, disabled }) {
     switch (field.field_type) {
       case "textarea":
         return (
-          <TextField
+          <DictationTextField
             {...commonProps}
             label={field.label}
             required={field.required}
@@ -391,7 +392,7 @@ function DynamicNoteForm({ template, values, onChange, disabled }) {
       case "text":
       default:
         return (
-          <TextField
+          <DictationTextField
             {...commonProps}
             label={field.label}
             required={field.required}

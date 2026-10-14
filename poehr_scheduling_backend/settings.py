@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "staffing",
     "secure_messaging",
     "telehealth",
+    "dictation",
     "poehr_scheduling_backend.core",
     "django_cron",
     "anymail",
@@ -205,8 +206,17 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "telehealth_join": "60/min",
         "telehealth_assistant": "30/min",
+        "dictation": "120/min",
+        "dictation_cleanup": "20/min",
     },
 }
+
+# ---- Dictation (speech-to-text for clinical notes, AWS Transcribe Medical) -----------
+# Per-organization switches live on users.Organization (dictation_*), set in Settings > Dictation.
+# The AWS side needs the BAA and the actions in dictation/iam_policy.json. No access keys here.
+DICTATION_AWS_REGION = os.environ.get("DICTATION_AWS_REGION", "us-east-1")
+# Bedrock model/inference-profile id for the "clean up & structure" step. Unset = cleanup unavailable.
+DICTATION_CLEANUP_MODEL_ID = os.environ.get("DICTATION_CLEANUP_MODEL_ID", "")
 
 # ---- Telehealth (video visits, Amazon Chime SDK) ------------------------------------
 # The AWS side needs a BAA (AWS Artifact) and an IAM role with the actions in

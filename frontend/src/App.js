@@ -66,6 +66,7 @@ import CheckInPage from './pages/CheckInPage';
 import StaffingPage from './pages/StaffingPage';
 import TelehealthPage from './pages/TelehealthPage';
 import TelehealthJoinPage from './pages/TelehealthJoinPage';
+import DictatePage from './pages/DictatePage';
 
 function AppContent() {
   const location = useLocation();
@@ -245,6 +246,7 @@ function AppContent() {
         <Route path="/staffing" element={<PrivateRoute><StaffingPage /></PrivateRoute>} />
         <Route path="/telehealth" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><TelehealthPage /></PrivateRoute>} />
         <Route path="/telehealth/join" element={<TelehealthJoinPage />} />
+        <Route path="/dictate" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><DictatePage /></PrivateRoute>} />
       </Routes>
       {showNavbar && <SimpleFooter />}
     </>

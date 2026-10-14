@@ -7,6 +7,7 @@ import PatientHeaderSettings from "../components/patientHeader/PatientHeaderSett
 import TabManagementSettings from "../components/chartTabs/TabManagementSettings";
 import ReferralSettings from "../components/referrals/ReferralSettings";
 import TaskSettings from "../components/tasks/TaskSettings";
+import DictationSettings from "../components/dictation/DictationSettings";
 import FacilityPicker from "../components/facility/FacilityPicker";
 import SingleFacilityOnly from "../components/facility/SingleFacilityOnly";
 import { Box, Typography, Tabs, Tab } from "@mui/material";
@@ -76,6 +77,7 @@ function SettingsPage() {
             <Tab label="Tab Management" value="tab-management" />
             <Tab label="Referrals" value="referrals" />
             <Tab label="Tasks" value="tasks" />
+            <Tab label="Dictation" value="dictation" />
           </Tabs>
           <Box sx={{ ml: 1 }}>
             <BackButton />
@@ -171,6 +173,18 @@ function SettingsPage() {
               }}
             >
               <TaskSettings />
+            </Box>
+          )}
+          {tab === "dictation" && (
+            <Box
+              sx={{
+                boxShadow: 2,
+                borderRadius: "0 0 8px 8px",
+                bgcolor: "background.paper",
+                p: 3,
+              }}
+            >
+              <DictationSettings />
             </Box>
           )}
         </FacilityPicker>

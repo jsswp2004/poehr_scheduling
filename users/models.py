@@ -442,6 +442,43 @@ class Organization(models.Model):
         ),
     )
 
+    # ---- Dictation (speech-to-text for clinical notes; see the `dictation` app) ----
+    DICTATION_SPECIALTY_CHOICES = [
+        ("PRIMARYCARE", "Primary care"),
+        ("CARDIOLOGY", "Cardiology"),
+        ("NEUROLOGY", "Neurology"),
+        ("ONCOLOGY", "Oncology"),
+        ("RADIOLOGY", "Radiology"),
+        ("UROLOGY", "Urology"),
+    ]
+    DICTATION_ACCESS_CHOICES = [
+        ("authors", "Anyone who can author notes"),
+        ("doctors", "Doctors only"),
+    ]
+    dictation_enabled = models.BooleanField(
+        default=False,
+        help_text=(
+            "Master switch for voice dictation into clinical notes. Off: no microphone "
+            "button is shown and the server refuses every dictation request."
+        ),
+    )
+    dictation_cleanup_enabled = models.BooleanField(
+        default=True,
+        help_text="Offer the AI 'clean up & structure' step on dictated text (only if dictation is on).",
+    )
+    dictation_specialty = models.CharField(
+        max_length=20,
+        choices=DICTATION_SPECIALTY_CHOICES,
+        default="PRIMARYCARE",
+        help_text="Medical vocabulary the speech engine favors.",
+    )
+    dictation_access = models.CharField(
+        max_length=10,
+        choices=DICTATION_ACCESS_CHOICES,
+        default="authors",
+        help_text="Who may dictate once it is on.",
+    )
+
     # Clinic location. The STATE drives which state staffing rules the
     # Staffing module applies (see staffing/state_rules.py).
     address_line1 = models.CharField(max_length=255, blank=True, default="")

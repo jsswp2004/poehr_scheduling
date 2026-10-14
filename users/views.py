@@ -885,6 +885,7 @@ def get_patients(request):
                 Q(user__first_name__icontains=search)
                 | Q(user__last_name__icontains=search)
                 | Q(user__email__icontains=search)
+                | Q(mrn__icontains=search)
                 | Q(user__provider__first_name__icontains=search)
                 | Q(user__provider__last_name__icontains=search)
             )

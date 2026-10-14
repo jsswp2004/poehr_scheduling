@@ -117,6 +117,12 @@ export const apiEndpoints = {
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
     noteTemplates: `${API_BASE_URL}/api/note-templates/`,
 
+    // Dictation (speech-to-text for notes)
+    dictationConfig: `${API_BASE_URL}/api/dictation/config/`,
+    dictationStreamUrl: `${API_BASE_URL}/api/dictation/stream-url/`,
+    dictationSessionEnd: `${API_BASE_URL}/api/dictation/session-end/`,
+    dictationCleanup: `${API_BASE_URL}/api/dictation/cleanup/`,
+
     // Location manager (facility > unit > room > bed)
     locationTree: `${API_BASE_URL}/api/locations/tree/`,
     locationItems: (kind) => `${API_BASE_URL}/api/locations/${kind}/`,

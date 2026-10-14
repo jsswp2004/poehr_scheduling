@@ -25,6 +25,7 @@ import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import MedicalInformationIcon from "@mui/icons-material/MedicalInformation";
 import GroupsIcon from "@mui/icons-material/Groups";
 import VideocamIcon from "@mui/icons-material/Videocam";
+import MicIcon from "@mui/icons-material/Mic";
 import ScienceIcon from "@mui/icons-material/Science";
 import ForwardToInboxIcon from "@mui/icons-material/ForwardToInbox";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
@@ -136,6 +137,14 @@ const MODULE_LINKS = [
     Icon: VideocamIcon,
     roles: ["doctor", "nurse", "receptionist", "registrar", "admin", "system_admin"],
     isActive: (path) => path.startsWith("/telehealth"),
+  },
+  {
+    key: "dictate",
+    label: "Dictate",
+    to: "/dictate",
+    Icon: MicIcon,
+    roles: ["doctor", "nurse", "admin", "system_admin"],
+    isActive: (path) => path.startsWith("/dictate"),
   },
   {
     key: "lab-inbox",
