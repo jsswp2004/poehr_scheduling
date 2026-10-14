@@ -35,6 +35,7 @@ const AppointmentModal = ({
     onSubmit,
     onDelete,
     patients = [], // Add patients prop
+    onPatientSearch, // searches patients on the server as the user types
     eventTypes = [], // Add eventTypes prop
 }) => {
     const [selectedPatient, setSelectedPatient] = useState(null);
@@ -118,12 +119,15 @@ const AppointmentModal = ({
                     {(!isEditing || !formData.patient_name) && (
                         <Autocomplete
                             options={patients}
+                            filterOptions={(options) => options} // the server already matched the search
+                            isOptionEqualToValue={(option, value) => option.user_id === value.user_id}
                             getOptionLabel={(option) => `${option.first_name} ${option.last_name}`}
                             value={selectedPatient}
                             onChange={handlePatientSelect}
                             inputValue={patientSearchValue}
                             onInputChange={(event, newInputValue) => {
                                 setPatientSearchValue(newInputValue);
+                                if (onPatientSearch) onPatientSearch(newInputValue);
                             }}
                             renderInput={(params) => (
                                 <TextField
