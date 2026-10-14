@@ -2,7 +2,7 @@
  * Appointment form fields component
  */
 import React, { useEffect, useState } from 'react';
-import { Box, TextField, MenuItem, Typography, Stack } from '@mui/material';
+import { Box, TextField, MenuItem, Typography, Stack, Checkbox, FormControlLabel, FormHelperText } from '@mui/material';
 import Select from 'react-select';
 import LocationPicker, { useLocationTree } from '../locations/LocationPicker';
 
@@ -136,6 +136,22 @@ export const AppointmentFormFields = ({
                         menu: (base) => ({ ...base, zIndex: 9999 })
                     }}
                 />
+            </Box>
+
+            <Box>
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            name="is_video"
+                            checked={!!formData.is_video}
+                            onChange={(e) => handleChange({ target: { name: 'is_video', value: e.target.checked } })}
+                        />
+                    }
+                    label="Video visit (Telehealth)"
+                />
+                <FormHelperText sx={{ ml: 4, mt: -0.5 }}>
+                    The patient gets a link by text and joins from their phone or computer.
+                </FormHelperText>
             </Box>
 
             {editMode && (

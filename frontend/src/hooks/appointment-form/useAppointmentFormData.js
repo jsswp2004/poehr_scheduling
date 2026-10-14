@@ -19,6 +19,7 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
         recurrence: 'none',
         recurrence_end_date: '',
         unit: '',
+        is_video: false,
     });
 
     const [selectedClinicEvent, setSelectedClinicEvent] = useState(null);
@@ -48,6 +49,7 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
                 recurrence_end_date: appointmentToEdit.recurrence_end_date || '',
                 status: appointmentToEdit.status || 'scheduled',
                 unit: appointmentToEdit.unit || '',
+                is_video: !!appointmentToEdit.is_video,
             });
 
             // Preselect clinic event
@@ -124,7 +126,8 @@ export const useAppointmentFormData = (appointmentToEdit, editMode, patientId, c
             userRole
         );
         // The unit (from the Location Manager) the appointment takes place in.
-        return { ...payload, unit: formData.unit || null };
+        // Whether the visit is held by video (Telehealth).
+        return { ...payload, unit: formData.unit || null, is_video: !!formData.is_video };
     };
 
     return {
