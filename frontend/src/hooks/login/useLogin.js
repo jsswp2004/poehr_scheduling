@@ -101,6 +101,14 @@ export const useLogin = () => {
                 toast.error('Access denied. Telehealth requires a clinical or front-desk account.');
                 navigate('/solutions');
             }
+        } else if (redirectTo === 'dictate') {
+            // Dictate is for clinical staff (the server enforces the real rights and the organization's switch)
+            if (['admin', 'system_admin', 'doctor', 'nurse'].includes(userRole)) {
+                navigate('/dictate');
+            } else {
+                toast.error('Access denied. Dictate requires a clinical or admin account.');
+                navigate('/solutions');
+            }
         } else if (redirectTo === 'portal') {
             console.log('Login Debug - Portal redirect requested, but checking role first');
             // For portal redirect, still respect admin/system_admin roles

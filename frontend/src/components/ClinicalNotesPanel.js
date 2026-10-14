@@ -41,7 +41,18 @@ import DynamicNoteForm, {
   buildNotePreviewSections,
 } from "./DynamicNoteForm";
 import NotePreviewPane from "./NotePreviewPane";
+import { DictationProvider } from "./dictation/DictationContext";
+import DictationTextField from "./dictation/DictationTextField";
+import DictateNoteBar from "./dictation/DictateNoteBar";
 import PanelTitle from "./patients/PanelTitle";
+
+// The four SOAP boxes as dictation fields (see DictateNoteBar).
+const SOAP_DICTATION_FIELDS = ["Subjective", "Objective", "Assessment", "Plan"].map((label) => ({
+  key: label.toLowerCase(),
+  label,
+  field_type: "textarea",
+  options: [],
+}));
 
 const NOTE_TYPE_BY_ROLE = {
   doctor: "doctor_assessment",
@@ -596,6 +607,21 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
     setForm((f) => ({ ...f, [field]: e.target.value }));
   };
 
+  // Dictation: the fields "Dictate whole note" may fill (never calculated items or hidden ones),
+  // how to read a field's current value, and how to write accepted values back.
+  const dictationFields = isTemplateDriven
+    ? (currentTemplate?.fields || [])
+        .filter((f) => f.field_type !== "calculated" && isFieldVisible(f, form.structured_data))
+        .map((f) => ({ key: f.key, label: f.label, field_type: f.field_type, options: f.options || [] }))
+    : SOAP_DICTATION_FIELDS;
+  const dictationValue = (key) => (isTemplateDriven ? form.structured_data[key] : form[key]);
+  const applyDictation = (values) => {
+    Object.entries(values).forEach(([key, value]) => {
+      if (isTemplateDriven) handleStructuredFieldChange(key, value);
+      else setForm((f) => ({ ...f, [key]: value }));
+    });
+  };
+
   const resetForm = () => {
     const defaultType = NOTE_TYPE_BY_ROLE[userRole] || "";
     setForm({ ...EMPTY_FORM, note_type: defaultType });
@@ -809,6 +835,13 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               />
             )}
 
+            <DictationProvider>
+              <DictateNoteBar
+                fields={dictationFields}
+                getValue={dictationValue}
+                onApply={applyDictation}
+                disabled={saving}
+              />
             {isTemplateDriven ? (
               templateLoading && !currentTemplate ? (
                 <Typography variant="body2" color="text.secondary">
@@ -824,7 +857,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               )
             ) : (
               <>
-                <TextField
+                <DictationTextField
                   label="Subjective"
                   multiline
                   minRows={2}
@@ -833,7 +866,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   onChange={handleFieldChange("subjective")}
                   placeholder="What the patient reports (symptoms, concerns, history)"
                 />
-                <TextField
+                <DictationTextField
                   label="Objective"
                   multiline
                   minRows={2}
@@ -842,7 +875,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   onChange={handleFieldChange("objective")}
                   placeholder="Observable/measurable findings (vitals, exam findings)"
                 />
-                <TextField
+                <DictationTextField
                   label="Assessment"
                   multiline
                   minRows={2}
@@ -851,7 +884,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   onChange={handleFieldChange("assessment")}
                   placeholder="Clinical impression / diagnosis"
                 />
-                <TextField
+                <DictationTextField
                   label="Plan"
                   multiline
                   minRows={2}
@@ -862,6 +895,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                 />
               </>
             )}
+            </DictationProvider>
 
             <Stack direction="row" spacing={2}>
               <Button

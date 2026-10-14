@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SignTranscribeMedicalStream",
+      "Effect": "Allow",
+      "Action": "transcribe:StartMedicalStreamTranscriptionWebSocket",
+      "Resource": "*"
+    },
+    {
+      "Sid": "DictationCleanupModel",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:Converse"],
+      "Resource": "arn:aws:bedrock:*::foundation-model/REPLACE_WITH_YOUR_MODEL_ID"
+    }
+  ]
+}

@@ -173,6 +173,7 @@ urlpatterns = [
     path("api/secure-messages/", include("secure_messaging.urls")),
     path("api/communicator/", include("communicator.urls")),
     path("api/telehealth/", include("telehealth.urls")),
+    path("api/dictation/", include("dictation.urls")),
 ]
 
 # Serve static files manually for production

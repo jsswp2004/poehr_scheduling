@@ -9,6 +9,7 @@ import PortalImage from "../assets/Portal.png";
 import StaffingImage from "../assets/dashboard_clinician.png";
 import DocumentationImage from "../assets/documentation.png";
 import TelehealthImage from "../assets/telehealth.jpg";
+import DictationImage from "../assets/dictation.svg";
 
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();
@@ -39,6 +40,10 @@ export const SolutionsPage = ({ className }) => {
   const handleTelehealthClick = () => {
     // Always navigate to login with telehealth redirect
     navigate("/login?redirect=telehealth");
+  };
+  const handleDictateClick = () => {
+    // Always navigate to login with dictate redirect
+    navigate("/login?redirect=dictate");
   };
   return (
     <div className={`solutions-page ${className || ""}`}>
@@ -103,6 +108,14 @@ export const SolutionsPage = ({ className }) => {
         >
           <img src={TelehealthImage} alt="POWER Telehealth" className="solution-image" />
           <div className="solution-label">POWER Telehealth</div>
+        </div>
+        <div
+          className="solution-button"
+          onClick={handleDictateClick}
+          style={{ cursor: "pointer" }}
+        >
+          <img src={DictationImage} alt="POWER Dictate" className="solution-image" />
+          <div className="solution-label">POWER Dictate</div>
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
