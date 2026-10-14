@@ -194,14 +194,14 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  padding-top: 10px;
-  padding-bottom: 10px;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 /* Login Button Styling (secondary: outlined on the dark header) */
 .btn-login {
-  padding: 12px 24px;
-  min-height: 44px;
+  padding: 8px 20px;
+  min-height: 40px;
   box-sizing: border-box;
   background: transparent;
   border: 1px solid #475569;
@@ -223,8 +223,8 @@
 
 /* Try POWER for Free Button (primary) */
 .btn-free-trial2 {
-  padding: 12px 24px;
-  min-height: 44px;
+  padding: 8px 20px;
+  min-height: 40px;
   box-sizing: border-box;
   background: var(--color-primary);
   border-radius: var(--radius-control);

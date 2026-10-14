@@ -11,10 +11,11 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  align-content: flex-start;
   flex-wrap: wrap;
   gap: 32px;
-  padding: 80px 32px;
+  padding: 48px 32px;
 }
 
 .solution-button {
