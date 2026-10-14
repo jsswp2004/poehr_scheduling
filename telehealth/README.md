@@ -7,7 +7,7 @@ append-only audit log. No media is stored, and media capture is never enabled.
 ## Visit flow
 
 1. Staff `POST /api/telehealth/sessions/` with `{appointment_id}`. Creates the Chime meeting plus a provider and a patient participant.
-2. Staff `POST .../join-link/` mints a single-use link and texts it through Communicator. Link shape: `https://<host>/telehealth/join#<token>`. The token is in the URL **fragment**, so it never reaches server logs or referrers. The SMS contains only the link.
+2. Staff `POST .../join-link/` mints a single-use link and texts it through Twilio. Link shape: `https://<host>/telehealth/join#<token>`. The token is in the URL **fragment**, so it never reaches server logs or referrers. The SMS contains only the link.
 3. The patient page reads the fragment and `POST /join/redeem/` with the token. The token burns, the session moves to `waiting`, the provider gets a PHI-free WebSocket event, and the patient receives a signed `rejoin_token` so a page refresh doesn't strand them.
 4. Patient `POST /join/consent/`, then polls `POST /join/status/`.
 5. Provider `POST .../admit/`. Only then does `POST /join/media/` return Chime join info (needs consent AND admission).
@@ -39,7 +39,7 @@ Settings (all optional except where noted):
 | `TELEHEALTH_CREATE_CHART_DRAFT` | off | When on, ending a visit also creates an **unsigned draft** `ClinicalNote` for the provider. Off by default. |
 | `TELEHEALTH_ASSISTANT_BACKEND` | none (assistant off) | Dotted path of the model function. See Phase 4. |
 
-Texts go through `communicator.utils.send_sms`, so Communicator's consent and opt-out rules apply. If texting is blocked, the UI copies the link for staff to deliver another way. Note that Communicator logs message bodies in `MessageLog`, so the link appears there until it is used or expires. The token is single-use and time-limited.
+Texts go straight through Twilio (`TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`). Telehealth does not use Communicator, whose lists come from uploads and are matched by phone number. The recipient is always the patient on the appointment, and consent (`sms_consent`) and opt-out (`sms_opt_out`) are read from that patient's own account. Twilio itself refuses numbers that replied STOP, which shows as "opted out". If a text cannot be sent, the UI says why and copies the link for staff to deliver another way. The link is not stored in any message log; the token is single-use and time-limited.
 
 Credentials: no keys in settings. Run under an IAM role that has `iam_policy.json`.
 
@@ -56,7 +56,7 @@ Credentials: no keys in settings. Run under an IAM role that has `iam_policy.jso
 | `video_appointments` | `Appointment` filtered by `is_video=True` and `appointment_datetime` date, excluding cancelled, no-show and rescheduled; tenant-scoped through `Appointment.objects` |
 | `appointment_provider_user_id` | `appointment.provider_id` |
 | `patient_mobile` / `patient_display_name` | `appointment.patient.phone_number` / full name |
-| `send_join_sms` | `communicator.utils.send_sms(...)` in the appointment's organization; a consent or opt-out block returns False |
+| `send_join_sms` / `send_join_sms_result` | Twilio, to the appointment's own patient; checks that patient's consent and opt-out; returns the reason when not sent (`no_phone`, `no_consent`, `opted_out`, `failed`) |
 | `create_draft_note` | Off unless `TELEHEALTH_CREATE_CHART_DRAFT`; creates a draft `ClinicalNote` (nursing or doctor assessment by role), never signed |
 | `notify_provider` | Channels group `telehealth_provider_<user_id>`. No consumer is registered; the UI polls |
 
