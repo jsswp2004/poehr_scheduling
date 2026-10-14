@@ -61,3 +61,9 @@ export function waitMs(session, nowMs, offsetMs = 0) {
   if (!patient?.arrived_at) return 0;
   return Math.max(0, nowMs + offsetMs - Date.parse(patient.arrived_at));
 }
+
+/** After this long in the waiting room the timer turns red so nobody is missed. */
+export const LONG_WAIT_MS = 10 * 60 * 1000;
+export function isLongWait(ms) {
+  return ms >= LONG_WAIT_MS;
+}

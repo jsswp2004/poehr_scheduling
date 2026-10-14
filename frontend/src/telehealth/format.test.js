@@ -1,5 +1,5 @@
 import { classifyLatency, measureLatency } from "./network";
-import { clockOffset, formatWait, isWaiting, todayISO, visitState, waitMs } from "./format";
+import { clockOffset, formatWait, isLongWait, isWaiting, todayISO, visitState, waitMs } from "./format";
 
 const patient = (over = {}) => ({ role: "patient", arrived_at: null, admitted_at: null, consented: false, ...over });
 const session = (p, status = "scheduled") => ({ status, participants: [{ role: "provider" }, p] });
@@ -78,5 +78,12 @@ describe("connection check", () => {
       if (n % 2 === 0) throw new Error("drop");
     };
     expect((await measureLatency(flaky, 5)).status).toBe("slow");
+  });
+});
+
+describe("isLongWait", () => {
+  it("turns on at ten minutes", () => {
+    expect(isLongWait(9 * 60 * 1000 + 59000)).toBe(false);
+    expect(isLongWait(10 * 60 * 1000)).toBe(true);
   });
 });

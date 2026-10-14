@@ -1,5 +1,14 @@
 import { billingLine, needsLocation } from "./billingText";
-import { formatClock, formatWait, isWaiting, visitState, waitMs } from "./format";
+import { formatClock, formatWait, isLongWait, isWaiting, visitState, waitMs } from "./format";
+
+const TONE = {
+  "no-session": "idle",
+  "not-arrived": "idle",
+  arrived: "wait",
+  waiting: "wait",
+  "in-visit": "live",
+  ended: "done",
+};
 
 const STATUS_TEXT = {
   "no-session": "Not started",
@@ -22,13 +31,20 @@ export default function VisitRow({ item, nowMs, offsetMs, busy, canConduct, canM
   // Any session that exists and hasn't ended can be ended, on any day, so stale ones don't linger.
   const canEnd = state !== "no-session" && state !== "ended";
 
+  const waited = waiting ? waitMs(item.session, nowMs, offsetMs) : 0;
+  const longWait = waiting && isLongWait(waited);
+
   return (
-    <li className="th-row" data-state={state}>
+    <li className="th-row" data-state={state} data-long={longWait ? "true" : undefined}>
       <span className="th-row-time">{formatClock(item.scheduled_at)}</span>
       <span className="th-row-patient">{item.patient_display}</span>
       <span className="th-row-status">
-        <span>{STATUS_TEXT[state]}</span>
-        {waiting && <span className="th-timer">{formatWait(waitMs(item.session, nowMs, offsetMs))}</span>}
+        <span className={`th-chip th-chip--${TONE[state]}`}>
+          <span className="th-chip-dot" aria-hidden="true" />
+          {STATUS_TEXT[state]}
+        </span>
+        {waiting && <span className="th-timer">{formatWait(waited)}</span>}
+        {longWait && <span className="th-row-note th-row-note--long">Waiting longer than 10 minutes</span>}
         {needsLocation(item.session) && <span className="th-row-note th-row-note--todo">Patient location needed</span>}
         {state === "ended" && item.session.billing?.confirmed && (
           <span className="th-row-note">{billingLine(item.session.billing)}</span>

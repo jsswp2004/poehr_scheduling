@@ -286,71 +286,129 @@
 }
 
 /* ---------- tracking board ---------- */
+.th-filterbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-top: 1.25rem;
+}
+.th-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.th-pill {
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: #334155;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.th-pill:hover {
+  background: #f1f5f9;
+}
+.th-pill[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+}
+.th-day {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.th-today {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.th-today-main {
+  flex: 999 1 35rem;
+  min-width: 0;
+}
 .th-board {
   list-style: none;
   margin: 1rem 0 0;
   padding: 0;
-  display: grid;
-  gap: 0.75rem;
-}
-.th-row {
-  display: grid;
-  grid-template-columns: 5.5rem minmax(0, 1fr) minmax(11rem, auto) auto;
-  gap: 0.5rem 1rem;
-  align-items: center;
-  padding: 1rem 1rem 1rem 1.25rem;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-left: 5px solid var(--line-strong);
   border-radius: var(--radius-card);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+}
+.th-today-main .th-board {
+  margin-top: 0;
+}
+.th-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.875rem 1.25rem;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+.th-row:first-child {
+  border-top: 0;
 }
 .th-row[data-state="arrived"],
 .th-row[data-state="waiting"] {
-  border-left-color: var(--wait);
   background: #fffbeb;
 }
 .th-row[data-state="in-visit"] {
-  border-left-color: var(--live);
+  background: #f0fdf4;
 }
-.th-row[data-state="ended"] {
+.th-row[data-state="ended"] .th-row-patient {
   color: var(--ink-2);
-  background: var(--paper);
-  box-shadow: none;
 }
 .th-row-time {
-  font-weight: 700;
+  flex: 0 0 5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .th-row-patient {
-  font-size: 1.05rem;
-  font-weight: 700;
+  flex: 1 1 7rem;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 .th-row-status {
+  flex: 0 1 12rem;
   display: flex;
   flex-direction: column;
-}
-.th-row[data-state="arrived"] .th-row-status,
-.th-row[data-state="waiting"] .th-row-status {
-  color: var(--wait);
-}
-.th-row[data-state="in-visit"] .th-row-status {
-  color: var(--live);
-  font-weight: 700;
+  align-items: flex-start;
+  gap: 0.25rem;
 }
 .th-row-actions {
+  flex: 1 1 auto;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
 }
 .th-timer {
-  font-size: 1.7rem;
+  font-size: 1.1rem;
   line-height: 1.1;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--wait);
+}
+.th-row[data-long="true"] .th-timer,
+.th-row-note--long {
+  color: #991b1b;
 }
 .th-timer--large {
   font-size: 2.6rem;
@@ -360,27 +418,135 @@
   color: var(--ink);
 }
 
+/* status chip: the dot and the words carry the state */
+.th-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.th-chip-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+.th-chip--wait {
+  background: var(--wait-bg);
+  color: var(--wait);
+}
+.th-chip--live {
+  background: var(--live-bg);
+  color: #065f46;
+}
+.th-chip--idle,
+.th-chip--done {
+  background: #f1f5f9;
+  color: var(--ink-2);
+}
+
+/* waiting-room panel beside the board */
+.th-aside {
+  flex: 1 1 20rem;
+  max-width: 25rem;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 1rem 1.25rem 1.25rem;
+}
+.th-aside-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.th-aside-head .th-h3 {
+  margin: 0;
+}
+.th-aside-empty,
+.th-aside-note {
+  margin: 1rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.th-waitlist {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.th-waitcard {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: var(--panel);
+}
+.th-waitcard[data-long="true"] {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.th-waitcard-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.th-waitcard-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.th-waitcard-timer {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--wait);
+}
+.th-waitcard[data-long="true"] .th-waitcard-timer,
+.th-waitcard-long {
+  color: #991b1b;
+}
+.th-waitcard-long {
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.th-waitcard-meta {
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+.th-btn--block {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
 @media (max-width: 720px) {
-  .th-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "time status"
-      "patient patient"
-      "actions actions";
-  }
   .th-row-time {
-    grid-area: time;
-  }
-  .th-row-patient {
-    grid-area: patient;
+    flex: 1 1 auto;
   }
   .th-row-status {
-    grid-area: status;
+    order: 2;
+    flex: 0 0 auto;
     align-items: flex-end;
   }
+  .th-row-patient {
+    order: 3;
+    flex-basis: 100%;
+  }
   .th-row-actions {
-    grid-area: actions;
+    order: 4;
+    flex-basis: 100%;
     justify-content: flex-start;
+  }
+  .th-aside {
+    max-width: none;
   }
 }
 
