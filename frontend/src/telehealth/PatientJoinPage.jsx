@@ -142,6 +142,11 @@ export default function PatientJoinPage({ clinicPhone }) {
 
   return (
     <main className="th-root th-patient">
+      <header className="th-patient-bar">
+        <span className="th-patient-mark" aria-hidden="true" />
+        Video visit
+      </header>
+      <div className="th-patient-body">
       {step === "starting" && <p role="status">Opening your visit…</p>}
 
       {step === "consent" && (
@@ -175,9 +180,12 @@ export default function PatientJoinPage({ clinicPhone }) {
         <section>
           <Heading>You're in the waiting room</Heading>
           <p className="th-lede">Your provider will let you in shortly. Keep this page open.</p>
-          <p className="th-timer th-timer--large" aria-label="Time waiting">
-            {formatWait(nowMs - waitStart.current)}
-          </p>
+          <div className="th-waitbox">
+            <p className="th-waitbox-label">You have been waiting</p>
+            <p className="th-timer th-timer--large" aria-label="Time waiting">
+              {formatWait(nowMs - waitStart.current)}
+            </p>
+          </div>
         </section>
       )}
 
@@ -243,6 +251,7 @@ export default function PatientJoinPage({ clinicPhone }) {
       )}
 
       {["devices", "waiting", "left", "problem", "unavailable"].includes(step) && <PatientHelp clinicPhone={clinicPhone} />}
+      </div>
     </main>
   );
 }
