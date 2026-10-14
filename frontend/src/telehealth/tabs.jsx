@@ -2,28 +2,116 @@ import { useState } from "react";
 import Board from "./Board";
 import DeviceCheck from "./DeviceCheck";
 import { clearDevicePrefs, loadSoundSetting, saveSoundSetting } from "./devicePrefs";
-import { formatDay, isWaiting, patientOf, visitState } from "./format";
+import { formatClock, formatDay, formatWait, isLongWait, isWaiting, patientOf, visitState, waitMs } from "./format";
+
+const FILTERS = [
+  { id: "all", label: "All", match: () => true },
+  { id: "waiting", label: "Waiting", match: (state) => isWaiting(state) },
+  { id: "in-visit", label: "In visit", match: (state) => state === "in-visit" },
+  { id: "upcoming", label: "Upcoming", match: (state) => state === "no-session" || state === "not-arrived" },
+  { id: "done", label: "Done", match: (state) => state === "ended" },
+];
+
+/** The waiting patients, longest wait first. */
+function waitingOf(items) {
+  return items
+    .filter((i) => isWaiting(visitState(i.session)))
+    .sort((a, b) => Date.parse(patientOf(a.session).arrived_at) - Date.parse(patientOf(b.session).arrived_at));
+}
+
+/** Side panel on the Today tab: who is waiting, how long, and one button to bring them in. */
+function WaitingPanel({ items, nowMs, offsetMs, busy, canConduct, actions }) {
+  const waiting = waitingOf(items);
+  return (
+    <aside className="th-aside" aria-label="Waiting room">
+      <div className="th-aside-head">
+        <h2 className="th-h3">Waiting room</h2>
+        {waiting.length > 0 && <span className="th-chip th-chip--wait">{waiting.length} waiting</span>}
+      </div>
+      {waiting.length === 0 ? (
+        <p className="th-aside-empty">No one is waiting. Patients appear here as soon as they open their link.</p>
+      ) : (
+        <ul className="th-waitlist">
+          {waiting.map((item) => {
+            const waited = waitMs(item.session, nowMs, offsetMs);
+            const long = isLongWait(waited);
+            return (
+              <li key={item.appointment_id} className="th-waitcard" data-long={long ? "true" : undefined}>
+                <div className="th-waitcard-top">
+                  <span className="th-waitcard-name">{item.patient_display}</span>
+                  <span className="th-waitcard-timer">{formatWait(waited)}</span>
+                </div>
+                {long && <div className="th-waitcard-long">Waiting longer than 10 minutes</div>}
+                <div className="th-waitcard-meta">Booked for {formatClock(item.scheduled_at)}</div>
+                {canConduct && (
+                  <button
+                    type="button"
+                    className="th-btn th-btn--primary th-btn--block"
+                    aria-label={`Admit ${item.patient_display}`}
+                    disabled={busy}
+                    onClick={() => actions.admit(item)}
+                  >
+                    Admit patient
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <p className="th-aside-note">Admitting a patient brings them into your room. The timer turns red after 10 minutes so no one is missed.</p>
+    </aside>
+  );
+}
 
 export function TodayTab({ schedule, date, boardProps }) {
+  const [filter, setFilter] = useState("all");
+  const counts = Object.fromEntries(
+    FILTERS.map((f) => [f.id, schedule.items.filter((i) => f.match(visitState(i.session))).length])
+  );
+  const active = FILTERS.find((f) => f.id === filter) ?? FILTERS[0];
+  const shown = schedule.items.filter((i) => active.match(visitState(i.session)));
   return (
     <>
-      <h2 className="th-h2">{formatDay(date)}</h2>
-      <Board
-        items={schedule.items}
-        loading={schedule.loading}
-        error={schedule.error}
-        label="Today's video visits"
-        empty="No video visits today. A visit booked as video appears here with a button to send the patient their link."
-        {...boardProps}
-      />
+      <div className="th-filterbar">
+        <div className="th-filters" role="group" aria-label="Filter visits">
+          {FILTERS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className="th-pill"
+              aria-pressed={filter === f.id}
+              onClick={() => setFilter(f.id)}
+            >
+              {f.label} {counts[f.id]}
+            </button>
+          ))}
+        </div>
+        <h2 className="th-day">{formatDay(date)}</h2>
+      </div>
+      <div className="th-today">
+        <div className="th-today-main">
+          <Board
+            items={shown}
+            loading={schedule.loading}
+            error={schedule.error}
+            label="Today's video visits"
+            empty={
+              schedule.items.length === 0
+                ? "No video visits today. A visit booked as video appears here with a button to send the patient their link."
+                : "No visits match this filter."
+            }
+            {...boardProps}
+          />
+        </div>
+        <WaitingPanel items={schedule.items} {...boardProps} />
+      </div>
     </>
   );
 }
 
 export function WaitingRoomTab({ schedule, boardProps }) {
-  const waiting = schedule.items
-    .filter((i) => isWaiting(visitState(i.session)))
-    .sort((a, b) => Date.parse(patientOf(a.session).arrived_at) - Date.parse(patientOf(b.session).arrived_at));
+  const waiting = waitingOf(schedule.items);
   return (
     <>
       <h2 className="th-h2">Waiting room</h2>

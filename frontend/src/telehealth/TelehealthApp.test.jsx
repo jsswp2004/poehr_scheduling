@@ -201,6 +201,34 @@ describe("TelehealthApp", () => {
     expect(screen.queryByText(/Room for/)).not.toBeInTheDocument();
   });
 
+  it("filters the board with the pills and shows counts", async () => {
+    const user = userEvent.setup();
+    render(<TelehealthApp />);
+    const board = await screen.findByRole("list", { name: "Today's video visits" });
+    expect(within(board).getAllByRole("listitem")).toHaveLength(ITEMS.length);
+    expect(screen.getByRole("button", { name: "All 6" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "Waiting 2" }));
+    const rows = within(screen.getByRole("list", { name: "Today's video visits" })).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Done 2" }));
+    expect(within(screen.getByRole("list", { name: "Today's video visits" })).getByText("Ed Finished")).toBeInTheDocument();
+  });
+
+  it("lists who is waiting beside the board, longest first, and admits from there", async () => {
+    const user = userEvent.setup();
+    staffApi.admit.mockResolvedValue({});
+    staffApi.providerToken.mockResolvedValue({});
+    render(<TelehealthApp />);
+    const panel = await screen.findByRole("complementary", { name: "Waiting room" });
+    const cards = within(panel).getAllByRole("listitem");
+    expect(cards).toHaveLength(2);
+    expect(within(cards[0]).getByText("Cy Longest")).toBeInTheDocument();
+    await user.click(within(panel).getByRole("button", { name: "Admit Cy Longest" }));
+    expect(staffApi.admit).toHaveBeenCalledWith("s3");
+  });
+
   it("lets staff end any open session from the Schedule tab", async () => {
     const user = userEvent.setup();
     window.confirm = jest.fn(() => true);
