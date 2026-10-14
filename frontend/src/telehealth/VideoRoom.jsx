@@ -2,6 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import { messageFor } from "./messages";
 import { useChimeMeeting } from "./useChimeMeeting";
 
+const ICONS = {
+  mic: <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3zM19 10v2a7 7 0 0 1-14 0v-2M12 19v4" />,
+  micOff: <path d="M1 1l22 22M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6M17 16.95A7 7 0 0 1 5 12v-2M19 10v2a7 7 0 0 1-.11 1.23M12 19v4" />,
+  cam: <path d="m22 8-6 4 6 4zM3 6h11a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z" />,
+  camOff: <path d="M1 1l22 22M16 16v1a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h2m5 0h4a1 1 0 0 1 1 1v3.34l1 1L22 8v8" />,
+  share: <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M16 6l-4-4-4 4M12 2v13" />,
+  leave: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />,
+  end: <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM15 9l-6 6M9 9l6 6" />,
+};
+
+function Control({ icon, label, className = "", ...props }) {
+  return (
+    <button type="button" className={`th-ctl ${className}`.trim()} {...props}>
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {ICONS[icon]}
+      </svg>
+      <span>{label}</span>
+    </button>
+  );
+}
+
 function Tile({ tileId, bindTile, unbindTile, className, mirrored, label }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -136,37 +157,38 @@ export default function VideoRoom({
       </div>
 
       <div className="th-controls" role="group" aria-label="Call controls">
-        <button type="button" className="th-btn th-btn--onDark" onClick={meeting.toggleMute} disabled={phase !== "live"}>
-          {meeting.muted ? "Unmute microphone" : "Mute microphone"}
-        </button>
-        <button
-          type="button"
-          className="th-btn th-btn--onDark"
+        <Control
+          icon={meeting.muted ? "micOff" : "mic"}
+          label={meeting.muted ? "Unmute microphone" : "Mute microphone"}
+          className={meeting.muted ? "th-ctl--off" : ""}
+          onClick={meeting.toggleMute}
+          disabled={phase !== "live"}
+        />
+        <Control
+          icon={meeting.cameraOn || !meeting.cameraAvailable ? "cam" : "camOff"}
+          label={!meeting.cameraAvailable ? "No camera" : meeting.cameraOn ? "Turn off camera" : "Turn on camera"}
+          className={meeting.cameraAvailable && !meeting.cameraOn ? "th-ctl--off" : ""}
           onClick={meeting.toggleCamera}
           disabled={phase !== "live" || !meeting.cameraAvailable}
-        >
-          {!meeting.cameraAvailable ? "No camera" : meeting.cameraOn ? "Turn off camera" : "Turn on camera"}
-        </button>
+        />
         {meeting.canShare && (
-          <button type="button" className="th-btn th-btn--onDark" onClick={meeting.toggleShare} disabled={phase !== "live"}>
-            {meeting.sharing ? "Stop sharing" : "Share screen"}
-          </button>
+          <Control
+            icon="share"
+            label={meeting.sharing ? "Stop sharing" : "Share screen"}
+            onClick={meeting.toggleShare}
+            disabled={phase !== "live"}
+          />
         )}
-        <button type="button" className="th-btn th-btn--onDark" onClick={handleLeave}>
-          {leaveLabel}
-        </button>
-        {onEnd && (
-          <button type="button" className="th-btn th-btn--danger" onClick={() => setConfirmingEnd(true)}>
-            End visit
-          </button>
-        )}
+        <span className="th-controls-gap" aria-hidden="true" />
+        <Control icon="leave" label={leaveLabel} onClick={handleLeave} />
+        {onEnd && <Control icon="end" label="End session" className="th-ctl--end" onClick={() => setConfirmingEnd(true)} />}
       </div>
 
       {confirmingEnd && (
         <div className="th-scrim">
           <div className="th-dialog" role="alertdialog" aria-labelledby="th-end-h" aria-describedby="th-end-p">
             <h2 id="th-end-h" className="th-h2">
-              End this visit for everyone?
+              End this session for everyone?
             </h2>
             <p id="th-end-p">
               The patient is disconnected and their link stops working. To step away and come back, choose “{leaveLabel}”
@@ -174,7 +196,7 @@ export default function VideoRoom({
             </p>
             <div className="th-actions">
               <button type="button" className="th-btn" ref={cancelRef} onClick={() => setConfirmingEnd(false)}>
-                Keep visit open
+                Keep session open
               </button>
               <button
                 type="button"
@@ -185,7 +207,7 @@ export default function VideoRoom({
                   onEnd();
                 }}
               >
-                End visit
+                End session
               </button>
             </div>
           </div>

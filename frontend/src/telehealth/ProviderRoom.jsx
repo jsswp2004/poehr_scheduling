@@ -4,6 +4,7 @@ import PatientPanel from "./PatientPanel";
 import VideoRoom from "./VideoRoom";
 import { staffApi } from "./api";
 import VisitSummary from "./VisitSummary";
+import { formatClock } from "./format";
 import { messageFor } from "./messages";
 
 /**
@@ -76,6 +77,7 @@ export default function ProviderRoom({ sessionId, item, nowMs, offsetMs, onClose
   const topBar = (
     <header className="th-room-bar">
       <strong>{item?.patient_display ?? "Video visit"}</strong>
+      {item?.scheduled_at && <span className="th-room-sub">Booked for {formatClock(item.scheduled_at)}</span>}
     </header>
   );
 
