@@ -5,6 +5,7 @@
 // the staff login page.
 import { api } from "../api/client";
 import { API_BASE_URL } from "../config/api";
+import { getValidToken } from "../utils/auth";
 
 const PATH = "/api/telehealth";
 
@@ -23,9 +24,18 @@ function codeFrom(data, status) {
   return status === 429 ? "rate_limited" : "request_failed";
 }
 
+// The shared `api` client does not attach the login token by itself (the app's interceptors sit
+// on the global axios), so every staff call sends it explicitly, refreshed when it is stale.
+async function staffHeaders() {
+  const token = await getValidToken();
+  const value = token && (token.access_token || token);
+  return value ? { Authorization: `Bearer ${value}` } : {};
+}
+
 async function staffRequest(method, path, body) {
   try {
-    const res = await api.request({ method, url: `${PATH}${path}`, data: body });
+    const headers = await staffHeaders();
+    const res = await api.request({ method, url: `${PATH}${path}`, data: body, headers });
     return res.data;
   } catch (err) {
     if (err?.response) throw new ApiError(err.response.status, codeFrom(err.response.data, err.response.status));

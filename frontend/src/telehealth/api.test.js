@@ -1,10 +1,15 @@
 import { api } from "../api/client";
+import { getValidToken } from "../utils/auth";
 import { ApiError, patientApi, staffApi } from "./api";
 
+const AUTH = { Authorization: "Bearer tok123" };
+
 jest.mock("../api/client", () => ({ __esModule: true, api: { request: jest.fn() } }));
+jest.mock("../utils/auth", () => ({ __esModule: true, getValidToken: jest.fn() }));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  getValidToken.mockResolvedValue("tok123");
   global.fetch = jest.fn();
 });
 
@@ -12,13 +17,13 @@ describe("staff calls", () => {
   it("go through the shared axios client with the telehealth path", async () => {
     api.request.mockResolvedValue({ data: { id: "s1" } });
     await expect(staffApi.createSession(7)).resolves.toEqual({ id: "s1" });
-    expect(api.request).toHaveBeenCalledWith({ method: "POST", url: "/api/telehealth/sessions/", data: { appointment_id: 7 } });
+    expect(api.request).toHaveBeenCalledWith({ method: "POST", url: "/api/telehealth/sessions/", data: { appointment_id: 7 }, headers: AUTH });
   });
 
   it("builds the schedule query with an encoded date", async () => {
     api.request.mockResolvedValue({ data: { items: [] } });
     await staffApi.schedule("2026-10-13");
-    expect(api.request).toHaveBeenCalledWith({ method: "GET", url: "/api/telehealth/schedule/?date=2026-10-13", data: undefined });
+    expect(api.request).toHaveBeenCalledWith({ method: "GET", url: "/api/telehealth/schedule/?date=2026-10-13", data: undefined, headers: AUTH });
   });
 
   it("turns a server error into an ApiError carrying the server's code", async () => {

@@ -5,6 +5,7 @@ import AssistantPanel from "./AssistantPanel";
 import { describeProposal, rehydrate } from "./assistantText";
 
 jest.mock("../api/client", () => ({ __esModule: true, api: { request: jest.fn() } }));
+jest.mock("../utils/auth", () => ({ __esModule: true, getValidToken: jest.fn() }));
 
 jest.mock("./api", () => {
   const actual = jest.requireActual("./api");
