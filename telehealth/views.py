@@ -268,7 +268,7 @@ def ping(request):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def send_join_link(request, session_id):
-    """Issue a fresh single-use patient link and (by default) text it via Communicator."""
+    """Issue a fresh single-use patient link and (by default) text it through Twilio."""
     session = _get_session(request, session_id)
     if session.status == S.Status.ENDED:
         raise ValidationError("session_ended")

@@ -1,4 +1,4 @@
-"""Adapters to the rest of poehr_scheduling: appointments, rights, Communicator, the chart.
+"""Adapters to the rest of poehr_scheduling: appointments, rights, texting, the chart.
 
 The rest of the telehealth app does not touch those details, so a schema change lands here.
 """
@@ -101,61 +101,60 @@ def user_can_conduct(user, session) -> bool:
     )
 
 
-# --- Communicator ------------------------------------------------------------------
+# --- Texting the join link ---------------------------------------------------------------
+# Telehealth texts through Twilio directly. It deliberately does NOT use the Communicator module:
+# that works from uploaded contact lists and finds people by phone number, which can be shared or
+# can belong to a different record. Here the recipient is always the patient on the appointment,
+# and consent is read from that patient's own account.
+
+TWILIO_OPTED_OUT_CODE = 21610  # Twilio refuses to text a number that replied STOP
+
+
+def _to_e164(phone: str) -> str:
+    """+1XXXXXXXXXX for US numbers; numbers already starting with + are kept (digits only)."""
+    digits = "".join(ch for ch in (phone or "") if ch.isdigit())
+    if (phone or "").strip().startswith("+") and len(digits) >= 10:
+        return "+" + digits
+    if len(digits) == 11 and digits.startswith("1"):
+        return "+" + digits
+    if len(digits) == 10:
+        return "+1" + digits
+    return ""
+
+
+def _send_text(to: str, body: str) -> None:
+    """Send one text through Twilio. Raises on any failure. Tests replace this."""
+    from twilio.rest import Client
+
+    Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN).messages.create(
+        body=body, from_=settings.TWILIO_PHONE_NUMBER, to=to
+    )
+
 
 def send_join_sms_result(appointment, url: str):
-    """Text the join link through Communicator's send_sms. Returns (sent, reason).
+    """Text the join link to the appointment's patient. Returns (sent, reason).
 
     reason is "" when sent, else one of: no_phone, no_consent, opted_out, failed. It lets staff
     see WHY a text did not go out (the copy-the-link fallback is the same for all of them).
-    send_sms raises when the patient has not consented to or has opted out of texts. Any other
-    failure (carrier or Twilio error, bad number, missing credentials) is logged and reported as
-    "failed", so a visit is never stuck on SMS. The message carries no PHI.
+    Any failure (Twilio error, missing credentials) is logged and reported as "failed", so a visit
+    is never stuck on SMS. The message carries no PHI.
     """
-    from communicator.utils import send_sms
-
-    phone = (patient_mobile(appointment) or "").strip()
-    if not phone:
-        return False, "no_phone"
     patient = appointment.patient
-    # Check the patient ON THIS APPOINTMENT. Communicator's own check finds "the first account with
-    # this phone number", which is the wrong person when two accounts share a number (family,
-    # a duplicate, a test account) and would read someone else's consent flag.
+    number = _to_e164(patient_mobile(appointment))
+    if not number:
+        return False, "no_phone"
     if patient.sms_opt_out:
         return False, "opted_out"
     if not patient.sms_consent:
         return False, "no_consent"
-    if _number_opted_out(phone):
-        return False, "opted_out"  # someone using this number replied STOP: respect it
     try:
-        send_sms(
-            phone,
-            f"Your video visit link: {url}",
-            user=patient,
-            organization=appointment.organization,
-            bypass_opt_out=True,  # consent and opt-out were just checked on the right account
-        )
+        _send_text(number, f"Your video visit link: {url}")
         return True, ""
     except Exception as exc:
-        text = str(exc)
-        if "SMS blocked" in text:
-            return False, "opted_out" if "opted out" in text else "no_consent"
+        if getattr(exc, "code", None) == TWILIO_OPTED_OUT_CODE:
+            return False, "opted_out"
         log.exception("telehealth: sending the join link failed")
         return False, "failed"
-
-
-def _number_opted_out(phone: str) -> bool:
-    """True if any account or contact using this number has opted out of texts."""
-    from communicator.models import Contact
-    from communicator.utils import format_phone_to_international
-    from users.models import CustomUser
-
-    formatted = format_phone_to_international(phone)
-    numbers = {n for n in (phone, formatted) if n}
-    return (
-        CustomUser.objects.filter(phone_number__in=numbers, sms_opt_out=True).exists()
-        or Contact.objects.filter(phone_e164__in=numbers, sms_opt_out=True).exists()
-    )
 
 
 def send_join_sms(appointment, url: str) -> bool:
