@@ -12,6 +12,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-wrap: wrap;
   gap: 32px;
   padding: 80px 32px;
 }

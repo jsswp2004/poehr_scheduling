@@ -92,6 +92,15 @@ export const useLogin = () => {
                 toast.error('Access denied. Staffing requires a staff, admin or clinical account.');
                 navigate('/solutions');
             }
+        } else if (redirectTo === 'telehealth') {
+            console.log('Login Debug - Redirecting to telehealth path');
+            // Telehealth is for clinical and front-desk staff (the server enforces the real rights)
+            if (['admin', 'system_admin', 'doctor', 'nurse', 'registrar', 'receptionist'].includes(userRole)) {
+                navigate('/telehealth');
+            } else {
+                toast.error('Access denied. Telehealth requires a clinical or front-desk account.');
+                navigate('/solutions');
+            }
         } else if (redirectTo === 'portal') {
             console.log('Login Debug - Portal redirect requested, but checking role first');
             // For portal redirect, still respect admin/system_admin roles
