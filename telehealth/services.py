@@ -117,12 +117,23 @@ def send_join_sms_result(appointment, url: str):
     phone = (patient_mobile(appointment) or "").strip()
     if not phone:
         return False, "no_phone"
+    patient = appointment.patient
+    # Check the patient ON THIS APPOINTMENT. Communicator's own check finds "the first account with
+    # this phone number", which is the wrong person when two accounts share a number (family,
+    # a duplicate, a test account) and would read someone else's consent flag.
+    if patient.sms_opt_out:
+        return False, "opted_out"
+    if not patient.sms_consent:
+        return False, "no_consent"
+    if _number_opted_out(phone):
+        return False, "opted_out"  # someone using this number replied STOP: respect it
     try:
         send_sms(
             phone,
             f"Your video visit link: {url}",
-            user=appointment.patient,
+            user=patient,
             organization=appointment.organization,
+            bypass_opt_out=True,  # consent and opt-out were just checked on the right account
         )
         return True, ""
     except Exception as exc:
@@ -131,6 +142,20 @@ def send_join_sms_result(appointment, url: str):
             return False, "opted_out" if "opted out" in text else "no_consent"
         log.exception("telehealth: sending the join link failed")
         return False, "failed"
+
+
+def _number_opted_out(phone: str) -> bool:
+    """True if any account or contact using this number has opted out of texts."""
+    from communicator.models import Contact
+    from communicator.utils import format_phone_to_international
+    from users.models import CustomUser
+
+    formatted = format_phone_to_international(phone)
+    numbers = {n for n in (phone, formatted) if n}
+    return (
+        CustomUser.objects.filter(phone_number__in=numbers, sms_opt_out=True).exists()
+        or Contact.objects.filter(phone_e164__in=numbers, sms_opt_out=True).exists()
+    )
 
 
 def send_join_sms(appointment, url: str) -> bool:
