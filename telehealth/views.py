@@ -285,7 +285,7 @@ def send_join_link(request, session_id):
     if request.data.get("deliver", True) is False:
         return Response({"sent": False, "url": url})
 
-    sent = services.send_join_sms(session.appointment, url)
+    sent, reason = services.send_join_sms_result(session.appointment, url)
     services.audit(
         session,
         E.Type.LINK_SENT if sent else E.Type.LINK_SUPPRESSED,
@@ -293,7 +293,7 @@ def send_join_link(request, session_id):
         actor=request.user,
         request=request,
     )
-    return Response({"sent": bool(sent)})
+    return Response({"sent": bool(sent), "reason": reason})
 
 
 @api_view(["POST"])

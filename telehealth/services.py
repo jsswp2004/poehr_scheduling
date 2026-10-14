@@ -103,29 +103,39 @@ def user_can_conduct(user, session) -> bool:
 
 # --- Communicator ------------------------------------------------------------------
 
-def send_join_sms(appointment, url: str) -> bool:
-    """Text the join link through Communicator's send_sms. True if sent, False if it could not be.
+def send_join_sms_result(appointment, url: str):
+    """Text the join link through Communicator's send_sms. Returns (sent, reason).
 
-    send_sms raises when the patient has not consented to or has opted out of texts. That is
-    reported as False so staff get the copy-the-link fallback. Any other failure (carrier
-    error, bad number) is logged and treated the same way, so a visit is never stuck on SMS.
-    The message carries no PHI.
+    reason is "" when sent, else one of: no_phone, no_consent, opted_out, failed. It lets staff
+    see WHY a text did not go out (the copy-the-link fallback is the same for all of them).
+    send_sms raises when the patient has not consented to or has opted out of texts. Any other
+    failure (carrier or Twilio error, bad number, missing credentials) is logged and reported as
+    "failed", so a visit is never stuck on SMS. The message carries no PHI.
     """
     from communicator.utils import send_sms
 
+    phone = (patient_mobile(appointment) or "").strip()
+    if not phone:
+        return False, "no_phone"
     try:
         send_sms(
-            patient_mobile(appointment),
+            phone,
             f"Your video visit link: {url}",
             user=appointment.patient,
             organization=appointment.organization,
         )
-        return True
+        return True, ""
     except Exception as exc:
-        if "SMS blocked" in str(exc):
-            return False
+        text = str(exc)
+        if "SMS blocked" in text:
+            return False, "opted_out" if "opted out" in text else "no_consent"
         log.exception("telehealth: sending the join link failed")
-        return False
+        return False, "failed"
+
+
+def send_join_sms(appointment, url: str) -> bool:
+    """True if the link was texted, False if it could not be (see send_join_sms_result for why)."""
+    return send_join_sms_result(appointment, url)[0]
 
 
 # --- Clinical chart --------------------------------------------------------------------
