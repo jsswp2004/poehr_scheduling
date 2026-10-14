@@ -10,6 +10,15 @@ import { messageFor } from "./messages";
 import { playChime } from "./sound";
 import "./styles";
 
+// Why a text did not go out, in words staff can act on. "failed" covers the text service being down
+// or not set up for this organization.
+const TEXT_PROBLEMS = {
+  no_consent: "This patient has not agreed to receive texts.",
+  opted_out: "This patient has opted out of texts.",
+  no_phone: "This patient has no mobile number on file.",
+  failed: "The text could not be sent. The text service reported a problem.",
+};
+
 const TABS = [
   { id: "today", label: "Today" },
   { id: "waiting", label: "Waiting room" },
@@ -87,11 +96,12 @@ export default function TelehealthApp({ canConduct = true, canManage = true, wsU
           } catch {
             /* fall through to showing the link */
           }
+          const why = TEXT_PROBLEMS[result.reason] || TEXT_PROBLEMS.failed;
           setNotice({
             kind: "info",
             text: copied
-              ? "Texting isn't available for this patient. The link is copied. Send it another way."
-              : `Texting isn't available for this patient. Send them this link another way: ${manual.url}`,
+              ? `${why} The link is copied. Send it another way.`
+              : `${why} Send them this link another way: ${manual.url}`,
           });
         }
         await reloadToday();

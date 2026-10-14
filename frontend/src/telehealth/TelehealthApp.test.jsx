@@ -173,7 +173,7 @@ describe("TelehealthApp", () => {
   it("copies the link when texting is suppressed", async () => {
     staffApi.createSession.mockResolvedValue({ id: "new-2" });
     staffApi.sendJoinLink
-      .mockResolvedValueOnce({ sent: false })
+      .mockResolvedValueOnce({ sent: false, reason: "no_consent" })
       .mockResolvedValueOnce({ sent: false, url: "https://example.test/telehealth/join#abc" });
     const user = userEvent.setup();
     // userEvent.setup() installs its own clipboard, so spy on it after setup.
@@ -185,7 +185,7 @@ describe("TelehealthApp", () => {
 
     expect(staffApi.sendJoinLink).toHaveBeenLastCalledWith("new-2", false);
     expect(writeText).toHaveBeenCalledWith("https://example.test/telehealth/join#abc");
-    expect(await screen.findByText(/The link is copied/)).toBeInTheDocument();
+    expect(await screen.findByText(/has not agreed to receive texts. The link is copied/)).toBeInTheDocument();
   });
 
   it("explains a failed admit instead of failing silently", async () => {

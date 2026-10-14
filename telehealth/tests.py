@@ -158,10 +158,25 @@ class FlowTests(TenantTestCase):
         send_sms.side_effect = Exception("SMS blocked: Recipient has opted out of SMS notifications")
         sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
         r = self.staff.post(f"/api/telehealth/sessions/{sid}/join-link/", {}, format="json")
-        self.assertEqual((r.status_code, r.json()), (200, {"sent": False}))
+        self.assertEqual((r.status_code, r.json()), (200, {"sent": False, "reason": "opted_out"}))
         self.assertTrue(TelehealthAuditEvent.objects.filter(session_id=sid, event_type="link_suppressed").exists())
         r = self.staff.post(f"/api/telehealth/sessions/{sid}/join-link/", {"deliver": False}, format="json")
         self.assertIn("/join#", r.json()["url"])
+
+    def test_the_reason_a_text_was_not_sent_is_reported(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
+        sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
+        url = f"/api/telehealth/sessions/{sid}/join-link/"
+        send_sms.side_effect = Exception("SMS blocked: Recipient has not consented to SMS notifications")
+        self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "no_consent")
+        send_sms.side_effect = Exception("Twilio is not configured")
+        self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "failed")
+        send_sms.side_effect = None
+        self.assertEqual(self.staff.post(url, {}, format="json").json(), {"sent": True, "reason": ""})
+        self.appt.patient.phone_number = ""
+        self.appt.patient.save()
+        send_sms.reset_mock()
+        self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "no_phone")
+        send_sms.assert_not_called()
 
     def test_text_is_sent_to_the_patients_number_in_the_visits_organization(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
         self._create_and_send(send_sms)
