@@ -66,7 +66,7 @@ class TenantTestCase(TestCase):
 
 
 @mock.patch("telehealth.services.notify_provider")
-@mock.patch("communicator.utils.send_sms")
+@mock.patch("telehealth.services._send_text")
 @mock.patch("telehealth.chime.delete_meeting", return_value=True)
 @mock.patch("telehealth.chime.delete_attendee", return_value=True)
 @mock.patch("telehealth.chime.create_attendee", return_value=ATTENDEE)
@@ -155,7 +155,9 @@ class FlowTests(TenantTestCase):
         self.assertEqual(r.status_code, 400)
 
     def test_blocked_texts_fall_back_to_copying_the_link(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
-        send_sms.side_effect = Exception("SMS blocked: Recipient has opted out of SMS notifications")
+        patient = self.appt.patient
+        patient.sms_opt_out = True
+        patient.save()
         sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
         r = self.staff.post(f"/api/telehealth/sessions/{sid}/join-link/", {}, format="json")
         self.assertEqual((r.status_code, r.json()), (200, {"sent": False, "reason": "opted_out"}))
@@ -166,8 +168,12 @@ class FlowTests(TenantTestCase):
     def test_the_reason_a_text_was_not_sent_is_reported(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
         sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
         url = f"/api/telehealth/sessions/{sid}/join-link/"
-        send_sms.side_effect = Exception("SMS blocked: Recipient has not consented to SMS notifications")
+        patient = self.appt.patient
+        patient.sms_consent = False
+        patient.save()
         self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "no_consent")
+        patient.sms_consent = True
+        patient.save()
         send_sms.side_effect = Exception("Twilio is not configured")
         self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "failed")
         send_sms.side_effect = None
@@ -179,7 +185,7 @@ class FlowTests(TenantTestCase):
         send_sms.assert_not_called()
 
     def test_a_second_account_on_the_same_number_does_not_block_a_consenting_patient(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
-        # An older account shares the number and never consented: Communicator's phone lookup would
+        # An older account shares the number and never consented. A lookup by phone number would
         # find it first. The visit's own patient is the one whose consent counts.
         number = self.appt.patient.phone_number
         User.objects.create_user(username="older-twin", password="x", role="patient", organization=self.org,
@@ -187,7 +193,6 @@ class FlowTests(TenantTestCase):
         sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
         r = self.staff.post(f"/api/telehealth/sessions/{sid}/join-link/", {}, format="json")
         self.assertEqual(r.json(), {"sent": True, "reason": ""})
-        self.assertIs(send_sms.call_args.kwargs["bypass_opt_out"], True)
 
     def test_consent_and_opt_out_are_checked_on_the_visits_patient(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
         sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
@@ -201,19 +206,25 @@ class FlowTests(TenantTestCase):
         self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "opted_out")
         send_sms.assert_not_called()
 
-    def test_someone_on_the_same_number_who_said_stop_is_respected(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
-        User.objects.create_user(username="stopped", password="x", role="patient", organization=self.org,
-                                 sms_consent=True, sms_opt_out=True, phone_number=self.appt.patient.phone_number)
+    def test_twilio_refusing_an_opted_out_number_is_reported_as_opted_out(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
+        class TwilioStop(Exception):
+            code = 21610
+
+        send_sms.side_effect = TwilioStop("Attempt to send to unsubscribed recipient")
         sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
         r = self.staff.post(f"/api/telehealth/sessions/{sid}/join-link/", {}, format="json")
         self.assertEqual(r.json(), {"sent": False, "reason": "opted_out"})
-        send_sms.assert_not_called()
 
-    def test_text_is_sent_to_the_patients_number_in_the_visits_organization(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
+    def test_telehealth_does_not_depend_on_communicator(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
+        import pathlib
+        source = pathlib.Path(services.__file__).read_text()
+        self.assertNotIn("communicator.", source)
+        self.assertNotIn("import communicator", source)
+
+    def test_text_goes_to_the_patients_own_number(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
         self._create_and_send(send_sms)
         args, kwargs = send_sms.call_args
         self.assertEqual(args[0], "+15555550142")
-        self.assertEqual(kwargs["organization"], self.org)
         self.assertNotIn("Zed", args[1])  # the text carries no name
 
 
@@ -296,7 +307,7 @@ class TenancyAndRightsTests(TenantTestCase):
 
 
 @mock.patch("telehealth.services.notify_provider")
-@mock.patch("communicator.utils.send_sms")
+@mock.patch("telehealth.services._send_text")
 @mock.patch("telehealth.chime.delete_meeting", return_value=True)
 @mock.patch("telehealth.chime.delete_attendee", return_value=True)
 @mock.patch("telehealth.chime.create_attendee", return_value=ATTENDEE)
