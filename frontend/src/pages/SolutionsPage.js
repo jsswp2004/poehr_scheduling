@@ -9,6 +9,7 @@ import PortalImage from "../assets/Portal.png";
 import CheckInImage from "../assets/check_in.png";
 import StaffingImage from "../assets/dashboard_clinician.png";
 import DocumentationImage from "../assets/documentation.png";
+import TelehealthImage from "../assets/telehealth.svg";
 
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();
@@ -39,6 +40,10 @@ export const SolutionsPage = ({ className }) => {
   const handleStaffingClick = () => {
     // Always navigate to login with staffing redirect
     navigate("/login?redirect=staffing");
+  };
+  const handleTelehealthClick = () => {
+    // Always navigate to login with telehealth redirect
+    navigate("/login?redirect=telehealth");
   };
   return (
     <div className={`solutions-page ${className || ""}`}>
@@ -103,6 +108,14 @@ export const SolutionsPage = ({ className }) => {
         >
           <img src={StaffingImage} alt="POWER Staffing" className="solution-image" />
           <div className="solution-label">POWER Staffing</div>
+        </div>
+        <div
+          className="solution-button"
+          onClick={handleTelehealthClick}
+          style={{ cursor: "pointer" }}
+        >
+          <img src={TelehealthImage} alt="POWER Telehealth" className="solution-image" />
+          <div className="solution-label">POWER Telehealth</div>
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
