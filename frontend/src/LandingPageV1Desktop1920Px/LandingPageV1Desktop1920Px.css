@@ -228,7 +228,7 @@ VISUAL LOCATION: Appears at top of page below navigation header
 
 .landing-page-v-1-desktop-1920-px .hero-section {
   background: linear-gradient(135deg, #0f172a 100%, #1e293b 70%, #334155  0%);
-  padding: 160px 5% 120px;
+  padding: 72px 5% 64px;
   display: flex;
   flex-direction: row;
   gap: 60px;
@@ -577,7 +577,7 @@ VISUAL LOCATION: Third section from top, below hero section
 
 .landing-page-v-1-desktop-1920-px .pricing3 {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  padding: 140px 5%;
+  padding: 64px 5%;
   display: flex;
   flex-direction: column;
   gap: 60px;
@@ -1540,7 +1540,7 @@ VISUAL LOCATION: Fifth section from top, between data security and work manageme
 /* Main efficient scheduling section container */
 .landing-page-v-1-desktop-1920-px .efficient-scheduling-section {
   background: linear-gradient(135deg, #0f172a 100%, #1e293b 70%, #334155  0%);
-  padding: 120px 5%;
+  padding: 56px 5%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1898,7 +1898,7 @@ VISUAL LOCATION: Fourth section from top, below pricing section
 /* Main data security section */
 .landing-page-v-1-desktop-1920-px .data-security-section {
   background: linear-gradient(135deg, #fefefe 0%, #f8fafc 100%);
-  padding: 120px 5%;
+  padding: 56px 5%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2284,7 +2284,7 @@ VISUAL LOCATION: Seventh section from top, below work management section
 
 .landing-page-v-1-desktop-1920-px .testimonial {
   background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-  padding: 140px 5%;
+  padding: 64px 5%;
   display: flex;
   flex-direction: column;
   gap: 60px;
@@ -2507,7 +2507,7 @@ VISUAL LOCATION: Eighth section from top, near bottom of page before footer
 
 .landing-page-v-1-desktop-1920-px .free-trial {
   background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155  100%);
-  padding: 120px 5%;
+  padding: 56px 5%;
   display: flex;
   flex-direction: column;
   gap: 48px;
@@ -2715,7 +2715,7 @@ VISUAL LOCATION: Sixth section from top, below efficient scheduling section
 
 .landing-page-v-1-desktop-1920-px .work-management {
   background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-  padding: 140px 5%;
+  padding: 64px 5%;
   display: flex;
   flex-direction: column;
   gap: 60px;
@@ -2878,7 +2878,7 @@ VISUAL LOCATION: Ninth section from top, between work management and footer
 /* Content4 Section Styling - Collaboration Features */
 .landing-page-v-1-desktop-1920-px .work-management2 {
   background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
-  padding: 140px 5%;
+  padding: 64px 5%;
   display: flex;
   flex-direction: column;
   gap: 60px;
@@ -3150,7 +3150,7 @@ RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT2 SECTION
   /* Ensure work-management2 container has proper styling */
   .landing-page-v-1-desktop-1920-px .work-management2 {
     background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%) !important;
-    padding: 140px 5% !important;
+    padding: 56px 5% !important;
     display: flex !important;
     flex-direction: column !important;
     gap: 60px !important;
@@ -3227,7 +3227,7 @@ RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT2 SECTION
   }
   
   .landing-page-v-1-desktop-1920-px .hero-section {
-    padding: 120px 3% 80px;
+    padding: 64px 3% 48px;
     gap: 40px;
   }
 }
@@ -3241,7 +3241,7 @@ RESPONSIVE ALIGNMENT FIXES FOR WORK-MANAGEMENT2 SECTION
   .landing-page-v-1-desktop-1920-px .hero-section {
     flex-direction: column;
     text-align: center;
-    padding: 100px 3% 60px;
+    padding: 56px 3% 40px;
     gap: 50px;
   }
 }

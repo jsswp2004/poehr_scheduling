@@ -1,0 +1,115 @@
+/*
+ * Compact marketing footer: one row with the brand, the links and the copyright.
+ * Every selector starts with .footer-compact so it wins over the older per-page
+ * .footer-* rules, whatever order the stylesheets load in.
+ */
+.footer-section.footer-compact {
+  padding: 20px 32px 16px;
+}
+
+.footer-compact .footer-container {
+  max-width: 1400px;
+}
+
+.footer-compact .footer-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 40px;
+  margin-bottom: 12px;
+}
+
+.footer-compact .footer-brand {
+  flex-direction: row;
+  gap: 0;
+}
+
+.footer-compact .footer-logo {
+  margin-bottom: 0;
+  gap: 10px;
+}
+
+.footer-compact .footer-logo img {
+  width: 36px;
+  height: 36px;
+}
+
+.footer-compact .footer-brand-name {
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.footer-compact .footer-description {
+  display: none;
+}
+
+.footer-compact .footer-column {
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+.footer-compact .footer-column-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 0;
+}
+
+.footer-compact .footer-links {
+  flex-direction: row;
+  gap: 18px;
+}
+
+.footer-compact .footer-link,
+.footer-compact .footer-legal-link {
+  font-size: 14px;
+}
+
+.footer-compact .footer-link:hover {
+  transform: none;
+}
+
+.footer-compact .footer-bottom {
+  padding-top: 12px;
+  gap: 8px 20px;
+}
+
+.footer-compact .footer-copyright {
+  font-size: 12px;
+}
+
+.footer-compact .footer-legal-links {
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .footer-compact .footer-content {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 10px;
+  }
+
+  .footer-compact .footer-column {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .footer-compact .footer-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 16px;
+  }
+
+  .footer-compact .footer-bottom {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .footer-compact .footer-legal-links {
+    flex-direction: row;
+    justify-content: center;
+  }
+}

@@ -1,9 +1,10 @@
 import POWERLogo from '../assets/POWER_IT.png';
 import { Link } from 'react-router-dom';
+import './Footer.css';
 
 export const Footer = ({ pricingLink = "/pricing", featuresLink = "/features" }) => {
   return (
-    <div className="footer-section">
+    <div className="footer-section footer-compact">
       <div className="footer-container">
         <div className="footer-content">
           {/* Company branding and description */}
