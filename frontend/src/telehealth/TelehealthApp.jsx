@@ -4,7 +4,7 @@ import ProviderRoom from "./ProviderRoom";
 import { ScheduleTab, SettingsTab, TodayTab, WaitingRoomTab } from "./tabs";
 import { staffApi } from "./api";
 import { loadSoundSetting } from "./devicePrefs";
-import { isWaiting, todayISO, visitState } from "./format";
+import { formatDay, isWaiting, todayISO, visitState } from "./format";
 import { useNow, useSchedule } from "./hooks";
 import { messageFor } from "./messages";
 import { playChime } from "./sound";
@@ -152,6 +152,8 @@ export default function TelehealthApp({ canConduct = true, canManage = true, wsU
       <header className="th-header">
         <div className="th-titlebar">
           <h1 className="th-h1">{title}</h1>
+          <div className="th-titlebar-end">
+            {tab === "today" && <span className="th-day">{formatDay(today)}</span>}
           {assistant && (
             <button
               type="button"
@@ -163,6 +165,7 @@ export default function TelehealthApp({ canConduct = true, canManage = true, wsU
               Ask the assistant
             </button>
           )}
+          </div>
         </div>
         <div className="th-tabs" role="tablist" aria-label="Telehealth sections">
           {TABS.map((t, index) => (
@@ -200,7 +203,7 @@ export default function TelehealthApp({ canConduct = true, canManage = true, wsU
       )}
 
       <div role="tabpanel" id="th-tabpanel" aria-labelledby={`th-tab-${tab}`} className="th-tabpanel">
-        {tab === "today" && <TodayTab schedule={todaySched} date={today} boardProps={boardProps} />}
+        {tab === "today" && <TodayTab schedule={todaySched} boardProps={boardProps} />}
         {tab === "waiting" && <WaitingRoomTab schedule={todaySched} boardProps={boardProps} />}
         {tab === "schedule" && (
           <ScheduleTab
