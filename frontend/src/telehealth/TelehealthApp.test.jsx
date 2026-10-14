@@ -201,13 +201,30 @@ describe("TelehealthApp", () => {
     expect(screen.queryByText(/Room for/)).not.toBeInTheDocument();
   });
 
+  it("lets staff end any open session from the Schedule tab", async () => {
+    const user = userEvent.setup();
+    window.confirm = jest.fn(() => true);
+    staffApi.end.mockResolvedValue({});
+    render(<TelehealthApp />);
+    await user.click(await screen.findByRole("tab", { name: "Schedule" }));
+
+    const board = await screen.findByRole("list", { name: "Video visits on this day" });
+    const row = within(board).getByText("Ben Waiting").closest("li");
+    await user.click(within(row).getByRole("button", { name: "End session" }));
+
+    expect(staffApi.end).toHaveBeenCalledWith("s2");
+    // Not offered for visits that never started or have already ended.
+    expect(within(within(board).getByText("Ada Test").closest("li")).queryByRole("button", { name: "End session" })).toBeNull();
+    expect(within(within(board).getByText("Ed Finished").closest("li")).queryByRole("button", { name: "End session" })).toBeNull();
+  });
+
   it("hides provider actions from people who can't conduct visits", async () => {
     render(<TelehealthApp canConduct={false} canManage />);
     const board = await screen.findByRole("list", { name: "Today's video visits" });
     expect(within(board).queryByRole("button", { name: "Admit patient" })).not.toBeInTheDocument();
     expect(within(board).queryByRole("button", { name: "Start visit" })).not.toBeInTheDocument();
     expect(within(board).getByRole("button", { name: "Send link" })).toBeInTheDocument();
-    expect(within(board).getByRole("button", { name: "End visit" })).toBeInTheDocument();
+    expect(within(board).getAllByRole("button", { name: "End session" }).length).toBeGreaterThan(0);
   });
 
   it("prompts the provider to add the patient's location after a finished visit", async () => {
