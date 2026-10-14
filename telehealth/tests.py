@@ -178,6 +178,37 @@ class FlowTests(TenantTestCase):
         self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "no_phone")
         send_sms.assert_not_called()
 
+    def test_a_second_account_on_the_same_number_does_not_block_a_consenting_patient(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
+        # An older account shares the number and never consented: Communicator's phone lookup would
+        # find it first. The visit's own patient is the one whose consent counts.
+        number = self.appt.patient.phone_number
+        User.objects.create_user(username="older-twin", password="x", role="patient", organization=self.org,
+                                 sms_consent=False, phone_number=number)
+        sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
+        r = self.staff.post(f"/api/telehealth/sessions/{sid}/join-link/", {}, format="json")
+        self.assertEqual(r.json(), {"sent": True, "reason": ""})
+        self.assertIs(send_sms.call_args.kwargs["bypass_opt_out"], True)
+
+    def test_consent_and_opt_out_are_checked_on_the_visits_patient(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
+        sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
+        url = f"/api/telehealth/sessions/{sid}/join-link/"
+        patient = self.appt.patient
+        patient.sms_consent = False
+        patient.save()
+        self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "no_consent")
+        patient.sms_consent, patient.sms_opt_out = True, True
+        patient.save()
+        self.assertEqual(self.staff.post(url, {}, format="json").json()["reason"], "opted_out")
+        send_sms.assert_not_called()
+
+    def test_someone_on_the_same_number_who_said_stop_is_respected(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
+        User.objects.create_user(username="stopped", password="x", role="patient", organization=self.org,
+                                 sms_consent=True, sms_opt_out=True, phone_number=self.appt.patient.phone_number)
+        sid = self.staff.post("/api/telehealth/sessions/", {"appointment_id": self.appt.pk}, format="json").json()["id"]
+        r = self.staff.post(f"/api/telehealth/sessions/{sid}/join-link/", {}, format="json")
+        self.assertEqual(r.json(), {"sent": False, "reason": "opted_out"})
+        send_sms.assert_not_called()
+
     def test_text_is_sent_to_the_patients_number_in_the_visits_organization(self, create_meeting, create_attendee, delete_attendee, delete_meeting, send_sms, notify):
         self._create_and_send(send_sms)
         args, kwargs = send_sms.call_args
