@@ -9,7 +9,7 @@ import PortalImage from "../assets/Portal.png";
 import StaffingImage from "../assets/dashboard_clinician.png";
 import DocumentationImage from "../assets/documentation.png";
 import TelehealthImage from "../assets/telehealth.jpg";
-import DictationImage from "../assets/dictation.svg";
+import DictationImage from "../assets/dictation.jpg";
 
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();

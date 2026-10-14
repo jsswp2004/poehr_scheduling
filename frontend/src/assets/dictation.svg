@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" role="img" aria-label="POWER Dictate">
-  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient></defs>
-  <rect width="200" height="200" fill="url(#g)"/>
-  <rect x="82" y="40" width="36" height="70" rx="18" fill="#fff"/>
-  <path d="M64 96a36 36 0 0 0 72 0M100 132v26M80 160h40" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
-  <path d="M40 80v32M28 90v12M160 80v32M172 90v12" stroke="#bae6fd" stroke-width="7" stroke-linecap="round"/>
-</svg>
