@@ -403,6 +403,7 @@ class AppointmentViewSet(viewsets.ModelViewSet):
                             recurrence="none",  # Prevent chaining
                             provider=provider,
                             organization=organization,
+                            is_video=appointment.is_video,
                         )
         except Exception as e:
             import traceback

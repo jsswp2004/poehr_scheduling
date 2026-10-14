@@ -368,3 +368,54 @@ class VisitRecordTests(TenantTestCase):
         self.assertNotIn("5550142", body["note_text"])
         for event in TelehealthAuditEvent.objects.filter(session_id=sid, event_type="billing_context_set"):
             self.assertEqual(set(event.metadata), {"place_of_service", "modifier", "modality"})
+
+
+class VideoFlagOnAppointmentTests(TenantTestCase):
+    """The Video visit checkbox on the appointment form saves through the normal appointment API."""
+
+    def setUp(self):
+        self.org = make_org("Clinic A")
+        self.doc = make_user("doc", "doctor", self.org)
+        self.patient = make_user("pat", "patient", self.org, phone_number="+15555550142")
+        # Front desk / admins schedule on behalf of patients; the provider is the doctor.
+        self.client = client_for(make_user("desk", "admin", self.org))
+
+    def _body(self, **extra):
+        monday = timezone.now() + timedelta(days=(7 - timezone.now().weekday()) % 7 or 7)
+        return {
+            "patient": self.patient.pk,
+            "title": "Follow-up",
+            "appointment_datetime": monday.replace(hour=15, minute=0, second=0, microsecond=0).isoformat(),
+            "provider": self.doc.pk,
+            "organization": self.org.pk,
+            **extra,
+        }
+
+    def test_new_appointments_are_not_video_by_default(self):
+        r = self.client.post("/api/appointments/", self._body(), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertFalse(r.json()["is_video"])
+
+    def test_video_flag_saves_and_can_be_changed(self):
+        r = self.client.post("/api/appointments/", self._body(is_video=True), format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(r.json()["is_video"])
+        pk = r.json()["id"]
+        r = self.client.patch(f"/api/appointments/{pk}/", {"is_video": False}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(Appointment.all_objects.get(pk=pk).is_video)
+
+    def test_repeating_video_visits_stay_video(self):
+        r = self.client.post(
+            "/api/appointments/",
+            self._body(
+                is_video=True,
+                recurrence="weekly",
+                recurrence_end_date=(timezone.now() + timedelta(days=60)).date().isoformat(),
+            ),
+            format="json",
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        series = Appointment.all_objects.filter(patient=self.patient)
+        self.assertGreater(series.count(), 1)
+        self.assertFalse(series.filter(is_video=False).exists())
