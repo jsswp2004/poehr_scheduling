@@ -4,7 +4,7 @@
     {
       "Sid": "SignTranscribeMedicalStream",
       "Effect": "Allow",
-      "Action": "transcribe:StartMedicalStreamTranscriptionWebSocket",
+      "Action": ["transcribe:StartMedicalStreamTranscription", "transcribe:StartMedicalStreamTranscriptionWebSocket"],
       "Resource": "*"
     },
     {
