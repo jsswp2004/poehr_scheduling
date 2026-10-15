@@ -217,6 +217,16 @@ REST_FRAMEWORK = {
 DICTATION_AWS_REGION = os.environ.get("DICTATION_AWS_REGION", "us-east-1")
 # Bedrock model/inference-profile id for the "clean up & structure" step. Unset = cleanup unavailable.
 DICTATION_CLEANUP_MODEL_ID = os.environ.get("DICTATION_CLEANUP_MODEL_ID", "")
+# Which service runs the cleanup model: "bedrock" (AWS, default) or "vertex" (Claude on Google Cloud).
+DICTATION_CLEANUP_PROVIDER = os.environ.get("DICTATION_CLEANUP_PROVIDER", "bedrock").lower()
+DICTATION_CLEANUP_BACKEND = {
+    "bedrock": "dictation.engines.bedrock_cleanup.complete",
+    "vertex": "dictation.engines.vertex_cleanup.complete",
+}.get(DICTATION_CLEANUP_PROVIDER, "dictation.engines.bedrock_cleanup.complete")
+# Vertex only: project, region ("global" by default) and the service account key as JSON text.
+DICTATION_VERTEX_PROJECT = os.environ.get("DICTATION_VERTEX_PROJECT", "")
+DICTATION_VERTEX_REGION = os.environ.get("DICTATION_VERTEX_REGION", "global")
+DICTATION_VERTEX_CREDENTIALS_JSON = os.environ.get("DICTATION_VERTEX_CREDENTIALS_JSON", "")
 
 # ---- Telehealth (video visits, Amazon Chime SDK) ------------------------------------
 # The AWS side needs a BAA (AWS Artifact) and an IAM role with the actions in

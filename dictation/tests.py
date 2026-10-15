@@ -8,7 +8,7 @@ from unittest import mock
 
 from botocore.credentials import Credentials
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -303,3 +303,44 @@ class PatientSearchByMrnTests(TestCase):
     def test_search_still_matches_name(self):
         res = client_for(self.nurse).get("/api/users/patients/", {"search": "alpha"})
         self.assertEqual([p["first_name"] for p in res.json()["results"]], ["Alpha"])
+
+
+class VertexEngineTests(SimpleTestCase):
+    """Claude on Google Cloud: same contract as the Bedrock engine, no network in the tests."""
+
+    def _reply(self, text):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(content=[SimpleNamespace(text=text)])
+
+    @override_settings(DICTATION_CLEANUP_MODEL_ID="claude-sonnet-5-5", DICTATION_VERTEX_PROJECT="proj", DICTATION_VERTEX_REGION="global", DICTATION_VERTEX_CREDENTIALS_JSON="")
+    def test_calls_vertex_with_project_region_and_model(self):
+        from unittest import mock
+
+        from .engines import vertex_cleanup
+
+        with mock.patch("anthropic.AnthropicVertex") as client:
+            client.return_value.messages.create.return_value = self._reply("hello")
+            self.assertEqual(vertex_cleanup.complete("SYS", "USER", 500), "hello")
+        self.assertEqual(client.call_args.kwargs["project_id"], "proj")
+        self.assertEqual(client.call_args.kwargs["region"], "global")
+        sent = client.return_value.messages.create.call_args.kwargs
+        self.assertEqual(sent["model"], "claude-sonnet-5-5")
+        self.assertEqual(sent["system"], "SYS")
+        self.assertNotIn("temperature", sent)
+
+    @override_settings(DICTATION_CLEANUP_MODEL_ID="claude-sonnet-5-5", DICTATION_VERTEX_PROJECT="")
+    def test_missing_project_is_engine_unavailable(self):
+        from .engines import EngineUnavailable, vertex_cleanup
+
+        with self.assertRaises(EngineUnavailable):
+            vertex_cleanup.complete("s", "u")
+
+    @override_settings(DICTATION_CLEANUP_MODEL_ID="m", DICTATION_VERTEX_PROJECT="p", DICTATION_VERTEX_CREDENTIALS_JSON="not json")
+    def test_bad_credentials_json_is_engine_unavailable(self):
+        from unittest import mock
+
+        from .engines import EngineUnavailable, vertex_cleanup
+
+        with mock.patch("anthropic.AnthropicVertex"), self.assertRaises(EngineUnavailable):
+            vertex_cleanup.complete("s", "u")
