@@ -6,6 +6,8 @@ Safety rules this module enforces (the prompt asks; the code checks):
   * nothing here logs the transcript or the model's reply
 """
 import json
+import logging
+import os
 import re
 from datetime import date
 
@@ -13,6 +15,8 @@ from django.conf import settings
 from django.utils.module_loading import import_string
 
 from .engines import EngineUnavailable
+
+log = logging.getLogger(__name__)
 
 MAX_TRANSCRIPT_CHARS = 12000
 MAX_FIELDS = 60
@@ -191,5 +195,9 @@ def run(transcript, raw_fields=None):
     except EngineUnavailable:
         raise
     except Exception as exc:  # vendor/network errors: never include their text (may echo input)
+        if os.environ.get("DICTATION_DEBUG_ERRORS") == "1":
+            # Temporary setup aid, off by default: log AWS's own message (server log only, never sent to the browser)
+            detail = getattr(exc, "response", {}).get("Error", {}).get("Message") if isinstance(getattr(exc, "response", None), dict) else None
+            log.warning("dictation cleanup AWS message (debug): %s", str(detail)[:300])
         raise CleanupFailed(_error_label(exc))
     return parse_response(reply, fields)

@@ -27,6 +27,6 @@ def complete(system: str, user_text: str, max_tokens: int = 2000) -> str:
         modelId=model_id,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": user_text}]}],
-        inferenceConfig={"maxTokens": max_tokens, "temperature": 0},
+        inferenceConfig={"maxTokens": max_tokens},  # no temperature: some newer Claude models reject it
     )
     return "".join(block.get("text", "") for block in response["output"]["message"]["content"])
