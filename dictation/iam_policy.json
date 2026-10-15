@@ -4,14 +4,22 @@
     {
       "Sid": "SignTranscribeMedicalStream",
       "Effect": "Allow",
-      "Action": ["transcribe:StartMedicalStreamTranscription", "transcribe:StartMedicalStreamTranscriptionWebSocket"],
+      "Action": [
+        "transcribe:StartMedicalStreamTranscription",
+        "transcribe:StartMedicalStreamTranscriptionWebSocket"
+      ],
       "Resource": "*"
     },
     {
       "Sid": "DictationCleanupModel",
       "Effect": "Allow",
-      "Action": ["bedrock:InvokeModel", "bedrock:Converse"],
-      "Resource": "arn:aws:bedrock:*::foundation-model/REPLACE_WITH_YOUR_MODEL_ID"
+      "Action": [
+        "bedrock:InvokeModel"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-5-5",
+        "arn:aws:bedrock:*:741448952212:inference-profile/*anthropic.claude-sonnet-5-5"
+      ]
     }
   ]
 }

@@ -173,6 +173,16 @@ def parse_response(text, fields):
     }
 
 
+def _error_label(exc):
+    """A short, safe label for a failure: the exception class plus the AWS error code when there is one
+    (for example "ClientError:AccessDeniedException"). The code is a fixed AWS word, never the message."""
+    label = type(exc).__name__
+    code = getattr(exc, "response", {}).get("Error", {}).get("Code") if isinstance(getattr(exc, "response", None), dict) else None
+    if isinstance(code, str) and code.isalnum():
+        label = f"{label}:{code}"
+    return label[:60]
+
+
 def run(transcript, raw_fields=None):
     """Clean `transcript`. `raw_fields` (optional) are note field definitions to fill."""
     fields = clean_field_defs(raw_fields)
@@ -181,5 +191,5 @@ def run(transcript, raw_fields=None):
     except EngineUnavailable:
         raise
     except Exception as exc:  # vendor/network errors: never include their text (may echo input)
-        raise CleanupFailed(type(exc).__name__)
+        raise CleanupFailed(_error_label(exc))
     return parse_response(reply, fields)
