@@ -135,6 +135,6 @@ def cleanup_text(request):
     except cleanup.CleanupFailed as exc:
         log.warning("dictation cleanup failed: %s", exc)
         Event.objects.create(organization=org, user=request.user, kind=Event.Kind.CLEANUP, chars=chars, ok=False, detail=str(exc)[:60])
-        return Response({"error": "cleanup_failed"}, status=502)
+        return Response({"error": "cleanup_failed", "reason": str(exc)[:60]}, status=502)
     Event.objects.create(organization=org, user=request.user, kind=Event.Kind.CLEANUP, chars=chars)
     return Response(result)
