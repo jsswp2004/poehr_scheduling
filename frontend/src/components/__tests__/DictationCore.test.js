@@ -123,7 +123,7 @@ describe("service error wording", () => {
   test("says what went wrong without including any dictated words", () => {
     expect(describeStreamError({ name: "BadRequestException", message: "Your request timed out because no new audio was received for 15 seconds." })).toMatch(/no sound reached/);
     expect(describeStreamError({ name: "LimitExceededException", message: "" })).toMatch(/too many dictation sessions/);
-    expect(describeStreamError({ name: "AccessDeniedException", message: "not authorized" })).toMatch(/AWS permissions/);
+    expect(describeStreamError({ name: "AccessDeniedException", message: "User: arn:aws:iam::1:user/x is not authorized" })).toMatch(/AccessDeniedException: User: arn:aws:iam::1:user\/x is not authorized.*AWS permissions/);
     expect(describeStreamError({ name: "InternalFailureException", message: "boom" })).toBe("Dictation stopped: the speech service reported a problem (InternalFailureException: boom).");
     expect(describeStreamError(null)).toMatch(/Exception/);
   });
