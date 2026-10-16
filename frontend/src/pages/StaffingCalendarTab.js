@@ -48,6 +48,13 @@ const SHIFT_COLORS = {
 const ROLE_LABELS = { rn: "RN", lpn: "LPN", cna: "CNA", other: "Other" };
 const roleLabel = (shift) => ROLE_LABELS[shift.nursing_role] || "";
 
+const EDIT_SHIFT_TYPES = [
+  { value: "day", label: "Day" },
+  { value: "evening", label: "Evening" },
+  { value: "night", label: "Night" },
+  { value: "custom", label: "Custom (on call / ad hoc)" },
+];
+
 const PATTERN_SHIFT_TYPES = {
   "8h": ["day", "evening", "night"],
   "12h": ["day", "night"],
@@ -165,6 +172,8 @@ function StaffingCalendarTab({ isAdmin = false }) {
       staff_name: shift.staff_name,
       date: shift.date,
       shift_label: shift.shift_type_display || shift.shift_type,
+      shift_type: shift.shift_type,
+      original_shift_type: shift.shift_type,
       unit_name: shift.unit_name || "",
       start_time: (shift.start_time || "").slice(0, 5),
       end_time: (shift.end_time || "").slice(0, 5),
@@ -187,6 +196,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           start_time: editShift.start_time || null,
           end_time: editShift.end_time || null,
           notes: editShift.notes || "",
+          ...(editShift.shift_type !== editShift.original_shift_type ? { shift_type: editShift.shift_type } : {}),
         },
         { headers: getAuthHeaders(token) }
       );
@@ -755,13 +765,27 @@ function StaffingCalendarTab({ isAdmin = false }) {
           {editShift && (
             <Stack spacing={2} sx={{ mt: 1 }}>
               <Typography variant="body2" color="text.secondary">
-                {editShift.staff_name} · {moment(editShift.date).format("ddd, MMM D, YYYY")} · {editShift.shift_label}
+                {editShift.staff_name} · {moment(editShift.date).format("ddd, MMM D, YYYY")}
                 {editShift.unit_name ? ` · ${editShift.unit_name}` : ""}
                 <br />
                 Changes apply to this day only. To change every occurrence, edit the recurring schedule on the Assign
                 Schedule tab.
               </Typography>
               {editShiftError && <Alert severity="error">{editShiftError}</Alert>}
+              <TextField
+                select
+                size="small"
+                label="Shift type"
+                value={editShift.shift_type}
+                onChange={(e) => setEditShift({ ...editShift, shift_type: e.target.value })}
+                fullWidth
+              >
+                {EDIT_SHIFT_TYPES.map((t) => (
+                  <MenuItem key={t.value} value={t.value}>
+                    {t.label}
+                  </MenuItem>
+                ))}
+              </TextField>
               <Stack direction="row" spacing={2}>
                 <TextField
                   size="small"
