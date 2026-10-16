@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -24,7 +24,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPen } from "@fortawesome/free-solid-svg-icons";
+import { faPen, faTrash } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -131,9 +131,9 @@ function StaffingCalendarTab({ isAdmin = false }) {
       .catch((err) => console.error("Failed to load clinic location", err));
   }, [token]);
 
-  const handleSelectEvent = async (event) => {
+  // Only the trash button on a shift cell calls this; clicking the cell itself does nothing.
+  const handleDeleteShift = async (shift) => {
     if (!isAdmin) return;
-    const shift = event.resource;
     const label = `${shift.staff_name} - ${shift.date} (${shift.shift_type_display || shift.shift_type})`;
     if (!window.confirm(`Remove this shift from the calendar?\n\n${label}`)) {
       return;
@@ -148,6 +148,10 @@ function StaffingCalendarTab({ isAdmin = false }) {
       setError("Failed to delete that shift.");
     }
   };
+
+  // Always points at the latest handleDeleteShift so the shift cell component can stay stable.
+  const deleteShiftRef = useRef(null);
+  deleteShiftRef.current = handleDeleteShift;
 
   const openEditShift = useCallback((shift) => {
     setEditShiftError("");
@@ -347,12 +351,12 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [dayInfo]
   );
 
-  // Shift cell: the name on the left, a small edit button on the right (admins).
-  // Clicking the edit button must not trigger the cell's remove-shift prompt.
+  // Shift cell: the name on the left, small edit and delete buttons on the right (admins).
+  // Clicking the cell itself does nothing; the remove-shift prompt only comes from the delete button.
   const ShiftEvent = useCallback(
     ({ event }) => (
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.5, minWidth: 0 }}>
-        <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+        <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {event.title}
         </Box>
         {isAdmin && (
@@ -368,6 +372,22 @@ function StaffingCalendarTab({ isAdmin = false }) {
               sx={{ color: "inherit", p: "2px", flexShrink: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
             >
               <FontAwesomeIcon icon={faPen} style={{ fontSize: 10 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+        {isAdmin && (
+          <Tooltip title="Delete this shift">
+            <IconButton
+              size="small"
+              aria-label={`Delete shift for ${event.resource.staff_name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteShiftRef.current?.(event.resource);
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              sx={{ color: "inherit", p: "2px", flexShrink: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
+            >
+              <FontAwesomeIcon icon={faTrash} style={{ fontSize: 10 }} />
             </IconButton>
           </Tooltip>
         )}
@@ -544,7 +564,6 @@ function StaffingCalendarTab({ isAdmin = false }) {
           endAccessor="end"
           style={{ height: "100%", cursor: "pointer" }}
           onRangeChange={handleRangeChange}
-          onSelectEvent={handleSelectEvent}
           selectable
           onSelectSlot={(slot) => setDayDialog(toISO(slot.start))}
           eventPropGetter={eventPropGetter}
