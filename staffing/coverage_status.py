@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from . import hppd, state_rules
-from .coverage import DEFAULT_SHIFT_HOURS, MAX_CARRY_FORWARD_DAYS, shift_hours
+from .coverage import DEFAULT_SHIFT_HOURS, MAX_CARRY_FORWARD_DAYS, custom_slot_overlaps, shift_hours
 from .coverage_core import (
     AT_RISK, MET, MODE_FIXED, MODE_HPPD, NOT_MET, Need, Person, classify, worst,
 )
@@ -43,6 +43,7 @@ class _Entry:
     name: str
     role: str
     pending: bool
+    hours: Optional[float] = None   # overlap hours for an on-call/custom shift counted in a Day/Night slot
 
 
 class _Census:
@@ -187,6 +188,14 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
         slot_entries[slot].append(
             _Entry(s, s.staff.full_name, s.staff.nursing_role, (s.staff_id, s.date) in pending)
         )
+        # An on-call / custom shift (e.g. 7:00 to 7:00) also counts toward every Day/Night
+        # shift of its unit that it overlaps, for the hours it overlaps, with its role (RN etc).
+        if s.shift_type == "custom" and s.unit_id in units_by_id:
+            for slot_date, shift_type, hrs in custom_slot_overlaps(s, units_by_id[s.unit_id]):
+                slot_entries[(slot_date, s.unit_id, shift_type)].append(
+                    _Entry(s, s.staff.full_name, s.staff.nursing_role,
+                           (s.staff_id, s.date) in pending, hrs)
+                )
 
     def entries_for(d, req_unit_id, shift_type):
         if req_unit_id:
@@ -204,7 +213,8 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
     def build_item(d, unit, shift_type, shift_label, source, need, default_hours, note=""):
         entries, callouts = entries_for(d, unit.id if unit else None, shift_type)
         people = [
-            Person(e.shift.staff_id, e.name, e.role, shift_hours(e.shift, default_hours), e.pending)
+            Person(e.shift.staff_id, e.name, e.role,
+                   e.hours if e.hours is not None else shift_hours(e.shift, default_hours), e.pending)
             for e in entries
         ]
         c = classify(need, people, buffer=buffer, open_callouts=callouts)

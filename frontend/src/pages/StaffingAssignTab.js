@@ -33,6 +33,7 @@ import { faTrash, faPen } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
+import { toISO } from "./staffingCoverage";
 
 const DAYS = [
   { code: "mon", label: "Mon" },
@@ -91,9 +92,7 @@ function StaffingAssignTab() {
   const [covShiftType, setCovShiftType] = useState("day");
   const [covDays, setCovDays] = useState([]);
   const [covMinStaff, setCovMinStaff] = useState(1);
-  const [covStartDate, setCovStartDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [covStartDate, setCovStartDate] = useState(() => toISO(new Date()));
   const [covEndDate, setCovEndDate] = useState("");
   const [covNotes, setCovNotes] = useState("");
   const [covStatus, setCovStatus] = useState(null);
@@ -103,9 +102,7 @@ function StaffingAssignTab() {
   const [startTime, setStartTime] = useState("07:00");
   const [endTime, setEndTime] = useState("15:00");
   const [days, setDays] = useState([]);
-  const [startDate, setStartDate] = useState(() =>
-    new Date().toISOString().slice(0, 10)
-  );
+  const [startDate, setStartDate] = useState(() => toISO(new Date()));
   const [endDate, setEndDate] = useState("");
   const [oneTimeOnly, setOneTimeOnly] = useState(false);
   const [notes, setNotes] = useState("");

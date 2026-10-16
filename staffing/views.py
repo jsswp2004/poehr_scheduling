@@ -481,7 +481,7 @@ class UploadStaffCSV(APIView):
                 days_of_week = _parse_days_of_week_cell(days_raw)
                 start_time = _parse_time_cell(start_raw, "start")
                 end_time = _parse_time_cell(end_raw, "end")
-                start_date = _parse_date_cell(row.get("start_date"), "start_date") or timezone.now().date()
+                start_date = _parse_date_cell(row.get("start_date"), "start_date") or timezone.localdate()
                 end_date = _parse_date_cell(row.get("end_date"), "end_date")
 
                 pattern, pattern_created = StaffRecurringPattern.objects.update_or_create(
