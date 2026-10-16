@@ -20,13 +20,14 @@ compliance report uses), and everything is loaded in a handful of queries.
 
 import datetime
 from collections import defaultdict
+from types import SimpleNamespace
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from . import hppd, state_rules
 from .coverage import DEFAULT_SHIFT_HOURS, MAX_CARRY_FORWARD_DAYS, custom_slot_overlaps, shift_hours
 from .coverage_core import (
-    AT_RISK, MET, MODE_FIXED, MODE_HPPD, NOT_MET, Need, Person, classify, worst,
+    AT_RISK, MET, MODE_FIXED, MODE_HPPD, NOT_MET, Need, Person, classify_with_adhoc, worst,
 )
 from .models import (
     ShiftCoverageRequirement, StaffShift, StaffTimeOffRequest, Unit, UnitCensus,
@@ -177,6 +178,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
         shifts = shifts.filter(unit_id=unit_id)
 
     slot_entries = defaultdict(list)      # (date, unit_id, shift_type) -> [_Entry]
+    slot_adhoc = defaultdict(list)        # same key: on-call / custom shifts overlapping that slot
     slot_callouts = defaultdict(int)      # (date, unit_id, shift_type) -> open call-outs
     for s in shifts:
         slot = (s.date, s.unit_id, s.shift_type)
@@ -188,13 +190,39 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
         slot_entries[slot].append(
             _Entry(s, s.staff.full_name, s.staff.nursing_role, (s.staff_id, s.date) in pending)
         )
-        # An on-call / custom shift (e.g. 7:00 to 7:00) also counts toward every Day/Night
-        # shift of its unit that it overlaps, for the hours it overlaps, with its role (RN etc).
+        # An on-call / custom shift (e.g. 7:00 to 7:00) is AD HOC: it is tracked per Day/Night
+        # shift it overlaps (hours + role) but never makes a shift green by itself -- see
+        # classify_with_adhoc (it can only lift a short shift to amber).
         if s.shift_type == "custom" and s.unit_id in units_by_id:
             for slot_date, shift_type, hrs in custom_slot_overlaps(s, units_by_id[s.unit_id]):
-                slot_entries[(slot_date, s.unit_id, shift_type)].append(
+                slot_adhoc[(slot_date, s.unit_id, shift_type)].append(
                     _Entry(s, s.staff.full_name, s.staff.nursing_role,
                            (s.staff_id, s.date) in pending, hrs)
+                )
+
+    # Facility-wide RN presence: (date, shift_type) -> {staff_id: Person}. The RN requirement
+    # (e.g. 1 RN per shift) is met by an RN anywhere in the facility, not per unit.
+    fac_rn = defaultdict(dict)
+    for (sd, _u, st), lst in slot_entries.items():
+        for e in lst:
+            if e.role == "rn":
+                fac_rn[(sd, st)][e.shift.staff_id] = Person(e.shift.staff_id, e.name, "rn", 0.0, e.pending)
+    fac_adhoc_rn = defaultdict(dict)   # (date, shift_type) -> {staff_id: Person} on-call RNs
+    for (sd, _u, st), lst in slot_adhoc.items():
+        for e in lst:
+            if e.role == "rn":
+                fac_adhoc_rn[(sd, st)][e.shift.staff_id] = Person(e.shift.staff_id, e.name, "rn", 0.0, e.pending)
+    patterns_in_use = {u.shift_pattern for u in units_by_id.values()}
+    for s in shifts:
+        # An RN on a custom/on-call shift with no unit still covers the facility by time.
+        if s.shift_type != "custom" or s.unit_id is not None or s.staff.nursing_role != "rn":
+            continue
+        if out_shift_ids.get(s.id) or out_staff_dates.get((s.staff_id, s.date)):
+            continue
+        for pat in patterns_in_use:
+            for slot_date, shift_type, _hrs in custom_slot_overlaps(s, SimpleNamespace(shift_pattern=pat)):
+                fac_adhoc_rn[(slot_date, shift_type)][s.staff_id] = Person(
+                    s.staff_id, s.staff.full_name, "rn", 0.0, (s.staff_id, s.date) in pending
                 )
 
     def entries_for(d, req_unit_id, shift_type):
@@ -217,7 +245,14 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
                    e.hours if e.hours is not None else shift_hours(e.shift, default_hours), e.pending)
             for e in entries
         ]
-        c = classify(need, people, buffer=buffer, open_callouts=callouts)
+        is_hppd = need.mode == MODE_HPPD
+        adhoc_entries = slot_adhoc.get((d, unit.id, shift_type), []) if (unit and is_hppd) else []
+        adhoc_people = [Person(e.shift.staff_id, e.name, e.role, e.hours, e.pending) for e in adhoc_entries]
+        c = classify_with_adhoc(
+            need, people, adhoc_people, buffer=buffer, open_callouts=callouts,
+            facility_rns=list(fac_rn.get((d, shift_type), {}).values()) if is_hppd else None,
+            adhoc_facility_rns=list(fac_adhoc_rn.get((d, shift_type), {}).values()) if is_hppd else None,
+        )
         ev = c.evaluation
         return {
             "unit_id": unit.id if unit else None,
@@ -239,6 +274,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
             "reasons": list(c.reasons),
             "critical": list(c.critical_names),
             "callouts_open": callouts,
+            "on_call": [{"name": e.name, "role": e.role, "hours": e.hours} for e in adhoc_entries],
             "note": note,
         }
 

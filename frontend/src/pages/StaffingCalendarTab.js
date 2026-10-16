@@ -377,6 +377,23 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [dayInfo]
   );
 
+  // Week view column header: the label is still RBC's button (click = go to day view). It carries
+  // the column's date so a click on the blank part of the header cell can open the coverage modal.
+  const WeekHeader = useCallback(
+    ({ date, label }) => <span data-date={toISO(date)}>{label}</span>,
+    []
+  );
+
+  // Week view: clicking the blank space beside the date label (not the label itself) opens the
+  // same coverage modal as clicking a day in the month view.
+  const handleCalendarClick = (e) => {
+    if (view !== "week") return;
+    const cell = e.target.closest?.(".rbc-time-header-cell .rbc-header");
+    if (!cell || e.target.closest("button")) return;
+    const iso = cell.querySelector("[data-date]")?.getAttribute("data-date");
+    if (iso) setDayDialog(iso);
+  };
+
   // Shift cell: the name on the left, small edit and delete buttons on the right (admins).
   // Clicking the cell itself does nothing; the remove-shift prompt only comes from the delete button.
   const ShiftEvent = useCallback(
@@ -423,8 +440,13 @@ function StaffingCalendarTab({ isAdmin = false }) {
   );
 
   const components = useMemo(
-    () => ({ month: { dateHeader: DateHeader }, event: ShiftEvent, toolbar: StaffingCalendarToolbar }),
-    [DateHeader, ShiftEvent]
+    () => ({
+      month: { dateHeader: DateHeader },
+      week: { header: WeekHeader },
+      event: ShiftEvent,
+      toolbar: StaffingCalendarToolbar,
+    }),
+    [DateHeader, ShiftEvent, WeekHeader]
   );
 
   const openLocationDialog = () => {
@@ -581,7 +603,16 @@ function StaffingCalendarTab({ isAdmin = false }) {
         comment is guarding against. Loading state is shown as a small inline
         spinner next to the legend instead (above), never by hiding the grid.
       */}
-      <Box sx={{ height: 650, bgcolor: "background.paper", p: 1, borderRadius: 2 }}>
+      <Box
+        onClick={handleCalendarClick}
+        sx={{
+          height: 650,
+          bgcolor: "background.paper",
+          p: 1,
+          borderRadius: 2,
+          "& .rbc-time-header-cell .rbc-header": { cursor: view === "week" ? "pointer" : undefined },
+        }}
+      >
         <StaffingCalendarSearchContext.Provider value={searchCtx}>
         <Calendar
           localizer={localizer}
@@ -673,7 +704,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
                         {it.shift_hours != null ? ` full ${fmtHrs(it.shift_hours)}-hr shifts` : ""})
                         {it.required_hours != null &&
                           ` · Care hours: ${it.hours_scheduled ?? 0} of ${Math.round(it.required_hours * 10) / 10} needed for this shift`}
-                        {it.required_rn != null && ` · RNs: ${it.rn_scheduled ?? 0} (need ${it.required_rn})`}
+                        {it.required_rn != null && ` · RNs in facility: ${it.rn_scheduled ?? 0} (need ${it.required_rn})`}
                       </Typography>
                     )}
                     {it.census != null && it.required_hours != null && (
@@ -688,6 +719,12 @@ function StaffingCalendarTab({ isAdmin = false }) {
                         The {it.assigned} scheduled average {fmtHrs(it.hours_scheduled / it.assigned)} hrs each, but this
                         unit's {it.shift_label} shift is {fmtHrs(it.shift_hours)} hrs, so they supply fewer care hours than
                         the requirement assumes. Check the shift start/end times.
+                      </Typography>
+                    )}
+                    {it.on_call?.length > 0 && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                        On call: {it.on_call.map((o) => `${o.name}${ROLE_LABELS[o.role] ? ` · ${ROLE_LABELS[o.role]}` : ""} (${fmtHrs(o.hours)} hrs)`).join(", ")}.
+                        On-call time is ad hoc: it can lift a short shift to amber but never makes it green.
                       </Typography>
                     )}
                     {it.reasons.map((r) => (
