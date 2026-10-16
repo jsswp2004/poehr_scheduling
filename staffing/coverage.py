@@ -16,6 +16,7 @@ and says why in `note`, instead of silently reporting nothing.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import Optional, Tuple
 
 from . import hppd, state_rules
@@ -260,19 +261,14 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
         if s.staff_id not in per_staff or hrs > per_staff[s.staff_id][1]:
             per_staff[s.staff_id] = (s.staff.nursing_role, hrs)
 
-    # On-call / custom shifts count by the hours they overlap this shift.
-    if req.unit_id:
-        for offset in (-1, 0, 1):
-            d = a_date + timedelta(days=offset)
-            custom = StaffShift.objects.filter(
-                organization=req.organization, date=d, shift_type="custom",
-                unit_id=req.unit_id, is_cancelled=False,
-            ).select_related("staff")
-            for cs in _exclude_out(custom, req.organization, d):
-                for slot_date, shift_type, hrs in custom_slot_overlaps(cs, req.unit):
-                    if slot_date == a_date and shift_type == req.shift_type:
-                        if cs.staff_id not in per_staff or hrs > per_staff[cs.staff_id][1]:
-                            per_staff[cs.staff_id] = (cs.staff.nursing_role, hrs)
+    # RN requirement is facility-wide: an RN anywhere in the facility on this shift counts.
+    rn_ids = {sid for sid, (role, _h) in per_staff.items() if role == "rn"}
+    if eff.required_rn:
+        rn_shifts = StaffShift.objects.filter(
+            organization=req.organization, date=a_date, shift_type=req.shift_type,
+            is_cancelled=False, staff__nursing_role="rn",
+        )
+        rn_ids |= set(_exclude_out(rn_shifts, req.organization, a_date).values_list("staff_id", flat=True))
 
     hreq = hppd.ShiftRequirement(
         shift_name=req.get_shift_type_display(),
@@ -282,7 +278,7 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
         staff_by_hours=0,
         staff_by_ratio=eff.staff_by_ratio,
         required_staff=eff.required_staff,
-        required_rn=eff.required_rn,
+        required_rn=0,
         required_licensed_hours=eff.required_licensed_hours,
         required_cna_hours=eff.required_cna_hours,
     )
@@ -293,13 +289,14 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
         shortfalls.append(f"Short {c.hours_short:g} care hours")
     if not c.ratio_ok:
         shortfalls.append(f"Short {c.staff_short} staff for the 1:15 ratio")
-    if not c.rn_ok:
-        shortfalls.append(f"Need {eff.required_rn} RN, have {c.rn_scheduled}")
+    rn_ok = len(rn_ids) >= eff.required_rn
+    if not rn_ok:
+        shortfalls.append(f"Need {eff.required_rn} RN in the facility, have {len(rn_ids)}")
     if not c.licensed_ok:
         shortfalls.append(f"Short {c.licensed_short:g} licensed-nurse (RN/LPN) hours")
     if not c.cna_ok:
         shortfalls.append(f"Short {c.cna_short:g} CNA hours")
 
     return RequirementStatus(
-        eff, c.heads_scheduled, c.hours_scheduled, c.rn_scheduled, c.compliant, tuple(shortfalls)
+        eff, c.heads_scheduled, c.hours_scheduled, len(rn_ids), c.compliant and rn_ok, tuple(shortfalls)
     )

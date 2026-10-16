@@ -80,7 +80,12 @@ def _dedupe(people: Iterable[Person]) -> List[Person]:
     return list(best.values())
 
 
-def evaluate(need: Need, people: Sequence[Person]) -> Evaluation:
+def evaluate(need: Need, people: Sequence[Person], facility_rns: Optional[Sequence[Person]] = None) -> Evaluation:
+    """
+    `facility_rns`: when given, the RN requirement is FACILITY-WIDE for this shift -- an RN
+    anywhere in the facility on the same shift counts, not only RNs in this unit's slot.
+    (None keeps the old per-slot RN check.)
+    """
     people = _dedupe(people)
 
     if need.mode != MODE_HPPD:
@@ -97,23 +102,31 @@ def evaluate(need: Need, people: Sequence[Person]) -> Evaluation:
         staff_by_hours=0,
         staff_by_ratio=need.staff_by_ratio,
         required_staff=need.required_staff,
-        required_rn=need.required_rn,
+        required_rn=0 if facility_rns is not None else need.required_rn,
         required_licensed_hours=need.required_licensed_hours,
         required_cna_hours=need.required_cna_hours,
     )
     c = hppd.evaluate_shift(hreq, [(p.role, p.hours) for p in people])
+    rn_count, rn_ok = c.rn_scheduled, c.rn_ok
+    if facility_rns is not None:
+        rn_ids = {p.staff_id for p in people if p.role == "rn"} | {
+            p.staff_id for p in facility_rns if p.role == "rn"
+        }
+        rn_count = len(rn_ids)
+        rn_ok = rn_count >= need.required_rn
     short = []
     if not c.hours_ok:
         short.append(f"Short {c.hours_short:g} care hours")
     if not c.ratio_ok:
         short.append(f"Short {c.staff_short} staff for the ratio")
-    if not c.rn_ok:
-        short.append(f"Need {need.required_rn} RN, have {c.rn_scheduled}")
+    if not rn_ok:
+        where = " in the facility" if facility_rns is not None else ""
+        short.append(f"Need {need.required_rn} RN{where}, have {rn_count}")
     if not c.licensed_ok:
         short.append(f"Short {c.licensed_short:g} licensed-nurse (RN/LPN) hours")
     if not c.cna_ok:
         short.append(f"Short {c.cna_short:g} CNA hours")
-    return Evaluation(c.compliant, c.heads_scheduled, c.hours_scheduled, c.rn_scheduled, tuple(short))
+    return Evaluation(c.compliant and rn_ok, c.heads_scheduled, c.hours_scheduled, rn_count, tuple(short))
 
 
 def _names(people: Iterable[Person], limit=3) -> str:
@@ -128,9 +141,11 @@ def classify(
     people: Sequence[Person],
     buffer: int = 1,
     open_callouts: int = 0,
+    facility_rns: Optional[Sequence[Person]] = None,
 ) -> Classification:
     people = _dedupe(people)
-    ev = evaluate(need, people)
+    facility_rns = None if facility_rns is None else _dedupe(facility_rns)
+    ev = evaluate(need, people, facility_rns)
     if not ev.met:
         return Classification(NOT_MET, ev, ev.shortfalls)
 
@@ -138,16 +153,24 @@ def classify(
     critical: set = set()
 
     # (a) no spare capacity: would losing `buffer` staff break coverage?
+    # With a facility-wide RN rule, an RN working in another unit is also a person whose
+    # absence could break this shift (RN requirement only).
     if buffer > 0:
-        k = min(buffer, len(people))
+        slot_ids = {p.staff_id for p in people}
+        candidates = list(people)
+        if facility_rns is not None:
+            candidates += [f for f in facility_rns if f.role == "rn" and f.staff_id not in slot_ids]
+        k = min(buffer, len(candidates))
         breaking = []
         if k == 0:
             # nobody scheduled but the need is zero; nothing to lose
             pass
         else:
-            for combo in combinations(people, k):
-                rest = [p for p in people if p not in combo]
-                if not evaluate(need, rest).met:
+            for combo in combinations(candidates, k):
+                gone = {c.staff_id for c in combo}
+                rest = [p for p in people if p.staff_id not in gone]
+                rest_fac = None if facility_rns is None else [f for f in facility_rns if f.staff_id not in gone]
+                if not evaluate(need, rest, rest_fac).met:
                     breaking.append(combo)
         if breaking:
             for combo in breaking:
@@ -165,9 +188,12 @@ def classify(
 
     # (b)/(c) pending time-off requests from people on this shift
     pending = [p for p in people if p.pending_off]
+    if facility_rns is not None:
+        pending += [f for f in facility_rns if f.pending_off and f.staff_id not in {p.staff_id for p in people}]
     if pending:
         rest = [p for p in people if not p.pending_off]
-        if evaluate(need, rest).met:
+        rest_fac = None if facility_rns is None else [f for f in facility_rns if not f.pending_off]
+        if evaluate(need, rest, rest_fac).met:
             reasons.append(f"Pending time-off request: {_names(pending)}.")
         else:
             reasons.append(
@@ -184,6 +210,45 @@ def classify(
 
     status = AT_RISK if reasons else MET
     return Classification(status, ev, tuple(reasons), tuple(sorted({p.name for p in critical})))
+
+
+def classify_with_adhoc(
+    need: Need,
+    people: Sequence[Person],
+    adhoc: Sequence[Person] = (),
+    buffer: int = 1,
+    open_callouts: int = 0,
+    facility_rns: Optional[Sequence[Person]] = None,
+    adhoc_facility_rns: Optional[Sequence[Person]] = None,
+) -> Classification:
+    """
+    Classify a shift with ad hoc (on-call) staff handled separately.
+
+    On-call time is ad hoc, so it can never be what makes a shift GREEN:
+      * the shift is classified from regular staff only;
+      * if that is NOT_MET but regular + on-call staff would meet it, the result is AT_RISK
+        (met only thanks to on-call time) with a reason naming them;
+      * otherwise the regular-staff result stands.
+    """
+    base = classify(need, people, buffer=buffer, open_callouts=open_callouts, facility_rns=facility_rns)
+    adhoc_rns = list(adhoc_facility_rns or [])
+    if base.status != NOT_MET or not (adhoc or adhoc_rns):
+        return base
+    everyone = list(people) + list(adhoc)
+    everyone_fac = None
+    if facility_rns is not None:
+        everyone_fac = list(facility_rns) + adhoc_rns + [a for a in adhoc if a.role == "rn"]
+    ev = evaluate(need, everyone, everyone_fac)
+    if not ev.met:
+        return base
+    regular_ids = {p.staff_id for p in people}
+    helpers = [a for a in list(adhoc) + adhoc_rns if a.staff_id not in regular_ids]
+    names = _names(helpers) if helpers else "on-call staff"
+    reason = (
+        f"Met only with on-call time ({names}). On-call staff are ad hoc, so this shift is "
+        "at risk until it is covered by regular staff."
+    )
+    return Classification(AT_RISK, ev, (reason,), tuple(sorted({h.name for h in helpers})))
 
 
 def worst(statuses: Iterable[str]) -> Optional[str]:
