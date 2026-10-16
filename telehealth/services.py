@@ -29,7 +29,16 @@ def appointment_provider_user_id(appointment):
 
 
 def patient_mobile(appointment):
-    return appointment.patient.phone_number
+    """The patient's mobile number, as text ("" if none).
+
+    Registration saves the phone on the Patient record (user.patient_profile), while older
+    records may only have it on the user account, so look in both. Without this the board said
+    "no mobile number on file" for patients whose number was entered at registration.
+    """
+    user = appointment.patient
+    profile = getattr(user, "patient_profile", None)  # None when the user has no Patient record
+    number = (getattr(profile, "phone_number", "") or "").strip()
+    return number or (getattr(user, "phone_number", "") or "").strip()
 
 
 VIDEO_TYPE_KEYWORD = "telehealth"
@@ -49,7 +58,7 @@ def video_appointments(day, provider_user_id=None):
     """
     Appointment = apps.get_model(settings.TELEHEALTH_APPOINTMENT_MODEL)
     qs = (
-        Appointment.objects.select_related("patient", "provider")
+        Appointment.objects.select_related("patient", "patient__patient_profile", "provider")
         .filter(
             Q(is_video=True) | Q(title__icontains=VIDEO_TYPE_KEYWORD),
             appointment_datetime__date=day,
@@ -71,6 +80,7 @@ def appointment_summary(appointment):
     return {
         "scheduled_at": appointment.appointment_datetime,
         "patient_display": patient_display_name(appointment),
+        "patient_phone": patient_mobile(appointment),
     }
 
 

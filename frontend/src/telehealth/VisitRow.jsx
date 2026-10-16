@@ -38,6 +38,9 @@ export default function VisitRow({ item, nowMs, offsetMs, busy, canConduct, canM
     <li className="th-row" data-state={state} data-long={longWait ? "true" : undefined}>
       <span className="th-row-time">{formatClock(item.scheduled_at)}</span>
       <span className="th-row-patient">{item.patient_display}</span>
+      <span className="th-row-phone" title="Patient mobile number">
+        {item.patient_phone || <span className="th-row-phone--none">No number</span>}
+      </span>
       <span className="th-row-status">
         <span className={`th-chip th-chip--${TONE[state]}`}>
           <span className="th-chip-dot" aria-hidden="true" />
