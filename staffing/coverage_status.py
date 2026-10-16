@@ -221,6 +221,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
             "assigned": ev.heads,
             "required_hours": need.required_hours,
             "hours_scheduled": ev.hours,
+            "shift_hours": need.shift_hours if need.mode == MODE_HPPD else None,
             "required_rn": need.required_rn if need.mode == MODE_HPPD else None,
             "required_licensed_hours": need.required_licensed_hours if need.mode == MODE_HPPD else None,
             "required_cna_hours": need.required_cna_hours if need.mode == MODE_HPPD else None,
@@ -265,6 +266,9 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
                 need = Need(MODE_FIXED, req.min_staff_required)
 
             item = build_item(d, unit, req.shift_type, label, "requirement", need, default_hours, note)
+            if need.mode == MODE_HPPD:
+                item["census"] = value
+                item["census_source"] = source
             items.append(item)
 
         # ---- automatic state-rule requirements ---------------------------------

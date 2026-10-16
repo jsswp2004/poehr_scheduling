@@ -20,7 +20,11 @@ import {
   DialogActions,
   TextField,
   Divider,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPen } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -57,6 +61,9 @@ function StaffingCalendarTab({ isAdmin = false }) {
   const [search, setSearch] = useState("");
   const [dayDialog, setDayDialog] = useState(null); // ISO date string
   const [locDialog, setLocDialog] = useState(false);
+  const [editShift, setEditShift] = useState(null); // {id, staff_name, date, shift_label, start_time, end_time, notes}
+  const [editShiftError, setEditShiftError] = useState("");
+  const [editShiftBusy, setEditShiftBusy] = useState(false);
   const [locForm, setLocForm] = useState({});
   const [locError, setLocError] = useState("");
   const [range, setRange] = useState(() => {
@@ -139,6 +146,48 @@ function StaffingCalendarTab({ isAdmin = false }) {
     } catch (err) {
       console.error("Failed to delete shift", err);
       setError("Failed to delete that shift.");
+    }
+  };
+
+  const openEditShift = useCallback((shift) => {
+    setEditShiftError("");
+    setEditShift({
+      id: shift.id,
+      staff_name: shift.staff_name,
+      date: shift.date,
+      shift_label: shift.shift_type_display || shift.shift_type,
+      unit_name: shift.unit_name || "",
+      start_time: (shift.start_time || "").slice(0, 5),
+      end_time: (shift.end_time || "").slice(0, 5),
+      notes: shift.notes || "",
+    });
+  }, []);
+
+  const saveEditShift = async () => {
+    if (!editShift) return;
+    if ((editShift.start_time && !editShift.end_time) || (!editShift.start_time && editShift.end_time)) {
+      setEditShiftError("Enter both a start and an end time, or leave both blank.");
+      return;
+    }
+    setEditShiftBusy(true);
+    setEditShiftError("");
+    try {
+      await axios.patch(
+        apiEndpoints.staffingShiftDetail(editShift.id),
+        {
+          start_time: editShift.start_time || null,
+          end_time: editShift.end_time || null,
+          notes: editShift.notes || "",
+        },
+        { headers: getAuthHeaders(token) }
+      );
+      setEditShift(null);
+      fetchShifts(range.start, range.end);
+    } catch (err) {
+      const data = err.response?.data;
+      setEditShiftError((data && JSON.stringify(data)) || "Could not save this shift.");
+    } finally {
+      setEditShiftBusy(false);
     }
   };
 
@@ -298,9 +347,38 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [dayInfo]
   );
 
+  // Shift cell: the name on the left, a small edit button on the right (admins).
+  // Clicking the edit button must not trigger the cell's remove-shift prompt.
+  const ShiftEvent = useCallback(
+    ({ event }) => (
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.5, minWidth: 0 }}>
+        <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {event.title}
+        </Box>
+        {isAdmin && (
+          <Tooltip title="Edit this shift">
+            <IconButton
+              size="small"
+              aria-label={`Edit shift for ${event.resource.staff_name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                openEditShift(event.resource);
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              sx={{ color: "inherit", p: "2px", flexShrink: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
+            >
+              <FontAwesomeIcon icon={faPen} style={{ fontSize: 10 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
+    ),
+    [isAdmin, openEditShift]
+  );
+
   const components = useMemo(
-    () => ({ month: { dateHeader: DateHeader }, toolbar: StaffingCalendarToolbar }),
-    [DateHeader]
+    () => ({ month: { dateHeader: DateHeader }, event: ShiftEvent, toolbar: StaffingCalendarToolbar }),
+    [DateHeader, ShiftEvent]
   );
 
   const openLocationDialog = () => {
@@ -329,6 +407,25 @@ function StaffingCalendarTab({ isAdmin = false }) {
   };
 
   const selectedDay = dayDialog ? coverage?.days?.[dayDialog] : null;
+
+  const fmtHrs = (h) => (Math.round(Number(h) * 10) / 10).toString();
+
+  // One census line per unit for the selected day (taken from its shift items).
+  const censusSummary = (() => {
+    const byUnit = {};
+    (selectedDay?.items || []).forEach((it) => {
+      if (it.census == null || !it.unit_name) return;
+      const c = (byUnit[it.unit_name] ||= {
+        unit_name: it.unit_name,
+        census: it.census,
+        carried: it.census_source === "carried_forward",
+        hppd: coverage?.rule?.hppd_min ?? null,
+        required_total: null,
+      });
+      if (it.required_hours != null) c.required_total = (c.required_total || 0) + it.required_hours;
+    });
+    return Object.values(byUnit);
+  })();
 
   return (
     <Box>
@@ -491,6 +588,21 @@ function StaffingCalendarTab({ isAdmin = false }) {
               {selectedDay.pending_requests > 0 && (
                 <Alert severity="warning">{selectedDay.pending_requests} pending time-off request(s) this day.</Alert>
               )}
+              {censusSummary.map((c) => (
+                <Box key={c.unit_name}>
+                  <Typography variant="subtitle2">{c.unit_name} census</Typography>
+                  <Typography variant="body2">
+                    {c.census} resident{c.census === 1 ? "" : "s"}
+                    {c.hppd != null && ` × ${c.hppd} nursing hrs/resident/day = ${fmtHrs(c.census * c.hppd)} care hours for the day`}
+                    {c.required_total != null && ` · split across the shifts below (${fmtHrs(c.required_total)} hrs in total)`}
+                  </Typography>
+                  {c.carried && (
+                    <Typography variant="caption" color="text.secondary">
+                      Census carried forward from an earlier day (none entered for this date).
+                    </Typography>
+                  )}
+                </Box>
+              ))}
               {selectedDay.items.map((it, idx) => {
                 const m = COVERAGE_STATUS[it.status];
                 return (
@@ -510,10 +622,25 @@ function StaffingCalendarTab({ isAdmin = false }) {
                     </Stack>
                     {it.status !== "unknown" && (
                       <Typography variant="body2">
-                        Staff scheduled: {it.assigned} (need {it.required})
+                        Staff scheduled: {it.assigned} (need {it.required}
+                        {it.shift_hours != null ? ` full ${fmtHrs(it.shift_hours)}-hr shifts` : ""})
                         {it.required_hours != null &&
-                          ` · Care hours: ${it.hours_scheduled ?? 0} of ${Math.round(it.required_hours * 10) / 10}`}
+                          ` · Care hours: ${it.hours_scheduled ?? 0} of ${Math.round(it.required_hours * 10) / 10} needed for this shift`}
                         {it.required_rn != null && ` · RNs: ${it.rn_scheduled ?? 0} (need ${it.required_rn})`}
+                      </Typography>
+                    )}
+                    {it.census != null && it.required_hours != null && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                        Census {it.census}
+                        {coverage?.rule?.hppd_min != null &&
+                          ` × ${coverage.rule.hppd_min} = ${fmtHrs(it.census * coverage.rule.hppd_min)} hrs/day; this shift carries ${fmtHrs(it.required_hours)} of them`}
+                      </Typography>
+                    )}
+                    {it.shift_hours != null && it.assigned > 0 && Math.abs(it.hours_scheduled / it.assigned - it.shift_hours) > 0.01 && (
+                      <Typography variant="caption" color="warning.main" sx={{ display: "block" }}>
+                        The {it.assigned} scheduled average {fmtHrs(it.hours_scheduled / it.assigned)} hrs each, but this
+                        unit's {it.shift_label} shift is {fmtHrs(it.shift_hours)} hrs, so they supply fewer care hours than
+                        the requirement assumes. Check the shift start/end times.
                       </Typography>
                     )}
                     {it.reasons.map((r) => (
@@ -534,6 +661,60 @@ function StaffingCalendarTab({ isAdmin = false }) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDayDialog(null)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit one shift */}
+      <Dialog open={!!editShift} onClose={() => setEditShift(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Edit shift</DialogTitle>
+        <DialogContent>
+          {editShift && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                {editShift.staff_name} · {moment(editShift.date).format("ddd, MMM D, YYYY")} · {editShift.shift_label}
+                {editShift.unit_name ? ` · ${editShift.unit_name}` : ""}
+                <br />
+                Changes apply to this day only. To change every occurrence, edit the recurring schedule on the Assign
+                Schedule tab.
+              </Typography>
+              {editShiftError && <Alert severity="error">{editShiftError}</Alert>}
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  size="small"
+                  type="time"
+                  label="Start time"
+                  InputLabelProps={{ shrink: true }}
+                  value={editShift.start_time}
+                  onChange={(e) => setEditShift({ ...editShift, start_time: e.target.value })}
+                  fullWidth
+                />
+                <TextField
+                  size="small"
+                  type="time"
+                  label="End time"
+                  InputLabelProps={{ shrink: true }}
+                  value={editShift.end_time}
+                  onChange={(e) => setEditShift({ ...editShift, end_time: e.target.value })}
+                  fullWidth
+                />
+              </Stack>
+              <TextField
+                size="small"
+                label="Notes"
+                value={editShift.notes}
+                onChange={(e) => setEditShift({ ...editShift, notes: e.target.value })}
+                multiline
+                minRows={2}
+                fullWidth
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditShift(null)}>Cancel</Button>
+          <Button variant="contained" onClick={saveEditShift} disabled={editShiftBusy}>
+            {editShiftBusy ? "Saving..." : "Save"}
+          </Button>
         </DialogActions>
       </Dialog>
 
