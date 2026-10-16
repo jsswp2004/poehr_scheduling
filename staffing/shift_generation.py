@@ -34,7 +34,9 @@ def generate_shifts_for_pattern(pattern, window_days=DEFAULT_WINDOW_DAYS):
     if not pattern.is_active:
         return 0
 
-    today = timezone.now().date()
+    # The clinic's calendar day (TIME_ZONE), not the UTC day: after ~8 PM Eastern the UTC date is
+    # already tomorrow and would skip today's shift.
+    today = timezone.localdate()
     end_date = today + timedelta(days=window_days)
 
     current = max(pattern.start_date, today)

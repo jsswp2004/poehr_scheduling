@@ -31,13 +31,15 @@ import { faPen, faTrash } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
+import { toISO } from "./staffingCoverage";
 
 const PATTERN_HELP = {
   "8h": "8-hour shifts: Day / Evening / Night",
   "12h": "12-hour shifts: Day / Night",
 };
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Local calendar day (toISOString would give the UTC day, which is already "tomorrow" after ~8 PM Eastern).
+const today = () => toISO(new Date());
 const PAGE_LIMIT = 20;
 const CENSUS_PAGE_SIZE = 14; // rows shown per page in the Census table
 const fmtStamp = (iso) => (iso ? new Date(iso).toLocaleString() : "—");

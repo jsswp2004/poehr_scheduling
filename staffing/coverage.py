@@ -181,6 +181,32 @@ def shift_hours(shift, default_hours=DEFAULT_SHIFT_HOURS) -> float:
     return default_hours
 
 
+def custom_slot_overlaps(shift, unit):
+    """
+    A "custom" shift (e.g. nurse on call, 7:00 to 7:00 the next day) does not belong to a
+    Day/Night slot by label, so it is matched by TIME: for each of the unit's pattern shifts
+    it overlaps, returns (slot_date, shift_type, overlapping_hours). The person then counts
+    toward that shift's staff, care hours and (if they are an RN) the RN requirement.
+    Needs a unit and both times; otherwise returns [].
+    """
+    if shift.shift_type != "custom" or unit is None or not (shift.start_time and shift.end_time):
+        return []
+    start = datetime.combine(shift.date, shift.start_time)
+    end = datetime.combine(shift.date, shift.end_time)
+    if end <= start:
+        end += timedelta(days=1)
+    out = []
+    for offset in (-1, 0, 1):
+        slot_date = shift.date + timedelta(days=offset)
+        for sdef in hppd.get_pattern(unit.shift_pattern):
+            s0 = datetime.combine(slot_date, datetime.strptime(sdef.start, "%H:%M").time())
+            s1 = s0 + timedelta(hours=float(sdef.hours))
+            overlap = (min(end, s1) - max(start, s0)).total_seconds() / 3600.0
+            if overlap > 0:
+                out.append((slot_date, sdef.shift_type, overlap))
+    return out
+
+
 @dataclass(frozen=True)
 class RequirementStatus:
     requirement: EffectiveRequirement
@@ -233,6 +259,20 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
         hrs = shift_hours(s, default_hours)
         if s.staff_id not in per_staff or hrs > per_staff[s.staff_id][1]:
             per_staff[s.staff_id] = (s.staff.nursing_role, hrs)
+
+    # On-call / custom shifts count by the hours they overlap this shift.
+    if req.unit_id:
+        for offset in (-1, 0, 1):
+            d = a_date + timedelta(days=offset)
+            custom = StaffShift.objects.filter(
+                organization=req.organization, date=d, shift_type="custom",
+                unit_id=req.unit_id, is_cancelled=False,
+            ).select_related("staff")
+            for cs in _exclude_out(custom, req.organization, d):
+                for slot_date, shift_type, hrs in custom_slot_overlaps(cs, req.unit):
+                    if slot_date == a_date and shift_type == req.shift_type:
+                        if cs.staff_id not in per_staff or hrs > per_staff[cs.staff_id][1]:
+                            per_staff[cs.staff_id] = (cs.staff.nursing_role, hrs)
 
     hreq = hppd.ShiftRequirement(
         shift_name=req.get_shift_type_display(),
