@@ -19,6 +19,7 @@ import {
   CircularProgress,
   ToggleButton,
   ToggleButtonGroup,
+  TablePagination,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDownload, faPrint } from "@fortawesome/free-solid-svg-icons";
@@ -34,6 +35,8 @@ const REPORT_TYPES = [
   { value: "message_log", label: "Message Delivery Log" },
   { value: "shift_distribution", label: "Shift-Type Distribution" },
 ];
+
+const REPORT_PAGE_SIZE = 14; // rows shown per page in every report table
 
 const SHIFT_TYPE_ORDER = ["day", "evening", "night", "custom"];
 const SHIFT_TYPE_LABELS = { day: "Day", evening: "Evening", night: "Night", custom: "Custom" };
@@ -122,6 +125,8 @@ function StaffingReportsTab() {
   const [messageTruncated, setMessageTruncated] = useState(false);
   const [distributionRows, setDistributionRows] = useState([]);
   const [distributionTotals, setDistributionTotals] = useState(null);
+  const [page, setPage] = useState(0);
+  const [printing, setPrinting] = useState(false); // print shows every row, not just this page
 
   // Load the full staff roster once, to populate the profession/staff filters.
   useEffect(() => {
@@ -152,6 +157,47 @@ function StaffingReportsTab() {
   const complianceWarnings = (complianceSummary?.warnings || []).filter(
     (w) => !complianceUnitName || !w.startsWith("No census on file for") || w.includes(complianceUnitName)
   );
+
+  // Back to page 1 whenever the report, its data or its filters change.
+  useEffect(() => {
+    setPage(0);
+  }, [
+    reportType,
+    shifts,
+    unscheduled,
+    laborRows,
+    complianceRows,
+    messageRows,
+    distributionRows,
+    unitFilterId,
+    shiftFilter,
+    staffFilterId,
+  ]);
+
+  const pageOf = (rows) => {
+    if (printing) return rows;
+    const last = Math.max(0, Math.ceil(rows.length / REPORT_PAGE_SIZE) - 1);
+    const p = Math.min(page, last);
+    return rows.slice(p * REPORT_PAGE_SIZE, p * REPORT_PAGE_SIZE + REPORT_PAGE_SIZE);
+  };
+
+  // Arrows for the top right of each report table.
+  const pager = (count) => {
+    if (count <= REPORT_PAGE_SIZE) return null;
+    const last = Math.max(0, Math.ceil(count / REPORT_PAGE_SIZE) - 1);
+    return (
+      <TablePagination
+        component="div"
+        count={count}
+        page={Math.min(page, last)}
+        onPageChange={(e, p) => setPage(p)}
+        rowsPerPage={REPORT_PAGE_SIZE}
+        rowsPerPageOptions={[]}
+        className="no-print"
+        sx={{ borderBottom: 0 }}
+      />
+    );
+  };
 
   const professions = useMemo(
     () => Array.from(new Set(staffList.map((s) => s.profession))).sort(),
@@ -305,7 +351,13 @@ function StaffingReportsTab() {
     );
   };
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    setPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setPrinting(false);
+    }, 150);
+  };
 
   const staffFilterControl = (
     <FormControl size="small" sx={{ minWidth: 200 }}>
@@ -478,6 +530,7 @@ function StaffingReportsTab() {
               {shifts.length} shift{shifts.length === 1 ? "" : "s"} from {startDate} to {endDate}
             </Typography>
             <Stack direction="row" spacing={1} alignItems="center" className="no-print">
+              {pager(shifts.length)}
               {staffFilterControl}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportSchedule} disabled={shifts.length === 0}>
                 Export CSV
@@ -499,7 +552,7 @@ function StaffingReportsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {shifts.map((s) => (
+              {pageOf(shifts).map((s) => (
                 <TableRow key={s.id}>
                   <TableCell>{s.date}</TableCell>
                   <TableCell>{s.staff_name}</TableCell>
@@ -521,6 +574,7 @@ function StaffingReportsTab() {
               {unscheduled.length} active staff member{unscheduled.length === 1 ? "" : "s"} with no shifts from {startDate} to {endDate}
             </Typography>
             <Stack direction="row" spacing={1} className="no-print">
+              {pager(unscheduled.length)}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportUnscheduled} disabled={unscheduled.length === 0}>
                 Export CSV
               </Button>
@@ -539,7 +593,7 @@ function StaffingReportsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {unscheduled.map((s) => (
+              {pageOf(unscheduled).map((s) => (
                 <TableRow key={s.id}>
                   <TableCell>{s.full_name}</TableCell>
                   <TableCell>{s.profession_display || s.profession}</TableCell>
@@ -559,6 +613,7 @@ function StaffingReportsTab() {
               Total scheduled hours from {startDate} to {endDate}
             </Typography>
             <Stack direction="row" spacing={1} className="no-print">
+              {pager(laborRows.length)}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportLaborHours} disabled={laborRows.length === 0}>
                 Export CSV
               </Button>
@@ -577,7 +632,7 @@ function StaffingReportsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {laborRows.map((r) => (
+              {pageOf(laborRows).map((r) => (
                 <TableRow key={r.staff_id}>
                   <TableCell>{r.full_name}</TableCell>
                   <TableCell>{r.profession}</TableCell>
@@ -604,6 +659,7 @@ function StaffingReportsTab() {
               from {startDate} to {endDate}
             </Typography>
             <Stack direction="row" spacing={1} className="no-print">
+              {pager(filteredCompliance.length)}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportCompliance} disabled={filteredCompliance.length === 0}>
                 Export CSV
               </Button>
@@ -633,7 +689,7 @@ function StaffingReportsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredCompliance.map((r, idx) => (
+              {pageOf(filteredCompliance).map((r, idx) => (
                 <TableRow key={idx}>
                   <TableCell>{r.date}</TableCell>
                   <TableCell>{r.unit_name || "—"}</TableCell>
@@ -693,6 +749,7 @@ function StaffingReportsTab() {
               {messageTruncated ? " (showing the most recent 1000 -- narrow the date range for the full list)" : ""}
             </Typography>
             <Stack direction="row" spacing={1} alignItems="center" className="no-print">
+              {pager(messageRows.length)}
               {staffFilterControl}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportMessageLog} disabled={messageRows.length === 0}>
                 Export CSV
@@ -715,7 +772,7 @@ function StaffingReportsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {messageRows.map((r, idx) => (
+              {pageOf(messageRows).map((r, idx) => (
                 <TableRow key={idx}>
                   <TableCell>{new Date(r.sent_at).toLocaleString()}</TableCell>
                   <TableCell>{r.channel}</TableCell>
@@ -741,6 +798,7 @@ function StaffingReportsTab() {
                 : ""}
             </Typography>
             <Stack direction="row" spacing={1} className="no-print">
+              {pager(distributionRows.length)}
               <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportDistribution} disabled={distributionRows.length === 0}>
                 Export CSV
               </Button>
@@ -763,7 +821,7 @@ function StaffingReportsTab() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {distributionRows.map((r) => (
+              {pageOf(distributionRows).map((r) => (
                 <TableRow key={r.staff_id}>
                   <TableCell>{r.full_name}</TableCell>
                   <TableCell>{r.profession}</TableCell>

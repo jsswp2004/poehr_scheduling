@@ -121,7 +121,7 @@ function StaffingRosterTab({ isAdmin = false }) {
     });
   }, [staff, search, statusFilter, roleFilter]);
 
-  const ROWS_PER_PAGE = 20;
+  const ROWS_PER_PAGE = 14;
   const lastPage = Math.max(0, Math.ceil(filteredStaff.length / ROWS_PER_PAGE) - 1);
   const safePage = Math.min(page, lastPage);
   const pageStaff = filteredStaff.slice(
@@ -464,6 +464,17 @@ function StaffingRosterTab({ isAdmin = false }) {
             Clear
           </Button>
         )}
+        {filteredStaff.length > ROWS_PER_PAGE && (
+          <TablePagination
+            component="div"
+            count={filteredStaff.length}
+            page={safePage}
+            onPageChange={(e, p) => setPage(p)}
+            rowsPerPage={ROWS_PER_PAGE}
+            rowsPerPageOptions={[]}
+            sx={{ ml: "auto", borderBottom: 0 }}
+          />
+        )}
       </Stack>
 
       <Table size="small">
@@ -589,16 +600,6 @@ function StaffingRosterTab({ isAdmin = false }) {
           ))}
         </TableBody>
       </Table>
-      {filteredStaff.length > ROWS_PER_PAGE && (
-        <TablePagination
-          component="div"
-          count={filteredStaff.length}
-          page={safePage}
-          onPageChange={(e, p) => setPage(p)}
-          rowsPerPage={ROWS_PER_PAGE}
-          rowsPerPageOptions={[]}
-        />
-      )}
 
       {/* Edit staff dialog */}
       <Dialog open={editOpen} onClose={closeEdit} maxWidth="sm" fullWidth>

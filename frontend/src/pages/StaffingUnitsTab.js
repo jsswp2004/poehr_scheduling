@@ -39,6 +39,7 @@ const PATTERN_HELP = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 const PAGE_LIMIT = 20;
+const CENSUS_PAGE_SIZE = 14; // rows shown per page in the Census table
 const fmtStamp = (iso) => (iso ? new Date(iso).toLocaleString() : "—");
 const listOf = (res) => res.data.results || res.data || [];
 const errText = (err, fallback) =>
@@ -252,11 +253,11 @@ function StaffingUnitsTab({ isAdmin = false }) {
     });
   }, [history, units, censusSearch, censusUnitFilter, censusShiftFilter, censusFiltersActive]);
 
-  const censusLastPage = Math.max(0, Math.ceil(censusMatches.length / PAGE_LIMIT) - 1);
+  const censusLastPage = Math.max(0, Math.ceil(censusMatches.length / CENSUS_PAGE_SIZE) - 1);
   const censusSafePage = Math.min(censusPage, censusLastPage);
   const censusRows = censusMatches.slice(
-    censusSafePage * PAGE_LIMIT,
-    censusSafePage * PAGE_LIMIT + PAGE_LIMIT
+    censusSafePage * CENSUS_PAGE_SIZE,
+    censusSafePage * CENSUS_PAGE_SIZE + CENSUS_PAGE_SIZE
   );
 
   const closeDialogs = () => {
@@ -495,13 +496,13 @@ function StaffingUnitsTab({ isAdmin = false }) {
                   : ""}
               </Typography>
             </Typography>
-            {censusMatches.length > PAGE_LIMIT && (
+            {censusMatches.length > CENSUS_PAGE_SIZE && (
               <TablePagination
                 component="div"
                 count={censusMatches.length}
                 page={censusSafePage}
                 onPageChange={(e, p) => setCensusPage(p)}
-                rowsPerPage={PAGE_LIMIT}
+                rowsPerPage={CENSUS_PAGE_SIZE}
                 rowsPerPageOptions={[]}
                 sx={{ ml: "auto", borderBottom: 0 }}
               />
