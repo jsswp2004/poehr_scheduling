@@ -30,6 +30,10 @@ import { toast } from "react-toastify";
 import { getValidToken } from "../../utils/auth";
 import { API_BASE_URL, apiEndpoints } from "../../config/api";
 import LocationPicker, { useLocationTree } from "../locations/LocationPicker";
+import VisitSearchDialog from "./VisitSearchDialog";
+
+// Only these roles may edit a visit that has already been closed (discharged).
+const CLOSED_VISIT_EDIT_ROLES = ["admin", "registrar", "system_admin"];
 
 // Every field the Registration tab captures, grouped into the six sub-tabs
 // the user asked for. Patient Identity/Emergency Contact/Financial/Legal
@@ -119,7 +123,8 @@ const visitToFields = (reg) => {
   return out;
 };
 
-function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonce }) {
+function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonce, userRole = "" }) {
+  const canEditClosed = CLOSED_VISIT_EDIT_ROLES.includes(userRole);
   const [mode, setMode] = useState("new"); // "new" | "existing"
   const [activeSubTab, setActiveSubTab] = useState("identity");
 
@@ -137,6 +142,10 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const [editingOpenVisit, setEditingOpenVisit] = useState(false);
   const visitLoadToken = useRef(0);
   const [openVisits, setOpenVisits] = useState([]);
+  // the visit in the form is closed (discharged); loaded through "Search for Visit"
+  const [closedVisit, setClosedVisit] = useState(null);
+  const [visitSearchOpen, setVisitSearchOpen] = useState(false);
+  const readOnlyVisit = !!closedVisit && !canEditClosed;
 
   // New-patient quick-create fields (same minimal set Quick Register uses)
   const [newPatient, setNewPatient] = useState({
@@ -196,6 +205,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setRegistrationId(null);
     setVisitNumber(null);
     setEditingOpenVisit(false);
+    setClosedVisit(null);
     setLegalFiles({});
     loadOpenVisit(patient);
   };
@@ -209,6 +219,12 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setRegistrationId(reg.id);
     setVisitNumber(reg.visit_number || null);
     setEditingOpenVisit(true);
+    setClosedVisit(reg.discharge_datetime ? reg : null);
+  };
+
+  const pickVisitFromSearch = (reg) => {
+    applyVisit(reg);
+    setVisitSearchOpen(false);
   };
 
   const loadOpenVisit = async (patient) => {
@@ -237,6 +253,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
     setRegistrationId(null);
     setVisitNumber(null);
     setEditingOpenVisit(false);
+    setClosedVisit(null);
   };
 
   // Loads a patient passed in from the right-pane patients table's Edit
@@ -676,22 +693,40 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
 
           {editingOpenVisit && (
             <Alert
-              severity="info"
+              severity={closedVisit ? "warning" : "info"}
               sx={{ mb: 2, alignItems: "flex-start", "& .MuiAlert-message": { flex: 1, minWidth: 0 } }}
             >
-              <Typography variant="body2" fontWeight={600}>
-                Editing the open visit{visitNumber ? ` ${visitNumber}` : ""}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Saving updates this visit.
-              </Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography variant="body2" fontWeight={600}>
+                    {closedVisit
+                      ? `${readOnlyVisit ? "Viewing" : "Editing"} the closed visit${visitNumber ? ` ${visitNumber}` : ""}`
+                      : `Editing the open visit${visitNumber ? ` ${visitNumber}` : ""}`}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {closedVisit
+                      ? readOnlyVisit
+                        ? "This visit is discharged. Only admins and registrars can change it."
+                        : "This visit is discharged. Saving updates this closed visit."
+                      : "Saving updates this visit."}
+                  </Typography>
+                </Box>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  sx={{ textTransform: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+                  onClick={() => setVisitSearchOpen(true)}
+                >
+                  Search for Visit
+                </Button>
+              </Stack>
               {openVisits.length > 1 && (
                 <FormControl size="small" fullWidth sx={{ mt: 1.5 }}>
                   <InputLabel id="open-visit-label">Open visits</InputLabel>
                   <MUISelect
                     labelId="open-visit-label"
                     label="Open visits"
-                    value={registrationId || ""}
+                    value={openVisits.some((v) => v.id === registrationId) ? registrationId : ""}
                     onChange={(e) => {
                       const pick = openVisits.find((v) => v.id === e.target.value);
                       if (pick) applyVisit(pick);
@@ -713,6 +748,28 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             </Alert>
           )}
 
+          {!editingOpenVisit && (
+            <Box sx={{ mb: 1.5 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                sx={{ textTransform: "none" }}
+                onClick={() => setVisitSearchOpen(true)}
+              >
+                Search for Visit
+              </Button>
+            </Box>
+          )}
+
+          <VisitSearchDialog
+            open={visitSearchOpen}
+            onClose={() => setVisitSearchOpen(false)}
+            patient={activePatient}
+            currentRegistrationId={registrationId}
+            canEditClosed={canEditClosed}
+            onSelect={pickVisitFromSearch}
+          />
+
           <Tabs
             value={activeSubTab}
             onChange={(e, v) => setActiveSubTab(v)}
@@ -725,7 +782,20 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             ))}
           </Tabs>
 
-          <Box sx={{ flex: 1, overflowY: "auto", pr: 1 }}>
+          <Box
+            component="fieldset"
+            disabled={readOnlyVisit}
+            sx={{
+              flex: 1,
+              overflowY: "auto",
+              pr: 1,
+              border: 0,
+              p: 0,
+              m: 0,
+              minWidth: 0,
+              ...(readOnlyVisit ? { pointerEvents: "none", opacity: 0.8 } : {}),
+            }}
+          >
             {activeSubTab === "identity" && (
               <Stack spacing={2}>
                 <TextField
@@ -1132,7 +1202,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               variant="contained"
               size="large"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || readOnlyVisit}
             >
               {saving ? "Saving..." : "Save Registration"}
             </Button>
