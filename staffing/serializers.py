@@ -130,6 +130,7 @@ class StaffShiftSerializer(UnitOrgValidationMixin, serializers.ModelSerializer):
         source="unit.name", read_only=True, allow_null=True, default=None
     )
     profession = serializers.CharField(source="staff.profession", read_only=True)
+    nursing_role = serializers.CharField(source="staff.nursing_role", read_only=True)
     shift_type_display = serializers.CharField(
         source="get_shift_type_display", read_only=True
     )
@@ -142,6 +143,7 @@ class StaffShiftSerializer(UnitOrgValidationMixin, serializers.ModelSerializer):
             "staff",
             "staff_name",
             "profession",
+            "nursing_role",
             "unit",
             "unit_name",
             "date",

@@ -44,6 +44,10 @@ const SHIFT_COLORS = {
 };
 
 // Shift types each unit pattern uses (mirrors the backend's hppd.SHIFT_PATTERNS).
+// Short label shown beside a name on the calendar (the role the coverage math uses).
+const ROLE_LABELS = { rn: "RN", lpn: "LPN", cna: "CNA", other: "Other" };
+const roleLabel = (shift) => ROLE_LABELS[shift.nursing_role] || "";
+
 const PATTERN_SHIFT_TYPES = {
   "8h": ["day", "evening", "night"],
   "12h": ["day", "night"],
@@ -60,6 +64,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [dayDialog, setDayDialog] = useState(null); // ISO date string
+  const [view, setView] = useState("month"); // month | week | day | agenda
   const [locDialog, setLocDialog] = useState(false);
   const [editShift, setEditShift] = useState(null); // {id, staff_name, date, shift_label, start_time, end_time, notes}
   const [editShiftError, setEditShiftError] = useState("");
@@ -228,6 +233,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
     return shifts.filter((shift) => {
       const hay = [
         shift.staff_name,
+        roleLabel(shift),
         shift.unit_name,
         shift.shift_type_display,
         shift.shift_type,
@@ -249,6 +255,8 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [search, filteredShifts.length, shifts.length]
   );
 
+  const stackedView = view === "week" || view === "day";
+
   const events = useMemo(
     () =>
       filteredShifts.map((shift) => {
@@ -263,16 +271,34 @@ function StaffingCalendarTab({ isAdmin = false }) {
         if (shift.start_time && shift.end_time && end <= start) {
           end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
         }
+        const role = roleLabel(shift) ? ` · ${roleLabel(shift)}` : "";
+        const kind = shift.shift_type_display || shift.shift_type;
+        // Week and day views: every shift is a full-width row stacked in the top
+        // band (name, role, hours) instead of narrow side-by-side tiles on the
+        // hour grid, so names and the edit/delete buttons always fit.
+        if (stackedView) {
+          const hhmm = (t) => moment(`2000-01-01T${t}`).format("h:mm A");
+          const hours = shift.start_time && shift.end_time ? ` · ${hhmm(shift.start_time)}–${hhmm(shift.end_time)}` : "";
+          const day = new Date(`${shift.date}T00:00:00`);
+          return {
+            id: shift.id,
+            title: `${shift.staff_name}${role}${hours} (${kind})`,
+            start: day,
+            end: day,
+            allDay: true,
+            resource: shift,
+          };
+        }
         return {
           id: shift.id,
-          title: `${shift.staff_name} (${shift.shift_type_display || shift.shift_type})`,
+          title: `${shift.staff_name}${role} (${kind})`,
           start,
           end,
           allDay: !shift.start_time,
           resource: shift,
         };
       }),
-    [filteredShifts]
+    [filteredShifts, stackedView]
   );
 
   const eventPropGetter = (event) => {
@@ -356,7 +382,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
   const ShiftEvent = useCallback(
     ({ event }) => (
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
-        <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <Box component="span" title={event.title} sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {event.title}
         </Box>
         {isAdmin && (
@@ -563,6 +589,8 @@ function StaffingCalendarTab({ isAdmin = false }) {
           startAccessor="start"
           endAccessor="end"
           style={{ height: "100%", cursor: "pointer" }}
+          view={view}
+          onView={setView}
           onRangeChange={handleRangeChange}
           selectable
           onSelectSlot={(slot) => setDayDialog(toISO(slot.start))}
