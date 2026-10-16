@@ -385,6 +385,17 @@
   font-weight: 600;
   overflow-wrap: anywhere;
 }
+.th-row-phone {
+  flex: 0 0 9.5rem;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.th-row-phone--none {
+  font-style: italic;
+  opacity: 0.8;
+}
 .th-row-status {
   flex: 0 1 12rem;
   display: flex;
@@ -537,6 +548,10 @@
     align-items: flex-end;
   }
   .th-row-patient {
+    order: 3;
+    flex-basis: 100%;
+  }
+  .th-row-phone {
     order: 3;
     flex-basis: 100%;
   }
