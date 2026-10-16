@@ -69,6 +69,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
   const headers = getAuthHeaders(token);
 
   const [units, setUnits] = useState([]);
+  const [location, setLocation] = useState(null); // clinic state + the staffing rule in force
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(null);
 
@@ -96,6 +97,18 @@ function StaffingUnitsTab({ isAdmin = false }) {
   const fetchUnits = useCallback(async () => {
     const res = await axios.get(apiEndpoints.staffingUnits, { headers });
     setUnits(listOf(res));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // The clinic's state decides the rule (hours per resident per day).
+  // Failing to load it only blanks the coverage-hours column.
+  const fetchLocation = useCallback(async () => {
+    try {
+      const res = await axios.get(apiEndpoints.staffingLocation, { headers });
+      setLocation(res.data);
+    } catch (err) {
+      setLocation(null);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -129,14 +142,14 @@ function StaffingUnitsTab({ isAdmin = false }) {
     (async () => {
       setLoading(true);
       try {
-        await Promise.all([fetchUnits(), fetchCensus(), fetchHistory()]);
+        await Promise.all([fetchUnits(), fetchCensus(), fetchHistory(), fetchLocation()]);
       } catch (err) {
         setStatus({ ok: false, message: errText(err, "Failed to load units.") });
       } finally {
         setLoading(false);
       }
     })();
-  }, [fetchUnits, fetchCensus, fetchHistory]);
+  }, [fetchUnits, fetchCensus, fetchHistory, fetchLocation]);
 
   const activeUnits = units.filter((u) => u.is_active);
   const dirty = activeUnits.filter(
@@ -198,13 +211,25 @@ function StaffingUnitsTab({ isAdmin = false }) {
   const shiftLabel = (unit) =>
     unit ? (unit.shift_pattern === "12h" ? "12 hour" : "8 hour") : "";
 
+  // Coverage nursing hours = census x the state rule's hours per resident per day
+  // (Maryland: 3.0). Null when the clinic's state has no active rule.
+  const hoursPerResident = location?.rule?.hppd_min ?? null;
+  const coverageHours = (n) =>
+    hoursPerResident == null || n == null || Number.isNaN(Number(n))
+      ? null
+      : Math.round(Number(n) * Number(hoursPerResident) * 100) / 100;
+  const fmtHours = (h) => (h == null ? "—" : Number.isInteger(h) ? String(h) : h.toFixed(2));
+  const noRuleTip = location
+    ? `No staffing rule is configured for ${location.state || "this clinic's state"}.`
+    : "Clinic state rule not loaded.";
+
   const censusFiltersActive =
     censusSearch.trim() !== "" || censusUnitFilter !== "all" || censusShiftFilter !== "all";
 
-  // With no search or filter the table shows the last 20 entries, as before.
-  // Searching covers every entry on file and pages through the matches.
+  // Every entry on file is reachable with the arrows at the top right of the table;
+  // search and filters narrow the list first.
   const censusMatches = useMemo(() => {
-    if (!censusFiltersActive) return history.slice(0, PAGE_LIMIT);
+    if (!censusFiltersActive) return history;
     const terms = censusSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);
     return history.filter((h) => {
       const unit = units.find((u) => u.id === h.unit);
@@ -228,10 +253,11 @@ function StaffingUnitsTab({ isAdmin = false }) {
   }, [history, units, censusSearch, censusUnitFilter, censusShiftFilter, censusFiltersActive]);
 
   const censusLastPage = Math.max(0, Math.ceil(censusMatches.length / PAGE_LIMIT) - 1);
-  const censusSafePage = censusFiltersActive ? Math.min(censusPage, censusLastPage) : 0;
-  const censusRows = censusFiltersActive
-    ? censusMatches.slice(censusSafePage * PAGE_LIMIT, censusSafePage * PAGE_LIMIT + PAGE_LIMIT)
-    : censusMatches;
+  const censusSafePage = Math.min(censusPage, censusLastPage);
+  const censusRows = censusMatches.slice(
+    censusSafePage * PAGE_LIMIT,
+    censusSafePage * PAGE_LIMIT + PAGE_LIMIT
+  );
 
   const closeDialogs = () => {
     setEditCensus(null);
@@ -452,16 +478,35 @@ function StaffingUnitsTab({ isAdmin = false }) {
           </Box>
 
           <Box sx={{ minWidth: 0, overflowX: "auto" }}>
-          <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
-            Census
-            <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-              {censusFiltersActive
-                ? `showing ${censusMatches.length} of ${history.length}`
-                : `last ${Math.min(PAGE_LIMIT, history.length)}${
-                    history.length > PAGE_LIMIT ? ` of ${history.length}` : ""
-                  }`}
+          <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{ mb: 0.5, flexWrap: "wrap" }}
+          >
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Census
+              <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                {censusFiltersActive
+                  ? `showing ${censusMatches.length} of ${history.length}`
+                  : `${history.length} entr${history.length === 1 ? "y" : "ies"}`}
+                {hoursPerResident != null
+                  ? ` · ${location.state_name || location.state || "State"} rule: ${hoursPerResident} nursing hrs/resident/day`
+                  : ""}
+              </Typography>
             </Typography>
-          </Typography>
+            {censusMatches.length > PAGE_LIMIT && (
+              <TablePagination
+                component="div"
+                count={censusMatches.length}
+                page={censusSafePage}
+                onPageChange={(e, p) => setCensusPage(p)}
+                rowsPerPage={PAGE_LIMIT}
+                rowsPerPageOptions={[]}
+                sx={{ ml: "auto", borderBottom: 0 }}
+              />
+            )}
+          </Stack>
           <Stack
             direction="row"
             spacing={1.5}
@@ -533,6 +578,19 @@ function StaffingUnitsTab({ isAdmin = false }) {
                 <TableCell>Shift</TableCell>
                 <TableCell>Date</TableCell>
                 <TableCell>Census</TableCell>
+                <TableCell>
+                  <Tooltip
+                    title={
+                      hoursPerResident != null
+                        ? `Census x ${hoursPerResident} nursing hours per resident per day (${
+                            location.state_name || location.state
+                          } rule)`
+                        : noRuleTip
+                    }
+                  >
+                    <span>Coverage nursing hours</span>
+                  </Tooltip>
+                </TableCell>
                 <TableCell>Most recent entry</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -540,7 +598,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
             <TableBody>
               {censusRows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={7}>
                     <Typography variant="body2" color="text.secondary">
                       {history.length === 0
                         ? "No census entries yet."
@@ -559,6 +617,15 @@ function StaffingUnitsTab({ isAdmin = false }) {
                     </TableCell>
                     <TableCell>{h.date}</TableCell>
                     <TableCell>{h.census}</TableCell>
+                    <TableCell>
+                      {hoursPerResident == null ? (
+                        <Tooltip title={noRuleTip}>
+                          <span>—</span>
+                        </Tooltip>
+                      ) : (
+                        fmtHours(coverageHours(h.census))
+                      )}
+                    </TableCell>
                     <TableCell>
                       {fmtStamp(h.updated_at || h.created_at)}
                       {h.entered_by_name ? ` · ${h.entered_by_name}` : ""}
@@ -587,16 +654,6 @@ function StaffingUnitsTab({ isAdmin = false }) {
               })}
             </TableBody>
           </Table>
-          {censusFiltersActive && censusMatches.length > PAGE_LIMIT && (
-            <TablePagination
-              component="div"
-              count={censusMatches.length}
-              page={censusSafePage}
-              onPageChange={(e, p) => setCensusPage(p)}
-              rowsPerPage={PAGE_LIMIT}
-              rowsPerPageOptions={[]}
-            />
-          )}
           </Box>
         </Box>
       )}
