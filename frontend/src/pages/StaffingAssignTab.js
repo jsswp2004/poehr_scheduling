@@ -61,7 +61,7 @@ const DAY_NAMES = {
   sun: "sunday",
 };
 
-const ROWS_PER_PAGE = 20;
+const ROWS_PER_PAGE = 14;
 
 const daysHaystack = (codes) =>
   (codes || []).map((c) => `${c} ${DAY_NAMES[c] || ""}`).join(" ");
@@ -699,6 +699,17 @@ function StaffingAssignTab() {
             Clear
           </Button>
         )}
+        {!loading && filteredPatterns.length > ROWS_PER_PAGE && (
+          <TablePagination
+            component="div"
+            count={filteredPatterns.length}
+            page={patPageSafe}
+            onPageChange={(e, p) => setPatPage(p)}
+            rowsPerPage={ROWS_PER_PAGE}
+            rowsPerPageOptions={[]}
+            sx={{ ml: "auto", borderBottom: 0 }}
+          />
+        )}
       </Stack>
       {!loading && (
         <Box sx={{ overflowX: "auto" }}>
@@ -749,16 +760,6 @@ function StaffingAssignTab() {
           </TableBody>
         </Table>
         </Box>
-      )}
-      {!loading && filteredPatterns.length > ROWS_PER_PAGE && (
-        <TablePagination
-          component="div"
-          count={filteredPatterns.length}
-          page={patPageSafe}
-          onPageChange={(e, p) => setPatPage(p)}
-          rowsPerPage={ROWS_PER_PAGE}
-          rowsPerPageOptions={[ROWS_PER_PAGE]}
-        />
       )}
       </Box>
       </Box>
@@ -1151,6 +1152,17 @@ function StaffingAssignTab() {
             Clear
           </Button>
         )}
+        {!loading && filteredCoverage.length > ROWS_PER_PAGE && (
+          <TablePagination
+            component="div"
+            count={filteredCoverage.length}
+            page={covPageSafe}
+            onPageChange={(e, p) => setCovPage(p)}
+            rowsPerPage={ROWS_PER_PAGE}
+            rowsPerPageOptions={[]}
+            sx={{ ml: "auto", borderBottom: 0 }}
+          />
+        )}
       </Stack>
 
       {!loading && (
@@ -1203,16 +1215,6 @@ function StaffingAssignTab() {
           </TableBody>
         </Table>
         </Box>
-      )}
-      {!loading && filteredCoverage.length > ROWS_PER_PAGE && (
-        <TablePagination
-          component="div"
-          count={filteredCoverage.length}
-          page={covPageSafe}
-          onPageChange={(e, p) => setCovPage(p)}
-          rowsPerPage={ROWS_PER_PAGE}
-          rowsPerPageOptions={[ROWS_PER_PAGE]}
-        />
       )}
       </Box>
       </Box>
