@@ -105,6 +105,18 @@ class RegistrationViewSet(viewsets.ModelViewSet):
             )
         serializer.save()
 
+    def perform_update(self, serializer):
+        # A visit that has been closed (discharged) can only be changed by admins and registrars.
+        if serializer.instance.discharge_datetime is not None and self.request.user.role not in [
+            "admin",
+            "registrar",
+            "system_admin",
+        ]:
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("Only admins and registrars can edit a closed visit.")
+        serializer.save()
+
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     queryset = Organization.objects.all()
@@ -889,6 +901,13 @@ def get_patients(request):
                 | Q(user__provider__first_name__icontains=search)
                 | Q(user__provider__last_name__icontains=search)
             )
+
+        # Optional exact date-of-birth filter (?dob=YYYY-MM-DD), used by the Documentation assistant's patient search.
+        from django.utils.dateparse import parse_date as _parse_dob
+
+        dob = _parse_dob(request.GET.get("dob") or "")
+        if dob:
+            patients = patients.filter(date_of_birth=dob)
 
         if provider_id:
             logger.info(f"🔍 Applying provider filter: {provider_id}")

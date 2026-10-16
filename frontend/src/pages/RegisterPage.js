@@ -582,6 +582,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
                 doctors={doctors}
                 initialPatient={editRequest?.patient}
                 initialPatientNonce={editRequest?.nonce}
+                userRole={userRole}
               />
             </Box>
           )}
