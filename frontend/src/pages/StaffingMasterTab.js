@@ -1,0 +1,607 @@
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Autocomplete,
+  Box,
+  Button,
+  Checkbox,
+  CircularProgress,
+  FormControlLabel,
+  IconButton,
+  MenuItem,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+import axios from "axios";
+import { apiEndpoints, getAuthHeaders } from "../config/api";
+import { getAccessToken } from "../utils/tokenManager";
+import {
+  DAY_LETTERS,
+  MONTH_NAMES,
+  WEEKDAY_OPTIONS,
+  gridDays,
+} from "../utils/masterSchedule";
+
+const NAME_W = 200;
+const HP_W = 72;
+const STATUS_W = 80;
+const DAY_W = 46;
+const HEAD_BG = "#f5f5f5";
+
+const headers = () => getAuthHeaders(getAccessToken());
+const errText = (err, fallback) =>
+  err?.response?.data?.error || err?.response?.data?.detail || err?.message || fallback;
+
+// One day cell: a plain <select> keeps a month of cells fast.
+const CodeSelect = memo(function CodeSelect({ value, codes, color, disabled, onChange }) {
+  return (
+    <select
+      value={value || ""}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="Shift code"
+      style={{
+        width: "100%",
+        height: 26,
+        border: "none",
+        outline: "none",
+        textAlign: "center",
+        textAlignLast: "center",
+        fontSize: 12,
+        fontWeight: 600,
+        background: "transparent",
+        cursor: disabled ? "default" : "pointer",
+        appearance: "none",
+        WebkitAppearance: "none",
+        padding: 0,
+        color: "inherit",
+      }}
+    >
+      <option value="" />
+      {codes.map((c) => (
+        <option key={c} value={c}>
+          {c}
+        </option>
+      ))}
+    </select>
+  );
+});
+
+const LabelBox = ({ options, value, disabled, width, label, onCommit }) => (
+  <Autocomplete
+    freeSolo
+    autoSelect
+    size="small"
+    disabled={disabled}
+    options={options}
+    value={value || ""}
+    onChange={(e, v) => onCommit(typeof v === "string" ? v.trim() : "")}
+    slotProps={{ paper: { sx: { minWidth: width + 40 } } }}
+    sx={{ width }}
+    renderInput={(params) => (
+      <TextField
+        {...params}
+        variant="standard"
+        placeholder={label}
+        slotProps={{
+          htmlInput: { ...params.inputProps, "aria-label": label, maxLength: 20, style: { fontSize: 12, textAlign: "center" } },
+        }}
+      />
+    )}
+  />
+);
+
+const RowView = memo(function RowView({
+  row,
+  days,
+  cells,
+  codes,
+  staffOptions,
+  hpValues,
+  statusValues,
+  isAdmin,
+  onPatchRow,
+  onDeleteRow,
+  onSetCell,
+}) {
+  const current = useMemo(
+    () => staffOptions.find((s) => s.id === row.staff_id) || null,
+    [staffOptions, row.staff_id]
+  );
+  return (
+    <tr>
+      <td style={{ ...stickyCell(0, NAME_W), padding: "0 4px" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Autocomplete
+            size="small"
+            disabled={!isAdmin}
+            options={staffOptions}
+            value={current}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            getOptionLabel={(o) => o.name || ""}
+            onChange={(e, v) => onPatchRow(row.id, { staff: v ? v.id : null })}
+            noOptionsText="No one left on the roster"
+            sx={{ flex: 1, minWidth: 0 }}
+            renderOption={(props, o) => {
+              const { key, ...rest } = props;
+              return (
+                <li key={key} {...rest}>
+                  <Box>
+                    <Typography variant="body2">{o.name}</Typography>
+                    <Typography variant="caption" color="text.secondary">{o.profession}</Typography>
+                  </Box>
+                </li>
+              );
+            }}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                variant="standard"
+                placeholder="Select staff…"
+                slotProps={{ htmlInput: { ...params.inputProps, "aria-label": "Staff name", style: { fontSize: 13 } } }}
+              />
+            )}
+          />
+          {isAdmin && (
+            <Tooltip title="Remove this row">
+              <IconButton size="small" aria-label="Remove row" onClick={() => onDeleteRow(row)}>
+                <FontAwesomeIcon icon={faTrash} style={{ fontSize: 11 }} />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Box>
+      </td>
+      <td style={{ ...stickyCell(NAME_W, HP_W), padding: "0 2px" }}>
+        <LabelBox
+          label="HP"
+          width={HP_W - 4}
+          options={hpValues}
+          value={row.hp}
+          disabled={!isAdmin}
+          onCommit={(v) => v !== (row.hp || "") && onPatchRow(row.id, { hp: v })}
+        />
+      </td>
+      <td style={{ ...stickyCell(NAME_W + HP_W, STATUS_W), padding: "0 2px" }}>
+        <LabelBox
+          label="Status"
+          width={STATUS_W - 4}
+          options={statusValues}
+          value={row.status}
+          disabled={!isAdmin}
+          onCommit={(v) => v !== (row.status || "") && onPatchRow(row.id, { status: v })}
+        />
+      </td>
+      {days.map((d) => (
+        <td
+          key={d.iso}
+          style={{
+            width: DAY_W,
+            minWidth: DAY_W,
+            padding: 0,
+            border: "1px solid #e0e0e0",
+            background: d.color || "#fff",
+            opacity: d.inMonth ? 1 : 0.7,
+          }}
+        >
+          <CodeSelect
+            value={cells?.[d.iso]}
+            codes={codes}
+            disabled={!isAdmin}
+            onChange={(code) => onSetCell(row.id, d.iso, code)}
+          />
+        </td>
+      ))}
+    </tr>
+  );
+});
+
+function stickyCell(left, width) {
+  return {
+    position: "sticky",
+    left,
+    width,
+    minWidth: width,
+    maxWidth: width,
+    background: "#fff",
+    zIndex: 1,
+    border: "1px solid #e0e0e0",
+  };
+}
+
+function StaffingMasterTab({ isAdmin }) {
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth());
+  const [data, setData] = useState(null);
+  const [cells, setCells] = useState({});
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [newSection, setNewSection] = useState({ open: false, name: "", sub: false });
+
+  const weekStart = data?.settings?.week_start ?? 3;
+  const days = useMemo(() => gridDays(year, month, weekStart), [year, month, weekStart]);
+  const rangeStart = days[0].iso;
+  const rangeEnd = days[days.length - 1].iso;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axios.get(apiEndpoints.staffingMasterSchedule, {
+        headers: headers(),
+        params: { start: rangeStart, end: rangeEnd },
+      });
+      setData(res.data);
+      setCells(res.data.cells || {});
+    } catch (err) {
+      setError(errText(err, "Could not load the master schedule."));
+    } finally {
+      setLoading(false);
+    }
+  }, [rangeStart, rangeEnd]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const mutateRow = useCallback((rowId, fn) => {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            sections: prev.sections.map((s) =>
+              s.rows.some((r) => r.id === rowId)
+                ? { ...s, rows: s.rows.map((r) => (r.id === rowId ? fn(r) : r)) }
+                : s
+            ),
+          }
+        : prev
+    );
+  }, []);
+
+  const patchRow = useCallback(
+    async (rowId, body) => {
+      setError("");
+      try {
+        const res = await axios.patch(apiEndpoints.staffingMasterScheduleRow(rowId), body, { headers: headers() });
+        mutateRow(rowId, () => res.data);
+        // a brand-new HP / Status value joins the dropdown for every row
+        setData((prev) => {
+          if (!prev) return prev;
+          const s = prev.settings;
+          const add = (list, v) => (v && !list.includes(v) ? [...list, v] : list);
+          return {
+            ...prev,
+            settings: { ...s, hp_values: add(s.hp_values, res.data.hp), status_values: add(s.status_values, res.data.status) },
+          };
+        });
+      } catch (err) {
+        setError(errText(err, "Could not save that change."));
+        load();
+      }
+    },
+    [mutateRow, load]
+  );
+
+  // Reads the old value from a ref so this callback stays the same between edits
+  // (otherwise every row would re-render each time one cell changes).
+  const setCell = useCallback(
+    async (rowId, iso, code) => {
+      const before = cellsRef.current[rowId]?.[iso] || "";
+      const apply = (v) =>
+        setCells((prev) => {
+          const rowCells = { ...(prev[rowId] || {}) };
+          if (v) rowCells[iso] = v;
+          else delete rowCells[iso];
+          return { ...prev, [rowId]: rowCells };
+        });
+      apply(code);
+      try {
+        await axios.put(apiEndpoints.staffingMasterScheduleCells, { row: rowId, date: iso, code }, { headers: headers() });
+      } catch (err) {
+        apply(before);
+        setError(errText(err, "Could not save that cell."));
+      }
+    },
+    []
+  );
+
+  const addRow = async (sectionId) => {
+    setError("");
+    try {
+      const res = await axios.post(apiEndpoints.staffingMasterScheduleRows, { section: sectionId }, { headers: headers() });
+      setData((prev) => ({
+        ...prev,
+        sections: prev.sections.map((s) => (s.id === sectionId ? { ...s, rows: [...s.rows, res.data] } : s)),
+      }));
+    } catch (err) {
+      setError(errText(err, "Could not add a row."));
+    }
+  };
+
+  const deleteRow = useCallback(async (row) => {
+    const who = row.staff_name || "this blank row";
+    if (!window.confirm(`Remove ${who} and all of their entries from the master schedule?`)) return;
+    try {
+      await axios.delete(apiEndpoints.staffingMasterScheduleRow(row.id), { headers: headers() });
+      setData((prev) => ({
+        ...prev,
+        sections: prev.sections.map((s) => ({ ...s, rows: s.rows.filter((r) => r.id !== row.id) })),
+      }));
+    } catch (err) {
+      setError(errText(err, "Could not remove that row."));
+    }
+  }, []);
+
+  const changeWeekStart = async (value) => {
+    setError("");
+    try {
+      const res = await axios.patch(apiEndpoints.staffingMasterScheduleSettings, { week_start: value }, { headers: headers() });
+      setData((prev) => ({ ...prev, settings: { ...prev.settings, ...res.data } }));
+    } catch (err) {
+      setError(errText(err, "Could not change the start of the work week."));
+    }
+  };
+
+  const createSection = async () => {
+    const name = newSection.name.trim();
+    if (!name) return;
+    try {
+      const res = await axios.post(
+        apiEndpoints.staffingMasterScheduleSections,
+        { name, level: newSection.sub ? 1 : 0 },
+        { headers: headers() }
+      );
+      setData((prev) => ({ ...prev, sections: [...prev.sections, res.data] }));
+      setNewSection({ open: false, name: "", sub: false });
+    } catch (err) {
+      setError(errText(err, "Could not add the section."));
+    }
+  };
+
+  // People already on the sheet are removed from the dropdown so no one lands on two rows.
+  const usedIds = useMemo(() => {
+    const ids = new Set();
+    (data?.sections || []).forEach((s) => s.rows.forEach((r) => r.staff_id && ids.add(r.staff_id)));
+    return ids;
+  }, [data]);
+  const freeStaff = useMemo(() => (data?.staff || []).filter((s) => !usedIds.has(s.id)), [data, usedIds]);
+  const allStaff = data?.staff || [];
+
+  const years = useMemo(() => {
+    const y = today.getFullYear();
+    return [y - 2, y - 1, y, y + 1, y + 2, y + 3];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const colSpan = 3 + days.length;
+
+  return (
+    <Box>
+      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+        <TextField select size="small" label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))} sx={{ minWidth: 150 }}>
+          {MONTH_NAMES.map((m, i) => (
+            <MenuItem key={m} value={i}>{m}</MenuItem>
+          ))}
+        </TextField>
+        <TextField select size="small" label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))} sx={{ minWidth: 100 }}>
+          {(years.includes(year) ? years : [...years, year].sort()).map((y) => (
+            <MenuItem key={y} value={y}>{y}</MenuItem>
+          ))}
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Work week starts"
+          value={weekStart}
+          disabled={!isAdmin || !data}
+          onChange={(e) => changeWeekStart(Number(e.target.value))}
+          sx={{ minWidth: 170 }}
+        >
+          {WEEKDAY_OPTIONS.map((o) => (
+            <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
+          ))}
+        </TextField>
+        {isAdmin && (
+          <Button size="small" variant="outlined" onClick={() => setNewSection((s) => ({ ...s, open: !s.open }))}>
+            Add section
+          </Button>
+        )}
+        {loading && <CircularProgress size={20} />}
+        {!isAdmin && <Typography variant="caption" color="text.secondary">View only — admins can edit.</Typography>}
+      </Stack>
+
+      {newSection.open && isAdmin && (
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+          <TextField
+            size="small"
+            label="New section name"
+            value={newSection.name}
+            onChange={(e) => setNewSection((s) => ({ ...s, name: e.target.value }))}
+            onKeyDown={(e) => e.key === "Enter" && createSection()}
+            slotProps={{ htmlInput: { maxLength: 100 } }}
+          />
+          <FormControlLabel
+            control={<Checkbox size="small" checked={newSection.sub} onChange={(e) => setNewSection((s) => ({ ...s, sub: e.target.checked }))} />}
+            label="Sub-heading (like Unit 2)"
+          />
+          <Button size="small" variant="contained" onClick={createSection} disabled={!newSection.name.trim()}>
+            Add
+          </Button>
+        </Stack>
+      )}
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError("")}>
+          {error}
+        </Alert>
+      )}
+
+      {data && (
+        <Box sx={{ overflow: "auto", maxHeight: "calc(100vh - 290px)", border: "1px solid #e0e0e0", borderRadius: 1 }}>
+          <table
+            style={{
+              borderCollapse: "separate",
+              borderSpacing: 0,
+              tableLayout: "fixed",
+              fontSize: 13,
+              width: NAME_W + HP_W + STATUS_W + days.length * DAY_W,
+            }}
+          >
+            <thead>
+              <tr>
+                <th style={{ ...headCell(0, NAME_W), textAlign: "left", paddingLeft: 8 }}>STAFF</th>
+                <th style={headCell(NAME_W, HP_W)}>HP</th>
+                <th style={headCell(NAME_W + HP_W, STATUS_W)}>Status</th>
+                {days.map((d) => (
+                  <th
+                    key={d.iso}
+                    title={d.iso}
+                    style={{
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 2,
+                      width: DAY_W,
+                      minWidth: DAY_W,
+                      background: d.color || HEAD_BG,
+                      border: "1px solid #e0e0e0",
+                      lineHeight: 1.1,
+                      padding: "3px 0",
+                      opacity: d.inMonth ? 1 : 0.7,
+                    }}
+                  >
+                    <div>{DAY_LETTERS[d.dow]}</div>
+                    <div style={{ fontSize: 10, fontWeight: 400 }}>{d.inMonth ? d.day : `${d.day}*`}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.sections.map((section) => (
+                <SectionBlock
+                  key={section.id}
+                  section={section}
+                  colSpan={colSpan}
+                  days={days}
+                  cells={cells}
+                  codes={data.codes}
+                  freeStaff={freeStaff}
+                  allStaff={allStaff}
+                  hpValues={data.settings.hp_values}
+                  statusValues={data.settings.status_values}
+                  isAdmin={isAdmin}
+                  onAddRow={addRow}
+                  onPatchRow={patchRow}
+                  onDeleteRow={deleteRow}
+                  onSetCell={setCell}
+                />
+              ))}
+            </tbody>
+          </table>
+        </Box>
+      )}
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.75 }}>
+        * dates outside {MONTH_NAMES[month]} that complete the first and last work week. Changes save as you make them.
+      </Typography>
+    </Box>
+  );
+}
+
+function headCell(left, width) {
+  return {
+    position: "sticky",
+    top: 0,
+    left,
+    zIndex: 3,
+    width,
+    minWidth: width,
+    maxWidth: width,
+    background: HEAD_BG,
+    border: "1px solid #e0e0e0",
+    padding: "4px 2px",
+  };
+}
+
+const SectionBlock = memo(function SectionBlock({
+  section,
+  colSpan,
+  days,
+  cells,
+  codes,
+  freeStaff,
+  allStaff,
+  hpValues,
+  statusValues,
+  isAdmin,
+  onAddRow,
+  onPatchRow,
+  onDeleteRow,
+  onSetCell,
+}) {
+  return (
+    <>
+      <tr>
+        <td
+          colSpan={colSpan}
+          style={{
+            background: "#eceff1",
+            border: "1px solid #e0e0e0",
+            padding: "3px 8px",
+            fontWeight: 700,
+            paddingLeft: section.level ? 22 : 8,
+            position: "sticky",
+            left: 0,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, position: "sticky", left: 8, width: "fit-content" }}>
+            <span style={{ fontSize: section.level ? 12 : 13 }}>{section.name}</span>
+            {isAdmin && (
+              <Button
+                size="small"
+                sx={{ minWidth: 0, py: 0, px: 0.75, fontSize: 11, textTransform: "none" }}
+                startIcon={<FontAwesomeIcon icon={faPlus} style={{ fontSize: 10 }} />}
+                onClick={() => onAddRow(section.id)}
+              >
+                Add row
+              </Button>
+            )}
+          </Box>
+        </td>
+      </tr>
+      {section.rows.map((row) => (
+        <RowOptions
+          key={row.id}
+          row={row}
+          days={days}
+          cells={cells[row.id]}
+          codes={codes}
+          freeStaff={freeStaff}
+          allStaff={allStaff}
+          hpValues={hpValues}
+          statusValues={statusValues}
+          isAdmin={isAdmin}
+          onPatchRow={onPatchRow}
+          onDeleteRow={onDeleteRow}
+          onSetCell={onSetCell}
+        />
+      ))}
+    </>
+  );
+});
+
+// A row's dropdown is the free roster plus the person already in that row.
+const RowOptions = memo(function RowOptions({ row, freeStaff, allStaff, ...rest }) {
+  const staffOptions = useMemo(() => {
+    const own = row.staff_id ? allStaff.find((s) => s.id === row.staff_id) : null;
+    return own ? [own, ...freeStaff] : freeStaff;
+  }, [row.staff_id, freeStaff, allStaff]);
+  return <RowView row={row} staffOptions={staffOptions} {...rest} />;
+});
+
+export default StaffingMasterTab;
