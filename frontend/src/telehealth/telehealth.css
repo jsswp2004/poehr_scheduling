@@ -230,11 +230,13 @@
 }
 
 /* ---------- staff shell ---------- */
+/* Same frame as the Dashboard: full width, 12px outside, one white rounded panel. */
 .th-app {
-  max-width: 100rem;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem 3rem;
-  background: transparent;
+  max-width: none;
+  margin: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--panel);
 }
 .th-header {
   margin-bottom: 1rem;
