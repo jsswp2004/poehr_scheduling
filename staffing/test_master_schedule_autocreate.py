@@ -6,7 +6,7 @@ import datetime
 from rest_framework.test import APIClient
 
 from .master_schedule_autogen import MASTER_NOTE
-from .models import MasterScheduleCell, MasterScheduleRow, Staff, StaffShift
+from .models import MasterScheduleCell, MasterScheduleRow, MasterScheduleSection, Staff, StaffShift, Unit
 from .test_master_schedule import BASE, MasterScheduleBase, client_for
 
 URL = f"{BASE}/create-schedule/"
@@ -127,3 +127,53 @@ class CreateScheduleTests(MasterScheduleBase):
         from .models import MasterScheduleSection
         ensure_default_sections(self.other)
         return MasterScheduleSection.objects.filter(organization=self.other).first()
+
+
+class CreateScheduleUnitTests(MasterScheduleBase):
+    """Shifts land on the care unit named by the person's Master Schedule sub-heading."""
+
+    def _row_under(self, section_name, first):
+        self._load()
+        staff = Staff.objects.create(
+            organization=self.org, first_name=first, last_name="T", profession="GNA")
+        section = MasterScheduleSection.objects.filter(
+            organization=self.org, name=section_name).order_by("sort_order").first()
+        row = MasterScheduleRow.objects.create(organization=self.org, section=section, staff=staff)
+        MasterScheduleCell.objects.create(row=row, date=D(2026, 10, 5), code="7")
+        return staff
+
+    def _run(self, **body):
+        return client_for(self.admin).post(URL, {"month": "2026-10", **body}, format="json")
+
+    def test_shift_goes_to_the_unit_named_by_the_section(self):
+        unit2 = Unit.objects.create(organization=self.org, name="Unit 2")
+        unit3 = Unit.objects.create(organization=self.org, name="3")  # 'Unit' prefix is optional
+        a = self._row_under("Unit 2", "Ann")
+        b = self._row_under("Unit 3", "Bea")
+        c = self._row_under("7-3 GNA", "Cy")  # not a unit section
+        r = self._run().json()
+        self.assertEqual(r["created"], 3)
+        self.assertEqual(r["unmatched_units"], [])
+        self.assertEqual(StaffShift.objects.get(staff=a).unit, unit2)
+        self.assertEqual(StaffShift.objects.get(staff=b).unit, unit3)
+        self.assertIsNone(StaffShift.objects.get(staff=c).unit)
+
+    def test_unit_with_spaces_and_case_and_other_orgs_units_ignored(self):
+        mine = Unit.objects.create(organization=self.org, name="unit 1a / 1b")
+        Unit.objects.create(organization=self.other, name="Unit 2")
+        staff = self._row_under("Unit 1A/1B", "Dee")
+        other_staff = self._row_under("Unit 2", "Eve")
+        r = self._run().json()
+        self.assertEqual(StaffShift.objects.get(staff=staff).unit, mine)
+        self.assertIsNone(StaffShift.objects.get(staff=other_staff).unit)  # only the other org has Unit 2
+        self.assertEqual(r["unmatched_units"], ["Unit 2"])
+
+    def test_overwrite_moves_earlier_unit_less_shifts_onto_their_unit(self):
+        staff = self._row_under("Unit 4", "Fay")
+        self._run()
+        self.assertIsNone(StaffShift.objects.get(staff=staff).unit)
+        unit4 = Unit.objects.create(organization=self.org, name="Unit 4")
+        self.assertEqual(self._run().json()["updated"], 0)  # plain re-run leaves it alone
+        self.assertEqual(self._run(overwrite=True).json()["updated"], 1)
+        self.assertEqual(StaffShift.objects.get(staff=staff).unit, unit4)
+        self.assertEqual(StaffShift.objects.filter(staff=staff).count(), 1)
