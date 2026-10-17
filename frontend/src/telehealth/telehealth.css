@@ -230,11 +230,13 @@
 }
 
 /* ---------- staff shell ---------- */
+/* Same frame as the Dashboard: full width, 12px outside, one white rounded panel. */
 .th-app {
-  max-width: 75rem;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem 3rem;
-  background: transparent;
+  max-width: none;
+  margin: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--panel);
 }
 .th-header {
   margin-bottom: 1rem;
@@ -407,8 +409,25 @@
   flex: 1 1 auto;
   display: flex;
   flex-wrap: wrap;
+  white-space: nowrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+/* On wide screens keep each visit on a single line. */
+@media (min-width: 64rem) {
+  .th-row {
+    flex-wrap: nowrap;
+  }
+  .th-row-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+  .th-row-patient {
+    overflow-wrap: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 .th-timer {
   font-size: 1.1rem;
