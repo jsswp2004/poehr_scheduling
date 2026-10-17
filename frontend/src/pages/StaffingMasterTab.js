@@ -439,13 +439,16 @@ function StaffingMasterTab({ isAdmin }) {
         { month: target, overwrite: auto.overwrite },
         { headers: headers() }
       );
-      const { created, already_scheduled: already, updated, removed, people, blank_rows_skipped: blank } = res.data;
+      const { created, already_scheduled: already, updated, removed, people, blank_rows_skipped: blank, unmatched_units: noUnit = [] } = res.data;
       setNotice(
         `${name} calendar schedule: ${created} ${created === 1 ? "shift" : "shifts"} created for ${people} ${people === 1 ? "person" : "people"}` +
           (already ? `, ${already} already on the calendar` : "") +
           (updated ? `, ${updated} updated` : "") +
           (removed ? `, ${removed} removed` : "") +
-          (blank ? `. ${blank} blank ${blank === 1 ? "row was" : "rows were"} skipped (pick a person first).` : ".")
+          (blank ? `. ${blank} blank ${blank === 1 ? "row was" : "rows were"} skipped (pick a person first).` : ".") +
+          (noUnit.length
+            ? ` No care unit named like ${noUnit.join(", ")} was found, so those shifts have no unit; add the unit on Units & Census and run this again with the update box checked.`
+            : "")
       );
       setAuto((a) => ({ ...a, open: false, busy: false }));
       load();
@@ -690,7 +693,7 @@ function StaffingMasterTab({ isAdmin }) {
             {auto.busy ? "Creating…" : "Create"}
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ flexBasis: "100%" }}>
-            Every code in a person's row becomes a shift on the Calendar tab for that date: 7 = 7a–3p, 7A = 7a–7p, 7P / 7p = 7p–7a, 3 = 3p–11p, 11 = 11p–7a, and "3 11" = both the 3–11 and the 11–7 shift. R and x are days off and create nothing. Blank rows (no person) are skipped. Only dates inside {MONTH_NAMES[month]} are used, and running it again never duplicates a shift.
+            Every code in a person's row becomes a shift on the Calendar tab for that date: 7 = 7a–3p, 7A = 7a–7p, 7P / 7p = 7p–7a, 3 = 3p–11p, 11 = 11p–7a, and "3 11" = both the 3–11 and the 11–7 shift. R and x are days off and create nothing. People under a unit sub-heading (Unit 2, Unit 3, Unit 1A/1B…) are put on the care unit with that name; everyone else has no unit. Blank rows (no person) are skipped. Only dates inside {MONTH_NAMES[month]} are used, and running it again never duplicates a shift.
           </Typography>
         </Stack>
       )}
