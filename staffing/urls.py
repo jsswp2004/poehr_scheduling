@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from .assistant import AssistantActionCancelView, AssistantActionConfirmView, AssistantMessageView
 from .compliance_views import CoverageStatusView, OrgLocationView
+from .master_schedule_autocreate import MasterScheduleAutoCreateView
 from .master_schedule_views import (
     MasterScheduleCellsView,
     MasterScheduleCopyMonthView,
@@ -100,6 +101,7 @@ urlpatterns = [
     path("master-schedule/rows/", MasterScheduleRowsView.as_view(), name="staffing-master-schedule-rows"),
     path("master-schedule/rows/<int:pk>/", MasterScheduleRowDetailView.as_view(), name="staffing-master-schedule-row"),
     path("master-schedule/copy/", MasterScheduleCopyMonthView.as_view(), name="staffing-master-schedule-copy"),
+    path("master-schedule/auto-create/", MasterScheduleAutoCreateView.as_view(), name="staffing-master-schedule-auto-create"),
     path("master-schedule/cells/", MasterScheduleCellsView.as_view(), name="staffing-master-schedule-cells"),
     path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
     path("location/", OrgLocationView.as_view(), name="staffing-location"),

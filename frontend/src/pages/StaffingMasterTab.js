@@ -224,6 +224,7 @@ function StaffingMasterTab({ isAdmin }) {
   const [error, setError] = useState("");
   const [newSection, setNewSection] = useState({ open: false, name: "", sub: false, after: "end" });
   const [copy, setCopy] = useState({ open: false, month: 0, year: today.getFullYear(), overwrite: false, busy: false });
+  const [auto, setAuto] = useState({ open: false, overwrite: false, busy: false });
   const [notice, setNotice] = useState("");
 
   const weekStart = data?.settings?.week_start ?? 3;
@@ -395,6 +396,36 @@ function StaffingMasterTab({ isAdmin }) {
     }
   };
 
+  const createSchedule = async () => {
+    const target = `${year}-${String(month + 1).padStart(2, "0")}`;
+    const name = `${MONTH_NAMES[month]} ${year}`;
+    const msg = auto.overwrite
+      ? `Create the ${name} schedule for nursing staff? Shift entries already in ${MONTH_NAMES[month]} for those people will be replaced (R and x entries are kept).`
+      : `Create the ${name} schedule for nursing staff? Only empty days are filled; nothing already entered is changed.`;
+    if (!window.confirm(msg)) return;
+    setError("");
+    setNotice("");
+    setAuto((a) => ({ ...a, busy: true }));
+    try {
+      const res = await axios.post(
+        apiEndpoints.staffingMasterScheduleAutoCreate,
+        { month: target, overwrite: auto.overwrite },
+        { headers: headers() }
+      );
+      const { created, cleared, people, blank_rows_skipped: blank } = res.data;
+      setNotice(
+        `Created the ${name} schedule for ${people} ${people === 1 ? "person" : "people"}: ${created} shifts added` +
+          (cleared ? `, ${cleared} replaced` : "") +
+          (blank ? `. ${blank} blank ${blank === 1 ? "row was" : "rows were"} skipped (pick a person first).` : ".")
+      );
+      setAuto((a) => ({ ...a, open: false, busy: false }));
+      load();
+    } catch (err) {
+      setError(errText(err, "Could not create the schedule."));
+      setAuto((a) => ({ ...a, busy: false }));
+    }
+  };
+
   const addSectionBelow = useCallback((sectionId) => {
     setNewSection((s) => ({ ...s, open: true, after: String(sectionId) }));
   }, []);
@@ -483,6 +514,11 @@ function StaffingMasterTab({ isAdmin }) {
             Copy month…
           </Button>
         )}
+        {isAdmin && (
+          <Button size="small" variant="outlined" onClick={() => setAuto((a) => ({ ...a, open: !a.open, overwrite: false }))}>
+            Create schedule…
+          </Button>
+        )}
         {loading && <CircularProgress size={20} />}
         {!isAdmin && <Typography variant="caption" color="text.secondary">View only — admins can edit.</Typography>}
       </Stack>
@@ -548,6 +584,24 @@ function StaffingMasterTab({ isAdmin }) {
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ flexBasis: "100%" }}>
             Copies work week by work week (the first week shown goes into the first week shown). People, HP and Status already carry over. Days that belong to the neighboring months are never changed.
+          </Typography>
+        </Stack>
+      )}
+
+      {auto.open && isAdmin && (
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+          <Typography variant="body2">
+            Create the schedule for <strong>{MONTH_NAMES[month]} {year}</strong>
+          </Typography>
+          <FormControlLabel
+            control={<Checkbox size="small" checked={auto.overwrite} onChange={(e) => setAuto((a) => ({ ...a, overwrite: e.target.checked }))} />}
+            label="Replace shifts already entered this month"
+          />
+          <Button size="small" variant="contained" onClick={createSchedule} disabled={auto.busy}>
+            {auto.busy ? "Creating…" : "Create"}
+          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ flexBasis: "100%" }}>
+            Fills nursing staff only (FT 7AM–7PM, FT 7PM–7AM, CMAs, and the 7-3, 3-11 and 11-7 GNA sections, including their agency rows). Admin sections, PT and PRN are left alone. 12-hour shifts get 3 a week, 8-hour shifts 5 a week, with every-other-weekend rotation and the lightest days chosen first. R and x entries are respected, and anything already entered counts toward the week.
           </Typography>
         </Stack>
       )}
