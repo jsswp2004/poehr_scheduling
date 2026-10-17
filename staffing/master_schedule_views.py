@@ -10,6 +10,7 @@ one code per day). Managers can read it; only admins can change it.
     PATCH master-schedule/rows/<id>/       {staff?, hp?, status?}
     DELETE master-schedule/rows/<id>/
     PUT   master-schedule/cells/           {row, date, code}   (code "" clears)
+    POST  master-schedule/copy/            {source: "YYYY-MM", target: "YYYY-MM", overwrite?}
 """
 
 import datetime
@@ -47,6 +48,31 @@ def _date(raw, field):
         return datetime.date.fromisoformat(str(raw))
     except (TypeError, ValueError):
         raise ValueError(f"{field} must be a date like 2026-10-01.")
+
+
+def grid_dates(year, month, week_start):
+    """Every date the grid shows for a month: from the work-week start on or
+    before the 1st through the end of the work week holding the last day.
+    Mirrors gridDays() in the web app (frontend/src/utils/masterSchedule.js)."""
+    first = datetime.date(year, month, 1)
+    nxt = datetime.date(year + (month == 12), month % 12 + 1, 1)
+    last = nxt - datetime.timedelta(days=1)
+    back = (first.weekday() - week_start) % 7
+    forward = ((week_start + 6) % 7 - last.weekday()) % 7
+    start = first - datetime.timedelta(days=back)
+    total = back + (last - first).days + 1 + forward
+    return [start + datetime.timedelta(days=i) for i in range(total)]
+
+
+def _year_month(raw, field):
+    try:
+        year, month = str(raw).split("-")
+        year, month = int(year), int(month)
+        if not (2000 <= year <= 2100 and 1 <= month <= 12):
+            raise ValueError
+        return year, month
+    except (ValueError, AttributeError):
+        raise ValueError(f"{field} must be a month like 2026-10.")
 
 
 def get_settings(org):
@@ -396,3 +422,81 @@ class MasterScheduleCellsView(_MasterBase):
             return _bad(f"Code must be one of: {', '.join(MASTER_SCHEDULE_CODES)}.")
         MasterScheduleCell.objects.update_or_create(row=row, date=day, defaults={"code": code})
         return Response({"row": row.id, "date": day.isoformat(), "code": code})
+
+
+class MasterScheduleCopyMonthView(_MasterBase):
+    """
+    Copy one month's day entries into another, work week by work week: the
+    first week shown for the source month goes into the first week shown for
+    the target month, and so on (if the target shows more weeks than the
+    source, the source weeks repeat from the top). Only dates that really
+    belong to the target month are written, so the days at the edges that
+    belong to the neighbouring months are never touched.
+
+    By default only empty cells are filled. With overwrite=true the target
+    month becomes an exact copy (cells that are blank in the source are
+    cleared).
+    """
+
+    def post(self, request):
+        denied = self._admin_only(request)
+        if denied:
+            return denied
+        org = self._org(request)
+        if org is None:
+            return _bad("No organization.")
+        try:
+            sy, sm = _year_month(request.data.get("source"), "source")
+            ty, tm = _year_month(request.data.get("target"), "target")
+        except ValueError as e:
+            return _bad(str(e))
+        if (sy, sm) == (ty, tm):
+            return _bad("Choose a different month to copy from.")
+        overwrite = request.data.get("overwrite") in (True, "true", "True", "1", 1)
+
+        week_start = get_settings(org).week_start
+        src_days = grid_dates(sy, sm, week_start)
+        tgt_days = grid_dates(ty, tm, week_start)
+        # (target date, source date) for the target month's own days only
+        pairs = [
+            (t, src_days[i % len(src_days)])
+            for i, t in enumerate(tgt_days)
+            if (t.year, t.month) == (ty, tm)
+        ]
+
+        row_ids = list(MasterScheduleRow.objects.filter(organization=org).values_list("id", flat=True))
+        src_cells = {
+            (c.row_id, c.date): c.code
+            for c in MasterScheduleCell.objects.filter(
+                row_id__in=row_ids, date__gte=src_days[0], date__lte=src_days[-1]
+            )
+        }
+        existing = {
+            (c.row_id, c.date): c
+            for c in MasterScheduleCell.objects.filter(
+                row_id__in=row_ids, date__in=[t for t, _ in pairs]
+            )
+        }
+
+        to_create, to_update, to_delete = [], [], []
+        for row_id in row_ids:
+            for tdate, sdate in pairs:
+                code = src_cells.get((row_id, sdate))
+                cur = existing.get((row_id, tdate))
+                if code:
+                    if cur is None:
+                        to_create.append(MasterScheduleCell(row_id=row_id, date=tdate, code=code))
+                    elif overwrite and cur.code != code:
+                        cur.code = code
+                        to_update.append(cur)
+                elif overwrite and cur is not None:
+                    to_delete.append(cur.pk)
+
+        with transaction.atomic():
+            MasterScheduleCell.objects.bulk_create(to_create)
+            MasterScheduleCell.objects.bulk_update(to_update, ["code"])
+            if to_delete:
+                MasterScheduleCell.objects.filter(pk__in=to_delete).delete()
+        return Response(
+            {"created": len(to_create), "updated": len(to_update), "cleared": len(to_delete)}
+        )

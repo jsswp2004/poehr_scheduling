@@ -223,6 +223,8 @@ function StaffingMasterTab({ isAdmin }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newSection, setNewSection] = useState({ open: false, name: "", sub: false, after: "end" });
+  const [copy, setCopy] = useState({ open: false, month: 0, year: today.getFullYear(), overwrite: false, busy: false });
+  const [notice, setNotice] = useState("");
 
   const weekStart = data?.settings?.week_start ?? 3;
   const days = useMemo(() => gridDays(year, month, weekStart), [year, month, weekStart]);
@@ -353,6 +355,46 @@ function StaffingMasterTab({ isAdmin }) {
     }
   }, []);
 
+  const openCopy = () => {
+    // default the source to the month before the one on screen
+    const prev = new Date(Date.UTC(year, month - 1, 1));
+    setCopy((c) => ({ ...c, open: !c.open, month: prev.getUTCMonth(), year: prev.getUTCFullYear(), overwrite: false }));
+  };
+
+  const copyMonth = async () => {
+    const ym = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
+    const source = ym(copy.year, copy.month);
+    const target = ym(year, month);
+    const label = (y, m) => `${MONTH_NAMES[m]} ${y}`;
+    if (source === target) {
+      setError("Pick a different month to copy from.");
+      return;
+    }
+    const msg = copy.overwrite
+      ? `Replace ${label(year, month)} with an exact copy of ${label(copy.year, copy.month)}? Entries already in ${MONTH_NAMES[month]} will be overwritten or cleared.`
+      : `Copy ${label(copy.year, copy.month)} into ${label(year, month)}? Only empty cells are filled; nothing already entered is changed.`;
+    if (!window.confirm(msg)) return;
+    setError("");
+    setNotice("");
+    setCopy((c) => ({ ...c, busy: true }));
+    try {
+      const res = await axios.post(
+        apiEndpoints.staffingMasterScheduleCopy,
+        { source, target, overwrite: copy.overwrite },
+        { headers: headers() }
+      );
+      const { created, updated, cleared } = res.data;
+      setNotice(
+        `Copied ${label(copy.year, copy.month)} into ${label(year, month)}: ${created} added, ${updated} changed, ${cleared} cleared.`
+      );
+      setCopy((c) => ({ ...c, open: false, busy: false }));
+      load();
+    } catch (err) {
+      setError(errText(err, "Could not copy that month."));
+      setCopy((c) => ({ ...c, busy: false }));
+    }
+  };
+
   const addSectionBelow = useCallback((sectionId) => {
     setNewSection((s) => ({ ...s, open: true, after: String(sectionId) }));
   }, []);
@@ -436,6 +478,11 @@ function StaffingMasterTab({ isAdmin }) {
             Add section
           </Button>
         )}
+        {isAdmin && (
+          <Button size="small" variant="outlined" onClick={openCopy}>
+            Copy month…
+          </Button>
+        )}
         {loading && <CircularProgress size={20} />}
         {!isAdmin && <Typography variant="caption" color="text.secondary">View only — admins can edit.</Typography>}
       </Stack>
@@ -474,6 +521,41 @@ function StaffingMasterTab({ isAdmin }) {
             Add
           </Button>
         </Stack>
+      )}
+
+      {copy.open && isAdmin && (
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+          <Typography variant="body2">Copy from</Typography>
+          <TextField select size="small" label="Month" value={copy.month} onChange={(e) => setCopy((c) => ({ ...c, month: Number(e.target.value) }))} sx={{ minWidth: 140 }}>
+            {MONTH_NAMES.map((m, i) => (
+              <MenuItem key={m} value={i}>{m}</MenuItem>
+            ))}
+          </TextField>
+          <TextField select size="small" label="Year" value={copy.year} onChange={(e) => setCopy((c) => ({ ...c, year: Number(e.target.value) }))} sx={{ minWidth: 100 }}>
+            {(years.includes(copy.year) ? years : [...years, copy.year].sort()).map((y) => (
+              <MenuItem key={y} value={y}>{y}</MenuItem>
+            ))}
+          </TextField>
+          <Typography variant="body2">
+            into <strong>{MONTH_NAMES[month]} {year}</strong>
+          </Typography>
+          <FormControlLabel
+            control={<Checkbox size="small" checked={copy.overwrite} onChange={(e) => setCopy((c) => ({ ...c, overwrite: e.target.checked }))} />}
+            label="Replace entries already in this month"
+          />
+          <Button size="small" variant="contained" onClick={copyMonth} disabled={copy.busy}>
+            {copy.busy ? "Copying…" : "Copy"}
+          </Button>
+          <Typography variant="caption" color="text.secondary" sx={{ flexBasis: "100%" }}>
+            Copies work week by work week (the first week shown goes into the first week shown). People, HP and Status already carry over. Days that belong to the neighboring months are never changed.
+          </Typography>
+        </Stack>
+      )}
+
+      {notice && (
+        <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice("")}>
+          {notice}
+        </Alert>
       )}
 
       {error && (

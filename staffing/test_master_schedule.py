@@ -211,3 +211,85 @@ class MasterScheduleSectionOrderTests(MasterScheduleBase):
             username="oa3", password="x", role="admin", organization=self.other)
         self.assertEqual(client_for(other_admin).delete(f"{BASE}/sections/{sec.id}/").status_code, 404)
         self.assertTrue(MasterScheduleSection.objects.filter(pk=sec.pk).exists())
+
+
+class MasterScheduleCopyMonthTests(MasterScheduleBase):
+    def setUp(self):
+        super().setUp()
+        self._load()
+        self.c = client_for(self.admin)
+        self.row = self.c.post(
+            f"{BASE}/rows/", {"section": self._section().id, "staff": self.debbie.id}, format="json"
+        ).json()["id"]
+
+    def _put(self, day, code):
+        r = self.c.put(f"{BASE}/cells/", {"row": self.row, "date": day, "code": code}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+
+    def _code(self, day):
+        cell = MasterScheduleCell.objects.filter(row_id=self.row, date=day).first()
+        return cell.code if cell else ""
+
+    def _copy(self, source, target, **extra):
+        return self.c.post(f"{BASE}/copy/", {"source": source, "target": target, **extra}, format="json")
+
+    def test_copies_work_week_by_work_week(self):
+        # Thursday start: Oct 2026 grid begins Thu Oct 1, Nov 2026 grid begins Thu Oct 29,
+        # so grid position 3 is Oct 4 (Sun) in the source and Nov 1 (Sun) in the target.
+        self._put("2026-10-01", "7")
+        self._put("2026-10-04", "3 11")
+        r = self._copy("2026-10", "2026-11")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["created"], 1)          # Oct 1 maps to Oct 29: not in November
+        self.assertEqual(self._code("2026-11-01"), "3 11")
+        self.assertEqual(self._code("2026-10-29"), "")    # neighbouring month untouched
+
+    def test_edge_days_of_other_months_are_never_changed(self):
+        self._put("2026-10-01", "7")
+        self._put("2026-10-29", "R")                     # belongs to October, shown in the Nov grid
+        self._copy("2026-10", "2026-11", overwrite=True)
+        self.assertEqual(self._code("2026-10-29"), "R")
+
+    def test_default_only_fills_empty_cells(self):
+        self._put("2026-10-04", "7")
+        self._put("2026-11-01", "R")
+        r = self._copy("2026-10", "2026-11")
+        self.assertEqual(r.json(), {"created": 0, "updated": 0, "cleared": 0})
+        self.assertEqual(self._code("2026-11-01"), "R")
+
+    def test_overwrite_makes_an_exact_copy(self):
+        self._put("2026-10-04", "7")
+        self._put("2026-11-01", "R")
+        self._put("2026-11-02", "x")                      # blank in the source -> cleared
+        r = self._copy("2026-10", "2026-11", overwrite=True)
+        self.assertEqual(r.json(), {"created": 0, "updated": 1, "cleared": 1})
+        self.assertEqual(self._code("2026-11-01"), "7")
+        self.assertEqual(self._code("2026-11-02"), "")
+
+    def test_longer_target_repeats_source_weeks(self):
+        self.c.patch(f"{BASE}/settings/", {"week_start": 0}, format="json")   # Monday
+        # Jul 2027 grid: 35 days from Mon Jun 28. Aug 2027 grid: 42 days from Mon Jul 26.
+        self._put("2027-06-28", "11")
+        self._put("2027-07-04", "3")
+        self._copy("2027-07", "2027-08")
+        self.assertEqual(self._code("2027-08-01"), "3")     # position 6 -> Jul 4
+        self.assertEqual(self._code("2027-08-30"), "11")    # position 35 wraps to position 0 -> Jun 28
+
+    def test_validation_and_permissions(self):
+        self.assertEqual(self._copy("2026-10", "2026-10").status_code, 400)
+        self.assertEqual(self._copy("nope", "2026-11").status_code, 400)
+        self.assertEqual(self._copy("2026-13", "2026-11").status_code, 400)
+        nurse = client_for(self.nurse)
+        self.assertEqual(nurse.post(f"{BASE}/copy/", {"source": "2026-10", "target": "2026-11"},
+                                    format="json").status_code, 403)
+
+    def test_other_orgs_cells_are_not_copied(self):
+        other_admin = CustomUser.objects.create_user(
+            username="oa4", password="x", role="admin", organization=self.other)
+        oc = client_for(other_admin)
+        oc.get(f"{BASE}/", RANGE)
+        sec = MasterScheduleSection.objects.filter(organization=self.other).first()
+        orow = oc.post(f"{BASE}/rows/", {"section": sec.id}, format="json").json()["id"]
+        oc.put(f"{BASE}/cells/", {"row": orow, "date": "2026-10-04", "code": "7"}, format="json")
+        self._copy("2026-10", "2026-11")
+        self.assertFalse(MasterScheduleCell.objects.filter(row_id=orow, date="2026-11-01").exists())
