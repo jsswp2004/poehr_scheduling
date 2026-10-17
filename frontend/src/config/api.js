@@ -289,6 +289,7 @@ export const apiEndpoints = {
     staffingMasterSchedule: `${API_BASE_URL}/api/staffing/master-schedule/`,
     staffingMasterScheduleSettings: `${API_BASE_URL}/api/staffing/master-schedule/settings/`,
     staffingMasterScheduleSections: `${API_BASE_URL}/api/staffing/master-schedule/sections/`,
+    staffingMasterScheduleSection: (id) => `${API_BASE_URL}/api/staffing/master-schedule/sections/${id}/`,
     staffingMasterScheduleRows: `${API_BASE_URL}/api/staffing/master-schedule/rows/`,
     staffingMasterScheduleRow: (id) => `${API_BASE_URL}/api/staffing/master-schedule/rows/${id}/`,
     staffingMasterScheduleCells: `${API_BASE_URL}/api/staffing/master-schedule/cells/`,

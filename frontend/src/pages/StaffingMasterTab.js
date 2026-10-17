@@ -222,7 +222,7 @@ function StaffingMasterTab({ isAdmin }) {
   cellsRef.current = cells;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [newSection, setNewSection] = useState({ open: false, name: "", sub: false });
+  const [newSection, setNewSection] = useState({ open: false, name: "", sub: false, after: "end" });
 
   const weekStart = data?.settings?.week_start ?? 3;
   const days = useMemo(() => gridDays(year, month, weekStart), [year, month, weekStart]);
@@ -339,6 +339,24 @@ function StaffingMasterTab({ isAdmin }) {
     }
   }, []);
 
+  const deleteSection = useCallback(async (section) => {
+    const people = section.rows.filter((r) => r.staff_id).length;
+    const detail = people
+      ? `${people} ${people === 1 ? "person" : "people"} on it and all of their entries on this sheet will be removed (they stay on the roster).`
+      : "Its blank rows will be removed.";
+    if (!window.confirm(`Delete the section "${section.name}"? ${detail}`)) return;
+    try {
+      await axios.delete(apiEndpoints.staffingMasterScheduleSection(section.id), { headers: headers() });
+      setData((prev) => ({ ...prev, sections: prev.sections.filter((s) => s.id !== section.id) }));
+    } catch (err) {
+      setError(errText(err, "Could not delete the section."));
+    }
+  }, []);
+
+  const addSectionBelow = useCallback((sectionId) => {
+    setNewSection((s) => ({ ...s, open: true, after: String(sectionId) }));
+  }, []);
+
   const changeWeekStart = async (value) => {
     setError("");
     try {
@@ -355,11 +373,16 @@ function StaffingMasterTab({ isAdmin }) {
     try {
       const res = await axios.post(
         apiEndpoints.staffingMasterScheduleSections,
-        { name, level: newSection.sub ? 1 : 0 },
+        { name, level: newSection.sub ? 1 : 0, after: newSection.after },
         { headers: headers() }
       );
-      setData((prev) => ({ ...prev, sections: [...prev.sections, res.data] }));
-      setNewSection({ open: false, name: "", sub: false });
+      const { index, ...created } = res.data;
+      setData((prev) => {
+        const list = [...prev.sections];
+        list.splice(Number.isInteger(index) ? index : list.length, 0, created);
+        return { ...prev, sections: list };
+      });
+      setNewSection({ open: false, name: "", sub: false, after: "end" });
     } catch (err) {
       setError(errText(err, "Could not add the section."));
     }
@@ -427,6 +450,22 @@ function StaffingMasterTab({ isAdmin }) {
             onKeyDown={(e) => e.key === "Enter" && createSection()}
             slotProps={{ htmlInput: { maxLength: 100 } }}
           />
+          <TextField
+            select
+            size="small"
+            label="Place it"
+            value={newSection.after}
+            onChange={(e) => setNewSection((s) => ({ ...s, after: e.target.value }))}
+            sx={{ minWidth: 240 }}
+          >
+            <MenuItem value="start">At the very top</MenuItem>
+            <MenuItem value="end">At the end (bottom)</MenuItem>
+            {data?.sections.map((s, i) => (
+              <MenuItem key={s.id} value={String(s.id)}>
+                {`After ${i + 1}. ${s.name}`}
+              </MenuItem>
+            ))}
+          </TextField>
           <FormControlLabel
             control={<Checkbox size="small" checked={newSection.sub} onChange={(e) => setNewSection((s) => ({ ...s, sub: e.target.checked }))} />}
             label="Sub-heading (like Unit 2)"
@@ -497,6 +536,8 @@ function StaffingMasterTab({ isAdmin }) {
                   statusValues={data.settings.status_values}
                   isAdmin={isAdmin}
                   onAddRow={addRow}
+                  onDeleteSection={deleteSection}
+                  onAddSectionBelow={addSectionBelow}
                   onPatchRow={patchRow}
                   onDeleteRow={deleteRow}
                   onSetCell={setCell}
@@ -540,6 +581,8 @@ const SectionBlock = memo(function SectionBlock({
   statusValues,
   isAdmin,
   onAddRow,
+  onDeleteSection,
+  onAddSectionBelow,
   onPatchRow,
   onDeleteRow,
   onSetCell,
@@ -570,6 +613,23 @@ const SectionBlock = memo(function SectionBlock({
               >
                 Add row
               </Button>
+            )}
+            {isAdmin && (
+              <Button
+                size="small"
+                sx={{ minWidth: 0, py: 0, px: 0.75, fontSize: 11, textTransform: "none" }}
+                startIcon={<FontAwesomeIcon icon={faPlus} style={{ fontSize: 10 }} />}
+                onClick={() => onAddSectionBelow(section.id)}
+              >
+                Section below
+              </Button>
+            )}
+            {isAdmin && (
+              <Tooltip title="Delete this section">
+                <IconButton size="small" aria-label={`Delete section ${section.name}`} onClick={() => onDeleteSection(section)}>
+                  <FontAwesomeIcon icon={faTrash} style={{ fontSize: 11 }} />
+                </IconButton>
+              </Tooltip>
             )}
           </Box>
         </td>

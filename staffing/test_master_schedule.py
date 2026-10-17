@@ -20,7 +20,7 @@ def client_for(user):
     return c
 
 
-class MasterScheduleTests(TestCase):
+class MasterScheduleBase(TestCase):
     def setUp(self):
         self.org = Organization.objects.create(name="St Test")
         self.other = Organization.objects.create(name="Other")
@@ -41,6 +41,8 @@ class MasterScheduleTests(TestCase):
     def _section(self, name="SUPERVISORS"):
         return MasterScheduleSection.objects.get(organization=self.org, name=name)
 
+
+class MasterScheduleTests(MasterScheduleBase):
     def test_first_load_lays_out_template_sections_and_defaults(self):
         r = self._load()
         self.assertEqual(r.status_code, 200, r.content)
@@ -144,3 +146,68 @@ class MasterScheduleTests(TestCase):
     def test_range_limit(self):
         r = client_for(self.admin).get(f"{BASE}/", {"start": "2026-01-01", "end": "2026-12-31"})
         self.assertEqual(r.status_code, 400)
+
+
+class MasterScheduleSectionOrderTests(MasterScheduleBase):
+    def _names(self):
+        return [s["name"] for s in self._load().json()["sections"]]
+
+    def test_new_section_can_be_placed_anywhere(self):
+        self._load()
+        c = client_for(self.admin)
+        base = self._names()
+        sup = self._section("SUPERVISORS")
+
+        r = c.post(f"{BASE}/sections/", {"name": "AFTER SUP", "after": sup.id}, format="json")
+        self.assertEqual(r.status_code, 201, r.content)
+        names = self._names()
+        self.assertEqual(names.index("AFTER SUP"), names.index("SUPERVISORS") + 1)
+        self.assertEqual(r.json()["index"], names.index("AFTER SUP"))
+
+        c.post(f"{BASE}/sections/", {"name": "AT TOP", "after": "start"}, format="json")
+        self.assertEqual(self._names()[0], "AT TOP")
+
+        c.post(f"{BASE}/sections/", {"name": "AT END"}, format="json")
+        self.assertEqual(self._names()[-1], "AT END")
+
+        # nothing else moved relative to each other
+        kept = [n for n in self._names() if n not in ("AFTER SUP", "AT TOP", "AT END")]
+        self.assertEqual(kept, base)
+
+    def test_bad_after_value(self):
+        self._load()
+        c = client_for(self.admin)
+        self.assertEqual(c.post(f"{BASE}/sections/", {"name": "X", "after": "nope"}, format="json").status_code, 400)
+        self.assertEqual(c.post(f"{BASE}/sections/", {"name": "X", "after": 999999}, format="json").status_code, 404)
+
+    def test_cannot_place_after_another_orgs_section(self):
+        self._load()
+        other_admin = CustomUser.objects.create_user(
+            username="oa2", password="x", role="admin", organization=self.other)
+        client_for(other_admin).get(f"{BASE}/", RANGE)
+        foreign = MasterScheduleSection.objects.filter(organization=self.other).first()
+        r = client_for(self.admin).post(f"{BASE}/sections/", {"name": "X", "after": foreign.id}, format="json")
+        self.assertEqual(r.status_code, 404)
+
+    def test_delete_section_removes_rows_and_cells_but_not_the_roster(self):
+        self._load()
+        c = client_for(self.admin)
+        sec = self._section("SUPERVISORS")
+        row = c.post(f"{BASE}/rows/", {"section": sec.id, "staff": self.debbie.id}, format="json").json()["id"]
+        c.put(f"{BASE}/cells/", {"row": row, "date": "2026-10-05", "code": "7"}, format="json")
+        self.assertEqual(c.delete(f"{BASE}/sections/{sec.id}/").status_code, 204)
+        self.assertNotIn("SUPERVISORS", self._names())
+        self.assertFalse(MasterScheduleCell.objects.filter(row_id=row).exists())
+        self.assertTrue(Staff.objects.filter(pk=self.debbie.pk).exists())
+        # she can be put back on a new row
+        other = self._section("UNIT MANAGERS")
+        self.assertEqual(c.post(f"{BASE}/rows/", {"section": other.id, "staff": self.debbie.id}, format="json").status_code, 201)
+
+    def test_delete_section_permissions_and_scope(self):
+        self._load()
+        sec = self._section("SUPERVISORS")
+        self.assertEqual(client_for(self.nurse).delete(f"{BASE}/sections/{sec.id}/").status_code, 403)
+        other_admin = CustomUser.objects.create_user(
+            username="oa3", password="x", role="admin", organization=self.other)
+        self.assertEqual(client_for(other_admin).delete(f"{BASE}/sections/{sec.id}/").status_code, 404)
+        self.assertTrue(MasterScheduleSection.objects.filter(pk=sec.pk).exists())

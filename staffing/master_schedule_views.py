@@ -4,7 +4,8 @@ one code per day). Managers can read it; only admins can change it.
 
     GET   master-schedule/?start=YYYY-MM-DD&end=YYYY-MM-DD
     PATCH master-schedule/settings/        {week_start, hp_values, status_values}
-    POST  master-schedule/sections/        {name, level?}
+    POST  master-schedule/sections/        {name, level?, after?}  after: "start" | a section id | omitted = end
+    DELETE master-schedule/sections/<id>/  (also removes the section's rows and their entries)
     POST  master-schedule/rows/            {section, staff?}
     PATCH master-schedule/rows/<id>/       {staff?, hp?, status?}
     DELETE master-schedule/rows/<id>/
@@ -227,14 +228,51 @@ class MasterScheduleSectionsView(_MasterBase):
         if len(name) > 100:
             return _bad("Section names can be at most 100 characters.")
         level = 1 if str(request.data.get("level", 0)) == "1" else 0
-        last = MasterScheduleSection.objects.filter(organization=org).aggregate(m=Max("sort_order"))["m"] or 0
-        section = MasterScheduleSection.objects.create(
-            organization=org, name=name, level=level, sort_order=last + 1
-        )
+
+        existing = list(MasterScheduleSection.objects.filter(organization=org))
+        after = request.data.get("after")
+        if after in (None, "", "end"):
+            index = len(existing)
+        elif after == "start":
+            index = 0
+        else:
+            try:
+                after_id = int(after)
+            except (TypeError, ValueError):
+                return _bad("after must be 'start', 'end' or a section id.")
+            positions = [i for i, s in enumerate(existing) if s.id == after_id]
+            if not positions:
+                return _bad("The section to place this after was not found.", status.HTTP_404_NOT_FOUND)
+            index = positions[0] + 1
+
+        with transaction.atomic():
+            section = MasterScheduleSection.objects.create(
+                organization=org, name=name, level=level, sort_order=0
+            )
+            ordered = existing[:index] + [section] + existing[index:]
+            for i, s in enumerate(ordered, start=1):
+                s.sort_order = i
+            MasterScheduleSection.objects.bulk_update(ordered, ["sort_order"])
         return Response(
-            {"id": section.id, "name": section.name, "level": section.level, "rows": []},
+            {"id": section.id, "name": section.name, "level": section.level, "rows": [], "index": index},
             status=status.HTTP_201_CREATED,
         )
+
+
+class MasterScheduleSectionDetailView(_MasterBase):
+    def delete(self, request, pk):
+        denied = self._admin_only(request)
+        if denied:
+            return denied
+        org = self._org(request)
+        if org is None:
+            return _bad("No organization.")
+        section = MasterScheduleSection.objects.filter(pk=pk, organization=org).first()
+        if section is None:
+            return _bad("Section not found.", status.HTTP_404_NOT_FOUND)
+        # Rows and their day entries go with it; people stay on the roster.
+        section.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 def _row_payload(row):
