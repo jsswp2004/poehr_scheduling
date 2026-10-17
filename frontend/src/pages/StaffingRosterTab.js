@@ -263,6 +263,12 @@ function StaffingRosterTab({ isAdmin = false }) {
     setEditOpen(true);
   };
 
+  const openAdd = () => {
+    setEditForm(EMPTY_EDIT_FORM);
+    setEditError("");
+    setEditOpen(true);
+  };
+
   const closeEdit = () => {
     if (editSaving) return;
     setEditOpen(false);
@@ -277,19 +283,23 @@ function StaffingRosterTab({ isAdmin = false }) {
     setEditSaving(true);
     setEditError("");
     try {
-      await axios.patch(
-        apiEndpoints.staffingStaffDetail(editForm.id),
-        {
-          first_name: editForm.first_name.trim(),
-          last_name: editForm.last_name.trim(),
-          profession: editForm.profession.trim(),
-          nursing_role: editForm.nursing_role,
-          email: editForm.email.trim() || null,
-          phone_number: editForm.phone_number.trim() || null,
-          is_active: editForm.is_active,
-        },
-        { headers: getAuthHeaders(token) }
-      );
+      const body = {
+        first_name: editForm.first_name.trim(),
+        last_name: editForm.last_name.trim(),
+        profession: editForm.profession.trim(),
+        nursing_role: editForm.nursing_role,
+        email: editForm.email.trim() || null,
+        phone_number: editForm.phone_number.trim() || null,
+        is_active: editForm.is_active,
+      };
+      if (editForm.id) {
+        await axios.patch(apiEndpoints.staffingStaffDetail(editForm.id), body, {
+          headers: getAuthHeaders(token),
+        });
+      } else {
+        await axios.post(apiEndpoints.staffingStaff, body, { headers: getAuthHeaders(token) });
+        setNotice(`${body.first_name} ${body.last_name} was added to the roster.`);
+      }
       setEditOpen(false);
       setEditForm(EMPTY_EDIT_FORM);
       fetchStaff();
@@ -448,6 +458,16 @@ function StaffingRosterTab({ isAdmin = false }) {
           <MenuItem value="cna">CNA</MenuItem>
           <MenuItem value="other">Other</MenuItem>
         </TextField>
+        {isAdmin && (
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<FontAwesomeIcon icon={faUserPlus} />}
+            onClick={openAdd}
+          >
+            Add staff
+          </Button>
+        )}
         <Typography variant="body2" color="text.secondary">
           Showing {filteredStaff.length} of {staff.length}
         </Typography>
@@ -603,7 +623,7 @@ function StaffingRosterTab({ isAdmin = false }) {
 
       {/* Edit staff dialog */}
       <Dialog open={editOpen} onClose={closeEdit} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Staff Member</DialogTitle>
+        <DialogTitle>{editForm.id ? "Edit Staff Member" : "Add Staff Member"}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {editError && <Alert severity="error">{editError}</Alert>}
@@ -671,7 +691,7 @@ function StaffingRosterTab({ isAdmin = false }) {
             Cancel
           </Button>
           <Button variant="contained" onClick={handleEditSave} disabled={editSaving}>
-            {editSaving ? "Saving..." : "Save"}
+            {editSaving ? "Saving..." : editForm.id ? "Save" : "Add to roster"}
           </Button>
         </DialogActions>
       </Dialog>
