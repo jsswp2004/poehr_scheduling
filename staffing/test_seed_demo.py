@@ -1,7 +1,7 @@
 from io import StringIO
 
 from django.contrib.auth import get_user_model
-from django.core.management import call_command
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 
 from staffing.models import Staff, StaffShift, StaffTimeOffRequest, Unit
@@ -63,3 +63,32 @@ class SeedStaffingDemoTests(TestCase):
         self.assertEqual(Staff.objects.filter(organization=self.org, user__isnull=False).count(), 6)
         self.assertIn("TESTER LOGINS", out)
         self.assertTrue(users.first().check_password("Demo-Pass-123!"))
+
+
+class SeedStaffingDemoCreateTests(TestCase):
+    NAME = "St. Mary's Rehabilitation and Nursing Center"
+
+    def _run(self, *args):
+        out = StringIO()
+        call_command("seed_staffing_demo", "--org-name", self.NAME, *args, stdout=out)
+        return out.getvalue()
+
+    def test_create_makes_org_and_seeds_it(self):
+        self.assertFalse(Organization.objects.filter(name=self.NAME).exists())
+        self._run("--create", "--set-location", "--logins", "--password", "Demo-Pass-123!")
+        org = Organization.objects.get(name=self.NAME)
+        self.assertEqual(org.state, "MD")
+        self.assertEqual(Unit.objects.filter(organization=org).count(), 2)
+        self.assertEqual(Staff.objects.filter(organization=org).count(), 36)
+        self.assertGreaterEqual(org.max_users, 9)
+
+    def test_create_is_idempotent(self):
+        self._run("--create")
+        self._run("--create")
+        self.assertEqual(Organization.objects.filter(name=self.NAME).count(), 1)
+        org = Organization.objects.get(name=self.NAME)
+        self.assertEqual(Staff.objects.filter(organization=org).count(), 36)
+
+    def test_create_rejects_reset(self):
+        with self.assertRaises(CommandError):
+            self._run("--create", "--reset")

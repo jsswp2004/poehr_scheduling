@@ -19,6 +19,7 @@ import StaffingReportsTab from "./StaffingReportsTab";
 import StaffingUnitsTab from "./StaffingUnitsTab";
 import StaffingTimeOffTab from "./StaffingTimeOffTab";
 import StaffingRulesTab from "./StaffingRulesTab";
+import StaffingMasterTab from "./StaffingMasterTab";
 import StaffingAssistantDock from "../components/StaffingAssistantDock";
 import StaffingStaffView from "./StaffingStaffView";
 
@@ -243,6 +244,7 @@ function StaffingPage() {
           }
         />
         {isAdmin && <Tab value="upload" label="Upload CSV" />}
+        <Tab value="master" label="Master Schedule" />
         {isAdmin && <Tab value="assign" label="Assign Schedule" />}
         <Tab value="reports" label="Reports" />
         <Tab value="rules" label="Coverage Rules" />
@@ -253,6 +255,7 @@ function StaffingPage() {
       {tab === "units" && <StaffingUnitsTab isAdmin={isAdmin} />}
       {tab === "timeoff" && <StaffingTimeOffTab isAdmin={isAdmin} />}
       {tab === "upload" && isAdmin && <StaffingUploadTab />}
+      {tab === "master" && <StaffingMasterTab isAdmin={isAdmin} />}
       {tab === "assign" && isAdmin && <StaffingAssignTab />}
       {tab === "reports" && <StaffingReportsTab />}
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}

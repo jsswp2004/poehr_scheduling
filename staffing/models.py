@@ -731,3 +731,87 @@ class AssistantPendingAction(models.Model):
 
     def __str__(self):
         return f"{self.action_type} ({self.status}) for user {self.user_id}"
+
+
+# --- Master Schedule (monthly paper-style grid) ------------------------------
+# The sheet managers keep by hand: sections (FT 7AM-7PM, 7-3 GNA, ...), the
+# people in each section, an HP and a Status label per person, and one code per
+# day (7, 7A, 7P, 3 11, ...). It is a planning grid; it does not create
+# StaffShift rows or feed coverage math.
+
+MASTER_SCHEDULE_CODES = ["7", "7A", "7P", "7p", "3 11", "3", "11", "R", "x"]
+MASTER_SCHEDULE_DEFAULT_HP = ["A", "B", "D", "E", "N", "FT", "3"]
+MASTER_SCHEDULE_DEFAULT_STATUS = ["FT", "PT", "PRN", "N", "16"]
+# (name, level) -- level 1 is a sub-heading (a unit inside a GNA section).
+MASTER_SCHEDULE_DEFAULT_SECTIONS = [
+    ("ADON", 0), ("SUPERVISORS", 0), ("UNIT MANAGERS", 0), ("MDS", 0),
+    ("UNIT CLERKS", 0), ("STAFFING", 0),
+    ("FT 7AM - 7PM", 0), ("PT DAYS", 0), ("AGENCY", 0),
+    ("FT 7PM - 7AM", 0), ("PRN", 0), ("AGENCY", 0),
+    ("FT 7-3 CMAs", 0), ("FT 3-11 CMAs", 0), ("PT CMAs", 0), ("PRNS CMA", 0),
+    ("7-3 GNA", 0), ("Unit 2", 1), ("Unit 3", 1), ("Unit 4", 1), ("AGENCY", 1),
+    ("3-11 GNA", 0), ("Unit 1A/1B", 1), ("Unit 2", 1), ("Unit 3", 1), ("Unit 4", 1),
+    ("AGENCY", 1),
+    ("11-7 CGAs", 0), ("AGENCY", 1), ("PT GNA", 0), ("PRN", 1),
+]
+
+
+class MasterScheduleSettings(models.Model):
+    """Per-organization options for the Master Schedule tab."""
+
+    organization = models.OneToOneField(
+        Organization, on_delete=models.CASCADE, related_name="master_schedule_settings"
+    )
+    # Python weekday: Monday=0 ... Sunday=6. St. Mary's works Thursday-Wednesday.
+    week_start = models.PositiveSmallIntegerField(default=3)
+    hp_values = models.JSONField(default=list, blank=True)
+    status_values = models.JSONField(default=list, blank=True)
+
+    def __str__(self):
+        return f"Master schedule settings ({self.organization_id})"
+
+
+class MasterScheduleSection(models.Model):
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="master_schedule_sections"
+    )
+    name = models.CharField(max_length=100)
+    level = models.PositiveSmallIntegerField(default=0)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+    def __str__(self):
+        return self.name
+
+
+class MasterScheduleRow(models.Model):
+    """One person's line in a section. Blank staff = a row not yet filled in."""
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="master_schedule_rows"
+    )
+    section = models.ForeignKey(
+        MasterScheduleSection, on_delete=models.CASCADE, related_name="rows"
+    )
+    staff = models.ForeignKey(
+        Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name="master_schedule_rows"
+    )
+    hp = models.CharField(max_length=20, blank=True, default="")
+    status = models.CharField(max_length=20, blank=True, default="")
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+
+
+class MasterScheduleCell(models.Model):
+    row = models.ForeignKey(MasterScheduleRow, on_delete=models.CASCADE, related_name="cells")
+    date = models.DateField(db_index=True)
+    code = models.CharField(max_length=10)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["row", "date"], name="master_schedule_cell_unique")
+        ]

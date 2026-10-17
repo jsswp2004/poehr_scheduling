@@ -3,6 +3,14 @@ from rest_framework.routers import DefaultRouter
 
 from .assistant import AssistantActionCancelView, AssistantActionConfirmView, AssistantMessageView
 from .compliance_views import CoverageStatusView, OrgLocationView
+from .master_schedule_views import (
+    MasterScheduleCellsView,
+    MasterScheduleRowDetailView,
+    MasterScheduleRowsView,
+    MasterScheduleSectionsView,
+    MasterScheduleSettingsView,
+    MasterScheduleView,
+)
 from .rules_views import (
     RuleAuditView,
     RuleDetailView,
@@ -83,6 +91,12 @@ urlpatterns = [
         AssistantActionCancelView.as_view(),
         name="staffing-assistant-action-cancel",
     ),
+    path("master-schedule/", MasterScheduleView.as_view(), name="staffing-master-schedule"),
+    path("master-schedule/settings/", MasterScheduleSettingsView.as_view(), name="staffing-master-schedule-settings"),
+    path("master-schedule/sections/", MasterScheduleSectionsView.as_view(), name="staffing-master-schedule-sections"),
+    path("master-schedule/rows/", MasterScheduleRowsView.as_view(), name="staffing-master-schedule-rows"),
+    path("master-schedule/rows/<int:pk>/", MasterScheduleRowDetailView.as_view(), name="staffing-master-schedule-row"),
+    path("master-schedule/cells/", MasterScheduleCellsView.as_view(), name="staffing-master-schedule-cells"),
     path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
     path("location/", OrgLocationView.as_view(), name="staffing-location"),
     path("rules/", RulesListCreateView.as_view(), name="staffing-rules"),

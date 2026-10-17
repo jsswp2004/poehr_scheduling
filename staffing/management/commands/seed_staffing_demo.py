@@ -4,6 +4,8 @@ Seed a DEMO organization with fictional Staffing-module data for testers.
     python manage.py seed_staffing_demo --org-name "Riverside Family Clinic (Demo)"
     python manage.py seed_staffing_demo --org-id 3 --logins          # also create tester logins
     python manage.py seed_staffing_demo --org-id 3 --reset           # remove the demo data only
+    python manage.py seed_staffing_demo --create --org-name "St. Mary's Rehabilitation and Nursing Center" \\
+        --set-location --logins                                      # create a NEW demo org, then seed it
 
 What it creates (all fictional, all tagged so --reset removes ONLY these records):
   * 2 units: Maple Wing (12-hour shifts) and Oak Wing (8-hour shifts)
@@ -142,10 +144,23 @@ class Command(BaseCommand):
         parser.add_argument("--set-location", action="store_true",
                             help="Set the org to Leonardtown, MD (Maryland rules) if no state is set.")
         parser.add_argument("--reset", action="store_true", help="Only remove previously seeded demo data.")
+        parser.add_argument("--create", action="store_true",
+                            help="Create the organization (by --org-name) if it does not exist yet. "
+                                 "Not allowed with --reset or --org-id.")
 
     # ------------------------------------------------------------------
     def _org(self, opts):
         qs = Organization.objects.all()
+        if opts["create"]:
+            if opts["org_id"] or opts["reset"]:
+                raise CommandError("--create cannot be combined with --org-id or --reset.")
+            org, created = qs.get_or_create(
+                name=opts["org_name"],
+                defaults={"organization_type": "clinic", "max_users": 25},
+            )
+            if created:
+                self.stdout.write(f"Created demo organization '{org.name}' (id {org.pk}).")
+            return org
         try:
             return qs.get(pk=opts["org_id"]) if opts["org_id"] else qs.get(name=opts["org_name"])
         except Organization.DoesNotExist:
