@@ -231,7 +231,7 @@
 
 /* ---------- staff shell ---------- */
 .th-app {
-  max-width: 75rem;
+  max-width: 100rem;
   margin: 0 auto;
   padding: 1.5rem 1.5rem 3rem;
   background: transparent;
@@ -396,8 +396,25 @@
   flex: 1 1 auto;
   display: flex;
   flex-wrap: wrap;
+  white-space: nowrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+/* On wide screens keep each visit on a single line. */
+@media (min-width: 64rem) {
+  .th-row {
+    flex-wrap: nowrap;
+  }
+  .th-row-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+  }
+  .th-row-patient {
+    overflow-wrap: normal;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 .th-timer {
   font-size: 1.1rem;
