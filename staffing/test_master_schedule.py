@@ -293,3 +293,50 @@ class MasterScheduleCopyMonthTests(MasterScheduleBase):
         oc.put(f"{BASE}/cells/", {"row": orow, "date": "2026-10-04", "code": "7"}, format="json")
         self._copy("2026-10", "2026-11")
         self.assertFalse(MasterScheduleCell.objects.filter(row_id=orow, date="2026-11-01").exists())
+
+
+class MasterScheduleRowPlacementTests(MasterScheduleBase):
+    """New rows can be placed at the top, the end, or right below a given row."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = client_for(self.admin)
+        self.client.get(f"{BASE}/", RANGE)
+        self.section = self._section("FT 7AM - 7PM")
+
+    def _add(self, **body):
+        return self.client.post(f"{BASE}/rows/", {"section": self.section.id, **body}, format="json")
+
+    def _order(self):
+        body = self.client.get(f"{BASE}/", RANGE).json()
+        sec = next(s for s in body["sections"] if s["id"] == self.section.id)
+        return [r["id"] for r in sec["rows"]]
+
+    def test_default_is_the_end_and_reports_its_position(self):
+        a = self._add().json()
+        b = self._add().json()
+        self.assertEqual((a["index"], b["index"]), (0, 1))
+        self.assertEqual(self._order(), [a["id"], b["id"]])
+
+    def test_top_and_below_a_row(self):
+        a = self._add().json()
+        b = self._add().json()
+        top = self._add(after="start").json()
+        mid = self._add(after=a["id"]).json()
+        self.assertEqual(top["index"], 0)
+        self.assertEqual(mid["index"], 2)
+        self.assertEqual(self._order(), [top["id"], a["id"], mid["id"], b["id"]])
+
+    def test_can_place_a_named_person_below_a_row(self):
+        a = self._add().json()
+        r = self._add(after=a["id"], staff=self.debbie.id)
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertEqual(r.json()["staff_name"], "Debbie Karr")
+        self.assertEqual(self._order()[1], r.json()["id"])
+
+    def test_bad_after_values(self):
+        self.assertEqual(self._add(after="nope").status_code, 400)
+        other_section = self._section("SUPERVISORS")
+        elsewhere = self.client.post(
+            f"{BASE}/rows/", {"section": other_section.id}, format="json").json()
+        self.assertEqual(self._add(after=elsewhere["id"]).status_code, 404)  # row is in another section

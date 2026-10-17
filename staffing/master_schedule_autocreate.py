@@ -1,31 +1,30 @@
 """
-POST master-schedule/auto-create/   {month: "YYYY-MM", overwrite?: bool}
+POST master-schedule/create-schedule/   {month: "YYYY-MM", overwrite?: bool}
 
-Builds the month's schedule for the nursing sections (see master_schedule_autogen
-for the rules). Only dates inside the chosen month are written. By default nothing
-already entered is changed; with overwrite=true the shift entries already in that
-month for those people are replaced (requested-off "R" and "x" entries are kept).
+Builds the Calendar tab's shifts from the Master Schedule for one month. A day
+code in a person's row (for example 7A on Monday Oct 5) becomes a calendar shift
+for that person on that date (7:00 AM - 7:00 PM); see master_schedule_autogen
+for what every code means. Only dates inside the chosen month are used.
+
+Safe to run again: a shift the person already has on that date and shift type
+(from this button, a recurring pattern or a manual assignment) is left alone and
+nothing is duplicated. With overwrite=true, shifts that an earlier run created
+from the Master Schedule are brought back in line with it (removed if the code
+was cleared or changed, times refreshed); shifts made any other way are never
+touched.
 """
 
+import datetime
+
 from django.db import transaction
-from rest_framework import status
 from rest_framework.response import Response
 
-from .master_schedule_autogen import OFF_CODES, plan_schedule, shifts_for_sections
-from .master_schedule_views import (
-    _bad,
-    _MasterBase,
-    _year_month,
-    ensure_default_sections,
-    get_settings,
-    grid_dates,
-)
-from .models import MasterScheduleCell, MasterScheduleRow, MasterScheduleSection
-
-SKIP_STATUSES = {"pt", "prn"}
+from .master_schedule_autogen import CODE_SHIFTS, MASTER_NOTE
+from .master_schedule_views import _bad, _MasterBase, _year_month
+from .models import MasterScheduleCell, StaffShift
 
 
-class MasterScheduleAutoCreateView(_MasterBase):
+class MasterScheduleCreateScheduleView(_MasterBase):
     def post(self, request):
         denied = self._admin_only(request)
         if denied:
@@ -39,60 +38,60 @@ class MasterScheduleAutoCreateView(_MasterBase):
             return _bad(str(e))
         overwrite = request.data.get("overwrite") in (True, "true", "True", "1", 1)
 
-        ensure_default_sections(org)
-        days = grid_dates(year, month, get_settings(org).week_start)
-        writable = {d for d in days if (d.year, d.month) == (year, month)}
+        first = datetime.date(year, month, 1)
+        last = datetime.date(year + (month == 12), month % 12 + 1, 1) - datetime.timedelta(days=1)
 
-        sections = list(MasterScheduleSection.objects.filter(organization=org))
-        shift_of = shifts_for_sections([(s.id, s.name, s.level) for s in sections])
-        if not shift_of:
-            return _bad("There are no nursing sections on the master schedule to schedule.")
+        cells = MasterScheduleCell.objects.filter(
+            row__organization=org, date__gte=first, date__lte=last, code__in=list(CODE_SHIFTS)
+        ).select_related("row")
 
-        rows = list(
-            MasterScheduleRow.objects.filter(organization=org, section__in=sections)
-            .select_related("section")
-            .order_by("section__sort_order", "section_id", "sort_order", "id")
-        )
-        groups, blank = {}, 0
-        for r in rows:
-            shift = shift_of.get(r.section_id)
-            if shift is None or (r.status or "").strip().lower() in SKIP_STATUSES:
+        wanted = {}  # (staff_id, date, shift_type) -> (start, end)
+        blank_rows = set()
+        for c in cells:
+            if c.row.staff_id is None:
+                blank_rows.add(c.row_id)
                 continue
-            if r.staff_id is None:
-                blank += 1
+            for shift_type, start, end in CODE_SHIFTS[c.code]:
+                wanted[(c.row.staff_id, c.date, shift_type)] = (start, end)
+
+        existing = {}
+        for s in StaffShift.objects.filter(organization=org, date__gte=first, date__lte=last):
+            existing.setdefault((s.staff_id, s.date, s.shift_type), s)
+
+        to_create, to_update, to_delete, already = [], [], [], 0
+        for key, (start, end) in wanted.items():
+            have = existing.get(key)
+            if have is None:
+                staff_id, day, shift_type = key
+                to_create.append(
+                    StaffShift(
+                        organization=org, staff_id=staff_id, date=day, shift_type=shift_type,
+                        start_time=start, end_time=end, source="manual", notes=MASTER_NOTE,
+                    )
+                )
                 continue
-            groups.setdefault(shift, []).append(r.id)
-        people = sum(len(v) for v in groups.values())
-        if not people:
-            return _bad("No one in the nursing sections is eligible (rows need a person and a status other than PT or PRN).")
-
-        scheduled_ids = {rid for ids in groups.values() for rid in ids}
-        existing_qs = MasterScheduleCell.objects.filter(
-            row__organization=org, date__gte=days[0], date__lte=days[-1]
-        )
-        existing = {(c.row_id, c.date): c.code for c in existing_qs}
-
-        to_clear = []
+            already += 1
+            if overwrite and have.notes == MASTER_NOTE and (have.start_time, have.end_time) != (start, end):
+                have.start_time, have.end_time = start, end
+                to_update.append(have)
         if overwrite:
-            for c in existing_qs.filter(row_id__in=scheduled_ids, date__in=writable):
-                if c.code not in OFF_CODES:
-                    to_clear.append(c.pk)
-                    existing.pop((c.row_id, c.date), None)
-
-        new = plan_schedule(days, groups, existing, writable)
+            for key, shift in existing.items():
+                if key not in wanted and shift.notes == MASTER_NOTE and shift.source == "manual":
+                    to_delete.append(shift.pk)
 
         with transaction.atomic():
-            if to_clear:
-                MasterScheduleCell.objects.filter(pk__in=to_clear).delete()
-            MasterScheduleCell.objects.bulk_create(
-                [MasterScheduleCell(row_id=rid, date=d, code=code) for (rid, d), code in new.items()]
-            )
+            StaffShift.objects.bulk_create(to_create)
+            StaffShift.objects.bulk_update(to_update, ["start_time", "end_time"])
+            if to_delete:
+                StaffShift.objects.filter(pk__in=to_delete).delete()
+
         return Response(
             {
-                "created": len(new),
-                "cleared": len(to_clear),
-                "people": people,
-                "blank_rows_skipped": blank,
-            },
-            status=status.HTTP_200_OK,
+                "created": len(to_create),
+                "already_scheduled": already,
+                "updated": len(to_update),
+                "removed": len(to_delete),
+                "people": len({k[0] for k in wanted}),
+                "blank_rows_skipped": len(blank_rows),
+            }
         )

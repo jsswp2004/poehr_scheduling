@@ -104,6 +104,8 @@ const RowView = memo(function RowView({
   hpValues,
   statusValues,
   isAdmin,
+  sectionId,
+  onAddRowBelow,
   onPatchRow,
   onDeleteRow,
   onSetCell,
@@ -146,6 +148,13 @@ const RowView = memo(function RowView({
               />
             )}
           />
+          {isAdmin && (
+            <Tooltip title="Add a row below this one">
+              <IconButton size="small" aria-label="Add row below" onClick={() => onAddRowBelow(sectionId, row.id)}>
+                <FontAwesomeIcon icon={faPlus} style={{ fontSize: 11 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           {isAdmin && (
             <Tooltip title="Remove this row">
               <IconButton size="small" aria-label="Remove row" onClick={() => onDeleteRow(row)}>
@@ -225,6 +234,7 @@ function StaffingMasterTab({ isAdmin }) {
   const [newSection, setNewSection] = useState({ open: false, name: "", sub: false, after: "end" });
   const [copy, setCopy] = useState({ open: false, month: 0, year: today.getFullYear(), overwrite: false, busy: false });
   const [auto, setAuto] = useState({ open: false, overwrite: false, busy: false });
+  const [newRow, setNewRow] = useState({ open: false, section: "", after: "end", staff: null });
   const [notice, setNotice] = useState("");
 
   const weekStart = data?.settings?.week_start ?? 3;
@@ -315,17 +325,34 @@ function StaffingMasterTab({ isAdmin }) {
     []
   );
 
-  const addRow = async (sectionId) => {
+  // after: "start" | "end" | the id of the row to place the new one below
+  const addRow = useCallback(async (sectionId, after = "end", staffId = null) => {
     setError("");
     try {
-      const res = await axios.post(apiEndpoints.staffingMasterScheduleRows, { section: sectionId }, { headers: headers() });
+      const body = { section: sectionId, after };
+      if (staffId) body.staff = staffId;
+      const res = await axios.post(apiEndpoints.staffingMasterScheduleRows, body, { headers: headers() });
+      const { index, ...created } = res.data;
       setData((prev) => ({
         ...prev,
-        sections: prev.sections.map((s) => (s.id === sectionId ? { ...s, rows: [...s.rows, res.data] } : s)),
+        sections: prev.sections.map((s) => {
+          if (s.id !== sectionId) return s;
+          const rows = [...s.rows];
+          rows.splice(Number.isInteger(index) ? index : rows.length, 0, created);
+          return { ...s, rows };
+        }),
       }));
+      return true;
     } catch (err) {
       setError(errText(err, "Could not add a row."));
+      return false;
     }
+  }, []);
+
+  const createRow = async () => {
+    if (!newRow.section) return;
+    const ok = await addRow(Number(newRow.section), newRow.after, newRow.staff);
+    if (ok) setNewRow({ open: false, section: "", after: "end", staff: null });
   };
 
   const deleteRow = useCallback(async (row) => {
@@ -400,22 +427,24 @@ function StaffingMasterTab({ isAdmin }) {
     const target = `${year}-${String(month + 1).padStart(2, "0")}`;
     const name = `${MONTH_NAMES[month]} ${year}`;
     const msg = auto.overwrite
-      ? `Create the ${name} schedule for nursing staff? Shift entries already in ${MONTH_NAMES[month]} for those people will be replaced (R and x entries are kept).`
-      : `Create the ${name} schedule for nursing staff? Only empty days are filled; nothing already entered is changed.`;
+      ? `Create the ${name} calendar schedule from this master schedule? Shifts created from it earlier will be brought in line with it (removed if you cleared or changed the entry). Shifts entered any other way are not touched.`
+      : `Create the ${name} calendar schedule from this master schedule? Anyone who already has that shift on that day is left as is, so nothing is duplicated.`;
     if (!window.confirm(msg)) return;
     setError("");
     setNotice("");
     setAuto((a) => ({ ...a, busy: true }));
     try {
       const res = await axios.post(
-        apiEndpoints.staffingMasterScheduleAutoCreate,
+        apiEndpoints.staffingMasterScheduleCreateSchedule,
         { month: target, overwrite: auto.overwrite },
         { headers: headers() }
       );
-      const { created, cleared, people, blank_rows_skipped: blank } = res.data;
+      const { created, already_scheduled: already, updated, removed, people, blank_rows_skipped: blank } = res.data;
       setNotice(
-        `Created the ${name} schedule for ${people} ${people === 1 ? "person" : "people"}: ${created} shifts added` +
-          (cleared ? `, ${cleared} replaced` : "") +
+        `${name} calendar schedule: ${created} ${created === 1 ? "shift" : "shifts"} created for ${people} ${people === 1 ? "person" : "people"}` +
+          (already ? `, ${already} already on the calendar` : "") +
+          (updated ? `, ${updated} updated` : "") +
+          (removed ? `, ${removed} removed` : "") +
           (blank ? `. ${blank} blank ${blank === 1 ? "row was" : "rows were"} skipped (pick a person first).` : ".")
       );
       setAuto((a) => ({ ...a, open: false, busy: false }));
@@ -510,6 +539,17 @@ function StaffingMasterTab({ isAdmin }) {
           </Button>
         )}
         {isAdmin && (
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() =>
+              setNewRow((r) => ({ ...r, open: !r.open, section: r.section || String(data?.sections?.[0]?.id ?? ""), after: "end" }))
+            }
+          >
+            Add row
+          </Button>
+        )}
+        {isAdmin && (
           <Button size="small" variant="outlined" onClick={openCopy}>
             Copy month…
           </Button>
@@ -559,6 +599,55 @@ function StaffingMasterTab({ isAdmin }) {
         </Stack>
       )}
 
+      {newRow.open && isAdmin && (
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+          <TextField
+            select
+            size="small"
+            label="Section"
+            value={newRow.section}
+            onChange={(e) => setNewRow((r) => ({ ...r, section: e.target.value, after: "end" }))}
+            sx={{ minWidth: 240 }}
+          >
+            {data?.sections.map((s, i) => (
+              <MenuItem key={s.id} value={String(s.id)}>
+                {`${i + 1}. ${s.name}`}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            size="small"
+            label="Place it"
+            value={newRow.after}
+            onChange={(e) => setNewRow((r) => ({ ...r, after: e.target.value }))}
+            sx={{ minWidth: 260 }}
+          >
+            <MenuItem value="start">At the top of the section</MenuItem>
+            <MenuItem value="end">At the end (bottom)</MenuItem>
+            {(data?.sections.find((s) => String(s.id) === newRow.section)?.rows || []).map((r, i) => (
+              <MenuItem key={r.id} value={String(r.id)}>
+                {`After ${i + 1}. ${r.staff_name || "(blank row)"}`}
+              </MenuItem>
+            ))}
+          </TextField>
+          <Autocomplete
+            size="small"
+            options={freeStaff}
+            value={freeStaff.find((s) => s.id === newRow.staff) || null}
+            onChange={(e, v) => setNewRow((r) => ({ ...r, staff: v ? v.id : null }))}
+            isOptionEqualToValue={(a, b) => a.id === b.id}
+            getOptionLabel={(o) => o.name || ""}
+            noOptionsText="No one left on the roster"
+            sx={{ width: 240 }}
+            renderInput={(params) => <TextField {...params} label="Person (optional)" />}
+          />
+          <Button size="small" variant="contained" onClick={createRow} disabled={!newRow.section}>
+            Add
+          </Button>
+        </Stack>
+      )}
+
       {copy.open && isAdmin && (
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
           <Typography variant="body2">Copy from</Typography>
@@ -591,17 +680,17 @@ function StaffingMasterTab({ isAdmin }) {
       {auto.open && isAdmin && (
         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
           <Typography variant="body2">
-            Create the schedule for <strong>{MONTH_NAMES[month]} {year}</strong>
+            Create the calendar schedule for <strong>{MONTH_NAMES[month]} {year}</strong> from this master schedule
           </Typography>
           <FormControlLabel
             control={<Checkbox size="small" checked={auto.overwrite} onChange={(e) => setAuto((a) => ({ ...a, overwrite: e.target.checked }))} />}
-            label="Replace shifts already entered this month"
+            label="Also update shifts created from here earlier"
           />
           <Button size="small" variant="contained" onClick={createSchedule} disabled={auto.busy}>
             {auto.busy ? "Creating…" : "Create"}
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ flexBasis: "100%" }}>
-            Fills nursing staff only (FT 7AM–7PM, FT 7PM–7AM, CMAs, and the 7-3, 3-11 and 11-7 GNA sections, including their agency rows). Admin sections, PT and PRN are left alone. 12-hour shifts get 3 a week, 8-hour shifts 5 a week, with every-other-weekend rotation and the lightest days chosen first. R and x entries are respected, and anything already entered counts toward the week.
+            Every code in a person's row becomes a shift on the Calendar tab for that date: 7 = 7a–3p, 7A = 7a–7p, 7P / 7p = 7p–7a, 3 = 3p–11p, 11 = 11p–7a, and "3 11" = both the 3–11 and the 11–7 shift. R and x are days off and create nothing. Blank rows (no person) are skipped. Only dates inside {MONTH_NAMES[month]} are used, and running it again never duplicates a shift.
           </Typography>
         </Stack>
       )}
@@ -672,6 +761,7 @@ function StaffingMasterTab({ isAdmin }) {
                   statusValues={data.settings.status_values}
                   isAdmin={isAdmin}
                   onAddRow={addRow}
+                  onAddRowBelow={addRow}
                   onDeleteSection={deleteSection}
                   onAddSectionBelow={addSectionBelow}
                   onPatchRow={patchRow}
@@ -717,6 +807,7 @@ const SectionBlock = memo(function SectionBlock({
   statusValues,
   isAdmin,
   onAddRow,
+  onAddRowBelow,
   onDeleteSection,
   onAddSectionBelow,
   onPatchRow,
@@ -782,6 +873,8 @@ const SectionBlock = memo(function SectionBlock({
           hpValues={hpValues}
           statusValues={statusValues}
           isAdmin={isAdmin}
+          sectionId={section.id}
+          onAddRowBelow={onAddRowBelow}
           onPatchRow={onPatchRow}
           onDeleteRow={onDeleteRow}
           onSetCell={onSetCell}

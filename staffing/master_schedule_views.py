@@ -6,7 +6,7 @@ one code per day). Managers can read it; only admins can change it.
     PATCH master-schedule/settings/        {week_start, hp_values, status_values}
     POST  master-schedule/sections/        {name, level?, after?}  after: "start" | a section id | omitted = end
     DELETE master-schedule/sections/<id>/  (also removes the section's rows and their entries)
-    POST  master-schedule/rows/            {section, staff?}
+    POST  master-schedule/rows/            {section, staff?, after?}  after: "start" | a row id in that section | omitted = end
     PATCH master-schedule/rows/<id>/       {staff?, hp?, status?}
     DELETE master-schedule/rows/<id>/
     PUT   master-schedule/cells/           {row, date, code}   (code "" clears)
@@ -16,7 +16,6 @@ one code per day). Managers can read it; only admins can change it.
 import datetime
 
 from django.db import transaction
-from django.db.models import Max
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -347,13 +346,33 @@ class MasterScheduleRowsView(_MasterBase):
         settings = get_settings(org)
         hp = _clean_label(request.data.get("hp"))
         st = _clean_label(request.data.get("status"))
-        last = MasterScheduleRow.objects.filter(section=section).aggregate(m=Max("sort_order"))["m"] or 0
-        row = MasterScheduleRow.objects.create(
-            organization=org, section=section, staff=staff, hp=hp, status=st, sort_order=last + 1
-        )
+        existing = list(MasterScheduleRow.objects.filter(section=section))
+        after = request.data.get("after")
+        if after in (None, "", "end"):
+            index = len(existing)
+        elif after == "start":
+            index = 0
+        else:
+            try:
+                after_id = int(after)
+            except (TypeError, ValueError):
+                return _bad("after must be 'start', 'end' or a row id.")
+            positions = [i for i, r in enumerate(existing) if r.id == after_id]
+            if not positions:
+                return _bad("The row to place this after was not found in that section.", status.HTTP_404_NOT_FOUND)
+            index = positions[0] + 1
+
+        with transaction.atomic():
+            row = MasterScheduleRow.objects.create(
+                organization=org, section=section, staff=staff, hp=hp, status=st, sort_order=0
+            )
+            ordered = existing[:index] + [row] + existing[index:]
+            for i, r in enumerate(ordered, start=1):
+                r.sort_order = i
+            MasterScheduleRow.objects.bulk_update(ordered, ["sort_order"])
         _remember(settings, "hp_values", hp)
         _remember(settings, "status_values", st)
-        return Response(_row_payload(row), status=status.HTTP_201_CREATED)
+        return Response({**_row_payload(row), "index": index}, status=status.HTTP_201_CREATED)
 
 
 class MasterScheduleRowDetailView(_MasterBase):
