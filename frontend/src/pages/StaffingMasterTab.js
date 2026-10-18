@@ -27,6 +27,7 @@ import {
 } from "../utils/masterSchedule";
 
 const NAME_W = 200;
+const UNIT_W = 100;
 const HP_W = 72;
 const STATUS_W = 80;
 const DAY_W = 46;
@@ -101,6 +102,7 @@ const RowView = memo(function RowView({
   cells,
   codes,
   staffOptions,
+  units,
   hpValues,
   statusValues,
   isAdmin,
@@ -164,7 +166,47 @@ const RowView = memo(function RowView({
           )}
         </Box>
       </td>
-      <td style={{ ...stickyCell(NAME_W, HP_W), padding: "0 2px" }}>
+      <td style={{ ...stickyCell(NAME_W, UNIT_W), padding: "0 2px" }}>
+        <TextField
+          select
+          variant="standard"
+          size="small"
+          disabled={!isAdmin}
+          value={row.unit_id ? String(row.unit_id) : ""}
+          onChange={(e) => {
+            const next = e.target.value ? Number(e.target.value) : null;
+            if (next !== (row.unit_id || null)) onPatchRow(row.id, { unit: next });
+          }}
+          fullWidth
+          slotProps={{
+            htmlInput: { "aria-label": "Unit" },
+            select: {
+              displayEmpty: true,
+              renderValue: (v) => {
+                if (v) return units.find((u) => String(u.id) === v)?.name || "Unit";
+                // nothing chosen: Create schedule falls back to the section's unit, if it has one
+                const fallback = row.section_unit_id ? units.find((u) => u.id === row.section_unit_id) : null;
+                return (
+                  <span style={{ color: "#9e9e9e", fontStyle: fallback ? "italic" : "normal" }}>
+                    {fallback ? fallback.name : "Unit"}
+                  </span>
+                );
+              },
+            },
+          }}
+          sx={{ "& .MuiSelect-select": { fontSize: 12, py: 0.5 } }}
+        >
+          <MenuItem value="">
+            <em>No unit (use section)</em>
+          </MenuItem>
+          {units.map((u) => (
+            <MenuItem key={u.id} value={String(u.id)}>
+              {u.name}
+            </MenuItem>
+          ))}
+        </TextField>
+      </td>
+      <td style={{ ...stickyCell(NAME_W + UNIT_W, HP_W), padding: "0 2px" }}>
         <LabelBox
           label="HP"
           width={HP_W - 4}
@@ -174,7 +216,7 @@ const RowView = memo(function RowView({
           onCommit={(v) => v !== (row.hp || "") && onPatchRow(row.id, { hp: v })}
         />
       </td>
-      <td style={{ ...stickyCell(NAME_W + HP_W, STATUS_W), padding: "0 2px" }}>
+      <td style={{ ...stickyCell(NAME_W + UNIT_W + HP_W, STATUS_W), padding: "0 2px" }}>
         <LabelBox
           label="Status"
           width={STATUS_W - 4}
@@ -439,15 +481,18 @@ function StaffingMasterTab({ isAdmin }) {
         { month: target, overwrite: auto.overwrite },
         { headers: headers() }
       );
-      const { created, already_scheduled: already, updated, removed, people, blank_rows_skipped: blank, unmatched_units: noUnit = [] } = res.data;
+      const { created, already_scheduled: already, updated, removed, people, blank_rows_skipped: blank, unmatched_units: noUnit = [], units_on_file: unitsOnFile = [], without_unit: withoutUnit = 0 } = res.data;
       setNotice(
         `${name} calendar schedule: ${created} ${created === 1 ? "shift" : "shifts"} created for ${people} ${people === 1 ? "person" : "people"}` +
           (already ? `, ${already} already on the calendar` : "") +
           (updated ? `, ${updated} updated` : "") +
           (removed ? `, ${removed} removed` : "") +
           (blank ? `. ${blank} blank ${blank === 1 ? "row was" : "rows were"} skipped (pick a person first).` : ".") +
+          (withoutUnit
+            ? ` ${withoutUnit} of this month's shifts are for people with no Unit chosen and not under a unit sub-heading, so they have no unit.`
+            : "") +
           (noUnit.length
-            ? ` No care unit named like ${noUnit.join(", ")} was found, so those shifts have no unit; add the unit on Units & Census and run this again with the update box checked.`
+            ?` No care unit named like ${noUnit.join(", ")} was found, so those shifts have no unit. Units on file: ${unitsOnFile.length ? unitsOnFile.join(", ") : "none"}. Name the units to match the sections (Units & Census), then click Create again.`
             : "")
       );
       setAuto((a) => ({ ...a, open: false, busy: false }));
@@ -508,7 +553,7 @@ function StaffingMasterTab({ isAdmin }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const colSpan = 3 + days.length;
+  const colSpan = 4 + days.length;
 
   return (
     <Box>
@@ -693,7 +738,7 @@ function StaffingMasterTab({ isAdmin }) {
             {auto.busy ? "Creating…" : "Create"}
           </Button>
           <Typography variant="caption" color="text.secondary" sx={{ flexBasis: "100%" }}>
-            Every code in a person's row becomes a shift on the Calendar tab for that date: 7 = 7a–3p, 7A = 7a–7p, 7P / 7p = 7p–7a, 3 = 3p–11p, 11 = 11p–7a, and "3 11" = both the 3–11 and the 11–7 shift. R and x are days off and create nothing. People under a unit sub-heading (Unit 2, Unit 3, Unit 1A/1B…) are put on the care unit with that name; everyone else has no unit. Blank rows (no person) are skipped. Only dates inside {MONTH_NAMES[month]} are used, and running it again never duplicates a shift.
+            Every code in a person's row becomes a shift on the Calendar tab for that date: 7 = 7a–3p, 7A = 7a–7p, 7P / 7p = 7p–7a, 3 = 3p–11p, 11 = 11p–7a, and "3 11" = both the 3–11 and the 11–7 shift. R and x are days off and create nothing. Each shift goes to the care unit chosen in the row's Unit column; if that is blank, people under a unit sub-heading (Unit 2, Unit 3, Unit 1A/1B…) are put on the care unit with that name, and everyone else has no unit. Blank rows (no person) are skipped. Only dates inside {MONTH_NAMES[month]} are used, and running it again never duplicates a shift.
           </Typography>
         </Stack>
       )}
@@ -718,14 +763,15 @@ function StaffingMasterTab({ isAdmin }) {
               borderSpacing: 0,
               tableLayout: "fixed",
               fontSize: 13,
-              width: NAME_W + HP_W + STATUS_W + days.length * DAY_W,
+              width: NAME_W + UNIT_W + HP_W + STATUS_W + days.length * DAY_W,
             }}
           >
             <thead>
               <tr>
                 <th style={{ ...headCell(0, NAME_W), textAlign: "left", paddingLeft: 8 }}>STAFF</th>
-                <th style={headCell(NAME_W, HP_W)}>HP</th>
-                <th style={headCell(NAME_W + HP_W, STATUS_W)}>Status</th>
+                <th style={headCell(NAME_W, UNIT_W)}>Unit</th>
+                <th style={headCell(NAME_W + UNIT_W, HP_W)}>HP</th>
+                <th style={headCell(NAME_W + UNIT_W + HP_W, STATUS_W)}>Status</th>
                 {days.map((d) => (
                   <th
                     key={d.iso}
@@ -760,6 +806,7 @@ function StaffingMasterTab({ isAdmin }) {
                   codes={data.codes}
                   freeStaff={freeStaff}
                   allStaff={allStaff}
+                  units={data.units || []}
                   hpValues={data.settings.hp_values}
                   statusValues={data.settings.status_values}
                   isAdmin={isAdmin}
@@ -806,6 +853,7 @@ const SectionBlock = memo(function SectionBlock({
   codes,
   freeStaff,
   allStaff,
+  units,
   hpValues,
   statusValues,
   isAdmin,
@@ -873,6 +921,7 @@ const SectionBlock = memo(function SectionBlock({
           codes={codes}
           freeStaff={freeStaff}
           allStaff={allStaff}
+          units={units}
           hpValues={hpValues}
           statusValues={statusValues}
           isAdmin={isAdmin}

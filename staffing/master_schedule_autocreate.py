@@ -6,34 +6,30 @@ code in a person's row (for example 7A on Monday Oct 5) becomes a calendar shift
 for that person on that date (7:00 AM - 7:00 PM); see master_schedule_autogen
 for what every code means. Only dates inside the chosen month are used.
 
-Units: a person listed under a unit sub-heading (Unit 2, Unit 3, Unit 1A/1B ...)
-gets their shifts on the care unit with that name (see Units & Census); people
-under any other section have no unit. Section and unit names are compared
-ignoring case, spaces and a leading "Unit", so "Unit 2" matches "Unit 2" or "2".
+Units: the Unit column on a person's row decides which care unit their shifts go
+to. When that is blank, a person listed under a unit sub-heading (Unit 2, Unit 3,
+Unit 1A/1B ...) gets the care unit with that name (see Units & Census); people
+under any other section with no Unit chosen have no unit. Section and unit names
+are compared ignoring case, spaces and a leading "Unit", so "Unit 2" matches
+"Unit 2" or "2".
 
 Safe to run again: a shift the person already has on that date and shift type
 (from this button, a recurring pattern or a manual assignment) is left alone and
 nothing is duplicated. With overwrite=true, shifts that an earlier run created
 from the Master Schedule are brought back in line with it (removed if the code
-was cleared or changed, times and unit refreshed); shifts made any other way are
+was cleared or changed, times and unit refreshed). Even without overwrite, a shift from
+an earlier run that has no unit gets its unit filled in once the unit exists; shifts made any other way are
 never touched.
 """
 
 import datetime
-import re
 
 from django.db import transaction
 from rest_framework.response import Response
 
 from .master_schedule_autogen import CODE_SHIFTS, MASTER_NOTE
-from .master_schedule_views import _bad, _MasterBase, _year_month
+from .master_schedule_views import _bad, _MasterBase, _unit_ids_by_key, _unit_key, _year_month
 from .models import MasterScheduleCell, StaffShift, Unit
-
-
-def _unit_key(name):
-    """'Unit 1A/1B' -> '1a/1b', '2' -> '2' (case, spaces and a leading 'Unit' ignored)."""
-    key = re.sub(r"\s+", "", (name or "").lower())
-    return key[4:] if key.startswith("unit") else key
 
 
 class MasterScheduleCreateScheduleView(_MasterBase):
@@ -53,9 +49,7 @@ class MasterScheduleCreateScheduleView(_MasterBase):
         first = datetime.date(year, month, 1)
         last = datetime.date(year + (month == 12), month % 12 + 1, 1) - datetime.timedelta(days=1)
 
-        unit_by_key = {}
-        for u in Unit.objects.filter(organization=org, is_active=True).order_by("id"):
-            unit_by_key.setdefault(_unit_key(u.name), u.id)
+        unit_by_key = _unit_ids_by_key(org)
 
         cells = MasterScheduleCell.objects.filter(
             row__organization=org, date__gte=first, date__lte=last, code__in=list(CODE_SHIFTS)
@@ -68,7 +62,8 @@ class MasterScheduleCreateScheduleView(_MasterBase):
                 blank_rows.add(c.row_id)
                 continue
             section_name = c.row.section.name
-            unit_id = unit_by_key.get(_unit_key(section_name))
+            # the row's own Unit wins; otherwise the unit matching the section name
+            unit_id = c.row.unit_id or unit_by_key.get(_unit_key(section_name))
             if unit_id is None and section_name.strip().lower().startswith("unit"):
                 no_unit.add(section_name.strip())
             for shift_type, start, end in CODE_SHIFTS[c.code]:
@@ -92,12 +87,14 @@ class MasterScheduleCreateScheduleView(_MasterBase):
                 )
                 continue
             already += 1
-            if (
-                overwrite
-                and have.notes == MASTER_NOTE
-                and (have.start_time, have.end_time, have.unit_id) != (start, end, unit_id)
-            ):
+            if have.notes != MASTER_NOTE:
+                continue  # entered by hand or from a pattern: never touched
+            if overwrite and (have.start_time, have.end_time, have.unit_id) != (start, end, unit_id):
                 have.start_time, have.end_time, have.unit_id = start, end, unit_id
+                to_update.append(have)
+            elif have.unit_id is None and unit_id is not None:
+                # an earlier run had no unit to put it on; fill it in, never override a unit someone chose
+                have.unit_id = unit_id
                 to_update.append(have)
         if overwrite:
             for key, shift in existing.items():
@@ -119,5 +116,7 @@ class MasterScheduleCreateScheduleView(_MasterBase):
                 "people": len({k[0] for k in wanted}),
                 "blank_rows_skipped": len(blank_rows),
                 "unmatched_units": sorted(no_unit),
+                "without_unit": sum(1 for v in wanted.values() if v[2] is None),
+                "units_on_file": sorted(u.name for u in Unit.objects.filter(organization=org, is_active=True)),
             }
         )

@@ -6,14 +6,15 @@ one code per day). Managers can read it; only admins can change it.
     PATCH master-schedule/settings/        {week_start, hp_values, status_values}
     POST  master-schedule/sections/        {name, level?, after?}  after: "start" | a section id | omitted = end
     DELETE master-schedule/sections/<id>/  (also removes the section's rows and their entries)
-    POST  master-schedule/rows/            {section, staff?, after?}  after: "start" | a row id in that section | omitted = end
-    PATCH master-schedule/rows/<id>/       {staff?, hp?, status?}
+    POST  master-schedule/rows/            {section, staff?, unit?, after?}  after: "start" | a row id in that section | omitted = end
+    PATCH master-schedule/rows/<id>/       {staff?, unit?, hp?, status?}   unit: a care unit id, or null/"" for none
     DELETE master-schedule/rows/<id>/
     PUT   master-schedule/cells/           {row, date, code}   (code "" clears)
     POST  master-schedule/copy/            {source: "YYYY-MM", target: "YYYY-MM", overwrite?}
 """
 
 import datetime
+import re
 
 from django.db import transaction
 from rest_framework import status
@@ -31,11 +32,26 @@ from .models import (
     MasterScheduleSection,
     MasterScheduleSettings,
     Staff,
+    Unit,
 )
 from .views import ADMIN_ROLES, IsStaffingManager
 
 MAX_RANGE_DAYS = 62
 MAX_LABEL = 20
+
+
+def _unit_key(name):
+    """'Unit 1A/1B' -> '1a/1b', '2' -> '2' (case, spaces and a leading 'Unit' ignored)."""
+    key = re.sub(r"\s+", "", (name or "").lower())
+    return key[4:] if key.startswith("unit") else key
+
+
+def _unit_ids_by_key(org):
+    """{normalized unit name: unit id} for the organization's active units."""
+    out = {}
+    for u in Unit.objects.filter(organization=org, is_active=True).order_by("id"):
+        out.setdefault(_unit_key(u.name), u.id)
+    return out
 
 
 def _bad(message, code=status.HTTP_400_BAD_REQUEST):
@@ -159,6 +175,7 @@ class MasterScheduleView(_MasterBase):
         rows = list(
             MasterScheduleRow.objects.filter(organization=org).select_related("staff")
         )
+        unit_ids = _unit_ids_by_key(org)
         by_section = {}
         for r in rows:
             by_section.setdefault(r.section_id, []).append(r)
@@ -172,6 +189,8 @@ class MasterScheduleView(_MasterBase):
                         "id": r.id,
                         "staff_id": r.staff_id,
                         "staff_name": _staff_name(r.staff),
+                        "unit_id": r.unit_id,
+                        "section_unit_id": unit_ids.get(_unit_key(s.name)),
                         "hp": r.hp,
                         "status": r.status,
                     }
@@ -200,6 +219,10 @@ class MasterScheduleView(_MasterBase):
                     "status_values": settings.status_values,
                 },
                 "codes": MASTER_SCHEDULE_CODES,
+                "units": [
+                    {"id": u.id, "name": u.name}
+                    for u in Unit.objects.filter(organization=org, is_active=True).order_by("name", "id")
+                ],
                 "staff": staff,
                 "sections": sections,
                 "cells": cells,
@@ -305,9 +328,21 @@ def _row_payload(row):
         "id": row.id,
         "staff_id": row.staff_id,
         "staff_name": _staff_name(row.staff),
+        "unit_id": row.unit_id,
+        "section_unit_id": _unit_ids_by_key(row.organization).get(_unit_key(row.section.name)),
         "hp": row.hp,
         "status": row.status,
     }
+
+
+def _resolve_unit(org, raw):
+    """(unit, error) for a unit id from the client; None / "" clears the unit."""
+    if raw in (None, ""):
+        return None, None
+    try:
+        return Unit.objects.get(pk=int(raw), organization=org), None
+    except (Unit.DoesNotExist, TypeError, ValueError):
+        return None, "That unit was not found for this organization."
 
 
 def _resolve_staff(org, raw, exclude_row=None):
@@ -343,6 +378,9 @@ class MasterScheduleRowsView(_MasterBase):
         staff, err = _resolve_staff(org, request.data.get("staff"))
         if err:
             return _bad(err)
+        unit, err = _resolve_unit(org, request.data.get("unit"))
+        if err:
+            return _bad(err)
         settings = get_settings(org)
         hp = _clean_label(request.data.get("hp"))
         st = _clean_label(request.data.get("status"))
@@ -364,7 +402,7 @@ class MasterScheduleRowsView(_MasterBase):
 
         with transaction.atomic():
             row = MasterScheduleRow.objects.create(
-                organization=org, section=section, staff=staff, hp=hp, status=st, sort_order=0
+                organization=org, section=section, staff=staff, unit=unit, hp=hp, status=st, sort_order=0
             )
             ordered = existing[:index] + [row] + existing[index:]
             for i, r in enumerate(ordered, start=1):
@@ -380,7 +418,7 @@ class MasterScheduleRowDetailView(_MasterBase):
         org = self._org(request)
         if org is None:
             return None, None
-        return org, MasterScheduleRow.objects.filter(pk=pk, organization=org).select_related("staff").first()
+        return org, MasterScheduleRow.objects.filter(pk=pk, organization=org).select_related("staff", "section").first()
 
     def patch(self, request, pk):
         denied = self._admin_only(request)
@@ -396,6 +434,11 @@ class MasterScheduleRowDetailView(_MasterBase):
             if err:
                 return _bad(err)
             row.staff = staff
+        if "unit" in data:
+            unit, err = _resolve_unit(org, data.get("unit"))
+            if err:
+                return _bad(err)
+            row.unit = unit
         if "hp" in data:
             row.hp = _clean_label(data.get("hp"))
             _remember(settings, "hp_values", row.hp)

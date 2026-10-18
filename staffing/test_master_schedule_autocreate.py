@@ -168,12 +168,73 @@ class CreateScheduleUnitTests(MasterScheduleBase):
         self.assertIsNone(StaffShift.objects.get(staff=other_staff).unit)  # only the other org has Unit 2
         self.assertEqual(r["unmatched_units"], ["Unit 2"])
 
-    def test_overwrite_moves_earlier_unit_less_shifts_onto_their_unit(self):
+    def test_earlier_unit_less_shifts_get_their_unit_on_a_plain_rerun(self):
         staff = self._row_under("Unit 4", "Fay")
-        self._run()
+        first = self._run().json()
+        self.assertEqual(first["unmatched_units"], ["Unit 4"])
         self.assertIsNone(StaffShift.objects.get(staff=staff).unit)
         unit4 = Unit.objects.create(organization=self.org, name="Unit 4")
-        self.assertEqual(self._run().json()["updated"], 0)  # plain re-run leaves it alone
-        self.assertEqual(self._run(overwrite=True).json()["updated"], 1)
+        r = self._run().json()
+        self.assertEqual((r["created"], r["updated"]), (0, 1))
         self.assertEqual(StaffShift.objects.get(staff=staff).unit, unit4)
         self.assertEqual(StaffShift.objects.filter(staff=staff).count(), 1)
+        self.assertEqual(r["units_on_file"], ["Unit 4"])
+
+    def test_a_unit_chosen_by_hand_is_kept_unless_overwrite(self):
+        unit4 = Unit.objects.create(organization=self.org, name="Unit 4")
+        other = Unit.objects.create(organization=self.org, name="Unit 9")
+        staff = self._row_under("Unit 4", "Gus")
+        self._run()
+        shift = StaffShift.objects.get(staff=staff)
+        self.assertEqual(shift.unit, unit4)
+        shift.unit = other
+        shift.save()
+        self.assertEqual(self._run().json()["updated"], 0)
+        self.assertEqual(StaffShift.objects.get(staff=staff).unit, other)
+        self.assertEqual(self._run(overwrite=True).json()["updated"], 1)
+        self.assertEqual(StaffShift.objects.get(staff=staff).unit, unit4)
+
+
+class RowUnitTests(MasterScheduleBase):
+    """The Unit column on a Master Schedule row."""
+
+    _row_under = CreateScheduleUnitTests._row_under
+    _run = CreateScheduleUnitTests._run
+
+    def test_a_rows_own_unit_beats_the_section_name(self):
+        unit2 = Unit.objects.create(organization=self.org, name="Unit 2")
+        unit3 = Unit.objects.create(organization=self.org, name="Unit 3")
+        a = self._row_under("Unit 2", "Ann")
+        MasterScheduleRow.objects.filter(staff=a).update(unit=unit3)  # sits under Unit 2, assigned to Unit 3
+        b = self._row_under("7-3 GNA", "Bea")  # not a unit section
+        MasterScheduleRow.objects.filter(staff=b).update(unit=unit2)
+        self._run()
+        self.assertEqual(StaffShift.objects.get(staff=a).unit, unit3)
+        self.assertEqual(StaffShift.objects.get(staff=b).unit, unit2)
+
+    def test_row_api_sets_clears_and_validates_the_unit(self):
+        unit2 = Unit.objects.create(organization=self.org, name="Unit 2")
+        foreign = Unit.objects.create(organization=self.other, name="Unit 2")
+        staff = self._row_under("Unit 2", "Cy")
+        row = MasterScheduleRow.objects.get(staff=staff)
+        c = client_for(self.admin)
+        url = f"{BASE}/rows/{row.id}/"
+        r = c.patch(url, {"unit": unit2.id}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual((r.json()["unit_id"], r.json()["section_unit_id"]), (unit2.id, unit2.id))
+        self.assertEqual(c.patch(url, {"unit": foreign.id}, format="json").status_code, 400)
+        r = c.patch(url, {"unit": None}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertIsNone(r.json()["unit_id"])
+        row.refresh_from_db()
+        self.assertIsNone(row.unit_id)
+
+    def test_grid_lists_units_and_each_rows_unit(self):
+        unit2 = Unit.objects.create(organization=self.org, name="Unit 2")
+        staff = self._row_under("Unit 2", "Dee")
+        MasterScheduleRow.objects.filter(staff=staff).update(unit=unit2)
+        data = client_for(self.admin).get(
+            f"{BASE}/?start=2026-10-01&end=2026-10-31").json()
+        self.assertEqual([u["name"] for u in data["units"]], ["Unit 2"])
+        rows = [r for s in data["sections"] for r in s["rows"] if r["staff_id"] == staff.id]
+        self.assertEqual((rows[0]["unit_id"], rows[0]["section_unit_id"]), (unit2.id, unit2.id))
