@@ -4,6 +4,7 @@ import { Box, Typography } from "@mui/material";
 import OrdersPanel from "../components/OrdersPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import ChartPageShell from "../components/patients/ChartPageShell";
+import DocumentationAssistantDock from "../components/DocumentationAssistantDock";
 import BackButton from "../components/BackButton";
 import { getValidToken, clearAuthData } from "../utils/auth";
 import { usePatientData } from "../hooks/usePatientData";
@@ -81,6 +82,10 @@ function OrdersPage() {
 
             <OrdersPanel patientId={patient.user_id || patient.id} />
         </Box>
+        <DocumentationAssistantDock
+            patientId={patient.user_id || patient.id}
+            patientName={`${patient.first_name} ${patient.last_name}`}
+        />
     </ChartPageShell>
 );
 }

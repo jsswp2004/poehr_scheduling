@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Box, Typography } from "@mui/material";
 import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 import ChartPageShell from "../components/patients/ChartPageShell";
+import DocumentationAssistantDock from "../components/DocumentationAssistantDock";
 import BackButton from "../components/BackButton";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import { getValidToken, clearAuthData } from "../utils/auth";
@@ -87,6 +88,10 @@ function VitalSignsFlowsheetPage() {
                 patientName={`${patient.first_name} ${patient.last_name}`}
             />
         </Box>
+        <DocumentationAssistantDock
+            patientId={patient.user_id || patient.id}
+            patientName={`${patient.first_name} ${patient.last_name}`}
+        />
     </ChartPageShell>
 );
 }

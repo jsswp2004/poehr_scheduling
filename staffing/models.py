@@ -377,6 +377,11 @@ class Unit(models.Model):
         default="8h",
         help_text="8-hour (Day/Evening/Night) or 12-hour (Day/Night) shifts for this unit.",
     )
+    bed_capacity = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Beds on this unit; printed as the '/beds' part of the census on the daily staffing reports.",
+    )
     is_active = models.BooleanField(default=True)
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -2221,3 +2221,64 @@ class SchedulerPendingAction(models.Model):
 
     def __str__(self):
         return f"{self.action_type} ({self.status}) for user {self.user_id}"
+
+
+class DocumentationAssistantMessage(models.Model):
+    """
+    One question/answer exchange with the in-app Documentation assistant.
+
+    Support + audit log. Stores the question, the answer and WHICH tools ran (with redacted arguments), never the
+    raw chart data the tools returned. The question and answer can still mention a patient, so these rows are
+    purged after ASSISTANT_LOG_RETENTION_DAYS; who looked at which chart is kept separately in
+    DocumentationAssistantAccess.
+    """
+
+    organization = models.ForeignKey(
+        "users.Organization", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    user_role = models.CharField(max_length=20, blank=True, default="")
+    conversation_id = models.UUIDField(db_index=True)
+    question = models.TextField()
+    answer = models.TextField(blank=True, default="")
+    tools_used = models.JSONField(default=list, blank=True)
+    model = models.CharField(max_length=120, blank=True, default="")
+    input_tokens = models.PositiveIntegerField(default=0)
+    output_tokens = models.PositiveIntegerField(default=0)
+    error = models.CharField(max_length=200, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["user", "-created_at"], name="doc_as_user_created_idx")]
+
+    def __str__(self):
+        return f"{self.user_id} @ {self.created_at:%Y-%m-%d %H:%M}: {self.question[:40]}"
+
+
+class DocumentationAssistantAccess(models.Model):
+    """
+    Access trail: one row each time the Documentation assistant read a patient's chart data for a user.
+
+    Ids only (no names, no clinical text), and never purged by the assistant: this is the "who looked at whose
+    chart" record. It outlives the exchange log on purpose.
+    """
+
+    organization = models.ForeignKey(
+        "users.Organization", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    patient_id = models.PositiveIntegerField(db_index=True)
+    tool = models.CharField(max_length=40)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["patient_id", "-created_at"], name="doc_acc_patient_created_idx")]
+
+    def __str__(self):
+        return f"user {self.user_id} read patient {self.patient_id} via {self.tool}"

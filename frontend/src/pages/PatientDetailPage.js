@@ -16,6 +16,7 @@ import {
   Select as MUISelect,
 } from "@mui/material";
 import ChartPageShell from "../components/patients/ChartPageShell";
+import DocumentationAssistantDock from "../components/DocumentationAssistantDock";
 import PanelTitle from "../components/patients/PanelTitle";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
 import InputAdornment from "@mui/material/InputAdornment";
@@ -1431,7 +1432,17 @@ export function PatientRecord({ id, embedded = false, onOpenNotes = null }) {
       )}
     </Box>
   );
-  return embedded ? record : <ChartPageShell>{record}</ChartPageShell>;
+  return embedded ? (
+    record
+  ) : (
+    <ChartPageShell>
+      {record}
+      <DocumentationAssistantDock
+        patientId={patient.user_id || patient.id}
+        patientName={`${patient.first_name} ${patient.last_name}`}
+      />
+    </ChartPageShell>
+  );
 }
 
 function PatientDetailPage() {

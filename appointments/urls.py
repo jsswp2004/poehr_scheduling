@@ -41,6 +41,7 @@ from .locations import BedHoldView, LocationItemView, LocationTreeView
 from .chart_tabs import ChartTabsView, MyChartTabsView, OrgChartTabsView
 from .my_schedule import MyScheduleView
 from .scheduler_assistant import (AssistantActionCancelView as SchedulerAssistantCancelView, AssistantActionConfirmView as SchedulerAssistantConfirmView, AssistantMessageView as SchedulerAssistantMessageView)
+from .documentation_assistant import AssistantMessageView as DocumentationAssistantMessageView, AssistantStatusView as DocumentationAssistantStatusView
 from . import allergies as allergy_views
 from .order_task_views import (
     PrnGiveView,
@@ -268,6 +269,9 @@ urlpatterns = router.urls + [
     path("scheduler-assistant/message/", SchedulerAssistantMessageView.as_view(), name="scheduler-assistant-message"),
     path("scheduler-assistant/actions/<uuid:pk>/confirm/", SchedulerAssistantConfirmView.as_view(), name="scheduler-assistant-action-confirm"),
     path("scheduler-assistant/actions/<uuid:pk>/cancel/", SchedulerAssistantCancelView.as_view(), name="scheduler-assistant-action-cancel"),
+    # in-app Documentation assistant (read-only chat over patients, notes, orders, visits, results)
+    path("documentation-assistant/message/", DocumentationAssistantMessageView.as_view(), name="documentation-assistant-message"),
+    path("documentation-assistant/status/", DocumentationAssistantStatusView.as_view(), name="documentation-assistant-status"),
     # referral manager
     path("referrals/", ReferralListCreateView.as_view(), name="referrals"),
     path("referrals/queues/", ReferralQueuesView.as_view(), name="referral-queues"),

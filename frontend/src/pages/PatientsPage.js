@@ -10,6 +10,7 @@ import { getAccessToken } from "../utils/tokenManager";
 // Components
 import BackButton from "../components/BackButton";
 import SchedulerAssistantDock, { SCHEDULER_CHANGED_EVENT } from "../components/SchedulerAssistantDock";
+import DocumentationAssistantDock from "../components/DocumentationAssistantDock";
 import SMSModal from "../components/SMSModal";
 import {
   PatientsTable,
@@ -796,6 +797,15 @@ function PatientsPage() {
       {/* Scheduler assistant: only on the Appointments view (the Scheduler), not the chart views */}
       {token && tab === "appointments" && (
         <SchedulerAssistantDock onNavigate={(route) => route === "appointments" && handleTabChange(null, "appointments")} />
+      )}
+      {/* Documentation assistant: the patient list and chart tabs (never the Scheduler, which has its own).
+          Follows the selected patient so "this patient" means the chart on screen. It hides itself unless the
+          server has it turned on for this user. */}
+      {token && showPatientContext && tab !== "appointments" && (
+        <DocumentationAssistantDock
+          patientId={selectedPatient ? selectedPatient.id : null}
+          patientName={selectedPatient ? selectedPatient.name : ""}
+        />
       )}
     </LocalizationProvider>
   );
