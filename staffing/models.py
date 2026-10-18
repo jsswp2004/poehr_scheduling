@@ -198,6 +198,7 @@ class StaffShift(models.Model):
         ("recurring", "Generated from recurring pattern"),
         ("manual", "Manually assigned"),
         ("override", "One-off override of a recurring occurrence"),
+        ("pickup", "Picked up by the staff member"),
     ]
 
     organization = models.ForeignKey(

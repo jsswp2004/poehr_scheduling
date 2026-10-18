@@ -184,3 +184,72 @@ def notify_emergency(req):
         logger.exception("Emergency alert failed for request %s", getattr(req, "pk", None))
         summary["errors"].append(str(exc))
     return summary
+
+
+def _shift_when(s):
+    fmt = lambda t: t.strftime("%I:%M %p").lstrip("0") if t else ""
+    span = f"{fmt(s.start_time)} - {fmt(s.end_time)}" if s.start_time and s.end_time else ""
+    unit = f" on {s.unit.name}" if s.unit_id else ""
+    return f"{s.get_shift_type_display()} shift{unit}, {s.date.strftime('%A %b %d, %Y')}" + (f" ({span})" if span else "")
+
+
+def build_pickup_text(shift):
+    staff = shift.staff
+    subject = f"Shift pick-up: {staff.full_name} - {shift.date.strftime('%a %b %d')} {shift.get_shift_type_display()}"
+    lines = [
+        f"{staff.full_name} ({staff.profession}) requested to pick up a shift and has been added to the schedule.",
+        "",
+        f"  {_shift_when(shift)}",
+    ]
+    if shift.notes:
+        lines += ["", f"Note: {shift.notes}"]
+    lines += [
+        "",
+        "If this is not approved, remove the shift from Staffing > Calendar (Delete this shift).",
+        f"Open Staffing: {FRONTEND_BASE_URL}/staffing",
+    ]
+    sms = (
+        f"POWER Staffing: {staff.full_name} requested to pick up {shift.get_shift_type_display()}"
+        + (f" - {shift.unit.name}" if shift.unit_id else "")
+        + f" on {shift.date.strftime('%a %b %d')}. Added to the schedule; review in Staffing > Calendar."
+    )
+    return subject, "\n".join(lines), sms
+
+
+def notify_pickup(shift):
+    """
+    Email every admin (and text the ones who consented) that a staff member picked up a
+    shift. Never raises: the shift is already saved. Returns {"emails", "sms", "errors"}.
+    """
+    summary = {"emails": 0, "sms": 0, "errors": []}
+    try:
+        from communicator.utils import send_email, send_sms
+        from users.models import CustomUser
+
+        subject, body, sms = build_pickup_text(shift)
+        org = shift.organization
+        admins = CustomUser.objects.filter(
+            organization=org, role__in=("admin", "system_admin"), is_active=True
+        )
+        for admin in admins:
+            if admin.email:
+                try:
+                    send_email(admin.email, subject, body, user=admin, organization=org)
+                    summary["emails"] += 1
+                except Exception as exc:  # noqa: BLE001
+                    summary["errors"].append(f"email {admin.email}: {exc}")
+            if (
+                org.staffing_messaging_enabled
+                and admin.phone_number
+                and admin.sms_consent
+                and not admin.sms_opt_out
+            ):
+                try:
+                    send_sms(admin.phone_number, sms, user=admin, organization=org)
+                    summary["sms"] += 1
+                except Exception as exc:  # noqa: BLE001
+                    summary["errors"].append(f"sms {admin.phone_number}: {exc}")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Pick-up alert failed for shift %s", getattr(shift, "pk", None))
+        summary["errors"].append(str(exc))
+    return summary
