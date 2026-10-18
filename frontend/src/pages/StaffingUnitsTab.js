@@ -83,6 +83,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
 
   const [newName, setNewName] = useState("");
   const [newPattern, setNewPattern] = useState("8h");
+  const [newBeds, setNewBeds] = useState("");
 
   const [sub, setSub] = useState("census");
   const [history, setHistory] = useState([]); // every census entry, newest first
@@ -191,10 +192,11 @@ function StaffingUnitsTab({ isAdmin = false }) {
     try {
       await axios.post(
         apiEndpoints.staffingUnits,
-        { name: newName.trim(), shift_pattern: newPattern },
+        { name: newName.trim(), shift_pattern: newPattern, bed_capacity: newBeds === "" ? null : Number(newBeds) },
         { headers }
       );
       setNewName("");
+      setNewBeds("");
       setStatus({ ok: true, message: "Unit added." });
       fetchUnits();
     } catch (err) {
@@ -316,7 +318,11 @@ function StaffingUnitsTab({ isAdmin = false }) {
     try {
       await axios.patch(
         apiEndpoints.staffingUnitDetail(editUnit.id),
-        { name, shift_pattern: editUnit.shift_pattern },
+        {
+          name,
+          shift_pattern: editUnit.shift_pattern,
+          bed_capacity: editUnit.bed_capacity === "" ? null : Number(editUnit.bed_capacity),
+        },
         { headers }
       );
       closeDialogs();
@@ -677,6 +683,15 @@ function StaffingUnitsTab({ isAdmin = false }) {
                 onChange={(e) => setNewName(e.target.value)}
               />
               <PatternToggle value={newPattern} onChange={setNewPattern} />
+              <TextField
+                label="Beds"
+                size="small"
+                type="number"
+                inputProps={{ min: 0 }}
+                value={newBeds}
+                onChange={(e) => setNewBeds(e.target.value)}
+                sx={{ width: 90 }}
+              />
               <Button variant="outlined" onClick={addUnit}>
                 Add unit
               </Button>
@@ -691,6 +706,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
               <TableRow>
                 <TableCell>Name</TableCell>
                 <TableCell>Shift length</TableCell>
+                <TableCell>Beds</TableCell>
                 <TableCell>Active</TableCell>
                 {isAdmin && <TableCell align="right">Actions</TableCell>}
               </TableRow>
@@ -698,7 +714,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
             <TableBody>
               {unitsRecent.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 4 : 3}>
+                  <TableCell colSpan={isAdmin ? 5 : 4}>
                     <Typography variant="body2" color="text.secondary">
                       No units yet.
                     </Typography>
@@ -718,6 +734,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
                       PATTERN_HELP[u.shift_pattern]
                     )}
                   </TableCell>
+                  <TableCell>{u.bed_capacity ?? "—"}</TableCell>
                   <TableCell>
                     <Switch
                       checked={u.is_active}
@@ -730,7 +747,12 @@ function StaffingUnitsTab({ isAdmin = false }) {
                       {actionIcons(
                         () => {
                           setDialogError("");
-                          setEditUnit({ id: u.id, name: u.name, shift_pattern: u.shift_pattern });
+                          setEditUnit({
+                            id: u.id,
+                            name: u.name,
+                            shift_pattern: u.shift_pattern,
+                            bed_capacity: u.bed_capacity ?? "",
+                          });
                         },
                         () => {
                           setDialogError("");
@@ -822,6 +844,15 @@ function StaffingUnitsTab({ isAdmin = false }) {
                 value={editUnit.name}
                 onChange={(e) => setEditUnit({ ...editUnit, name: e.target.value })}
                 autoFocus
+              />
+              <TextField
+                label="Beds"
+                size="small"
+                type="number"
+                inputProps={{ min: 0 }}
+                value={editUnit.bed_capacity}
+                onChange={(e) => setEditUnit({ ...editUnit, bed_capacity: e.target.value })}
+                helperText="Printed as the census capacity on the daily staffing reports."
               />
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>

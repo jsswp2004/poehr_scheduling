@@ -32,6 +32,7 @@ import { getAuthHeaders } from "../config/api";
  *   knownRoutes    route names this page understands; server buttons for any other route are dropped
  *   onNavigate     (route) => void, called when a server button is pressed
  *   changedEvent   optional window event name fired after a confirmed change, so the page can reload its data
+ *   extraBody      optional object merged into every message request (e.g. {patient_id} for the open chart)
  */
 
 const PANEL_WIDTH = 380;
@@ -58,6 +59,7 @@ function AssistantDock({
   knownRoutes = [],
   onNavigate,
   changedEvent,
+  extraBody = null,
 }) {
   const [open, setOpen] = useState(false);
   const [msgs, setMsgs] = useState([]);
@@ -79,7 +81,7 @@ function AssistantDock({
     try {
       const res = await axios.post(
         messageUrl,
-        { message: q, conversation_id: convoId.current },
+        { ...(extraBody || {}), message: q, conversation_id: convoId.current },
         { headers: getAuthHeaders(getAccessToken()), timeout: 45000 },
       );
       convoId.current = res.data.conversation_id;

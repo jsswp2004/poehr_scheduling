@@ -5,6 +5,7 @@ from .assistant import AssistantActionCancelView, AssistantActionConfirmView, As
 from .compliance_views import CoverageStatusView, OrgLocationView
 from .master_schedule_autocreate import MasterScheduleCreateScheduleView
 from .master_schedule_csv import MasterScheduleCsvTemplateView, MasterScheduleUploadCsvView
+from .daily_reports_views import DailyStaffingReportView
 from .master_schedule_views import (
     MasterScheduleCellsView,
     MasterScheduleCopyMonthView,
@@ -106,6 +107,7 @@ urlpatterns = [
     path("master-schedule/csv/", MasterScheduleCsvTemplateView.as_view(), name="staffing-master-schedule-csv"),
     path("master-schedule/upload-csv/", MasterScheduleUploadCsvView.as_view(), name="staffing-master-schedule-upload-csv"),
     path("master-schedule/cells/", MasterScheduleCellsView.as_view(), name="staffing-master-schedule-cells"),
+    path("daily-reports/<str:kind>/pdf/", DailyStaffingReportView.as_view(), name="staffing-daily-report-pdf"),
     path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
     path("location/", OrgLocationView.as_view(), name="staffing-location"),
     path("rules/", RulesListCreateView.as_view(), name="staffing-rules"),

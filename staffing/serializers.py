@@ -246,6 +246,7 @@ class UnitSerializer(serializers.ModelSerializer):
             "name",
             "shift_pattern",
             "shift_pattern_display",
+            "bed_capacity",
             "is_active",
             "notes",
             "latest_census",

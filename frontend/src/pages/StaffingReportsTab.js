@@ -27,10 +27,12 @@ import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import StaffingMasterReport from "./StaffingMasterReport";
+import StaffingDailyReports from "./StaffingDailyReports";
 
 const REPORT_TYPES = [
   { value: "schedule", label: "Schedule (Day / Week / Month)" },
   { value: "master_schedule", label: "Master Schedule (printable month)" },
+  { value: "daily_forms", label: "Daily Staffing Forms (printable PDFs)" },
   { value: "unscheduled", label: "Staff With No Schedule" },
   { value: "labor_hours", label: "Labor Hours Summary" },
   { value: "coverage_compliance", label: "Coverage Compliance" },
@@ -221,7 +223,7 @@ function StaffingReportsTab() {
   };
 
   const runReport = useCallback(async () => {
-    if (!startDate || !endDate || reportType === "master_schedule") return;
+    if (!startDate || !endDate || reportType === "master_schedule" || reportType === "daily_forms") return;
     setLoading(true);
     setError("");
     try {
@@ -419,7 +421,7 @@ function StaffingReportsTab() {
           spacing={1.5}
           alignItems="center"
           flexWrap="wrap"
-          sx={reportType === "master_schedule" ? { display: "none" } : undefined}
+          sx={reportType === "master_schedule" || reportType === "daily_forms" ? { display: "none" } : undefined}
         >
           <ToggleButtonGroup size="small" value={preset} exclusive onChange={handlePresetChange}>
             <ToggleButton value="today">Day</ToggleButton>
@@ -525,6 +527,8 @@ function StaffingReportsTab() {
       <Box className="print-area">
       {reportType === "master_schedule" ? (
         <StaffingMasterReport />
+      ) : reportType === "daily_forms" ? (
+        <StaffingDailyReports />
       ) : (
       <Typography variant="h6" className="print-only-header">
         {REPORT_LABELS[reportType]} — {startDate} to {endDate}

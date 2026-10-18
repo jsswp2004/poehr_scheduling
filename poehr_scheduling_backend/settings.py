@@ -228,6 +228,13 @@ DICTATION_VERTEX_PROJECT = os.environ.get("DICTATION_VERTEX_PROJECT", "")
 DICTATION_VERTEX_REGION = os.environ.get("DICTATION_VERTEX_REGION", "global")
 DICTATION_VERTEX_CREDENTIALS_JSON = os.environ.get("DICTATION_VERTEX_CREDENTIALS_JSON", "")
 
+# ---- Documentation assistant (chat over a patient's chart: patients, notes, orders, visits, labs) ----
+# Off until you turn it on, because it sends chart text to the model. Needs the AWS BAA (same account and IAM
+# role as Dictation; Bedrock model invocation logging must stay OFF). Read-only: it never changes the chart.
+DOCUMENTATION_ASSISTANT_ENABLED = os.environ.get("DOCUMENTATION_ASSISTANT_ENABLED", "").lower() in ("1", "true", "yes")
+# Bedrock model / inference-profile id. Unset falls back to DICTATION_CLEANUP_MODEL_ID.
+DOCUMENTATION_ASSISTANT_MODEL_ID = os.environ.get("DOCUMENTATION_ASSISTANT_MODEL_ID", "")
+
 # ---- Telehealth (video visits, Amazon Chime SDK) ------------------------------------
 # The AWS side needs a BAA (AWS Artifact) and an IAM role with the actions in
 # telehealth/iam_policy.json. No access keys here: boto3 uses the role.
