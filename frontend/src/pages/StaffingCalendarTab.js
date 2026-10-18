@@ -175,6 +175,8 @@ function StaffingCalendarTab({ isAdmin = false }) {
       shift_type: shift.shift_type,
       original_shift_type: shift.shift_type,
       unit_name: shift.unit_name || "",
+      unit_id: shift.unit ? String(shift.unit) : "",
+      original_unit_id: shift.unit ? String(shift.unit) : "",
       start_time: (shift.start_time || "").slice(0, 5),
       end_time: (shift.end_time || "").slice(0, 5),
       notes: shift.notes || "",
@@ -197,6 +199,9 @@ function StaffingCalendarTab({ isAdmin = false }) {
           end_time: editShift.end_time || null,
           notes: editShift.notes || "",
           ...(editShift.shift_type !== editShift.original_shift_type ? { shift_type: editShift.shift_type } : {}),
+          ...(editShift.unit_id !== editShift.original_unit_id
+            ? { unit: editShift.unit_id ? Number(editShift.unit_id) : null }
+            : {}),
         },
         { headers: getAuthHeaders(token) }
       );
@@ -282,6 +287,8 @@ function StaffingCalendarTab({ isAdmin = false }) {
           end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
         }
         const role = roleLabel(shift) ? ` · ${roleLabel(shift)}` : "";
+        // In the All Units view, say which unit the shift is on.
+        const unit = shift.unit_name && unitId === "" ? ` · ${shift.unit_name}` : "";
         const kind = shift.shift_type_display || shift.shift_type;
         // Week and day views: every shift is a full-width row stacked in the top
         // band (name, role, hours) instead of narrow side-by-side tiles on the
@@ -292,7 +299,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           const day = new Date(`${shift.date}T00:00:00`);
           return {
             id: shift.id,
-            title: `${shift.staff_name}${role}${hours} (${kind})`,
+            title: `${shift.staff_name}${role}${unit}${hours} (${kind})`,
             start: day,
             end: day,
             allDay: true,
@@ -301,14 +308,14 @@ function StaffingCalendarTab({ isAdmin = false }) {
         }
         return {
           id: shift.id,
-          title: `${shift.staff_name}${role} (${kind})`,
+          title: `${shift.staff_name}${role}${unit} (${kind})`,
           start,
           end,
           allDay: !shift.start_time,
           resource: shift,
         };
       }),
-    [filteredShifts, stackedView]
+    [filteredShifts, stackedView, unitId]
   );
 
   const eventPropGetter = (event) => {
@@ -766,12 +773,30 @@ function StaffingCalendarTab({ isAdmin = false }) {
             <Stack spacing={2} sx={{ mt: 1 }}>
               <Typography variant="body2" color="text.secondary">
                 {editShift.staff_name} · {moment(editShift.date).format("ddd, MMM D, YYYY")}
-                {editShift.unit_name ? ` · ${editShift.unit_name}` : ""}
                 <br />
                 Changes apply to this day only. To change every occurrence, edit the recurring schedule on the Assign
                 Schedule tab.
               </Typography>
               {editShiftError && <Alert severity="error">{editShiftError}</Alert>}
+              <TextField
+                select
+                size="small"
+                label="Unit"
+                value={editShift.unit_id}
+                onChange={(e) => setEditShift({ ...editShift, unit_id: e.target.value })}
+                fullWidth
+              >
+                <MenuItem value="">No unit</MenuItem>
+                {/* Keep the shift's current unit selectable even if it is no longer active. */}
+                {editShift.original_unit_id && !units.some((u) => String(u.id) === editShift.original_unit_id) && (
+                  <MenuItem value={editShift.original_unit_id}>{editShift.unit_name || "Current unit"}</MenuItem>
+                )}
+                {units.map((u) => (
+                  <MenuItem key={u.id} value={String(u.id)}>
+                    {u.name}
+                  </MenuItem>
+                ))}
+              </TextField>
               <TextField
                 select
                 size="small"
