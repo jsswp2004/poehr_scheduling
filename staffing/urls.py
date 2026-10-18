@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .assistant import AssistantActionCancelView, AssistantActionConfirmView, AssistantMessageView
 from .compliance_views import CoverageStatusView, OrgLocationView
 from .master_schedule_autocreate import MasterScheduleCreateScheduleView
+from .master_schedule_csv import MasterScheduleCsvTemplateView, MasterScheduleUploadCsvView
 from .master_schedule_views import (
     MasterScheduleCellsView,
     MasterScheduleCopyMonthView,
@@ -102,6 +103,8 @@ urlpatterns = [
     path("master-schedule/rows/<int:pk>/", MasterScheduleRowDetailView.as_view(), name="staffing-master-schedule-row"),
     path("master-schedule/copy/", MasterScheduleCopyMonthView.as_view(), name="staffing-master-schedule-copy"),
     path("master-schedule/create-schedule/", MasterScheduleCreateScheduleView.as_view(), name="staffing-master-schedule-create-schedule"),
+    path("master-schedule/csv/", MasterScheduleCsvTemplateView.as_view(), name="staffing-master-schedule-csv"),
+    path("master-schedule/upload-csv/", MasterScheduleUploadCsvView.as_view(), name="staffing-master-schedule-upload-csv"),
     path("master-schedule/cells/", MasterScheduleCellsView.as_view(), name="staffing-master-schedule-cells"),
     path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
     path("location/", OrgLocationView.as_view(), name="staffing-location"),
