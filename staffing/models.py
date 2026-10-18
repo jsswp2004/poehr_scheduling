@@ -798,6 +798,11 @@ class MasterScheduleRow(models.Model):
     staff = models.ForeignKey(
         Staff, on_delete=models.SET_NULL, null=True, blank=True, related_name="master_schedule_rows"
     )
+    # Care unit this person's Create-schedule shifts go to. Blank = fall back to
+    # the unit that matches the section's name (if any).
+    unit = models.ForeignKey(
+        "Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="master_schedule_rows"
+    )
     hp = models.CharField(max_length=20, blank=True, default="")
     status = models.CharField(max_length=20, blank=True, default="")
     sort_order = models.PositiveIntegerField(default=0)
