@@ -220,7 +220,9 @@ function StaffingPage() {
         }}
       >
         <Tab value="calendar" label="Calendar" />
+        <Tab value="master" label="Master Schedule" />
         <Tab value="roster" label="Roster" />
+        {isAdmin && <Tab value="assign" label="Assign Schedule" />}
         <Tab value="units" label="Units & Census" />
         <Tab
           value="timeoff"
@@ -244,8 +246,6 @@ function StaffingPage() {
           }
         />
         {isAdmin && <Tab value="upload" label="Upload CSV" />}
-        <Tab value="master" label="Master Schedule" />
-        {isAdmin && <Tab value="assign" label="Assign Schedule" />}
         <Tab value="reports" label="Reports" />
         <Tab value="rules" label="Coverage Rules" />
       </Tabs>
