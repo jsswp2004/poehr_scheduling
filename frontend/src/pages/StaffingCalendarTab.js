@@ -24,11 +24,12 @@ import {
   Tooltip,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPen, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faPen, faTrash, faHandPaper } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { US_STATES } from "../constants/usStates";
+import StaffingPickUpDialog from "./StaffingPickUpDialog";
 import { COVERAGE_STATUS, toISO } from "./staffingCoverage";
 import StaffingCalendarToolbar, {
   StaffingCalendarSearchContext,
@@ -76,6 +77,9 @@ function StaffingCalendarTab({ isAdmin = false }) {
   const [editShift, setEditShift] = useState(null); // {id, staff_name, date, shift_label, start_time, end_time, notes}
   const [editShiftError, setEditShiftError] = useState("");
   const [editShiftBusy, setEditShiftBusy] = useState(false);
+  const [me, setMe] = useState(null); // {staff_id, full_name, profession}: who is signed in on the roster
+  const [pickUp, setPickUp] = useState(null); // {date, defaults:{unit_id, shift_type}} while the modal is open
+  const [notice, setNotice] = useState("");
   const [locForm, setLocForm] = useState({});
   const [locError, setLocError] = useState("");
   const [range, setRange] = useState(() => {
@@ -141,6 +145,10 @@ function StaffingCalendarTab({ isAdmin = false }) {
       .get(apiEndpoints.staffingLocation, { headers: getAuthHeaders(token) })
       .then((res) => setLocation(res.data))
       .catch((err) => console.error("Failed to load clinic location", err));
+    axios
+      .get(apiEndpoints.staffingMePickup, { headers: getAuthHeaders(token) })
+      .then((res) => setMe(res.data))
+      .catch(() => setMe(null)); // no pick-up button if this cannot be loaded
   }, [token]);
 
   // Only the trash button on a shift cell calls this; clicking the cell itself does nothing.
@@ -289,7 +297,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
         const role = roleLabel(shift) ? ` · ${roleLabel(shift)}` : "";
         // In the All Units view, say which unit the shift is on.
         const unit = shift.unit_name && unitId === "" ? ` · ${shift.unit_name}` : "";
-        const kind = shift.shift_type_display || shift.shift_type;
+        const kind = (shift.shift_type_display || shift.shift_type) + (shift.source === "pickup" ? ", picked up" : "");
         // Week and day views: every shift is a full-width row stacked in the top
         // band (name, role, hours) instead of narrow side-by-side tiles on the
         // hour grid, so names and the edit/delete buttons always fit.
@@ -335,6 +343,24 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [coverage]
   );
 
+  // "Pick up a shift" shows on Not-met days, today or later, for people linked to the roster.
+  const canPickUp = useCallback(
+    (date, info) => !!me?.staff_id && info?.status === "not_met" && toISO(date) >= toISO(new Date()),
+    [me]
+  );
+
+  const openPickUp = useCallback(
+    (iso) => {
+      // Prefill the unit and shift of the first short slot that day.
+      const slot = (coverage?.days?.[iso]?.items || []).find((i) => i.status === "not_met");
+      setPickUp({
+        date: iso,
+        defaults: { unit_id: slot?.unit_id || null, shift_type: slot?.shift_type || "day" },
+      });
+    },
+    [coverage]
+  );
+
   // Tints each day cell by coverage status (month, week and day views).
   const dayPropGetter = useCallback(
     (date) => {
@@ -360,12 +386,31 @@ function StaffingCalendarTab({ isAdmin = false }) {
       const meta = info && COVERAGE_STATUS[info.status];
       return (
         <Box
-          sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5, cursor: "pointer" }}
+          sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.5, cursor: "pointer" }}
           onClick={(e) => {
             e.stopPropagation();
             setDayDialog(toISO(date));
           }}
         >
+          <Box sx={{ minWidth: 24 }}>
+            {canPickUp(date, info) && (
+              <Tooltip title="Pick up a shift">
+                <IconButton
+                  size="small"
+                  className="pickup-btn"
+                  aria-label="Pick up a shift"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openPickUp(toISO(date));
+                  }}
+                  sx={{ p: 0.4, color: "#c62828" }}
+                >
+                  <FontAwesomeIcon icon={faHandPaper} style={{ fontSize: 13 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           {info?.open_emergencies > 0 && (
             <Chip size="small" color="error" label={`🚨 ${info.open_emergencies}`} sx={{ height: 18, fontSize: 11 }} />
           )}
@@ -388,10 +433,11 @@ function StaffingCalendarTab({ isAdmin = false }) {
             </Box>
           )}
           <span>{label}</span>
+          </Box>
         </Box>
       );
     },
-    [dayInfo]
+    [dayInfo, canPickUp, openPickUp]
   );
 
   // Week view column header: the label is still RBC's button (click = go to day view). It carries
@@ -605,6 +651,11 @@ function StaffingCalendarTab({ isAdmin = false }) {
           {w}
         </Alert>
       ))}
+      {notice && (
+        <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice("")}>
+          {notice}
+        </Alert>
+      )}
       {error && (
         <Typography color="error" sx={{ mb: 1 }}>
           {error}
@@ -628,6 +679,10 @@ function StaffingCalendarTab({ isAdmin = false }) {
           p: 1,
           borderRadius: 2,
           "& .rbc-time-header-cell .rbc-header": { cursor: view === "week" ? "pointer" : undefined },
+          // "Pick up a shift" appears when the day cell is hovered (always visible on touch screens).
+          "& .pickup-btn": { opacity: 0, transition: "opacity .12s" },
+          "& .rbc-date-cell:hover .pickup-btn, & .pickup-btn:focus-visible": { opacity: 1 },
+          "@media (hover: none)": { "& .pickup-btn": { opacity: 1 } },
         }}
       >
         <StaffingCalendarSearchContext.Provider value={searchCtx}>
@@ -761,9 +816,35 @@ function StaffingCalendarTab({ isAdmin = false }) {
           )}
         </DialogContent>
         <DialogActions>
+          {me?.staff_id && selectedDay?.status === "not_met" && dayDialog >= toISO(new Date()) && (
+            <Button
+              color="error"
+              onClick={() => {
+                const iso = dayDialog;
+                setDayDialog(null);
+                openPickUp(iso);
+              }}
+            >
+              Pick up a shift
+            </Button>
+          )}
           <Button onClick={() => setDayDialog(null)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <StaffingPickUpDialog
+        open={!!pickUp}
+        onClose={() => setPickUp(null)}
+        date={pickUp?.date}
+        defaults={pickUp?.defaults}
+        me={me}
+        units={units}
+        onDone={(message) => {
+          setPickUp(null);
+          setNotice(message);
+          fetchShifts(range.start, range.end); // reloads the shifts and recolors the days
+        }}
+      />
 
       {/* Edit one shift */}
       <Dialog open={!!editShift} onClose={() => setEditShift(null)} maxWidth="xs" fullWidth>

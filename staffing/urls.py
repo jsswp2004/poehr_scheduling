@@ -6,6 +6,7 @@ from .compliance_views import CoverageStatusView, OrgLocationView
 from .master_schedule_autocreate import MasterScheduleCreateScheduleView
 from .master_schedule_csv import MasterScheduleCsvTemplateView, MasterScheduleUploadCsvView
 from .daily_reports_views import DailyStaffingReportView
+from .pickup_views import MyPickupProfileView, PickUpShiftView
 from .master_schedule_views import (
     MasterScheduleCellsView,
     MasterScheduleCopyMonthView,
@@ -115,6 +116,8 @@ urlpatterns = [
     path("rules/<int:pk>/", RuleDetailView.as_view(), name="staffing-rule-detail"),
     path("rules/<int:pk>/duplicate/", RuleDuplicateView.as_view(), name="staffing-rule-duplicate"),
     path("rules/<int:pk>/audit/", RuleAuditView.as_view(), name="staffing-rule-audit"),
+    path("me/pickup/", MyPickupProfileView.as_view(), name="staffing-me-pickup"),
+    path("me/pick-up-shift/", PickUpShiftView.as_view(), name="staffing-me-pick-up-shift"),
     path("me/time-off/", MyTimeOffView.as_view(), name="staffing-me-time-off"),
     path("me/time-off/<int:pk>/cancel/", MyTimeOffCancelView.as_view(), name="staffing-me-time-off-cancel"),
     path("time-off/", TimeOffListCreateView.as_view(), name="staffing-time-off"),

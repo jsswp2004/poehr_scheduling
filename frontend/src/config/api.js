@@ -295,6 +295,8 @@ export const apiEndpoints = {
     staffingMasterScheduleCopy: `${API_BASE_URL}/api/staffing/master-schedule/copy/`,
     staffingMasterScheduleCreateSchedule: `${API_BASE_URL}/api/staffing/master-schedule/create-schedule/`,
     staffingMasterScheduleCsv: `${API_BASE_URL}/api/staffing/master-schedule/csv/`,
+    staffingMePickup: `${API_BASE_URL}/api/staffing/me/pickup/`,
+    staffingPickUpShift: `${API_BASE_URL}/api/staffing/me/pick-up-shift/`,
     staffingDailyReportPdf: (kind) => `${API_BASE_URL}/api/staffing/daily-reports/${kind}/pdf/`,
     staffingMasterScheduleUploadCsv: `${API_BASE_URL}/api/staffing/master-schedule/upload-csv/`,
     staffingMasterScheduleCells: `${API_BASE_URL}/api/staffing/master-schedule/cells/`,
