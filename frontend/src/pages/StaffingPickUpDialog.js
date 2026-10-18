@@ -57,7 +57,19 @@ const weekdayCode = (iso) => {
  * only action is "Create schedule". The server creates ONE shift for the signed-in
  * person and emails/texts the admins.
  */
-function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, onDone }) {
+// A readable message out of a DRF error body ({"field": ["msg"]} or {"error": "msg"}).
+const apiError = (err, fallback) => {
+  const d = err.response?.data;
+  if (!d) return fallback;
+  if (typeof d === "string") return d;
+  if (d.error) return d.error;
+  const first = Object.values(d)[0];
+  return (Array.isArray(first) ? first[0] : first) || fallback;
+};
+
+function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, isAdmin = false, onDone }) {
+  const [staffList, setStaffList] = useState([]);
+  const [staffId, setStaffId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [shiftType, setShiftType] = useState("day");
   const [startTime, setStartTime] = useState("07:00");
@@ -80,7 +92,17 @@ function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, onDone
     setNotes("");
     setError("");
     setBusy(false);
-  }, [open, date, defaults]);
+    setStaffId(me?.staff_id || "");
+  }, [open, date, defaults, me]);
+
+  // Admins choose who to put on the shift, so they need the roster.
+  useEffect(() => {
+    if (!open || !isAdmin) return;
+    axios
+      .get(apiEndpoints.staffingStaff, { headers: getAuthHeaders(getAccessToken()), params: { active_only: 1 } })
+      .then((res) => setStaffList(res.data.results || res.data || []))
+      .catch(() => setStaffList([]));
+  }, [open, isAdmin]);
 
   const changeShiftType = (type) => {
     setShiftType(type);
@@ -96,8 +118,31 @@ function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, onDone
       setError("Choose a date.");
       return;
     }
+    if (isAdmin && !staffId) {
+      setError("Choose a staff member.");
+      return;
+    }
     setBusy(true);
     try {
+      if (isAdmin) {
+        // Admins assign directly (same call as Assign a Schedule > one-time assignment).
+        await axios.post(
+          apiEndpoints.staffingShifts,
+          {
+            staff: staffId,
+            unit: unitId === "" ? null : Number(unitId),
+            date: pickDate,
+            shift_type: shiftType,
+            start_time: startTime,
+            end_time: endTime,
+            notes,
+          },
+          { headers: getAuthHeaders(getAccessToken()) }
+        );
+        const who = staffList.find((s) => s.id === staffId)?.full_name;
+        onDone(`Shift assigned${who ? ` to ${who}` : ""}.`);
+        return;
+      }
       const res = await axios.post(
         apiEndpoints.staffingPickUpShift,
         {
@@ -113,7 +158,7 @@ function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, onDone
       const told = (res.data?.alert?.emails || 0) + (res.data?.alert?.sms || 0) > 0;
       onDone(`Shift added to your schedule.${told ? " Your admin has been notified." : ""}`);
     } catch (err) {
-      setError(err.response?.data?.error || "Could not add the shift. Please try again.");
+      setError(apiError(err, "Could not add the shift. Please try again."));
       setBusy(false);
     }
   };
@@ -126,7 +171,7 @@ function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, onDone
       <DialogContent>
         <Stack spacing={1.5} sx={{ mt: 1 }}>
           {error && <Alert severity="error">{error}</Alert>}
-          {me && !me.staff_id && (
+          {!isAdmin && me && !me.staff_id && (
             <Alert severity="warning">
               Your login is not linked to a staff roster entry yet. Ask an admin to link it before picking up shifts.
             </Alert>
@@ -134,14 +179,29 @@ function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, onDone
 
           <FormControl size="small" sx={{ minWidth: 260 }}>
             <InputLabel id="pickup-staff-label">Staff Member</InputLabel>
-            <Select labelId="pickup-staff-label" label="Staff Member" value={me?.staff_id || ""} disabled>
-              {me?.staff_id && (
-                <MenuItem value={me.staff_id}>
-                  {me.full_name}
-                  {me.profession ? ` (${me.profession})` : ""}
-                </MenuItem>
-              )}
-            </Select>
+            {isAdmin ? (
+              <Select
+                labelId="pickup-staff-label"
+                label="Staff Member"
+                value={staffId}
+                onChange={(e) => setStaffId(e.target.value)}
+              >
+                {staffList.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.full_name} ({s.profession_display || s.profession})
+                  </MenuItem>
+                ))}
+              </Select>
+            ) : (
+              <Select labelId="pickup-staff-label" label="Staff Member" value={me?.staff_id || ""} disabled>
+                {me?.staff_id && (
+                  <MenuItem value={me.staff_id}>
+                    {me.full_name}
+                    {me.profession ? ` (${me.profession})` : ""}
+                  </MenuItem>
+                )}
+              </Select>
+            )}
           </FormControl>
 
           <FormControl size="small" sx={{ minWidth: 260 }}>
@@ -239,7 +299,7 @@ function StaffingPickUpDialog({ open, onClose, date, defaults, me, units, onDone
           />
 
           <Stack direction="row" spacing={1}>
-            <Button variant="contained" onClick={submit} disabled={busy || !me?.staff_id}>
+            <Button variant="contained" onClick={submit} disabled={busy || (isAdmin ? !staffId : !me?.staff_id)}>
               {busy ? "Creating..." : "Create schedule"}
             </Button>
             <Button onClick={onClose} disabled={busy}>

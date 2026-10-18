@@ -345,8 +345,8 @@ function StaffingCalendarTab({ isAdmin = false }) {
 
   // "Pick up a shift" shows on Not-met days, today or later, for people linked to the roster.
   const canPickUp = useCallback(
-    (date, info) => !!me?.staff_id && info?.status === "not_met" && toISO(date) >= toISO(new Date()),
-    [me]
+    (date, info) => (isAdmin || !!me?.staff_id) && info?.status === "not_met" && toISO(date) >= toISO(new Date()),
+    [me, isAdmin]
   );
 
   const openPickUp = useCallback(
@@ -816,7 +816,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           )}
         </DialogContent>
         <DialogActions>
-          {me?.staff_id && selectedDay?.status === "not_met" && dayDialog >= toISO(new Date()) && (
+          {(isAdmin || me?.staff_id) && selectedDay?.status === "not_met" && dayDialog >= toISO(new Date()) && (
             <Button
               color="error"
               onClick={() => {
@@ -839,6 +839,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
         defaults={pickUp?.defaults}
         me={me}
         units={units}
+        isAdmin={isAdmin}
         onDone={(message) => {
           setPickUp(null);
           setNotice(message);
