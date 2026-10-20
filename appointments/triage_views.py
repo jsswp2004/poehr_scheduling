@@ -138,12 +138,16 @@ class TriageSettingsView(APIView):
     def _org(self, request):
         return request.user.organization
 
+    def _body(self, org):
+        cfg = service.clinic_settings(org)
+        people = [{"id": u.pk, "name": _name(u), "role": u.role} for u in service.alert_candidates(org)] if org else []
+        return {**cfg, "defaults": engine.default_settings(), "people": people}
+
     def get(self, request):
         denied = _clinical(request)
         if denied:
             return denied
-        cfg = service.clinic_settings(self._org(request))
-        return Response({**cfg, "defaults": engine.default_settings()})
+        return Response(self._body(self._org(request)))
 
     def put(self, request):
         if getattr(request.user, "role", None) not in ("admin", "system_admin"):
@@ -185,6 +189,12 @@ class TriageSettingsView(APIView):
                     return Response({"detail": "Each recheck gap is a number of minutes from 1 to 1440, or blank."}, status=400)
                 clean[str(key)] = int(value)
             row.reassess_minutes = clean
+        if "alert_user_ids" in data:
+            raw = data["alert_user_ids"]
+            allowed = {u.pk for u in service.alert_candidates(org)}
+            if not isinstance(raw, list) or len(raw) > 20 or any(isinstance(i, bool) or not isinstance(i, int) or i not in allowed for i in raw):
+                return Response({"detail": "Pick up to 20 people from your clinic who use secure messaging."}, status=400)
+            row.alert_user_ids = list(dict.fromkeys(raw))
         if "suicide_screen_min_age_years" in data:
             value = data["suicide_screen_min_age_years"]
             if value in (None, ""):
@@ -196,7 +206,7 @@ class TriageSettingsView(APIView):
         if changed_numbers:
             row.approved_by, row.approved_at = request.user, timezone.now()
         row.save()
-        return Response({**service.clinic_settings(org), "defaults": engine.default_settings()})
+        return Response(self._body(org))
 
 
 # ---- reassessment log ------------------------------------------------------------------------------------------------

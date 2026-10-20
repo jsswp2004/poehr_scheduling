@@ -13,6 +13,7 @@ jest.mock("../DynamicNoteForm", () => ({ __esModule: true, default: ({ template 
 
 import { api } from "../../api/client";
 import TriageNoteForm from "../triage/TriageNoteForm";
+import SafetyAlertNotice from "../triage/SafetyAlertNotice";
 import {
   answersFromValues, checklist, filterTemplate, suicideAction, ESI_SECTION, SUICIDE_SECTION, CHILD_SECTION,
 } from "../triage/triageHelpers";
@@ -137,6 +138,16 @@ describe("TriageNoteForm", () => {
     expect(screen.getByTestId("triage-suicide-immediate")).toHaveTextContent("Tell the charge nurse now.");
   });
 
+  test("unsafe at home shows a warning that signing sends an alert", async () => {
+    setup(CTX(), { screen_unsafe_home: "yes" });
+    expect(await screen.findByTestId("triage-unsafe-home")).toHaveTextContent("Ask privately");
+  });
+
+  test("the immediate suicide message says an alert will be sent", async () => {
+    setup(CTX(), { cssrs_4: "yes" });
+    expect(await screen.findByTestId("triage-suicide-immediate")).toHaveTextContent("sends a safety alert");
+  });
+
   test("suicide screen is hidden when not due for this age", async () => {
     setup(CTX({}, { show_suicide_screen: false }));
     await screen.findByTestId("triage-vitals");
@@ -158,5 +169,22 @@ describe("TriageNoteForm", () => {
     api.get.mockRejectedValue({ response: { data: { detail: "nope" } } });
     render(<TriageNoteForm template={TEMPLATE} values={{}} onChange={() => {}} patientId={3} />);
     expect(await screen.findByTestId("triage-error")).toBeInTheDocument();
+  });
+});
+
+describe("SafetyAlertNotice", () => {
+  test("shows nothing without an alert", () => {
+    const { container } = render(<SafetyAlertNotice alert={null} onClose={() => {}} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+  test("a delivered alert names who was told", () => {
+    render(<SafetyAlertNotice alert={{ sent: true, message: "Safety alert sent to Park, Dana.", reasons: ["Positive suicide screen at triage."] }} onClose={() => {}} />);
+    expect(screen.getByText("Safety alert sent")).toBeInTheDocument();
+    expect(screen.getByText("Safety alert sent to Park, Dana.")).toBeInTheDocument();
+  });
+  test("an undelivered alert is an error that says to phone", () => {
+    render(<SafetyAlertNotice alert={{ sent: false, message: "Tell your charge nurse directly.", reasons: [] }} onClose={() => {}} />);
+    expect(screen.getByText("Safety alert not delivered")).toBeInTheDocument();
+    expect(screen.getByTestId("safety-alert-notice")).toHaveTextContent("Tell your charge nurse directly.");
   });
 });

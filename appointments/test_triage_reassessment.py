@@ -195,3 +195,21 @@ class ReassessmentTests(EdBoardBase):
         self.assertIn("triage_note", keys)
         self.assertIn("reassess", keys)
         self.assertEqual(keys.index("triage_note"), keys.index("esi") + 1)
+
+    # ---- color rule ----
+    def test_board_rows_say_whether_the_patient_is_waiting(self):
+        self.assertTrue(self.board_visit()["waiting"])
+
+    def test_an_overdue_recheck_can_be_a_color_rule(self):
+        from users.test_board_builder import ONE, VIEWS
+
+        made = self.as_(self.admin).post(VIEWS, {"name": "Waiting room"}, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        view = made.json()
+        config = {"columns": view["columns"], "filter": view["filter"], "beds": [],
+                  "rules": [{"field": "recheck_overdue", "op": "eq", "value": "true", "target": "cell", "color": "#ffcdd2"}]}
+        r = self.as_(self.admin).patch(ONE.format(view["id"]), {"config": config}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json()["rules"][0]["field"], "recheck_overdue")
+        config["rules"][0]["field"] = "recheck_late"
+        self.assertEqual(self.as_(self.admin).patch(ONE.format(view["id"]), {"config": config}, format="json").status_code, 400)

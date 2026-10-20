@@ -249,6 +249,7 @@ const RULE_FIELD_LABELS = {
   esi: "ESI",
   ed_status: "Status",
   vitals_overdue: "Vitals overdue",
+  recheck_overdue: "Triage recheck overdue",
   registration_complete: "Registration complete",
   sex: "Gender",
 };
@@ -261,7 +262,7 @@ function RuleValue({ rule, settings, disabled, onChange }) {
   if (field === "esi") options = [1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }));
   else if (field === "ed_status") options = settings.statuses.map((s) => ({ value: s.value, label: s.code }));
   else if (field === "sex") options = [{ value: "F", label: "Female" }, { value: "M", label: "Male" }, { value: "X", label: "Other" }];
-  else if (field === "vitals_overdue" || field === "registration_complete" || custom?.kind === "checkbox")
+  else if (field === "vitals_overdue" || field === "recheck_overdue" || field === "registration_complete" || custom?.kind === "checkbox")
     options = [{ value: "true", label: "Yes" }, { value: "false", label: "No" }];
   else if (custom?.kind === "dropdown") options = (custom.options || []).map((o) => ({ value: o, label: o }));
 

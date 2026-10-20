@@ -66,7 +66,7 @@ CUSTOM_KEY = re.compile(r"^c_[a-z0-9_]{1,30}$")
 STATUS_VALUE = re.compile(r"^[a-z0-9_]{1,20}$")
 COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 CUSTOM_KINDS = ("text", "dropdown", "checkbox")
-RULE_FIELDS = ("esi", "ed_status", "vitals_overdue", "registration_complete", "sex")
+RULE_FIELDS = ("esi", "ed_status", "vitals_overdue", "recheck_overdue", "registration_complete", "sex")
 MAX_VIEWS, MAX_COLUMNS, MAX_RULES, MAX_STATUSES, MAX_OPTIONS, MAX_CUSTOM, MAX_BEDS = 30, 60, 30, 12, 30, 20, 500
 
 

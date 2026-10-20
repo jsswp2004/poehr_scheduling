@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Box, Button, CircularProgress, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
@@ -30,6 +30,7 @@ export default function TriageSettings({ canEdit = true }) {
   const [zone, setZone] = useState(zoneToDraft(null));
   const [fever, setFever] = useState(feverToDraft(null));
   const [age, setAge] = useState("");
+  const [alertIds, setAlertIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -38,6 +39,7 @@ export default function TriageSettings({ canEdit = true }) {
     setGaps(gapsToDraft(s.reassess_minutes));
     setZone(zoneToDraft(s.danger_zone));
     setFever(feverToDraft(s.fever));
+    setAlertIds(s.alert_user_ids || []);
     setAge(s.clinic?.suicide_screen_min_age_years === null || s.clinic?.suicide_screen_min_age_years === undefined ? "" : String(s.clinic.suicide_screen_min_age_years));
   }, []);
 
@@ -145,6 +147,20 @@ export default function TriageSettings({ canEdit = true }) {
           {FEVER_FIELDS.map((f) => (
             <TextField key={f.key} size="small" label={f.label} value={fever[f.key]} disabled={off}
               onChange={(e) => setFever((v) => ({ ...v, [f.key]: e.target.value }))} inputProps={{ inputMode: "decimal", "data-testid": `fever-${f.key}` }} />
+          ))}
+        </Box>
+      </Section>
+
+      <Section title="Safety alerts" error={errors.alerts}
+        note="Who is told at once when a signed triage note has a positive suicide screen (intent or a plan, or recent behavior) or a patient who feels unsafe at home. They are added to the patient's care-team conversation and sent an urgent message. The patient's own doctor and nurse are told too."
+        status={alertIds.length === 0 ? "Nobody chosen yet. The nurse who signs is told to phone the charge nurse." : `${alertIds.length} chosen.`}
+        actions={<Button variant="contained" disabled={off} sx={{ minHeight: 44 }} onClick={() => save("alerts", { alert_user_ids: alertIds }, "Safety alert people saved.")}>Save safety alert people</Button>}>
+        {(settings.people || []).length === 0 && <Typography variant="body2" color="text.secondary">No doctors, nurses or admins who use secure messaging were found.</Typography>}
+        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 0.5 }} data-testid="alert-people">
+          {(settings.people || []).map((p) => (
+            <FormControlLabel key={p.id} label={`${p.name} (${p.role})`}
+              control={<Checkbox size="small" checked={alertIds.includes(p.id)} disabled={off}
+                onChange={(e) => setAlertIds((ids) => (e.target.checked ? [...ids, p.id] : ids.filter((i) => i !== p.id)))} inputProps={{ "data-testid": `alert-person-${p.id}` }} />} />
           ))}
         </Box>
       </Section>

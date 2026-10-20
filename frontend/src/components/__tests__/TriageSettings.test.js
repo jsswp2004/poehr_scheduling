@@ -183,3 +183,45 @@ describe("TriageSettings", () => {
     expect(await screen.findByTestId("settings-load-error")).toBeInTheDocument();
   });
 });
+
+describe("Safety alert people", () => {
+  const PEOPLE = [{ id: 11, name: "Lopez, Ana", role: "nurse" }, { id: 12, name: "Park, Dana", role: "doctor" }];
+  beforeEach(() => { api.get.mockReset(); api.put.mockReset(); toast.success.mockReset(); });
+
+  test("lists who can be picked, shows who is chosen, and saves the picks", async () => {
+    api.get.mockResolvedValue({ data: SETTINGS({ people: PEOPLE, alert_user_ids: [11] }) });
+    render(<TriageSettings />);
+    await screen.findByTestId("triage-settings");
+    expect(screen.getByText("Lopez, Ana (nurse)")).toBeInTheDocument();
+    expect(screen.getByTestId("alert-person-11")).toBeChecked();
+    expect(screen.getByTestId("alert-person-12")).not.toBeChecked();
+    expect(screen.getByText("1 chosen.")).toBeInTheDocument();
+    api.put.mockResolvedValue({ data: SETTINGS({ people: PEOPLE, alert_user_ids: [11, 12] }) });
+    fireEvent.click(screen.getByTestId("alert-person-12"));
+    fireEvent.click(screen.getByText("Save safety alert people"));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith("/t/settings/", { alert_user_ids: [11, 12] }, expect.anything()));
+    expect(toast.success).toHaveBeenCalledWith("Safety alert people saved.");
+  });
+
+  test("with nobody chosen it says the signing nurse is told to phone", async () => {
+    api.get.mockResolvedValue({ data: SETTINGS({ people: PEOPLE, alert_user_ids: [] }) });
+    render(<TriageSettings />);
+    expect(await screen.findByText(/Nobody chosen yet/)).toBeInTheDocument();
+  });
+
+  test("unticking removes a person", async () => {
+    api.get.mockResolvedValue({ data: SETTINGS({ people: PEOPLE, alert_user_ids: [11, 12] }) });
+    api.put.mockResolvedValue({ data: SETTINGS({ people: PEOPLE, alert_user_ids: [12] }) });
+    render(<TriageSettings />);
+    await screen.findByTestId("triage-settings");
+    fireEvent.click(screen.getByTestId("alert-person-11"));
+    fireEvent.click(screen.getByText("Save safety alert people"));
+    await waitFor(() => expect(api.put).toHaveBeenCalledWith("/t/settings/", { alert_user_ids: [12] }, expect.anything()));
+  });
+
+  test("an empty clinic is explained", async () => {
+    api.get.mockResolvedValue({ data: SETTINGS({ people: [], alert_user_ids: [] }) });
+    render(<TriageSettings />);
+    expect(await screen.findByText(/No doctors, nurses or admins/)).toBeInTheDocument();
+  });
+});

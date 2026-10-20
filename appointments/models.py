@@ -2677,6 +2677,7 @@ class TriageSettings(models.Model):
     fever = models.JSONField(null=True, blank=True, help_text="Fever limits by age")
     reassess_minutes = models.JSONField(default=dict, blank=True, help_text='Minutes between rechecks per ESI level, e.g. {"3": 60}')
     suicide_screen_min_age_years = models.PositiveSmallIntegerField(null=True, blank=True)
+    alert_user_ids = models.JSONField(default=list, blank=True, help_text="People told at once when a signed triage note has a positive suicide screen or an unsafe-at-home answer")
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     approved_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
