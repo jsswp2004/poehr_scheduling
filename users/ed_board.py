@@ -178,6 +178,7 @@ def board_visit(visit, chart=None, keys=None, waiting=False):
         "vitals_last_at": (chart or {}).get("vitals_last_at"),
         "orders": (chart or {}).get("orders", {}),
         "triage": (chart or {}).get("triage"),
+        "waiting": bool(waiting),
     }
 
 

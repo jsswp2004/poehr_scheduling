@@ -1885,9 +1885,14 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
         note.status = "signed"
         note.signed_at = timezone.now()
         note.save(update_fields=["status", "signed_at"] + (["structured_data"] if is_triage else []))
+        alert = None
         if is_triage:
             triage_service.finish_signing(note)
-        return Response(ClinicalNoteSerializer(note).data)
+            alert = triage_service.notify_safety(note)
+        body = ClinicalNoteSerializer(note).data
+        if alert:
+            body = {**body, "safety_alert": alert}
+        return Response(body)
 
     @action(detail=True, methods=["post"])
     def addend(self, request, pk=None):

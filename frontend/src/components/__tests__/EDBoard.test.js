@@ -629,3 +629,18 @@ test("the Triage Note and Reassess columns show the note state and how long unti
   expect(screen.queryByTestId("reassess-90")).toBeNull(); // in a bed: not rechecked here
   expect(screen.getByTestId("reassess-91")).toHaveTextContent(/^Overdue \d\d:\d\d$/);
 });
+
+test("a color rule can look at whether the triage recheck is overdue", () => {
+  const now = Date.now();
+  const overdue = visit({ waiting: true, triage: { note: "signed", due_at: new Date(now - 5 * 60000).toISOString() } });
+  const onTime = visit({ waiting: true, triage: { note: "signed", due_at: new Date(now + 30 * 60000).toISOString() } });
+  const inBed = visit({ waiting: false, triage: { note: "signed", due_at: new Date(now - 5 * 60000).toISOString() } });
+  const noGap = visit({ waiting: true, triage: { note: "signed", due_at: null } });
+  const rules = [{ field: "recheck_overdue", op: "eq", value: "true", target: "cell", color: "#ffcdd2" }];
+  expect(ruleColors(rules, overdue, now).cells.reassess).toBe("#ffcdd2");
+  expect(ruleColors(rules, onTime, now).cells.reassess).toBeUndefined();
+  expect(ruleColors(rules, inBed, now).cells.reassess).toBeUndefined();
+  expect(ruleColors(rules, noGap, now).cells.reassess).toBeUndefined();
+  const row = [{ field: "recheck_overdue", op: "eq", value: "true", target: "row", color: "#ffe0b2" }];
+  expect(ruleColors(row, overdue, now).row).toBe("#ffe0b2");
+});

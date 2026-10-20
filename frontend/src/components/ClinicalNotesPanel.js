@@ -37,6 +37,7 @@ import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
 import ReassessmentPanel from "./triage/ReassessmentPanel";
+import SafetyAlertNotice from "./triage/SafetyAlertNotice";
 import TriageNoteForm from "./triage/TriageNoteForm";
 import { TRIAGE_CODE } from "./triage/triageHelpers";
 import DynamicNoteForm, {
@@ -133,6 +134,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   const [flowsheets, setFlowsheets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [safetyAlert, setSafetyAlert] = useState(null);
 
   const [form, setForm] = useState(EMPTY_FORM);
   const [draftId, setDraftId] = useState(null); // id of the note being drafted/edited
@@ -727,8 +729,9 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
           : await api.post(apiEndpoints.clinicalNotes, form, { headers });
         id = createRes.data.id;
       }
-      await api.post(apiEndpoints.clinicalNoteSign(id), null, { headers });
+      const signRes = await api.post(apiEndpoints.clinicalNoteSign(id), null, { headers });
       toast.success("Note signed and locked.");
+      setSafetyAlert(signRes?.data?.safety_alert || null);
       resetForm();
       setActiveTab("history");
       await loadData();
@@ -750,6 +753,8 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   return (
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
       <PanelTitle>Clinical Documentation</PanelTitle>
+
+      <SafetyAlertNotice alert={safetyAlert} onClose={() => setSafetyAlert(null)} />
 
       {showTabs && (
         <Tabs

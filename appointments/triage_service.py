@@ -39,6 +39,7 @@ def clinic_settings(org):
     """The built-in defaults with the clinic's own values laid over them, plus where each came from."""
     base = engine.default_settings()
     row = TriageSettings.objects.filter(organization=org).select_related("approved_by").first() if org else None
+    base["alert_user_ids"] = []
     base["clinic"] = {"danger_zone": False, "fever": False, "approved_by": None, "approved_at": None, "suicide_screen_min_age_years": None}
     if row:
         if row.danger_zone:
@@ -46,6 +47,7 @@ def clinic_settings(org):
         if row.fever:
             base["fever"], base["clinic"]["fever"] = {**base["fever"], **row.fever}, True
         base["reassess_minutes"] = row.reassess_minutes or {}
+        base["alert_user_ids"] = list(row.alert_user_ids or [])
         base["clinic"]["suicide_screen_min_age_years"] = row.suicide_screen_min_age_years
         if row.approved_by_id:
             user = row.approved_by
@@ -310,3 +312,85 @@ def board_info(visits, gaps):
             due, gap = due_at(visit.esi, signed_at, last_at, gaps)
             item["due_at"], item["gap_minutes"] = (due.isoformat() if due else None), gap
     return out
+
+
+# ---- safety alert at signing ----------------------------------------------------------------------------------------
+
+ALERT_ROLES = ("doctor", "nurse", "admin")
+SUICIDE_ALERT = "Positive suicide screen at triage. Notify the physician and/or behavioral health now and use patient safety precautions."
+UNSAFE_HOME_ALERT = "The patient said they feel unsafe at home or were hurt by someone else. Ask privately and involve social work or the abuse response team."
+NOBODY_TOLD = "Nobody else is on this patient's care team and no one is set to receive safety alerts. Tell your charge nurse directly."
+NOT_SENT = "The safety alert could not be sent. Tell your charge nurse directly."
+
+
+def safety_reasons(data):
+    """What in a signed triage note needs someone told straight away."""
+    data = data or {}
+    reasons = []
+    if cssrs_action(data) == "immediate":
+        reasons.append(SUICIDE_ALERT)
+    if str(data.get("screen_unsafe_home", "")).lower() == "yes":
+        reasons.append(UNSAFE_HOME_ALERT)
+    return reasons
+
+
+def alert_candidates(org):
+    """People a clinic can pick to receive safety alerts: active doctors, nurses and admins who use secure messaging."""
+    from users.models import CustomUser
+    from users.rights import user_has_right
+
+    people = CustomUser.objects.filter(organization=org, is_active=True, role__in=ALERT_ROLES).order_by("last_name", "first_name", "pk")
+    return [u for u in people if user_has_right(u, "secure_messaging.use")]
+
+
+def notify_safety(note):
+    """
+    Posts an urgent message to the patient's care-team thread and adds the people the clinic chose, so the right people are told at once.
+    Returns None when nothing needs telling, else {"reasons", "sent", "told", "message"}. It never raises: a failure must not stop the signing.
+    """
+    reasons = safety_reasons(note.structured_data)
+    if not reasons:
+        return None
+    try:
+        return _send_safety_alert(note, reasons)
+    except Exception:  # noqa: BLE001 -- the note is already signed; the nurse is told to phone instead
+        import logging
+
+        logging.getLogger(__name__).exception("Safety alert for triage note %s failed", note.pk)
+        return {"reasons": reasons, "sent": False, "told": [], "message": NOT_SENT}
+
+
+def _send_safety_alert(note, reasons):
+    from django.db import IntegrityError, transaction
+
+    from secure_messaging import services as msg
+    from secure_messaging.models import SecureMessage, Thread, ThreadMember
+
+    author, patient = note.author, note.patient
+    org_id = note.organization_id or author.organization_id or patient.organization_id
+    thread = Thread.objects.filter(organization_id=org_id, kind=Thread.PATIENT, patient=patient).first()
+    if thread is None:
+        try:
+            with transaction.atomic():
+                thread = Thread.objects.create(organization_id=org_id, kind=Thread.PATIENT, patient=patient, created_by=author)
+        except IntegrityError:
+            thread = Thread.objects.get(organization_id=org_id, kind=Thread.PATIENT, patient=patient)
+    msg.seed_care_team(thread, patient, author)
+    msg.add_member(thread, author, author)
+    chosen = clinic_settings(note.organization or patient.organization).get("alert_user_ids", [])
+    from users.models import CustomUser
+
+    for user in CustomUser.objects.filter(pk__in=chosen, organization_id=org_id, role__in=ALERT_ROLES):
+        if msg.may_message(author, user):
+            msg.add_member(thread, user, author)
+    body = "SAFETY ALERT from triage. " + " ".join(reasons)
+    visit = msg.current_visit(patient)
+    message = SecureMessage.objects.create(thread=thread, sender=author, body=body[:4000], priority=SecureMessage.URGENT,
+                                           visit=visit, care_setting=(visit.care_setting if visit else "") or "emergency")
+    Thread.objects.filter(pk=thread.pk).update(last_message_at=message.created_at)
+    ThreadMember.objects.filter(thread=thread, user=author).update(last_read_message_id=message.pk)
+    msg.audit(author, "send", thread=thread, message_id=message.pk, patient=patient, detail="urgent, safety alert from triage")
+    others = list(ThreadMember.objects.filter(thread=thread, left_at__isnull=True).exclude(user=author).select_related("user"))
+    msg.nudge(thread, message, [m.user_id for m in others])
+    told = [msg.display_name(m.user) for m in others]
+    return {"reasons": reasons, "sent": bool(told), "told": told, "message": ("Safety alert sent to " + ", ".join(told) + ".") if told else NOBODY_TOLD}

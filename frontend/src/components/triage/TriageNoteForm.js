@@ -113,7 +113,7 @@ function SuicideScreen({ ctx, values, onChange, disabled }) {
       ))}
       {screener.copyright && <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>{screener.copyright}</Typography>}
       {action === "immediate" && (
-        <Alert severity="error" sx={{ mt: 1 }} data-testid="triage-suicide-immediate">{screener.actions.immediate}</Alert>
+        <Alert severity="error" sx={{ mt: 1 }} data-testid="triage-suicide-immediate">{screener.actions.immediate} Signing this note sends a safety alert to the people your clinic chose.</Alert>
       )}
       {action === "referral" && (
         <Alert severity="warning" sx={{ mt: 1 }} data-testid="triage-suicide-referral">{screener.actions.referral}</Alert>
@@ -284,6 +284,11 @@ export default function TriageNoteForm({ template, values, onChange, disabled, p
         <VitalsBlock ctx={ctx} onRefresh={loadContext} refreshing={refreshing} />
         <HistoryBlock ctx={ctx} />
         <DynamicNoteForm template={filtered} values={values} onChange={onChange} disabled={disabled} />
+        {String(values.screen_unsafe_home || "").toLowerCase() === "yes" && (
+          <Alert severity="warning" data-testid="triage-unsafe-home">
+            The patient feels unsafe at home or was hurt by someone else. Ask privately. Signing this note sends a safety alert to the people your clinic chose.
+          </Alert>
+        )}
         {ctx.patient.show_suicide_screen && <SuicideScreen ctx={ctx} values={values} onChange={onChange} disabled={disabled} />}
       </Stack>
       <Stack spacing={2} sx={{ flex: "0 0 340px", maxWidth: "100%", position: "sticky", top: 8 }}>

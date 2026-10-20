@@ -72,11 +72,12 @@ export const reassessStatus = (visit, waiting, now = Date.now()) => {
 };
 
 /** Which column a color rule's field is shown in (for rules that color a single cell). */
-export const RULE_COLUMN = { esi: "esi", ed_status: "status", vitals_overdue: "vitals", registration_complete: "reg_comp", sex: "gender" };
+export const RULE_COLUMN = { esi: "esi", ed_status: "status", vitals_overdue: "vitals", recheck_overdue: "reassess", registration_complete: "reg_comp", sex: "gender" };
 
 /** The value a rule's field has for this visit, as text ("true"/"false" for yes-no fields). */
 const ruleValue = (field, visit, now, limit) => {
   if (field === "vitals_overdue") return String(vitalsStatus(visit, now, limit).overdue);
+  if (field === "recheck_overdue") return String(reassessStatus(visit, !!visit.waiting, now).state === "overdue");
   if (field === "registration_complete") return String(!!visit.registration_complete);
   if (field === "esi") return visit.esi == null ? "" : String(visit.esi);
   if (field === "ed_status") return visit.ed_status || "";
