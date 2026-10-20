@@ -45,6 +45,20 @@ def age_months(age_days):
     return age_days / DAYS_PER_MONTH
 
 
+def _age_text(months):
+    months = int(months) if float(months).is_integer() else round(float(months), 1)
+    return f"{months // 12} years" if months >= 24 and months % 12 == 0 else f"{months} months"
+
+
+def band_label(min_months, max_months):
+    """"Under 3 months", "3 months to under 3 years", "8 years and older": the name of an age band from its limits."""
+    if max_months is None:
+        return f"{_age_text(min_months)} and older"
+    if not min_months:
+        return f"Under {_age_text(max_months)}"
+    return f"{_age_text(min_months)} to under {_age_text(max_months)}"
+
+
 def band_for(age_days, danger_zone=None):
     zone = danger_zone or DEFAULT_DANGER_ZONE
     months = age_months(age_days)

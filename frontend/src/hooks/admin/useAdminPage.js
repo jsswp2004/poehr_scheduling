@@ -78,6 +78,14 @@ export const useAdminPage = () => {
             requiredRoles: ['admin', 'system_admin']
         },
         {
+            id: 'triage-settings',
+            label: 'Triage Settings',
+            icon: 'FaHeartbeat',
+            path: '/triage-settings',
+            color: 'primary',
+            requiredRoles: ['admin', 'system_admin']
+        },
+        {
             id: 'order-builder',
             label: 'Order Builder',
             icon: 'FaClipboardCheck',

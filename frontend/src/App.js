@@ -39,6 +39,7 @@ import AdminUserSearchPage from './pages/AdminUserSearchPage';
 import NoteTemplateBuilderPage from './pages/NoteTemplateBuilderPage';
 import FlowsheetBuilderPage from './pages/FlowsheetBuilderPage';
 import StatusBoardBuilderPage from './pages/StatusBoardBuilderPage';
+import TriageSettingsPage from './pages/TriageSettingsPage';
 import AccountPage from './pages/AccountPage';
 import EditAppointmentPage from './pages/EditAppointmentPage';
 import AppointmentsPage from './pages/AppointmentsPage';
@@ -235,6 +236,7 @@ function AppContent() {
         <Route path="/note-builder" element={<PrivateRoute><NoteTemplateBuilderPage /></PrivateRoute>} />
         <Route path="/flowsheet-builder" element={<PrivateRoute><FlowsheetBuilderPage /></PrivateRoute>} />
         <Route path="/status-board-builder" element={<PrivateRoute><StatusBoardBuilderPage /></PrivateRoute>} />
+        <Route path="/triage-settings" element={<PrivateRoute><TriageSettingsPage /></PrivateRoute>} />
         <Route path="/order-builder" element={<PrivateRoute><OrderBuilderPage /></PrivateRoute>} />
         <Route path="/location-manager" element={<PrivateRoute><LocationManagerPage /></PrivateRoute>} />
         <Route path="/appointments/:id/edit" element={<EditAppointmentPage />} />        <Route path="/appointments" element={<PrivateRoute><AppointmentsPage /></PrivateRoute>} />        <Route path="/toast-test" element={<ToastTestPage />} />
