@@ -102,7 +102,7 @@ const dxToText = (codes) => (codes || []).map(dxLabel).join("; ");
  * requirements, locking after signing) is enforced by the backend; this
  * screen just shows the right buttons and relays the server's messages.
  */
-function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chartVisit }) {
+function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chartVisit, initialSearch = "" }) {
   // On the Patients page the visit being charted is the one in the patient header (chartVisit);
   // elsewhere (the standalone Orders page) the visit is still picked from a list.
   const fixedVisit = chartVisit !== undefined;
@@ -118,7 +118,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
 
   const [appointmentId, setAppointmentId] = useState("");
   const [orderableOptions, setOrderableOptions] = useState([]);
-  const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState(initialSearch || "");
   const [searchLoading, setSearchLoading] = useState(false);
   const [orderSetCode, setOrderSetCode] = useState("");
 
@@ -706,6 +706,8 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
               sx={{ flex: 1, minWidth: 260 }}
               options={orderableOptions}
               loading={searchLoading}
+              autoFocus={!!initialSearch}
+              openOnFocus={!!initialSearch}
               value={null}
               inputValue={searchText}
               onInputChange={(e, text, reason) => {

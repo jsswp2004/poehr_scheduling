@@ -21,6 +21,8 @@ jest.mock("../../utils/auth", () => ({ getValidToken: async () => ({ access_toke
 jest.mock("../../utils/tokenManager", () => ({}), { virtual: true });
 jest.mock("jwt-decode", () => ({ jwtDecode: () => ({ role: "doctor", user_id: 5 }) }));
 
+jest.mock("../OrdersPanel", () => ({ __esModule: true, default: (props) => <div data-testid="orders-panel" data-search={props.initialSearch} data-patient={props.patientId} /> }));
+
 import { api } from "../../api/client";
 import VaccineManager, { DosePips, StatusPill } from "../vaccines/VaccineManager";
 
@@ -126,6 +128,25 @@ test("users without the record right see no action buttons", async () => {
   await screen.findByTestId("vm-row-dtap");
   expect(screen.queryByText("Mark done")).toBeNull();
   expect(screen.queryByTestId("vm-record-due")).toBeNull();
+});
+
+test("the order icon shows only on due-now vaccines and opens Orders with the vaccine searched", async () => {
+  render(<VaccineManager patient={PATIENT} chartVisit={{ appointmentId: 5 }} />);
+  await screen.findByTestId("vm-row-dtap");
+  expect(screen.getByTestId("vm-order-dtap")).toBeInTheDocument();
+  expect(screen.queryByTestId("vm-order-hepa")).toBeNull();
+  fireEvent.click(screen.getByTestId("vm-order-dtap"));
+  const panel = await screen.findByTestId("orders-panel");
+  expect(panel).toHaveAttribute("data-search", "DTaP");
+  expect(panel).toHaveAttribute("data-patient", "3");
+});
+
+test("no order icon without the record right", async () => {
+  const body = BODY({ can_record: false });
+  api.get.mockImplementation((url) => Promise.resolve({ data: url === "/cat/" ? CATALOG : body }));
+  render(<VaccineManager patient={PATIENT} />);
+  await screen.findByTestId("vm-row-dtap");
+  expect(screen.queryByTestId("vm-order-dtap")).toBeNull();
 });
 
 test("pips and pills render text", () => {
