@@ -616,7 +616,7 @@ function PatientsPage() {
             }
             if (current === "vaccines") {
               if (!selectedPatient) return <SelectPatientPrompt />;
-              return <VaccineManager key={selectedPatient.id} patient={selectedPatient} />;
+              return <VaccineManager key={selectedPatient.id} patient={selectedPatient} chartVisit={chartVisit} />;
             }
             if (COMING_SOON[current]) {
               return (

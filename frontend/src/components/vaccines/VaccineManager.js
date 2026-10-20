@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert, Box, Button, Checkbox, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl,
-  FormControlLabel, FormLabel, Link, MenuItem, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell,
-  TableHead, TableRow, Tabs, TextField, Typography,
+  FormControlLabel, FormLabel, IconButton, Link, MenuItem, Paper, Radio, RadioGroup, Stack, Tab, Table, TableBody, TableCell,
+  TableHead, TableRow, Tabs, TextField, Tooltip, Typography,
 } from "@mui/material";
+import AssignmentIcon from "@mui/icons-material/Assignment";
 import { api } from "../../api/client";
+import OrdersPanel from "../OrdersPanel";
 import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText, fmtDay } from "../prescriptions/rxShared";
 
@@ -263,7 +265,7 @@ function DetailDialog({ rec, history, canRecord, onClose, onDone, onNotDone }) {
   );
 }
 
-export default function VaccineManager({ patient }) {
+export default function VaccineManager({ patient, chartVisit }) {
   const [data, setData] = useState(null);
   const [catalog, setCatalog] = useState(null);
   const [error, setError] = useState("");
@@ -413,6 +415,13 @@ export default function VaccineManager({ patient }) {
                       {canRecord && ["due", "overdue", "near_due"].includes(r.status) && (
                         <Button size="small" onClick={() => setDialog({ type: "notdone", rec: r })}>Not done</Button>
                       )}
+                      {canRecord && r.kind === "vaccine" && r.status === "due" && (
+                        <Tooltip title="Add order">
+                          <IconButton size="small" aria-label={`Add order for ${r.name}`} data-testid={`vm-order-${r.item}`} onClick={() => setDialog({ type: "order", rec: r })}>
+                            <AssignmentIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                       {r.status === "review" && <Button size="small" variant="outlined" color="secondary" onClick={() => setDialog({ type: "detail", rec: r })}>Review</Button>}
                       {["done", "not_done", "aged_out"].includes(r.status) && <Button size="small" onClick={() => setDialog({ type: "detail", rec: r })}>View</Button>}
                     </Stack>
@@ -453,6 +462,15 @@ export default function VaccineManager({ patient }) {
       )}
       {dialog?.type === "notdone" && (
         <NotDoneDialog patient={data.patient} rec={dialog.rec} catalog={catalog} onClose={() => setDialog(null)} onSaved={(b) => afterSave(b, "Saved as not done.")} />
+      )}
+      {dialog?.type === "order" && (
+        <Dialog open fullWidth maxWidth="lg" onClose={() => setDialog(null)} aria-labelledby="vm-order-title">
+          <DialogTitle id="vm-order-title">Add order: {dialog.rec.name}<Typography variant="body2" color="text.secondary">{data.patient.name}</Typography></DialogTitle>
+          <DialogContent dividers>
+            <OrdersPanel patientId={patient.id} forcedSection="orders" chartVisit={chartVisit} initialSearch={dialog.rec.name} />
+          </DialogContent>
+          <DialogActions><Button onClick={() => setDialog(null)}>Close</Button></DialogActions>
+        </Dialog>
       )}
       {dialog?.type === "void" && <VoidDialog rec={dialog.rec} onClose={() => setDialog(null)} onSaved={(b) => afterSave(b, "Marked entered in error.")} />}
       {dialog?.type === "detail" && (
