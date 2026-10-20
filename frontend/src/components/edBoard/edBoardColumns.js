@@ -11,6 +11,8 @@ export const DEFAULT_COLUMNS = [
   { key: "reason", label: "Visit Reason", width: 130 },
   { key: "complaint", label: "Chief Complaint", width: 130 },
   { key: "esi", label: "ESI", width: 70 },
+  { key: "triage_note", label: "Triage Note", width: 110 },
+  { key: "reassess", label: "Reassess", width: 110 },
   { key: "status", label: "STS", width: 90 },
   { key: "md", label: "MD", width: 150 },
   { key: "rn", label: "RN", width: 150 },
@@ -41,6 +43,32 @@ export const vitalsStatus = (visit, now = Date.now(), limit = VITALS_OVERDUE_MIN
   const charted = !!visit.vitals_last_at;
   const minutes = losMinutes(charted ? visit.vitals_last_at : visit.arrival_time, now);
   return { minutes, charted, overdue: minutes >= limit };
+};
+
+/** {state, text} for the Triage Note column: "none", "draft" or "signed" (with the time it was signed). */
+export const triageNoteStatus = (visit) => {
+  const t = visit?.triage;
+  if (!t || t.note === "none" || !t.note) return { state: "none", text: "None" };
+  if (t.note === "draft") return { state: "draft", text: "Draft" };
+  const at = t.signed_at ? new Date(t.signed_at) : null;
+  const clock = at && !Number.isNaN(at.getTime()) ? ` ${at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}` : "";
+  return { state: "signed", text: `Signed${clock}` };
+};
+
+/**
+ * {state, text, minutes, due} for the Reassess column. Only a patient still waiting, with a signed triage note,
+ * is rechecked; with no recheck gap set for the level there is no due time to count down to.
+ * state: "none" | "unset" | "ok" | "soon" (due within 10 minutes) | "overdue".
+ */
+export const reassessStatus = (visit, waiting, now = Date.now()) => {
+  const t = visit?.triage;
+  if (!visit || !waiting || !t || t.note !== "signed") return { state: "none", text: "", minutes: null, due: null };
+  if (!t.due_at) return { state: "unset", text: "No gap set", minutes: null, due: null };
+  const due = new Date(t.due_at).getTime();
+  if (Number.isNaN(due)) return { state: "none", text: "", minutes: null, due: null };
+  const left = Math.ceil((due - now) / 60000);
+  if (left <= 0) return { state: "overdue", text: `Overdue ${formatLos(-left)}`, minutes: left, due };
+  return { state: left <= 10 ? "soon" : "ok", text: `Due in ${formatLos(left)}`, minutes: left, due };
 };
 
 /** Which column a color rule's field is shown in (for rules that color a single cell). */

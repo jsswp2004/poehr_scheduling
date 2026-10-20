@@ -22,6 +22,8 @@ BUILTIN_COLUMNS = [
     ("reason", "Visit Reason", 130),
     ("complaint", "Chief Complaint", 130),
     ("esi", "ESI", 70),
+    ("triage_note", "Triage Note", 110),
+    ("reassess", "Reassess", 110),
     ("status", "STS", 90),
     ("md", "MD", 150),
     ("rn", "RN", 150),

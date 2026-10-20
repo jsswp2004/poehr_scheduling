@@ -1873,9 +1873,20 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
                 {"detail": "Only the authoring provider can sign this note."},
                 status=status.HTTP_403_FORBIDDEN,
             )
+        is_triage = note.documentation_type == "triage_note"
+        if is_triage:
+            # A triage note is checked before it locks (level, reason, child weight, vitals) and keeps what the nurse was shown.
+            from . import triage_service
+
+            problems, snapshot = triage_service.prepare_signing(note)
+            if problems:
+                return Response({"detail": problems[0], "problems": problems}, status=status.HTTP_400_BAD_REQUEST)
+            note.structured_data = {**(note.structured_data or {}), "triage_snapshot": snapshot}
         note.status = "signed"
         note.signed_at = timezone.now()
-        note.save(update_fields=["status", "signed_at"])
+        note.save(update_fields=["status", "signed_at"] + (["structured_data"] if is_triage else []))
+        if is_triage:
+            triage_service.finish_signing(note)
         return Response(ClinicalNoteSerializer(note).data)
 
     @action(detail=True, methods=["post"])

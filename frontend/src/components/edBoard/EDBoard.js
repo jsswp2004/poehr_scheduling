@@ -37,7 +37,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
-import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, filterRows, formatLos, losMinutes, ruleColors, vitalsStatus } from "./edBoardColumns";
+import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, filterRows, formatLos, losMinutes, reassessStatus, ruleColors, triageNoteStatus, vitalsStatus } from "./edBoardColumns";
 import { BED_LABEL, filterByColumns, isPlainColumn, sortRows } from "./edBoardTable";
 
 const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
@@ -514,6 +514,32 @@ export default function EDBoard({
         ) : (
           row.hold_reason || ""
         );
+      case "triage_note": {
+        if (!v) return "";
+        const ts = triageNoteStatus(v);
+        return ts.state === "none" ? (
+          <span data-testid={`triage-${v.registration}`}>None</span>
+        ) : (
+          <Chip size="small" color={ts.state === "signed" ? "success" : "warning"} label={ts.text} data-testid={`triage-${v.registration}`} />
+        );
+      }
+      case "reassess": {
+        if (!v) return "";
+        const rs = reassessStatus(v, row.type === "waiting", now);
+        if (rs.state === "none") return "";
+        if (rs.state === "unset") return <span data-testid={`reassess-${v.registration}`}>-</span>;
+        const n = v.triage?.reassessments || 0;
+        return (
+          <Tooltip title={n ? `${n} recheck${n === 1 ? "" : "s"} so far` : "No recheck yet"}>
+            <Chip
+              size="small"
+              color={rs.state === "overdue" ? "error" : rs.state === "soon" ? "warning" : "default"}
+              label={rs.text}
+              data-testid={`reassess-${v.registration}`}
+            />
+          </Tooltip>
+        );
+      }
       case "vitals": {
         if (!v) return "";
         const vs = vitalsStatus(v, now, overdueMinutes);

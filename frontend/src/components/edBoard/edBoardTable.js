@@ -1,8 +1,9 @@
-import { ORDER_ICON_COLUMNS, formatLos, losMinutes, vitalsStatus } from "./edBoardColumns";
+import { ORDER_ICON_COLUMNS, formatLos, losMinutes, reassessStatus, triageNoteStatus, vitalsStatus } from "./edBoardColumns";
 
 export const BED_LABEL = { available: "Ready", cleaning: "Cleaning", blocked: "Blocked", occupied: "" };
 const SEX = { F: "Female", M: "Male", X: "Other" };
 const ORDER_RANK = { pending: 1, done: 2 };
+const TRIAGE_RANK = { none: 0, draft: 1, signed: 2 };
 
 /** Columns that cannot be sorted or filtered (the buttons column). */
 export const isPlainColumn = (col) => col.key === "actions";
@@ -30,6 +31,10 @@ export const cellText = (col, row, ctx) => {
       return v?.complaint || "";
     case "esi":
       return v && v.esi != null ? String(v.esi) : "";
+    case "triage_note":
+      return v ? triageNoteStatus(v).text : "";
+    case "reassess":
+      return v ? reassessStatus(v, row.type === "waiting", ctx.now).text : "";
     case "status":
       if (!v) return BED_LABEL[row.bed_status] || "";
       return ctx.statuses.find((s) => s.value === v.ed_status)?.code || "";
@@ -86,6 +91,12 @@ export const sortValue = (col, row, ctx) => {
       if (!v) return null;
       const at = ctx.statuses.findIndex((s) => s.value === v.ed_status);
       return at < 0 ? null : at;
+    }
+    case "triage_note":
+      return v ? TRIAGE_RANK[triageNoteStatus(v).state] : null;
+    case "reassess": {
+      const r = v ? reassessStatus(v, row.type === "waiting", ctx.now) : null;
+      return r && r.due != null ? r.due : null;
     }
     case "vitals":
       return v ? vitalsStatus(v, ctx.now, ctx.limit).minutes : null;

@@ -616,3 +616,16 @@ test("table helpers: text, sort and filter", () => {
   const num = [{ type: "bed", bed: 1, loc: "Bed 10", visit: null }, { type: "bed", bed: 2, loc: "Bed 9", visit: null }];
   expect(sortRows(num, by("loc"), "asc", ctx).map((r) => r.bed)).toEqual([2, 1]);
 });
+
+test("the Triage Note and Reassess columns show the note state and how long until the recheck", async () => {
+  const rows = rowsDefault();
+  const soon = new Date(Date.now() - 12 * 60000).toISOString();
+  rows[0].visit = visit({ registration: 90, triage: { note: "signed", signed_at: new Date(Date.now() - 90 * 60000).toISOString(), reassessments: 0, due_at: null } });
+  rows[4].visit = visit({ registration: 91, patient: 4, user_id: 40, name: "RAY, Bob", triage: { note: "signed", signed_at: new Date(Date.now() - 90 * 60000).toISOString(), reassessments: 1, due_at: soon, gap_minutes: 60 } });
+  api.get.mockResolvedValue({ data: withConfig({ columns: [col("loc", "LOC"), col("patient", "Patient"), col("triage_note", "Triage Note"), col("reassess", "Reassess")] }, rows) });
+  render(<EDBoard userRole="nurse" currentUserId={7} />);
+  await screen.findByTestId("ed-bed-1");
+  expect(screen.getByTestId("triage-90")).toHaveTextContent(/^Signed \d\d:\d\d$/);
+  expect(screen.queryByTestId("reassess-90")).toBeNull(); // in a bed: not rechecked here
+  expect(screen.getByTestId("reassess-91")).toHaveTextContent(/^Overdue \d\d:\d\d$/);
+});

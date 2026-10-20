@@ -36,6 +36,9 @@ import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
+import ReassessmentPanel from "./triage/ReassessmentPanel";
+import TriageNoteForm from "./triage/TriageNoteForm";
+import { TRIAGE_CODE } from "./triage/triageHelpers";
 import DynamicNoteForm, {
   isFieldVisible,
   buildNotePreviewSections,
@@ -848,12 +851,25 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   Loading {documentationTypeLabel(form.documentation_type)} form...
                 </Typography>
               ) : (
-                <DynamicNoteForm
-                  template={currentTemplate}
-                  values={form.structured_data}
-                  onChange={handleStructuredFieldChange}
-                  disabled={saving}
-                />
+                form.documentation_type === TRIAGE_CODE && patientId ? (
+                  <>
+                    <TriageNoteForm
+                      template={currentTemplate}
+                      values={form.structured_data}
+                      onChange={handleStructuredFieldChange}
+                      disabled={saving}
+                      patientId={patientId}
+                    />
+                    <ReassessmentPanel patientId={patientId} canAdd={canAuthor} refreshKey={saving ? 1 : 0} />
+                  </>
+                ) : (
+                  <DynamicNoteForm
+                    template={currentTemplate}
+                    values={form.structured_data}
+                    onChange={handleStructuredFieldChange}
+                    disabled={saving}
+                  />
+                )
               )
             ) : (
               <>
@@ -1115,6 +1131,9 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   meta={historyPreviewMeta}
                   sections={historyPreviewSections}
                 />
+                {selectedHistoryNote && selectedHistoryNote.status === "signed" && selectedHistoryNote.documentation_type === TRIAGE_CODE && patientId && (
+                  <ReassessmentPanel patientId={patientId} canAdd={canAuthor} />
+                )}
                 {canAuthor && selectedHistoryNote && selectedHistoryNote.status === "signed" && (
                   <Button
                     size="small"
