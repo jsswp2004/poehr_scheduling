@@ -15,6 +15,7 @@ from rest_framework import permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from appointments import triage_service
 from appointments.locations import bed_status
 from appointments.models import Bed, Order, Unit, VitalSignsFlowsheet
 
@@ -107,11 +108,14 @@ def order_icons(name, category):
     return icons
 
 
-def chart_summaries(visits):
+def chart_summaries(visits, gaps=None):
     """{registration id: {"vitals_last_at": iso or None, "orders": {icon: "pending" | "done"}}} in two queries."""
     by_appt = {v.appointment_id: v.pk for v in visits if v.appointment_id}
-    out = {v.pk: {"vitals_last_at": None, "orders": {}, "dispo": None} for v in visits}
+    out = {v.pk: {"vitals_last_at": None, "orders": {}, "dispo": None, "triage": None} for v in visits}
     dispo_at = {}
+    triage = triage_service.board_info(visits, gaps or {})
+    for visit in visits:
+        out[visit.pk]["triage"] = triage[visit.pk]
     if not by_appt:
         return out
 
@@ -173,6 +177,7 @@ def board_visit(visit, chart=None, keys=None, waiting=False):
         "location": visit.location_path() or visit.assigned_location,
         "vitals_last_at": (chart or {}).get("vitals_last_at"),
         "orders": (chart or {}).get("orders", {}),
+        "triage": (chart or {}).get("triage"),
     }
 
 
@@ -274,7 +279,7 @@ class EdBoardView(APIView):
             # visits registered before charting was linked get their chart appointment the first time they show here
             if not visit.appointment_id and visit.care_setting == "emergency":
                 visit.ensure_chart_appointment()
-        chart = chart_summaries(shown)
+        chart = chart_summaries(shown, triage_service.clinic_gaps(org))
 
         rows = []
         beds = Bed.objects.filter(room__unit=unit, is_active=True, room__is_active=True).select_related("room").order_by("room__name", "name")
@@ -405,4 +410,4 @@ class BoardUpdateView(APIView):
             visit.board_custom = custom
         visit.save()
         visit = Registration.objects.select_related(*_RELATED).get(pk=visit.pk)
-        return Response(board_visit(visit, chart_summaries([visit])[visit.pk], status_keys(settings), waiting=visit.bed_id is None))
+        return Response(board_visit(visit, chart_summaries([visit], triage_service.clinic_gaps(org))[visit.pk], status_keys(settings), waiting=visit.bed_id is None))

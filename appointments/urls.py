@@ -45,6 +45,7 @@ from .documentation_assistant import AssistantMessageView as DocumentationAssist
 from . import allergies as allergy_views
 from . import immunization_views as vaccine_views
 from . import growth_views
+from . import triage_views
 from .order_task_views import (
     PrnGiveView,
     PrnOrdersView,
@@ -320,6 +321,10 @@ urlpatterns = router.urls + [
     path("patient-header/<int:patient_id>/", PatientHeaderView.as_view(), name="patient-header"),
     path("patient-header/<int:patient_id>/values/", PatientHeaderValuesView.as_view(), name="patient-header-values"),
     path("growth-charts/patient/<int:patient_id>/", growth_views.GrowthChartView.as_view(), name="growth-chart-patient"),
+    path("triage/patient/<int:patient_id>/context/", triage_views.TriageContextView.as_view(), name="triage-context"),
+    path("triage/patient/<int:patient_id>/suggest/", triage_views.TriageSuggestView.as_view(), name="triage-suggest"),
+    path("triage/patient/<int:patient_id>/reassessments/", triage_views.TriageReassessmentView.as_view(), name="triage-reassessments"),
+    path("triage/settings/", triage_views.TriageSettingsView.as_view(), name="triage-settings"),
     path("vaccine-manager/catalog/", vaccine_views.CatalogView.as_view(), name="vaccine-catalog"),
     path("vaccine-manager/patient/<int:patient_id>/", vaccine_views.PatientVaccinesView.as_view(), name="vaccine-patient"),
     path("vaccine-manager/patient/<int:patient_id>/doses/", vaccine_views.DosesView.as_view(), name="vaccine-doses"),

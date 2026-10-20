@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.contrib.postgres.fields import ArrayField
 from users.models import (
     Organization,
@@ -2662,3 +2663,47 @@ class ImmunizationEvent(models.Model):
 
     def __str__(self):
         return f"{self.action} record {self.record_id} by {self.user_id}"
+
+
+class TriageSettings(models.Model):
+    """
+    A clinic's own triage numbers. Blank means "use the built-in default" for the age tables and fever limits,
+    and "not set" for recheck gaps (the note then shows no "reassessment due" time until the clinic sets them).
+    Whoever saves a change to the age tables or fever limits is recorded as the approver.
+    """
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="triage_settings")
+    danger_zone = models.JSONField(null=True, blank=True, help_text="Heart rate / respiratory rate limits by age band and the SpO2 limit")
+    fever = models.JSONField(null=True, blank=True, help_text="Fever limits by age")
+    reassess_minutes = models.JSONField(default=dict, blank=True, help_text='Minutes between rechecks per ESI level, e.g. {"3": 60}')
+    suicide_screen_min_age_years = models.PositiveSmallIntegerField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Triage settings for organization {self.organization_id}"
+
+
+class TriageReassessment(models.Model):
+    """
+    One recheck of a patient who is waiting after triage: the vital signs, what changed and the level now.
+    The log only grows: a row is never edited or deleted, so it can stand as the record of who looked at the patient and when.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="triage_reassessments", null=True, blank=True)
+    appointment = models.ForeignKey("appointments.Appointment", on_delete=models.PROTECT, related_name="triage_reassessments")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="triage_reassessments")
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="triage_reassessments_recorded")
+    recorded_at = models.DateTimeField(default=timezone.now)
+    vitals = models.JSONField(default=dict, blank=True, help_text="hr, rr, spo2, temp_f, sbp, dbp, pain as entered")
+    change = models.TextField(blank=True, help_text="What changed since the last look")
+    level_before = models.PositiveSmallIntegerField(null=True, blank=True)
+    level_after = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["recorded_at", "pk"]
+        indexes = [models.Index(fields=["appointment", "recorded_at"])]
+
+    def __str__(self):
+        return f"Reassessment of appointment {self.appointment_id} at {self.recorded_at:%Y-%m-%d %H:%M}"

@@ -1,0 +1,63 @@
+{
+  "name": "Columbia-Suicide Severity Rating Scale, Screen Version - Recent",
+  "source": "C-SSRS Screen Version - Recent PDF supplied by Jess Salvacion, 2026-10-20 (Columbia / New York State Psychiatric Institute)",
+  "verified": false,
+  "verification_note": "Question wording was compared line by line with the official Screen Version - Recent PDF and matches. The action text below comes from the Columbia ED triage-points page, not from this PDF, so it still needs a named clinician to confirm. Set verified to true only after that. Columbia asks users to follow its terms of use and training requirements.",
+  "questions": [
+    {
+      "key": "cssrs_1",
+      "number": 1,
+      "text": "Have you wished you were dead or wished you could go to sleep and not wake up?",
+      "timeframe": "past month",
+      "risk": "low"
+    },
+    {
+      "key": "cssrs_2",
+      "number": 2,
+      "text": "Have you actually had any thoughts of killing yourself?",
+      "timeframe": "past month",
+      "risk": "low"
+    },
+    {
+      "key": "cssrs_3",
+      "number": 3,
+      "text": "Have you been thinking about how you might do this?",
+      "ask_if": "cssrs_2",
+      "example": "E.g. \"I thought about taking an overdose but I never made a specific plan as to when where or how I would actually do it....and I would never go through with it.\"",
+      "risk": "moderate"
+    },
+    {
+      "key": "cssrs_4",
+      "number": 4,
+      "text": "Have you had these thoughts and had some intention of acting on them?",
+      "ask_if": "cssrs_2",
+      "example": "As opposed to \"I have the thoughts but I definitely will not do anything about them.\"",
+      "risk": "high"
+    },
+    {
+      "key": "cssrs_5",
+      "number": 5,
+      "text": "Have you started to work out or worked out the details of how to kill yourself? Do you intend to carry out this plan?",
+      "ask_if": "cssrs_2",
+      "risk": "high"
+    },
+    {
+      "key": "cssrs_6",
+      "number": 6,
+      "text": "Have you ever done anything, started to do anything, or prepared to do anything to end your life?",
+      "follow_up": {
+        "key": "cssrs_6_recent",
+        "text": "Was this within the past 3 months?"
+      },
+      "example": "Examples: Collected pills, obtained a gun, gave away valuables, wrote a will or suicide note, took out pills but didn't swallow any, held a gun but changed your mind or it was grabbed from your hand, went to the roof but didn't jump; or actually took pills, tried to shoot yourself, cut yourself, tried to hang yourself, etc.",
+      "risk": "high if within 3 months, moderate if longer ago",
+      "timeframe": "ever"
+    }
+  ],
+  "actions": {
+    "referral": "Behavioral health referral at discharge (questions 1 to 3, or question 6 more than 3 months ago).",
+    "immediate": "Notify the physician and/or behavioral health now, and use patient safety precautions (questions 4 or 5, or question 6 within the past 3 months)."
+  },
+  "copyright": "© 2008 The Research Foundation for Mental Hygiene, Inc. For inquiries and training information contact Kelly Posner, Ph.D., New York State Psychiatric Institute.",
+  "wording_checked_against_pdf": true
+}
