@@ -47,7 +47,7 @@ const CATALOG = {
     { code: "dtap", name: "DTaP", kind: "vaccine", products: [{ cvx: "20", name: "DTaP" }] },
     { code: "hepa", name: "Hepatitis A", kind: "vaccine", products: [{ cvx: "83", name: "HepA ped" }] },
   ],
-  lookups: { manufacturer: [{ id: 9, name: "Sanofi", code: "PMC" }] },
+  lookups: { manufacturer: [{ id: 9, name: "Sanofi", code: "PMC" }], historical_source: [{ id: 4, name: "Parent record", code: "01" }] },
   reasons: [{ value: "declined", label: "Parent declined" }, { value: "illness", label: "Current illness" }],
   risk_schedules: [],
 };
@@ -81,6 +81,23 @@ test("record due vaccines opens one form with every due vaccine and posts them t
   expect(body.doses.map((d) => d.item)).toEqual(["dtap", "hepa"]);
   expect(body.doses[0].given_on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   expect(await screen.findByText("Recorded 2 doses.")).toBeInTheDocument();
+});
+
+test("a dose given elsewhere is saved as a historical entry without clinic-only fields", async () => {
+  api.post.mockResolvedValue({ data: { ...BODY(), saved: [{ id: 1 }] } });
+  render(<VaccineManager patient={PATIENT} />);
+  const row = await screen.findByTestId("vm-row-dtap");
+  fireEvent.click(within(row).getByText("Given elsewhere"));
+  expect(await screen.findByText("Record a dose given elsewhere")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Time given")).toBeNull();
+  expect(screen.queryByLabelText("Vaccine information statement given to the patient")).toBeNull();
+  fireEvent.click(screen.getByTestId("vm-save-dose"));
+  await waitFor(() => expect(api.post).toHaveBeenCalled());
+  const body = api.post.mock.calls[0][1];
+  expect(body.doses).toHaveLength(1);
+  expect(body.doses[0]).toMatchObject({ item: "dtap", source: "historical" });
+  expect(body.doses[0]).not.toHaveProperty("vis_given");
+  expect(await screen.findByText("Recorded 1 dose.")).toBeInTheDocument();
 });
 
 test("a server error stays in the dialog", async () => {
