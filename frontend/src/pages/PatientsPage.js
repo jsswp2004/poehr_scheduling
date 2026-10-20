@@ -614,10 +614,6 @@ function PatientsPage() {
               if (!selectedPatient) return <SelectPatientPrompt />;
               return <ClinicalSummary key={selectedPatient.id} patient={selectedPatient} onOpenTab={setChartTab} />;
             }
-            if (current === "vaccines") {
-              if (!selectedPatient) return <SelectPatientPrompt />;
-              return <VaccineManager key={selectedPatient.id} patient={selectedPatient} chartVisit={chartVisit} />;
-            }
             if (COMING_SOON[current]) {
               return (
                 <ComingSoonPanel
@@ -634,6 +630,9 @@ function PatientsPage() {
               appointmentId: headerReady ? headerData.appointment || null : null,
               visitId: headerReady ? headerData.visit || null : null,
             };
+            if (current === "vaccines") {
+              return <VaccineManager key={selectedPatient.id} patient={selectedPatient} chartVisit={chartVisit} />;
+            }
             if (current === "patient_info") {
               return (
                 <Box sx={TIGHT_PANEL}>
