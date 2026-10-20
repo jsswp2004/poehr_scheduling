@@ -251,3 +251,22 @@ test("explains why a drug has no code when the RxNorm lookup fails on the server
   expect(note).toHaveTextContent("RxNorm) is unavailable: timed out");
   expect(await screen.findByText("Local list, no code", { exact: false })).toBeInTheDocument();
 });
+
+test("the Growth chart button shows for a child when the server allows it, and not for an adult or without the right", async () => {
+  api.get.mockResolvedValue({ data: header({ age_months: 30, can_growth_chart: true }) });
+  const { unmount } = render(<PatientChartHeader patientId={3} />);
+  await screen.findByText("Bcs, Test");
+  expect(screen.getByTestId("growth-chart-button")).toBeInTheDocument();
+  unmount();
+
+  api.get.mockResolvedValue({ data: header({ age_months: 600, can_growth_chart: true }) });
+  const adult = render(<PatientChartHeader patientId={3} />);
+  await screen.findByText("Bcs, Test");
+  expect(screen.queryByTestId("growth-chart-button")).toBeNull();
+  adult.unmount();
+
+  api.get.mockResolvedValue({ data: header({ age_months: 30, can_growth_chart: false }) });
+  render(<PatientChartHeader patientId={3} />);
+  await screen.findByText("Bcs, Test");
+  expect(screen.queryByTestId("growth-chart-button")).toBeNull();
+});

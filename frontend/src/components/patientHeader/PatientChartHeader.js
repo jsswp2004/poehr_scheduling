@@ -22,6 +22,7 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "./headerApi";
 import AllergyAddForm from "./AllergyAddForm";
+import GrowthChartButton from "../growth/GrowthChartModal";
 
 const VALUE_STYLE = {
   strong: { fontWeight: 700, fontSize: "1.15rem" },
@@ -129,6 +130,7 @@ function PatientChartHeader({ patientId, refreshKey = 0, visitId = null, persist
             </Box>
           )}
         </Box>
+        {data.can_growth_chart && <GrowthChartButton patientId={patientId} ageMonths={data.age_months} size="small" />}
         <Tooltip title="Update allergies and header details">
           <IconButton size="small" onClick={() => setEditing(true)} aria-label="Update allergies and header details">
             <EditIcon fontSize="small" />

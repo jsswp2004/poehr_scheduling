@@ -239,6 +239,9 @@ class PatientSerializer(serializers.ModelSerializer):
             "provider_id",
             "provider_name",
             "date_of_birth",
+            "gestational_age_weeks",
+            "gestational_age_days",
+            "birth_weight_g",
             "phone_number",
             "address",
             "medical_history",
@@ -290,6 +293,21 @@ class PatientSerializer(serializers.ModelSerializer):
             "assignment_of_benefits_at": {"read_only": True},
             "release_of_information_at": {"read_only": True},
         }
+
+    def validate_gestational_age_weeks(self, value):
+        if value is not None and not 20 <= value <= 45:
+            raise serializers.ValidationError("Gestational age must be between 20 and 45 weeks.")
+        return value
+
+    def validate_gestational_age_days(self, value):
+        if value is not None and not 0 <= value <= 6:
+            raise serializers.ValidationError("Days must be between 0 and 6.")
+        return value
+
+    def validate_birth_weight_g(self, value):
+        if value is not None and not 200 <= value <= 8000:
+            raise serializers.ValidationError("Birth weight must be between 200 and 8000 grams.")
+        return value
 
     def get_current_visit(self, obj):
         """Where the patient is now (latest visit): care setting, unit, bed, attending."""
