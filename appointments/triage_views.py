@@ -11,6 +11,8 @@ Triage note API.
 The triage note itself is a normal ClinicalNote (template "triage_note"); signing it is checked and its level is
 written to the visit in ClinicalNoteViewSet.sign.
 """
+from copy import deepcopy
+
 from django.utils import timezone
 from rest_framework import permissions
 from rest_framework.response import Response
@@ -158,7 +160,10 @@ class TriageSettingsView(APIView):
                 problem = _check_danger_zone(data["danger_zone"])
                 if problem:
                     return Response({"detail": problem}, status=400)
-                row.danger_zone, changed_numbers = data["danger_zone"], True
+                zone = deepcopy(data["danger_zone"])
+                for band in zone["bands"]:  # a band is named from its limits, so the context and the board always have a label
+                    band["label"] = engine.band_label(band["min_months"], band.get("max_months"))
+                row.danger_zone, changed_numbers = zone, True
         if "fever" in data:
             if data["fever"] in (None, ""):
                 row.fever, changed_numbers = None, True

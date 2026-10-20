@@ -233,6 +233,26 @@ class ApiTests(TestCase):
         self.client.force_authenticate(self.nurse)
         self.assertIsNone(self.client.post(self.url("suggest/"), {"resources": 2}, format="json").json()["consider"])
 
+    def test_age_bands_are_named_from_their_limits(self):
+        self.assertEqual(e.band_label(0, 3), "Under 3 months")
+        self.assertEqual(e.band_label(3, 36), "3 months to under 3 years")
+        self.assertEqual(e.band_label(36, 96), "3 years to under 8 years")
+        self.assertEqual(e.band_label(96, None), "8 years and older")
+        self.assertEqual(e.band_label(0, 1.5), "Under 1.5 months")
+
+    def test_saved_age_table_gets_labels_even_when_sent_without(self):
+        self.client.force_authenticate(self.admin)
+        zone = {"bands": [{"min_months": 0, "max_months": 12, "hr_over": 170, "rr_over": 45},
+                          {"min_months": 12, "max_months": None, "hr_over": 110, "rr_over": 22}], "spo2_below": 93}
+        r = self.client.put("/api/triage/settings/", {"danger_zone": zone}, format="json")
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual([b["label"] for b in r.json()["danger_zone"]["bands"]], ["Under 12 months", "12 months and older"])
+        appt = self.appointment(self.adult)
+        self.visit(self.adult, appt)
+        self.client.force_authenticate(self.nurse)
+        body = self.client.get(self.url("context/")).json()
+        self.assertEqual(body["band"]["label"], "12 months and older")
+
     def test_bad_settings_are_refused(self):
         self.client.force_authenticate(self.admin)
         for body in (
