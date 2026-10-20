@@ -1,0 +1,548 @@
+{
+  "schedule": {
+    "name": "CDC child schedule",
+    "description": "CDC 2025 edition, age-based, birth through 18. This is the edition before CDC's January 2026 revision. Conditions that add vaccines are separate risk schedules.",
+    "population": "child",
+    "is_risk_group": false,
+    "source": "CDC Recommended Child and Adolescent Immunization Schedule for Ages 18 Years or Younger, United States, 2025 (https://www.cdc.gov/vaccines/hcp/imz-schedules/child-adolescent-age.html)",
+    "edition": "2025 (revised 07/02/2025)",
+    "triggers": []
+  },
+  "items": [
+    {
+      "code": "rsv_mab",
+      "name": "RSV antibody for infants (nirsevimab, clesrovimab)",
+      "display_name": "RSV antibody",
+      "kind": "vaccine",
+      "sort_order": 5,
+      "cvx": [
+        "306",
+        "307",
+        "332"
+      ]
+    },
+    {
+      "code": "hepb",
+      "name": "Hepatitis B",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 100,
+      "cvx": [
+        "43",
+        "44",
+        "08",
+        "104",
+        "189",
+        "110",
+        "146"
+      ]
+    },
+    {
+      "code": "rotavirus",
+      "name": "Rotavirus",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 12,
+      "cvx": [
+        "116",
+        "119"
+      ]
+    },
+    {
+      "code": "dtap",
+      "name": "Diphtheria, tetanus, acellular pertussis (DTaP)",
+      "display_name": "DTaP",
+      "kind": "vaccine",
+      "sort_order": 14,
+      "cvx": [
+        "20",
+        "106",
+        "110",
+        "120",
+        "130",
+        "146"
+      ]
+    },
+    {
+      "code": "hib",
+      "name": "Haemophilus influenzae type b (Hib)",
+      "display_name": "Hib",
+      "kind": "vaccine",
+      "sort_order": 16,
+      "cvx": [
+        "48",
+        "49",
+        "120",
+        "146"
+      ]
+    },
+    {
+      "code": "pcv_child",
+      "name": "Pneumococcal conjugate, child (PCV15, PCV20)",
+      "display_name": "Pneumococcal conjugate",
+      "kind": "vaccine",
+      "sort_order": 18,
+      "cvx": [
+        "133",
+        "215",
+        "216",
+        "327"
+      ]
+    },
+    {
+      "code": "ipv",
+      "name": "Poliovirus, inactivated (IPV)",
+      "display_name": "Polio (IPV)",
+      "kind": "vaccine",
+      "sort_order": 20,
+      "cvx": [
+        "10",
+        "110",
+        "120",
+        "130",
+        "146"
+      ]
+    },
+    {
+      "code": "covid19",
+      "name": "COVID-19",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 20,
+      "cvx": [
+        "309",
+        "310",
+        "311",
+        "312",
+        "313",
+        "334"
+      ]
+    },
+    {
+      "code": "influenza",
+      "name": "Influenza",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 10,
+      "cvx": [
+        "135",
+        "140",
+        "141",
+        "150",
+        "153",
+        "155",
+        "158",
+        "161",
+        "168",
+        "171",
+        "185",
+        "186",
+        "197",
+        "205",
+        "320",
+        "338",
+        "111",
+        "149",
+        "333"
+      ]
+    },
+    {
+      "code": "mmr",
+      "name": "Measles, mumps, rubella (MMR)",
+      "display_name": "MMR",
+      "kind": "vaccine",
+      "sort_order": 50,
+      "cvx": [
+        "03",
+        "94"
+      ]
+    },
+    {
+      "code": "varicella",
+      "name": "Varicella",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 60,
+      "cvx": [
+        "21",
+        "94"
+      ]
+    },
+    {
+      "code": "hepa",
+      "name": "Hepatitis A",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 62,
+      "cvx": [
+        "52",
+        "83",
+        "104"
+      ]
+    },
+    {
+      "code": "td_tdap",
+      "name": "Tetanus, diphtheria, pertussis (Td or Tdap)",
+      "display_name": "Td / Tdap",
+      "kind": "vaccine",
+      "sort_order": 40,
+      "cvx": [
+        "09",
+        "113",
+        "115",
+        "196"
+      ]
+    },
+    {
+      "code": "hpv",
+      "name": "Human papillomavirus (HPV)",
+      "display_name": "HPV",
+      "kind": "vaccine",
+      "sort_order": 80,
+      "cvx": [
+        "62",
+        "165"
+      ]
+    },
+    {
+      "code": "menacwy",
+      "name": "Meningococcal ACWY (MenACWY)",
+      "display_name": "MenACWY",
+      "kind": "vaccine",
+      "sort_order": 105,
+      "cvx": [
+        "114",
+        "136",
+        "203",
+        "316",
+        "328"
+      ]
+    },
+    {
+      "code": "menb",
+      "name": "Meningococcal B (MenB)",
+      "display_name": "MenB",
+      "kind": "vaccine",
+      "sort_order": 110,
+      "cvx": [
+        "162",
+        "163",
+        "316",
+        "328"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "item": "rsv_mab",
+      "min_age_months": 0,
+      "max_age_months": 7,
+      "dose_count": 1,
+      "review_reason": "RSV antibody depends on the RSV season and whether the pregnant parent had the RSV vaccine at least 14 days before delivery. Confirm.",
+      "why_text": "CDC child schedule 2025: infants under 8 months entering their first RSV season: 1 dose nirsevimab, depending on maternal RSV vaccination."
+    },
+    {
+      "item": "rsv_mab",
+      "min_age_months": 8,
+      "max_age_months": 19,
+      "dose_count": 1,
+      "review_reason": "Age 8 to 19 months: 1 dose nirsevimab before the second RSV season only if at high risk of severe RSV disease. Confirm.",
+      "why_text": "CDC child schedule 2025: high-risk children entering a second RSV season."
+    },
+    {
+      "item": "hepb",
+      "min_age_months": 0,
+      "max_age_months": 227,
+      "dose_count": 3,
+      "dose_min_ages_months": [
+        0,
+        1,
+        6
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28,
+        56
+      ],
+      "why_text": "CDC child schedule 2025: 3 doses at birth, 1 to 2 months and 6 to 18 months. The final dose is not given before 24 weeks of age."
+    },
+    {
+      "item": "rotavirus",
+      "min_age_months": 2,
+      "max_age_months": 5,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        2,
+        4
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28
+      ],
+      "why_text": "CDC child schedule 2025: 2 doses at 2 and 4 months (Rotarix). RotaTeq needs a third dose at 6 months. Do not start on or after 15 weeks."
+    },
+    {
+      "item": "rotavirus",
+      "min_age_months": 6,
+      "max_age_months": 8,
+      "dose_count": 3,
+      "dose_min_ages_months": [
+        2,
+        4,
+        6
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28,
+        28
+      ],
+      "review_reason": "Rotavirus: Rotarix is complete after 2 doses; RotaTeq needs a third dose by 8 months. Check the product given. The series cannot be started now.",
+      "why_text": "CDC child schedule 2025: RotaTeq 3rd dose at 6 months; the final dose must be given by 8 months."
+    },
+    {
+      "item": "dtap",
+      "min_age_months": 2,
+      "max_age_months": 83,
+      "dose_count": 5,
+      "dose_min_ages_months": [
+        2,
+        4,
+        6,
+        15,
+        48
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28,
+        28,
+        180,
+        180
+      ],
+      "why_text": "CDC child schedule 2025: 5 doses at 2, 4, 6, 15 to 18 months and 4 to 6 years. Dose 5 is not needed if dose 4 was given at age 4 or older."
+    },
+    {
+      "item": "hib",
+      "min_age_months": 2,
+      "max_age_months": 11,
+      "dose_count": 3,
+      "dose_min_ages_months": [
+        2,
+        4,
+        6
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28,
+        28
+      ],
+      "why_text": "CDC child schedule 2025: doses at 2, 4 and 6 months (PedvaxHIB is 2 primary doses)."
+    },
+    {
+      "item": "hib",
+      "min_age_months": 12,
+      "max_age_months": 59,
+      "dose_count": 4,
+      "dose_min_ages_months": [
+        2,
+        4,
+        6,
+        12
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28,
+        28,
+        56
+      ],
+      "review_reason": "Hib: PedvaxHIB is 3 doses in total, other products are 4. Check the product given, and follow the catch-up table if behind.",
+      "why_text": "CDC child schedule 2025: booster at 12 to 15 months."
+    },
+    {
+      "item": "pcv_child",
+      "min_age_months": 2,
+      "max_age_months": 59,
+      "dose_count": 4,
+      "dose_min_ages_months": [
+        2,
+        4,
+        6,
+        12
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28,
+        28,
+        56
+      ],
+      "why_text": "CDC child schedule 2025: 4 doses at 2, 4, 6 and 12 to 15 months."
+    },
+    {
+      "item": "ipv",
+      "min_age_months": 2,
+      "max_age_months": 227,
+      "dose_count": 4,
+      "dose_min_ages_months": [
+        2,
+        4,
+        6,
+        48
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28,
+        28,
+        180
+      ],
+      "why_text": "CDC child schedule 2025: 4 doses at 2, 4, 6 to 18 months and 4 to 6 years; the last dose is at age 4 or older and 6 months after the previous."
+    },
+    {
+      "item": "covid19",
+      "min_age_months": 6,
+      "max_age_months": 227,
+      "dose_count": 1,
+      "recurrence_months": 12,
+      "review_reason": "COVID-19 for ages 6 months to 17 years: shared clinical decision-making (not routine). Dosing depends on earlier doses and product; immunocompromised children have separate dosing. Confirm.",
+      "why_text": "CDC child schedule 2025: ages 6 months through 17 years, shared clinical decision-making."
+    },
+    {
+      "item": "influenza",
+      "min_age_months": 6,
+      "max_age_months": 107,
+      "dose_count": 1,
+      "recurrence_months": 12,
+      "review_reason": "Influenza at age 6 months to 8 years: 2 doses at least 4 weeks apart if fewer than 2 flu doses before July 1 of the previous season, otherwise 1 dose. Check history.",
+      "why_text": "CDC child schedule 2025: yearly from 6 months of age."
+    },
+    {
+      "item": "influenza",
+      "min_age_months": 108,
+      "max_age_months": 227,
+      "dose_count": 1,
+      "recurrence_months": 12,
+      "why_text": "CDC child schedule 2025: age 9 or older, 1 dose every year."
+    },
+    {
+      "item": "mmr",
+      "min_age_months": 12,
+      "max_age_months": 227,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        12,
+        48
+      ],
+      "dose_min_intervals_days": [
+        0,
+        28
+      ],
+      "why_text": "CDC child schedule 2025: 2 doses at 12 to 15 months and 4 to 6 years."
+    },
+    {
+      "item": "varicella",
+      "min_age_months": 12,
+      "max_age_months": 227,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        12,
+        48
+      ],
+      "dose_min_intervals_days": [
+        0,
+        90
+      ],
+      "why_text": "CDC child schedule 2025: 2 doses at 12 to 15 months and 4 to 6 years (3 months apart at least; 4 weeks at age 13 or older)."
+    },
+    {
+      "item": "hepa",
+      "min_age_months": 12,
+      "max_age_months": 227,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        12,
+        18
+      ],
+      "dose_min_intervals_days": [
+        0,
+        180
+      ],
+      "why_text": "CDC child schedule 2025: 2 doses at least 6 months apart, starting at 12 to 23 months. Catch-up through 18 years."
+    },
+    {
+      "item": "td_tdap",
+      "min_age_months": 132,
+      "max_age_months": 227,
+      "dose_count": 1,
+      "why_text": "CDC child schedule 2025: age 11 to 12: 1 dose Tdap. Catch-up: 1 dose Tdap at 13 to 18 if never given."
+    },
+    {
+      "item": "hpv",
+      "min_age_months": 132,
+      "max_age_months": 179,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        132,
+        132
+      ],
+      "dose_min_intervals_days": [
+        0,
+        180
+      ],
+      "why_text": "CDC child schedule 2025: routine at 11 to 12 years (can start at 9): 2 doses 6 to 12 months apart (minimum 5 months). 3 doses if immunocompromised."
+    },
+    {
+      "item": "hpv",
+      "min_age_months": 180,
+      "max_age_months": 227,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        84
+      ],
+      "review_reason": "HPV: 3 doses if started at 15 or older; 2 doses if started at 9 to 14. Check earlier doses.",
+      "why_text": "CDC child schedule 2025: catch-up for everyone through age 18."
+    },
+    {
+      "item": "menacwy",
+      "min_age_months": 132,
+      "max_age_months": 191,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        132,
+        192
+      ],
+      "dose_min_intervals_days": [
+        0,
+        56
+      ],
+      "why_text": "CDC child schedule 2025: dose 1 at 11 to 12 years, dose 2 at 16 years. At 13 to 15 with no dose: give 1 now and a booster at 16 to 18 (8 weeks apart at least)."
+    },
+    {
+      "item": "menacwy",
+      "min_age_months": 192,
+      "max_age_months": 227,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        132,
+        192
+      ],
+      "dose_min_intervals_days": [
+        0,
+        56
+      ],
+      "review_reason": "MenACWY at 16 to 18: 1 dose if never vaccinated; a booster at 16 or older if the first dose was before 16. Check history.",
+      "why_text": "CDC child schedule 2025: 2 doses, the second at 16 years."
+    },
+    {
+      "item": "menb",
+      "min_age_months": 192,
+      "max_age_months": 227,
+      "dose_count": 2,
+      "dose_min_intervals_days": [
+        0,
+        180
+      ],
+      "review_reason": "MenB at 16 to 18 (up to 23): shared clinical decision-making when not at increased risk.",
+      "why_text": "CDC child schedule 2025: age 16 to 23 (16 to 18 preferred), shared clinical decision-making."
+    }
+  ]
+}

@@ -43,6 +43,7 @@ from .my_schedule import MyScheduleView
 from .scheduler_assistant import (AssistantActionCancelView as SchedulerAssistantCancelView, AssistantActionConfirmView as SchedulerAssistantConfirmView, AssistantMessageView as SchedulerAssistantMessageView)
 from .documentation_assistant import AssistantMessageView as DocumentationAssistantMessageView, AssistantStatusView as DocumentationAssistantStatusView
 from . import allergies as allergy_views
+from . import immunization_views as vaccine_views
 from .order_task_views import (
     PrnGiveView,
     PrnOrdersView,
@@ -317,6 +318,14 @@ urlpatterns = router.urls + [
     path("chart-tabs/defaults/", OrgChartTabsView.as_view(), name="chart-tabs-defaults"),
     path("patient-header/<int:patient_id>/", PatientHeaderView.as_view(), name="patient-header"),
     path("patient-header/<int:patient_id>/values/", PatientHeaderValuesView.as_view(), name="patient-header-values"),
+    path("vaccine-manager/catalog/", vaccine_views.CatalogView.as_view(), name="vaccine-catalog"),
+    path("vaccine-manager/patient/<int:patient_id>/", vaccine_views.PatientVaccinesView.as_view(), name="vaccine-patient"),
+    path("vaccine-manager/patient/<int:patient_id>/doses/", vaccine_views.DosesView.as_view(), name="vaccine-doses"),
+    path("vaccine-manager/patient/<int:patient_id>/not-done/", vaccine_views.NotDoneView.as_view(), name="vaccine-not-done"),
+    path("vaccine-manager/patient/<int:patient_id>/risk-schedules/", vaccine_views.RiskSchedulesView.as_view(), name="vaccine-risk"),
+    path("vaccine-manager/patient/<int:patient_id>/risk-schedules/dismiss/", vaccine_views.DismissSuggestionView.as_view(), name="vaccine-risk-dismiss"),
+    path("vaccine-manager/patient/<int:patient_id>/risk-schedules/<int:assignment_id>/", vaccine_views.RiskScheduleDetailView.as_view(), name="vaccine-risk-detail"),
+    path("vaccine-manager/doses/<int:record_id>/void/", vaccine_views.VoidView.as_view(), name="vaccine-void"),
     path("patient-header/<int:patient_id>/allergies/", PatientAllergiesView.as_view(), name="patient-allergies"),
     path("patient-header/<int:patient_id>/allergies/<int:allergy_id>/", PatientAllergyDetailView.as_view(), name="patient-allergy"),
     path("patient-header/<int:patient_id>/allergies/fhir/", allergy_views.PatientAllergyFhirView.as_view(), name="patient-allergies-fhir"),

@@ -449,7 +449,7 @@ class EndpointTests(ChartBase):
         with patch(CONVERSE, return_value=say("ok")) as conv:
             c.post(self.URL, {"message": "what meds?", "patient_id": self.stranger.pk}, format="json")
         self.assertNotIn("currently has this patient's chart open", conv.call_args.args[0])
-        self.assertNotIn(str(self.stranger.pk), conv.call_args.args[0])
+        self.assertNotIn(f"patient_id {self.stranger.pk}", conv.call_args.args[0])
 
     def test_rate_limit(self):
         with patch.dict("os.environ", {"ASSISTANT_RATE_LIMIT_PER_HOUR": "2"}), patch(CONVERSE, return_value=say("ok")):

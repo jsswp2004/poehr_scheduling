@@ -73,8 +73,8 @@ test("the Patient List is always kept, first, when a layout leaves it out", () =
 
 test("unknown keys are ignored and an empty layout means every tab", () => {
   expect(visibleChartTabs("doctor", ["orders", "bogus"]).map((t) => t.value)).toEqual(["patient_list", "orders"]);
-  expect(visibleChartTabs("doctor", []).length).toBe(12);
-  expect(visibleChartTabs("doctor", null).length).toBe(12);
+  expect(visibleChartTabs("doctor", []).length).toBe(13);
+  expect(visibleChartTabs("doctor", null).length).toBe(13);
 });
 
 test("the strip draws only the layout's tabs, in its order", () => {

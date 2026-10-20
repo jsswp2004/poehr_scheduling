@@ -1,0 +1,234 @@
+{
+  "schedule": {
+    "name": "Adult: immunocompromising condition",
+    "description": "Immunodeficiency, long-term immunosuppressive therapy, transplant, and cancer treated with immunosuppression. HIV has its own schedule. Applies on top of the adult age schedule only for patients a clinician has put on it; its rules replace the age rule for the same vaccine.",
+    "population": "adult",
+    "is_risk_group": true,
+    "source": "CDC Recommended Adult Immunization Schedule, 2025 (https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-notes.html)",
+    "edition": "2025 (revised 07/02/2025)",
+    "triggers": [
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D80"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D81"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D82"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D83"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D84"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D89.8"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D89.9"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Z79.6"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Z94"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C81"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C82"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C83"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C84"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C85"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C88"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C90"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C91"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C92"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C93"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C94"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C95"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "C96"
+      }
+    ]
+  },
+  "items": [
+    {
+      "code": "zoster_rzv",
+      "name": "Zoster, recombinant (Shingrix)",
+      "display_name": "Zoster (Shingrix)",
+      "kind": "vaccine",
+      "sort_order": 70,
+      "cvx": [
+        "187"
+      ]
+    },
+    {
+      "code": "hpv",
+      "name": "Human papillomavirus (HPV)",
+      "display_name": "HPV",
+      "kind": "vaccine",
+      "sort_order": 80,
+      "cvx": [
+        "62",
+        "165"
+      ]
+    },
+    {
+      "code": "hepb",
+      "name": "Hepatitis B",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 100,
+      "cvx": [
+        "43",
+        "44",
+        "08",
+        "104",
+        "189",
+        "110",
+        "146"
+      ]
+    },
+    {
+      "code": "pneumococcal_conjugate",
+      "name": "Pneumococcal conjugate (PCV15, PCV20, PCV21)",
+      "display_name": "Pneumococcal conjugate",
+      "kind": "vaccine",
+      "sort_order": 90,
+      "cvx": [
+        "215",
+        "216",
+        "327"
+      ]
+    },
+    {
+      "code": "mmr",
+      "name": "Measles, mumps, rubella (MMR)",
+      "display_name": "MMR",
+      "kind": "vaccine",
+      "sort_order": 50,
+      "cvx": [
+        "03",
+        "94"
+      ]
+    },
+    {
+      "code": "varicella",
+      "name": "Varicella",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 60,
+      "cvx": [
+        "21",
+        "94"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "item": "zoster_rzv",
+      "min_age_months": 228,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        228,
+        228
+      ],
+      "dose_min_intervals_days": [
+        0,
+        60
+      ],
+      "why_text": "CDC adult schedule 2025, immunocompromising conditions: age 19 or older, 2 doses of recombinant zoster vaccine 2 to 6 months apart (minimum 4 weeks)"
+    },
+    {
+      "item": "hpv",
+      "min_age_months": 228,
+      "max_age_months": 323,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        84
+      ],
+      "why_text": "CDC adult schedule 2025, immunocompromising conditions: through age 26, complete a 3-dose series even if it was started at 9 to 14"
+    },
+    {
+      "item": "hepb",
+      "min_age_months": 228,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        56
+      ],
+      "review_reason": "Hepatitis B: 2, 3 or 4 doses depending on the vaccine used (2 doses for Heplisav-B). Dialysis uses the dialysis formulation. Check the series.",
+      "why_text": "CDC adult schedule 2025, immunocompromising conditions: age 20 or older with an immunocompromising condition: complete a 2-, 3- or 4-dose series"
+    },
+    {
+      "item": "pneumococcal_conjugate",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "review_reason": "Pneumococcal: choose PCV15 (then PPSV23 at least 1 year later; 8 weeks if immunocompromised), PCV20 or PCV21. Check earlier PCV13 and PPSV23 doses first.",
+      "why_text": "CDC adult schedule 2025, immunocompromising conditions: age 19 or older, 1 dose of PCV15, PCV20 or PCV21 if no earlier conjugate vaccine"
+    },
+    {
+      "item": "mmr",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "review_reason": "MMR is a live vaccine and is contraindicated in severe immunocompromise. Do not give without specialist review.",
+      "why_text": "CDC adult schedule 2025, immunocompromising conditions: live vaccine contraindicated in severe immunocompromise"
+    },
+    {
+      "item": "varicella",
+      "min_age_months": 228,
+      "dose_count": 2,
+      "review_reason": "Varicella is a live vaccine and is contraindicated in severe immunocompromise. Do not give without specialist review.",
+      "why_text": "CDC adult schedule 2025, immunocompromising conditions: live vaccine contraindicated in severe immunocompromise"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ export const CHART_TABS = [
   { value: "referral_list", label: "Referral List", clinical: false },
   { value: "task_list", label: "Task List", clinical: true },
   { value: "clinical_summary", label: "Clinical Summary", clinical: true },
+  { value: "vaccines", label: "Vaccines", clinical: true },
   { value: "messages", label: "Messages", clinical: false },
 ];
 
