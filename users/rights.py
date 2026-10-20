@@ -31,6 +31,9 @@ RIGHTS = [
     ("flowsheets.chart", "Chart & view flowsheets", "Clinical Documentation"),
     ("note_templates.manage", "Manage note templates (Note Builder)", "Clinical Documentation"),
     ("flowsheet_templates.manage", "Manage flowsheet templates (Flowsheet Builder)", "Clinical Documentation"),
+    ("immunizations.view", "View vaccines and screenings due", "Clinical Documentation"),
+    ("immunizations.record", "Record vaccines given or not done, and historical entries", "Clinical Documentation"),
+    ("immunization_rules.manage", "Manage vaccine and screening schedules (Vaccine Manager builder)", "Clinical Documentation"),
 
     # Orders
     ("orders.view", "View orders", "Orders"),
@@ -195,6 +198,12 @@ for _role in ("doctor", "nurse"):
     ROLE_DEFAULT_RIGHTS[_role] = set(ROLE_DEFAULT_RIGHTS[_role]) | {"telehealth.conduct"}
 for _role in ("receptionist", "registrar", "admin"):
     ROLE_DEFAULT_RIGHTS[_role] = set(ROLE_DEFAULT_RIGHTS[_role]) | {"telehealth.manage"}
+
+
+# Vaccine Manager: clinicians see what is due and record doses. Admins see the list and manage the schedules (builder).
+for _role in ("doctor", "nurse"):
+    ROLE_DEFAULT_RIGHTS[_role] = set(ROLE_DEFAULT_RIGHTS[_role]) | {"immunizations.view", "immunizations.record"}
+ROLE_DEFAULT_RIGHTS["admin"] = set(ROLE_DEFAULT_RIGHTS["admin"]) | {"immunizations.view", "immunization_rules.manage"}
 
 
 # Secure staff messaging: every clinical and front-office role may use it; only admins may audit it.

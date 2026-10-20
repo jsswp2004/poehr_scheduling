@@ -1,0 +1,142 @@
+{
+  "schedule": {
+    "name": "Adult: asplenia or sickle cell disease",
+    "description": "Anatomical or functional asplenia, including sickle cell disease. Applies on top of the adult age schedule only for patients a clinician has put on it; its rules replace the age rule for the same vaccine.",
+    "population": "adult",
+    "is_risk_group": true,
+    "source": "CDC Recommended Adult Immunization Schedule, 2025 (https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-notes.html)",
+    "edition": "2025 (revised 07/02/2025)",
+    "triggers": [
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D57.0"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D57.1"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D57.2"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D57.4"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D57.8"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D73.0"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "D73.1"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Z90.81"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Q89.01"
+      }
+    ]
+  },
+  "items": [
+    {
+      "code": "hib",
+      "name": "Haemophilus influenzae type b (Hib)",
+      "display_name": "Hib",
+      "kind": "vaccine",
+      "sort_order": 16,
+      "cvx": [
+        "48",
+        "49",
+        "120",
+        "146"
+      ]
+    },
+    {
+      "code": "menacwy",
+      "name": "Meningococcal ACWY (MenACWY)",
+      "display_name": "MenACWY",
+      "kind": "vaccine",
+      "sort_order": 105,
+      "cvx": [
+        "114",
+        "136",
+        "203",
+        "316",
+        "328"
+      ]
+    },
+    {
+      "code": "menb",
+      "name": "Meningococcal B (MenB)",
+      "display_name": "MenB",
+      "kind": "vaccine",
+      "sort_order": 110,
+      "cvx": [
+        "162",
+        "163",
+        "316",
+        "328"
+      ]
+    },
+    {
+      "code": "pneumococcal_conjugate",
+      "name": "Pneumococcal conjugate (PCV15, PCV20, PCV21)",
+      "display_name": "Pneumococcal conjugate",
+      "kind": "vaccine",
+      "sort_order": 90,
+      "cvx": [
+        "215",
+        "216",
+        "327"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "item": "hib",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "why_text": "CDC adult schedule 2025, asplenia: 1 dose Hib if never given (elective splenectomy: at least 14 days before)"
+    },
+    {
+      "item": "menacwy",
+      "min_age_months": 228,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        228,
+        228
+      ],
+      "dose_min_intervals_days": [
+        0,
+        56
+      ],
+      "why_text": "CDC adult schedule 2025, asplenia: 2-dose primary series (Menveo or MenQuadfi) at least 8 weeks apart. Booster 5 years later and every 5 years while risk remains (not tracked yet)"
+    },
+    {
+      "item": "menb",
+      "min_age_months": 228,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        120
+      ],
+      "why_text": "CDC adult schedule 2025, asplenia: Bexsero or Trumenba, same brand for all doses: 3 doses at 0, 1 to 2 and 6 months. Booster 1 year after the series and every 2 to 3 years while risk remains (not tracked yet)"
+    },
+    {
+      "item": "pneumococcal_conjugate",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "review_reason": "Pneumococcal: choose PCV15 (then PPSV23 at least 1 year later; 8 weeks if immunocompromised), PCV20 or PCV21. Check earlier PCV13 and PPSV23 doses first.",
+      "why_text": "CDC adult schedule 2025, asplenia: age 19 or older, 1 dose of PCV15, PCV20 or PCV21 if no earlier conjugate vaccine"
+    }
+  ]
+}

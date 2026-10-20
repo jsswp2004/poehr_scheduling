@@ -1,0 +1,308 @@
+{
+  "schedule": {
+    "name": "CDC adult schedule",
+    "description": "Age-based adult schedule. Conditions that add vaccines (pregnancy, immunocompromise, asplenia, liver disease, HIV and others) are separate risk schedules, not part of this one.",
+    "population": "adult",
+    "is_risk_group": false,
+    "source": "CDC Recommended Adult Immunization Schedule, https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-age.html",
+    "edition": "2025 (revised 07/02/2025)",
+    "triggers": []
+  },
+  "items": [
+    {
+      "code": "influenza",
+      "name": "Influenza",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 10,
+      "cvx": [
+        "135",
+        "140",
+        "141",
+        "150",
+        "153",
+        "155",
+        "158",
+        "161",
+        "168",
+        "171",
+        "185",
+        "186",
+        "197",
+        "205",
+        "320",
+        "338",
+        "111",
+        "149",
+        "333"
+      ]
+    },
+    {
+      "code": "covid19",
+      "name": "COVID-19",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 20,
+      "cvx": [
+        "309",
+        "310",
+        "311",
+        "312",
+        "313",
+        "334"
+      ]
+    },
+    {
+      "code": "rsv",
+      "name": "Respiratory syncytial virus (RSV), adult",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 30,
+      "cvx": [
+        "303",
+        "305",
+        "326"
+      ]
+    },
+    {
+      "code": "td_tdap",
+      "name": "Tetanus, diphtheria, pertussis (Td or Tdap)",
+      "display_name": "Td / Tdap",
+      "kind": "vaccine",
+      "sort_order": 40,
+      "cvx": [
+        "09",
+        "113",
+        "115",
+        "196"
+      ]
+    },
+    {
+      "code": "mmr",
+      "name": "Measles, mumps, rubella (MMR)",
+      "display_name": "MMR",
+      "kind": "vaccine",
+      "sort_order": 50,
+      "cvx": [
+        "03",
+        "94"
+      ]
+    },
+    {
+      "code": "varicella",
+      "name": "Varicella",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 60,
+      "cvx": [
+        "21",
+        "94"
+      ]
+    },
+    {
+      "code": "zoster_rzv",
+      "name": "Zoster, recombinant (Shingrix)",
+      "display_name": "Zoster (Shingrix)",
+      "kind": "vaccine",
+      "sort_order": 70,
+      "cvx": [
+        "187"
+      ]
+    },
+    {
+      "code": "hpv",
+      "name": "Human papillomavirus (HPV)",
+      "display_name": "HPV",
+      "kind": "vaccine",
+      "sort_order": 80,
+      "cvx": [
+        "62",
+        "165"
+      ]
+    },
+    {
+      "code": "pneumococcal_conjugate",
+      "name": "Pneumococcal conjugate (PCV15, PCV20, PCV21)",
+      "display_name": "Pneumococcal conjugate",
+      "kind": "vaccine",
+      "sort_order": 90,
+      "cvx": [
+        "215",
+        "216",
+        "327"
+      ]
+    },
+    {
+      "code": "hepb",
+      "name": "Hepatitis B",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 100,
+      "cvx": [
+        "43",
+        "44",
+        "08",
+        "104",
+        "189",
+        "110",
+        "146"
+      ]
+    },
+    {
+      "code": "menb",
+      "name": "Meningococcal B (MenB)",
+      "display_name": "MenB",
+      "kind": "vaccine",
+      "sort_order": 110,
+      "cvx": [
+        "162",
+        "163",
+        "316",
+        "328"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "item": "influenza",
+      "min_age_months": 228,
+      "max_age_months": 779,
+      "dose_count": 1,
+      "recurrence_months": 12,
+      "why_text": "CDC adult schedule 2025: age 19 or older, 1 dose of any age-appropriate influenza vaccine every year."
+    },
+    {
+      "item": "influenza",
+      "min_age_months": 780,
+      "dose_count": 1,
+      "recurrence_months": 12,
+      "why_text": "CDC adult schedule 2025: age 65 or older, 1 dose every year; high-dose, recombinant or adjuvanted vaccine is preferred."
+    },
+    {
+      "item": "covid19",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "recurrence_months": 12,
+      "review_reason": "COVID-19 dosing depends on earlier doses and the product given. Check the CDC COVID-19 notes and current guidance.",
+      "why_text": "CDC adult schedule 2025: age 19 or older, 1 or more doses of the current vaccine (2 or more at age 65 or older)."
+    },
+    {
+      "item": "rsv",
+      "min_age_months": 600,
+      "max_age_months": 899,
+      "dose_count": 1,
+      "review_reason": "Age 50 to 74: 1 dose only if at increased risk of severe RSV disease (the patient may self-attest).",
+      "why_text": "CDC adult schedule 2025: age 50 through 74 with a risk factor, 1 dose."
+    },
+    {
+      "item": "rsv",
+      "min_age_months": 900,
+      "dose_count": 1,
+      "why_text": "CDC adult schedule 2025: age 75 or older, 1 dose if never vaccinated. No additional doses."
+    },
+    {
+      "item": "td_tdap",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "recurrence_months": 120,
+      "why_text": "CDC adult schedule 2025: 1 dose Tdap, then Td or Tdap every 10 years. Unvaccinated or incomplete primary series: complete a 3-dose series (see notes)."
+    },
+    {
+      "item": "mmr",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "review_reason": "MMR: 1 dose if no evidence of immunity. Evidence is birth before 1957, written proof of MMR, or lab evidence. Record 'evidence of immunity' to clear this.",
+      "why_text": "CDC adult schedule 2025: age 19 or older, 1 or 2 doses depending on indication if born in 1957 or later."
+    },
+    {
+      "item": "varicella",
+      "min_age_months": 228,
+      "dose_count": 2,
+      "dose_min_intervals_days": [
+        0,
+        28
+      ],
+      "review_reason": "Varicella: 2 doses if no evidence of immunity. Evidence is US birth before 1980, 2 documented doses, provider-diagnosed varicella or zoster, or lab evidence. Record 'evidence of immunity' to clear this.",
+      "why_text": "CDC adult schedule 2025: 2 doses 4 to 8 weeks apart if no evidence of immunity."
+    },
+    {
+      "item": "zoster_rzv",
+      "min_age_months": 600,
+      "dose_count": 2,
+      "dose_min_ages_months": [
+        600,
+        600
+      ],
+      "dose_min_intervals_days": [
+        0,
+        60
+      ],
+      "why_text": "CDC adult schedule 2025: age 50 or older, 2 doses of recombinant zoster vaccine 2 to 6 months apart (minimum 4 weeks)."
+    },
+    {
+      "item": "hpv",
+      "min_age_months": 228,
+      "max_age_months": 323,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        84
+      ],
+      "review_reason": "HPV: 3 doses if started at age 15 or older, fewer if started at 9 to 14. Check earlier doses before giving.",
+      "why_text": "CDC adult schedule 2025: through age 26, 2 or 3 doses depending on age at the first dose."
+    },
+    {
+      "item": "hpv",
+      "min_age_months": 324,
+      "max_age_months": 539,
+      "dose_count": 3,
+      "review_reason": "Age 27 to 45: HPV vaccine is by shared clinical decision-making.",
+      "why_text": "CDC adult schedule 2025: age 27 through 45, shared clinical decision-making."
+    },
+    {
+      "item": "pneumococcal_conjugate",
+      "min_age_months": 600,
+      "dose_count": 1,
+      "review_reason": "Pneumococcal: choose PCV15 (then PPSV23 at least 1 year later), PCV20 or PCV21. Check earlier PCV13 and PPSV23 doses first.",
+      "why_text": "CDC adult schedule 2025: age 50 or older, 1 dose of PCV15, PCV20 or PCV21 if no earlier conjugate vaccine."
+    },
+    {
+      "item": "hepb",
+      "min_age_months": 228,
+      "max_age_months": 719,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        56
+      ],
+      "review_reason": "Hepatitis B: 2, 3 or 4 doses depending on the vaccine used (2 doses for Heplisav-B). Check the series.",
+      "why_text": "CDC adult schedule 2025: age 19 through 59, complete the series."
+    },
+    {
+      "item": "hepb",
+      "min_age_months": 720,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        56
+      ],
+      "review_reason": "Hepatitis B at age 60 or older: recommended with known risk factors; others may be vaccinated on request.",
+      "why_text": "CDC adult schedule 2025: age 60 or older with risk factors, or on request."
+    },
+    {
+      "item": "menb",
+      "min_age_months": 228,
+      "max_age_months": 287,
+      "dose_count": 2,
+      "dose_min_intervals_days": [
+        0,
+        180
+      ],
+      "review_reason": "MenB at age 19 to 23: shared clinical decision-making when not at increased risk (16 to 18 is preferred).",
+      "why_text": "CDC adult schedule 2025: age 16 through 23, shared clinical decision-making."
+    }
+  ]
+}

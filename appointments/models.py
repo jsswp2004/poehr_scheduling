@@ -2282,3 +2282,383 @@ class DocumentationAssistantAccess(models.Model):
 
     def __str__(self):
         return f"user {self.user_id} read patient {self.patient_id} via {self.tool}"
+
+
+# ---------------------------------------------------------------------------
+# Vaccine Manager: vaccines and screenings recommended from the patient's age, risk schedules and recorded history.
+#
+# The schedule is DATA, not code. The configuration builder edits these tables and the recommendation engine
+# (appointments/immunization_engine.py) reads them:
+#   LookupEntry            the dictionaries (manufacturer, eligibility code, lot source, event category, ...)
+#   VaccineProduct         the CDC CVX code set: the vaccine products that can be given
+#   ImmunizationItem       an event the manager tracks: a vaccine (immunization) or a screening (wellness)
+#   ImmunizationSchedule   a named set of rules: an age schedule, or a risk schedule such as "High risk: diabetes"
+#   ImmunizationRule       when one item applies on a schedule and how it repeats
+#   PatientSchedule        a risk schedule a patient is on (suggested from the problem list, or added by hand)
+#   PatientImmunization    the chart record itself: never deleted, a wrong entry is marked "entered in error"
+# organization is NULL on shared base rows (CDC) and set on a clinic's own rows.
+# ---------------------------------------------------------------------------
+
+
+class LookupEntry(models.Model):
+    """One value in a small dictionary the builder maintains (for example a vaccine manufacturer)."""
+
+    DICTIONARIES = [
+        ("consent_type", "Consent type"),
+        ("education_material_type", "Education material type"),
+        ("event_category", "Event category"),
+        ("historical_source", "Historical information source"),
+        ("scheduling_priority", "Scheduling priority"),
+        ("eligibility_code", "Vaccine eligibility code"),
+        ("lot_source", "Vaccine lot source"),
+        ("manufacturer", "Vaccine manufacturer"),
+        ("packaging_type", "Vaccine packaging type"),
+        ("vaccine_type", "Vaccine type"),
+    ]
+
+    organization = models.ForeignKey(
+        "users.Organization", null=True, blank=True, on_delete=models.CASCADE, related_name="lookup_entries"
+    )
+    dictionary = models.CharField(max_length=30, choices=DICTIONARIES)
+    name = models.CharField(max_length=120)
+    code = models.CharField(max_length=20, blank=True, default="")
+    description = models.CharField(max_length=255, blank=True, default="")
+    sort_order = models.PositiveSmallIntegerField(default=100)
+    active = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["dictionary", "sort_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "dictionary", "name"], name="lookup_org_dict_name_uniq"),
+            models.UniqueConstraint(
+                fields=["dictionary", "name"], condition=models.Q(organization__isnull=True), name="lookup_base_dict_name_uniq"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.dictionary}: {self.name}"
+
+
+class VaccineProduct(models.Model):
+    """One entry of the CDC CVX code set (vaccine administered). Shared by every clinic; loaded from the CDC file."""
+
+    STATUS_CHOICES = [
+        ("active", "Active"),
+        ("inactive", "Inactive"),
+        ("pending", "Pending"),
+        ("non_us", "Non-US"),
+        ("never_active", "Never active"),
+    ]
+
+    cvx_code = models.CharField(max_length=10, unique=True)
+    short_name = models.CharField(max_length=255)
+    full_name = models.CharField(max_length=500, blank=True, default="")
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default="active")
+    is_vaccine = models.BooleanField(default=True)
+    notes = models.TextField(blank=True, default="")
+    cdc_updated_on = models.DateField(null=True, blank=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["short_name", "cvx_code"]
+
+    def __str__(self):
+        return f"{self.short_name} (CVX {self.cvx_code})"
+
+
+class ImmunizationItem(models.Model):
+    """
+    An event the Vaccine Manager tracks. kind "vaccine" is Sunrise's Immunization type; "screening" is Wellness.
+    products lists the CVX products that satisfy a vaccine item (many flu products count as "Influenza").
+    """
+
+    KIND_CHOICES = [("vaccine", "Vaccine"), ("screening", "Screening")]
+
+    organization = models.ForeignKey(
+        "users.Organization", null=True, blank=True, on_delete=models.CASCADE, related_name="immunization_items"
+    )
+    code = models.CharField(max_length=40)
+    name = models.CharField(max_length=255)
+    display_name = models.CharField(max_length=255, blank=True, default="")
+    description = models.CharField(max_length=500, blank=True, default="")
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES, default="vaccine")
+    category = models.ForeignKey(
+        LookupEntry, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    products = models.ManyToManyField(VaccineProduct, blank=True, related_name="items")
+    sort_order = models.PositiveSmallIntegerField(default=100)
+    active = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "name", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["organization", "code"], name="imm_item_org_code_uniq"),
+            models.UniqueConstraint(
+                fields=["code"], condition=models.Q(organization__isnull=True), name="imm_item_base_code_uniq"
+            ),
+        ]
+
+    def __str__(self):
+        return self.display_name or self.name
+
+
+class ImmunizationSchedule(models.Model):
+    """
+    A named set of rules. An age schedule applies to everyone in its population; a risk schedule (is_risk_group) applies
+    only to patients assigned to it (see PatientSchedule). A schedule is only used once it is approved.
+    """
+
+    POPULATION_CHOICES = [("adult", "Adult"), ("child", "Child"), ("all", "All ages")]
+    STATUS_CHOICES = [("draft", "Draft"), ("approved", "Approved"), ("retired", "Retired")]
+
+    organization = models.ForeignKey(
+        "users.Organization", null=True, blank=True, on_delete=models.CASCADE, related_name="immunization_schedules"
+    )
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True, default="")
+    population = models.CharField(max_length=10, choices=POPULATION_CHOICES, default="all")
+    is_risk_group = models.BooleanField(default=False)
+    source = models.CharField(max_length=200, blank=True, default="")
+    edition = models.CharField(max_length=40, blank=True, default="")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="draft")
+    version = models.PositiveIntegerField(default=1)
+    copied_from = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return f"{self.name} ({self.status})"
+
+
+class ImmunizationScheduleTrigger(models.Model):
+    """A diagnosis code (prefix) that makes the manager suggest a risk schedule to the clinician. Never applied on its own."""
+
+    schedule = models.ForeignKey(ImmunizationSchedule, on_delete=models.CASCADE, related_name="triggers")
+    code_system = models.CharField(max_length=10, default="icd10cm")
+    code_prefix = models.CharField(max_length=20)
+
+    class Meta:
+        ordering = ["schedule_id", "code_prefix"]
+        constraints = [
+            models.UniqueConstraint(fields=["schedule", "code_system", "code_prefix"], name="imm_trigger_uniq")
+        ]
+
+    def __str__(self):
+        return f"{self.code_system} {self.code_prefix}* -> schedule {self.schedule_id}"
+
+
+class ImmunizationRule(models.Model):
+    """
+    When one item applies and how it repeats. Ages are in months so the same rule shape fits infants and adults.
+
+    dose_min_ages_months / dose_min_intervals_days: one entry per dose (the first interval is unused). A rule with
+    dose_count 1 and recurrence_months set repeats (yearly influenza, 10-year Td, 2-year mammogram).
+    overdue_after_days: days past the due date before the item counts as overdue instead of due; empty means it never
+    becomes overdue by date alone.
+    review_reason: when set, the engine does not call the item due from age alone; it returns "needs review" with this text.
+    """
+
+    SEX_CHOICES = [("any", "Any"), ("female", "Female"), ("male", "Male")]
+
+    schedule = models.ForeignKey(ImmunizationSchedule, on_delete=models.CASCADE, related_name="rules")
+    item = models.ForeignKey(ImmunizationItem, on_delete=models.PROTECT, related_name="rules")
+    min_age_months = models.PositiveIntegerField(default=0)
+    max_age_months = models.PositiveIntegerField(null=True, blank=True)
+    sex = models.CharField(max_length=8, choices=SEX_CHOICES, default="any")
+    dose_count = models.PositiveSmallIntegerField(default=1)
+    dose_min_ages_months = models.JSONField(default=list, blank=True)
+    dose_min_intervals_days = models.JSONField(default=list, blank=True)
+    recurrence_months = models.PositiveIntegerField(null=True, blank=True)
+    near_due_days = models.PositiveIntegerField(default=60)
+    overdue_after_days = models.PositiveIntegerField(null=True, blank=True)
+    priority = models.ForeignKey(LookupEntry, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    review_reason = models.CharField(max_length=300, blank=True, default="")
+    why_text = models.CharField(max_length=300, blank=True, default="")
+    active = models.BooleanField(default=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["item__sort_order", "item__name", "min_age_months", "id"]
+        indexes = [models.Index(fields=["schedule", "item"], name="imm_rule_sched_item_idx")]
+
+    def __str__(self):
+        return f"{self.item_id} ages {self.min_age_months}-{self.max_age_months} months"
+
+
+class PatientSchedule(models.Model):
+    """
+    A risk schedule a patient is on. "suggested" comes from the problem list and does nothing until a clinician confirms it
+    (status "active"); a clinician can also add one by hand. Dismissing or ending one keeps the row for the record.
+    """
+
+    STATUS_CHOICES = [
+        ("suggested", "Suggested"),
+        ("active", "Active"),
+        ("dismissed", "Dismissed"),
+        ("ended", "Ended"),
+    ]
+    SOURCE_CHOICES = [("auto", "Suggested from the problem list"), ("manual", "Added by a clinician")]
+
+    organization = models.ForeignKey("users.Organization", on_delete=models.CASCADE, related_name="patient_schedules")
+    patient = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="immunization_schedule_assignments"
+    )
+    schedule = models.ForeignKey(ImmunizationSchedule, on_delete=models.PROTECT, related_name="patient_assignments")
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="active")
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default="manual")
+    reason = models.CharField(max_length=300, blank=True, default="")
+    trigger_problem_id = models.PositiveIntegerField(null=True, blank=True)
+    started_on = models.DateField(null=True, blank=True)
+    ended_on = models.DateField(null=True, blank=True)
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = TenantScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        base_manager_name = "all_objects"
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["patient", "schedule"],
+                condition=models.Q(status__in=["suggested", "active"]),
+                name="patient_schedule_live_uniq",
+            )
+        ]
+
+    def __str__(self):
+        return f"patient {self.patient_id} on schedule {self.schedule_id} ({self.status})"
+
+
+class PatientImmunization(models.Model):
+    """
+    A dose given, or a decision not to give one, on a patient's chart. Never deleted.
+
+    status "done" needs given_on. status "not_done" carries a reason and, optionally, a date to offer again.
+    product is the CVX product actually given; item is the event it satisfies.
+    """
+
+    STATUS_CHOICES = [("done", "Done"), ("not_done", "Not done"), ("entered_in_error", "Entered in error")]
+    SOURCE_CHOICES = [("given_here", "Given here"), ("historical", "Historical entry"), ("registry", "Registry")]
+    REASON_CHOICES = [
+        ("declined", "Patient or parent declined"),
+        ("medical", "Medical reason"),
+        ("illness", "Temporary illness"),
+        ("immune", "Evidence of immunity"),
+        ("given_elsewhere", "Given elsewhere"),
+        ("unavailable", "Vaccine not available"),
+        ("other", "Other"),
+    ]
+
+    organization = models.ForeignKey("users.Organization", on_delete=models.CASCADE, related_name="immunizations")
+    patient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="immunizations")
+    item = models.ForeignKey(ImmunizationItem, on_delete=models.PROTECT, related_name="records")
+    product = models.ForeignKey(VaccineProduct, null=True, blank=True, on_delete=models.PROTECT, related_name="records")
+    dose_number = models.PositiveSmallIntegerField(default=1)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="done")
+    source = models.CharField(max_length=12, choices=SOURCE_CHOICES, default="given_here")
+    given_on = models.DateField(null=True, blank=True)
+    given_time = models.TimeField(null=True, blank=True)
+    manufacturer = models.ForeignKey(LookupEntry, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    eligibility_code = models.ForeignKey(LookupEntry, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    lot_source = models.ForeignKey(LookupEntry, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    packaging_type = models.ForeignKey(LookupEntry, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    historical_source = models.ForeignKey(
+        LookupEntry, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    lot_number = models.CharField(max_length=60, blank=True, default="")
+    expiration_date = models.DateField(null=True, blank=True)
+    dose_amount = models.CharField(max_length=40, blank=True, default="")
+    route = models.CharField(max_length=40, blank=True, default="")
+    site = models.CharField(max_length=60, blank=True, default="")
+    vis_given = models.BooleanField(default=False)
+    screening_reviewed = models.BooleanField(default=False)
+    not_done_reason = models.CharField(max_length=20, choices=REASON_CHOICES, blank=True, default="")
+    offer_again_on = models.DateField(null=True, blank=True)
+    given_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    notes = models.TextField(blank=True, default="")
+    entered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Default manager is tenant-scoped (see poehr_scheduling_backend/tenancy.py): outside a request it is empty.
+    objects = TenantScopedManager()
+    all_objects = models.Manager()
+
+    class Meta:
+        base_manager_name = "all_objects"
+        ordering = ["-given_on", "-id"]
+        indexes = [models.Index(fields=["organization", "patient", "item"], name="imm_rec_org_pat_item_idx")]
+
+    def __str__(self):
+        return f"{self.item_id} dose {self.dose_number} for {self.patient_id} ({self.status})"
+
+
+class ImmunizationEvent(models.Model):
+    """Audit trail for PatientImmunization: who recorded, changed or voided a record, and when. Ids only."""
+
+    ACTION_CHOICES = [("recorded", "Recorded"), ("updated", "Updated"), ("entered_in_error", "Entered in error")]
+
+    organization = models.ForeignKey(
+        "users.Organization", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    record = models.ForeignKey(PatientImmunization, on_delete=models.CASCADE, related_name="events")
+    patient_id = models.PositiveIntegerField(db_index=True)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    changed_fields = models.JSONField(default=list, blank=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.action} record {self.record_id} by {self.user_id}"

@@ -1,0 +1,99 @@
+{
+  "schedule": {
+    "name": "Adult: chronic heart or lung disease, alcohol use or smoking",
+    "description": "Chronic heart disease, chronic lung disease, alcohol use disorder, tobacco use. Applies on top of the adult age schedule only for patients a clinician has put on it; its rules replace the age rule for the same vaccine.",
+    "population": "adult",
+    "is_risk_group": true,
+    "source": "CDC Recommended Adult Immunization Schedule, 2025 (https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-notes.html)",
+    "edition": "2025 (revised 07/02/2025)",
+    "triggers": [
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "I25"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "I42"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "I50"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "J43"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "J44"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "J45"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "J84"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "E84"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "F10"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "F17"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Z72.0"
+      }
+    ]
+  },
+  "items": [
+    {
+      "code": "pneumococcal_conjugate",
+      "name": "Pneumococcal conjugate (PCV15, PCV20, PCV21)",
+      "display_name": "Pneumococcal conjugate",
+      "kind": "vaccine",
+      "sort_order": 90,
+      "cvx": [
+        "215",
+        "216",
+        "327"
+      ]
+    },
+    {
+      "code": "rsv",
+      "name": "Respiratory syncytial virus (RSV), adult",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 30,
+      "cvx": [
+        "303",
+        "305",
+        "326"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "item": "pneumococcal_conjugate",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "review_reason": "Pneumococcal: choose PCV15 (then PPSV23 at least 1 year later; 8 weeks if immunocompromised), PCV20 or PCV21. Check earlier PCV13 and PPSV23 doses first.",
+      "why_text": "CDC adult schedule 2025, chronic heart or lung disease, alcohol use or smoking: age 19 or older, 1 dose of PCV15, PCV20 or PCV21 if no earlier conjugate vaccine"
+    },
+    {
+      "item": "rsv",
+      "min_age_months": 600,
+      "max_age_months": 899,
+      "dose_count": 1,
+      "review_reason": "Age 50 to 74 with chronic heart or lung disease: 1 dose RSV vaccine (isolated hypertension does not count). Confirm.",
+      "why_text": "CDC adult schedule 2025, chronic heart or lung disease, alcohol use or smoking: 1 dose RSV vaccine at 50 to 74 with increased risk"
+    }
+  ]
+}

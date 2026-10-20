@@ -26,6 +26,7 @@ import MySchedulePanel from "../components/patients/MySchedulePanel";
 import ReferralsPanel from "../components/referrals/ReferralsPanel";
 import PrescriptionsPanel from "../components/prescriptions/PrescriptionsPanel";
 import ClinicalSummary from "../components/clinicalSummary/ClinicalSummary";
+import VaccineManager from "../components/vaccines/VaccineManager";
 import PatientMessages from "../components/secureMessages/PatientMessages";
 import TasksPanel from "../components/tasks/TasksPanel";
 import PatientChartHeader from "../components/patientHeader/PatientChartHeader";
@@ -612,6 +613,10 @@ function PatientsPage() {
             if (current === "clinical_summary") {
               if (!selectedPatient) return <SelectPatientPrompt />;
               return <ClinicalSummary key={selectedPatient.id} patient={selectedPatient} onOpenTab={setChartTab} />;
+            }
+            if (current === "vaccines") {
+              if (!selectedPatient) return <SelectPatientPrompt />;
+              return <VaccineManager key={selectedPatient.id} patient={selectedPatient} />;
             }
             if (COMING_SOON[current]) {
               return (

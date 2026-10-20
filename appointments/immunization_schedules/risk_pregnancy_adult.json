@@ -1,0 +1,168 @@
+{
+  "schedule": {
+    "name": "Adult: pregnancy",
+    "description": "Pregnancy. Applies on top of the adult age schedule only for patients a clinician has put on it; its rules replace the age rule for the same vaccine.",
+    "population": "adult",
+    "is_risk_group": true,
+    "source": "CDC Recommended Adult Immunization Schedule, 2025 (https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-notes.html)",
+    "edition": "2025 (revised 07/02/2025)",
+    "triggers": [
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Z34"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Z33.1"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "Z3A"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "O09"
+      }
+    ]
+  },
+  "items": [
+    {
+      "code": "td_tdap",
+      "name": "Tetanus, diphtheria, pertussis (Td or Tdap)",
+      "display_name": "Td / Tdap",
+      "kind": "vaccine",
+      "sort_order": 40,
+      "cvx": [
+        "09",
+        "113",
+        "115",
+        "196"
+      ]
+    },
+    {
+      "code": "rsv",
+      "name": "Respiratory syncytial virus (RSV), adult",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 30,
+      "cvx": [
+        "303",
+        "305",
+        "326"
+      ]
+    },
+    {
+      "code": "influenza",
+      "name": "Influenza",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 10,
+      "cvx": [
+        "135",
+        "140",
+        "141",
+        "150",
+        "153",
+        "155",
+        "158",
+        "161",
+        "168",
+        "171",
+        "185",
+        "186",
+        "197",
+        "205",
+        "320",
+        "338",
+        "111",
+        "149",
+        "333"
+      ]
+    },
+    {
+      "code": "hpv",
+      "name": "Human papillomavirus (HPV)",
+      "display_name": "HPV",
+      "kind": "vaccine",
+      "sort_order": 80,
+      "cvx": [
+        "62",
+        "165"
+      ]
+    },
+    {
+      "code": "mmr",
+      "name": "Measles, mumps, rubella (MMR)",
+      "display_name": "MMR",
+      "kind": "vaccine",
+      "sort_order": 50,
+      "cvx": [
+        "03",
+        "94"
+      ]
+    },
+    {
+      "code": "varicella",
+      "name": "Varicella",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 60,
+      "cvx": [
+        "21",
+        "94"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "item": "td_tdap",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "recurrence_months": 9,
+      "review_reason": "Pregnancy: 1 dose Tdap during every pregnancy, preferably at 27 to 36 weeks. A Tdap more than about 9 months ago does not count for this pregnancy.",
+      "why_text": "CDC adult schedule 2025, pregnancy: 1 dose Tdap each pregnancy, preferably early in weeks 27 to 36"
+    },
+    {
+      "item": "rsv",
+      "min_age_months": 228,
+      "max_age_months": 599,
+      "dose_count": 1,
+      "recurrence_months": 9,
+      "review_reason": "Pregnancy at 32 weeks 0 days through 36 weeks 6 days, September through January in most of the continental US: 1 dose Abrysvo (or the infant gets nirsevimab). One dose per pregnancy; do not give outside this window.",
+      "why_text": "CDC adult schedule 2025, pregnancy: RSV vaccine (Abrysvo) at 32 to 36 weeks, September through January"
+    },
+    {
+      "item": "influenza",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "recurrence_months": 12,
+      "why_text": "CDC adult schedule 2025, pregnancy: influenza vaccine is recommended during pregnancy, any trimester, every year"
+    },
+    {
+      "item": "hpv",
+      "min_age_months": 228,
+      "max_age_months": 323,
+      "dose_count": 3,
+      "review_reason": "Pregnancy: HPV vaccination is not recommended until after pregnancy.",
+      "why_text": "CDC adult schedule 2025, pregnancy: HPV vaccine waits until after pregnancy"
+    },
+    {
+      "item": "mmr",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "review_reason": "Pregnancy: MMR is contraindicated. If there is no evidence of rubella immunity, give 1 dose after pregnancy, before discharge.",
+      "why_text": "CDC adult schedule 2025, pregnancy: MMR after pregnancy"
+    },
+    {
+      "item": "varicella",
+      "min_age_months": 228,
+      "dose_count": 2,
+      "dose_min_intervals_days": [
+        0,
+        28
+      ],
+      "review_reason": "Pregnancy: varicella vaccine is contraindicated. If there is no evidence of immunity, give after pregnancy, before discharge (dose 2 four to eight weeks later).",
+      "why_text": "CDC adult schedule 2025, pregnancy: varicella vaccine after pregnancy"
+    }
+  ]
+}

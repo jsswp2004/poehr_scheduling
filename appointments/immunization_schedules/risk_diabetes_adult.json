@@ -1,0 +1,103 @@
+{
+  "schedule": {
+    "name": "Adult: diabetes",
+    "description": "Diabetes mellitus. Applies on top of the adult age schedule only for patients a clinician has put on it; its rules replace the age rule for the same vaccine.",
+    "population": "adult",
+    "is_risk_group": true,
+    "source": "CDC Recommended Adult Immunization Schedule, 2025 (https://www.cdc.gov/vaccines/hcp/imz-schedules/adult-notes.html)",
+    "edition": "2025 (revised 07/02/2025)",
+    "triggers": [
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "E08"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "E09"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "E10"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "E11"
+      },
+      {
+        "code_system": "icd10cm",
+        "code_prefix": "E13"
+      }
+    ]
+  },
+  "items": [
+    {
+      "code": "pneumococcal_conjugate",
+      "name": "Pneumococcal conjugate (PCV15, PCV20, PCV21)",
+      "display_name": "Pneumococcal conjugate",
+      "kind": "vaccine",
+      "sort_order": 90,
+      "cvx": [
+        "215",
+        "216",
+        "327"
+      ]
+    },
+    {
+      "code": "hepb",
+      "name": "Hepatitis B",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 100,
+      "cvx": [
+        "43",
+        "44",
+        "08",
+        "104",
+        "189",
+        "110",
+        "146"
+      ]
+    },
+    {
+      "code": "rsv",
+      "name": "Respiratory syncytial virus (RSV), adult",
+      "display_name": "",
+      "kind": "vaccine",
+      "sort_order": 30,
+      "cvx": [
+        "303",
+        "305",
+        "326"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "item": "pneumococcal_conjugate",
+      "min_age_months": 228,
+      "dose_count": 1,
+      "review_reason": "Pneumococcal: choose PCV15 (then PPSV23 at least 1 year later; 8 weeks if immunocompromised), PCV20 or PCV21. Check earlier PCV13 and PPSV23 doses first.",
+      "why_text": "CDC adult schedule 2025, diabetes: age 19 or older, 1 dose of PCV15, PCV20 or PCV21 if no earlier conjugate vaccine"
+    },
+    {
+      "item": "hepb",
+      "min_age_months": 228,
+      "dose_count": 3,
+      "dose_min_intervals_days": [
+        0,
+        28,
+        56
+      ],
+      "review_reason": "Hepatitis B: 2, 3 or 4 doses depending on the vaccine used (2 doses for Heplisav-B). Dialysis uses the dialysis formulation. Check the series.",
+      "why_text": "CDC adult schedule 2025, diabetes: diabetes is a hepatitis B risk factor; at age 60 or older it is by shared clinical decision-making"
+    },
+    {
+      "item": "rsv",
+      "min_age_months": 600,
+      "max_age_months": 899,
+      "dose_count": 1,
+      "review_reason": "Age 50 to 74: 1 dose RSV vaccine if diabetes is complicated by kidney disease, neuropathy, retinopathy or other end-organ damage, or needs insulin or an SGLT2 inhibitor. Confirm.",
+      "why_text": "CDC adult schedule 2025, diabetes: 1 dose RSV vaccine at 50 to 74 with increased risk"
+    }
+  ]
+}
