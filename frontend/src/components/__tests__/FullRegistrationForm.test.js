@@ -19,7 +19,7 @@ jest.mock(
 jest.mock("../locations/LocationPicker", () => ({ __esModule: true, default: () => null, useLocationTree: () => [] }), { virtual: true });
 
 import axios from "axios";
-import FullRegistrationForm from "../registration/FullRegistrationForm";
+import FullRegistrationForm, { birthHint } from "../registration/FullRegistrationForm";
 
 const sofia = (visit) => ({
   id: 9,
@@ -111,4 +111,15 @@ test("a patient with no visit starts a blank one", async () => {
   await screen.findByText("Sofia Marchetti");
   fireEvent.click(screen.getByRole("button", { name: "Save Registration" }));
   await waitFor(() => expect(axios.post).toHaveBeenCalled());
+});
+
+test("birth hint: preterm babies get a corrected-age note, term babies none", () => {
+  expect(birthHint("", "", "")).toBe("");
+  expect(birthHint("39", "0", "2026-01-01")).toBe("");
+  expect(birthHint("36", "0", "")).toBe("Born 4 weeks early.");
+  expect(birthHint("32", "3", "")).toBe("Born 7.6 weeks early.");
+  const recent = new Date(Date.now() - 200 * 86400000);
+  const iso = `${recent.getFullYear()}-${String(recent.getMonth() + 1).padStart(2, "0")}-${String(recent.getDate()).padStart(2, "0")}`;
+  expect(birthHint("36", "0", iso)).toMatch(/corrected age \(5\.\d months today\) until 24 months/);
+  expect(birthHint("36", "0", "2015-01-01")).toBe("Born 4 weeks early.");
 });

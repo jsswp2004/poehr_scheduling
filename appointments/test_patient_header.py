@@ -419,3 +419,23 @@ class CustomFieldTests(Base):
         self.client.force_authenticate(self.nurse)
         fields = self.client.get(HEADER.format(self.patient.pk)).json()["custom_fields"]
         self.assertEqual(fields, [{"key": "custom:isolation", "label": "Isolation", "field_type": "text", "value": "Droplet"}])
+
+
+class HeaderGrowthChartFlagTests(Base):
+    """The header tells the page whether to show the Growth chart button."""
+
+    def test_adult_has_age_in_months(self):
+        body = self.get(self.nurse).json()
+        self.assertGreater(body["age_months"], 500)
+        self.assertTrue(body["can_growth_chart"])
+
+    def test_child_age_and_right(self):
+        self.profile.date_of_birth = date.today() - timedelta(days=400)
+        self.profile.save()
+        self.assertEqual(self.get(self.nurse).json()["age_months"], 13)
+        self.assertFalse(self.get(self.registrar).json()["can_growth_chart"])
+
+    def test_no_dob_gives_no_age(self):
+        self.profile.date_of_birth = None
+        self.profile.save()
+        self.assertIsNone(self.get(self.nurse).json()["age_months"])

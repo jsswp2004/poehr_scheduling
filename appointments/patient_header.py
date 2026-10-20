@@ -406,6 +406,13 @@ class PatientHeaderView(APIView):
             return error
         data = build_header(patient, request.query_params.get("visit"))
         data["can_edit"] = True
+        # Drives the "Growth chart" button: only for patients under 20 years, and only for staff who may view flowsheets.
+        from users.rights import user_has_right
+        from .immunization_engine import age_in_months
+        dob = getattr(getattr(patient, "patient_profile", None), "date_of_birth", None)
+        today = timezone.localdate()
+        data["age_months"] = age_in_months(dob, today) if dob and dob <= today else None
+        data["can_growth_chart"] = user_has_right(request.user, "flowsheets.chart")
         return Response(data)
 
 

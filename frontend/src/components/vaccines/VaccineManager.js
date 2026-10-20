@@ -7,6 +7,7 @@ import {
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import { api } from "../../api/client";
 import OrdersPanel from "../OrdersPanel";
+import GrowthChartButton from "../growth/GrowthChartModal";
 import { apiEndpoints } from "../../config/api";
 import { authHeader, errorText, fmtDay } from "../prescriptions/rxShared";
 
@@ -355,6 +356,8 @@ export default function VaccineManager({ patient, chartVisit }) {
             <Chip key={r.id} label={r.name} onDelete={canRecord ? () => risk((h) => api.post(apiEndpoints.vaccineRiskDetail(patient.id, r.id), { action: "end" }, { headers: h })) : undefined}
               deleteIcon={<span style={{ fontSize: 12, paddingRight: 8 }}>End</span>} data-testid="vm-risk-chip" />
           ))}
+          <Box sx={{ flexGrow: 1 }} />
+          <GrowthChartButton patientId={patient.id} ageMonths={data.patient.age_months} />
         </Stack>
       </Paper>
 

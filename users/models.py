@@ -259,6 +259,10 @@ class Patient(models.Model):
         "CustomUser", on_delete=models.CASCADE, related_name="patient_profile"
     )  # Use CustomUser instead of User
     date_of_birth = models.DateField(null=True, blank=True)
+    # Birth details: used to plot babies born early at corrected age on the growth charts. Blank means not known / term.
+    gestational_age_weeks = models.PositiveSmallIntegerField(null=True, blank=True)
+    gestational_age_days = models.PositiveSmallIntegerField(null=True, blank=True)
+    birth_weight_g = models.PositiveIntegerField(null=True, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
     address = models.CharField(max_length=255, blank=True)
     medical_history = models.TextField(

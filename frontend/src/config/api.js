@@ -181,6 +181,7 @@ export const apiEndpoints = {
     homeMedication: (id) => `${API_BASE_URL}/api/home-medications/${id}/`,
     homeMedicationAction: (id) => `${API_BASE_URL}/api/home-medications/${id}/action/`,
     homeMedicationReview: `${API_BASE_URL}/api/home-medications/review/`,
+    growthChartPatient: (id) => `${API_BASE_URL}/api/growth-charts/patient/${id}/`,
     vaccineCatalog: `${API_BASE_URL}/api/vaccine-manager/catalog/`,
     vaccinePatient: (id) => `${API_BASE_URL}/api/vaccine-manager/patient/${id}/`,
     vaccinePatientDoses: (id) => `${API_BASE_URL}/api/vaccine-manager/patient/${id}/doses/`,
