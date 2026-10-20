@@ -60,11 +60,11 @@ export function DosePips({ doses }) {
 }
 
 const blankDose = (item = "") => ({
-  item, product: "", manufacturer: "", lot_number: "", expiration_date: "", dose_amount: "0.5 mL",
+  item, product: "", manufacturer: "", historical_source: "", lot_number: "", expiration_date: "", dose_amount: "0.5 mL",
   route: "Intramuscular", site: "Left deltoid", vis_given: true, screening_reviewed: false, notes: "",
 });
 
-function RecordDoseDialog({ patient, catalog, firstItems, onClose, onSaved }) {
+function RecordDoseDialog({ patient, catalog, firstItems, historical = false, onClose, onSaved }) {
   const [date, setDate] = useState(todayIso());
   const [time, setTime] = useState(nowTime());
   const [doses, setDoses] = useState(() => (firstItems.length ? firstItems : [""]).map((c) => blankDose(c)));
@@ -80,7 +80,11 @@ function RecordDoseDialog({ patient, catalog, firstItems, onClose, onSaved }) {
     if (!date) return setError("Enter the date given.");
     setBusy(true);
     try {
-      const body = { doses: doses.map((d) => ({ ...d, given_on: date, given_time: time, manufacturer: d.manufacturer || null })) };
+      const body = {
+        doses: doses.map((d) => (historical
+          ? { item: d.item, product: d.product, source: "historical", given_on: date, lot_number: d.lot_number, manufacturer: d.manufacturer || null, historical_source: d.historical_source || null, notes: d.notes }
+          : { ...d, given_on: date, given_time: time, manufacturer: d.manufacturer || null, historical_source: null })),
+      };
       const res = await api.post(apiEndpoints.vaccinePatientDoses(patient.id), body, { headers: await authHeader() });
       onSaved(res.data);
     } catch (e) {
@@ -92,13 +96,13 @@ function RecordDoseDialog({ patient, catalog, firstItems, onClose, onSaved }) {
 
   return (
     <Dialog open fullWidth maxWidth="sm" onClose={busy ? undefined : onClose} aria-labelledby="vm-record-title">
-      <DialogTitle id="vm-record-title">Mark as done<Typography variant="body2" color="text.secondary">{patient.name}</Typography></DialogTitle>
+      <DialogTitle id="vm-record-title">{historical ? "Record a dose given elsewhere" : "Mark as done"}<Typography variant="body2" color="text.secondary">{patient.name}</Typography></DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           {error && <Alert severity="error" data-testid="vm-record-error">{error}</Alert>}
           <Stack direction="row" spacing={2}>
             <TextField label="Date given" type="date" size="small" value={date} onChange={(e) => setDate(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
-            <TextField label="Time given" type="time" size="small" value={time} onChange={(e) => setTime(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />
+            {!historical && <TextField label="Time given" type="time" size="small" value={time} onChange={(e) => setTime(e.target.value)} InputLabelProps={{ shrink: true }} fullWidth />}
           </Stack>
           {doses.map((d, i) => {
             const item = vaccines.find((v) => v.code === d.item);
@@ -120,19 +124,29 @@ function RecordDoseDialog({ patient, catalog, firstItems, onClose, onSaved }) {
                   </Stack>
                   <Stack direction="row" spacing={2}>
                     <TextField label="Lot number" size="small" value={d.lot_number} onChange={(e) => set(i, { lot_number: e.target.value })} placeholder="From the vial or syringe" fullWidth />
-                    <TextField label="Expiration date" type="date" size="small" value={d.expiration_date} onChange={(e) => set(i, { expiration_date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />
+                    {!historical && <TextField label="Expiration date" type="date" size="small" value={d.expiration_date} onChange={(e) => set(i, { expiration_date: e.target.value })} InputLabelProps={{ shrink: true }} fullWidth />}
                   </Stack>
-                  <Stack direction="row" spacing={2}>
-                    <TextField label="Dose amount" size="small" value={d.dose_amount} onChange={(e) => set(i, { dose_amount: e.target.value })} fullWidth />
-                    <TextField select label="Route" size="small" value={d.route} onChange={(e) => set(i, { route: e.target.value })} fullWidth>
-                      {ROUTES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+                  {historical ? (
+                    <TextField select label="Where did this information come from?" size="small" value={d.historical_source} onChange={(e) => set(i, { historical_source: e.target.value })} fullWidth
+                      helperText="For example a parent's record, another clinic, or the state registry. Add details in Notes.">
+                      <MenuItem value="">Not specified</MenuItem>
+                      {(catalog.lookups.historical_source || []).map((h) => <MenuItem key={h.id} value={h.id}>{h.name}</MenuItem>)}
                     </TextField>
-                    <TextField select label="Site" size="small" value={d.site} onChange={(e) => set(i, { site: e.target.value })} fullWidth>
-                      {SITES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-                    </TextField>
-                  </Stack>
-                  <FormControlLabel control={<Checkbox checked={d.vis_given} onChange={(e) => set(i, { vis_given: e.target.checked })} />} label="Vaccine information statement given to the patient" />
-                  <FormControlLabel control={<Checkbox checked={d.screening_reviewed} onChange={(e) => set(i, { screening_reviewed: e.target.checked })} />} label="Screening questions reviewed (allergies, illness, pregnancy)" />
+                  ) : (
+                    <>
+                      <Stack direction="row" spacing={2}>
+                        <TextField label="Dose amount" size="small" value={d.dose_amount} onChange={(e) => set(i, { dose_amount: e.target.value })} fullWidth />
+                        <TextField select label="Route" size="small" value={d.route} onChange={(e) => set(i, { route: e.target.value })} fullWidth>
+                          {ROUTES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+                        </TextField>
+                        <TextField select label="Site" size="small" value={d.site} onChange={(e) => set(i, { site: e.target.value })} fullWidth>
+                          {SITES.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                        </TextField>
+                      </Stack>
+                      <FormControlLabel control={<Checkbox checked={d.vis_given} onChange={(e) => set(i, { vis_given: e.target.checked })} />} label="Vaccine information statement given to the patient" />
+                      <FormControlLabel control={<Checkbox checked={d.screening_reviewed} onChange={(e) => set(i, { screening_reviewed: e.target.checked })} />} label="Screening questions reviewed (allergies, illness, pregnancy)" />
+                    </>
+                  )}
                   <TextField label="Notes" size="small" multiline minRows={2} value={d.notes} onChange={(e) => set(i, { notes: e.target.value })} />
                   {doses.length > 1 && <Link component="button" type="button" underline="hover" sx={{ alignSelf: "flex-start" }} onClick={() => setDoses((x) => x.filter((_, n) => n !== i))}>Remove this vaccine</Link>}
                 </Stack>
@@ -142,7 +156,9 @@ function RecordDoseDialog({ patient, catalog, firstItems, onClose, onSaved }) {
           <Link component="button" type="button" underline="hover" sx={{ alignSelf: "flex-start", fontWeight: 600 }} onClick={() => setDoses((d) => [...d, blankDose()])} data-testid="vm-add-another">
             Add another vaccine to this visit
           </Link>
-          <Typography variant="caption" color="text.secondary">The dose is recorded as given by you, on your login.</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {historical ? "Recorded as a dose given outside this facility, entered by you. It counts toward the series." : "The dose is recorded as given by you, on your login."}
+          </Typography>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -412,6 +428,9 @@ export default function VaccineManager({ patient, chartVisit }) {
                       {canRecord && r.kind === "vaccine" && ["due", "overdue", "near_due", "future"].includes(r.status) && (
                         <Button size="small" variant="outlined" onClick={() => setDialog({ type: "record", items: [r.item] })}>Mark done</Button>
                       )}
+                      {canRecord && r.kind === "vaccine" && ["due", "overdue", "near_due", "future", "review"].includes(r.status) && (
+                        <Button size="small" onClick={() => setDialog({ type: "record", items: [r.item], historical: true })}>Given elsewhere</Button>
+                      )}
                       {canRecord && ["due", "overdue", "near_due"].includes(r.status) && (
                         <Button size="small" onClick={() => setDialog({ type: "notdone", rec: r })}>Not done</Button>
                       )}
@@ -457,7 +476,7 @@ export default function VaccineManager({ patient, chartVisit }) {
       </Paper>
 
       {dialog?.type === "record" && (
-        <RecordDoseDialog patient={data.patient} catalog={catalog} firstItems={dialog.items} onClose={() => setDialog(null)}
+        <RecordDoseDialog patient={data.patient} catalog={catalog} firstItems={dialog.items} historical={!!dialog.historical} onClose={() => setDialog(null)}
           onSaved={(b) => afterSave(b, `Recorded ${b.saved.length} ${b.saved.length === 1 ? "dose" : "doses"}.`)} />
       )}
       {dialog?.type === "notdone" && (
