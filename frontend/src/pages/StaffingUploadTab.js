@@ -8,6 +8,7 @@ import {
   faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
 import {
+  alpha,
   Alert,
   Box,
   Button,
@@ -179,7 +180,7 @@ function CheckPanel({ check, mode }) {
               const st = STATE_STYLE[r.state];
               const [c1, c2] = cells(r);
               return (
-                <TableRow key={r.row} sx={r.state === "ready" ? undefined : { bgcolor: r.state === "skipped" ? "error.light" : "warning.light" }}>
+                <TableRow key={r.row} sx={r.state === "ready" ? undefined : { bgcolor: (th) => alpha(r.state === "skipped" ? th.palette.error.main : th.palette.warning.main, 0.1) }}>
                   <TableCell>{r.row}</TableCell>
                   <TableCell>{r.name || "-"}</TableCell>
                   <TableCell>{c1 || "-"}</TableCell>
@@ -385,7 +386,7 @@ function SummaryTiles({ tiles }) {
             flex: "1 1 130px",
             p: 1.5,
             borderRadius: 2,
-            bgcolor: t.warn ? "warning.light" : "background.paper",
+            bgcolor: t.warn ? (th) => alpha(th.palette.warning.main, 0.14) : "background.paper",
           }}
         >
           <Typography variant="body2" color={t.warn ? "warning.dark" : "text.secondary"}>
@@ -433,7 +434,7 @@ function PanelCard({ title, children, tone }) {
       sx={{
         p: 3,
         borderRadius: 2,
-        ...(tone === "info" ? { bgcolor: "info.light", borderColor: "info.main" } : {}),
+        ...(tone === "info" ? { bgcolor: (th) => alpha(th.palette.info.main, 0.08), borderColor: "info.main" } : {}),
       }}
     >
       <Typography variant="h6" component="h3" sx={{ fontSize: 16, fontWeight: 600, mb: 1.5 }}>
@@ -757,7 +758,7 @@ function MasterUpload() {
             sx={{
               border: "1px solid",
               borderColor: replace ? "error.main" : "divider",
-              bgcolor: replace ? "error.light" : "grey.50",
+              bgcolor: replace ? (th) => alpha(th.palette.error.main, 0.08) : "grey.50",
               borderRadius: 2,
               p: 2,
               mb: 2,
