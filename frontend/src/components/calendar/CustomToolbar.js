@@ -2,7 +2,7 @@
  * CustomToolbar component for the calendar
  */
 import React, { useState, useCallback, memo, useEffect, useRef } from "react";
-import { TextField, IconButton, Button, InputAdornment } from "@mui/material";
+import { Box, TextField, Button, ButtonGroup } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -63,139 +63,140 @@ const CustomToolbar = memo(function CustomToolbar({
     };
   }, []);
 
+  // Suite look: 36px controls, slate borders, tinted active state.
+  const groupButtonSx = (active) => ({
+    height: 36,
+    px: 1.5,
+    minWidth: 40,
+    fontWeight: 600,
+    fontSize: 14,
+    bgcolor: active ? "#dbeafe" : "#ffffff",
+    color: active ? "#1d4ed8" : "#475569",
+    borderColor: "#cbd5e1",
+    "&:hover": {
+      bgcolor: active ? "#dbeafe" : "#f1f5f9",
+      borderColor: "#cbd5e1",
+    },
+  });
+
   return (
-    <div className="rbc-toolbar d-flex align-items-center justify-content-between mb-2">
-      {/* Search Field */}
-      <div
-        style={{
-          position: "relative",
-          width: "250px",
-          marginLeft: "16px",
-          marginRight: "6px",
-        }}
-      >
-        <TextField
-          fullWidth
-          size="small"
-          variant="outlined"
-          placeholder="Search appointments..."
-          value={localSearchValue}
-          onChange={handleSearchInputChange}
-          sx={{
-            "& .MuiOutlinedInput-root": {
-              height: "29px",
-              fontSize: "14px",
-            },
-          }}
-          InputProps={{
-            endAdornment: localSearchValue && (
-              <span
-                onClick={handleClearSearch}
-                style={{
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "16px",
-                  height: "16px",
-                  fontSize: "12px",
-                  color: "#666",
-                  borderRadius: "50%",
-                  marginRight: "4px",
-                  backgroundColor: "transparent",
-                  transition: "background-color 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.backgroundColor = "#f0f0f0";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = "transparent";
-                }}
-              >
-                ×
-              </span>
-            ),
-          }}
-        />
-      </div>
-
+    <Box
+      className="rbc-toolbar"
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: 1.5,
+        mb: 1.5,
+        px: 0.5,
+      }}
+    >
       {/* Navigation Controls */}
-      <div className="d-flex align-items-center">
-        <span className="rbc-btn-group">
-          <button
-            type="button"
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => onNavigate("PREV")}
-          >
-            ‹
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => onNavigate("TODAY")}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline-secondary btn-sm"
-            onClick={() => onNavigate("NEXT")}
-          >
-            ›
-          </button>
-        </span>
+      <ButtonGroup variant="outlined" aria-label="Calendar navigation">
+        <Button aria-label="Previous" onClick={() => onNavigate("PREV")} sx={groupButtonSx(false)}>
+          ‹
+        </Button>
+        <Button onClick={() => onNavigate("TODAY")} sx={groupButtonSx(false)}>
+          Today
+        </Button>
+        <Button aria-label="Next" onClick={() => onNavigate("NEXT")} sx={groupButtonSx(false)}>
+          ›
+        </Button>
+      </ButtonGroup>
 
-        {/* Date Label with Picker */}
-        <span className="rbc-toolbar-label mx-3 position-relative">
-          <span
-            className="text-primary fw-bold"
-            style={{ cursor: "pointer" }}
-            onClick={() => setShowPicker(!showPicker)}
+      {/* Date Label with Picker */}
+      <Box sx={{ position: "relative" }}>
+        <Button
+          onClick={() => setShowPicker(!showPicker)}
+          sx={{ fontSize: 16, fontWeight: 600, color: "text.primary", height: 36, px: 1 }}
+        >
+          {label}
+        </Button>
+        {showPicker && (
+          <Box
+            sx={{
+              position: "absolute",
+              top: "100%",
+              left: 0,
+              zIndex: 1000,
+              bgcolor: "background.paper",
+              border: "1px solid #e2e8f0",
+              borderRadius: "12px",
+              boxShadow: 3,
+              p: 1,
+            }}
           >
-            {label}
-          </span>
-          {showPicker && (
-            <div
-              className="position-absolute bg-white border rounded shadow-lg p-2"
-              style={{ top: "100%", left: 0, zIndex: 1000 }}
-            >
-              <DatePicker
-                selected={date}
-                onChange={(newDate) => {
-                  onNavigate("DATE", newDate);
-                  setShowPicker(false);
-                }}
-                inline
-              />
-            </div>
-          )}
-        </span>
+            <DatePicker
+              selected={date}
+              onChange={(newDate) => {
+                onNavigate("DATE", newDate);
+                setShowPicker(false);
+              }}
+              inline
+            />
+          </Box>
+        )}
+      </Box>
 
-        {/* View Controls */}
-        <span className="rbc-btn-group">
-          {views.map((viewName) => (
-            <button
-              key={viewName}
+      <Box sx={{ flexGrow: 1 }} />
+
+      {/* Search Field */}
+      <TextField
+        size="small"
+        variant="outlined"
+        placeholder="Search appointments..."
+        value={localSearchValue}
+        onChange={handleSearchInputChange}
+        sx={{
+          width: 260,
+          "& .MuiOutlinedInput-root": { height: 36, fontSize: 14 },
+        }}
+        inputProps={{ "aria-label": "Search appointments" }}
+        InputProps={{
+          endAdornment: localSearchValue && (
+            <Box
+              component="button"
               type="button"
-              className={`btn btn-sm ${
-                view === viewName ? "btn-primary" : "btn-outline-secondary"
-              }`}
-              onClick={() => onView(viewName)}
+              aria-label="Clear search"
+              onClick={handleClearSearch}
+              sx={{
+                border: 0,
+                background: "transparent",
+                cursor: "pointer",
+                color: "#475569",
+                fontSize: 16,
+                lineHeight: 1,
+                borderRadius: "50%",
+                width: 22,
+                height: 22,
+                "&:hover": { bgcolor: "#f1f5f9" },
+              }}
             >
-              {/* react-big-calendar's built-in view names use underscores
-                  (e.g. "work_week"), so capitalizing just the first letter
-                  produced labels like "Work_week" -- the underscore itself
-                  is what looked like an underline under the text. Replace
-                  underscores with spaces and title-case every word instead. */}
-              {viewName
-                .split("_")
-                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                .join(" ")}
-            </button>
-          ))}
-        </span>
-      </div>
-    </div>
+              ×
+            </Box>
+          ),
+        }}
+      />
+
+      {/* View Controls */}
+      <ButtonGroup variant="outlined" aria-label="Calendar view">
+        {views.map((viewName) => (
+          <Button
+            key={viewName}
+            onClick={() => onView(viewName)}
+            sx={groupButtonSx(view === viewName)}
+          >
+            {/* react-big-calendar's built-in view names use underscores
+                (e.g. "work_week"); replace them with spaces and title-case
+                every word so the label reads "Work Week". */}
+            {viewName
+              .split("_")
+              .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(" ")}
+          </Button>
+        ))}
+      </ButtonGroup>
+    </Box>
   );
 });
 
