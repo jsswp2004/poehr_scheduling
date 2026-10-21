@@ -4,3 +4,4 @@ export { default as BulkMessageForm } from './BulkMessageForm';
 export { default as ContactFormDialog } from './ContactFormDialog';
 export { default as FileUploadDialog } from './FileUploadDialog';
 export { default as CommunicatorHeader } from './CommunicatorHeader';
+export { default as ConfirmDialog } from './ConfirmDialog';

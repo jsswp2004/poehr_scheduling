@@ -1,29 +1,14 @@
 import React from 'react';
-import {
-    Box,
-    Typography,
-    Tabs,
-    Tab,
-    Chip
-} from '@mui/material';
-import { Send as SendIcon, Email as EmailIcon, Sms as SmsIcon } from '@mui/icons-material';
+import { Box, Typography, Tabs, Tab } from '@mui/material';
 import BackButton from '../BackButton';
-
-// Tab label: optional icon + text, same inline spacing everywhere.
-const TabLabel = ({ icon, children }) => (
-    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
-        {icon}
-        {children}
-    </Box>
-);
 
 /**
  * Page header with title, Back button and tabs.
- * Layout, type scale and tab sizing mirror the Staffing Center header.
+ * Layout, type scale and tab sizing mirror the Staffing Center header
+ * (plain text tabs, no icons or count badges; counts live in the section title).
  */
 const CommunicatorHeader = ({
     currentTab,
-    contactsCount,
     onTabChange,
     // Only admins/system_admins get the Email and SMS auto-messaging setup
     // tabs here (same settings as the Messages page) -- registrars still see
@@ -47,31 +32,10 @@ const CommunicatorHeader = ({
                     '& .MuiTab-root': { minHeight: 40, py: 0.5 },
                 }}
             >
-                <Tab
-                    value="contacts"
-                    label={
-                        <TabLabel>
-                            Contacts
-                            <Chip label={contactsCount} size="small" color="primary" sx={{ height: 20 }} />
-                        </TabLabel>
-                    }
-                />
-                <Tab
-                    value="message"
-                    label={<TabLabel icon={<SendIcon fontSize="small" />}>Send Message</TabLabel>}
-                />
-                {isAdmin && (
-                    <Tab
-                        value="email"
-                        label={<TabLabel icon={<EmailIcon fontSize="small" />}>Email</TabLabel>}
-                    />
-                )}
-                {isAdmin && (
-                    <Tab
-                        value="sms"
-                        label={<TabLabel icon={<SmsIcon fontSize="small" />}>SMS</TabLabel>}
-                    />
-                )}
+                <Tab value="contacts" label="Contacts" />
+                <Tab value="message" label="Send Message" />
+                {isAdmin && <Tab value="email" label="Email" />}
+                {isAdmin && <Tab value="sms" label="SMS" />}
             </Tabs>
         </Box>
     );

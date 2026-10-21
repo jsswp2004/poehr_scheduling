@@ -1,11 +1,13 @@
 import React from 'react';
 import {
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    Button,
     Alert,
+    Box,
+    Button,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Stack,
     Typography
 } from '@mui/material';
 
@@ -22,40 +24,45 @@ const FileUploadDialog = ({
     onDownloadTemplate
 }) => {
     return (
-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <Dialog open={open} onClose={uploading ? undefined : onClose} maxWidth="sm" fullWidth>
             <DialogTitle>Upload Contacts CSV</DialogTitle>
 
             <DialogContent>
-                <Alert severity="info" sx={{ mb: 2 }}>
-                    Upload a CSV file with columns: name, phone, email
-                </Alert>
+                <Stack spacing={2} sx={{ mt: 1 }}>
+                    <Alert severity="info">
+                        Columns: name, phone, email. Contacts already on your list are skipped.
+                    </Alert>
 
-                <input
-                    type="file"
-                    accept=".csv"
-                    onChange={(e) => onFileSelect(e.target.files[0])}
-                    style={{ marginBottom: '16px' }}
-                />
-
-                {selectedFile && (
-                    <Typography variant="body2" color="text.secondary">
-                        Selected: {selectedFile.name}
-                    </Typography>
-                )}
+                    <Box
+                        sx={{
+                            border: '1px dashed',
+                            borderColor: 'text.secondary',
+                            borderRadius: 3,
+                            bgcolor: 'background.default',
+                            p: 3,
+                            textAlign: 'center'
+                        }}
+                    >
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                            {selectedFile ? selectedFile.name : 'No file chosen'}
+                        </Typography>
+                        <Button component="label" size="small" variant="outlined">
+                            {selectedFile ? 'Choose a different file' : 'Choose CSV file'}
+                            <input
+                                hidden
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => onFileSelect(e.target.files[0])}
+                            />
+                        </Button>
+                    </Box>
+                </Stack>
             </DialogContent>
 
             <DialogActions>
-                <Button onClick={onClose}>Cancel</Button>
-
-                <Button onClick={onDownloadTemplate} variant="outlined">
-                    Download Template
-                </Button>
-
-                <Button
-                    onClick={onUpload}
-                    variant="contained"
-                    disabled={!selectedFile || uploading}
-                >
+                <Button onClick={onClose} disabled={uploading}>Cancel</Button>
+                <Button onClick={onDownloadTemplate} variant="outlined">Download template</Button>
+                <Button onClick={onUpload} variant="contained" disabled={!selectedFile || uploading}>
                     {uploading ? 'Uploading...' : 'Upload'}
                 </Button>
             </DialogActions>
