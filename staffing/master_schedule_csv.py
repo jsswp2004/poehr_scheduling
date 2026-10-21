@@ -36,6 +36,7 @@ from django.http import HttpResponse
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 
+from .csv_dry_run import build_row_report, is_dry_run, run_rolled_back
 from .master_schedule_views import (
     _bad,
     _clean_label,
@@ -150,6 +151,12 @@ class MasterScheduleUploadCsvView(_MasterBase):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
+        # dry_run=true: run the whole import, report per row, then roll it all back.
+        if is_dry_run(request):
+            return run_rolled_back(self._run, request)
+        return self._run(request, False)
+
+    def _run(self, request, dry_run=False):
         denied = self._admin_only(request)
         if denied:
             return denied
@@ -187,6 +194,7 @@ class MasterScheduleUploadCsvView(_MasterBase):
         errors = []
         counts = {"rows_created": 0, "rows_updated": 0, "rows_moved": 0, "cells_set": 0, "skipped_blank": 0}
         sections_added = []
+        report = {}
 
         with transaction.atomic():
             ensure_default_sections(org)
@@ -273,6 +281,7 @@ class MasterScheduleUploadCsvView(_MasterBase):
                 hp, status = _clean_label(cell(raw, "hp")), _clean_label(cell(raw, "status"))
 
                 row = on_schedule.get(staff.id)
+                row_is_new = row is None
                 if row is None:
                     row = MasterScheduleRow.objects.create(
                         organization=org, section=current_section, staff=staff, unit_id=unit_id,
@@ -317,6 +326,13 @@ class MasterScheduleUploadCsvView(_MasterBase):
                 MasterScheduleCell.objects.bulk_create(create)
                 MasterScheduleCell.objects.bulk_update(update, ["code"])
                 counts["cells_set"] += len(create) + len(update)
+                report[line_no] = {
+                    "name": who,
+                    "section": current_section.name,
+                    "unit": unit_given,
+                    "action": "added" if row_is_new else "updated",
+                    "cells": len(create) + len(update),
+                }
 
         return Response(
             {
@@ -325,5 +341,7 @@ class MasterScheduleUploadCsvView(_MasterBase):
                 "ignored_columns": ignored,
                 "replaced": replace,
                 "errors": errors,
+                "rows": build_row_report(report, errors),
+                "dry_run": dry_run,
             }
         )

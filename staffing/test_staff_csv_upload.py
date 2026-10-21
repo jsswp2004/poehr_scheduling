@@ -114,3 +114,37 @@ class NursingRoleCsvTests(TestCase):
         r = upload(nurse, HEADER + "Oz,Fifteen,Nurse,rn,,\n")
         self.assertEqual(r.status_code, 403)
         self.assertFalse(Staff.objects.filter(first_name="Oz").exists())
+
+
+class DryRunTests(TestCase):
+    """dry_run=true reports per row what an import would do, and saves nothing."""
+
+    def setUp(self):
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(
+            username="a", password="x", role="admin", organization=self.org)
+
+    def _post(self, text, **extra):
+        c = APIClient()
+        c.force_authenticate(self.admin)
+        f = SimpleUploadedFile("roster.csv", text.encode("utf-8"), content_type="text/csv")
+        return c.post(URL, {"file": f, **extra}, format="multipart")
+
+    def test_dry_run_reports_rows_and_saves_nothing(self):
+        text = HEADER + "Ann,One,Nurse,rn,,\nGus,Seven,Nurse,,,\n,NoFirst,Nurse,rn,,\n"
+        r = self._post(text, dry_run="true")
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertTrue(body["dry_run"])
+        self.assertEqual(body["created"], 2)
+        states = {row["row"]: row["state"] for row in body["rows"]}
+        self.assertEqual(states, {2: "ready", 3: "attention", 4: "skipped"})
+        self.assertEqual(Staff.objects.filter(organization=self.org).count(), 0)
+
+    def test_real_import_after_dry_run_still_saves(self):
+        text = HEADER + "Ann,One,Nurse,rn,,\n"
+        self._post(text, dry_run="true")
+        r = self._post(text)
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertFalse(r.json()["dry_run"])
+        self.assertEqual(Staff.objects.filter(organization=self.org).count(), 1)

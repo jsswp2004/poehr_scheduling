@@ -3,6 +3,7 @@ import datetime
 import logging
 import re
 
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
@@ -25,6 +26,7 @@ from .models import (
     VALID_DAY_CODES,
 )
 from .coverage import evaluate_requirement
+from .csv_dry_run import build_row_report, is_dry_run, run_rolled_back
 from .shift_generation import generate_shifts_for_pattern
 from .serializers import (
     StaffRecurringPatternSerializer,
@@ -369,6 +371,12 @@ class UploadStaffCSV(APIView):
     parser_classes = [MultiPartParser]
 
     def post(self, request):
+        # dry_run=true: run the whole import, report per row, then roll it all back.
+        if is_dry_run(request):
+            return run_rolled_back(self._run, request)
+        return self._run(request, False)
+
+    def _run(self, request, dry_run=False):
         if request.user.role not in ADMIN_ROLES:
             return Response(
                 {"error": "Only admins can upload the staff roster."},
@@ -397,6 +405,7 @@ class UploadStaffCSV(APIView):
         roles_set_count = 0
         not_counted_count = 0
         errors = []
+        report = {}
 
         for row_num, row in enumerate(reader, start=2):
             try:
@@ -451,8 +460,20 @@ class UploadStaffCSV(APIView):
                         f"Row {row_num}: staff saved, but {nursing_role_error} -- "
                         f"role left as {staff.get_nursing_role_display()}."
                     )
+                row_notes = []
                 if staff.nursing_role not in ("rn", "lpn", "cna"):
                     not_counted_count += 1
+                    row_notes.append(
+                        "Role is Other: does not count toward staffing compliance until RN, LPN or CNA is set."
+                    )
+                report[row_num] = {
+                    "name": f"{first_name} {last_name}",
+                    "profession": profession,
+                    "role": staff.get_nursing_role_display(),
+                    "action": "created" if created else "updated",
+                    "schedule": "",
+                    "notes": row_notes,
+                }
 
                 # Optional recurring-schedule columns: shift, days, start,
                 # end (start_date/end_date optional too). A row with none
@@ -507,6 +528,7 @@ class UploadStaffCSV(APIView):
                 # so it shows up on the calendar right away instead of
                 # waiting for the next automated generation run.
                 generate_shifts_for_pattern(pattern)
+                report[row_num]["schedule"] = f"{shift_raw}: {days_raw}, {start_raw} to {end_raw}"
             except ValueError as e:
                 errors.append(f"Row {row_num}: {e}")
             except Exception as e:
@@ -521,6 +543,8 @@ class UploadStaffCSV(APIView):
                 "nursing_roles_set": roles_set_count,
                 "not_counted": not_counted_count,
                 "errors": errors,
+                "rows": build_row_report(report, errors),
+                "dry_run": dry_run,
             },
             status=status.HTTP_200_OK,
         )

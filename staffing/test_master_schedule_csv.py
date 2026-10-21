@@ -148,3 +148,27 @@ class MasterScheduleCsvTests(MasterScheduleBase):
         self.assertEqual(client_for(self.admin).post(UPLOAD, {}, format="multipart").status_code, 400)
         self.assertEqual(client_for(self.nurse).get(DOWNLOAD, {"month": "2026-10"}).status_code, 200)
         self.assertEqual(client_for(self.patient).get(DOWNLOAD, {"month": "2026-10"}).status_code, 403)
+
+
+class MasterScheduleCsvDryRunTests(MasterScheduleBase):
+    """dry_run=true reports per row what an import would do, and saves nothing."""
+
+    def _upload(self, text, **extra):
+        f = SimpleUploadedFile("ms.csv", text.encode("utf-8"), content_type="text/csv")
+        return client_for(self.admin).post(UPLOAD, {"file": f, **extra}, format="multipart")
+
+    def test_dry_run_reports_rows_and_saves_nothing(self):
+        Staff.objects.create(organization=self.org, first_name="Ann", last_name="T", profession="GNA")
+        text = sheet([
+            ["Dry Run Section", "Ann", "T", "", "", "", "7", "", "7Z"],
+            ["", "Zed", "Nobody", "", "", "", "7", "", ""],
+        ])
+        r = self._upload(text, dry_run="true")
+        self.assertEqual(r.status_code, 200, r.content)
+        body = r.json()
+        self.assertTrue(body["dry_run"])
+        states = {row["row"]: row["state"] for row in body["rows"]}
+        self.assertEqual(states, {2: "attention", 3: "skipped"})
+        self.assertEqual(MasterScheduleRow.objects.filter(organization=self.org).count(), 0)
+        self.assertEqual(MasterScheduleCell.objects.count(), 0)
+        self.assertFalse(MasterScheduleSection.objects.filter(organization=self.org, name="Dry Run Section").exists())
