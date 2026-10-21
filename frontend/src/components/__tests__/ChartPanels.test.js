@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 
 jest.mock("react-router-dom", () => ({ useNavigate: () => jest.fn(), useSearchParams: () => [new URLSearchParams()] }), { virtual: true });
 jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn(), patch: jest.fn() } }), { virtual: true });
@@ -28,6 +28,20 @@ test("Documents: header has no patient name and, with the header's visit, no vis
   expect(screen.queryByText(/Devon Baptiste/)).toBeNull();
   await waitFor(() => expect(api.get).toHaveBeenCalled());
   expect(screen.queryByText("Appointment / Registration")).toBeNull();
+});
+
+test("Documents: Preview is its own tab right after Documentation, and the title and tabs sit in a sticky header", async () => {
+  render(<ClinicalNotesPanel patientId={3} patientName="Devon Baptiste" chartVisit={{ loading: false, appointmentId: 55 }} />);
+  const heading = await screen.findByRole("heading", { name: "Clinical Documentation" });
+  const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
+  expect(tabs).toEqual(["Documentation", "Preview", "Note History"]);
+  const header = screen.getByTestId("notes-sticky-header");
+  expect(header).toContainElement(heading);
+  expect(header).toContainElement(screen.getByRole("tab", { name: "Preview" }));
+  fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
+  expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+  fireEvent.click(screen.getByRole("tab", { name: "Documentation" }));
+  expect(screen.getByRole("tab", { name: "Documentation" })).toHaveAttribute("aria-selected", "true");
 });
 
 test("Documents: the standalone page still has the visit picker", async () => {

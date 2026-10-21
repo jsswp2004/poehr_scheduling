@@ -752,24 +752,37 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
 
   return (
     <Paper elevation={2} sx={{ p: 3, borderRadius: 2, mt: 3 }}>
-      <PanelTitle>Clinical Documentation</PanelTitle>
+      {/* Title + tabs stay pinned under the app bar; only the content below scrolls. */}
+      <Box
+        data-testid="notes-sticky-header"
+        sx={{
+          position: "sticky",
+          top: 64,
+          zIndex: 5,
+          bgcolor: "background.paper",
+          mx: -3,
+          px: 3,
+          pt: 1,
+          mb: 1.5,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <PanelTitle>Clinical Documentation</PanelTitle>
+        {showTabs && (
+          <Tabs value={currentTab} onChange={(e, newValue) => setActiveTab(newValue)}>
+            <Tab label="Documentation" value="documentation" />
+            <Tab label="Preview" value="preview" />
+            <Tab label="Note History" value="history" />
+          </Tabs>
+        )}
+      </Box>
 
       <SafetyAlertNotice alert={safetyAlert} onClose={() => setSafetyAlert(null)} />
 
-      {showTabs && (
-        <Tabs
-          value={currentTab}
-          onChange={(e, newValue) => setActiveTab(newValue)}
-          sx={{ mb: 1.5, borderBottom: 1, borderColor: "divider" }}
-        >
-          <Tab label="Documentation" value="documentation" />
-          <Tab label="Note History" value="history" />
-        </Tabs>
-      )}
-
       {currentTab === "documentation" && canAuthor && (
         <Grid container spacing={3} sx={{ mb: 1 }}>
-        <Grid size={{ xs: 12, md: 7 }}>
+        <Grid size={{ xs: 12 }}>
           {amendsId && (
             <Chip
               label="Writing an addendum to a signed note"
@@ -943,10 +956,11 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
           </Stack>
         </Grid>
 
-        <Grid size={{ xs: 12, md: 5 }}>
-          <NotePreviewPane title={previewTitle} meta={previewMeta} sections={previewSections} />
         </Grid>
-        </Grid>
+      )}
+
+      {currentTab === "preview" && canAuthor && (
+        <NotePreviewPane embedded title={previewTitle} meta={previewMeta} sections={previewSections} />
       )}
 
       {currentTab === "history" && (
