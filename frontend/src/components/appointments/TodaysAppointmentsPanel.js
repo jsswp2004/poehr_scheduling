@@ -28,10 +28,10 @@ const TodaysAppointmentsPanel = ({
     return (
         <Grid size={12}>
             <Paper
+                variant="outlined"
                 sx={{
                     p: 2,
                     borderRadius: 2,
-                    boxShadow: 2,
                     mb: 2,
                     minWidth: 420,
                     minHeight: 320,
@@ -42,20 +42,20 @@ const TodaysAppointmentsPanel = ({
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <TodayIcon color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h5" fontWeight={600}>
+                    <Typography variant="h6">
                         Today's Appointments
                     </Typography>
                 </Box>
 
                 <TableContainer sx={{ maxHeight: '300px', overflow: 'auto' }}>
                     <Table size="small" stickyHeader>
-                        <TableHead sx={{ bgcolor: '#dbeafe' }}>
+                        <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Time</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Arrived</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>No Show</TableCell>
+                                <TableCell>Time</TableCell>
+                                <TableCell>Patient</TableCell>
+                                <TableCell>Provider</TableCell>
+                                <TableCell>Arrived</TableCell>
+                                <TableCell>No Show</TableCell>
                             </TableRow>
                         </TableHead>
 
@@ -77,7 +77,7 @@ const TodaysAppointmentsPanel = ({
                                         hover
                                         sx={{
                                             '&:hover': {
-                                                backgroundColor: '#f0f7ff',
+                                                backgroundColor: 'action.hover',
                                             },
                                         }}
                                     >
