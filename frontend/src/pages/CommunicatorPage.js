@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Box } from "@mui/material";
+import { Alert, Box } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
@@ -17,8 +17,8 @@ import {
   ContactFormDialog,
   FileUploadDialog,
   CommunicatorHeader,
+  ConfirmDialog,
 } from "../components/communicator";
-import { toast } from "../components/SimpleToast";
 import CommunicatorAssistantDock, { COMMUNICATOR_CHANGED_EVENT } from "../components/CommunicatorAssistantDock";
 import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
 import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
@@ -83,108 +83,82 @@ function CommunicatorPage() {
     else if (route === "logs") navigate("/messages");
   };
 
+  // Page-level feedback shows as dismissible inline alerts (same as the Staffing Center).
+  const [notice, setNotice] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [dialogError, setDialogError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   // File upload with success callback
   const fileUpload = useFileUpload(token, (data) => {
-    console.log("🔄 Upload success data:", data);
-    toast.success(`${data.created} contacts uploaded successfully`);
-    console.log("🔄 Calling contacts.refreshContacts()");
+    setPageError("");
+    setNotice(`${data.created} contacts uploaded.`);
     contacts.refreshContacts();
   });
 
   // Handle contact save (create or update)
   const handleSaveContact = async () => {
+    setSaving(true);
+    setDialogError("");
     let success = false;
+    const editing = !!contactForm.editingContact;
 
-    if (contactForm.editingContact) {
+    if (editing) {
       success = await contacts.updateContact(
         contactForm.editingContact.id,
         contactForm.contactForm
       );
-      if (success) {
-        toast.success("Contact updated successfully");
-      }
     } else {
       success = await contacts.createContact(contactForm.contactForm);
-      if (success) {
-        toast.success("Contact created successfully");
-      }
     }
+    setSaving(false);
 
     if (success) {
+      setPageError("");
+      setNotice(editing ? "Contact updated." : "Contact added.");
       contactForm.closeDialog();
     } else {
-      toast.error(contacts.error || "Failed to save contact");
+      setDialogError(contacts.error || "Failed to save contact.");
     }
   };
 
-  // Handle contact deletion with custom toast confirmation
-  const handleDeleteContact = async (id) => {
-    toast.warning(
-      <div>
-        <p>
-          <strong>Are you sure you want to delete this contact?</strong>
-        </p>
-        <div style={{ marginTop: "10px" }}>
-          <button
-            onClick={() => performDeleteContact(id)}
-            style={{
-              marginRight: "10px",
-              padding: "5px 15px",
-              backgroundColor: "#dc2626",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
-            Yes, Delete
-          </button>
-          <button
-            onClick={() => toast.dismiss()}
-            style={{
-              padding: "5px 15px",
-              backgroundColor: "#64748b",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
-            Cancel
-          </button>
-        </div>
-      </div>,
-      { duration: 0 } // Keep toast open until user decides
-    );
-  };
+  // Ask first, then delete
+  const handleDeleteContact = (contact) => setDeleteTarget(contact);
 
-  // Perform actual contact deletion
-  const performDeleteContact = async (id) => {
-    toast.dismiss();
-
-    const success = await contacts.deleteContact(id);
+  const performDeleteContact = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const success = await contacts.deleteContact(deleteTarget.id);
+    setDeleting(false);
     if (success) {
-      toast.success("Contact deleted successfully! 🗑️");
+      setPageError("");
+      setNotice(`${deleteTarget.name} was deleted.`);
     } else {
-      toast.error("Failed to delete contact. Please try again.");
+      setPageError("Failed to delete contact. Please try again.");
     }
+    setDeleteTarget(null);
   };
 
   // Handle file upload
   const handleFileUpload = async () => {
     const success = await fileUpload.uploadFile();
     if (!success && fileUpload.error) {
-      toast.error(fileUpload.error);
+      setPageError(fileUpload.error);
     }
   };
 
   // Handle bulk message sending
   const handleSendBulkMessage = async () => {
     const result = await bulkMessaging.sendBulkMessage();
-    if (result.success) {
-      toast.success(`Message sent to ${result.sentCount} contacts`);
+    if (result && result.success) {
+      setPageError("");
+      setNotice(`Message sent to ${result.sentCount} contacts.`);
+      setTab("contacts");
     } else {
-      toast.error(bulkMessaging.error || "Failed to send message");
+      setNotice("");
+      setPageError(bulkMessaging.error || "Failed to send message.");
     }
   };
 
@@ -193,19 +167,29 @@ function CommunicatorPage() {
       {/* Title row + tabs (same layout as the Staffing Center) */}
       <CommunicatorHeader
         currentTab={tab}
-        contactsCount={contacts.contacts.length}
         onTabChange={setTab}
         isAdmin={isAdmin}
         backTo="/login?redirect=communicator"
       />
+
+      {notice && (
+        <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice("")}>
+          {notice}
+        </Alert>
+      )}
+      {pageError && (
+        <Alert severity="error" sx={{ mb: 1 }} onClose={() => setPageError("")}>
+          {pageError}
+        </Alert>
+      )}
 
       {/* Contacts Tab */}
       {tab === "contacts" && (
         <ContactsTable
           contacts={contacts.contacts}
           loading={contacts.loading}
-          onAddContact={contactForm.openCreateDialog}
-          onEditContact={contactForm.openEditDialog}
+          onAddContact={() => { setDialogError(""); contactForm.openCreateDialog(); }}
+          onEditContact={(c) => { setDialogError(""); contactForm.openEditDialog(c); }}
           onDeleteContact={handleDeleteContact}
           onUploadClick={fileUpload.openUploadDialog}
           onDownloadTemplate={fileUpload.downloadTemplate}
@@ -222,6 +206,7 @@ function CommunicatorPage() {
           contacts={contacts.contacts}
           messageForm={bulkMessaging.messageForm}
           sending={bulkMessaging.sending}
+          error={bulkMessaging.error}
           onMessageChange={bulkMessaging.updateMessageForm}
           onCheckboxChange={bulkMessaging.updateMessageCheckbox}
           onSendMessage={handleSendBulkMessage}
@@ -241,10 +226,27 @@ function CommunicatorPage() {
         open={contactForm.dialogOpen}
         editingContact={contactForm.editingContact}
         contactForm={contactForm.contactForm}
-        onClose={contactForm.closeDialog}
+        error={dialogError}
+        saving={saving}
+        onClose={() => {
+          setDialogError("");
+          contactForm.closeDialog();
+        }}
         onSave={handleSaveContact}
         onFormChange={contactForm.updateContactForm}
       />
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete contact?"
+        confirmLabel={deleting ? "Deleting..." : "Delete"}
+        confirmColor="error"
+        busy={deleting}
+        onConfirm={performDeleteContact}
+        onClose={() => setDeleteTarget(null)}
+      >
+        {deleteTarget?.name} will be removed from your contacts.
+      </ConfirmDialog>
 
       {/* File Upload Dialog */}
       <FileUploadDialog
