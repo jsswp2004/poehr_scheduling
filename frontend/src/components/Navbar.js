@@ -16,6 +16,12 @@ import Box from "@mui/material/Box";
 import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
 import Badge from "@mui/material/Badge";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Divider from "@mui/material/Divider";
+import MenuIcon from "@mui/icons-material/Menu";
 import useForceUpdate from "../utils/useForceUpdate";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import ChatIcon from "@mui/icons-material/Chat";
@@ -206,6 +212,9 @@ function Navbar() {
   const [logoUrl, setLogoUrl] = useState(null);
   const [profilePic, setProfilePic] = useState(null);
   const forceUpdate = useForceUpdate();
+  // Compact menu (below the lg breakpoint the icon row collapses into this).
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const closeMenu = () => setMenuAnchor(null);
 
   // Update authentication state when tokens change
   useEffect(() => {
@@ -560,6 +569,31 @@ function Navbar() {
     (m) => (!m.roles || m.roles.includes(role)) && !(m.notFor && m.notFor.includes(role))
   ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab) }));
 
+  // Waiting-item count per module, shown next to the label in the compact menu.
+  const menuBadge = (key) =>
+    key === "lab-inbox"
+      ? labWaiting.count + labWaiting.unmatched
+      : key === "referrals"
+      ? referralWaiting.count
+      : key === "tasks"
+      ? taskWaiting.count
+      : key === "secure-messages"
+      ? secureUnread.unread
+      : 0;
+  const anyWaiting = moduleLinks.some((m) => menuBadge(m.key) > 0);
+  const showCommunicator =
+    (role === "system_admin" || role === "admin" || role === "registrar") &&
+    location.pathname !== "/communicator" &&
+    location.pathname !== "/dashboard";
+  const showAdminPortal =
+    (role === "admin" || role === "registrar" || role === "receptionist" || role === "system_admin") &&
+    location.pathname !== "/dashboard";
+  const showAccount = role === "admin" || role === "system_admin";
+  const goTo = (path) => {
+    closeMenu();
+    navigate(path);
+  };
+
   // Add greeting function
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -571,7 +605,7 @@ function Navbar() {
   return (
     <AppBar position="fixed" color="primary" sx={{ zIndex: 1201 }}>
       <Toolbar
-        sx={{ display: "flex", justifyContent: "space-between", minHeight: 64 }}
+        sx={{ display: "flex", justifyContent: "space-between", minHeight: 64, gap: 1 }}
       >
         {" "}
         <Box
@@ -579,6 +613,7 @@ function Navbar() {
             display: "flex",
             alignItems: "center",
             flex: 1,
+            minWidth: 0,
             cursor: "pointer",
           }}
           onClick={handleLogoClick}
@@ -610,6 +645,8 @@ function Navbar() {
               fontWeight: 450,
               letterSpacing: 1,
               fontFamily: "inherit",
+              fontSize: { xs: "1rem", md: "1.25rem" },
+              minWidth: 0,
             }}
           >
             {location.pathname === "/communicator"
@@ -636,7 +673,7 @@ function Navbar() {
           )}
           */}
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
           {isAuthenticated && (
             <>
               {/* Module links: Documentation, Scheduler, Patient Portal, Staffing */}
@@ -645,7 +682,7 @@ function Navbar() {
                   component="nav"
                   aria-label="Modules"
                   sx={{
-                    display: "flex",
+                    display: { xs: "none", lg: "flex" },
                     alignItems: "center",
                     mr: 1,
                     pr: 1,
@@ -738,6 +775,91 @@ function Navbar() {
                 </Box>
               )}
 
+              {/* Compact menu: replaces the icon row below the lg breakpoint */}
+              {role && (
+                <>
+                  <IconButton
+                    color="inherit"
+                    aria-label="Open menu"
+                    aria-haspopup="true"
+                    aria-expanded={Boolean(menuAnchor)}
+                    onClick={(e) => setMenuAnchor(e.currentTarget)}
+                    sx={{ display: { xs: "inline-flex", lg: "none" }, mr: 0.5 }}
+                    data-testid="nav-compact-menu"
+                  >
+                    <Badge color="warning" variant="dot" invisible={!anyWaiting}>
+                      <MenuIcon sx={{ color: "white" }} />
+                    </Badge>
+                  </IconButton>
+                  <Menu
+                    anchorEl={menuAnchor}
+                    open={Boolean(menuAnchor)}
+                    onClose={closeMenu}
+                    PaperProps={{ sx: { minWidth: 240, maxHeight: "70vh" } }}
+                  >
+                    {moduleLinks.map(({ key, label, to, Icon, active }) => (
+                      <MenuItem
+                        key={key}
+                        selected={active}
+                        onClick={() => goTo(to)}
+                        aria-current={active ? "page" : undefined}
+                      >
+                        <ListItemIcon>
+                          <Icon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>{label}</ListItemText>
+                        {menuBadge(key) > 0 && (
+                          <Box
+                            component="span"
+                            sx={{
+                              ml: 1,
+                              minWidth: 20,
+                              height: 20,
+                              px: 0.75,
+                              borderRadius: 10,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: "#fff",
+                              bgcolor: "warning.dark",
+                            }}
+                          >
+                            {menuBadge(key) > 99 ? "99+" : menuBadge(key)}
+                          </Box>
+                        )}
+                      </MenuItem>
+                    ))}
+                    {(showCommunicator || showAdminPortal || showAccount) && <Divider />}
+                    {showCommunicator && (
+                      <MenuItem onClick={() => goTo("/communicator")}>
+                        <ListItemIcon>
+                          <ChatIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Communicator</ListItemText>
+                      </MenuItem>
+                    )}
+                    {showAdminPortal && (
+                      <MenuItem onClick={() => goTo("/admin/")}>
+                        <ListItemIcon>
+                          <AdminPanelSettingsIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Management Portal</ListItemText>
+                      </MenuItem>
+                    )}
+                    {showAccount && (
+                      <MenuItem onClick={() => goTo("/account")}>
+                        <ListItemIcon>
+                          <AccountCircleIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Account Settings</ListItemText>
+                      </MenuItem>
+                    )}
+                  </Menu>
+                </>
+              )}
+
               {/* Communicator Icon Link - only for system_admin, admin, and registrar roles */}
               {(role === "system_admin" ||
                 role === "admin" ||
@@ -747,7 +869,7 @@ function Navbar() {
                   <Tooltip title="POWER Communicator">
                     <IconButton
                       color="inherit"
-                      sx={{ mr: 1 }}
+                      sx={{ mr: 1, display: { xs: "none", lg: "inline-flex" } }}
                       onClick={() => navigate("/communicator")}
                       aria-label="Communicator"
                     >
@@ -765,7 +887,7 @@ function Navbar() {
                   <Tooltip title="Management Portal">
                     <IconButton
                       color="inherit"
-                      sx={{ mr: 1 }}
+                      sx={{ mr: 1, display: { xs: "none", lg: "inline-flex" } }}
                       onClick={() => navigate("/admin/")}
                       aria-label="Admin Panel"
                     >
@@ -779,7 +901,7 @@ function Navbar() {
                 <Tooltip title="Account Settings">
                   <IconButton
                     color="inherit"
-                    sx={{ mr: 1 }}
+                    sx={{ mr: 1, display: { xs: "none", lg: "inline-flex" } }}
                     onClick={() => navigate("/account")}
                     aria-label="Account Settings"
                   >
@@ -793,9 +915,10 @@ function Navbar() {
                   textTransform: "none",
                   fontWeight: 450,
                   fontSize: "1rem",
-                  mr: 2,
+                  mr: { xs: 0.5, md: 2 },
                   pl: 1,
                   pr: 1,
+                  minWidth: 0,
                   color: "white",
                   "& .MuiAvatar-root": {
                     bgcolor: "primary.light",
@@ -819,9 +942,13 @@ function Navbar() {
                 disableRipple
                 disabled
               >
-                <span className="navbar-username">
+                <Box
+                  component="span"
+                  className="navbar-username"
+                  sx={{ display: { xs: "none", md: "inline" } }}
+                >
                   {getGreeting()}, {username}
-                </span>
+                </Box>
                 {isSystemAdmin && (
                   <Box
                     component="span"
@@ -835,7 +962,7 @@ function Navbar() {
                       ml: 1.5,
                       border: "2px solid",
                       borderColor: "#2563eb",
-                      display: "inline-block",
+                      display: { xs: "none", md: "inline-block" },
                     }}
                   >
                     System Admin
