@@ -106,7 +106,7 @@ function printNotePreview({ title, meta, sections }) {
  * The Print button (top-right) renders the exact same `sections` data as a
  * standalone document, so what's printed always matches what's shown here.
  */
-function NotePreviewPane({ title, meta, sections }) {
+function NotePreviewPane({ title, meta, sections, embedded = false }) {
   const hasStructure = (sections || []).some((t) => (t.sections || []).length > 0);
 
   return (
@@ -115,10 +115,14 @@ function NotePreviewPane({ title, meta, sections }) {
       sx={{
         p: 2,
         borderRadius: 2,
-        position: { md: "sticky" },
-        top: { md: 88 },
-        maxHeight: { md: "calc(100vh - 120px)" },
-        overflowY: "auto",
+        ...(embedded
+          ? {}
+          : {
+              position: { md: "sticky" },
+              top: { md: 88 },
+              maxHeight: { md: "calc(100vh - 120px)" },
+              overflowY: "auto",
+            }),
       }}
     >
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
