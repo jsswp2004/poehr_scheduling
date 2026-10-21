@@ -757,7 +757,9 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
         data-testid="notes-sticky-header"
         sx={{
           position: "sticky",
-          top: 64,
+          // In the chart the content scrolls inside its own pane under the tab bar, so stick flush (0);
+          // on the standalone page the window scrolls under the fixed app bar, so clear it (64).
+          top: fixedVisit ? 0 : 64,
           zIndex: 5,
           bgcolor: "background.paper",
           mx: -3,
