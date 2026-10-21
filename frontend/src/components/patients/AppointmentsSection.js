@@ -46,18 +46,19 @@ const APPOINTMENT_STATUS_OPTIONS = [
     { value: 'in_progress', label: 'In Progress' },
 ];
 
-// Helper function to get status color
-const getStatusColor = (status) => {
-    switch (status) {
-        case 'completed': return 'success';
-        case 'cancelled': return 'error';
-        case 'no_show': return 'error';
-        case 'rescheduled': return 'warning';
-        case 'pending': return 'info';
-        case 'in_progress': return 'primary';
-        case 'scheduled':
-        default: return 'default';
-    }
+// Soft status chips (suite palette): tinted background + dark text.
+const STATUS_CHIP_COLORS = {
+    scheduled: { bg: '#dbeafe', fg: '#1d4ed8' },
+    in_progress: { bg: '#e2e8f0', fg: '#1e293b' },
+    completed: { bg: '#d1fae5', fg: '#065f46' },
+    cancelled: { bg: '#fee2e2', fg: '#991b1b' },
+    no_show: { bg: '#fee2e2', fg: '#991b1b' },
+    rescheduled: { bg: '#fef3c7', fg: '#92400e' },
+    pending: { bg: '#fef3c7', fg: '#92400e' },
+};
+const getStatusChipSx = (status) => {
+    const c = STATUS_CHIP_COLORS[status] || STATUS_CHIP_COLORS.scheduled;
+    return { bgcolor: c.bg, color: c.fg, fontWeight: 600, border: 'none' };
 };
 
 // Columns for the sortable "Today's Appointments" table. `sortValue` pulls
@@ -261,18 +262,38 @@ function AppointmentsSection({
             {appointmentsTab === 'today' && (
                 <Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, flexWrap: 'wrap', gap: 1 }}>
-                        <Typography variant="h6" sx={{ color: 'primary.main' }}>
-                            Today's Appointments Summary
+                        <Typography variant="h6">
+                            Today's Appointments
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                             Showing {displayedTodaysAppointments.length} of {todaysAppointments.length}
                         </Typography>
                     </Box>
 
+                    {/* At-a-glance counts (derived from the lists already loaded) */}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 1.5, mb: 1.5 }}>
+                        {[
+                            { label: 'Today', value: todaysAppointments.length, note: 'appointments' },
+                            { label: 'Arrived', value: todaysAppointments.filter((a) => a.arrived).length, note: 'checked in' },
+                            { label: 'Pending', value: pendingRequests.length, note: 'requests' },
+                            { label: 'No shows', value: todaysAppointments.filter((a) => a.no_show).length, note: 'so far today' },
+                        ].map((stat) => (
+                            <Paper key={stat.label} variant="outlined" sx={{ px: 2, py: 1.25 }}>
+                                <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                    {stat.label}
+                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                                    <Typography sx={{ fontSize: 28, lineHeight: '34px', fontWeight: 700 }}>{stat.value}</Typography>
+                                    <Typography variant="body2" color="text.secondary">{stat.note}</Typography>
+                                </Box>
+                            </Paper>
+                        ))}
+                    </Box>
+
                     {/* Column filters -- narrows the table below without ever
                         removing a row from the underlying data or refetching;
                         a status change never drops a patient out of this list. */}
-                    <Paper variant="outlined" sx={{ p: 1.5, mb: 1 }}>
+                    <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, bgcolor: '#f8fafc' }}>
                         <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                             <TextField
                                 size="small"
@@ -371,9 +392,9 @@ function AppointmentsSection({
                                 </TableHead>
                                 <TableBody>
                                     {displayedTodaysAppointments.map((appointment) => (
-                                        <TableRow key={appointment.id}>
+                                        <TableRow key={appointment.id} hover>
                                             <TableCell>
-                                                <Typography variant="body2">
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                                     {formatDateTime(appointment.appointment_datetime)}
                                                 </Typography>
                                             </TableCell>
@@ -427,15 +448,16 @@ function AppointmentsSection({
                                                             return (
                                                                 <Chip
                                                                     label={option?.label || 'Scheduled'}
-                                                                    color={getStatusColor(selected)}
                                                                     size="small"
-                                                                    variant="filled"
+                                                                    sx={getStatusChipSx(selected)}
                                                                 />
                                                             );
                                                         }}
                                                         sx={{
                                                             height: 32,
                                                             fontSize: '0.875rem',
+                                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: 'transparent' },
+                                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#cbd5e1' },
                                                             '& .MuiSelect-select': {
                                                                 padding: '4px 8px',
                                                                 display: 'flex',
@@ -447,9 +469,8 @@ function AppointmentsSection({
                                                             <MenuItem key={option.value} value={option.value}>
                                                                 <Chip
                                                                     label={option.label}
-                                                                    color={getStatusColor(option.value)}
                                                                     size="small"
-                                                                    variant="outlined"
+                                                                    sx={getStatusChipSx(option.value)}
                                                                 />
                                                             </MenuItem>
                                                         ))}
@@ -475,9 +496,16 @@ function AppointmentsSection({
             {/* Pending Requests */}
             {appointmentsTab === 'pending' && (
                 <Box>
-                    <Typography variant="h6" sx={{ color: 'primary.main', mb: 1 }}>
-                        Pending Appointment Requests
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1.5 }}>
+                        <Typography variant="h6">Pending Appointment Requests</Typography>
+                        {pendingRequests.length > 0 && (
+                            <Chip
+                                label={`${pendingRequests.length} waiting`}
+                                size="small"
+                                sx={{ bgcolor: '#fef3c7', color: '#92400e', fontWeight: 600 }}
+                            />
+                        )}
+                    </Box>
                     {pendingRequests.length === 0 ? (
                         <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
                             <Typography color="text.secondary">
@@ -488,17 +516,17 @@ function AppointmentsSection({
                         <TableContainer
                             component={Paper}
                             variant="outlined"
-                            sx={{ minWidth: 900 }}
+                            sx={{ overflowX: 'auto' }}
                         >
-                            <Table size="small">
+                            <Table size="small" sx={{ minWidth: 800 }}>
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell><b>Patient</b></TableCell>
-                                        <TableCell><b>Provider</b></TableCell>
-                                        <TableCell><b>Requested Date & Time</b></TableCell>
-                                        <TableCell><b>Visit</b></TableCell>
-                                        <TableCell><b>Description</b></TableCell>
-                                        <TableCell><b>Actions</b></TableCell>
+                                        <TableCell>Patient</TableCell>
+                                        <TableCell>Provider</TableCell>
+                                        <TableCell>Requested Date & Time</TableCell>
+                                        <TableCell>Visit</TableCell>
+                                        <TableCell>Description</TableCell>
+                                        <TableCell>Actions</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -518,7 +546,6 @@ function AppointmentsSection({
                                                     <Button
                                                         size="small"
                                                         variant="contained"
-                                                        color="success"
                                                         onClick={() => onApproveRequest && onApproveRequest(appointment.id)}
                                                     >
                                                         Approve
@@ -526,7 +553,8 @@ function AppointmentsSection({
                                                     <Button
                                                         size="small"
                                                         variant="outlined"
-                                                        color="error"
+                                                        color="inherit"
+                                                        sx={{ borderColor: '#cbd5e1', color: '#475569' }}
                                                         onClick={() => {
                                                             setDenyReason('');
                                                             setDenyDialogAppointment(appointment);
@@ -552,9 +580,16 @@ function AppointmentsSection({
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        mb: 1
+                        flexWrap: 'wrap',
+                        gap: 1.5,
+                        px: 2,
+                        py: 1.5,
+                        bgcolor: 'background.paper',
+                        border: '1px solid #e2e8f0',
+                        borderBottom: 0,
+                        borderRadius: '12px 12px 0 0',
                     }}>
-                        <Typography variant="h6" sx={{ color: 'primary.main' }}>
+                        <Typography variant="h6">
                             Appointments List
                         </Typography>
 
@@ -565,7 +600,7 @@ function AppointmentsSection({
                             onChange={(e) => setAppointmentsQuery(e.target.value)}
                             variant="outlined"
                             size="small"
-                            sx={{ minWidth: 300 }}
+                            sx={{ minWidth: 260, flex: "0 1 360px" }}
                             placeholder="Search by patient, provider, date, description..."
                         />
                     </Box>
@@ -581,38 +616,22 @@ function AppointmentsSection({
                         <TableContainer
                             component={Paper}
                             variant="outlined"
-                            sx={{ minWidth: 900 }}
+                            sx={{ overflowX: 'auto', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
                         >
                             <Table
                                 size="small"
-                                sx={{ "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f7fafc" } }}
+                                sx={{ minWidth: 800, "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f8fafc" } }}
                             >
                                 <TableHead>
                                     <TableRow>
-                                        <TableCell>
-                                            <b>Clinic Event</b>
-                                        </TableCell>
-                                        <TableCell>
-                                            <b>Patient</b>
-                                        </TableCell>
-                                        <TableCell>
-                                            <b>Provider</b>
-                                        </TableCell>
-                                        <TableCell>
-                                            <b>Date & Time</b>
-                                        </TableCell>
-                                        <TableCell>
-                                            <b>Description</b>
-                                        </TableCell>
-                                        <TableCell>
-                                            <b>Duration (min)</b>
-                                        </TableCell>
-                                        <TableCell>
-                                            <b>Status</b>
-                                        </TableCell>
-                                        <TableCell>
-                                            <b>Actions</b>
-                                        </TableCell>
+                                        <TableCell>Clinic Event</TableCell>
+                                        <TableCell>Patient</TableCell>
+                                        <TableCell>Provider</TableCell>
+                                        <TableCell>Date & Time</TableCell>
+                                        <TableCell>Description</TableCell>
+                                        <TableCell>Duration (min)</TableCell>
+                                        <TableCell>Status</TableCell>
+                                        <TableCell>Actions</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -642,7 +661,13 @@ function AppointmentsSection({
                                             </TableCell>
                                             <TableCell>{appointment.description || "-"}</TableCell>
                                             <TableCell>{appointment.duration_minutes || "-"}</TableCell>
-                                            <TableCell>{appointment.status || "scheduled"}</TableCell>
+                                            <TableCell>
+                                                <Chip
+                                                    label={(APPOINTMENT_STATUS_OPTIONS.find((o) => o.value === (appointment.status || 'scheduled')) || {}).label || appointment.status}
+                                                    size="small"
+                                                    sx={getStatusChipSx(appointment.status || 'scheduled')}
+                                                />
+                                            </TableCell>
                                             <TableCell>
                                                 <Box sx={{ display: "flex", gap: 1 }}>
                                                     <Tooltip title="View Appointment Details">

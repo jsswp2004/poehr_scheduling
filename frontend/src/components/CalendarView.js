@@ -187,7 +187,7 @@ const CalendarView = memo(function CalendarView({
                     cursor: "pointer",
                     pointerEvents: "none", // Disable pointer events on the box itself
                     "&:hover": {
-                      backgroundColor: "#218838",
+                      backgroundColor: "#065f46",
                       transform: "scale(1.1)",
                     },
                   }}
@@ -278,7 +278,7 @@ const CalendarView = memo(function CalendarView({
       if (isOrganizationBlockedDay || isHoliday || hasBlockingClinicEvent) {
         return {
           style: {
-            backgroundColor: "#fce4ec", // Light pink background for blocked days
+            backgroundColor: "#f1f5f9", // Soft slate background for blocked days
           },
         };
       }
@@ -360,12 +360,46 @@ const CalendarView = memo(function CalendarView({
         sx={{
           height: "calc(100vh - 200px)",
           mt: showBackButton ? 2 : 0,
+          p: 1.5,
+          pb: 6,
+          border: "1px solid #e2e8f0",
+          borderRadius: "12px",
+          bgcolor: "background.paper",
+          "& .rbc-calendar": { fontFamily: "inherit", color: "#0f172a" },
           "& .rbc-date-cell": {
             position: "relative",
+            fontSize: 13,
           },
           "& .rbc-month-view .rbc-date-cell": {
             minHeight: "40px",
           },
+          // Suite palette: slate borders, soft header, tinted today.
+          "& .rbc-month-view, & .rbc-time-view, & .rbc-agenda-view table.rbc-agenda-table": {
+            borderColor: "#e2e8f0",
+            borderRadius: "12px",
+            overflow: "hidden",
+          },
+          "& .rbc-header": {
+            backgroundColor: "#f8fafc",
+            color: "#475569",
+            fontWeight: 600,
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            py: 1,
+            borderColor: "#e2e8f0",
+          },
+          "& .rbc-header + .rbc-header, & .rbc-day-bg + .rbc-day-bg, & .rbc-month-row + .rbc-month-row, & .rbc-time-content > * + * > *, & .rbc-timeslot-group, & .rbc-time-header.rbc-overflowing, & .rbc-time-header-content, & .rbc-time-content, & .rbc-agenda-view table.rbc-agenda-table tbody > tr > td + td, & .rbc-agenda-view table.rbc-agenda-table tbody > tr + tr": {
+            borderColor: "#e2e8f0",
+          },
+          "& .rbc-today": { backgroundColor: "#eff6ff" },
+          "& .rbc-off-range-bg": { backgroundColor: "#f8fafc" },
+          "& .rbc-off-range": { color: "#64748b" },
+          "& .rbc-date-cell.rbc-now": { fontWeight: 700, color: "#1d4ed8" },
+          "& .rbc-label": { color: "#475569", fontSize: 12 },
+          "& .rbc-event": { borderRadius: "6px", fontWeight: 600 },
+          "& .rbc-show-more": { color: "#1d4ed8", fontWeight: 600 },
+          "& .rbc-current-time-indicator": { backgroundColor: "#2563eb" },
         }}
       >
         <Calendar
@@ -423,8 +457,8 @@ const CalendarView = memo(function CalendarView({
                 }
                 break;
               case "clinic_event":
-                backgroundColor = "#ffc107";
-                borderColor = "#ffc107";
+                backgroundColor = "#b45309";
+                borderColor = "#b45309";
                 break;
               case "holiday":
                 backgroundColor = "#dc2626";
