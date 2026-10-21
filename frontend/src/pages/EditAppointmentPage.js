@@ -43,7 +43,7 @@ function EditAppointmentPage() {
   if (error) {
     return (
       <Container maxWidth="sm" sx={{ mt: 6 }}>
-        <Paper sx={{ p: 4 }}>
+        <Paper variant="outlined" sx={{ p: 4 }}>
           <Typography color="error" align="center">{error}</Typography>
         </Paper>
       </Container>
@@ -52,7 +52,7 @@ function EditAppointmentPage() {
 
   return (
     <Container maxWidth={false} sx={{ mt: 6, mb: 6, maxWidth: 1100 }}>
-      <Paper sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3, boxShadow: 3, maxWidth: 1000, mx: 'auto' }}>
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3, boxShadow: 3, maxWidth: 1000, mx: 'auto' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>          <BackButton sx={{ mr: 2 }} />
 
         </Box>

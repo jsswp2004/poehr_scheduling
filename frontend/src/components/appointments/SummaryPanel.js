@@ -14,10 +14,10 @@ const SummaryPanel = ({ userName, greeting, totalToday, doctorPatientMap }) => {
     return (
         <Grid size={12}>
             <Paper
+                variant="outlined"
                 sx={{
                     p: 2,
                     borderRadius: 2,
-                    boxShadow: 2,
                     mb: 2,
                     minWidth: 420,
                     minHeight: 320,
@@ -28,7 +28,7 @@ const SummaryPanel = ({ userName, greeting, totalToday, doctorPatientMap }) => {
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <TodayIcon color="secondary" sx={{ mr: 1 }} />
-                    <Typography variant="h5" fontWeight={600}>
+                    <Typography variant="h6">
                         Summary
                     </Typography>
                 </Box>

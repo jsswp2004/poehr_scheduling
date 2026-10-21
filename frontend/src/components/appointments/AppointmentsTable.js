@@ -48,10 +48,10 @@ const AppointmentsTable = ({
     return (
         <Grid size={12}>
             <Paper
+                variant="outlined"
                 sx={{
-                    p: 3,
+                    p: 2,
                     borderRadius: 2,
-                    boxShadow: 2,
                     width: '100%',
                     display: 'flex',
                     flexDirection: 'column',
@@ -59,7 +59,7 @@ const AppointmentsTable = ({
                     overflow: 'hidden',
                 }}
             >
-                <Typography variant="h5" fontWeight={600} gutterBottom>
+                <Typography variant="h6" gutterBottom>
                     Appointments
                 </Typography>
 
@@ -78,7 +78,6 @@ const AppointmentsTable = ({
                 <TableContainer
                     sx={{
                         borderRadius: 2,
-                        boxShadow: 2,
                         flex: 1,
                         display: 'flex',
                         flexDirection: 'column',
@@ -93,16 +92,16 @@ const AppointmentsTable = ({
                             '& tbody tr:nth-of-type(odd)': { backgroundColor: '#f7fafc' },
                         }}
                     >
-                        <TableHead sx={{ bgcolor: '#dbeafe' }}>
+                        <TableHead>
                             <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Clinic Event</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Patient</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Provider</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Date & Time</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Duration (min)</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                                <TableCell>Clinic Event</TableCell>
+                                <TableCell>Patient</TableCell>
+                                <TableCell>Provider</TableCell>
+                                <TableCell>Date & Time</TableCell>
+                                <TableCell>Description</TableCell>
+                                <TableCell>Duration (min)</TableCell>
+                                <TableCell>Status</TableCell>
+                                <TableCell>Actions</TableCell>
                             </TableRow>
                         </TableHead>
 

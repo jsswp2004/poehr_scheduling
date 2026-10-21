@@ -287,10 +287,10 @@ function AppointmentsPage() {
         {/* Summary Panel */}
         <Grid size={12}>
           <Paper
+            variant="outlined"
             sx={{
               p: 2,
               borderRadius: 2,
-              boxShadow: 2,
               mb: 2,
               minWidth: 420,
               minHeight: 320, // Set the min height to your liking!
@@ -301,7 +301,7 @@ function AppointmentsPage() {
           >
             <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
               <TodayIcon color="secondary" sx={{ mr: 1 }} />
-              <Typography variant="h5" fontWeight={600}>
+              <Typography variant="h6">
                 Summary
               </Typography>
             </Box>
@@ -356,10 +356,10 @@ function AppointmentsPage() {
         {/* Today's Appointments Panel */}
         <Grid size={12}>
           <Paper
+            variant="outlined"
             sx={{
               p: 2,
               borderRadius: 2,
-              boxShadow: 2,
               mb: 2,
               minWidth: 420,
               minHeight: 320, // Set the min height to your liking!
@@ -370,19 +370,19 @@ function AppointmentsPage() {
           >
             <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
               <TodayIcon color="primary" sx={{ mr: 1 }} />
-              <Typography variant="h5" fontWeight={600}>
+              <Typography variant="h6">
                 Today's Appointments
               </Typography>
             </Box>{" "}
             <TableContainer sx={{ maxHeight: "300px", overflow: "auto" }}>
               <Table size="small" stickyHeader>
-                <TableHead sx={{ bgcolor: "#dbeafe" }}>
+                <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>Time</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Patient</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Provider</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Arrived</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>No Show</TableCell>
+                    <TableCell>Time</TableCell>
+                    <TableCell>Patient</TableCell>
+                    <TableCell>Provider</TableCell>
+                    <TableCell>Arrived</TableCell>
+                    <TableCell>No Show</TableCell>
                   </TableRow>
                 </TableHead>{" "}
                 <TableBody>
@@ -409,7 +409,7 @@ function AppointmentsPage() {
                           hover
                           sx={{
                             "&:hover": {
-                              backgroundColor: "#f0f7ff",
+                              backgroundColor: "action.hover",
                             },
                           }}
                         >
@@ -498,10 +498,10 @@ function AppointmentsPage() {
         {/* Appointments Table Panel */}
         <Grid size={12}>
           <Paper
+            variant="outlined"
             sx={{
-              p: 3,
+              p: 2,
               borderRadius: 2,
-              boxShadow: 2,
               width: "100%",
               display: "flex",
               flexDirection: "column",
@@ -509,7 +509,7 @@ function AppointmentsPage() {
               overflow: "hidden",
             }}
           >
-            <Typography variant="h5" fontWeight={600} gutterBottom>
+            <Typography variant="h6" gutterBottom>
               Appointments
             </Typography>
             <Box
@@ -527,7 +527,6 @@ function AppointmentsPage() {
             <TableContainer
               sx={{
                 borderRadius: 2,
-                boxShadow: 2,
                 flex: 1,
                 display: "flex",
                 flexDirection: "column",
@@ -539,27 +538,27 @@ function AppointmentsPage() {
               <Table
                 size="small"
                 sx={{
-                  "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f7fafc" },
+                  "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f8fafc" },
                 }}
               >
-                <TableHead sx={{ bgcolor: "#dbeafe" }}>
+                <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: "bold" }}>
+                    <TableCell>
                       Clinic Event
                     </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Patient</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Provider</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>
+                    <TableCell>Patient</TableCell>
+                    <TableCell>Provider</TableCell>
+                    <TableCell>
                       Date & Time
                     </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>
+                    <TableCell>
                       Description
                     </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>
+                    <TableCell>
                       Duration (min)
                     </TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Status</TableCell>
-                    <TableCell sx={{ fontWeight: "bold" }}>Actions</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
