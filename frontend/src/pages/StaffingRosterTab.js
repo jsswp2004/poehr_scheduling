@@ -155,6 +155,11 @@ function StaffingRosterTab({ isAdmin = false }) {
   const [editError, setEditError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
+  // Remove-from-roster confirmation
+  const [removeTarget, setRemoveTarget] = useState(null); // staff | null
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeError, setRemoveError] = useState("");
+
   // Row action menu
   const [menu, setMenu] = useState(null); // { anchorEl, staff } | null
 
@@ -270,19 +275,55 @@ function StaffingRosterTab({ isAdmin = false }) {
     }
   };
 
-  const handleDeactivate = async (s) => {
-    if (!window.confirm(`Remove ${s.full_name} from the roster? To keep their history and just stop scheduling them, mark them inactive instead.`)) {
-      return false;
-    }
+  const requestRemove = (s) => {
+    setRemoveError("");
+    setRemoveTarget(s);
+  };
+
+  const closeRemove = () => {
+    if (removeBusy) return;
+    setRemoveTarget(null);
+  };
+
+  // After removing or deactivating someone, close the panel if it is open on them.
+  const finishRemove = (message) => {
+    if (editForm.id && removeTarget && editForm.id === removeTarget.id) setEditOpen(false);
+    setNotice(message);
+    setRemoveTarget(null);
+    fetchStaff();
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    setRemoveBusy(true);
+    setRemoveError("");
     try {
-      await axios.delete(apiEndpoints.staffingStaffDetail(s.id), { headers: getAuthHeaders(token) });
-      setNotice(`${s.full_name} was removed from the roster.`);
-      fetchStaff();
-      return true;
+      await axios.delete(apiEndpoints.staffingStaffDetail(removeTarget.id), { headers: getAuthHeaders(token) });
+      finishRemove(`${removeTarget.full_name} was removed from the roster.`);
     } catch (err) {
       console.error("Failed to remove staff member", err);
-      setError("Failed to remove that staff member.");
-      return false;
+      setRemoveError(formatApiError(err.response?.data, "Failed to remove that staff member."));
+    } finally {
+      setRemoveBusy(false);
+    }
+  };
+
+  const markInactiveInstead = async () => {
+    if (!removeTarget) return;
+    setRemoveBusy(true);
+    setRemoveError("");
+    try {
+      await axios.patch(
+        apiEndpoints.staffingStaffDetail(removeTarget.id),
+        { is_active: false },
+        { headers: getAuthHeaders(token) }
+      );
+      finishRemove(`${removeTarget.full_name} was marked inactive. They stay on the roster but are not scheduled.`);
+    } catch (err) {
+      console.error("Failed to mark staff member inactive", err);
+      setRemoveError(formatApiError(err.response?.data, "Failed to mark that staff member inactive."));
+    } finally {
+      setRemoveBusy(false);
     }
   };
 
@@ -803,7 +844,7 @@ function StaffingRosterTab({ isAdmin = false }) {
         <Divider />
         <MenuItem
           onClick={() => {
-            handleDeactivate(menuStaff);
+            requestRemove(menuStaff);
             setMenu(null);
           }}
           sx={{ minHeight: 44, color: "error.main", fontWeight: 600 }}
@@ -957,9 +998,7 @@ function StaffingRosterTab({ isAdmin = false }) {
                   <Button
                     variant="outlined"
                     color="error"
-                    onClick={async () => {
-                      if (await handleDeactivate(editingStaff)) setEditOpen(false);
-                    }}
+                    onClick={() => requestRemove(editingStaff)}
                     sx={{ minHeight: 44 }}
                   >
                     Remove {editingStaff.full_name}
@@ -979,6 +1018,39 @@ function StaffingRosterTab({ isAdmin = false }) {
           </Stack>
         </Box>
       </Drawer>
+
+      {/* Remove-from-roster confirmation */}
+      <Dialog open={!!removeTarget} onClose={closeRemove} maxWidth="xs" fullWidth aria-labelledby="remove-staff-title">
+        <DialogTitle id="remove-staff-title">
+          Remove {removeTarget ? removeTarget.full_name : ""} from the roster?
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5} sx={{ mt: 0.5 }}>
+            {removeError && <Alert severity="error">{removeError}</Alert>}
+            <Typography>
+              They will be taken off the roster and future schedules.
+            </Typography>
+            {removeTarget && removeTarget.is_active && (
+              <Typography variant="body2" color="text.secondary">
+                If you only want to stop scheduling them and keep their history, mark them inactive instead.
+              </Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, flexWrap: "wrap", gap: 1 }}>
+          <Button color="inherit" onClick={closeRemove} disabled={removeBusy} sx={{ minHeight: 44 }}>
+            Cancel
+          </Button>
+          {removeTarget && removeTarget.is_active && (
+            <Button variant="outlined" onClick={markInactiveInstead} disabled={removeBusy} sx={{ minHeight: 44 }}>
+              Mark inactive instead
+            </Button>
+          )}
+          <Button variant="contained" color="error" onClick={confirmRemove} disabled={removeBusy} sx={{ minHeight: 44, px: 3 }}>
+            {removeBusy ? "Working..." : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Text / email dialog */}
       <Dialog open={!!messageDialog} onClose={closeMessageDialog} maxWidth="sm" fullWidth>
