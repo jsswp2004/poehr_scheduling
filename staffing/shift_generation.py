@@ -66,6 +66,37 @@ def generate_shifts_for_pattern(pattern, window_days=DEFAULT_WINDOW_DAYS):
     return shifts_created
 
 
+def prune_stale_shifts(pattern):
+    """
+    Remove today-and-later shifts generated from this pattern that it no longer
+    covers (it was ended, deactivated, had days removed, or its shift type
+    changed). Generation only ever adds rows, so without this an edit or an
+    "end schedule today" would leave the old future shifts on the calendar.
+
+    Past shifts are never touched, and neither are cancelled occurrences or
+    one-off overrides/pick-ups (only source="recurring" rows). Shifts that still
+    fit are kept, with their unit and times brought in line with the pattern.
+    """
+    today = timezone.localdate()
+    removed = 0
+    for shift in pattern.generated_shifts.filter(
+        date__gte=today, source="recurring", is_cancelled=False
+    ):
+        if shift.shift_type != pattern.shift_type or not pattern.applies_on(shift.date):
+            shift.delete()
+            removed += 1
+        elif (
+            shift.unit_id != pattern.unit_id
+            or shift.start_time != pattern.start_time
+            or shift.end_time != pattern.end_time
+        ):
+            shift.unit_id = pattern.unit_id
+            shift.start_time = pattern.start_time
+            shift.end_time = pattern.end_time
+            shift.save(update_fields=["unit", "start_time", "end_time", "updated_at"])
+    return removed
+
+
 def generate_shifts_from_patterns(window_days=DEFAULT_WINDOW_DAYS):
     """
     For every active recurring pattern, ensure a StaffShift row exists for
