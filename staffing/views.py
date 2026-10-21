@@ -27,7 +27,7 @@ from .models import (
 )
 from .coverage import evaluate_requirement
 from .csv_dry_run import build_row_report, is_dry_run, run_rolled_back
-from .shift_generation import generate_shifts_for_pattern
+from .shift_generation import generate_shifts_for_pattern, prune_stale_shifts
 from .serializers import (
     StaffRecurringPatternSerializer,
     StaffSerializer,
@@ -173,17 +173,19 @@ class StaffRecurringPatternViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSe
 
     def perform_update(self, serializer):
         pattern = serializer.save()
+        # Drop future shifts the edited pattern no longer covers (ended early,
+        # days removed, shift type changed), then top up any new ones.
+        prune_stale_shifts(pattern)
         generate_shifts_for_pattern(pattern)
 
     def perform_destroy(self, instance):
         # StaffShift.recurring_pattern uses on_delete=SET_NULL (by design,
         # so a shift already worked keeps existing if its pattern is later
-        # removed) -- but that means deleting a pattern would otherwise
-        # leave its generated shifts behind as orphaned "ghost" entries
-        # still showing on the calendar. Explicitly delete them here so
-        # removing a mistaken schedule actually clears it from the
-        # calendar, not just the pattern itself.
-        instance.generated_shifts.all().delete()
+        # removed). Deleting a pattern must still clear its upcoming shifts
+        # off the calendar, otherwise they linger as orphaned "ghost" entries.
+        # Only today-and-later shifts are removed: past shifts are history
+        # (they feed reports and compliance) and are kept, detached.
+        instance.generated_shifts.filter(date__gte=timezone.localdate()).delete()
         instance.delete()
 
 
