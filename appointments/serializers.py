@@ -1,3 +1,4 @@
+from django.db import models
 from rest_framework import serializers
 from .models import (
     Appointment,
@@ -10,6 +11,7 @@ from .models import (
     ClinicalNote,
     Dictionary,
     DictionaryItem,
+    NOTE_TYPES_DICTIONARY_CODE,
     NoteTemplate,
     NoteFieldDefinition,
     VitalSignsFlowsheet,
@@ -322,6 +324,22 @@ class NoteTemplateSerializer(serializers.ModelSerializer):
         fields = ["id", "code", "name", "version", "is_active", "fields"]
 
 
+class NoteTemplateAdminReadSerializer(NoteTemplateSerializer):
+    """What the Note Builder reads back: the template plus its note type (value and label).
+
+    Kept apart from NoteTemplateSerializer so the frozen template_snapshot stored on each note
+    is unchanged.
+    """
+
+    note_type_label = serializers.SerializerMethodField()
+
+    class Meta(NoteTemplateSerializer.Meta):
+        fields = NoteTemplateSerializer.Meta.fields + ["kind", "note_type", "note_type_label"]
+
+    def get_note_type_label(self, obj):
+        return NoteTemplateAdminSerializer.get_note_type_label(None, obj)
+
+
 # --- Phase 2: note-builder configuration UI (admin-only write access) -----
 # Everything below is used only by NoteTemplateAdminViewSet /
 # DictionaryAdminViewSet (appointments/views.py), gated by
@@ -333,10 +351,19 @@ class DictionaryItemAdminSerializer(serializers.ModelSerializer):
     """A single writable option row within a Dictionary's item list."""
 
     id = serializers.IntegerField(required=False)
+    # Only meaningful for the note_types dictionary: how many note templates
+    # use this value (null for every other dictionary).
+    usage_count = serializers.SerializerMethodField()
 
     class Meta:
         model = DictionaryItem
-        fields = ["id", "value", "label", "sort_order"]
+        fields = ["id", "value", "label", "sort_order", "usage_count"]
+        read_only_fields = ["usage_count"]
+
+    def get_usage_count(self, obj):
+        if obj.dictionary.code != NOTE_TYPES_DICTIONARY_CODE:
+            return None
+        return NoteTemplate.objects.filter(note_type=obj.value).count()
 
 
 class DictionaryAdminSerializer(serializers.ModelSerializer):
@@ -351,10 +378,47 @@ class DictionaryAdminSerializer(serializers.ModelSerializer):
 
     items = DictionaryItemAdminSerializer(many=True)
     usage_count = serializers.SerializerMethodField()
+    # True for the system-owned note_types dictionary (can't be deleted or re-coded).
+    is_system = serializers.SerializerMethodField()
 
     class Meta:
         model = Dictionary
-        fields = ["id", "code", "name", "description", "items", "usage_count"]
+        fields = ["id", "code", "name", "description", "items", "usage_count", "is_system"]
+        read_only_fields = ["is_system"]
+
+    def get_is_system(self, obj):
+        return obj.code == NOTE_TYPES_DICTIONARY_CODE
+
+    def _check_note_types_update(self, instance, validated_data, items_data):
+        """note_types values that templates use can't be removed or re-valued."""
+        if validated_data.get("code", instance.code) != NOTE_TYPES_DICTIONARY_CODE:
+            raise serializers.ValidationError(
+                {"code": "The code of the note types dictionary can't be changed."}
+            )
+        if items_data is None:
+            return
+        in_use = {
+            v: n
+            for v, n in (
+                NoteTemplate.objects.exclude(note_type="")
+                .values_list("note_type")
+                .annotate(n=models.Count("id"))
+            )
+        }
+        sent = {i["id"]: i for i in items_data if i.get("id")}
+        for item in instance.items.all():
+            n = in_use.get(item.value, 0)
+            if not n:
+                continue
+            kept = sent.get(item.id)
+            if kept is None:
+                raise serializers.ValidationError(
+                    {"items": f"'{item.label}' is used by {n} note template(s). Move them to another note type before deleting it."}
+                )
+            if kept["value"] != item.value:
+                raise serializers.ValidationError(
+                    {"items": f"The stored value of '{item.label}' can't change while {n} note template(s) use it. Rename the label instead."}
+                )
 
     def get_usage_count(self, obj):
         return obj.notefielddefinition_set.count()
@@ -369,6 +433,8 @@ class DictionaryAdminSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         items_data = validated_data.pop("items", None)
+        if instance.code == NOTE_TYPES_DICTIONARY_CODE:
+            self._check_note_types_update(instance, validated_data, items_data)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
@@ -461,11 +527,31 @@ class NoteTemplateAdminSerializer(serializers.ModelSerializer):
     """
 
     fields = NoteFieldDefinitionAdminSerializer(many=True)
+    note_type_label = serializers.SerializerMethodField()
 
     class Meta:
         model = NoteTemplate
-        fields = ["id", "code", "name", "kind", "organization", "is_active", "version", "fields"]
-        read_only_fields = ["id", "version"]
+        fields = ["id", "code", "name", "kind", "note_type", "note_type_label", "organization", "is_active", "version", "fields"]
+        read_only_fields = ["id", "version", "note_type_label"]
+
+    def get_note_type_label(self, obj):
+        if not obj.note_type:
+            return ""
+        item = DictionaryItem.objects.filter(
+            dictionary__code=NOTE_TYPES_DICTIONARY_CODE, value=obj.note_type
+        ).first()
+        return item.label if item else obj.note_type
+
+    def validate_note_type(self, value):
+        if not value:
+            return ""
+        if not DictionaryItem.objects.filter(
+            dictionary__code=NOTE_TYPES_DICTIONARY_CODE, value=value
+        ).exists():
+            raise serializers.ValidationError(
+                "Pick a note type from the list (manage them in the Dictionaries tab)."
+            )
+        return value
 
     def validate_fields(self, value):
         if not value:

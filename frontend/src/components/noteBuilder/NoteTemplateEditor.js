@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Accordion,
     AccordionSummary,
@@ -14,6 +14,8 @@ import {
     IconButton,
     MenuItem,
     Paper,
+    Tab,
+    Tabs,
     TextField,
     Typography,
 } from "@mui/material";
@@ -26,6 +28,7 @@ import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
+import DynamicNoteForm from "../DynamicNoteForm";
 import { describeCalc } from "../../utils/calculations";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
 import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
@@ -100,7 +103,7 @@ function blankField() {
  * how additions/removals/reordering/depends_on wiring and the
  * cosmetic-vs-structural version bump are resolved server-side.
  */
-function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
+function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "note" }) {
     const isNew = templateCode === null;
     const [loading, setLoading] = useState(!isNew);
     const [saving, setSaving] = useState(false);
@@ -113,6 +116,11 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
     const [version, setVersion] = useState(null);
     const [fields, setFields] = useState([]);
     const [dictionaries, setDictionaries] = useState([]);
+    // Value of an item in the note_types dictionary ("" = not set). Only note templates have one.
+    const [noteType, setNoteType] = useState("");
+    // A new template starts on Details (it needs a code and name first); an existing one on Fields.
+    const [tab, setTab] = useState(templateCode === null ? "details" : "fields");
+    const [previewValues, setPreviewValues] = useState({});
 
     // Bulk-assign tool: rather than hand-editing a "Tab" field on every one
     // of a long template's fields (e.g. ~97 Review-of-Systems fields), pick
@@ -144,6 +152,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                 setName(tpl.name);
                 setIsActive(tpl.is_active);
                 setVersion(tpl.version);
+                setNoteType(tpl.note_type || "");
 
                 const loaded = tpl.fields.map(fieldFromApi);
                 const keyToClientId = {};
@@ -304,6 +313,7 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
             is_active: isActive,
             // Only set when creating: a template's kind never changes afterwards.
             ...(isNew ? { kind } : {}),
+            ...(kind === "note" ? { note_type: noteType } : {}),
             fields: fields.map((f) => ({
                 client_id: f.clientId,
                 tab_label: f.tab_label || "",
@@ -349,6 +359,34 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
         }
     };
 
+    const noteTypeItems = (dictionaries.find((d) => d.code === "note_types") || { items: [] }).items;
+    const noteTypeLabel = (noteTypeItems.find((i) => i.value === noteType) || {}).label || "";
+
+    // The in-progress template in the shape DynamicNoteForm renders, so the Preview tab shows
+    // exactly what a clinician will see (nothing typed there is saved).
+    const previewTemplate = useMemo(() => {
+        const keyOf = (clientId) => (fields.find((f) => f.clientId === clientId) || {}).key || null;
+        return {
+            code,
+            name,
+            fields: fields.map((f, i) => ({
+                id: f.clientId,
+                key: f.key,
+                label: f.label || f.key,
+                field_type: f.field_type,
+                tab_label: f.tab_label || "",
+                section_label: f.section_label || "",
+                required: f.field_type === "calculated" ? false : !!f.required,
+                sort_order: i * 10,
+                help_text: f.help_text || "",
+                calc: f.calc || {},
+                options: f.dictionary ? ((dictionaries.find((d) => d.id === f.dictionary) || {}).items || []) : [],
+                depends_on_key: keyOf(f.dependsOnClientId),
+                depends_on_value: f.depends_on_value || "",
+            })),
+        };
+    }, [fields, dictionaries, code, name]);
+
     if (loading) {
         return (
             <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
@@ -359,9 +397,40 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
 
     return (
         <Box>
-            <Button startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ mb: 2 }}>
-                Back to templates
-            </Button>
+            {/* Pinned header: back, title, version, note type and Save stay put; only the tab content scrolls. */}
+            <Box
+                data-testid="editor-sticky-header"
+                sx={{
+                    position: "sticky",
+                    top: 64,
+                    zIndex: 5,
+                    bgcolor: "background.paper",
+                    borderBottom: 1,
+                    borderColor: "divider",
+                    mb: 2,
+                    pt: 1,
+                }}
+            >
+                <Button size="small" startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ mb: 0.5 }}>
+                    Back to templates
+                </Button>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 0.5 }}>
+                    <Typography variant="h5" component="h2">
+                        {name || (isNew ? "New template" : code)}
+                    </Typography>
+                    {version !== null && <Chip size="small" label={`v${version}`} />}
+                    {kind === "note" && noteTypeLabel && <Chip size="small" color="primary" variant="outlined" label={noteTypeLabel} />}
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Button variant="contained" startIcon={<SaveIcon />} onClick={save} disabled={saving}>
+                        Save Template
+                    </Button>
+                </Box>
+                <Tabs value={tab} onChange={(e, v) => setTab(v)}>
+                    <Tab label={`Fields (${fields.length})`} value="fields" />
+                    <Tab label="Preview" value="preview" />
+                    <Tab label="Details" value="details" />
+                </Tabs>
+            </Box>
 
             {error && (
                 <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
@@ -374,33 +443,79 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                 </Alert>
             )}
 
-            <Paper sx={{ p: 2, mb: 3 }}>
-                <Grid container spacing={2}>
-                    <Grid size={{ xs: 12, sm: 4 }}>
-                        <TextField
-                            label="Code"
-                            value={code}
-                            fullWidth
-                            disabled={!isNew}
-                            onChange={(e) => setCode(e.target.value)}
-                            helperText={isNew ? "Stable machine key, e.g. 'discharge_note'" : "Locked once created"}
-                        />
+            {tab === "details" && (
+                <Paper sx={{ p: 2, mb: 3 }}>
+                    <Grid container spacing={2}>
+                        <Grid size={{ xs: 12, sm: 3 }}>
+                            <TextField
+                                label="Code"
+                                value={code}
+                                fullWidth
+                                disabled={!isNew}
+                                onChange={(e) => setCode(e.target.value)}
+                                helperText={isNew ? "Stable machine key, e.g. 'discharge_note'" : "Locked once created"}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 12, sm: 4 }}>
+                            <TextField label="Name" value={name} fullWidth onChange={(e) => setName(e.target.value)} />
+                        </Grid>
+                        {kind === "note" && (
+                            <Grid size={{ xs: 12, sm: 3 }}>
+                                <TextField
+                                    select
+                                    label="Note type"
+                                    value={noteType}
+                                    fullWidth
+                                    onChange={(e) => setNoteType(e.target.value)}
+                                    helperText={
+                                        onManageNoteTypes ? (
+                                            <Button size="small" onClick={onManageNoteTypes} sx={{ p: 0, minWidth: 0 }}>
+                                                Manage note types
+                                            </Button>
+                                        ) : (
+                                            "Values come from the Note types dictionary"
+                                        )
+                                    }
+                                >
+                                    <MenuItem value="">(not set)</MenuItem>
+                                    {noteTypeItems.map((i) => (
+                                        <MenuItem key={i.value} value={i.value}>
+                                            {i.label}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Grid>
+                        )}
+                        <Grid size={{ xs: 12, sm: 2 }}>
+                            <FormControlLabel
+                                control={<Checkbox checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />}
+                                label="Active"
+                            />
+                        </Grid>
                     </Grid>
-                    <Grid size={{ xs: 12, sm: 5 }}>
-                        <TextField label="Name" value={name} fullWidth onChange={(e) => setName(e.target.value)} />
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 2 }}>
-                        <FormControlLabel
-                            control={<Checkbox checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />}
-                            label="Active"
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 12, sm: 1 }}>
-                        {version !== null && <Chip label={`v${version}`} />}
-                    </Grid>
-                </Grid>
-            </Paper>
+                </Paper>
+            )}
 
+            {tab === "preview" && (
+                <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                        This is how the form will look to the person writing the note. Nothing you type here is saved.
+                    </Typography>
+                    {fields.length === 0 ? (
+                        <Typography variant="body2">No fields yet. Add some on the Fields tab.</Typography>
+                    ) : (
+                        <DynamicNoteForm
+                            template={previewTemplate}
+                            values={previewValues}
+                            onChange={(key, value) => setPreviewValues((prev) => ({ ...prev, [key]: value }))}
+                            disabled={false}
+                        />
+                    )}
+                </Paper>
+            )}
+
+            {tab === "fields" && (
+                <Box>
             <Typography variant="h6" sx={{ mb: 1 }}>
                 Fields ({fields.length})
             </Typography>
@@ -673,11 +788,8 @@ function NoteTemplateEditor({ templateCode, onBack, kind = "note" }) {
                 Add Calculated Field (total / result)
             </Button>
 
-            <Box sx={{ display: "flex", gap: 2 }}>
-                <Button variant="contained" startIcon={<SaveIcon />} onClick={save} disabled={saving}>
-                    Save Template
-                </Button>
-            </Box>
+                </Box>
+            )}
         </Box>
     );
 }

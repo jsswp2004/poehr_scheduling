@@ -24,6 +24,7 @@ import ClearIcon from "@mui/icons-material/Clear";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
+import { formatApiError } from "../calc/builderItems";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own (App.js's interceptors are only wired to the default `axios` import,
@@ -78,6 +79,9 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
     );
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState("");
+    // The built-in note types dictionary: can't be deleted, and a value that note templates use
+    // can't be removed or have its stored value changed (the server enforces this too).
+    const isSystem = !!dictionary.is_system;
 
     const addItem = () => {
         setItems((prev) => [
@@ -122,12 +126,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                 onSaved(res.data);
             }
         } catch (e) {
-            const detail = e?.response?.data;
-            setError(
-                typeof detail === "string"
-                    ? detail
-                    : JSON.stringify(detail) || "Couldn't save this dictionary."
-            );
+            setError(formatApiError(e, "Couldn't save this dictionary."));
         } finally {
             setSaving(false);
         }
@@ -186,33 +185,56 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                 To use this list in a calculated total (for example a PHQ-9 score), make each stored value its
                 score: 0, 1, 2, 3. The label is what people see.
             </Typography>
-            {items.map((it) => (
-                <Grid container spacing={1} key={it._key} sx={{ mb: 1 }} alignItems="center">
-                    <Grid size={{ xs: 5, sm: 4 }}>
-                        <TextField
-                            label="Value (stored)"
-                            size="small"
-                            fullWidth
-                            value={it.value}
-                            onChange={(e) => updateItem(it._key, "value", e.target.value)}
-                        />
+            {isSystem && (
+                <Alert severity="info" sx={{ mb: 1.5 }}>
+                    These values fill the Note type picker on every note template. Add, rename or remove them here.
+                    A value that templates still use can be renamed but not removed. Move those templates to
+                    another note type first.
+                </Alert>
+            )}
+            {items.map((it) => {
+                const inUse = isSystem && typeof it.id === "number" && it.usage_count > 0;
+                return (
+                    <Grid container spacing={1} key={it._key} sx={{ mb: 1 }} alignItems="center">
+                        <Grid size={{ xs: 5, sm: 4 }}>
+                            <TextField
+                                label="Value (stored)"
+                                size="small"
+                                fullWidth
+                                value={it.value}
+                                disabled={inUse}
+                                onChange={(e) => updateItem(it._key, "value", e.target.value)}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 5, sm: 5 }}>
+                            <TextField
+                                label="Label (shown)"
+                                size="small"
+                                fullWidth
+                                value={it.label}
+                                onChange={(e) => updateItem(it._key, "label", e.target.value)}
+                            />
+                        </Grid>
+                        <Grid size={{ xs: 2, sm: 3 }} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <IconButton
+                                size="small"
+                                aria-label={`Remove ${it.label || it.value || "option"}`}
+                                disabled={inUse}
+                                onClick={() => removeItem(it._key)}
+                            >
+                                <DeleteIcon fontSize="small" />
+                            </IconButton>
+                            {isSystem && typeof it.id === "number" && (
+                                <Typography variant="caption" color="text.secondary" noWrap>
+                                    {it.usage_count > 0
+                                        ? `used by ${it.usage_count} template${it.usage_count === 1 ? "" : "s"}`
+                                        : "not used"}
+                                </Typography>
+                            )}
+                        </Grid>
                     </Grid>
-                    <Grid size={{ xs: 5, sm: 5 }}>
-                        <TextField
-                            label="Label (shown)"
-                            size="small"
-                            fullWidth
-                            value={it.label}
-                            onChange={(e) => updateItem(it._key, "label", e.target.value)}
-                        />
-                    </Grid>
-                    <Grid size={{ xs: 2, sm: 2 }}>
-                        <IconButton size="small" onClick={() => removeItem(it._key)}>
-                            <DeleteIcon fontSize="small" />
-                        </IconButton>
-                    </Grid>
-                </Grid>
-            ))}
+                );
+            })}
             <Button size="small" startIcon={<AddIcon />} onClick={addItem} sx={{ mb: 2 }}>
                 Add Option
             </Button>
@@ -221,9 +243,11 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                 <Button variant="contained" startIcon={<SaveIcon />} onClick={save} disabled={saving}>
                     Save
                 </Button>
-                <Button color="error" onClick={remove} disabled={saving}>
-                    Delete Dictionary
-                </Button>
+                {!isSystem && (
+                    <Button color="error" onClick={remove} disabled={saving}>
+                        Delete Dictionary
+                    </Button>
+                )}
             </Box>
         </Box>
     );
@@ -248,7 +272,8 @@ function DictionaryManager() {
         setError("");
         try {
             const res = await api.get(apiEndpoints.dictionariesAdmin, await authConfig());
-            setDictionaries(res.data);
+            // The built-in note types dictionary always sits first.
+            setDictionaries([...res.data].sort((a, b) => Number(!!b.is_system) - Number(!!a.is_system)));
         } catch (e) {
             setError("Couldn't load dictionaries.");
         }
@@ -375,6 +400,7 @@ function DictionaryManager() {
                                     </Typography>
                                 )}
                             </Box>
+                            {dic.is_system && <Chip size="small" color="primary" label="Used by templates" />}
                             <Chip size="small" label={`${dic.items.length} options`} />
                             {dic.usage_count > 0 && (
                                 <Chip size="small" color="info" label={`used by ${dic.usage_count} field(s)`} />

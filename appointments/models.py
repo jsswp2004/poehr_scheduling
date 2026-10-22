@@ -654,6 +654,12 @@ class DictionaryItem(models.Model):
         return f"{self.label} ({self.dictionary.code})"
 
 
+# Code of the Dictionary that supplies the values for NoteTemplate.note_type.
+# Admins add, rename, reorder and delete its values in the Note Builder's
+# Dictionaries tab; the dictionary itself is system-owned (can't be deleted).
+NOTE_TYPES_DICTIONARY_CODE = "note_types"
+
+
 class NoteTemplate(models.Model):
     """
     Defines a structured (non-SOAP) clinical note type -- e.g. "Admission
@@ -691,6 +697,14 @@ class NoteTemplate(models.Model):
         ("order_detail", "Order detail form"),
     ]
     kind = models.CharField(max_length=20, choices=KIND_CHOICES, default="note")
+    # Category of the note (Assessment, Triage, Progress...): the `value` of an
+    # item in the "note_types" Dictionary. Blank = not set yet.
+    note_type = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Value of an item in the note_types dictionary; blank = not set",
+    )
     version = models.PositiveIntegerField(default=1)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
