@@ -31,6 +31,7 @@ import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
 import DynamicNoteForm from "../DynamicNoteForm";
 import { describeCalc } from "../../utils/calculations";
+import { CHART_SOURCES, chartSourceLabel } from "../../utils/chartSources";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
 import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
 
@@ -51,6 +52,7 @@ const FIELD_TYPES = [
     { value: "numeric", label: "Numeric" },
     { value: "date", label: "Date" },
     { value: "calculated", label: "Calculated (total / result)" },
+    { value: "chart_data", label: "Chart data (read-only)" },
 ];
 const DICTIONARY_FIELD_TYPES = new Set(["radio", "dropdown", "multiselect"]);
 
@@ -225,6 +227,11 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                         : { ...blankCalc(), sources: suggestedTotalSources(prev.slice(0, index), f.section_label, dictionaries) };
                     return { ...f, field_type: newType, dictionary: null, required: false, calc };
                 }
+                // Chart data shows part of the patient's chart, read-only: nothing to fill in, so never required.
+                if (newType === "chart_data") {
+                    const source = f.calc && f.calc.source ? f.calc.source : CHART_SOURCES[0].value;
+                    return { ...f, field_type: newType, dictionary: null, required: false, calc: { source } };
+                }
                 return { ...f, field_type: newType, calc: {} };
             })
         );
@@ -308,6 +315,10 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 setError(`Field "${f.label || f.key}" needs a dictionary (its type requires one).`);
                 return;
             }
+            if (f.field_type === "chart_data" && !(f.calc && f.calc.source)) {
+                setError(`Field "${f.label || f.key}" needs a chart source (what part of the chart it shows).`);
+                return;
+            }
             if (f.field_type === "calculated") {
                 const problem = calcProblems(f.calc, calcCandidates(fields, i, dictionaries));
                 if (problem) {
@@ -331,9 +342,9 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 key: f.key,
                 label: f.label,
                 field_type: f.field_type,
-                dictionary: f.field_type === "calculated" ? null : f.dictionary || null,
-                calc: f.field_type === "calculated" ? f.calc : {},
-                required: f.field_type === "calculated" ? false : f.required,
+                dictionary: f.field_type === "calculated" || f.field_type === "chart_data" ? null : f.dictionary || null,
+                calc: f.field_type === "calculated" || f.field_type === "chart_data" ? f.calc : {},
+                required: f.field_type === "calculated" || f.field_type === "chart_data" ? false : f.required,
                 help_text: f.help_text,
                 depends_on_client_id: f.dependsOnClientId || null,
                 depends_on_value: f.depends_on_value || "",
@@ -391,7 +402,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 field_type: f.field_type,
                 tab_label: f.tab_label || "",
                 section_label: f.section_label || "",
-                required: f.field_type === "calculated" ? false : !!f.required,
+                required: f.field_type === "calculated" || f.field_type === "chart_data" ? false : !!f.required,
                 sort_order: i * 10,
                 help_text: f.help_text || "",
                 calc: f.calc || {},
@@ -646,6 +657,8 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                         const detail =
                             f.field_type === "calculated"
                                 ? describeCalc(f.calc)
+                                : f.field_type === "chart_data"
+                                ? `Shows: ${chartSourceLabel(f.calc && f.calc.source)}`
                                 : dependsOnField
                                 ? `Shown if: ${dependsOnField.label || dependsOnField.key}`
                                 : dic
@@ -810,12 +823,31 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                         </TextField>
                                     </Grid>
                                 )}
+                                {f.field_type === "chart_data" && (
+                                    <Grid size={{ xs: 12, sm: 4 }}>
+                                        <TextField
+                                            size="small"
+                                            select
+                                            label="Chart source"
+                                            fullWidth
+                                            value={(f.calc && f.calc.source) || ""}
+                                            onChange={(e) => updateField(f.clientId, { calc: { source: e.target.value } })}
+                                            helperText="Shown read-only; saved with the note"
+                                        >
+                                            {CHART_SOURCES.map((c) => (
+                                                <MenuItem key={c.value} value={c.value}>
+                                                    {c.label}
+                                                </MenuItem>
+                                            ))}
+                                        </TextField>
+                                    </Grid>
+                                )}
                                 <Grid size={{ xs: 12, sm: 4 }}>
                                     <FormControlLabel
                                         control={
                                             <Checkbox
-                                                checked={f.required && f.field_type !== "calculated"}
-                                                disabled={f.field_type === "calculated"}
+                                                checked={f.required && f.field_type !== "calculated" && f.field_type !== "chart_data"}
+                                                disabled={f.field_type === "calculated" || f.field_type === "chart_data"}
                                                 onChange={(e) => updateField(f.clientId, { required: e.target.checked })}
                                             />
                                         }

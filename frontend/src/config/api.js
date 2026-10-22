@@ -198,6 +198,7 @@ export const apiEndpoints = {
     vaccineRiskDetail: (id, assignment) => `${API_BASE_URL}/api/vaccine-manager/patient/${id}/risk-schedules/${assignment}/`,
     vaccineVoid: (recordId) => `${API_BASE_URL}/api/vaccine-manager/doses/${recordId}/void/`,
     clinicalSummary: `${API_BASE_URL}/api/clinical-summary/`,
+    noteChartData: `${API_BASE_URL}/api/note-chart-data/`,
     problemList: `${API_BASE_URL}/api/problem-list/`,
     problemEntry: (id) => `${API_BASE_URL}/api/problem-list/${id}/`,
     prescriptionQueues: `${API_BASE_URL}/api/prescriptions/queues/`,

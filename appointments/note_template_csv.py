@@ -55,6 +55,7 @@ FIELD_TYPE_LABELS = {
     "numeric": "Numeric",
     "date": "Date",
     "calculated": "Calculated (total / result)",
+    "chart_data": "Chart data (read-only)",
 }
 DICTIONARY_TYPES = {"radio", "dropdown", "multiselect"}
 
@@ -290,8 +291,21 @@ def parse_template_csv(text):
                     for problem in problems:
                         errors.append(_err(row_num, CALC_COLUMN, problem))
                     calc = calc or {}
+        elif field_type == "chart_data":
+            # The Calculation column holds {"source": "problems"}: which part of the chart the field shows.
+            from .chart_data import SOURCES as CHART_SOURCES  # lazy: pulls in the models
+
+            try:
+                candidate = json.loads(raw_calc) if raw_calc else None
+            except ValueError:
+                candidate = None
+            source = candidate.get("source") if isinstance(candidate, dict) else None
+            if source not in CHART_SOURCES:
+                errors.append(_err(row_num, CALC_COLUMN, 'A Chart data field needs {"source": "<name>"} in the Calculation column, with the name one of: ' + ", ".join(CHART_SOURCES) + "."))
+            else:
+                calc = {"source": source}
         elif raw_calc:
-            errors.append(_err(row_num, CALC_COLUMN, "Calculation must be blank unless the Field Type is Calculated."))
+            errors.append(_err(row_num, CALC_COLUMN, "Calculation must be blank unless the Field Type is Calculated or Chart data."))
 
         if key and SLUG_RE.match(key) and key not in seen_keys:
             seen_keys[key] = row_num
@@ -316,7 +330,7 @@ def parse_template_csv(text):
                     "key": key,
                     "label": label,
                     "field_type": field_type,
-                    "required": required,
+                    "required": required and field_type != "chart_data",
                     "help_text": help_text,
                     "depends_on_key": dep_key,
                     "depends_on_value": dep_value or "",
@@ -356,7 +370,7 @@ def build_csv_text(code, name, fields):
     for calculated fields, calc. The Calculation column is added only when some
     field is calculated.
     """
-    with_calc = any(f["field_type"] == "calculated" for f in fields)
+    with_calc = any(f["field_type"] in ("calculated", "chart_data") for f in fields)
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\r\n")
     writer.writerow(COLUMNS + ([CALC_COLUMN] if with_calc else []))
@@ -378,7 +392,7 @@ def build_csv_text(code, name, fields):
         if with_calc:
             line.append(
                 json.dumps(f["calc"], sort_keys=True, separators=(",", ":"))
-                if f["field_type"] == "calculated" and f.get("calc")
+                if f["field_type"] in ("calculated", "chart_data") and f.get("calc")
                 else ""
             )
         writer.writerow(line)

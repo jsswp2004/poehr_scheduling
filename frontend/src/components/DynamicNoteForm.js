@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { INTERPRETATION_SUFFIX, applyCalculations, computeCalc } from "../utils/calculations";
 import DictationTextField from "./dictation/DictationTextField";
+import ChartDataField from "./ChartDataField";
 
 /**
  * Renders a form for any structured (non-SOAP) ClinicalNote from a
@@ -41,6 +42,8 @@ import DictationTextField from "./dictation/DictationTextField";
  *   checkbox    -> single Checkbox (stored as boolean)
  *   numeric     -> TextField type="number"
  *   date        -> TextField type="date"
+ *   chart_data  -> part of the patient's chart (field.calc.source) shown read-only; needs `patientId`.
+ *                  The server stores a snapshot of it in the note on save and at signing.
  *   calculated  -> read-only result (a total / score) worked out live from
  *                  other fields by the field's `calc` config, with its
  *                  interpretation and cautions; stored like any other value
@@ -86,6 +89,15 @@ export function formatFieldValue(field, rawValue, allValues) {
     const interpretation =
       (computed && computed.interpretation) || (allValues && allValues[field.key + INTERPRETATION_SUFFIX]) || "";
     return interpretation ? `${rawValue} (${interpretation})` : String(rawValue);
+  }
+  if (field.field_type === "chart_data") {
+    // The snapshot the server kept: one line per chart row, or the "nothing on the chart" text.
+    if (!rawValue || typeof rawValue !== "object" || rawValue.hidden) return null;
+    if (!rawValue.rows || rawValue.rows.length === 0) return rawValue.empty || null;
+    const columns = rawValue.columns || [];
+    return rawValue.rows
+      .map((row) => columns.map((c) => row[c.key]).filter(Boolean).join(", "))
+      .join("; ");
   }
   if (field.field_type === "multiselect") {
     if (!Array.isArray(rawValue) || rawValue.length === 0) return null;
@@ -141,7 +153,7 @@ export function groupByTab(fieldList) {
   return tabs;
 }
 
-function DynamicNoteForm({ template, values, onChange, disabled }) {
+function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
   const fields = template?.fields || [];
   const [activeTab, setActiveTab] = useState(0);
 
@@ -353,6 +365,9 @@ function DynamicNoteForm({ template, values, onChange, disabled }) {
           </FormControl>
         );
       }
+
+      case "chart_data":
+        return <ChartDataField key={field.key} field={field} value={value} patientId={patientId} />;
 
       case "calculated": {
         const result = computeCalc(field.calc, values);

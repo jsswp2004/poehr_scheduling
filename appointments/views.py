@@ -1901,9 +1901,20 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
             if problems:
                 return Response({"detail": problems[0], "problems": problems}, status=status.HTTP_400_BAD_REQUEST)
             note.structured_data = {**(note.structured_data or {}), "triage_snapshot": snapshot}
+        # A chart data field keeps what the chart said when the note was signed.
+        keeps_chart = False
+        if note.template_id:
+            chart_fields = [f for f in note.template.fields.all() if f.field_type == "chart_data"]
+            if chart_fields:
+                from .chart_data import capture
+
+                values = dict(note.structured_data or {})
+                capture(values, chart_fields, note.patient, request.user)
+                note.structured_data = values
+                keeps_chart = True
         note.status = "signed"
         note.signed_at = timezone.now()
-        note.save(update_fields=["status", "signed_at"] + (["structured_data"] if is_triage else []))
+        note.save(update_fields=["status", "signed_at"] + (["structured_data"] if (is_triage or keeps_chart) else []))
         alert = None
         if is_triage:
             triage_service.finish_signing(note)
