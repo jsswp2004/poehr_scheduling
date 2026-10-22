@@ -7,6 +7,7 @@ import {
   Select,
   MenuItem,
   Button,
+  IconButton,
   Alert,
   Stack,
   TextField,
@@ -20,41 +21,131 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   TablePagination,
+  Paper,
+  LinearProgress,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload, faPrint } from "@fortawesome/free-solid-svg-icons";
+import {
+  faDownload,
+  faPrint,
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import StaffingMasterReport from "./StaffingMasterReport";
 import StaffingDailyReports from "./StaffingDailyReports";
 
-const REPORT_TYPES = [
-  { value: "schedule", label: "Schedule (Day / Week / Month)" },
-  { value: "master_schedule", label: "Master Schedule (printable month)" },
-  { value: "daily_forms", label: "Daily Staffing Forms (printable PDFs)" },
-  { value: "unscheduled", label: "Staff With No Schedule" },
-  { value: "labor_hours", label: "Labor Hours Summary" },
-  { value: "coverage_compliance", label: "Coverage Compliance" },
-  { value: "message_log", label: "Message Delivery Log" },
-  { value: "shift_distribution", label: "Shift-Type Distribution" },
+const REPORT_GROUPS = [
+  {
+    label: "Compliance",
+    items: [
+      {
+        value: "coverage_compliance",
+        label: "Coverage compliance",
+        description: "Each unit and shift checked against its staffing standard and coverage requirements.",
+      },
+    ],
+  },
+  {
+    label: "Schedules",
+    items: [
+      {
+        value: "schedule",
+        label: "Schedule",
+        description: "Every scheduled shift in the date range.",
+      },
+      {
+        value: "master_schedule",
+        label: "Master schedule",
+        printable: true,
+        description: "A printable month view of the whole schedule.",
+      },
+      {
+        value: "daily_forms",
+        label: "Daily staffing forms",
+        printable: true,
+        description: "Printable daily staffing forms.",
+      },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      {
+        value: "unscheduled",
+        label: "Staff with no schedule",
+        description: "Active staff who have no shifts in the date range.",
+      },
+      {
+        value: "labor_hours",
+        label: "Labor hours",
+        description: "Total scheduled hours for each person in the date range.",
+      },
+      {
+        value: "shift_distribution",
+        label: "Shift-type distribution",
+        description: "How many day, evening, night and custom shifts each person works.",
+      },
+    ],
+  },
+  {
+    label: "Messages",
+    items: [
+      {
+        value: "message_log",
+        label: "Message delivery log",
+        description: "Texts and emails sent to staff, and whether they were delivered.",
+      },
+    ],
+  },
 ];
+
+const ALL_REPORTS = REPORT_GROUPS.flatMap((g) => g.items);
+const REPORT_BY_VALUE = ALL_REPORTS.reduce((acc, r) => {
+  acc[r.value] = r;
+  return acc;
+}, {});
+const NO_DATE_REPORTS = ["master_schedule", "daily_forms"];
 
 const REPORT_PAGE_SIZE = 14; // rows shown per page in every report table
 
 const SHIFT_TYPE_ORDER = ["day", "evening", "night", "custom"];
 const SHIFT_TYPE_LABELS = { day: "Day", evening: "Evening", night: "Night", custom: "Custom" };
 
-const REPORT_LABELS = REPORT_TYPES.reduce((acc, r) => {
-  acc[r.value] = r.label;
-  return acc;
-}, {});
+const STATUS_COLORS = { Met: "success", "At risk": "warning", Understaffed: "error" };
 
 function formatLocalDate(d) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function parseISO(s) {
+  const [y, m, d] = String(s).split("-").map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
+}
+
+function addDays(d, n) {
+  const out = new Date(d);
+  out.setDate(out.getDate() + n);
+  return out;
+}
+
+function formatRange(startStr, endStr) {
+  if (!startStr || !endStr) return "Choose dates";
+  const s = parseISO(startStr);
+  const e = parseISO(endStr);
+  const md = { month: "short", day: "numeric" };
+  const mdy = { month: "short", day: "numeric", year: "numeric" };
+  if (startStr === endStr) return s.toLocaleDateString(undefined, mdy);
+  if (s.getFullYear() === e.getFullYear()) {
+    return `${s.toLocaleDateString(undefined, md)} – ${e.toLocaleDateString(undefined, mdy)}`;
+  }
+  return `${s.toLocaleDateString(undefined, mdy)} – ${e.toLocaleDateString(undefined, mdy)}`;
 }
 
 function getPresetRange(preset) {
@@ -101,18 +192,133 @@ function downloadCsv(filename, headers, rows) {
   window.URL.revokeObjectURL(url);
 }
 
+// ---------------------------------------------------------------------------
+// Small presentational pieces
+// ---------------------------------------------------------------------------
+
+function SummaryTile({ label, value, hint, color, selected, onClick }) {
+  const interactive = typeof onClick === "function";
+  return (
+    <Box
+      component={interactive ? "button" : "div"}
+      type={interactive ? "button" : undefined}
+      onClick={onClick}
+      aria-pressed={interactive ? !!selected : undefined}
+      sx={(theme) => ({
+        flex: "1 1 160px",
+        minWidth: 140,
+        boxSizing: "border-box",
+        textAlign: "left",
+        font: "inherit",
+        color: "text.primary",
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.25,
+        px: 2,
+        py: 1.5,
+        borderRadius: 2,
+        bgcolor: "background.paper",
+        border: "1px solid",
+        borderColor: selected ? "primary.main" : "divider",
+        boxShadow: selected ? `0 0 0 3px ${alpha(theme.palette.primary.main, 0.18)}` : "none",
+        cursor: interactive ? "pointer" : "default",
+        "&:hover": interactive ? { borderColor: "primary.main" } : undefined,
+        "&:focus-visible": { outline: `3px solid ${theme.palette.primary.main}`, outlineOffset: 2 },
+      })}
+    >
+      <Typography variant="body2" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography
+        sx={{ fontSize: 28, fontWeight: 600, lineHeight: 1.15 }}
+        color={color || "text.primary"}
+      >
+        {value}
+      </Typography>
+      {hint && (
+        <Typography variant="caption" color="text.secondary">
+          {hint}
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+function StatusChip({ status }) {
+  const color = STATUS_COLORS[status] || "default";
+  return (
+    <Chip
+      size="small"
+      label={status}
+      sx={(theme) =>
+        color === "default"
+          ? { fontWeight: 600 }
+          : {
+              fontWeight: 600,
+              bgcolor: alpha(theme.palette[color].main, 0.12),
+              color: theme.palette[color].dark,
+            }
+      }
+    />
+  );
+}
+
+function TableShell({ children, minWidth = 640 }) {
+  return (
+    <Paper variant="outlined" sx={{ overflowX: "auto", borderRadius: 2 }}>
+      <Table
+        size="small"
+        sx={{
+          minWidth,
+          "& thead th": {
+            bgcolor: "action.hover",
+            fontWeight: 600,
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            color: "text.secondary",
+            py: 1.25,
+          },
+          "& tbody td": { py: 1.25 },
+        }}
+      >
+        {children}
+      </Table>
+    </Paper>
+  );
+}
+
+function EmptyNote({ children }) {
+  return (
+    <Paper variant="outlined" sx={{ p: 4, textAlign: "center", borderRadius: 2 }}>
+      <Typography variant="body2" color="text.secondary">
+        {children}
+      </Typography>
+    </Paper>
+  );
+}
+
+function TileRow({ children }) {
+  return (
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }} className="no-print-tiles">
+      {children}
+    </Box>
+  );
+}
+
 function StaffingReportsTab() {
   const token = getAccessToken();
 
-  const [reportType, setReportType] = useState("schedule");
+  const [reportType, setReportType] = useState("coverage_compliance");
   const [preset, setPreset] = useState("week");
   const [startDate, setStartDate] = useState(() => getPresetRange("week").start);
   const [endDate, setEndDate] = useState(() => getPresetRange("week").end);
   const [profession, setProfession] = useState("");
   const [staffFilterId, setStaffFilterId] = useState("");
-  // Coverage Compliance only: filter the rows by unit and shift (done in the browser).
+  // Coverage Compliance only: filter the rows by unit, shift and status (done in the browser).
   const [unitFilterId, setUnitFilterId] = useState("");
   const [shiftFilter, setShiftFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const [unitList, setUnitList] = useState([]);
   const [staffList, setStaffList] = useState([]);
@@ -145,7 +351,8 @@ function StaffingReportsTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const filteredCompliance = useMemo(
+  // Unit + shift filters apply first; the status tiles then narrow what is left.
+  const unitShiftCompliance = useMemo(
     () =>
       complianceRows.filter(
         (r) =>
@@ -154,13 +361,26 @@ function StaffingReportsTab() {
       ),
     [complianceRows, unitFilterId, shiftFilter]
   );
-  const complianceFiltered = unitFilterId !== "" || shiftFilter !== "";
-  const complianceUnderstaffed = filteredCompliance.filter((r) => r.status === "Understaffed").length;
-  const complianceAtRisk = filteredCompliance.filter((r) => r.status === "At risk").length;
+  const shownCompliance = useMemo(
+    () =>
+      statusFilter === "all"
+        ? unitShiftCompliance
+        : unitShiftCompliance.filter((r) => r.status === statusFilter),
+    [unitShiftCompliance, statusFilter]
+  );
+  const complianceFiltering = unitFilterId !== "" || shiftFilter !== "" || statusFilter !== "all";
+  const countStatus = (st) => unitShiftCompliance.filter((r) => r.status === st).length;
   const complianceUnitName = unitList.find((u) => String(u.id) === String(unitFilterId))?.name;
   const complianceWarnings = (complianceSummary?.warnings || []).filter(
     (w) => !complianceUnitName || !w.startsWith("No census on file for") || w.includes(complianceUnitName)
   );
+
+  const sortedLabor = useMemo(
+    () => [...laborRows].sort((a, b) => Number(b.total_hours || 0) - Number(a.total_hours || 0)),
+    [laborRows]
+  );
+  const laborTotal = laborRows.reduce((a, r) => a + Number(r.total_hours || 0), 0);
+  const laborMax = sortedLabor.length ? Number(sortedLabor[0].total_hours || 0) : 0;
 
   // Back to page 1 whenever the report, its data or its filters change.
   useEffect(() => {
@@ -175,6 +395,7 @@ function StaffingReportsTab() {
     distributionRows,
     unitFilterId,
     shiftFilter,
+    statusFilter,
     staffFilterId,
   ]);
 
@@ -185,7 +406,7 @@ function StaffingReportsTab() {
     return rows.slice(p * REPORT_PAGE_SIZE, p * REPORT_PAGE_SIZE + REPORT_PAGE_SIZE);
   };
 
-  // Arrows for the top right of each report table.
+  // Page arrows under each report table.
   const pager = (count) => {
     if (count <= REPORT_PAGE_SIZE) return null;
     const last = Math.max(0, Math.ceil(count / REPORT_PAGE_SIZE) - 1);
@@ -211,6 +432,7 @@ function StaffingReportsTab() {
   const showProfessionFilter = ["schedule", "unscheduled", "labor_hours", "shift_distribution"].includes(
     reportType
   );
+  const hasDates = !NO_DATE_REPORTS.includes(reportType);
 
   const handlePresetChange = (_e, value) => {
     if (!value) return;
@@ -220,6 +442,31 @@ function StaffingReportsTab() {
       setStartDate(range.start);
       setEndDate(range.end);
     }
+  };
+
+  // Previous / next day, week, month or custom-length range.
+  const stepRange = (dir) => {
+    if (!startDate || !endDate) return;
+    const s = parseISO(startDate);
+    const e = parseISO(endDate);
+    let ns;
+    let ne;
+    if (preset === "today") {
+      ns = addDays(s, dir);
+      ne = ns;
+    } else if (preset === "week") {
+      ns = addDays(s, 7 * dir);
+      ne = addDays(ns, 6);
+    } else if (preset === "month") {
+      ns = new Date(s.getFullYear(), s.getMonth() + dir, 1);
+      ne = new Date(ns.getFullYear(), ns.getMonth() + 1, 0);
+    } else {
+      const span = Math.round((e - s) / 86400000) + 1;
+      ns = addDays(s, span * dir);
+      ne = addDays(e, span * dir);
+    }
+    setStartDate(formatLocalDate(ns));
+    setEndDate(formatLocalDate(ne));
   };
 
   const runReport = useCallback(async () => {
@@ -322,7 +569,7 @@ function StaffingReportsTab() {
     downloadCsv(
       `staffing_coverage_compliance_${startDate}_to_${endDate}.csv`,
       ["Date", "Unit", "Shift", "Type", "Census", "Required Staff", "Assigned", "Required Care Hours", "Scheduled Care Hours", "Status", "Details", "Alert Sent"],
-      filteredCompliance.map((r) => [
+      shownCompliance.map((r) => [
         r.date,
         r.unit_name || "",
         r.shift_type_display,
@@ -363,16 +610,32 @@ function StaffingReportsTab() {
     }, 150);
   };
 
+  const meta = REPORT_BY_VALUE[reportType];
+  const exportInfo = {
+    schedule: { count: shifts.length, run: handleExportSchedule },
+    unscheduled: { count: unscheduled.length, run: handleExportUnscheduled },
+    labor_hours: { count: laborRows.length, run: handleExportLaborHours },
+    coverage_compliance: { count: shownCompliance.length, run: handleExportCompliance },
+    message_log: { count: messageRows.length, run: handleExportMessageLog },
+    shift_distribution: { count: distributionRows.length, run: handleExportDistribution },
+  }[reportType];
+
+  const clearComplianceFilters = () => {
+    setUnitFilterId("");
+    setShiftFilter("");
+    setStatusFilter("all");
+  };
+
   const staffFilterControl = (
     <FormControl size="small" sx={{ minWidth: 200 }}>
-      <InputLabel id="report-staff-label">Staff (all)</InputLabel>
+      <InputLabel id="report-staff-label">Staff</InputLabel>
       <Select
         labelId="report-staff-label"
-        label="Staff (all)"
+        label="Staff"
         value={staffFilterId}
         onChange={(e) => setStaffFilterId(e.target.value)}
       >
-        <MenuItem value="">All</MenuItem>
+        <MenuItem value="">All staff</MenuItem>
         {staffList.map((s) => (
           <MenuItem key={s.id} value={s.id}>
             {s.full_name}
@@ -381,6 +644,30 @@ function StaffingReportsTab() {
       </Select>
     </FormControl>
   );
+
+  const professionFilterControl = (
+    <FormControl size="small" sx={{ minWidth: 200 }}>
+      <InputLabel id="report-profession-label">Profession</InputLabel>
+      <Select
+        labelId="report-profession-label"
+        label="Profession"
+        value={profession}
+        onChange={(e) => setProfession(e.target.value)}
+      >
+        <MenuItem value="">All professions</MenuItem>
+        {professions.map((p) => (
+          <MenuItem key={p} value={p}>
+            {p}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
+  const distributionCount = (t) =>
+    distributionTotals && distributionTotals[t] != null
+      ? distributionTotals[t]
+      : distributionRows.reduce((a, r) => a + (r[t] || 0), 0);
 
   return (
     <Box>
@@ -395,464 +682,695 @@ function StaffingReportsTab() {
         .print-only-header { display: none; }
       `}</style>
 
-      <Typography variant="h6" sx={{ mb: 1 }} className="no-print">
+      <Typography variant="h6" sx={{ mb: 2 }} className="no-print">
         Reports
       </Typography>
 
-      <Stack spacing={1.5} sx={{ mb: 1.5, maxWidth: 1000 }} className="no-print">
-        <FormControl size="small" sx={{ minWidth: 280 }}>
-          <InputLabel id="report-type-label">Report</InputLabel>
-          <Select
-            labelId="report-type-label"
-            label="Report"
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value)}
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, alignItems: "flex-start" }}>
+        {/* Report picker: a grouped list on wide screens, a select on narrow ones */}
+        <Box className="no-print" sx={{ width: { xs: "100%", md: 250 }, flex: "none" }}>
+          <FormControl size="small" fullWidth sx={{ display: { xs: "flex", md: "none" } }}>
+            <InputLabel id="report-type-label">Report</InputLabel>
+            <Select
+              labelId="report-type-label"
+              label="Report"
+              value={reportType}
+              onChange={(e) => setReportType(e.target.value)}
+            >
+              {ALL_REPORTS.map((r) => (
+                <MenuItem key={r.value} value={r.value}>
+                  {r.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Paper
+            component="nav"
+            aria-label="Reports"
+            variant="outlined"
+            sx={{ display: { xs: "none", md: "flex" }, flexDirection: "column", gap: 0.25, p: 1, borderRadius: 2 }}
           >
-            {REPORT_TYPES.map((r) => (
-              <MenuItem key={r.value} value={r.value}>
-                {r.label}
-              </MenuItem>
+            {REPORT_GROUPS.map((group, gi) => (
+              <Box key={group.label} sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    px: 1.5,
+                    pt: gi === 0 ? 1 : 1.75,
+                    pb: 0.5,
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
+                    textTransform: "uppercase",
+                    color: "text.secondary",
+                  }}
+                >
+                  {group.label}
+                </Typography>
+                {group.items.map((item) => {
+                  const selected = item.value === reportType;
+                  return (
+                    <Box
+                      key={item.value}
+                      component="button"
+                      type="button"
+                      aria-current={selected ? "page" : undefined}
+                      onClick={() => setReportType(item.value)}
+                      sx={(theme) => ({
+                        minHeight: 44,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 1,
+                        px: 1.5,
+                        border: 0,
+                        borderRadius: 1.5,
+                        font: "inherit",
+                        fontSize: 15,
+                        fontWeight: selected ? 600 : 400,
+                        textAlign: "left",
+                        cursor: "pointer",
+                        bgcolor: selected ? alpha(theme.palette.primary.main, 0.12) : "transparent",
+                        color: selected ? "primary.dark" : "text.primary",
+                        "&:hover": {
+                          bgcolor: selected
+                            ? alpha(theme.palette.primary.main, 0.16)
+                            : theme.palette.action.hover,
+                        },
+                        "&:focus-visible": {
+                          outline: `3px solid ${theme.palette.primary.main}`,
+                          outlineOffset: 1,
+                        },
+                      })}
+                    >
+                      <span>{item.label}</span>
+                      {item.printable && (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label="Printable"
+                          sx={{ height: 20, fontSize: 11 }}
+                        />
+                      )}
+                    </Box>
+                  );
+                })}
+              </Box>
             ))}
-          </Select>
-        </FormControl>
-
-        <Stack
-          direction="row"
-          spacing={1.5}
-          alignItems="center"
-          flexWrap="wrap"
-          sx={reportType === "master_schedule" || reportType === "daily_forms" ? { display: "none" } : undefined}
-        >
-          <ToggleButtonGroup size="small" value={preset} exclusive onChange={handlePresetChange}>
-            <ToggleButton value="today">Day</ToggleButton>
-            <ToggleButton value="week">Week</ToggleButton>
-            <ToggleButton value="month">Month</ToggleButton>
-            <ToggleButton value="custom">Custom</ToggleButton>
-          </ToggleButtonGroup>
-
-          <TextField
-            label="Start"
-            type="date"
-            size="small"
-            value={startDate}
-            onChange={(e) => {
-              setPreset("custom");
-              setStartDate(e.target.value);
-            }}
-            InputLabelProps={{ shrink: true }}
-          />
-          <TextField
-            label="End"
-            type="date"
-            size="small"
-            value={endDate}
-            onChange={(e) => {
-              setPreset("custom");
-              setEndDate(e.target.value);
-            }}
-            InputLabelProps={{ shrink: true }}
-          />
-
-          {reportType === "coverage_compliance" && (
-            <>
-              <FormControl size="small" sx={{ minWidth: 160 }}>
-                <InputLabel id="report-unit-label">Unit (all)</InputLabel>
-                <Select
-                  labelId="report-unit-label"
-                  label="Unit (all)"
-                  value={unitFilterId}
-                  onChange={(e) => setUnitFilterId(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {unitList.map((u) => (
-                    <MenuItem key={u.id} value={u.id}>
-                      {u.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel id="report-shift-label">Shift (all)</InputLabel>
-                <Select
-                  labelId="report-shift-label"
-                  label="Shift (all)"
-                  value={shiftFilter}
-                  onChange={(e) => setShiftFilter(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  <MenuItem value="day">Day</MenuItem>
-                  <MenuItem value="evening">Evening</MenuItem>
-                  <MenuItem value="night">Night</MenuItem>
-                  {complianceRows.some((r) => r.shift_type === "custom") && (
-                    <MenuItem value="custom">Custom</MenuItem>
-                  )}
-                </Select>
-              </FormControl>
-            </>
-          )}
-
-          {showProfessionFilter && (
-            <FormControl size="small" sx={{ minWidth: 180 }}>
-              <InputLabel id="report-profession-label">Profession (all)</InputLabel>
-              <Select
-                labelId="report-profession-label"
-                label="Profession (all)"
-                value={profession}
-                onChange={(e) => setProfession(e.target.value)}
-              >
-                <MenuItem value="">All</MenuItem>
-                {professions.map((p) => (
-                  <MenuItem key={p} value={p}>
-                    {p}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-        </Stack>
-      </Stack>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 1 }} className="no-print">
-          {error}
-        </Alert>
-      )}
-
-      {loading && (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 2 }} className="no-print">
-          <CircularProgress />
+          </Paper>
         </Box>
-      )}
 
-      <Box className="print-area">
-      {reportType === "master_schedule" ? (
-        <StaffingMasterReport />
-      ) : reportType === "daily_forms" ? (
-        <StaffingDailyReports />
-      ) : (
-      <Typography variant="h6" className="print-only-header">
-        {REPORT_LABELS[reportType]} — {startDate} to {endDate}
-        <br />
-        <Typography component="span" variant="body2" color="text.secondary">
-          Printed {new Date().toLocaleString()}
-        </Typography>
-      </Typography>
-      )}
-
-      {!loading && reportType === "schedule" && (
-        <>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {shifts.length} shift{shifts.length === 1 ? "" : "s"} from {startDate} to {endDate}
-            </Typography>
-            <Stack direction="row" spacing={1} alignItems="center" className="no-print">
-              {pager(shifts.length)}
-              {staffFilterControl}
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportSchedule} disabled={shifts.length === 0}>
-                Export CSV
-              </Button>
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={shifts.length === 0}>
-                Print
-              </Button>
-            </Stack>
+        {/* The report */}
+        <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
+          <Stack
+            direction="row"
+            justifyContent="space-between"
+            alignItems="flex-end"
+            flexWrap="wrap"
+            gap={1.5}
+            sx={{ mb: 2 }}
+            className="no-print"
+          >
+            <Box>
+              <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                {meta.label}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 560 }}>
+                {meta.description}
+              </Typography>
+            </Box>
+            {exportInfo && (
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<FontAwesomeIcon icon={faDownload} />}
+                  onClick={exportInfo.run}
+                  disabled={exportInfo.count === 0}
+                  sx={{ minHeight: 44 }}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<FontAwesomeIcon icon={faPrint} />}
+                  onClick={handlePrint}
+                  disabled={exportInfo.count === 0}
+                  sx={{ minHeight: 44 }}
+                >
+                  Print
+                </Button>
+              </Stack>
+            )}
           </Stack>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Staff</TableCell>
-                <TableCell>Profession</TableCell>
-                <TableCell>Shift</TableCell>
-                <TableCell>Start</TableCell>
-                <TableCell>End</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageOf(shifts).map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell>{s.date}</TableCell>
-                  <TableCell>{s.staff_name}</TableCell>
-                  <TableCell>{s.profession}</TableCell>
-                  <TableCell>{s.shift_type_display || s.shift_type}</TableCell>
-                  <TableCell>{s.start_time || "—"}</TableCell>
-                  <TableCell>{s.end_time || "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
 
-      {!loading && reportType === "unscheduled" && (
-        <>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {unscheduled.length} active staff member{unscheduled.length === 1 ? "" : "s"} with no shifts from {startDate} to {endDate}
-            </Typography>
-            <Stack direction="row" spacing={1} className="no-print">
-              {pager(unscheduled.length)}
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportUnscheduled} disabled={unscheduled.length === 0}>
-                Export CSV
-              </Button>
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={unscheduled.length === 0}>
-                Print
-              </Button>
-            </Stack>
-          </Stack>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Profession</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Phone</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageOf(unscheduled).map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell>{s.full_name}</TableCell>
-                  <TableCell>{s.profession_display || s.profession}</TableCell>
-                  <TableCell>{s.email || "—"}</TableCell>
-                  <TableCell>{s.phone_number || "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
+          {hasDates && (
+            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 2 }} className="no-print">
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <IconButton
+                  aria-label="Previous range"
+                  onClick={() => stepRange(-1)}
+                  sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                >
+                  <FontAwesomeIcon icon={faChevronLeft} size="sm" />
+                </IconButton>
+                <Typography sx={{ minWidth: 200, textAlign: "center", fontWeight: 600 }}>
+                  {formatRange(startDate, endDate)}
+                </Typography>
+                <IconButton
+                  aria-label="Next range"
+                  onClick={() => stepRange(1)}
+                  sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                >
+                  <FontAwesomeIcon icon={faChevronRight} size="sm" />
+                </IconButton>
+              </Stack>
 
-      {!loading && reportType === "labor_hours" && (
-        <>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Total scheduled hours from {startDate} to {endDate}
-            </Typography>
-            <Stack direction="row" spacing={1} className="no-print">
-              {pager(laborRows.length)}
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportLaborHours} disabled={laborRows.length === 0}>
-                Export CSV
-              </Button>
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={laborRows.length === 0}>
-                Print
-              </Button>
-            </Stack>
-          </Stack>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Staff</TableCell>
-                <TableCell>Profession</TableCell>
-                <TableCell align="right">Shifts</TableCell>
-                <TableCell align="right">Total Hours</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageOf(laborRows).map((r) => (
-                <TableRow key={r.staff_id}>
-                  <TableCell>{r.full_name}</TableCell>
-                  <TableCell>{r.profession}</TableCell>
-                  <TableCell align="right">{r.shift_count}</TableCell>
-                  <TableCell align="right">{r.total_hours}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
+              <ToggleButtonGroup size="small" value={preset} exclusive onChange={handlePresetChange} aria-label="Date range">
+                <ToggleButton value="today">Today</ToggleButton>
+                <ToggleButton value="week">This week</ToggleButton>
+                <ToggleButton value="month">This month</ToggleButton>
+                <ToggleButton value="custom">Custom</ToggleButton>
+              </ToggleButtonGroup>
 
-      {!loading && reportType === "coverage_compliance" && (
-        <>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {complianceSummary
-                ? `${filteredCompliance.length}${
-                    complianceFiltered ? ` of ${complianceSummary.checked}` : ""
-                  } shift/date combinations checked, ${complianceUnderstaffed} understaffed${
-                    complianceAtRisk ? `, ${complianceAtRisk} at risk` : ""
-                  }`
-                : ""}{" "}
-              from {startDate} to {endDate}
-            </Typography>
-            <Stack direction="row" spacing={1} className="no-print">
-              {pager(filteredCompliance.length)}
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportCompliance} disabled={filteredCompliance.length === 0}>
-                Export CSV
-              </Button>
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={filteredCompliance.length === 0}>
-                Print
-              </Button>
+              {preset === "custom" && (
+                <>
+                  <TextField
+                    label="Start"
+                    type="date"
+                    size="small"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                  <TextField
+                    label="End"
+                    type="date"
+                    size="small"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                </>
+              )}
             </Stack>
-          </Stack>
-          {complianceWarnings.map((w) => (
-            <Alert key={w} severity="warning" sx={{ mb: 1 }}>
-              {w}
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 1.5 }} className="no-print">
+              {error}
             </Alert>
-          ))}
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Unit</TableCell>
-                <TableCell>Shift</TableCell>
-                <TableCell align="right">Census</TableCell>
-                <TableCell align="right">Required</TableCell>
-                <TableCell align="right">Assigned</TableCell>
-                <TableCell align="right">Care Hours (sched / req)</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Details</TableCell>
-                <TableCell>Alert Sent</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageOf(filteredCompliance).map((r, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{r.date}</TableCell>
-                  <TableCell>{r.unit_name || "—"}</TableCell>
-                  <TableCell>{r.shift_type_display}</TableCell>
-                  <TableCell align="right">
-                    {r.mode === "hppd" && r.census != null
-                      ? `${r.census}${r.census_source === "carried_forward" ? "*" : ""}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell align="right">{r.required}</TableCell>
-                  <TableCell align="right">{r.assigned}</TableCell>
-                  <TableCell align="right">
-                    {r.mode === "hppd"
-                      ? `${Number(r.hours_scheduled ?? 0).toFixed(1)} / ${Number(r.required_hours ?? 0).toFixed(1)}`
-                      : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      size="small"
-                      label={r.status}
-                      color={r.status === "Met" ? "success" : r.status === "At risk" ? "warning" : "error"}
-                    />
-                  </TableCell>
-                  <TableCell sx={{ maxWidth: 320 }}>
-                    {[...(r.shortfalls || []), r.note].filter(Boolean).join("; ") || "—"}
-                  </TableCell>
-                  <TableCell>{r.alert_sent ? "Yes" : "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          {complianceRows.length > 0 && filteredCompliance.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              No shifts match the selected unit and shift. Choose "All" to see the whole report.
-            </Typography>
           )}
-          {complianceRows.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Nothing to check for this date range. The report uses your state's staffing rule for every unit that has a census
-              (set the clinic location on the Calendar tab and enter a census on the Units & Census tab), plus any Coverage
-              Requirements added on the Assign Schedule tab.
-            </Typography>
-          )}
-          {filteredCompliance.some((r) => r.census_source === "carried_forward") && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-              * Census carried forward from the most recent entry (no census was entered for that date).
-            </Typography>
-          )}
-        </>
-      )}
 
-      {!loading && reportType === "message_log" && (
-        <>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              {messageRows.length} message{messageRows.length === 1 ? "" : "s"} from {startDate} to {endDate}
-              {messageTruncated ? " (showing the most recent 1000 -- narrow the date range for the full list)" : ""}
-            </Typography>
-            <Stack direction="row" spacing={1} alignItems="center" className="no-print">
-              {pager(messageRows.length)}
-              {staffFilterControl}
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportMessageLog} disabled={messageRows.length === 0}>
-                Export CSV
-              </Button>
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={messageRows.length === 0}>
-                Print
-              </Button>
-            </Stack>
-          </Stack>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Sent</TableCell>
-                <TableCell>Channel</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Recipient</TableCell>
-                <TableCell>Staff</TableCell>
-                <TableCell>Subject</TableCell>
-                <TableCell>Status</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageOf(messageRows).map((r, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>{new Date(r.sent_at).toLocaleString()}</TableCell>
-                  <TableCell>{r.channel}</TableCell>
-                  <TableCell>{r.category}</TableCell>
-                  <TableCell>{r.recipient}</TableCell>
-                  <TableCell>{r.staff_name || "—"}</TableCell>
-                  <TableCell>{r.subject || "—"}</TableCell>
-                  <TableCell>{r.status || "—"}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
+          {loading && (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 3 }} className="no-print">
+              <CircularProgress />
+            </Box>
+          )}
 
-      {!loading && reportType === "shift_distribution" && (
-        <>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-            <Typography variant="body2" color="text.secondary">
-              Shift breakdown from {startDate} to {endDate}
-              {distributionTotals
-                ? ` — org totals: ${SHIFT_TYPE_ORDER.map((t) => `${SHIFT_TYPE_LABELS[t]} ${distributionTotals[t] || 0}`).join(", ")}`
-                : ""}
-            </Typography>
-            <Stack direction="row" spacing={1} className="no-print">
-              {pager(distributionRows.length)}
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faDownload} />} onClick={handleExportDistribution} disabled={distributionRows.length === 0}>
-                Export CSV
-              </Button>
-              <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={handlePrint} disabled={distributionRows.length === 0}>
-                Print
-              </Button>
-            </Stack>
-          </Stack>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Staff</TableCell>
-                <TableCell>Profession</TableCell>
-                {SHIFT_TYPE_ORDER.map((t) => (
-                  <TableCell key={t} align="right">
-                    {SHIFT_TYPE_LABELS[t]}
-                  </TableCell>
+          <Box className="print-area">
+            {reportType === "master_schedule" ? (
+              <StaffingMasterReport />
+            ) : reportType === "daily_forms" ? (
+              <StaffingDailyReports />
+            ) : (
+              <Typography variant="h6" className="print-only-header">
+                {meta.label} — {formatRange(startDate, endDate)}
+                <br />
+                <Typography component="span" variant="body2" color="text.secondary">
+                  Printed {new Date().toLocaleString()}
+                </Typography>
+              </Typography>
+            )}
+
+            {/* ------------------------------------------------ Coverage compliance */}
+            {!loading && reportType === "coverage_compliance" && (
+              <Stack spacing={2}>
+                <TileRow>
+                  <SummaryTile
+                    label="Checks run"
+                    value={unitShiftCompliance.length}
+                    hint="Unit and shift combinations"
+                    selected={statusFilter === "all"}
+                    onClick={() => setStatusFilter("all")}
+                  />
+                  <SummaryTile
+                    label="Understaffed"
+                    value={countStatus("Understaffed")}
+                    hint="Fewer staff than required"
+                    color="error.main"
+                    selected={statusFilter === "Understaffed"}
+                    onClick={() => setStatusFilter("Understaffed")}
+                  />
+                  <SummaryTile
+                    label="At risk"
+                    value={countStatus("At risk")}
+                    hint="Met with no spare staff"
+                    color="warning.dark"
+                    selected={statusFilter === "At risk"}
+                    onClick={() => setStatusFilter("At risk")}
+                  />
+                  <SummaryTile
+                    label="Met"
+                    value={countStatus("Met")}
+                    hint="Fully covered"
+                    color="success.dark"
+                    selected={statusFilter === "Met"}
+                    onClick={() => setStatusFilter("Met")}
+                  />
+                </TileRow>
+
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
+                  <FormControl size="small" sx={{ minWidth: 170 }}>
+                    <InputLabel id="report-unit-label">Unit</InputLabel>
+                    <Select
+                      labelId="report-unit-label"
+                      label="Unit"
+                      value={unitFilterId}
+                      onChange={(e) => setUnitFilterId(e.target.value)}
+                    >
+                      <MenuItem value="">All units</MenuItem>
+                      {unitList.map((u) => (
+                        <MenuItem key={u.id} value={u.id}>
+                          {u.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <InputLabel id="report-shift-label">Shift</InputLabel>
+                    <Select
+                      labelId="report-shift-label"
+                      label="Shift"
+                      value={shiftFilter}
+                      onChange={(e) => setShiftFilter(e.target.value)}
+                    >
+                      <MenuItem value="">All shifts</MenuItem>
+                      <MenuItem value="day">Day</MenuItem>
+                      <MenuItem value="evening">Evening</MenuItem>
+                      <MenuItem value="night">Night</MenuItem>
+                      {complianceRows.some((r) => r.shift_type === "custom") && (
+                        <MenuItem value="custom">Custom</MenuItem>
+                      )}
+                    </Select>
+                  </FormControl>
+                  <Typography variant="body2" color="text.secondary">
+                    Showing {shownCompliance.length} of {complianceRows.length} checks
+                  </Typography>
+                  {complianceFiltering && (
+                    <Button size="small" onClick={clearComplianceFilters}>
+                      Clear filters
+                    </Button>
+                  )}
+                </Stack>
+
+                {complianceWarnings.map((w) => (
+                  <Alert key={w} severity="warning">
+                    {w}
+                  </Alert>
                 ))}
-                <TableCell align="right">Total</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {pageOf(distributionRows).map((r) => (
-                <TableRow key={r.staff_id}>
-                  <TableCell>{r.full_name}</TableCell>
-                  <TableCell>{r.profession}</TableCell>
+
+                {shownCompliance.length > 0 && (
+                  <>
+                    <TableShell minWidth={900}>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Date</TableCell>
+                          <TableCell>Unit and shift</TableCell>
+                          <TableCell align="right">Census</TableCell>
+                          <TableCell>Staff assigned</TableCell>
+                          <TableCell>Care hours</TableCell>
+                          <TableCell>Status</TableCell>
+                          <TableCell>Details</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {pageOf(shownCompliance).map((r, idx) => {
+                          const sched = Number(r.hours_scheduled ?? 0);
+                          const req = Number(r.required_hours ?? 0);
+                          const pct = req > 0 ? Math.min(100, Math.round((sched / req) * 100)) : 100;
+                          const short = Number(r.assigned) < Number(r.required);
+                          return (
+                            <TableRow key={idx} sx={{ verticalAlign: "top" }}>
+                              <TableCell sx={{ whiteSpace: "nowrap" }}>{r.date}</TableCell>
+                              <TableCell>
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                  {r.unit_name || "—"}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {r.shift_type_display}
+                                  {r.mode === "hppd" ? "" : " (fixed requirement)"}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                {r.mode === "hppd" && r.census != null
+                                  ? `${r.census}${r.census_source === "carried_forward" ? "*" : ""}`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell>
+                                <Box component="span" sx={{ fontWeight: 600, color: short ? "error.main" : "text.primary" }}>
+                                  {r.assigned}
+                                </Box>
+                                <Box component="span" sx={{ color: "text.secondary" }}>
+                                  {" "}of {r.required} needed
+                                </Box>
+                              </TableCell>
+                              <TableCell sx={{ minWidth: 150 }}>
+                                {r.mode === "hppd" ? (
+                                  <>
+                                    <Typography variant="body2">
+                                      {sched.toFixed(1)} of {req.toFixed(1)}
+                                    </Typography>
+                                    <LinearProgress
+                                      variant="determinate"
+                                      value={pct}
+                                      color={sched >= req ? "success" : "error"}
+                                      sx={{ mt: 0.75, height: 6, borderRadius: 3, width: 120 }}
+                                    />
+                                  </>
+                                ) : (
+                                  "—"
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <StatusChip status={r.status} />
+                                {r.alert_sent && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                                    Alert sent
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell sx={{ maxWidth: 300 }}>
+                                {[...(r.shortfalls || []), r.note].filter(Boolean).join("; ") || "—"}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </TableShell>
+                    {pager(shownCompliance.length)}
+                  </>
+                )}
+
+                {complianceRows.length > 0 && shownCompliance.length === 0 && (
+                  <EmptyNote>No checks match these filters.</EmptyNote>
+                )}
+                {complianceRows.length === 0 && (
+                  <EmptyNote>
+                    Nothing to check for this date range. The report uses your state's staffing standard for every unit
+                    that has a census (set the clinic location on the Calendar tab and enter a census on the Units & Census
+                    tab), plus any coverage requirements added on the Assign Schedule tab.
+                  </EmptyNote>
+                )}
+                {shownCompliance.some((r) => r.census_source === "carried_forward") && (
+                  <Typography variant="caption" color="text.secondary">
+                    * Census carried forward from the most recent entry (no census was entered for that date).
+                  </Typography>
+                )}
+              </Stack>
+            )}
+
+            {/* ------------------------------------------------ Schedule */}
+            {!loading && reportType === "schedule" && (
+              <Stack spacing={2}>
+                <TileRow>
+                  <SummaryTile label="Shifts" value={shifts.length} hint="In this date range" />
+                  <SummaryTile
+                    label="People scheduled"
+                    value={new Set(shifts.map((s) => s.staff_name)).size}
+                    hint="With at least one shift"
+                  />
+                  <SummaryTile
+                    label="Days with shifts"
+                    value={new Set(shifts.map((s) => s.date)).size}
+                    hint="Out of the days shown"
+                  />
+                </TileRow>
+                <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
+                  {staffFilterControl}
+                  {showProfessionFilter && professionFilterControl}
+                </Stack>
+                {shifts.length === 0 ? (
+                  <EmptyNote>No shifts in this date range.</EmptyNote>
+                ) : (
+                  <>
+                    <TableShell>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Date</TableCell>
+                          <TableCell>Staff</TableCell>
+                          <TableCell>Profession</TableCell>
+                          <TableCell>Shift</TableCell>
+                          <TableCell>Start</TableCell>
+                          <TableCell>End</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {pageOf(shifts).map((s) => (
+                          <TableRow key={s.id}>
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>{s.date}</TableCell>
+                            <TableCell sx={{ fontWeight: 500 }}>{s.staff_name}</TableCell>
+                            <TableCell>{s.profession}</TableCell>
+                            <TableCell>{s.shift_type_display || s.shift_type}</TableCell>
+                            <TableCell>{s.start_time || "—"}</TableCell>
+                            <TableCell>{s.end_time || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </TableShell>
+                    {pager(shifts.length)}
+                  </>
+                )}
+              </Stack>
+            )}
+
+            {/* ------------------------------------------------ Unscheduled staff */}
+            {!loading && reportType === "unscheduled" && (
+              <Stack spacing={2}>
+                <TileRow>
+                  <SummaryTile
+                    label="Staff with no schedule"
+                    value={unscheduled.length}
+                    hint="Active staff with no shifts in this range"
+                    color={unscheduled.length ? "warning.dark" : undefined}
+                  />
+                </TileRow>
+                <Stack direction="row" spacing={1.5} className="no-print">
+                  {professionFilterControl}
+                </Stack>
+                {unscheduled.length === 0 ? (
+                  <EmptyNote>Everyone active has at least one shift in this date range.</EmptyNote>
+                ) : (
+                  <>
+                    <TableShell>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Name</TableCell>
+                          <TableCell>Profession</TableCell>
+                          <TableCell>Email</TableCell>
+                          <TableCell>Phone</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {pageOf(unscheduled).map((s) => (
+                          <TableRow key={s.id}>
+                            <TableCell sx={{ fontWeight: 500 }}>{s.full_name}</TableCell>
+                            <TableCell>{s.profession_display || s.profession}</TableCell>
+                            <TableCell>{s.email || "—"}</TableCell>
+                            <TableCell>{s.phone_number || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </TableShell>
+                    {pager(unscheduled.length)}
+                  </>
+                )}
+              </Stack>
+            )}
+
+            {/* ------------------------------------------------ Labor hours */}
+            {!loading && reportType === "labor_hours" && (
+              <Stack spacing={2}>
+                <TileRow>
+                  <SummaryTile label="Total scheduled hours" value={laborTotal.toFixed(1)} hint="All shifts in the range" />
+                  <SummaryTile label="People scheduled" value={laborRows.length} hint="With at least one shift" />
+                  <SummaryTile
+                    label="Average per person"
+                    value={laborRows.length ? (laborTotal / laborRows.length).toFixed(1) : "0.0"}
+                    hint="Hours in this range"
+                  />
+                  <SummaryTile
+                    label="Most hours"
+                    value={sortedLabor.length ? Number(sortedLabor[0].total_hours || 0).toFixed(1) : "0.0"}
+                    hint={sortedLabor.length ? sortedLabor[0].full_name : "No one scheduled"}
+                  />
+                </TileRow>
+                <Stack direction="row" spacing={1.5} alignItems="center" className="no-print">
+                  {professionFilterControl}
+                  <Typography variant="body2" color="text.secondary">
+                    Sorted by most hours
+                  </Typography>
+                </Stack>
+                {sortedLabor.length === 0 ? (
+                  <EmptyNote>No scheduled hours in this date range.</EmptyNote>
+                ) : (
+                  <>
+                    <TableShell minWidth={620}>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Staff</TableCell>
+                          <TableCell>Profession</TableCell>
+                          <TableCell align="right">Shifts</TableCell>
+                          <TableCell sx={{ minWidth: 220 }}>Total hours</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {pageOf(sortedLabor).map((r) => {
+                          const hrs = Number(r.total_hours || 0);
+                          return (
+                            <TableRow key={r.staff_id}>
+                              <TableCell sx={{ fontWeight: 500 }}>{r.full_name}</TableCell>
+                              <TableCell>{r.profession}</TableCell>
+                              <TableCell align="right">{r.shift_count}</TableCell>
+                              <TableCell>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                  <Box sx={{ width: 52, textAlign: "right" }}>{hrs.toFixed(1)}</Box>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={laborMax > 0 ? Math.round((hrs / laborMax) * 100) : 0}
+                                    sx={{ flex: 1, height: 8, borderRadius: 4 }}
+                                  />
+                                </Stack>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </TableShell>
+                    {pager(sortedLabor.length)}
+                  </>
+                )}
+              </Stack>
+            )}
+
+            {/* ------------------------------------------------ Message log */}
+            {!loading && reportType === "message_log" && (
+              <Stack spacing={2}>
+                <TileRow>
+                  <SummaryTile label="Messages sent" value={messageRows.length} hint="In this date range" />
+                  <SummaryTile
+                    label="Texts"
+                    value={messageRows.filter((r) => String(r.channel).toLowerCase().startsWith("sms") || String(r.channel).toLowerCase() === "text").length}
+                    hint="Sent by SMS"
+                  />
+                  <SummaryTile
+                    label="Emails"
+                    value={messageRows.filter((r) => String(r.channel).toLowerCase() === "email").length}
+                    hint="Sent by email"
+                  />
+                </TileRow>
+                <Stack direction="row" spacing={1.5} alignItems="center" className="no-print">
+                  {staffFilterControl}
+                </Stack>
+                {messageTruncated && (
+                  <Alert severity="info">
+                    Showing the most recent 1000 messages. Narrow the date range to see the full list.
+                  </Alert>
+                )}
+                {messageRows.length === 0 ? (
+                  <EmptyNote>No messages were sent in this date range.</EmptyNote>
+                ) : (
+                  <>
+                    <TableShell minWidth={820}>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Sent</TableCell>
+                          <TableCell>Channel</TableCell>
+                          <TableCell>Category</TableCell>
+                          <TableCell>Recipient</TableCell>
+                          <TableCell>Staff</TableCell>
+                          <TableCell>Subject</TableCell>
+                          <TableCell>Status</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {pageOf(messageRows).map((r, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell sx={{ whiteSpace: "nowrap" }}>{new Date(r.sent_at).toLocaleString()}</TableCell>
+                            <TableCell>{r.channel}</TableCell>
+                            <TableCell>{r.category}</TableCell>
+                            <TableCell>{r.recipient}</TableCell>
+                            <TableCell>{r.staff_name || "—"}</TableCell>
+                            <TableCell>{r.subject || "—"}</TableCell>
+                            <TableCell>{r.status || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </TableShell>
+                    {pager(messageRows.length)}
+                  </>
+                )}
+              </Stack>
+            )}
+
+            {/* ------------------------------------------------ Shift distribution */}
+            {!loading && reportType === "shift_distribution" && (
+              <Stack spacing={2}>
+                <TileRow>
                   {SHIFT_TYPE_ORDER.map((t) => (
-                    <TableCell key={t} align="right">
-                      {r[t] || 0}
-                    </TableCell>
+                    <SummaryTile
+                      key={t}
+                      label={`${SHIFT_TYPE_LABELS[t]} shifts`}
+                      value={distributionCount(t)}
+                      hint="Across all staff"
+                    />
                   ))}
-                  <TableCell align="right">{r.total}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </>
-      )}
+                </TileRow>
+                <Stack direction="row" spacing={1.5} className="no-print">
+                  {professionFilterControl}
+                </Stack>
+                {distributionRows.length === 0 ? (
+                  <EmptyNote>No shifts in this date range.</EmptyNote>
+                ) : (
+                  <>
+                    <TableShell minWidth={620}>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Staff</TableCell>
+                          <TableCell>Profession</TableCell>
+                          {SHIFT_TYPE_ORDER.map((t) => (
+                            <TableCell key={t} align="right">
+                              {SHIFT_TYPE_LABELS[t]}
+                            </TableCell>
+                          ))}
+                          <TableCell align="right">Total</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {pageOf(distributionRows).map((r) => (
+                          <TableRow key={r.staff_id}>
+                            <TableCell sx={{ fontWeight: 500 }}>{r.full_name}</TableCell>
+                            <TableCell>{r.profession}</TableCell>
+                            {SHIFT_TYPE_ORDER.map((t) => (
+                              <TableCell key={t} align="right">
+                                {r[t] || 0}
+                              </TableCell>
+                            ))}
+                            <TableCell align="right" sx={{ fontWeight: 600 }}>
+                              {r.total}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </TableShell>
+                    {pager(distributionRows.length)}
+                  </>
+                )}
+              </Stack>
+            )}
+          </Box>
+        </Box>
       </Box>
     </Box>
   );
