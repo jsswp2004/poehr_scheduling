@@ -9,6 +9,7 @@ from .models import (
     AutoSMS,
     ClinicalNote,
     NoteTemplate,
+    NOTE_TYPES_DICTIONARY_CODE,
     Dictionary,
     VitalSignsFlowsheet,
     FlowsheetTemplate,
@@ -28,6 +29,7 @@ from .serializers import (
     ClinicalNoteSerializer,
     NoteTemplateSerializer,
     NoteTemplateAdminSerializer,
+    NoteTemplateAdminReadSerializer,
     DictionaryAdminSerializer,
     VitalSignsFlowsheetSerializer,
     FlowsheetTemplateSerializer,
@@ -2148,10 +2150,10 @@ class NoteTemplateAdminViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ("create", "update", "partial_update"):
             return NoteTemplateAdminSerializer
-        return NoteTemplateSerializer
+        return NoteTemplateAdminReadSerializer
 
     def _read_payload(self, template, version_bumped):
-        data = NoteTemplateSerializer(template).data
+        data = NoteTemplateAdminReadSerializer(template).data
         data["version_bumped"] = version_bumped
         data["signed_notes_count"] = template.notes.filter(status="signed").count()
         return data
@@ -2284,6 +2286,11 @@ class DictionaryAdminViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
+        if instance.code == NOTE_TYPES_DICTIONARY_CODE:
+            return Response(
+                {"detail": "The note types dictionary is built in and can't be deleted. You can add, rename or remove its values."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if instance.notefielddefinition_set.exists():
             return Response(
                 {

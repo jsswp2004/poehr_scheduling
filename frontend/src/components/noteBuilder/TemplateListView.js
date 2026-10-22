@@ -5,6 +5,7 @@ import {
     Chip,
     CircularProgress,
     IconButton,
+    InputAdornment,
     Paper,
     Table,
     TableBody,
@@ -12,6 +13,7 @@ import {
     TableContainer,
     TableHead,
     TableRow,
+    TextField,
     Tooltip,
     Typography,
     Alert,
@@ -21,6 +23,7 @@ import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
+import SearchIcon from "@mui/icons-material/Search";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
@@ -46,8 +49,22 @@ const authConfig = async () => ({ headers: { Authorization: `Bearer ${await getV
  * message} that is shown below. See appointments/note_template_csv.py for
  * the format.
  */
-function TemplateListView({ onEdit, onNew, kind = "note" }) {
+// Soft badge colours for note types, cycled by the type's position in the dictionary.
+const TYPE_COLORS = [
+    { bg: "#e6f4ea", fg: "#14532d" },
+    { bg: "#fdecec", fg: "#991b1b" },
+    { bg: "#f1ecfb", fg: "#4c1d95" },
+    { bg: "#e8efff", fg: "#1e40af" },
+    { bg: "#fff4d6", fg: "#7a4b00" },
+    { bg: "#e0f4f4", fg: "#0f4c5c" },
+];
+const NO_TYPE = "__none__";
+
+function TemplateListView({ onEdit, onNew, onManageNoteTypes, kind = "note" }) {
     const isOrderForm = kind === "order_detail";
+    const [noteTypes, setNoteTypes] = useState([]);
+    const [typeFilter, setTypeFilter] = useState("all");
+    const [search, setSearch] = useState("");
     const [templates, setTemplates] = useState(null);
     const [error, setError] = useState("");
     const [busyCode, setBusyCode] = useState(null);
@@ -136,6 +153,16 @@ function TemplateListView({ onEdit, onNew, kind = "note" }) {
         } catch (e) {
             setError("Couldn't load note templates.");
         }
+        if (kind === "note") {
+            // The note types dictionary supplies the filter chips (and their order). Not fatal if it fails.
+            try {
+                const dres = await api.get(apiEndpoints.dictionariesAdmin, await authConfig());
+                const dic = (dres.data || []).find((d) => d.code === "note_types");
+                setNoteTypes(dic ? dic.items : []);
+            } catch (e) {
+                setNoteTypes([]);
+            }
+        }
     };
 
     useEffect(() => {
@@ -190,6 +217,29 @@ function TemplateListView({ onEdit, onNew, kind = "note" }) {
         );
     }
 
+    const all = templates || [];
+    const countFor = (value) => all.filter((t) => (t.note_type || "") === value).length;
+    const notSetCount = all.filter((t) => !t.note_type).length;
+    const terms = search.toLowerCase().split(/\s+/).filter(Boolean);
+    const shown = all.filter((t) => {
+        if (!isOrderForm) {
+            if (typeFilter === NO_TYPE && t.note_type) return false;
+            if (typeFilter !== "all" && typeFilter !== NO_TYPE && t.note_type !== typeFilter) return false;
+        }
+        const hay = `${t.name} ${t.code}`.toLowerCase();
+        return terms.every((term) => hay.includes(term));
+    });
+    const typeBadge = (tpl) => {
+        if (!tpl.note_type) {
+            return (
+                <Chip size="small" variant="outlined" label="Not set" sx={{ borderStyle: "dashed", color: "#9a3412", borderColor: "#c2410c" }} />
+            );
+        }
+        const idx = Math.max(0, noteTypes.findIndex((i) => i.value === tpl.note_type));
+        const c = TYPE_COLORS[idx % TYPE_COLORS.length];
+        return <Chip size="small" label={tpl.note_type_label || tpl.note_type} sx={{ bgcolor: c.bg, color: c.fg, fontWeight: 500 }} />;
+    };
+
     return (
         <Box>
             {error && (
@@ -224,7 +274,25 @@ function TemplateListView({ onEdit, onNew, kind = "note" }) {
                     </Table>
                 </Paper>
             )}
-            <Box sx={{ display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: 1, mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
+                <TextField
+                    size="small"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search name or code"
+                    sx={{ minWidth: 260 }}
+                    slotProps={{
+                        htmlInput: { "aria-label": "Search templates" },
+                        input: {
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon fontSize="small" />
+                                </InputAdornment>
+                            ),
+                        },
+                    }}
+                />
+                <Box sx={{ flexGrow: 1 }} />
                 <Button
                     variant="outlined"
                     startIcon={<FileDownloadIcon />}
@@ -245,12 +313,50 @@ function TemplateListView({ onEdit, onNew, kind = "note" }) {
                     {isOrderForm ? "New Detail Form" : "New Template"}
                 </Button>
             </Box>
+            {!isOrderForm && all.length > 0 && (
+                <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1, mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mr: 0.5 }}>
+                        Note type
+                    </Typography>
+                    <Chip
+                        label={`All · ${all.length}`}
+                        color={typeFilter === "all" ? "primary" : "default"}
+                        variant={typeFilter === "all" ? "filled" : "outlined"}
+                        onClick={() => setTypeFilter("all")}
+                    />
+                    {noteTypes.map((i) => (
+                        <Chip
+                            key={i.value}
+                            label={`${i.label} · ${countFor(i.value)}`}
+                            color={typeFilter === i.value ? "primary" : "default"}
+                            variant={typeFilter === i.value ? "filled" : "outlined"}
+                            onClick={() => setTypeFilter(i.value)}
+                        />
+                    ))}
+                    {notSetCount > 0 && (
+                        <Chip
+                            label={`Not set · ${notSetCount}`}
+                            color={typeFilter === NO_TYPE ? "primary" : "default"}
+                            variant={typeFilter === NO_TYPE ? "filled" : "outlined"}
+                            onClick={() => setTypeFilter(NO_TYPE)}
+                            sx={typeFilter === NO_TYPE ? undefined : { borderStyle: "dashed", color: "#9a3412", borderColor: "#c2410c" }}
+                        />
+                    )}
+                    <Box sx={{ flexGrow: 1 }} />
+                    {onManageNoteTypes && (
+                        <Button size="small" onClick={onManageNoteTypes}>
+                            Manage note types
+                        </Button>
+                    )}
+                </Box>
+            )}
             <TableContainer component={Paper}>
                 <Table size="small">
                     <TableHead>
                         <TableRow>
                             <TableCell>Name</TableCell>
                             <TableCell>Code</TableCell>
+                            {!isOrderForm && <TableCell>Note type</TableCell>}
                             <TableCell align="center">Version</TableCell>
                             <TableCell align="center">Fields</TableCell>
                             <TableCell align="center">Status</TableCell>
@@ -258,12 +364,13 @@ function TemplateListView({ onEdit, onNew, kind = "note" }) {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {(templates || []).map((tpl) => (
+                        {shown.map((tpl) => (
                             <TableRow key={tpl.code} hover>
                                 <TableCell>{tpl.name}</TableCell>
                                 <TableCell>
                                     <code>{tpl.code}</code>
                                 </TableCell>
+                                {!isOrderForm && <TableCell>{typeBadge(tpl)}</TableCell>}
                                 <TableCell align="center">v{tpl.version}</TableCell>
                                 <TableCell align="center">{tpl.fields.length}</TableCell>
                                 <TableCell align="center">
@@ -304,9 +411,21 @@ function TemplateListView({ onEdit, onNew, kind = "note" }) {
                                 </TableCell>
                             </TableRow>
                         ))}
+                        {templates && templates.length > 0 && shown.length === 0 && (
+                            <TableRow>
+                                <TableCell colSpan={7}>
+                                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                                        No templates match.{" "}
+                                        <Button size="small" onClick={() => { setSearch(""); setTypeFilter("all"); }}>
+                                            Clear filters
+                                        </Button>
+                                    </Typography>
+                                </TableCell>
+                            </TableRow>
+                        )}
                         {templates && templates.length === 0 && (
                             <TableRow>
-                                <TableCell colSpan={6}>
+                                <TableCell colSpan={7}>
                                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                                         {isOrderForm ? 'No detail forms yet -- click "New Detail Form" to build one.' : 'No templates yet -- click "New Template" to build one.'}
                                     </Typography>

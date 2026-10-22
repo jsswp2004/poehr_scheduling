@@ -57,27 +57,32 @@ function NoteTemplateBuilderPage() {
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Typography variant="h4" gutterBottom>
-                Note Builder
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Build and edit structured note types -- like Admission Note -- as an
-                ordered set of fields, without a code deploy. Editing a template here
-                never changes how an already-signed note looks in Note History.
-            </Typography>
-
-            <Paper sx={{ mb: 3 }}>
-                <Tabs
-                    value={tab}
-                    onChange={(e, v) => {
-                        setTab(v);
-                        setEditingTemplateCode(null);
-                    }}
-                >
-                    <Tab label="Note Templates" value="templates" />
-                    <Tab label="Dictionaries" value="dictionaries" />
-                </Tabs>
-            </Paper>
+            {/* Title and tabs stay pinned under the app bar; only the content below scrolls. */}
+            <Box
+                data-testid="builder-sticky-header"
+                sx={{ position: "sticky", top: 64, zIndex: 6, bgcolor: "background.default", pt: 1, mb: 3 }}
+            >
+                <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
+                    Note Builder
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                    Build and edit structured note types -- like Admission Note -- as an
+                    ordered set of fields, without a code deploy. Editing a template here
+                    never changes how an already-signed note looks in Note History.
+                </Typography>
+                <Paper>
+                    <Tabs
+                        value={tab}
+                        onChange={(e, v) => {
+                            setTab(v);
+                            setEditingTemplateCode(null);
+                        }}
+                    >
+                        <Tab label="Note Templates" value="templates" />
+                        <Tab label="Dictionaries" value="dictionaries" />
+                    </Tabs>
+                </Paper>
+            </Box>
 
             {tab === "templates" && (
                 <Box>
@@ -85,11 +90,19 @@ function NoteTemplateBuilderPage() {
                         <TemplateListView
                             onEdit={(code) => setEditingTemplateCode(code)}
                             onNew={() => setEditingTemplateCode("__new__")}
+                            onManageNoteTypes={() => {
+                                setEditingTemplateCode(null);
+                                setTab("dictionaries");
+                            }}
                         />
                     ) : (
                         <NoteTemplateEditor
                             templateCode={editingTemplateCode === "__new__" ? null : editingTemplateCode}
                             onBack={() => setEditingTemplateCode(null)}
+                            onManageNoteTypes={() => {
+                                setEditingTemplateCode(null);
+                                setTab("dictionaries");
+                            }}
                         />
                     )}
                 </Box>
