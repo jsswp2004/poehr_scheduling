@@ -1,5 +1,7 @@
 """API for lab reports: GET/POST/PATCH /api/lab-reports/ plus review and mark-in-error."""
 
+import json
+
 from django.http import HttpResponse
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -11,6 +13,11 @@ from users.rights import user_has_right
 
 from . import lab_results
 from .lab_serializers import LabReportInputSerializer, LabReportSerializer
+from django.contrib.auth import get_user_model
+from django.db.models import Q
+
+from users.models import Registration
+
 from .models import LabReport
 
 
@@ -29,6 +36,8 @@ class CanAccessLabResults(permissions.BasePermission):
         "review": "lab_results.review",
         "inbox": "lab_results.review",
         "upload": "lab_results.upload",
+        "scan_patients": "lab_results.upload",
+        "scan_visits": "lab_results.upload",
         "file": "lab_results.view",
     }
 
@@ -79,7 +88,7 @@ class LabReportViewSet(viewsets.ModelViewSet):
                 qs = qs.filter(**{lookup: value})
         if p.get("abnormal") in ("1", "true", "True"):
             qs = qs.filter(items__abnormal_flag__gt="").distinct()
-        return qs.select_related("patient", "order", "entered_by", "reviewed_by").prefetch_related(
+        return qs.select_related("patient", "order", "visit", "entered_by", "reviewed_by").prefetch_related(
             "items", "events", "events__user"
         )
 
@@ -199,7 +208,14 @@ class LabReportViewSet(viewsets.ModelViewSet):
             "performing_lab": text("performing_lab") or "",
             "comment": text("comment") or "",
             "collected_at": collected_at,
+            "visit": text("visit"),
         }
+        raw_meta = text("scan_meta")
+        if raw_meta:
+            try:
+                data["scan_meta"] = json.loads(raw_meta)
+            except ValueError:
+                raise lab_results.LabResultError("The scan details are not valid.")
         allow_duplicate = str(text("allow_duplicate") or "").lower() in ("1", "true", "yes")
         report = lab_results.create_scanned_report(
             request.user, data, request.FILES.get("file"), allow_duplicate=allow_duplicate
@@ -217,6 +233,72 @@ class LabReportViewSet(viewsets.ModelViewSet):
             }
         return Response(body, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["get"], url_path="scan-patients")
+    def scan_patients(self, request):
+        """
+        Patients to file a scan to, found by MRN or name (?q=, at least 2 characters). Only the
+        few facts needed to pick the right person are returned, and only for the user's own
+        organization, so front-desk staff who may upload but not read results can still use it.
+        """
+        q = (request.query_params.get("q") or "").strip()
+        if len(q) < 2:
+            return Response([])
+        User = get_user_model()
+        qs = User.objects.filter(role="patient", patient_profile__isnull=False).select_related("patient_profile")
+        if getattr(request.user, "role", None) != "system_admin":
+            qs = qs.filter(organization=request.user.organization)
+        match = Q(patient_profile__mrn__icontains=q) | Q(first_name__icontains=q) | Q(last_name__icontains=q)
+        parts = q.replace(",", " ").split()
+        if len(parts) > 1:
+            match |= Q(first_name__icontains=parts[0], last_name__icontains=parts[-1]) | Q(
+                first_name__icontains=parts[-1], last_name__icontains=parts[0]
+            )
+        rows = qs.filter(match).order_by("last_name", "first_name")[:15]
+        return Response(
+            [
+                {
+                    "id": u.pk,
+                    "mrn": u.patient_profile.mrn,
+                    "name": f"{u.last_name}, {u.first_name}".strip(", "),
+                    "date_of_birth": u.patient_profile.date_of_birth.isoformat() if u.patient_profile.date_of_birth else None,
+                }
+                for u in rows
+            ]
+        )
+
+    @action(detail=False, methods=["get"], url_path="scan-visits")
+    def scan_visits(self, request):
+        """
+        One patient (?patient=): who they are (MRN and name, for the dialog's default) and their
+        visits (Visit Numbers), newest first, to pick the Visit ID of a scan.
+        """
+        try:
+            patient_id = int(request.query_params.get("patient"))
+        except (TypeError, ValueError):
+            raise lab_results.LabResultError("Choose the patient first.")
+        patient = lab_results._find_patient(request.user, patient_id)
+        visits = Registration.objects.filter(patient__user=patient).order_by("-created_at", "-pk")[:30]
+        profile = getattr(patient, "patient_profile", None)
+        return Response(
+            {
+                "patient": {
+                    "id": patient.pk,
+                    "mrn": getattr(profile, "mrn", "") or "",
+                    "name": f"{patient.last_name}, {patient.first_name}".strip(", "),
+                },
+                "visits": [
+                    {
+                        "id": v.pk,
+                        "code": lab_results.visit_code(v),
+                        "date": (v.arrival_time or v.created_at).date().isoformat(),
+                        "title": v.reason_for_visit or v.get_care_setting_display() or "Visit",
+                        "care_setting": v.care_setting,
+                    }
+                    for v in visits
+                ],
+            }
+        )
+
     @action(detail=True, methods=["get"])
     def file(self, request, pk=None):
         """The scanned document itself. Every opening is recorded in the report's history."""
@@ -230,6 +312,6 @@ class LabReportViewSet(viewsets.ModelViewSet):
 
     def _reload(self, report):
         """Fresh copy with result lines and history, so the response shows what was just saved."""
-        return LabReport.objects.select_related("patient", "order", "entered_by", "reviewed_by").prefetch_related(
+        return LabReport.objects.select_related("patient", "order", "visit", "entered_by", "reviewed_by").prefetch_related(
             "items", "events", "events__user"
         ).get(pk=report.pk)

@@ -59,6 +59,7 @@ class LabReportSerializer(serializers.ModelSerializer):
     has_abnormal = serializers.SerializerMethodField()
     has_critical = serializers.SerializerMethodField()
     has_file = serializers.SerializerMethodField()
+    visit_label = serializers.SerializerMethodField()
 
     class Meta:
         model = LabReport
@@ -91,6 +92,9 @@ class LabReportSerializer(serializers.ModelSerializer):
             "review_comment",
             "error_reason",
             "has_file",
+            "visit",
+            "visit_label",
+            "scan_meta",
             "file_name",
             "file_content_type",
             "file_size",
@@ -123,6 +127,13 @@ class LabReportSerializer(serializers.ModelSerializer):
 
     def get_has_file(self, obj):
         return bool(obj.file_name)
+
+    def get_visit_label(self, obj):
+        if not obj.visit_id:
+            return ""
+        when = obj.visit.arrival_time or obj.visit.created_at
+        what = obj.visit.reason_for_visit or obj.visit.get_care_setting_display() or "Visit"
+        return f"{lab_results.visit_code(obj.visit)} · {when:%m/%d/%Y} · {what}"
 
 
 class LabItemInputSerializer(serializers.Serializer):

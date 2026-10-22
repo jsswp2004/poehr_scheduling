@@ -735,3 +735,98 @@ class InboxTests(Base):
         with mock.patch("appointments.lab_views.LabReportViewSet.INBOX_LIMIT", 2):
             body = self.client.get(self.INBOX).json()
         self.assertEqual((body["count"], len(body["results"]), body["truncated"]), (3, 2, True))
+
+
+class ScanManagerTests(Base):
+    """Scanning from the Results tab: visit link, scan details, and the pickers' search endpoints."""
+
+    SEARCH = "/api/lab-reports/scan-patients/"
+    VISITS = "/api/lab-reports/scan-visits/"
+
+    def setUp(self):
+        super().setUp()
+        from users.models import Patient, Registration
+
+        # a signal creates each patient's profile (with its MRN) along with the user
+        self.profile = Patient.objects.get(user=self.patient)
+        self.other_profile = Patient.objects.get(user=self.other_patient)
+        self.visit = Registration.objects.create(
+            patient=self.profile, organization=self.org, admission_type="scheduled", reason_for_visit="Chest pain"
+        )
+        self.older = Registration.objects.create(patient=self.profile, organization=self.org, admission_type="scheduled")
+        self.other_visit = Registration.objects.create(
+            patient=self.other_profile, organization=self.other_org, admission_type="scheduled"
+        )
+        self.client.force_authenticate(self.registrar)
+
+    def upload(self, user=None, **fields):
+        self.client.force_authenticate(user or self.registrar)
+        return self.client.post(UPLOAD, {"patient": self.patient.pk, "file": pdf(), **fields}, format="multipart")
+
+    # ---- filing with a visit and scan details
+    def test_scan_is_filed_to_the_visit_with_its_scan_details(self):
+        import json
+
+        meta = {"method": "scanner", "device": "Fujitsu fi-8170", "dpi": 300, "pages": 3, "color": "gray", "junk": "x"}
+        response = self.upload(visit=self.visit.pk, scan_meta=json.dumps(meta))
+        self.assertEqual(response.status_code, 201, response.content)
+        report = LabReport.objects.get(pk=response.json()["id"])
+        self.assertEqual(report.visit_id, self.visit.pk)
+        self.assertEqual(report.scan_meta, {"method": "scanner", "device": "Fujitsu fi-8170", "dpi": 300, "pages": 3, "color": "gray"})
+        event = report.events.get()
+        self.assertEqual(event.event_type, "scanned")
+        self.assertEqual(event.detail["visit"], self.visit.visit_number)
+
+    def test_label_shows_the_visit_number(self):
+        self.upload(visit=self.visit.pk)
+        self.client.force_authenticate(self.doctor)
+        row = self.client.get(f"{URL}?patient={self.patient.pk}").json()
+        row = row["results"][0] if isinstance(row, dict) else row[0]
+        self.assertEqual(row["visit"], self.visit.pk)
+        self.assertIn(self.visit.visit_number, row["visit_label"])
+        self.assertIn("Chest pain", row["visit_label"])
+
+    def test_file_attached_from_the_computer_still_logs_uploaded(self):
+        report = self.upload().json()
+        self.client.force_authenticate(self.doctor)
+        events = self.client.get(f"{URL}{report['id']}/").json()["events"]
+        self.assertEqual([e["event_type"] for e in events], ["uploaded"])
+
+    def test_visit_of_another_patient_or_clinic_is_refused(self):
+        self.assertEqual(self.upload(visit=self.other_visit.pk).status_code, 404)
+        self.assertEqual(LabReport.objects.count(), 0)
+
+    def test_visit_that_is_not_a_number_is_refused(self):
+        self.assertEqual(self.upload(visit="abc").status_code, 404)
+
+    def test_bad_scan_details_are_refused(self):
+        self.assertEqual(self.upload(scan_meta="{not json").status_code, 400)
+
+    # ---- pickers
+    def test_search_finds_by_mrn_or_name_inside_the_clinic(self):
+        by_mrn = self.client.get(self.SEARCH, {"q": self.profile.mrn}).json()
+        self.assertEqual([p["id"] for p in by_mrn], [self.patient.pk])
+        self.assertEqual(set(by_mrn[0]), {"id", "mrn", "name", "date_of_birth"})
+        self.assertEqual(by_mrn[0]["mrn"], self.profile.mrn)
+        self.assertEqual(self.client.get(self.SEARCH, {"q": self.other_profile.mrn}).json(), [])
+
+    def test_search_needs_two_characters(self):
+        self.assertEqual(self.client.get(self.SEARCH, {"q": "a"}).json(), [])
+
+    def test_search_is_for_staff_who_may_upload(self):
+        self.client.force_authenticate(self.patient)
+        self.assertEqual(self.client.get(self.SEARCH, {"q": "MRN"}).status_code, 403)
+
+    def test_visits_are_newest_first_with_their_visit_numbers(self):
+        body = self.client.get(self.VISITS, {"patient": self.patient.pk}).json()
+        self.assertEqual(body["patient"], {"id": self.patient.pk, "mrn": self.profile.mrn, "name": ", ".join([self.patient.last_name, self.patient.first_name]).strip(", ")})
+        rows = body["visits"]
+        self.assertEqual([r["id"] for r in rows], [self.older.pk, self.visit.pk])
+        self.assertEqual(rows[1]["code"], self.visit.visit_number)
+        self.assertEqual(rows[1]["title"], "Chest pain")
+
+    def test_visits_of_another_clinics_patient_are_not_found(self):
+        self.assertEqual(self.client.get(self.VISITS, {"patient": self.other_patient.pk}).status_code, 404)
+
+    def test_visits_need_a_patient(self):
+        self.assertEqual(self.client.get(self.VISITS).status_code, 400)

@@ -31,6 +31,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import { api } from "../api/client";
 import PanelTitle from "./patients/PanelTitle";
+import ScanManagerModal from "./scan/ScanManagerModal";
 import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
@@ -96,6 +97,7 @@ const EVENT_LABELS = {
   reviewed: "Reviewed",
   review_reset: "Review cleared (result changed)",
   uploaded: "Scan uploaded",
+  scanned: "Scanned and filed",
   file_viewed: "Document opened",
   entered_in_error: "Marked entered in error",
 };
@@ -218,7 +220,7 @@ export async function openReportDocument(report) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null }) {
+function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null, defaultVisitId = null }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
@@ -228,6 +230,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
   const [dialogText, setDialogText] = useState("");
   const [form, setForm] = useState(null); // entry/edit form, or null when closed
   const [upload, setUpload] = useState(null); // scan upload form, or null when closed
+  const [uploadTab, setUploadTab] = useState("attach"); // "attach" (file from the computer) or "scan" (scanner)
   const [duplicate, setDuplicate] = useState(null); // { title, uploaded_at } when the same file was already uploaded
 
   const canEnter = ENTER_ROLES.includes(me.role);
@@ -403,6 +406,7 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
 
   const openUpload = () => {
     setDuplicate(null);
+    setUploadTab("attach");
     setUpload({ file: null, title: "", order: "", performing_lab: "", collected_at: "", comment: "" });
   };
 
@@ -460,13 +464,24 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
 
   const uploadDialogs = (
     <>
-      <Dialog open={!!upload} onClose={() => !busy && setUpload(null)} fullWidth maxWidth="sm">
-        {upload && (
+      <ScanManagerModal
+        open={!!upload}
+        onClose={() => setUpload(null)}
+        busy={busy}
+        tab={uploadTab}
+        onTabChange={setUploadTab}
+        patientId={patientId}
+        defaultVisitId={defaultVisitId}
+        onFiled={() => {
+          if (!denied) load();
+        }}
+        attach={
+          upload && (
           <>
-            <DialogTitle>Upload a scanned lab result</DialogTitle>
             <DialogContent>
               <Stack spacing={2} sx={{ mt: 1 }}>
                 <Box>
+                  <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                   <Button component="label" variant="outlined" size="small">
                     {upload.file ? "Choose a different file" : "Choose file"}
                     <input
@@ -481,6 +496,13 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
                       }}
                     />
                   </Button>
+                  <Typography variant="body2" color="text.secondary">
+                    or
+                  </Typography>
+                  <Button variant="contained" size="small" onClick={() => setUploadTab("scan")}>
+                    Scan file
+                  </Button>
+                  </Stack>
                   <Typography variant="body2" sx={{ mt: 0.5 }} color={upload.file ? "text.primary" : "text.secondary"}>
                     {upload.file ? `${upload.file.name} (${Math.max(1, Math.round(upload.file.size / 1024))} KB)` : `PDF, JPEG or PNG, up to ${MAX_UPLOAD_MB} MB. Scan to one PDF when you can.`}
                   </Typography>
@@ -559,8 +581,9 @@ function LabResultsPanel({ patientId, orders = [], me = {}, entryRequest = null 
               )}
             </DialogActions>
           </>
-        )}
-      </Dialog>
+          )
+        }
+      />
     </>
   );
 
