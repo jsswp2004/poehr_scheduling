@@ -1,8 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    Accordion,
-    AccordionSummary,
-    AccordionDetails,
     Alert,
     Box,
     Button,
@@ -23,6 +20,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
@@ -121,6 +119,8 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
     // A new template starts on Details (it needs a code and name first); an existing one on Fields.
     const [tab, setTab] = useState(templateCode === null ? "details" : "fields");
     const [previewValues, setPreviewValues] = useState({});
+    // The one field open for editing (the list shows every other field as a compact row).
+    const [openFieldId, setOpenFieldId] = useState(null);
 
     // Bulk-assign tool: rather than hand-editing a "Tab" field on every one
     // of a long template's fields (e.g. ~97 Review-of-Systems fields), pick
@@ -178,12 +178,16 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
     };
 
     const addField = () => {
-        setFields((prev) => [...prev, blankField()]);
+        const nf = blankField();
+        setFields((prev) => [...prev, nf]);
+        setOpenFieldId(nf.clientId);
     };
 
     // A calculated field (total / result) added after the current last field,
     // pre-set to add up the scored or numeric fields in the last field's section.
     const addCalculatedField = () => {
+        const newId = nextTempId();
+        setOpenFieldId(newId);
         setFields((prev) => {
             const section = prev.length ? prev[prev.length - 1].section_label : "";
             const tab = prev.length ? prev[prev.length - 1].tab_label : "";
@@ -191,6 +195,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 ...prev,
                 {
                     ...blankField(),
+                    clientId: newId,
                     tab_label: tab,
                     section_label: section,
                     key: uniqueKey("total_score", prev),
@@ -516,9 +521,6 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
 
             {tab === "fields" && (
                 <Box>
-            <Typography variant="h6" sx={{ mb: 1 }}>
-                Fields ({fields.length})
-            </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Drag the handle to reorder. A field can be shown only when another field has a
                 particular value selected -- pick that under "Depends on". A Calculated field (a
@@ -578,48 +580,111 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 </Paper>
             )}
 
-            {fields.map((f, index) => {
-                const otherFields = fields.filter((of) => of.clientId !== f.clientId);
-                const dependsOnField = fields.find((of) => of.clientId === f.dependsOnClientId);
-                const dependsOnOptions = dependsOnField ? dictionaryOptionsFor(dependsOnField.dictionary) : [];
-                return (
-                    <Accordion
-                        key={f.clientId}
-                        draggable
-                        onDragStart={handleDragStart(index)}
-                        onDragOver={handleDragOver(index)}
-                        onDrop={handleDrop(index)}
-                        sx={{ mb: 1 }}
-                    >
-                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                            <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "100%" }}>
-                                <DragIndicatorIcon fontSize="small" sx={{ cursor: "grab", opacity: 0.5 }} />
-                                {f.tab_label && <Chip size="small" color="secondary" label={f.tab_label} />}
-                                {f.section_label && <Chip size="small" label={f.section_label} />}
-                                <Typography sx={{ flexGrow: 1 }}>
-                                    {f.label || <em>(untitled)</em>}{" "}
-                                    <Typography component="span" variant="body2" color="text.secondary">
-                                        ({f.key || "no key"})
-                                    </Typography>
-                                </Typography>
-                                <Chip size="small" variant="outlined" label={f.field_type} />
-                                {f.field_type === "calculated" && (
-                                    <Chip size="small" color="primary" variant="outlined" label={describeCalc(f.calc)} />
+            {fields.length > 0 && (
+                <Box
+                    data-testid="field-list"
+                    sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflow: "hidden", bgcolor: "background.paper", mb: 2 }}
+                >
+                    {fields.map((f, index) => {
+                        const otherFields = fields.filter((of) => of.clientId !== f.clientId);
+                        const dependsOnField = fields.find((of) => of.clientId === f.dependsOnClientId);
+                        const dependsOnOptions = dependsOnField ? dictionaryOptionsFor(dependsOnField.dictionary) : [];
+                        const prevField = fields[index - 1];
+                        const newGroup =
+                            !prevField ||
+                            (prevField.tab_label || "") !== (f.tab_label || "") ||
+                            (prevField.section_label || "") !== (f.section_label || "");
+                        const isOpen = openFieldId === f.clientId;
+                        const typeLabel = (FIELD_TYPES.find((t) => t.value === f.field_type) || {}).label || f.field_type;
+                        const dic = f.dictionary ? dictionaries.find((d) => d.id === f.dictionary) : null;
+                        const detail =
+                            f.field_type === "calculated"
+                                ? describeCalc(f.calc)
+                                : dependsOnField
+                                ? `Shown if: ${dependsOnField.label || dependsOnField.key}`
+                                : dic
+                                ? `Dictionary: ${dic.code}`
+                                : "";
+                        return (
+                            <Box key={f.clientId}>
+                                {newGroup && (
+                                    <Box
+                                        sx={{
+                                            px: 2.5,
+                                            py: 0.75,
+                                            bgcolor: "action.hover",
+                                            borderBottom: 1,
+                                            borderColor: "divider",
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            letterSpacing: "0.04em",
+                                            textTransform: "uppercase",
+                                            color: "text.secondary",
+                                        }}
+                                    >
+                                        {f.tab_label ? `Tab: ${f.tab_label} \u00b7 ` : ""}Section: {f.section_label || "(none)"}
+                                    </Box>
                                 )}
-                                {f.required && <Chip size="small" color="warning" label="required" />}
-                                {f.dependsOnClientId && <Chip size="small" color="info" label="conditional" />}
-                                <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeField(f.clientId);
+                                <Box
+                                    draggable
+                                    onDragStart={handleDragStart(index)}
+                                    onDragOver={handleDragOver(index)}
+                                    onDrop={handleDrop(index)}
+                                    sx={{
+                                        display: "grid",
+                                        gridTemplateColumns: { xs: "24px minmax(0, 1fr) 44px", md: "24px minmax(0, 3fr) 150px minmax(0, 2fr) 90px 44px" },
+                                        gap: 1.5,
+                                        alignItems: "center",
+                                        px: 2.5,
+                                        py: 0.5,
+                                        borderBottom: 1,
+                                        borderColor: "divider",
+                                        bgcolor: isOpen ? "#f6f9ff" : undefined,
                                     }}
                                 >
-                                    <DeleteIcon fontSize="small" />
-                                </IconButton>
-                            </Box>
-                        </AccordionSummary>
-                        <AccordionDetails>
+                                    <DragIndicatorIcon fontSize="small" sx={{ cursor: "grab", opacity: 0.5 }} />
+                                    <Box sx={{ minWidth: 0 }}>
+                                        <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                                            {f.label || <em>(untitled)</em>}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                                            {f.key || "no key"}
+                                        </Typography>
+                                    </Box>
+                                    <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", md: "block" } }} noWrap>
+                                        {typeLabel}
+                                    </Typography>
+                                    <Typography
+                                        variant="body2"
+                                        sx={{ display: { xs: "none", md: "block" }, color: dependsOnField || f.field_type === "calculated" ? "info.dark" : "text.secondary" }}
+                                        noWrap
+                                    >
+                                        {detail}
+                                    </Typography>
+                                    <Box sx={{ display: { xs: "none", md: "block" } }}>
+                                        {f.required && <Chip size="small" color="warning" label="Required" />}
+                                    </Box>
+                                    <IconButton
+                                        aria-label={`${isOpen ? "Close" : "Edit"} ${f.label || f.key || "field"}`}
+                                        aria-expanded={isOpen}
+                                        onClick={() => setOpenFieldId(isOpen ? null : f.clientId)}
+                                    >
+                                        {isOpen ? <ExpandMoreIcon sx={{ transform: "rotate(180deg)" }} /> : <EditIcon fontSize="small" />}
+                                    </IconButton>
+                                </Box>
+                                {isOpen && (
+                                    <Box sx={{ p: 2.5, bgcolor: "#f6f9ff", borderTop: 2, borderTopColor: "primary.main", borderBottom: 1, borderBottomColor: "divider" }}>
+                                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                                            <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
+                                                Editing: {f.label || f.key || "new field"}
+                                            </Typography>
+                                            <Button size="small" color="error" startIcon={<DeleteIcon fontSize="small" />} onClick={() => { removeField(f.clientId); setOpenFieldId(null); }}>
+                                                Remove field
+                                            </Button>
+                                            <Button size="small" onClick={() => setOpenFieldId(null)}>
+                                                Collapse
+                                            </Button>
+                                        </Box>
                             <Grid container spacing={2}>
                                 <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
@@ -776,10 +841,13 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                     />
                                 </Box>
                             )}
-                        </AccordionDetails>
-                    </Accordion>
-                );
-            })}
+                                    </Box>
+                                )}
+                            </Box>
+                        );
+                    })}
+                </Box>
+            )}
 
             <Button startIcon={<AddIcon />} onClick={addField} sx={{ mb: 3 }}>
                 Add Field
