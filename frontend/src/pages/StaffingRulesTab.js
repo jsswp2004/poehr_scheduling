@@ -1,28 +1,36 @@
 import { useState, useEffect, useCallback } from "react";
 import {
+  alpha,
   Alert,
   Box,
   Button,
-  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  FormControlLabel,
-  Grid,
+  Divider,
+  Drawer,
+  IconButton,
+  Menu,
   MenuItem,
+  Paper,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
+  TableContainer,
   TableHead,
   TableRow,
   TextField,
-  Tooltip,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEllipsis, faPlus, faTriangleExclamation, faXmark } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import moment from "moment";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
@@ -77,7 +85,7 @@ const ACTION_LABELS = {
 };
 
 const num = (v) => (v === null || v === undefined || v === "" ? "-" : Number(v).toFixed(2).replace(/\.?0+$/, "") || "0");
-const intOrDash = (v) => (v === null || v === undefined || v === "" ? "-" : String(v));
+const hasNum = (v) => v !== null && v !== undefined && v !== "" && Number(v) > 0;
 
 const showValue = (v) => {
   if (v === null || v === undefined || v === "") return "(blank)";
@@ -105,7 +113,44 @@ const toForm = (rule) => ({
   shared: rule.scope === "shared",
 });
 
-const errorText = (err, fallback) => err?.response?.data?.error || err?.response?.data?.detail || fallback;
+function formatApiError(data, fallback) {
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (data.error) return data.error;
+  if (data.detail) return data.detail;
+  if (typeof data === "object") {
+    const parts = Object.entries(data).map(
+      ([k, v]) => `${(FIELD_LABELS[k] || k.replace(/_/g, " "))}: ${Array.isArray(v) ? v.join(" ") : v}`
+    );
+    if (parts.length) return parts.join(" ");
+  }
+  return fallback;
+}
+
+const errorText = (err, fallback) => formatApiError(err?.response?.data, fallback);
+
+// One sentence per requirement, skipping the ones a standard does not set.
+function requirementLines(r) {
+  const line1 = `${num(r.hppd_min)} nursing hours per resident per day`;
+  const line2 = `${hasNum(r.max_residents_per_staff) ? `1 staff per ${r.max_residents_per_staff} residents` : "No ratio set"} · ${
+    hasNum(r.min_rn_per_shift) ? `${r.min_rn_per_shift} RN every shift` : "No RN minimum"
+  }`;
+  const extras = [];
+  if (hasNum(r.min_licensed_hppd)) extras.push(`${num(r.min_licensed_hppd)} licensed`);
+  if (hasNum(r.min_cna_hppd)) extras.push(`${num(r.min_cna_hppd)} CNA`);
+  return [line1, line2, extras.join(" · ")];
+}
+
+function Stat({ label, value }) {
+  return (
+    <Box sx={{ flex: "1 1 150px", bgcolor: "grey.100", borderRadius: 2, px: 1.75, py: 1.5 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+        {label}
+      </Typography>
+      <Typography sx={{ fontSize: 22, fontWeight: 600, fontFamily: "monospace" }}>{value}</Typography>
+    </Box>
+  );
+}
 
 function StaffingRulesTab({ isAdmin = false }) {
   const token = getAccessToken();
@@ -115,17 +160,23 @@ function StaffingRulesTab({ isAdmin = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [menu, setMenu] = useState(null); // { anchorEl, rule }
 
   const [form, setForm] = useState(null); // null = closed
   const [editing, setEditing] = useState(null); // rule being edited, null = adding
+  const [panelOpen, setPanelOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const [historyFor, setHistoryFor] = useState(null);
   const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   const [deactivateFor, setDeactivateFor] = useState(null);
+  const [useFor, setUseFor] = useState(undefined); // undefined = closed, null = state default, rule = that rule
+  const [dialogBusy, setDialogBusy] = useState(false);
 
   const canEditShared = !!data.can_edit_shared;
   const canEditCustom = !!data.can_edit_custom;
@@ -136,7 +187,7 @@ function StaffingRulesTab({ isAdmin = false }) {
       setData(res.data);
       setError("");
     } catch (err) {
-      setError(errorText(err, "Failed to load staffing rules."));
+      setError(errorText(err, "Failed to load staffing standards."));
     } finally {
       setLoading(false);
     }
@@ -150,6 +201,8 @@ function StaffingRulesTab({ isAdmin = false }) {
   const rules = data.rules || [];
   const effective = rules.find((r) => r.id === data.effective_rule_id);
   const usingStateDefault = !data.selected_rule_id;
+  const inactiveCount = rules.filter((r) => r.status === "inactive").length;
+  const shownRules = rules.filter((r) => r.status !== "inactive" || showInactive);
 
   const flash = (msg) => {
     setNotice(msg);
@@ -161,23 +214,42 @@ function StaffingRulesTab({ isAdmin = false }) {
     setEditing(null);
     setForm({ ...EMPTY_FORM, shared: false });
     setFormError("");
+    setFieldErrors({});
+    setPanelOpen(true);
   };
 
   const openEdit = (rule) => {
     setEditing(rule);
     setForm(toForm(rule));
     setFormError("");
+    setFieldErrors({});
+    setPanelOpen(true);
   };
 
-  const setField = (key) => (e) =>
-    setForm((f) => ({ ...f, [key]: e.target.type === "checkbox" ? e.target.checked : e.target.value }));
+  const closePanel = () => {
+    if (!saving) setPanelOpen(false);
+  };
+
+  const setField = (key) => (e) => {
+    const value = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setForm((f) => ({ ...f, [key]: value }));
+    if (fieldErrors[key]) setFieldErrors((fe) => ({ ...fe, [key]: undefined }));
+  };
+
+  const editingShared = editing ? editing.scope === "shared" : !!form?.shared;
 
   const save = async () => {
+    const errs = {};
+    if (!form.name.trim()) errs.name = "Enter a name.";
+    if (form.hppd_min === "" || Number(form.hppd_min) <= 0) errs.hppd_min = "Enter the total hours per resident per day.";
+    if (editingShared && !form.state.trim()) errs.state = "Enter the state.";
+    setFieldErrors(errs);
+    if (Object.keys(errs).length) return;
     setSaving(true);
     setFormError("");
     const body = {
       name: form.name,
-      state: form.shared || (editing && editing.scope === "shared") ? form.state : "",
+      state: editingShared ? form.state : "",
       facility_type: form.facility_type,
       hppd_min: form.hppd_min,
       min_licensed_hppd: form.min_licensed_hppd,
@@ -199,23 +271,29 @@ function StaffingRulesTab({ isAdmin = false }) {
         await axios.post(apiEndpoints.staffingRules, { ...body, shared: form.shared }, { headers });
         flash(`Added "${form.name}".`);
       }
-      setForm(null);
+      setPanelOpen(false);
       load();
     } catch (err) {
-      setFormError(errorText(err, "Could not save the rule."));
+      setFormError(errorText(err, "Could not save the standard."));
     } finally {
       setSaving(false);
     }
   };
 
   // ---- row actions ----
-  const applyRule = async (ruleId) => {
+  const confirmUse = async () => {
+    const rule = useFor;
+    setDialogBusy(true);
     try {
-      await axios.put(apiEndpoints.staffingRuleSelection, { rule_id: ruleId }, { headers });
-      flash(ruleId ? "Your organization now uses this rule." : "Your organization is back on its state's standard rule.");
+      await axios.put(apiEndpoints.staffingRuleSelection, { rule_id: rule ? rule.id : null }, { headers });
+      flash(rule ? `Your organization now uses "${rule.name}".` : "Your organization is back on its state's standard.");
+      setUseFor(undefined);
       load();
     } catch (err) {
-      setError(errorText(err, "Could not change the rule."));
+      setUseFor(undefined);
+      setError(errorText(err, "Could not change the standard."));
+    } finally {
+      setDialogBusy(false);
     }
   };
 
@@ -226,7 +304,7 @@ function StaffingRulesTab({ isAdmin = false }) {
       await load();
       openEdit(res.data);
     } catch (err) {
-      setError(errorText(err, "Could not duplicate the rule."));
+      setError(errorText(err, "Could not duplicate the standard."));
     }
   };
 
@@ -236,19 +314,23 @@ function StaffingRulesTab({ isAdmin = false }) {
       flash(`"${rule.name}" marked as verified.`);
       load();
     } catch (err) {
-      setError(errorText(err, "Could not mark the rule verified."));
+      setError(errorText(err, "Could not mark the standard verified."));
     }
   };
 
   const confirmDeactivate = async () => {
     const rule = deactivateFor;
-    setDeactivateFor(null);
+    setDialogBusy(true);
     try {
       await axios.delete(apiEndpoints.staffingRuleDetail(rule.id), { headers });
       flash(`"${rule.name}" deactivated.`);
+      setDeactivateFor(null);
       load();
     } catch (err) {
-      setError(errorText(err, "Could not deactivate the rule."));
+      setDeactivateFor(null);
+      setError(errorText(err, "Could not deactivate the standard."));
+    } finally {
+      setDialogBusy(false);
     }
   };
 
@@ -258,7 +340,7 @@ function StaffingRulesTab({ isAdmin = false }) {
       flash(`"${rule.name}" reactivated.`);
       load();
     } catch (err) {
-      setError(errorText(err, "Could not reactivate the rule."));
+      setError(errorText(err, "Could not reactivate the standard."));
     }
   };
 
@@ -284,13 +366,17 @@ function StaffingRulesTab({ isAdmin = false }) {
       const label = FIELD_LABELS[key] || key;
       if (Array.isArray(val) && val.length === 2) {
         return (
-          <Typography variant="body2" key={key}>
-            {label}: {showValue(val[0])} → <strong>{showValue(val[1])}</strong>
+          <Typography variant="body2" key={key} sx={{ mt: 0.5 }}>
+            {label}:{" "}
+            <Box component="span" sx={{ color: "text.secondary", textDecoration: "line-through" }}>
+              {showValue(val[0])}
+            </Box>{" "}
+            &rarr; <strong>{showValue(val[1])}</strong>
           </Typography>
         );
       }
       return (
-        <Typography variant="body2" key={key}>
+        <Typography variant="body2" key={key} sx={{ mt: 0.5 }}>
           {label}: {showValue(val)}
         </Typography>
       );
@@ -305,103 +391,181 @@ function StaffingRulesTab({ isAdmin = false }) {
     );
   }
 
-  const editingShared = editing ? editing.scope === "shared" : form?.shared;
+  const menuRule = menu && menu.rule;
+  const heroWarn = !effective || (effective.needs_verification && !effective.is_custom);
+  const heroWhy = effective
+    ? effective.is_custom
+      ? "A custom standard chosen for your organization."
+      : usingStateDefault
+      ? "This is the standard for your location's state."
+      : "Chosen for your organization."
+    : "";
+
+  // Plain-language reading of the form values.
+  const meaning = form
+    ? [
+        form.hppd_min !== "" ? `${num(form.hppd_min)} nursing hours per resident per day` : null,
+        hasNum(form.min_licensed_hppd) || hasNum(form.min_cna_hppd)
+          ? `(${[hasNum(form.min_licensed_hppd) ? `${num(form.min_licensed_hppd)} licensed` : null, hasNum(form.min_cna_hppd) ? `${num(form.min_cna_hppd)} CNA` : null]
+              .filter(Boolean)
+              .join(", ")})`
+          : null,
+        hasNum(form.max_residents_per_staff) ? `1 staff per ${form.max_residents_per_staff} residents` : null,
+        hasNum(form.min_rn_per_shift) ? `${form.min_rn_per_shift} RN on every shift` : null,
+      ].filter(Boolean)
+    : [];
 
   return (
-    <Box>
-      {error && (
-        <Alert severity="error" sx={{ mb: 1 }} onClose={() => setError("")}>
-          {error}
-        </Alert>
-      )}
-      {notice && (
-        <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice("")}>
-          {notice}
-        </Alert>
-      )}
-
-      <Alert severity={effective ? (effective.needs_verification && !effective.is_custom ? "warning" : "info") : "warning"} sx={{ mb: 1.5 }}>
-        {effective ? (
-          <>
-            Coverage compliance is currently checked against <strong>{effective.name}</strong>
-            {effective.is_custom ? " (your custom rule)" : usingStateDefault ? " (the standard for your location's state)" : " (chosen for your organization)"}
-            : {num(effective.hppd_min)} total hours per resident per day
-            {effective.min_licensed_hppd ? `, at least ${num(effective.min_licensed_hppd)} licensed` : ""}
-            {effective.min_cna_hppd ? `, ${num(effective.min_cna_hppd)} CNA` : ""}
-            {effective.max_residents_per_staff ? `, 1 staff per ${effective.max_residents_per_staff} residents` : ""}
-            {effective.min_rn_per_shift ? `, ${effective.min_rn_per_shift} RN per shift` : ""}.
-            {effective.needs_verification && !effective.is_custom
-              ? " This standard is awaiting verification against the official regulation text."
-              : ""}
-          </>
-        ) : (
-          <>
-            No verified staffing rule applies to your organization's state yet. Pick a rule below or add a custom
-            one to enforce your own requirements.
-          </>
-        )}
-      </Alert>
-
-      <Stack direction="row" spacing={1} sx={{ mb: 1.5, flexWrap: "wrap", rowGap: 1 }} alignItems="center">
-        <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 260 }}>
-          {canEditShared
-            ? "As system admin you manage the shared state standards, and you act for the organization chosen at the top of the page."
-            : canEditCustom
-              ? "Your state's standard is managed centrally. You can copy it as your own custom rule, then choose which rule your organization uses."
-              : "Only administrators can change which rule applies."}
+    <Box sx={{ maxWidth: 1200 }}>
+      <Stack direction="row" spacing={2} alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+        <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+          Staffing Standards
         </Typography>
-        {isAdmin && !usingStateDefault && (
-          <Button variant="outlined" onClick={() => applyRule(null)}>
-            Use my state's standard
-          </Button>
-        )}
         {isAdmin && (
-          <Button variant="contained" onClick={openAdd}>
-            Add rule
+          <Button variant="contained" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openAdd} sx={{ minHeight: 44, px: 2.5 }}>
+            Add a standard
           </Button>
         )}
       </Stack>
 
-      <Box sx={{ overflowX: "auto" }}>
-        <Table size="small">
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
+          {error}
+        </Alert>
+      )}
+      {notice && (
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice("")}>
+          {notice}
+        </Alert>
+      )}
+
+      {/* Standard in use */}
+      <Paper
+        component="section"
+        aria-label="Standard in use"
+        variant="outlined"
+        sx={{
+          p: 3,
+          mb: 3,
+          borderWidth: 2,
+          borderColor: heroWarn ? "warning.main" : "primary.main",
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+        }}
+      >
+        {effective ? (
+          <>
+            <Stack direction="row" spacing={2} justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" useFlexGap>
+              <Box sx={{ flex: "1 1 400px", minWidth: 0 }}>
+                <Typography variant="caption" sx={{ fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: "primary.dark" }}>
+                  Your facility is checked against
+                </Typography>
+                <Typography sx={{ fontSize: 24, fontWeight: 600 }}>{effective.name}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {heroWhy}
+                </Typography>
+                {effective.needs_verification && !effective.is_custom && (
+                  <Typography variant="body2" sx={{ mt: 1, color: "warning.dark", fontWeight: 600 }}>
+                    This standard is awaiting verification against the official regulation text.
+                  </Typography>
+                )}
+              </Box>
+              {isAdmin && !usingStateDefault && (
+                <Button variant="outlined" color="inherit" onClick={() => setUseFor(null)} sx={{ minHeight: 44, borderColor: "grey.400" }}>
+                  Go back to my state's standard
+                </Button>
+              )}
+            </Stack>
+            <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap">
+              <Stat label="Total nursing hours" value={num(effective.hppd_min)} />
+              <Stat label="Licensed hours" value={hasNum(effective.min_licensed_hppd) ? num(effective.min_licensed_hppd) : "Not set"} />
+              <Stat label="CNA hours" value={hasNum(effective.min_cna_hppd) ? num(effective.min_cna_hppd) : "Not set"} />
+              <Stat label="Residents per staff" value={hasNum(effective.max_residents_per_staff) ? `1 : ${effective.max_residents_per_staff}` : "Not set"} />
+              <Stat label="RNs per shift" value={hasNum(effective.min_rn_per_shift) ? effective.min_rn_per_shift : "Not set"} />
+            </Stack>
+          </>
+        ) : (
+          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            <Box sx={{ color: "warning.dark", mt: "3px", display: "flex" }}>
+              <FontAwesomeIcon icon={faTriangleExclamation} />
+            </Box>
+            <Box>
+              <Typography sx={{ fontWeight: 600 }}>No verified staffing standard applies to your organization's state yet</Typography>
+              <Typography variant="body2">
+                Pick a standard below or add a custom one to enforce your own requirements.
+              </Typography>
+            </Box>
+          </Stack>
+        )}
+        <Typography variant="body2" color="text.secondary">
+          Used by HPPD coverage requirements (Assign Schedule) and by compliance checks.{" "}
+          {canEditShared
+            ? "As system admin you manage the shared state standards, and you act for the organization chosen at the top of the page."
+            : canEditCustom
+            ? "Your state's standard is managed centrally. You can copy it as your own custom standard, then choose which one your organization uses."
+            : "Only administrators can change which standard applies."}
+        </Typography>
+      </Paper>
+
+      {/* All standards */}
+      <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
+        <Typography variant="h6" component="h3">
+          All standards
+        </Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Switch checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} slotProps={{ input: { "aria-label": "Show inactive standards" } }} />
+          <Typography variant="body2">Show inactive ({inactiveCount})</Typography>
+        </Stack>
+      </Stack>
+
+      <TableContainer component={Paper} variant="outlined">
+        <Table sx={{ minWidth: 960 }}>
           <TableHead>
             <TableRow>
-              <TableCell>Rule</TableCell>
+              <TableCell sx={{ pl: 2.5 }}>Standard</TableCell>
               <TableCell>Applies to</TableCell>
-              <TableCell align="right">Total HPPD</TableCell>
-              <TableCell align="right">Licensed</TableCell>
-              <TableCell align="right">CNA</TableCell>
-              <TableCell align="right">Residents / staff</TableCell>
-              <TableCell align="right">RN / shift</TableCell>
+              <TableCell>Requirements</TableCell>
               <TableCell>Status</TableCell>
-              <TableCell align="right">Actions</TableCell>
+              <TableCell align="right" sx={{ pr: 2.5 }}>
+                <Box component="span" sx={{ position: "absolute", left: -9999 }}>
+                  Actions
+                </Box>
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {rules.length === 0 && (
+            {shownRules.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9}>
-                  <Typography variant="body2" color="text.secondary">
-                    No rules available.
-                  </Typography>
+                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                  <Typography color="text.secondary">No standards available.</Typography>
                 </TableCell>
               </TableRow>
             )}
-            {rules.map((r) => {
+            {shownRules.map((r) => {
               const inUse = r.id === data.effective_rule_id;
+              const [line1, line2, line3] = requirementLines(r);
+              const canUse = isAdmin && r.status === "active" && !inUse;
+              const hasMenu = isAdmin || r.editable;
               return (
-                <TableRow key={r.id} hover selected={inUse} sx={r.status === "inactive" ? { opacity: 0.6 } : undefined}>
-                  <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {r.name}
-                    </Typography>
+                <TableRow
+                  key={r.id}
+                  hover
+                  sx={{
+                    verticalAlign: "top",
+                    ...(r.status === "inactive" && { opacity: 0.6 }),
+                    ...(inUse && { bgcolor: (th) => alpha(th.palette.primary.main, 0.06) }),
+                  }}
+                >
+                  <TableCell sx={{ pl: 2.5, maxWidth: 300 }}>
+                    <Typography sx={{ fontWeight: 600, fontSize: 15 }}>{r.name}</Typography>
                     {r.source && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", maxWidth: 360 }}>
+                      <Typography variant="body2" color="text.secondary">
                         {r.source}
                       </Typography>
                     )}
                     {r.notes && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", maxWidth: 360 }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                         {r.notes}
                       </Typography>
                     )}
@@ -414,57 +578,48 @@ function StaffingRulesTab({ isAdmin = false }) {
                   <TableCell>
                     <Chip size="small" variant="outlined" label={r.scope === "custom" ? "Custom (your org)" : r.state || "Shared"} />
                   </TableCell>
-                  <TableCell align="right">{num(r.hppd_min)}</TableCell>
-                  <TableCell align="right">{num(r.min_licensed_hppd)}</TableCell>
-                  <TableCell align="right">{num(r.min_cna_hppd)}</TableCell>
-                  <TableCell align="right">{r.max_residents_per_staff ? `1:${r.max_residents_per_staff}` : "-"}</TableCell>
-                  <TableCell align="right">{intOrDash(r.min_rn_per_shift || null)}</TableCell>
                   <TableCell>
-                    <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", rowGap: 0.5 }}>
-                      {inUse && <Chip size="small" color="primary" label="In use" />}
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {line1}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {line2}
+                    </Typography>
+                    {line3 && (
+                      <Typography variant="body2" color="text.secondary">
+                        {line3}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Stack spacing={0.75} alignItems="flex-start">
+                      {inUse && <Chip size="small" label="In use" sx={{ fontWeight: 600, bgcolor: (th) => alpha(th.palette.primary.main, 0.14), color: "primary.dark" }} />}
                       {r.needs_verification && (
-                        <Tooltip title="Numbers not yet confirmed against the official regulation text">
-                          <Chip size="small" color="warning" label="Needs verification" />
-                        </Tooltip>
+                        <Chip size="small" label="Needs verification" sx={{ fontWeight: 600, bgcolor: (th) => alpha(th.palette.warning.main, 0.16), color: "warning.dark" }} />
                       )}
-                      {r.status !== "active" && <Chip size="small" label={r.status === "draft" ? "Draft" : "Inactive"} />}
+                      {r.status !== "active" && <Chip size="small" label={r.status === "draft" ? "Draft" : "Inactive"} sx={{ fontWeight: 600 }} />}
                     </Stack>
                   </TableCell>
-                  <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                    {isAdmin && r.status === "active" && !inUse && (
-                      <Button size="small" onClick={() => applyRule(r.id)}>
-                        Use
+                  <TableCell align="right" sx={{ pr: 2.5, whiteSpace: "nowrap" }}>
+                    {canUse && (
+                      <Button variant="outlined" onClick={() => setUseFor(r)} sx={{ minHeight: 44 }}>
+                        Use this standard
                       </Button>
                     )}
                     {r.editable && (
-                      <Button size="small" onClick={() => openEdit(r)}>
+                      <Button variant="outlined" color="inherit" onClick={() => openEdit(r)} sx={{ minHeight: 44, ml: 0.75, borderColor: "grey.400" }}>
                         Edit
                       </Button>
                     )}
-                    {r.editable && r.needs_verification && (
-                      <Button size="small" onClick={() => markVerified(r)}>
-                        Mark verified
-                      </Button>
-                    )}
-                    {isAdmin && (
-                      <Button size="small" onClick={() => duplicate(r)}>
-                        Duplicate as custom
-                      </Button>
-                    )}
-                    {isAdmin && (
-                      <Button size="small" onClick={() => openHistory(r)}>
-                        History
-                      </Button>
-                    )}
-                    {r.editable && r.status !== "inactive" && (
-                      <Button size="small" color="error" onClick={() => setDeactivateFor(r)}>
-                        Deactivate
-                      </Button>
-                    )}
-                    {r.editable && r.status === "inactive" && (
-                      <Button size="small" onClick={() => reactivate(r)}>
-                        Reactivate
-                      </Button>
+                    {hasMenu && (
+                      <IconButton
+                        aria-label={`More actions for ${r.name}`}
+                        aria-haspopup="menu"
+                        onClick={(e) => setMenu({ anchorEl: e.currentTarget, rule: r })}
+                        sx={{ ml: 0.75, width: 44, height: 44 }}
+                      >
+                        <FontAwesomeIcon icon={faEllipsis} />
+                      </IconButton>
                     )}
                   </TableCell>
                 </TableRow>
@@ -472,171 +627,331 @@ function StaffingRulesTab({ isAdmin = false }) {
             })}
           </TableBody>
         </Table>
-      </Box>
+      </TableContainer>
 
-      {/* Add / edit */}
-      <Dialog open={!!form} onClose={() => !saving && setForm(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editing ? `Edit ${editing.name}` : "Add staffing rule"}
-        </DialogTitle>
-        <DialogContent dividers>
-          {form && (
-            <Grid container spacing={2} sx={{ mt: 0 }}>
-              {formError && (
-                <Grid size={{ xs: 12 }}>
-                  <Alert severity="error">{formError}</Alert>
-                </Grid>
-              )}
-              {editing && editing.scope === "shared" && (
-                <Grid size={{ xs: 12 }}>
+      {/* Row menu */}
+      <Menu anchorEl={menu && menu.anchorEl} open={!!menu} onClose={() => setMenu(null)} slotProps={{ paper: { sx: { minWidth: 220 } } }}>
+        {isAdmin && (
+          <MenuItem
+            onClick={() => {
+              const r = menuRule;
+              setMenu(null);
+              duplicate(r);
+            }}
+            sx={{ minHeight: 44 }}
+          >
+            Duplicate as custom
+          </MenuItem>
+        )}
+        {isAdmin && (
+          <MenuItem
+            onClick={() => {
+              const r = menuRule;
+              setMenu(null);
+              openHistory(r);
+            }}
+            sx={{ minHeight: 44 }}
+          >
+            View history
+          </MenuItem>
+        )}
+        {menuRule && menuRule.editable && menuRule.needs_verification && (
+          <MenuItem
+            onClick={() => {
+              const r = menuRule;
+              setMenu(null);
+              markVerified(r);
+            }}
+            sx={{ minHeight: 44 }}
+          >
+            Mark verified
+          </MenuItem>
+        )}
+        {menuRule && menuRule.editable && <Divider />}
+        {menuRule && menuRule.editable && menuRule.status !== "inactive" && (
+          <MenuItem
+            onClick={() => {
+              setDeactivateFor(menuRule);
+              setMenu(null);
+            }}
+            sx={{ minHeight: 44, color: "error.main", fontWeight: 600 }}
+          >
+            Deactivate
+          </MenuItem>
+        )}
+        {menuRule && menuRule.editable && menuRule.status === "inactive" && (
+          <MenuItem
+            onClick={() => {
+              const r = menuRule;
+              setMenu(null);
+              reactivate(r);
+            }}
+            sx={{ minHeight: 44 }}
+          >
+            Reactivate
+          </MenuItem>
+        )}
+      </Menu>
+
+      {/* Add / edit panel */}
+      {form && (
+        <Drawer anchor="right" open={panelOpen} onClose={closePanel} slotProps={{ paper: { sx: { width: { xs: "100%", sm: 480 } } } }}>
+          <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 3, py: 2.5, borderBottom: 1, borderColor: "divider" }}>
+              <Typography variant="h6" component="h3">
+                {editing ? `Edit ${editing.name}` : "Add a standard"}
+              </Typography>
+              <IconButton aria-label="Close panel" onClick={closePanel} sx={{ width: 44, height: 44 }}>
+                <FontAwesomeIcon icon={faXmark} />
+              </IconButton>
+            </Stack>
+
+            <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 2.5 }}>
+              <Stack spacing={2.5}>
+                {formError && <Alert severity="error">{formError}</Alert>}
+
+                {editing && editing.scope === "shared" && (
                   <Alert severity="info">
-                    This is a shared state standard. Changes apply to every organization in {editing.state || "this state"} that
-                    uses it, and are recorded in the history.
+                    This is a shared state standard. Changes apply to every organization in {editing.state || "this state"} that uses
+                    it, and are recorded in the history.
                   </Alert>
-                </Grid>
-              )}
-              {!editing && canEditShared && (
-                <Grid size={{ xs: 12 }}>
-                  <FormControlLabel
-                    control={<Checkbox checked={!!form.shared} onChange={setField("shared")} />}
-                    label="Shared state standard (visible to all organizations)"
-                  />
-                </Grid>
-              )}
-              <Grid size={{ xs: 12, sm: editingShared ? 8 : 12 }}>
-                <TextField label="Name" fullWidth required value={form.name} onChange={setField("name")} />
-              </Grid>
-              {editingShared && (
-                <Grid size={{ xs: 12, sm: 4 }}>
+                )}
+
+                {!editing && canEditShared && (
+                  <Paper variant="outlined" sx={{ p: 2, display: "flex", gap: 2, alignItems: "center", justifyContent: "space-between" }}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 600 }}>Shared state standard</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Visible to all organizations. Leave off for a custom standard that only your organization uses.
+                      </Typography>
+                    </Box>
+                    <Switch checked={!!form.shared} onChange={setField("shared")} slotProps={{ input: { "aria-label": "Shared state standard" } }} />
+                  </Paper>
+                )}
+
+                <Stack direction="row" spacing={1.5}>
                   <TextField
-                    label="State (2-letter)"
+                    label="Name"
                     fullWidth
-                    required
-                    value={form.state}
-                    onChange={setField("state")}
-                    inputProps={{ maxLength: 20 }}
+                    value={form.name}
+                    onChange={setField("name")}
+                    error={!!fieldErrors.name}
+                    helperText={fieldErrors.name}
+                    autoFocus
                   />
-                </Grid>
+                  {editingShared && (
+                    <TextField
+                      label="State (2-letter)"
+                      value={form.state}
+                      onChange={setField("state")}
+                      error={!!fieldErrors.state}
+                      helperText={fieldErrors.state}
+                      slotProps={{ htmlInput: { maxLength: 20 } }}
+                      sx={{ width: 150 }}
+                    />
+                  )}
+                </Stack>
+                {!editingShared && (
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: -1 }}>
+                    Custom standard. It only applies to your organization.
+                  </Typography>
+                )}
+
+                <Box>
+                  <Typography variant="caption" sx={{ display: "block", mb: 1.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: "text.secondary" }}>
+                    Requirements
+                  </Typography>
+                  <Stack spacing={2}>
+                    <TextField
+                      label="Total nursing hours per resident per day"
+                      type="number"
+                      value={form.hppd_min}
+                      onChange={setField("hppd_min")}
+                      error={!!fieldErrors.hppd_min}
+                      helperText={fieldErrors.hppd_min || "Required"}
+                      slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+                      sx={{ maxWidth: 320 }}
+                    />
+                    <Stack direction="row" spacing={1.5}>
+                      <TextField
+                        label="Licensed (RN + LPN) hours"
+                        type="number"
+                        fullWidth
+                        value={form.min_licensed_hppd}
+                        onChange={setField("min_licensed_hppd")}
+                        helperText="Optional"
+                        slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+                      />
+                      <TextField
+                        label="CNA hours"
+                        type="number"
+                        fullWidth
+                        value={form.min_cna_hppd}
+                        onChange={setField("min_cna_hppd")}
+                        helperText="Optional"
+                        slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
+                      />
+                    </Stack>
+                    <Stack direction="row" spacing={1.5}>
+                      <TextField
+                        label="Max residents per staff"
+                        type="number"
+                        fullWidth
+                        value={form.max_residents_per_staff}
+                        onChange={setField("max_residents_per_staff")}
+                        helperText="Leave blank for no ratio rule"
+                        slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                      />
+                      <TextField
+                        label="Minimum RNs per shift"
+                        type="number"
+                        fullWidth
+                        value={form.min_rn_per_shift}
+                        onChange={setField("min_rn_per_shift")}
+                        helperText="0 = no per-shift RN rule"
+                        slotProps={{ htmlInput: { min: 0, step: 1 } }}
+                      />
+                    </Stack>
+                  </Stack>
+                </Box>
+
+                <Box>
+                  <Typography variant="caption" sx={{ display: "block", mb: 1.5, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: "text.secondary" }}>
+                    Where it comes from
+                  </Typography>
+                  <Stack spacing={2}>
+                    <TextField label="Source" fullWidth value={form.source} onChange={setField("source")} helperText="Regulation or policy this comes from" />
+                    <TextField label="Notes (optional)" fullWidth multiline minRows={2} value={form.notes} onChange={setField("notes")} />
+                    <Stack direction="row" spacing={1.5}>
+                      <TextField
+                        label="Effective date"
+                        type="date"
+                        fullWidth
+                        value={form.effective_date}
+                        onChange={setField("effective_date")}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                      />
+                      <TextField
+                        label="Last verified"
+                        type="date"
+                        fullWidth
+                        value={form.last_verified_date}
+                        onChange={setField("last_verified_date")}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                      />
+                    </Stack>
+                    {editingShared && (
+                      <Paper variant="outlined" sx={{ p: 2, display: "flex", gap: 2, alignItems: "center", justifyContent: "space-between" }}>
+                        <Box>
+                          <Typography sx={{ fontWeight: 600 }}>Still needs verification</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Shows a warning to everyone using this standard until it is checked against the official text.
+                          </Typography>
+                        </Box>
+                        <Switch
+                          checked={!!form.needs_verification}
+                          onChange={setField("needs_verification")}
+                          slotProps={{ input: { "aria-label": "Still needs verification" } }}
+                        />
+                      </Paper>
+                    )}
+                  </Stack>
+                </Box>
+
+                <Box>
+                  <Typography id="standard-status" variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    Status
+                  </Typography>
+                  <ToggleButtonGroup
+                    exclusive
+                    fullWidth
+                    size="small"
+                    color="primary"
+                    aria-labelledby="standard-status"
+                    value={form.status}
+                    onChange={(e, v) => v && setForm((f) => ({ ...f, status: v }))}
+                  >
+                    <ToggleButton value="active" sx={{ minHeight: 44 }}>
+                      Active
+                    </ToggleButton>
+                    <ToggleButton value="draft" sx={{ minHeight: 44 }}>
+                      Draft
+                    </ToggleButton>
+                    <ToggleButton value="inactive" sx={{ minHeight: 44 }}>
+                      Inactive
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Draft standards are saved but not offered for use yet.
+                  </Typography>
+                </Box>
+
+                {meaning.length > 0 && (
+                  <Box sx={{ p: 2, borderRadius: 2, border: 1, borderColor: "info.main", bgcolor: (th) => alpha(th.palette.info.main, 0.07) }}>
+                    <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: "info.dark" }}>
+                      What this means
+                    </Typography>
+                    <Typography sx={{ lineHeight: 1.5 }}>A facility on this standard needs {meaning.join(", ")}.</Typography>
+                  </Box>
+                )}
+              </Stack>
+            </Box>
+
+            <Stack direction="row" spacing={1.5} justifyContent="flex-end" sx={{ px: 3, py: 2, borderTop: 1, borderColor: "divider" }}>
+              <Button variant="outlined" color="inherit" onClick={closePanel} disabled={saving} sx={{ minHeight: 48, borderColor: "grey.400" }}>
+                Cancel
+              </Button>
+              <Button variant="contained" onClick={save} disabled={saving} sx={{ minHeight: 48, px: 3 }}>
+                {saving ? "Saving..." : editing ? "Save changes" : "Add standard"}
+              </Button>
+            </Stack>
+          </Box>
+        </Drawer>
+      )}
+
+      {/* Use this standard */}
+      <Dialog open={useFor !== undefined} onClose={dialogBusy ? undefined : () => setUseFor(undefined)} maxWidth="xs" fullWidth>
+        <DialogTitle>{useFor ? `Use "${useFor.name}"?` : "Go back to your state's standard?"}</DialogTitle>
+        <DialogContent>
+          {useFor ? (
+            <Stack spacing={1.5}>
+              <Typography>Compliance checks and HPPD coverage requirements for your facility will use these numbers:</Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2.75, lineHeight: 1.6 }}>
+                <li>{num(useFor.hppd_min)} nursing hours per resident per day</li>
+                {hasNum(useFor.max_residents_per_staff) && <li>1 staff per {useFor.max_residents_per_staff} residents</li>}
+                {hasNum(useFor.min_rn_per_shift) && <li>{useFor.min_rn_per_shift} RN every shift</li>}
+              </Box>
+              {effective && (
+                <Typography variant="body2" color="text.secondary">
+                  You are on <strong>{effective.name}</strong> now. It stays available, and you can switch back any time.
+                </Typography>
               )}
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <TextField
-                  label="Total HPPD"
-                  helperText="Hours per resident per day"
-                  type="number"
-                  fullWidth
-                  required
-                  value={form.hppd_min}
-                  onChange={setField("hppd_min")}
-                  inputProps={{ min: 0, step: 0.01 }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <TextField
-                  label="Licensed HPPD"
-                  helperText="RN + LPN, optional"
-                  type="number"
-                  fullWidth
-                  value={form.min_licensed_hppd}
-                  onChange={setField("min_licensed_hppd")}
-                  inputProps={{ min: 0, step: 0.01 }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <TextField
-                  label="CNA HPPD"
-                  helperText="Optional"
-                  type="number"
-                  fullWidth
-                  value={form.min_cna_hppd}
-                  onChange={setField("min_cna_hppd")}
-                  inputProps={{ min: 0, step: 0.01 }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Max residents per staff"
-                  helperText="Leave blank for no ratio rule"
-                  type="number"
-                  fullWidth
-                  value={form.max_residents_per_staff}
-                  onChange={setField("max_residents_per_staff")}
-                  inputProps={{ min: 0, step: 1 }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label="Minimum RNs per shift"
-                  helperText="0 = no per-shift RN rule"
-                  type="number"
-                  fullWidth
-                  value={form.min_rn_per_shift}
-                  onChange={setField("min_rn_per_shift")}
-                  inputProps={{ min: 0, step: 1 }}
-                />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <TextField
-                  label="Source"
-                  helperText="Regulation or policy this comes from"
-                  fullWidth
-                  value={form.source}
-                  onChange={setField("source")}
-                />
-              </Grid>
-              <Grid size={{ xs: 12 }}>
-                <TextField label="Notes" fullWidth multiline minRows={2} value={form.notes} onChange={setField("notes")} />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <TextField
-                  label="Effective date"
-                  type="date"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={form.effective_date}
-                  onChange={setField("effective_date")}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <TextField
-                  label="Last verified"
-                  type="date"
-                  fullWidth
-                  InputLabelProps={{ shrink: true }}
-                  value={form.last_verified_date}
-                  onChange={setField("last_verified_date")}
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <TextField select label="Status" fullWidth value={form.status} onChange={setField("status")}>
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="draft">Draft</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
-                </TextField>
-              </Grid>
-              {editingShared && (
-                <Grid size={{ xs: 12 }}>
-                  <FormControlLabel
-                    control={<Checkbox checked={!!form.needs_verification} onChange={setField("needs_verification")} />}
-                    label="Still needs verification against the official text (shows a warning to everyone using this rule)"
-                  />
-                </Grid>
-              )}
-            </Grid>
+            </Stack>
+          ) : (
+            <Typography>
+              Compliance checks and HPPD coverage requirements will go back to the standard for your location's state. Your custom
+              standards stay available.
+            </Typography>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setForm(null)} disabled={saving}>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button color="inherit" onClick={() => setUseFor(undefined)} disabled={dialogBusy} sx={{ minHeight: 44 }}>
             Cancel
           </Button>
-          <Button variant="contained" onClick={save} disabled={saving || !form?.name || !form?.hppd_min}>
-            {saving ? "Saving..." : "Save"}
+          <Button variant="contained" onClick={confirmUse} disabled={dialogBusy} sx={{ minHeight: 44, px: 2.5 }}>
+            {dialogBusy ? "Saving..." : useFor ? "Use this standard" : "Go back"}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* History */}
       <Dialog open={!!historyFor} onClose={() => setHistoryFor(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>History: {historyFor?.name}</DialogTitle>
+        <DialogTitle>
+          History
+          <Typography variant="body2" color="text.secondary" component="div">
+            {historyFor?.name}
+          </Typography>
+        </DialogTitle>
         <DialogContent dividers>
           {historyLoading && (
             <Box sx={{ display: "flex", justifyContent: "center", p: 2 }}>
@@ -648,41 +963,43 @@ function StaffingRulesTab({ isAdmin = false }) {
               No changes recorded yet.
             </Typography>
           )}
-          <Stack spacing={1.5}>
+          <Stack spacing={2}>
             {history.map((h) => (
-              <Box key={h.id} sx={{ borderLeft: 3, borderColor: "divider", pl: 1.5 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {ACTION_LABELS[h.action] || h.action}
-                  <Typography component="span" variant="caption" color="text.secondary">
-                    {" "}
-                    by {h.changed_by || "unknown"} · {moment(h.changed_at).format("MMM D, YYYY h:mm A")}
-                  </Typography>
+              <Box key={h.id} sx={{ borderLeft: 3, borderColor: "primary.main", pl: 1.75 }}>
+                <Typography sx={{ fontWeight: 600 }}>{ACTION_LABELS[h.action] || h.action}</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {h.changed_by || "unknown"} · {moment(h.changed_at).format("MMM D, YYYY h:mm A")}
                 </Typography>
                 {renderChanges(h.changes)}
               </Box>
             ))}
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setHistoryFor(null)}>Close</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button color="inherit" variant="outlined" onClick={() => setHistoryFor(null)} sx={{ minHeight: 44, borderColor: "grey.400" }}>
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 
       {/* Deactivate confirm */}
-      <Dialog open={!!deactivateFor} onClose={() => setDeactivateFor(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Deactivate rule?</DialogTitle>
+      <Dialog open={!!deactivateFor} onClose={dialogBusy ? undefined : () => setDeactivateFor(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Deactivate "{deactivateFor?.name}"?</DialogTitle>
         <DialogContent>
-          <Typography variant="body2">
-            "{deactivateFor?.name}" will stop being offered
-            {deactivateFor?.scope === "shared" ? " to every organization" : ""}. Organizations currently using it fall back
-            to their state's active standard (or to "no verified rule" if the state has none). It is kept for the
-            history and can be reactivated.
+          <Typography>
+            It will stop being offered{deactivateFor?.scope === "shared" ? " to every organization" : ""}. Organizations currently
+            using it fall back to their state's active standard (or to "no verified standard" if the state has none).
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            It is kept for the history and can be reactivated.
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeactivateFor(null)}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={confirmDeactivate}>
-            Deactivate
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button color="inherit" onClick={() => setDeactivateFor(null)} disabled={dialogBusy} sx={{ minHeight: 44 }}>
+            Cancel
+          </Button>
+          <Button color="error" variant="contained" onClick={confirmDeactivate} disabled={dialogBusy} sx={{ minHeight: 44, px: 2.5 }}>
+            {dialogBusy ? "Working..." : "Deactivate"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1142,7 +1142,49 @@ const emptyCoverageForm = () => ({
   notes: "",
 });
 
-function CoverageSection({ coverageRequirements, units, loading, token, reload, flash }) {
+// Shows the staffing standard that HPPD requirements are calculated from, read
+// from the organization's active rule (not hardcoded), so a custom rule or a
+// different state is described correctly.
+function RuleBox({ rule, stateName }) {
+  if (!rule) {
+    return (
+      <Alert severity="warning" icon={<FontAwesomeIcon icon={faTriangleExclamation} />}>
+        No staffing standard applies to {stateName || "your state"} yet, so HPPD requirements cannot be calculated from census.
+        Pick or add a rule on the Staffing Standards tab first.
+      </Alert>
+    );
+  }
+  const lines = [];
+  lines.push(`${rule.hppd_min} nursing hours per resident per day`);
+  if (Number(rule.min_licensed_hppd) > 0) lines.push(`${rule.min_licensed_hppd} of those hours from licensed nurses`);
+  if (Number(rule.min_cna_hppd) > 0) lines.push(`${rule.min_cna_hppd} of those hours from CNAs`);
+  if (Number(rule.max_residents_per_staff) > 0) lines.push(`At least 1 staff per ${rule.max_residents_per_staff} residents`);
+  if (Number(rule.min_rn_per_shift) > 0)
+    lines.push(`At least ${rule.min_rn_per_shift} RN${Number(rule.min_rn_per_shift) === 1 ? "" : "s"} every shift`);
+  return (
+    <Box sx={{ p: 2, borderRadius: 2, border: 1, borderColor: "info.main", bgcolor: (th) => alpha(th.palette.info.main, 0.07) }}>
+      <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: "info.dark" }}>
+        Staffing standard applied: {rule.name}
+      </Typography>
+      <Box component="ul" sx={{ m: 0, pl: 2.5, typography: "body2", lineHeight: 1.5 }}>
+        {lines.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </Box>
+      <Typography variant="body2" sx={{ mt: 1 }}>
+        Only staff assigned to this unit with a nursing role set on the Roster tab are counted. To change these numbers, use the
+        Staffing Standards tab.
+      </Typography>
+      {rule.needs_verification && (
+        <Typography variant="body2" sx={{ mt: 1, color: "warning.dark", fontWeight: 600 }}>
+          This standard still needs to be verified against the official text.
+        </Typography>
+      )}
+    </Box>
+  );
+}
+
+function CoverageSection({ coverageRequirements, units, rule, stateName, loading, token, reload, flash }) {
   const [search, setSearch] = useState("");
   const [unitFilter, setUnitFilter] = useState("");
   const [shiftFilter, setShiftFilter] = useState("");
@@ -1523,21 +1565,7 @@ function CoverageSection({ coverageRequirements, units, loading, token, reload, 
             ))}
           </TextField>
 
-          {form.mode === "hppd" && (
-            <Box sx={{ p: 2, borderRadius: 2, border: 1, borderColor: "info.main", bgcolor: (th) => alpha(th.palette.info.main, 0.07) }}>
-              <Typography variant="caption" sx={{ display: "block", mb: 0.75, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: "info.dark" }}>
-                Maryland staffing rules applied
-              </Typography>
-              <Box component="ul" sx={{ m: 0, pl: 2.5, typography: "body2", lineHeight: 1.5 }}>
-                <li>3.0 nursing hours per resident per day (RN + LPN + CNA)</li>
-                <li>At least 1 staff per 15 residents</li>
-                <li>At least 1 RN every shift</li>
-              </Box>
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Only staff assigned to this unit with a nursing role set on the Roster tab are counted.
-              </Typography>
-            </Box>
-          )}
+          {form.mode === "hppd" && <RuleBox rule={rule} stateName={stateName} />}
 
           <ShiftPicker value={form.shift_type} onChange={(v) => setField("shift_type", v)} />
 
@@ -1585,7 +1613,7 @@ function CoverageSection({ coverageRequirements, units, loading, token, reload, 
           <SummaryBox>
             {formUnit ? formUnit.name : "Any unit"} <strong>{SHIFT_LABEL[form.shift_type]}</strong> shift needs{" "}
             {form.mode === "hppd" ? (
-              <>enough staff to meet the Maryland rules for that day's census</>
+              <>enough staff to meet the {rule ? rule.name : "staffing"} standard for that day's census</>
             ) : (
               <>
                 at least <strong>{form.min_staff_required}</strong> {form.min_staff_required === 1 ? "person" : "people"}
@@ -1624,6 +1652,7 @@ function StaffingAssignTab() {
   const [patterns, setPatterns] = useState([]);
   const [coverageRequirements, setCoverageRequirements] = useState([]);
   const [units, setUnits] = useState([]);
+  const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [flashMsg, setFlashMsg] = useState(null); // { severity, message }
@@ -1644,6 +1673,11 @@ function StaffingAssignTab() {
       setPatterns(patternsRes.data.results || patternsRes.data || []);
       setCoverageRequirements(coverageRes.data.results || coverageRes.data || []);
       setLoadError("");
+      // The active staffing standard is only informational here; a failure just hides its numbers.
+      axios
+        .get(apiEndpoints.staffingLocation, { headers: getAuthHeaders(token) })
+        .then((res) => setLocation(res.data))
+        .catch(() => setLocation(null));
     } catch (err) {
       console.error("Failed to load staffing data", err);
       setLoadError("Failed to load staff, schedules and coverage requirements.");
@@ -1712,6 +1746,8 @@ function StaffingAssignTab() {
         <CoverageSection
           coverageRequirements={coverageRequirements}
           units={units}
+          rule={location ? location.rule : null}
+          stateName={location ? location.state_name || location.state : ""}
           loading={loading}
           token={token}
           reload={fetchData}

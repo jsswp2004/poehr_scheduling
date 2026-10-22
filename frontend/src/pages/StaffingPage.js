@@ -247,7 +247,7 @@ function StaffingPage() {
         />
         {isAdmin && <Tab value="upload" label="Upload CSV" />}
         <Tab value="reports" label="Reports" />
-        <Tab value="rules" label="Coverage Rules" />
+        <Tab value="rules" label="Staffing Standards" />
       </Tabs>
 
       {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} />}
