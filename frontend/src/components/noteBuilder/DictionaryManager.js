@@ -11,6 +11,7 @@ import {
     Grid,
     IconButton,
     InputAdornment,
+    MenuItem,
     Paper,
     TextField,
     Typography,
@@ -104,6 +105,19 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
             setError("A dictionary needs at least one option.");
             return;
         }
+        const seen = new Set();
+        for (const it of items) {
+            const v = String(it.value || "").trim().toLowerCase();
+            if (!v || !String(it.label || "").trim()) {
+                setError("Every option needs both a stored value and a label.");
+                return;
+            }
+            if (seen.has(v)) {
+                setError(`The stored value "${it.value}" is used more than once. Give each option its own value.`);
+                return;
+            }
+            seen.add(v);
+        }
         setSaving(true);
         const payload = {
             code,
@@ -114,6 +128,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                 value: it.value,
                 label: it.label,
                 sort_order: idx,
+                ...(isSystem ? { author_role: it.author_role || "" } : {}),
             })),
         };
         try {
@@ -187,16 +202,23 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
             </Typography>
             {isSystem && (
                 <Alert severity="info" sx={{ mb: 1.5 }}>
-                    These values fill the Note type picker on every note template. Add, rename or remove them here.
-                    A value that templates still use can be renamed but not removed. Move those templates to
-                    another note type first.
+                    These values fill the Note type picker on every note template and the Note Type dropdown when
+                    writing a note. Add, rename or remove them here. "Author role" says who may write that type of
+                    note. A value that templates or notes still use can be renamed (label) but not removed or
+                    re-valued.
                 </Alert>
             )}
             {items.map((it) => {
-                const inUse = isSystem && typeof it.id === "number" && it.usage_count > 0;
+                const savedRow = isSystem && typeof it.id === "number";
+                const noteCount = it.note_count || 0;
+                const inUse = savedRow && (it.usage_count > 0 || noteCount > 0);
+                const usedText = [
+                    it.usage_count > 0 ? `${it.usage_count} template${it.usage_count === 1 ? "" : "s"}` : "",
+                    noteCount > 0 ? `${noteCount} note${noteCount === 1 ? "" : "s"}` : "",
+                ].filter(Boolean).join(", ");
                 return (
                     <Grid container spacing={1} key={it._key} sx={{ mb: 1 }} alignItems="center">
-                        <Grid size={{ xs: 5, sm: 4 }}>
+                        <Grid size={{ xs: 5, sm: isSystem ? 3 : 4 }}>
                             <TextField
                                 label="Value (stored)"
                                 size="small"
@@ -206,7 +228,7 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                                 onChange={(e) => updateItem(it._key, "value", e.target.value)}
                             />
                         </Grid>
-                        <Grid size={{ xs: 5, sm: 5 }}>
+                        <Grid size={{ xs: 5, sm: isSystem ? 3 : 5 }}>
                             <TextField
                                 label="Label (shown)"
                                 size="small"
@@ -215,7 +237,23 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                                 onChange={(e) => updateItem(it._key, "label", e.target.value)}
                             />
                         </Grid>
-                        <Grid size={{ xs: 2, sm: 3 }} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {isSystem && (
+                            <Grid size={{ xs: 12, sm: 2 }}>
+                                <TextField
+                                    select
+                                    label="Author role"
+                                    size="small"
+                                    fullWidth
+                                    value={it.author_role || ""}
+                                    onChange={(e) => updateItem(it._key, "author_role", e.target.value)}
+                                >
+                                    <MenuItem value="">Anyone</MenuItem>
+                                    <MenuItem value="doctor">Doctor</MenuItem>
+                                    <MenuItem value="nurse">Nurse</MenuItem>
+                                </TextField>
+                            </Grid>
+                        )}
+                        <Grid size={{ xs: 2, sm: isSystem ? 4 : 3 }} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                             <IconButton
                                 size="small"
                                 aria-label={`Remove ${it.label || it.value || "option"}`}
@@ -224,11 +262,9 @@ function DictionaryEditor({ dictionary, onSaved, onDeleted }) {
                             >
                                 <DeleteIcon fontSize="small" />
                             </IconButton>
-                            {isSystem && typeof it.id === "number" && (
+                            {savedRow && (
                                 <Typography variant="caption" color="text.secondary" noWrap>
-                                    {it.usage_count > 0
-                                        ? `used by ${it.usage_count} template${it.usage_count === 1 ? "" : "s"}`
-                                        : "not used"}
+                                    {usedText ? `used by ${usedText}` : "not used"}
                                 </Typography>
                             )}
                         </Grid>

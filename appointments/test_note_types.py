@@ -177,3 +177,110 @@ class NoteTypeTests(TestCase):
             f"/api/admin/dictionaries/{self.types.id}/", self.dictionary_body(self.current_items()), format="json"
         )
         self.assertEqual(res.status_code, 403)
+
+
+class NoteTypeAuthoringTests(TestCase):
+    """Note type on a clinical note comes from the dictionary; each option says who may write it."""
+
+    def setUp(self):
+        from types import SimpleNamespace
+
+        self.ns = SimpleNamespace
+        User = get_user_model()
+        self.org = Organization.objects.create(name="Clinic")
+        mk = lambda name, role: User.objects.create_user(
+            username=name, email=f"{name}@x.com", password="pw-12345-xyz", role=role, organization=self.org
+        )
+        self.admin, self.nurse, self.doctor, self.patient = mk("adm", "admin"), mk("nur", "nurse"), mk("doc", "doctor"), mk("pat", "patient")
+        self.api = client_for(self.admin)
+        importlib.import_module("appointments.migrations.0067_note_template_note_type").seed_note_types(apps, None)
+        importlib.import_module("appointments.migrations.0068_note_type_from_dictionary").seed_legacy_note_types(apps, None)
+        self.types = Dictionary.objects.get(code=NOTE_TYPES_DICTIONARY_CODE)
+
+    def body(self, items):
+        return {"code": "note_types", "name": "Note types", "description": "", "items": items}
+
+    def items(self):
+        return self.api.get(f"/api/admin/dictionaries/{self.types.id}/").json()["items"]
+
+    def put(self, items):
+        return self.api.put(f"/api/admin/dictionaries/{self.types.id}/", self.body(items), format="json")
+
+    # ---- saving the dictionary
+    def test_duplicate_value_is_a_400_not_a_server_error(self):
+        items = self.items() + [{"value": "assessment", "label": "Physician assessment", "sort_order": 99}]
+        res = self.put(items)
+        self.assertEqual(res.status_code, 400, res.content)
+        self.assertIn("more than once", str(res.json()))
+        self.assertFalse(self.types.items.filter(label="Physician assessment").exists())
+
+    def test_duplicate_value_ignoring_case_is_rejected(self):
+        items = self.items() + [{"value": "Triage", "label": "Another triage", "sort_order": 99}]
+        self.assertEqual(self.put(items).status_code, 400)
+
+    def test_values_can_be_swapped_in_one_save(self):
+        items = self.items()
+        a = next(i for i in items if i["value"] == "discharge")
+        b = next(i for i in items if i["value"] == "procedure")
+        a["value"], b["value"] = "procedure", "discharge"
+        res = self.put(items)
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(self.types.items.get(id=a["id"]).value, "procedure")
+        self.assertEqual(self.types.items.get(id=b["id"]).value, "discharge")
+
+    def test_physician_assessment_can_be_added_with_a_role(self):
+        items = self.items() + [{"value": "physician_assessment", "label": "Physician assessment", "sort_order": 99, "author_role": "doctor"}]
+        res = self.put(items)
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(self.types.items.get(value="physician_assessment").author_role, "doctor")
+
+    def test_value_used_by_a_clinical_note_cannot_be_removed_or_revalued(self):
+        from django.utils import timezone
+
+        from .models import Appointment, ClinicalNote
+
+        appt = Appointment.objects.create(
+            organization=self.org, patient=self.patient, provider=self.doctor, title="V", appointment_datetime=timezone.now()
+        )
+        ClinicalNote.objects.create(
+            organization=self.org, appointment=appt, patient=self.patient, author=self.doctor,
+            note_type="doctor_assessment", status="signed", signed_at=timezone.now(),
+        )
+        without = [i for i in self.items() if i["value"] != "doctor_assessment"]
+        self.assertEqual(self.put(without).status_code, 400)
+        renamed = self.items()
+        next(i for i in renamed if i["value"] == "doctor_assessment")["value"] = "physician"
+        self.assertEqual(self.put(renamed).status_code, 400)
+        relabeled = self.items()
+        next(i for i in relabeled if i["value"] == "doctor_assessment")["label"] = "Physician assessment"
+        self.assertEqual(self.put(relabeled).status_code, 200)
+
+    # ---- who sees and who may write which type
+    def test_note_types_endpoint_follows_author_role(self):
+        nurse = client_for(self.nurse).get("/api/clinical-notes/note-types/").json()
+        values = {i["value"] for i in nurse}
+        self.assertIn("nursing_assessment", values)
+        self.assertIn("triage", values)  # blank role = anyone
+        self.assertNotIn("doctor_assessment", values)
+        doctor = {i["value"] for i in client_for(self.doctor).get("/api/clinical-notes/note-types/").json()}
+        self.assertIn("doctor_assessment", doctor)
+        self.assertNotIn("nursing_assessment", doctor)
+        admin = {i["value"] for i in self.api.get("/api/clinical-notes/note-types/").json()}
+        self.assertTrue({"nursing_assessment", "doctor_assessment", "triage"} <= admin)
+
+    def test_create_permission_uses_the_dictionary(self):
+        from .permissions import CanAuthorClinicalNoteType
+
+        def allowed(user, note_type):
+            req = self.ns(user=user, data={"note_type": note_type})
+            return CanAuthorClinicalNoteType().has_permission(req, self.ns(action="create"))
+
+        self.assertTrue(allowed(self.nurse, "nursing_assessment"))
+        self.assertFalse(allowed(self.nurse, "doctor_assessment"))
+        self.assertTrue(allowed(self.doctor, "doctor_assessment"))
+        self.assertFalse(allowed(self.doctor, "nursing_assessment"))
+        self.assertTrue(allowed(self.nurse, "triage"))  # anyone
+        self.assertTrue(allowed(self.admin, "doctor_assessment"))
+        self.assertFalse(allowed(self.nurse, "not_a_type"))
+        DictionaryItem.objects.filter(dictionary=self.types, value="triage").update(author_role="nurse")
+        self.assertFalse(allowed(self.doctor, "triage"))
