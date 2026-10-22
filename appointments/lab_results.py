@@ -29,6 +29,8 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
+from users.models import Registration
+
 from .models import LabReport, LabReportEvent, LabReportFileData, LabResultItem, Order
 
 MAX_ITEMS = 100
@@ -225,6 +227,44 @@ def _find_patient(user, patient_id):
     if not _is_system_admin(user) and patient.organization_id != user.organization_id:
         raise LabResultError("Patient not found.", 404)
     return patient
+
+
+def visit_code(visit):
+    """The Visit ID staff see and type: the visit's Visit Number (VN-000123), as in the patient header."""
+    return visit.visit_number or f"#{visit.pk}"
+
+
+def _find_visit(patient, visit_id):
+    """The chosen visit (a Registration), which must be one of this patient's own visits."""
+    if visit_id in (None, ""):
+        return None
+    try:
+        visit_id = int(visit_id)
+    except (TypeError, ValueError):
+        raise LabResultError("That visit was not found for this patient.", 404)
+    visit = Registration.objects.filter(pk=visit_id, patient__user=patient).first()
+    if visit is None:
+        raise LabResultError("That visit was not found for this patient.", 404)
+    return visit
+
+
+SCAN_META_KEYS = {"method", "device", "source", "sides", "color", "dpi", "pages", "agent_version"}
+
+
+def clean_scan_meta(meta):
+    """Keep only the known, short facts about how a scan was captured."""
+    if not isinstance(meta, dict):
+        return {}
+    out = {}
+    for key in SCAN_META_KEYS:
+        value = meta.get(key)
+        if isinstance(value, bool) or value is None:
+            continue
+        if isinstance(value, int):
+            out[key] = value
+        elif isinstance(value, str) and value.strip():
+            out[key] = value.strip()[:80]
+    return out
 
 
 def _find_order(patient, order_id):
@@ -453,6 +493,8 @@ def create_scanned_report(user, data, upload, *, allow_duplicate=False):
 
     patient = _find_patient(user, data.get("patient"))
     order = _find_order(patient, data.get("order"))
+    visit = _find_visit(patient, data.get("visit"))
+    scan_meta = clean_scan_meta(data.get("scan_meta"))
     digest = hashlib.sha256(content).hexdigest()
 
     if not allow_duplicate:
@@ -475,6 +517,8 @@ def create_scanned_report(user, data, upload, *, allow_duplicate=False):
         organization=patient.organization,
         patient=patient,
         order=order,
+        visit=visit,
+        scan_meta=scan_meta,
         title=title[:255],
         source="scan",
         status="final",
@@ -489,12 +533,12 @@ def create_scanned_report(user, data, upload, *, allow_duplicate=False):
         file_sha256=digest,
     )
     LabReportFileData.objects.create(report=report, data=content)
-    log_event(
-        report,
-        "uploaded",
-        user,
-        detail={"file_name": filename, "size": len(content), "duplicate_allowed": bool(allow_duplicate)},
-    )
+    detail = {"file_name": filename, "size": len(content), "duplicate_allowed": bool(allow_duplicate)}
+    if visit is not None:
+        detail["visit"] = visit_code(visit)
+    if scan_meta.get("method") == "scanner":
+        detail["scan"] = scan_meta
+    log_event(report, "scanned" if scan_meta.get("method") == "scanner" else "uploaded", user, detail=detail)
     return report
 
 

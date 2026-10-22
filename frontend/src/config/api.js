@@ -159,6 +159,8 @@ export const apiEndpoints = {
     labReportAction: (id, action) => `${API_BASE_URL}/api/lab-reports/${id}/${action}/`,
     labReportsInbox: `${API_BASE_URL}/api/lab-reports/inbox/`,
     labReportUpload: `${API_BASE_URL}/api/lab-reports/upload/`,
+    labReportScanPatients: `${API_BASE_URL}/api/lab-reports/scan-patients/`,
+    labReportScanVisits: `${API_BASE_URL}/api/lab-reports/scan-visits/`,
     labReportFile: (id) => `${API_BASE_URL}/api/lab-reports/${id}/file/`,
     labMessages: `${API_BASE_URL}/api/lab-messages/`,
     labMessageAction: (id, action) => `${API_BASE_URL}/api/lab-messages/${id}/${action}/`,

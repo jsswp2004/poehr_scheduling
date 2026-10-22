@@ -6,9 +6,11 @@ import {
     Checkbox,
     Chip,
     CircularProgress,
+    Collapse,
     FormControlLabel,
     Grid,
     IconButton,
+    InputAdornment,
     MenuItem,
     Paper,
     Tab,
@@ -21,6 +23,7 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import SearchIcon from "@mui/icons-material/Search";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SaveIcon from "@mui/icons-material/Save";
 import { api } from "../../api/client";
@@ -121,6 +124,8 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
     const [previewValues, setPreviewValues] = useState({});
     // The one field open for editing (the list shows every other field as a compact row).
     const [openFieldId, setOpenFieldId] = useState(null);
+    const [showSectionTool, setShowSectionTool] = useState(false);
+    const [fieldFilter, setFieldFilter] = useState("");
 
     // Bulk-assign tool: rather than hand-editing a "Tab" field on every one
     // of a long template's fields (e.g. ~97 Review-of-Systems fields), pick
@@ -364,6 +369,11 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
         }
     };
 
+    const needle = fieldFilter.trim().toLowerCase();
+    const visibleFields = fields
+        .map((f, index) => ({ f, index }))
+        .filter(({ f }) => !needle || `${f.label} ${f.key} ${f.section_label} ${f.tab_label}`.toLowerCase().includes(needle));
+
     const noteTypeItems = (dictionaries.find((d) => d.code === "note_types") || { items: [] }).items;
     const noteTypeLabel = (noteTypeItems.find((i) => i.value === noteType) || {}).label || "";
 
@@ -412,15 +422,15 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     bgcolor: "background.paper",
                     borderBottom: 1,
                     borderColor: "divider",
-                    mb: 2,
-                    pt: 1,
+                    mb: 1.5,
+                    pt: 0.5,
                 }}
             >
-                <Button size="small" startIcon={<ArrowBackIcon />} onClick={onBack} sx={{ mb: 0.5 }}>
-                    Back to templates
-                </Button>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", mb: 0.5 }}>
-                    <Typography variant="h5" component="h2">
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <Button size="small" startIcon={<ArrowBackIcon />} onClick={onBack}>
+                        Back
+                    </Button>
+                    <Typography variant="h6" component="h2" sx={{ fontWeight: 600 }}>
                         {name || (isNew ? "New template" : code)}
                     </Typography>
                     {version !== null && <Chip size="small" label={`v${version}`} />}
@@ -430,7 +440,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                         Save Template
                     </Button>
                 </Box>
-                <Tabs value={tab} onChange={(e, v) => setTab(v)}>
+                <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ minHeight: 36, "& .MuiTab-root": { minHeight: 36, py: 0 } }}>
                     <Tab label={`Fields (${fields.length})`} value="fields" />
                     <Tab label="Preview" value="preview" />
                     <Tab label="Details" value="details" />
@@ -521,19 +531,53 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
 
             {tab === "fields" && (
                 <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Drag the handle to reorder. A field can be shown only when another field has a
-                particular value selected -- pick that under "Depends on". A Calculated field (a
-                total, score or result) is worked out automatically from the fields above it, so
-                keep it below the fields it uses.
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", mb: 1 }}>
+                <TextField
+                    size="small"
+                    value={fieldFilter}
+                    onChange={(e) => setFieldFilter(e.target.value)}
+                    placeholder="Find a field"
+                    sx={{ width: 240 }}
+                    slotProps={{
+                        htmlInput: { "aria-label": "Find a field" },
+                        input: {
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <SearchIcon fontSize="small" />
+                                </InputAdornment>
+                            ),
+                        },
+                    }}
+                />
+                <Button
+                    size="small"
+                    variant="outlined"
+                    disabled={distinctSections.length === 0}
+                    aria-expanded={showSectionTool}
+                    onClick={() => setShowSectionTool((v) => !v)}
+                >
+                    Move a section to a tab {showSectionTool ? "\u25b4" : "\u25be"}
+                </Button>
+                <Typography variant="caption" color="text.secondary">
+                    Drag to reorder. Keep a Calculated field below the fields it uses.
+                </Typography>
+                <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" variant="outlined" onClick={addCalculatedField}>
+                    Add calculated field
+                </Button>
+                <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={addField}>
+                    Add field
+                </Button>
+            </Box>
 
             {distinctSections.length > 0 && (
-                <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                <Collapse in={showSectionTool} timeout="auto">
+                <Paper variant="outlined" sx={{ p: 1.5, mb: 1 }}>
+                    <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                         Move a whole section to a tab
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
                         Long notes (e.g. a Review-of-Systems-heavy Admission Note) can be split
                         across tabs. Pick a section and give it a tab name to assign every field
                         in that section at once, instead of editing each field individually.
@@ -577,7 +621,9 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                             </Button>
                         </Grid>
                     </Grid>
+                    </Box>
                 </Paper>
+                </Collapse>
             )}
 
             {fields.length > 0 && (
@@ -585,11 +631,11 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     data-testid="field-list"
                     sx={{ border: 1, borderColor: "divider", borderRadius: 2, overflow: "hidden", bgcolor: "background.paper", mb: 2 }}
                 >
-                    {fields.map((f, index) => {
+                    {visibleFields.map(({ f, index }, vi) => {
                         const otherFields = fields.filter((of) => of.clientId !== f.clientId);
                         const dependsOnField = fields.find((of) => of.clientId === f.dependsOnClientId);
                         const dependsOnOptions = dependsOnField ? dictionaryOptionsFor(dependsOnField.dictionary) : [];
-                        const prevField = fields[index - 1];
+                        const prevField = vi > 0 ? visibleFields[vi - 1].f : null;
                         const newGroup =
                             !prevField ||
                             (prevField.tab_label || "") !== (f.tab_label || "") ||
@@ -611,7 +657,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                     <Box
                                         sx={{
                                             px: 2.5,
-                                            py: 0.75,
+                                            py: 0.25,
                                             bgcolor: "action.hover",
                                             borderBottom: 1,
                                             borderColor: "divider",
@@ -632,22 +678,23 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                     onDrop={handleDrop(index)}
                                     sx={{
                                         display: "grid",
-                                        gridTemplateColumns: { xs: "24px minmax(0, 1fr) 44px", md: "24px minmax(0, 3fr) 150px minmax(0, 2fr) 90px 44px" },
+                                        gridTemplateColumns: { xs: "20px minmax(0, 1fr) 32px", md: "20px minmax(0, 3fr) 130px minmax(0, 2fr) 80px 32px" },
                                         gap: 1.5,
                                         alignItems: "center",
                                         px: 2.5,
-                                        py: 0.5,
+                                        py: 0,
+                                        minHeight: 36,
                                         borderBottom: 1,
                                         borderColor: "divider",
                                         bgcolor: isOpen ? "#f6f9ff" : undefined,
                                     }}
                                 >
                                     <DragIndicatorIcon fontSize="small" sx={{ cursor: "grab", opacity: 0.5 }} />
-                                    <Box sx={{ minWidth: 0 }}>
+                                    <Box sx={{ minWidth: 0, display: "flex", alignItems: "baseline", gap: 1 }}>
                                         <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
                                             {f.label || <em>(untitled)</em>}
                                         </Typography>
-                                        <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }} noWrap>
                                             {f.key || "no key"}
                                         </Typography>
                                     </Box>
@@ -665,6 +712,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                         {f.required && <Chip size="small" color="warning" label="Required" />}
                                     </Box>
                                     <IconButton
+                                        size="small"
                                         aria-label={`${isOpen ? "Close" : "Edit"} ${f.label || f.key || "field"}`}
                                         aria-expanded={isOpen}
                                         onClick={() => setOpenFieldId(isOpen ? null : f.clientId)}
@@ -673,7 +721,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                     </IconButton>
                                 </Box>
                                 {isOpen && (
-                                    <Box sx={{ p: 2.5, bgcolor: "#f6f9ff", borderTop: 2, borderTopColor: "primary.main", borderBottom: 1, borderBottomColor: "divider" }}>
+                                    <Box sx={{ p: 2, bgcolor: "#f6f9ff", borderTop: 2, borderTopColor: "primary.main", borderBottom: 1, borderBottomColor: "divider" }}>
                                         <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
                                             <Typography variant="subtitle2" sx={{ flexGrow: 1 }}>
                                                 Editing: {f.label || f.key || "new field"}
@@ -685,9 +733,10 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                                 Collapse
                                             </Button>
                                         </Box>
-                            <Grid container spacing={2}>
+                            <Grid container spacing={1.5}>
                                 <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
+                                        size="small"
                                         label="Tab"
                                         fullWidth
                                         value={f.tab_label}
@@ -697,6 +746,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
+                                        size="small"
                                         label="Section"
                                         fullWidth
                                         value={f.section_label}
@@ -706,6 +756,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
+                                        size="small"
                                         label="Key"
                                         fullWidth
                                         value={f.key}
@@ -715,6 +766,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                 </Grid>
                                 <Grid size={{ xs: 12, sm: 3 }}>
                                     <TextField
+                                        size="small"
                                         label="Label"
                                         fullWidth
                                         value={f.label}
@@ -724,6 +776,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
 
                                 <Grid size={{ xs: 12, sm: 4 }}>
                                     <TextField
+                                        size="small"
                                         select
                                         label="Field Type"
                                         fullWidth
@@ -740,6 +793,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                 {DICTIONARY_FIELD_TYPES.has(f.field_type) && (
                                     <Grid size={{ xs: 12, sm: 4 }}>
                                         <TextField
+                                            size="small"
                                             select
                                             label="Dictionary"
                                             fullWidth
@@ -771,6 +825,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
 
                                 <Grid size={12}>
                                     <TextField
+                                        size="small"
                                         label="Help text"
                                         fullWidth
                                         value={f.help_text}
@@ -780,6 +835,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
 
                                 <Grid size={{ xs: 12, sm: 6 }}>
                                     <TextField
+                                        size="small"
                                         select
                                         label="Depends on"
                                         fullWidth
@@ -804,6 +860,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                     <Grid size={{ xs: 12, sm: 6 }}>
                                         {dependsOnOptions.length > 0 ? (
                                             <TextField
+                                                size="small"
                                                 select
                                                 label="...with value"
                                                 fullWidth
@@ -820,6 +877,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                                             </TextField>
                                         ) : (
                                             <TextField
+                                                size="small"
                                                 label="...with value"
                                                 fullWidth
                                                 value={f.depends_on_value}
@@ -849,12 +907,11 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                 </Box>
             )}
 
-            <Button startIcon={<AddIcon />} onClick={addField} sx={{ mb: 3 }}>
-                Add Field
-            </Button>
-            <Button startIcon={<AddIcon />} onClick={addCalculatedField} sx={{ mb: 3, ml: 1 }}>
-                Add Calculated Field (total / result)
-            </Button>
+            {needle && visibleFields.length === 0 && (
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    No fields match "{fieldFilter.trim()}".
+                </Typography>
+            )}
 
                 </Box>
             )}

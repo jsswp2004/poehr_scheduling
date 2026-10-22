@@ -832,7 +832,7 @@ function OrdersPanel({ patientId, forcedSection = null, onShowLabs = null, chart
           }),
         }}
       >
-        <LabResultsPanel patientId={patientId} orders={orders} me={me} entryRequest={labEntry} />
+        <LabResultsPanel patientId={patientId} orders={orders} me={me} entryRequest={labEntry} defaultVisitId={chartVisit?.visitId || null} />
       </Box>
 
       <Dialog

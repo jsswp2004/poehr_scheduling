@@ -172,3 +172,23 @@ test("editor: fields are compact rows grouped by section, one inline editor at a
   expect(screen.queryByRole("button", { name: "Edit Field 2" })).toBeNull();
   expect(screen.getByRole("tab", { name: "Fields (2)" })).toBeInTheDocument();
 });
+
+test("editor: Find a field narrows the list and Add field opens a new field to edit", async () => {
+  const f = (id, label) => ({ id, key: `k${id}`, label, field_type: "text", section_label: "History", tab_label: "" });
+  api.get.mockImplementation((url) => {
+    if (url === "/dicts/") return Promise.resolve({ data: [NOTE_TYPES] });
+    return Promise.resolve({ data: { ...TPL("progress_note", "Progress Note", "progress", "Progress"), fields: [f(1, "Chief Complaint"), f(2, "Allergies"), f(3, "Tobacco Use")] } });
+  });
+  render(<NoteTemplateEditor templateCode="progress_note" onBack={() => {}} />);
+  await screen.findByTestId("field-list");
+  fireEvent.change(screen.getByLabelText("Find a field"), { target: { value: "allerg" } });
+  expect(screen.getByRole("button", { name: "Edit Allergies" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Edit Chief Complaint" })).toBeNull();
+  fireEvent.change(screen.getByLabelText("Find a field"), { target: { value: "zzz" } });
+  expect(screen.getByText(/No fields match/)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Find a field"), { target: { value: "" } });
+
+  fireEvent.click(screen.getByRole("button", { name: "Add field" }));
+  expect(await screen.findByText(/Editing: new field/)).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Fields (4)" })).toBeInTheDocument();
+});

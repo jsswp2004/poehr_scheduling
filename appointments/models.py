@@ -1299,6 +1299,19 @@ class LabReport(models.Model):
     file_size = models.PositiveIntegerField(default=0)
     file_sha256 = models.CharField(max_length=64, blank=True, db_index=True)
 
+    # The visit the document belongs to (chosen in the upload / scan dialog; optional).
+    visit = models.ForeignKey(
+        "users.Registration",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="lab_reports",
+        help_text="The visit (Registration, shown as its Visit Number) this document was filed to, if one was chosen",
+    )
+    # How a scanned document was captured: {"method": "scanner", "device", "dpi", "pages", ...}.
+    # Empty for a file attached from the computer.
+    scan_meta = models.JSONField(default=dict, blank=True)
+
     # Set when the report arrived through a lab interface (see LabInboundMessage).
     inbound_message = models.ForeignKey(
         "appointments.LabInboundMessage",

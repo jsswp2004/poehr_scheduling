@@ -56,22 +56,22 @@ function NoteTemplateBuilderPage() {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Container maxWidth="lg" sx={{ py: 2 }}>
             {/* Title and tabs stay pinned under the app bar; only the content below scrolls. */}
             <Box
                 data-testid="builder-sticky-header"
-                sx={{ position: "sticky", top: 64, zIndex: 6, bgcolor: "background.default", pt: 1, mb: 3 }}
+                sx={{ position: "sticky", top: 64, zIndex: 6, bgcolor: "background.default", pt: 0.5, mb: 2 }}
             >
                 <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
                     Note Builder
                 </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                    Build and edit structured note types -- like Admission Note -- as an
-                    ordered set of fields, without a code deploy. Editing a template here
-                    never changes how an already-signed note looks in Note History.
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                    Build note types as ordered fields, no deploy needed. Editing a template never changes
+                    how an already-signed note looks in Note History.
                 </Typography>
                 <Paper>
                     <Tabs
+                        sx={{ minHeight: 40, "& .MuiTab-root": { minHeight: 40, py: 0 } }}
                         value={tab}
                         onChange={(e, v) => {
                             setTab(v);
