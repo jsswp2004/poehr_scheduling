@@ -528,6 +528,15 @@ class NoteFieldDefinitionAdminSerializer(serializers.Serializer):
         if field_type == "calculated":
             # Worked out automatically, never typed in -- so never "required".
             data["required"] = False
+        if field_type == "chart_data":
+            # Shows part of the chart, read-only: which part is calc["source"]. Nothing to fill in.
+            from .chart_data import SOURCES
+            source = (data.get("calc") or {}).get("source")
+            if source not in SOURCES:
+                raise serializers.ValidationError({"calc": "Choose which part of the chart this field shows."})
+            data["calc"] = {"source": source}
+            data["required"] = False
+            data["dictionary"] = None
         return data
 
 
@@ -885,6 +894,14 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
                 if any(i["field_type"] == "calculated" for i in items):
                     values = dict(structured)
                     apply_calculations(items, values)
+                    data["structured_data"] = values
+                chart_fields = [f for f in template.fields.all() if f.field_type == "chart_data"]
+                appointment = data.get("appointment") or getattr(self.instance, "appointment", None)
+                if chart_fields and appointment is not None:
+                    from .chart_data import capture
+
+                    values = dict(data.get("structured_data", structured))
+                    capture(values, chart_fields, appointment.patient, self.context["request"].user)
                     data["structured_data"] = values
         return data
 

@@ -923,6 +923,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                     values={form.structured_data}
                     onChange={handleStructuredFieldChange}
                     disabled={saving}
+                    patientId={patientId}
                   />
                 )
               )

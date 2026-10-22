@@ -44,6 +44,7 @@ from .scheduler_assistant import (AssistantActionCancelView as SchedulerAssistan
 from .documentation_assistant import AssistantMessageView as DocumentationAssistantMessageView, AssistantStatusView as DocumentationAssistantStatusView
 from . import allergies as allergy_views
 from . import immunization_views as vaccine_views
+from .chart_data import ChartDataView
 from . import growth_views
 from . import triage_views
 from .order_task_views import (
@@ -291,6 +292,7 @@ urlpatterns = router.urls + [
     path("prescriptions/<int:pk>/action/", PrescriptionActionView.as_view(), name="prescription-action"),
     path("prescriptions/<int:pk>/pdf/", PrescriptionPdfView.as_view(), name="prescription-pdf"),
     path("clinical-summary/", ClinicalSummaryView.as_view(), name="clinical-summary"),
+    path("note-chart-data/", ChartDataView.as_view(), name="note-chart-data"),
     path("problem-list/", ProblemListView.as_view(), name="problem-list"),
     path("problem-list/<int:pk>/", ProblemDetailView.as_view(), name="problem-detail"),
     path("home-medications/", HomeMedicationListCreateView.as_view(), name="home-medications"),
