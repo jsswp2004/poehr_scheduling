@@ -122,9 +122,15 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.warnings = []
-        self.org = Organization.objects.filter(name=DEMO_ORG_NAME).first()
+        # The clinic is whichever one Dr. Chen belongs to. Looking it up by name is not safe: an older database can
+        # hold the demo logins under a differently named clinic, and seed_demo_data then adds a second, empty one.
+        chen = CustomUser.objects.filter(username="dr_amara_chen").select_related("organization").first()
+        self.org = chen.organization if chen is not None and chen.organization_id else None
+        if self.org is None:
+            self.org = Organization.objects.filter(name=DEMO_ORG_NAME).first()
         if self.org is None:
             raise CommandError("Demo organization not found. Run `python manage.py seed_demo_data` first.")
+        self.stdout.write(f"Using clinic: {self.org.name} (id {self.org.pk})")
         self.today = timezone.localdate()
         self.now = timezone.now()
         self.chen = self.person("dr_amara_chen")
