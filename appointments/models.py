@@ -411,7 +411,9 @@ class ClinicalNote(models.Model):
         help_text="Snapshot of the author's role at the time of writing/signing",
     )
 
-    note_type = models.CharField(max_length=30, choices=NOTE_TYPE_CHOICES)
+    # Value of an item in the note_types dictionary. The two legacy values in
+    # NOTE_TYPE_CHOICES stay valid (they are seeded into the dictionary).
+    note_type = models.CharField(max_length=100)
     documentation_type = models.CharField(
         max_length=64,
         blank=True,
@@ -645,6 +647,16 @@ class DictionaryItem(models.Model):
         max_length=200, help_text="Display label, e.g. 'Penicillin'"
     )
     sort_order = models.PositiveIntegerField(default=0)
+    # Only used by the note_types dictionary: who may write a clinical note of this type.
+    # Blank = anyone who may write notes at all.
+    AUTHOR_ROLE_CHOICES = [("", "Anyone"), ("doctor", "Doctor"), ("nurse", "Nurse")]
+    author_role = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        choices=AUTHOR_ROLE_CHOICES,
+        help_text="note_types dictionary only: the role allowed to write this type of note; blank = anyone",
+    )
 
     class Meta:
         ordering = ["dictionary", "sort_order", "label"]

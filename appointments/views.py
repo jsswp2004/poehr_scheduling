@@ -11,6 +11,7 @@ from .models import (
     NoteTemplate,
     NOTE_TYPES_DICTIONARY_CODE,
     Dictionary,
+    DictionaryItem,
     VitalSignsFlowsheet,
     FlowsheetTemplate,
     Orderable,
@@ -1857,6 +1858,22 @@ class ClinicalNoteViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(patient_id=patient_id)
 
         return queryset.select_related("patient", "author", "appointment")
+
+    @action(detail=False, methods=["get"], url_path="note-types")
+    def note_types(self, request):
+        """The note types this user may write, from the Note types dictionary (Note Builder >
+        Dictionaries). Admins see all of them; doctors and nurses see the types set to their
+        role or to anyone."""
+        role = getattr(request.user, "role", None)
+        items = DictionaryItem.objects.filter(dictionary__code=NOTE_TYPES_DICTIONARY_CODE)
+        if role not in ("admin", "system_admin"):
+            items = items.filter(author_role__in=["", role])
+        return Response(
+            [
+                {"value": i.value, "label": i.label, "author_role": i.author_role}
+                for i in items.order_by("sort_order", "label")
+            ]
+        )
 
     @action(detail=True, methods=["post"])
     def sign(self, request, pk=None):

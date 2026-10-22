@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from rest_framework import serializers
 from .models import (
     Appointment,
@@ -357,13 +357,21 @@ class DictionaryItemAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DictionaryItem
-        fields = ["id", "value", "label", "sort_order", "usage_count"]
-        read_only_fields = ["usage_count"]
+        fields = ["id", "value", "label", "sort_order", "author_role", "usage_count", "note_count"]
+        read_only_fields = ["usage_count", "note_count"]
+
+    # Only meaningful for the note_types dictionary: how many clinical notes use this value.
+    note_count = serializers.SerializerMethodField()
 
     def get_usage_count(self, obj):
         if obj.dictionary.code != NOTE_TYPES_DICTIONARY_CODE:
             return None
         return NoteTemplate.objects.filter(note_type=obj.value).count()
+
+    def get_note_count(self, obj):
+        if obj.dictionary.code != NOTE_TYPES_DICTIONARY_CODE:
+            return None
+        return ClinicalNote.objects.filter(note_type=obj.value).count()
 
 
 class DictionaryAdminSerializer(serializers.ModelSerializer):
@@ -397,14 +405,11 @@ class DictionaryAdminSerializer(serializers.ModelSerializer):
             )
         if items_data is None:
             return
-        in_use = {
-            v: n
-            for v, n in (
-                NoteTemplate.objects.exclude(note_type="")
-                .values_list("note_type")
-                .annotate(n=models.Count("id"))
-            )
-        }
+        # A value is in use when a template carries it or a clinical note was written with it.
+        in_use = {}
+        for model in (NoteTemplate, ClinicalNote):
+            for v, n in model.objects.exclude(note_type="").values_list("note_type").annotate(n=models.Count("id")):
+                in_use[v] = in_use.get(v, 0) + n
         sent = {i["id"]: i for i in items_data if i.get("id")}
         for item in instance.items.all():
             n = in_use.get(item.value, 0)
@@ -413,53 +418,71 @@ class DictionaryAdminSerializer(serializers.ModelSerializer):
             kept = sent.get(item.id)
             if kept is None:
                 raise serializers.ValidationError(
-                    {"items": f"'{item.label}' is used by {n} note template(s). Move them to another note type before deleting it."}
+                    {"items": f"'{item.label}' is used by {n} note template(s) or note(s), so it can't be removed. Rename its label or stop using it instead."}
                 )
             if kept["value"] != item.value:
                 raise serializers.ValidationError(
-                    {"items": f"The stored value of '{item.label}' can't change while {n} note template(s) use it. Rename the label instead."}
+                    {"items": f"The stored value of '{item.label}' can't change while {n} note template(s) or note(s) use it. Rename the label instead."}
                 )
 
     def get_usage_count(self, obj):
         return obj.notefielddefinition_set.count()
 
+    def validate_items(self, items):
+        """Each stored value may appear once per dictionary (the database enforces it,
+        so catch it here with a readable message instead of a server error)."""
+        seen = set()
+        for item in items:
+            item["value"] = (item.get("value") or "").strip()
+            item["label"] = (item.get("label") or "").strip()
+            if not item["value"] or not item["label"]:
+                raise serializers.ValidationError("Every option needs both a stored value and a label.")
+            key = item["value"].lower()
+            if key in seen:
+                raise serializers.ValidationError(
+                    f"The stored value '{item['value']}' is used more than once. Give each option its own value."
+                )
+            seen.add(key)
+        return items
+
+    @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
         dictionary = Dictionary.objects.create(**validated_data)
         for item_data in items_data:
             item_data.pop("id", None)
+            if dictionary.code != NOTE_TYPES_DICTIONARY_CODE:
+                item_data.pop("author_role", None)
             DictionaryItem.objects.create(dictionary=dictionary, **item_data)
         return dictionary
 
+    @transaction.atomic
     def update(self, instance, validated_data):
         items_data = validated_data.pop("items", None)
-        if instance.code == NOTE_TYPES_DICTIONARY_CODE:
+        is_note_types = instance.code == NOTE_TYPES_DICTIONARY_CODE
+        if is_note_types:
             self._check_note_types_update(instance, validated_data, items_data)
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
 
         if items_data is not None:
-            existing_ids = set(instance.items.values_list("id", flat=True))
-            seen_ids = set()
-            for item_data in items_data:
-                item_id = item_data.get("id")
-                if item_id and item_id in existing_ids:
-                    DictionaryItem.objects.filter(id=item_id, dictionary=instance).update(
-                        value=item_data["value"],
-                        label=item_data["label"],
-                        sort_order=item_data.get("sort_order", 0),
-                    )
-                    seen_ids.add(item_id)
+            current = dict(instance.items.values_list("id", "value"))
+            kept_ids = {d["id"] for d in items_data if d.get("id") in current}
+            # Free up values first: removed options go, and options whose value changes
+            # step aside, so a swap or rename can never trip the unique (dictionary, value) rule.
+            instance.items.exclude(id__in=kept_ids).delete()
+            for d in items_data:
+                if d.get("id") in current and current[d["id"]] != d["value"]:
+                    DictionaryItem.objects.filter(id=d["id"], dictionary=instance).update(value=f"~moving~{d['id']}")
+            for d in items_data:
+                fields = {"value": d["value"], "label": d["label"], "sort_order": d.get("sort_order", 0)}
+                if is_note_types and "author_role" in d:
+                    fields["author_role"] = d["author_role"]
+                if d.get("id") in current:
+                    DictionaryItem.objects.filter(id=d["id"], dictionary=instance).update(**fields)
                 else:
-                    new_item = DictionaryItem.objects.create(
-                        dictionary=instance,
-                        value=item_data["value"],
-                        label=item_data["label"],
-                        sort_order=item_data.get("sort_order", 0),
-                    )
-                    seen_ids.add(new_item.id)
-            instance.items.exclude(id__in=seen_ids).delete()
+                    DictionaryItem.objects.create(dictionary=instance, **fields)
         return instance
 
 
@@ -702,9 +725,7 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     author_name = serializers.SerializerMethodField()
     author_role = serializers.SerializerMethodField()
-    note_type_display = serializers.CharField(
-        source="get_note_type_display", read_only=True
-    )
+    note_type_display = serializers.SerializerMethodField()
     documentation_type_display = serializers.SerializerMethodField()
     # Full template definition (fields + dictionary options), included so
     # Note History can render a structured note without a second fetch.
@@ -773,6 +794,27 @@ class ClinicalNoteSerializer(serializers.ModelSerializer):
 
     def get_author_role(self, obj):
         return obj.author_role_at_signing or getattr(obj.author, "role", "")
+
+    def _note_type_labels(self):
+        """value -> label for the note_types dictionary, read once per serializer (a list of
+        notes shares one instance), with the two legacy values as a fallback."""
+        if not hasattr(self, "_nt_labels"):
+            labels = dict(ClinicalNote.NOTE_TYPE_CHOICES)
+            labels.update(
+                DictionaryItem.objects.filter(dictionary__code=NOTE_TYPES_DICTIONARY_CODE).values_list("value", "label")
+            )
+            self._nt_labels = labels
+        return self._nt_labels
+
+    def get_note_type_display(self, obj):
+        return self._note_type_labels().get(obj.note_type, obj.note_type)
+
+    def validate_note_type(self, value):
+        if value not in self._note_type_labels():
+            raise serializers.ValidationError(
+                "Pick a note type from the list (an admin manages them in Note Builder > Dictionaries)."
+            )
+        return value
 
     def get_documentation_type_display(self, obj):
         """
