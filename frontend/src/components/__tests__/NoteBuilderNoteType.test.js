@@ -148,3 +148,27 @@ test("dictionaries: a server refusal is shown in words", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(await screen.findByText(/is used by 2 note template/)).toBeInTheDocument();
 });
+
+test("editor: fields are compact rows grouped by section, one inline editor at a time, Remove field works", async () => {
+  const f = (id, section) => ({ id, key: `k${id}`, label: `Field ${id}`, field_type: "text", section_label: section, tab_label: "" });
+  api.get.mockImplementation((url) => {
+    if (url === "/dicts/") return Promise.resolve({ data: [NOTE_TYPES] });
+    return Promise.resolve({ data: { ...TPL("progress_note", "Progress Note", "progress", "Progress"), fields: [f(1, "History"), f(2, "History"), f(3, "Pain")] } });
+  });
+  render(<NoteTemplateEditor templateCode="progress_note" onBack={() => {}} />);
+  const list = await screen.findByTestId("field-list");
+  expect(list).toHaveTextContent("Section: History");
+  expect(list).toHaveTextContent("Section: Pain");
+  expect(screen.queryByText(/Editing:/)).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Edit Field 1" }));
+  expect(screen.getByText("Editing: Field 1")).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole("button", { name: "Edit Field 2" }));
+  expect(screen.getByText("Editing: Field 2")).toBeInTheDocument();
+  expect(screen.queryByText("Editing: Field 1")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Remove field" }));
+  expect(screen.queryByRole("button", { name: "Edit Field 2" })).toBeNull();
+  expect(screen.getByRole("tab", { name: "Fields (2)" })).toBeInTheDocument();
+});
