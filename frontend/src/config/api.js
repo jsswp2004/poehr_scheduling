@@ -112,6 +112,7 @@ export const apiEndpoints = {
 
     // Clinical notes endpoints
     clinicalNotes: `${API_BASE_URL}/api/clinical-notes/`,
+    clinicalNoteTypes: `${API_BASE_URL}/api/clinical-notes/note-types/`,
     clinicalNote: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/`,
     clinicalNoteSign: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/sign/`,
     clinicalNoteAddend: (id) => `${API_BASE_URL}/api/clinical-notes/${id}/addend/`,
