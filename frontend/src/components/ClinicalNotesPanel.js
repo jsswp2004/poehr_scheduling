@@ -68,6 +68,17 @@ const NOTE_TYPE_LABELS = {
   nursing_assessment: "Nursing Assessment",
 };
 
+// The type a new note starts on: the first one set to the user's own role, else the legacy
+// default for the role, else the first allowed type.
+export function defaultNoteType(types, role) {
+  const list = types && types.length ? types : [];
+  const own = list.find((t) => t.author_role && t.author_role === role);
+  if (own) return own.value;
+  const legacy = NOTE_TYPE_BY_ROLE[role];
+  if (legacy && (!list.length || list.some((t) => t.value === legacy))) return legacy;
+  return list.length ? list[0].value : legacy || "";
+}
+
 // Built-in documentation types available when authoring a note. This is
 // separate from note_type (which tracks the author's clinical role --
 // doctor vs. nurse) -- it's a further classification of the note itself.
@@ -126,6 +137,11 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   const headerAppointmentId = fixedVisit ? chartVisit?.appointmentId || "" : "";
   const navigate = useNavigate();
   const [userRole, setUserRole] = useState(null);
+  // Note types this user may write, from the Note types dictionary (Note Builder > Dictionaries).
+  // null until loaded; the two legacy values are the fallback so the picker is never empty.
+  const [noteTypes, setNoteTypes] = useState(null);
+  const noteTypeLabel = (value) =>
+    ((noteTypes || []).find((t) => t.value === value) || {}).label || NOTE_TYPE_LABELS[value] || value;
   const [appointments, setAppointments] = useState([]);
   const [notes, setNotes] = useState([]);
   // Vital Signs Flowsheet instances for this patient -- merged into the same
@@ -222,6 +238,16 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
       // entirely and let the empty-state gate below hide the panel quietly.
       if (["doctor", "nurse", "admin", "system_admin"].includes(role)) {
         loadData();
+        try {
+          const res = await api.get(apiEndpoints.clinicalNoteTypes, { headers: await authHeader() });
+          const list = Array.isArray(res.data) ? res.data : [];
+          if (list.length) {
+            setNoteTypes(list);
+            setForm((f) => (f.note_type && list.some((t) => t.value === f.note_type) ? f : { ...f, note_type: defaultNoteType(list, role) }));
+          }
+        } catch (err) {
+          // Keep the built-in Doctor/Nursing Assessment choices.
+        }
       } else {
         setLoading(false);
       }
@@ -351,7 +377,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
           selectedAppointment.appointment_datetime
         ).toLocaleString()}`
       : null,
-    form.note_type ? NOTE_TYPE_LABELS[form.note_type] : null,
+    form.note_type ? noteTypeLabel(form.note_type) : null,
   ];
   const previewSections = isTemplateDriven
     ? currentTemplate
@@ -628,7 +654,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
   };
 
   const resetForm = () => {
-    const defaultType = NOTE_TYPE_BY_ROLE[userRole] || "";
+    const defaultType = defaultNoteType(noteTypes, userRole);
     setForm({ ...EMPTY_FORM, note_type: defaultType });
     setDraftId(null);
     setAmendsId(null);
@@ -838,7 +864,7 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
               </FormControl>
             </Stack>
 
-            {(userRole === "admin" || userRole === "system_admin") && !amendsId ? (
+            {(userRole === "admin" || userRole === "system_admin" || (noteTypes && noteTypes.length > 1)) && !amendsId ? (
               <FormControl fullWidth size="small">
                 <InputLabel id="note-type-label">Note Type</InputLabel>
                 <Select
@@ -847,13 +873,22 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                   value={form.note_type}
                   onChange={handleFieldChange("note_type")}
                 >
-                  <MenuItem value="doctor_assessment">Doctor Assessment</MenuItem>
-                  <MenuItem value="nursing_assessment">Nursing Assessment</MenuItem>
+                  {(noteTypes && noteTypes.length
+                    ? noteTypes
+                    : [
+                        { value: "doctor_assessment", label: "Doctor Assessment" },
+                        { value: "nursing_assessment", label: "Nursing Assessment" },
+                      ]
+                  ).map((t) => (
+                    <MenuItem key={t.value} value={t.value}>
+                      {t.label}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             ) : (
               <Chip
-                label={NOTE_TYPE_LABELS[form.note_type] || "Select an appointment"}
+                label={noteTypeLabel(form.note_type) || "Select an appointment"}
                 sx={{ alignSelf: "flex-start" }}
               />
             )}
@@ -1073,11 +1108,14 @@ function ClinicalNotesPanel({ patientId, patientName, chartVisit }) {
                             <TableCell>
                               <Chip
                                 label={
-                                  note.note_type_display || NOTE_TYPE_LABELS[note.note_type]
+                                  note.note_type_display || noteTypeLabel(note.note_type)
                                 }
                                 size="small"
                                 color={
-                                  note.note_type === "doctor_assessment" ? "primary" : "secondary"
+                                  ((noteTypes || []).find((t) => t.value === note.note_type) || {}).author_role === "doctor" ||
+                                  note.note_type === "doctor_assessment"
+                                    ? "primary"
+                                    : "secondary"
                                 }
                               />
                             </TableCell>

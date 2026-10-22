@@ -141,9 +141,10 @@ class IsFlowsheetTemplateAdmin(permissions.BasePermission):
 
 class CanAuthorClinicalNoteType(permissions.BasePermission):
     """
-    Enforces that a nurse can only author 'nursing_assessment' notes and a
-    doctor can only author 'doctor_assessment' notes. Admins/system_admins
-    may author either (useful for demo/testing and correcting data).
+    Enforces who may author each note type, using the Author role set on the
+    option in the note_types dictionary (Doctor, Nurse, or blank = either).
+    Admins/system_admins may author any type (useful for demo/testing and
+    correcting data).
 
     This only applies to the ViewSet's `create` action (a plain POST to the
     list endpoint, i.e. "save draft" / "sign immediately without a draft").
@@ -158,13 +159,21 @@ class CanAuthorClinicalNoteType(permissions.BasePermission):
             return True
         user = request.user
         note_type = request.data.get("note_type")
-        if getattr(user, "role", None) in ("admin", "system_admin"):
+        role = getattr(user, "role", None)
+        if role in ("admin", "system_admin"):
             return True
-        expected = {
-            "nurse": "nursing_assessment",
-            "doctor": "doctor_assessment",
-        }.get(getattr(user, "role", None))
-        return expected is not None and note_type == expected
+        if role not in ("nurse", "doctor"):
+            return False
+        # The note types dictionary says who may write each type (blank = any doctor or nurse).
+        from .models import DictionaryItem, NOTE_TYPES_DICTIONARY_CODE
+
+        item = DictionaryItem.objects.filter(
+            dictionary__code=NOTE_TYPES_DICTIONARY_CODE, value=note_type
+        ).first()
+        if item is not None:
+            return item.author_role in ("", role)
+        # Not in the dictionary: only the two original values are tolerated (validation rejects the rest).
+        return note_type == {"nurse": "nursing_assessment", "doctor": "doctor_assessment"}[role]
 
 class CanAccessOrders(permissions.BasePermission):
     """
