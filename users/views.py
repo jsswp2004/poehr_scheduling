@@ -2274,10 +2274,37 @@ def get_current_user(request):
         return Response(serializer.errors, status=400)
 
 
+# The role filter on the Team page. "admin" covers both admin kinds; "other" is everyone not listed.
+TEAM_ROLE_GROUPS = {
+    "doctor": ["doctor"],
+    "nurse": ["nurse"],
+    "registrar": ["registrar"],
+    "admin": ["admin", "system_admin"],
+}
+
+
+def _team_role_q(group):
+    """Q for one role group name, or None when the name is not a group."""
+    if group in TEAM_ROLE_GROUPS:
+        return Q(role__in=TEAM_ROLE_GROUPS[group])
+    if group == "other":
+        listed = [r for roles in TEAM_ROLE_GROUPS.values() for r in roles]
+        return ~Q(role__in=listed)
+    return None
+
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_team_members(request):
-    """Return non-patient users for the current organization"""
+    """
+    Return non-patient users for the current organization.
+
+    Query: search (every word must match a first name, last name, email or phone), role (doctor,
+    nurse, registrar, admin or other), online=1, page, page_size.
+    The reply adds `role_counts` (for the filter chips; counts ignore the role filter but respect the
+    search) and, on each person, `can_text`: true when they have agreed to texts, have not opted out,
+    and have a phone number.
+    """
     user = request.user
     if user.role not in [
         "admin",
@@ -2295,13 +2322,28 @@ def get_team_members(request):
             organization=user.organization, is_active=True
         )
 
-    search = request.GET.get("search")
-    if search:
-        members = members.filter(
-            Q(first_name__icontains=search)
-            | Q(last_name__icontains=search)
-            | Q(email__icontains=search)
+    search = (request.GET.get("search") or "").strip()
+    for word in search.split():
+        digits = "".join(ch for ch in word if ch.isdigit())
+        match = (
+            Q(first_name__icontains=word)
+            | Q(last_name__icontains=word)
+            | Q(email__icontains=word)
         )
+        if len(digits) >= 3:
+            match |= Q(phone_number__icontains=digits)
+        members = members.filter(match)
+
+    # chip counts: everyone matching the search, split by role group
+    counts = {"all": members.count(), "online": members.filter(is_online=True).count()}
+    for group in list(TEAM_ROLE_GROUPS) + ["other"]:
+        counts[group] = members.filter(_team_role_q(group)).count()
+
+    role_q = _team_role_q(request.GET.get("role"))
+    if role_q is not None:
+        members = members.filter(role_q)
+    if request.GET.get("online") in ("1", "true", "True"):
+        members = members.filter(is_online=True)
 
     # Get page size from frontend parameter, default to 10
     page_size = request.GET.get("page_size", 10)
@@ -2314,9 +2356,19 @@ def get_team_members(request):
 
     paginator = PageNumberPagination()
     paginator.page_size = page_size
-    result_page = paginator.paginate_queryset(members.order_by("last_name"), request)
+    result_page = paginator.paginate_queryset(
+        members.order_by("last_name", "first_name", "id"), request
+    )
     serializer = UserSerializer(result_page, many=True)
-    return paginator.get_paginated_response(serializer.data)
+    can_text = {
+        m.id: bool(m.sms_consent and not m.sms_opt_out and (m.phone_number or "").strip())
+        for m in result_page
+    }
+    for row in serializer.data:
+        row["can_text"] = can_text.get(row["id"], False)
+    response = paginator.get_paginated_response(serializer.data)
+    response.data["role_counts"] = counts
+    return response
 
 
 @api_view(["POST"])
