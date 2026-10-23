@@ -45,6 +45,7 @@ from .documentation_assistant import AssistantMessageView as DocumentationAssist
 from . import allergies as allergy_views
 from . import immunization_views as vaccine_views
 from .chart_data import ChartDataView
+from .intake_output_views import IntakeOutputSettingsView, IntakeOutputSummaryView
 from . import growth_views
 from . import triage_views
 from .order_task_views import (
@@ -293,6 +294,8 @@ urlpatterns = router.urls + [
     path("prescriptions/<int:pk>/pdf/", PrescriptionPdfView.as_view(), name="prescription-pdf"),
     path("clinical-summary/", ClinicalSummaryView.as_view(), name="clinical-summary"),
     path("note-chart-data/", ChartDataView.as_view(), name="note-chart-data"),
+    path("intake-output/summary/", IntakeOutputSummaryView.as_view(), name="intake-output-summary"),
+    path("intake-output/settings/", IntakeOutputSettingsView.as_view(), name="intake-output-settings"),
     path("problem-list/", ProblemListView.as_view(), name="problem-list"),
     path("problem-list/<int:pk>/", ProblemDetailView.as_view(), name="problem-detail"),
     path("home-medications/", HomeMedicationListCreateView.as_view(), name="home-medications"),
