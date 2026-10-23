@@ -885,7 +885,7 @@ function StaffingUploadTab() {
   const [mode, setMode] = useState("roster");
 
   return (
-    <Box sx={{ maxWidth: 1200 }}>
+    <Box>
       <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="flex-end" justifyContent="space-between" sx={{ mb: 3 }}>
         <Box>
           <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>

@@ -1699,7 +1699,7 @@ function StaffingAssignTab() {
   }
 
   return (
-    <Box sx={{ maxWidth: 1200 }}>
+    <Box>
       <Stack direction="row" spacing={2} alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
           Assign Schedule
