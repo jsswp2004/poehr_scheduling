@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { API_BASE_URL } from "../../config/api";
 import { getAccessToken } from "../../utils/tokenManager";
 import { useSubscriptionAccess } from "../../hooks/useSubscriptionAccess";
@@ -147,13 +147,6 @@ function AnalyticsSection({
 }) {
   // Subscription access control
   const { permissions, tier } = useSubscriptionAccess();
-  
-  // Redirect to standard reports if user doesn't have advanced analytics access
-  useEffect(() => {
-    if (analyticsTab === 'advanced' && !permissions?.advancedAnalytics) {
-      setAnalyticsTab('standard');
-    }
-  }, [analyticsTab, permissions?.advancedAnalytics, setAnalyticsTab]);
   
   // State for report preview functionality
   const [previewData, setPreviewData] = useState(null);
@@ -1304,20 +1297,17 @@ function AnalyticsSection({
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box>
-        <Typography component="h1" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2 }}>
-          Analytics
-        </Typography>
         <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
           Run clinic reports for a date range and provider
         </Typography>
 
         <Tabs
-          value={analyticsTab === "advanced" && hasAdvanced ? "advanced" : "standard"}
+          value={analyticsTab === "advanced" ? "advanced" : "standard"}
           onChange={(e, v) => changeTab(v)}
           sx={{ borderBottom: `1px solid ${BORDER}`, mb: 2 }}
         >
           <Tab label="Standard Reports" value="standard" />
-          {hasAdvanced && <Tab label="Advanced Analytics" value="advanced" />}
+          <Tab label="Advanced Analytics" value="advanced" />
         </Tabs>
 
         {analyticsTab === "advanced" && !hasAdvanced ? (
