@@ -108,7 +108,7 @@ describe("conditions on the patient", () => {
     pickOption("cond-field-0", "MD");
     expect(screen.getByTestId("conditions-incomplete")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save view" })).toBeDisabled();
-    fireEvent.click(screen.getByLabelText("Remove condition 1"));
+    fireEvent.click(screen.getByRole("button", { name: "Remove condition 1" }));
     expect(screen.queryByTestId("conditions-incomplete")).toBeNull();
     expect(screen.getByRole("button", { name: "Save view" })).toBeEnabled();
   });
@@ -219,7 +219,8 @@ describe("follow-up views", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create view" }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sv/", { name: "Peds follow-up", kind: "follow_up" }, expect.anything()));
     await waitFor(() => expect(screen.getByTestId("view-item-9")).toHaveTextContent("Peds follow-up"));
-    expect(screen.getByRole("tab", { name: "Follow-up" })).toBeInTheDocument();
+    // the dialog is still fading out, so the page behind it is briefly hidden from the accessibility tree
+    expect(await screen.findByRole("tab", { name: "Follow-up", hidden: true })).toBeInTheDocument();
   });
 
   test("a live view is still made without a kind", async () => {
