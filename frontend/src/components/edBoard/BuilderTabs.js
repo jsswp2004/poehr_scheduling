@@ -308,8 +308,9 @@ export function ConditionsEditor({ config, settings, people, onChange }) {
         </Typography>
       )}
       {conditions.map((c, i) => {
-        const options = choices(c.field);
-        const picked = options.filter((o) => (c.value || []).includes(o.value));
+        const listField = c.field !== "age" && c.field !== "complaint"; // only these hold a list of choices
+        const options = listField ? choices(c.field) : [];
+        const picked = listField && Array.isArray(c.value) ? options.filter((o) => c.value.includes(o.value)) : [];
         return (
           <Paper key={i} variant="outlined" sx={{ p: 1.25, mb: 1, display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }} data-testid={`condition-${i}`}>
             <TextField
