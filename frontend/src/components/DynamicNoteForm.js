@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Typography,
   TextField,
@@ -151,6 +152,21 @@ export function groupByTab(fieldList) {
     tabs[tabIndex[label]].fields.push(field);
   });
   return tabs;
+}
+
+// A section made of three or more Yes/No-style radio questions that share a "normal" answer (a review of
+// systems: Negative, an exam: Normal) gets an "Apply default" button that sets all of them at once.
+const DEFAULT_ANSWERS = ["negative", "normal"];
+export function sectionDefault(sectionFields) {
+  const radios = sectionFields.filter((f) => f.field_type === "radio" && !f.depends_on_key);
+  if (radios.length < 3) return null;
+  for (const value of DEFAULT_ANSWERS) {
+    if (radios.every((f) => (f.options || []).some((o) => o.value === value))) {
+      const label = radios[0].options.find((o) => o.value === value).label;
+      return { value, label, keys: radios.map((f) => f.key) };
+    }
+  }
+  return null;
 }
 
 function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
@@ -440,9 +456,23 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
           <Box key={section.label || `section-${idx}`}>
             {section.label && (
               <>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                  {section.label}
-                </Typography>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle2" color="text.secondary">
+                    {section.label}
+                  </Typography>
+                  {(() => {
+                    const preset = sectionDefault(section.fields);
+                    return preset && !disabled ? (
+                      <Button
+                        size="small"
+                        onClick={() => preset.keys.forEach((key) => onChange(key, preset.value))}
+                        data-testid={`apply-default-${idx}`}
+                      >
+                        Apply default (all {preset.label})
+                      </Button>
+                    ) : null;
+                  })()}
+                </Stack>
                 <Divider sx={{ mb: 2 }} />
               </>
             )}
