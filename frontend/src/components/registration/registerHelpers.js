@@ -169,3 +169,36 @@ export function patientSearchParams(text) {
   if (/^[\d\s().+-]+$/.test(t) && digitsOnly(t).length >= 4) return { search: digitsOnly(t) };
   return { search: t };
 }
+
+// "54 y", "7 mo" or "12 d" from an ISO date of birth; "" when unknown.
+export function ageText(iso, today = new Date()) {
+  const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return "";
+  const born = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  if (Number.isNaN(born.getTime()) || born > today) return "";
+  let years = today.getFullYear() - born.getFullYear();
+  const monthDiff = today.getMonth() - born.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < born.getDate())) years -= 1;
+  if (years >= 2) return `${years} y`;
+  const months = years * 12 + monthDiff - (today.getDate() < born.getDate() ? 1 : 0);
+  if (months >= 1) return `${months} mo`;
+  return `${Math.max(0, Math.floor((today - born) / 86400000))} d`;
+}
+
+// The details that make each Full Registration step "filled in". A step with all of them shows a check.
+// Patient-level fields live on the patient, visit-level fields on the visit.
+export const STEP_REQUIREMENTS = {
+  identity: { patient: ["legal_sex", "date_of_birth", "phone_number"] },
+  emergency: { patient: ["emergency_contact_name", "emergency_contact_phone"] },
+  financial: { patient: ["insurance_payer_name", "insurance_member_id"] },
+  reason: { visit: ["reason_for_visit"] },
+  legal: { patient: ["consent_to_treat"] },
+  logistics: { visit: ["care_setting", "attending_provider"] },
+};
+
+export function stepFilled(step, patientFields = {}, visitFields = {}) {
+  const need = STEP_REQUIREMENTS[step];
+  if (!need) return false;
+  const has = (v) => v === true || (v !== false && v !== null && v !== undefined && String(v).trim() !== "");
+  return (need.patient || []).every((k) => has(patientFields[k])) && (need.visit || []).every((k) => has(visitFields[k]));
+}
