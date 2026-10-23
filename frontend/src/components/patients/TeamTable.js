@@ -63,9 +63,9 @@ function PersonAvatar({ member, size = 36 }) {
     );
 }
 
-function RoleChip({ role }) {
+function RoleChip({ role, compact = false }) {
     const [bg, fg] = roleColors(role);
-    return <Chip size="small" label={roleLabel(role)} sx={{ bgcolor: bg, color: fg, fontWeight: 600 }} />;
+    return <Chip size="small" label={roleLabel(role)} sx={{ bgcolor: bg, color: fg, fontWeight: 600, ...(compact ? { height: 18, fontSize: 11, '& .MuiChip-label': { px: 1 } } : {}) }} />;
 }
 
 // Message, Text and Email for one person. Text is switched off, with the reason, for anyone who
@@ -119,6 +119,8 @@ function TeamTable({
     onOpenMessages,
     totalUnreadCount = 0,
     showOrganization = false,
+    title = null,
+    backAction = null,
 }) {
     const theme = useTheme();
     const narrow = useMediaQuery(theme.breakpoints.down('md'));
@@ -212,8 +214,13 @@ function TeamTable({
 
     return (
         <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 2, mt: 2, mb: 1.5, flexWrap: 'wrap' }}>
-                <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }} aria-live="polite">
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75, pt: 1, mb: 1, flexWrap: 'wrap', flexShrink: 0 }}>
+                {title && (
+                    <Typography variant="h5" data-testid="view-title">
+                        {title}
+                    </Typography>
+                )}
+                <Typography variant="body2" color="text.secondary" aria-live="polite">
                     {hasLoadedTeam ? (
                         <>
                             {total} {total === 1 ? 'person' : 'people'}
@@ -230,10 +237,12 @@ function TeamTable({
                         'Loading team'
                     )}
                 </Typography>
+                <Box sx={{ flex: 1 }} />
                 {onOpenMessages && <MessagesButton onClick={onOpenMessages} totalUnreadCount={totalUnreadCount} />}
+                {backAction}
             </Box>
 
-            <Box sx={{ display: 'flex', gap: 1.5, mb: 2, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
+            <Box sx={{ display: 'flex', gap: 1.5, mb: 1, flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
                 <TextField
                     placeholder="Search by name, email or phone"
                     value={localSearchValue}
@@ -324,11 +333,10 @@ function TeamTable({
                     </Box>
                 ) : (
                     <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, minHeight: 0 }}>
-                        <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: 760 }}>
+                        <Table stickyHeader size="small" sx={{ tableLayout: 'fixed', minWidth: 680 }}>
                             <TableHead>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 700 }}>Person</TableCell>
-                                    <TableCell sx={{ fontWeight: 700, width: 130 }}>Role</TableCell>
                                     <TableCell sx={{ fontWeight: 700 }}>Contact</TableCell>
                                     <TableCell sx={{ fontWeight: 700, width: 150 }}>Last active</TableCell>
                                     <TableCell sx={{ width: 250 }} />
@@ -343,10 +351,11 @@ function TeamTable({
                                             <TableCell>
                                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
                                                     <PersonAvatar member={member} />
-                                                    <Box sx={{ minWidth: 0 }}>
-                                                        <Typography variant="body2" fontWeight={600} noWrap title={memberName(member)}>
+                                                    <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25 }}>
+                                                        <Typography variant="body2" fontWeight={600} noWrap title={memberName(member)} sx={{ maxWidth: '100%' }}>
                                                             {memberName(member)}
                                                         </Typography>
+                                                        <RoleChip role={member.role} compact />
                                                         {showOrganization && (
                                                             <Typography variant="caption" color="text.secondary" noWrap component="div">
                                                                 {member.organization_name || 'No organization'}
@@ -354,9 +363,6 @@ function TeamTable({
                                                         )}
                                                     </Box>
                                                 </Box>
-                                            </TableCell>
-                                            <TableCell>
-                                                <RoleChip role={member.role} />
                                             </TableCell>
                                             <TableCell>
                                                 <Typography variant="body2" noWrap title={member.email || ''}>
@@ -384,7 +390,7 @@ function TeamTable({
             </Box>
 
             {hasLoadedTeam && teamTotalSize > 0 && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 2, flexShrink: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 1, flexShrink: 0 }}>
                     <Typography variant="caption" color="text.secondary" data-testid="team-range">
                         {rangeText(teamPage, teamPageSize, teamTotalSize)}
                     </Typography>
