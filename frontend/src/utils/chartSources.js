@@ -8,6 +8,8 @@ export const CHART_SOURCES = [
   { value: "vitals", label: "Latest vital signs" },
   { value: "immunizations", label: "Immunizations given" },
   { value: "health_manager", label: "Health Manager (due and overdue)" },
+  { value: "inpatient_meds", label: "Active medication orders" },
+  { value: "intake_output", label: "Intake and output (24 hours)" },
 ];
 
 export const chartSourceLabel = (value) => (CHART_SOURCES.find((s) => s.value === value) || {}).label || value || "";

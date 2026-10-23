@@ -27,8 +27,10 @@ from .models import (
     LabReport,
     PatientAllergy,
     PatientAllergyStatus,
+    Order,
     PatientImmunization,
     ProblemListEntry,
+    VitalSignsFlowsheet,
 )
 from .patient_header import _patient_for
 
@@ -88,6 +90,56 @@ def medications(patient, user):
                   "last_taken": _date(m.last_taken)} for m in rows],
         "empty": "No home medications recorded.",
     }
+
+
+def inpatient_meds(patient, user):
+    """Medication orders that are active now (the Orders module), for acute-care notes."""
+    if not user_has_right(user, "orders.view"):
+        return {"title": "Active medication orders", "hidden": True}
+    from .order_tasks import FREQUENCY_LABELS
+
+    orders = Order.objects.filter(
+        patient=patient, orderable_category="medication", status__in=("active", "in_progress")
+    ).order_by("orderable_name", "pk")
+    rows = []
+    for order in orders:
+        schedule = order.schedule or {}
+        rows.append({
+            "drug": order.orderable_name,
+            "dose": " ".join(x for x in (schedule.get("dose"), schedule.get("route")) if x),
+            "frequency": FREQUENCY_LABELS.get(schedule.get("frequency"), schedule.get("frequency") or ""),
+            "started": _date(order.signed_at.date()) if order.signed_at else "",
+        })
+    return {
+        "title": "Active medication orders",
+        "columns": [_col("drug", "Medication"), _col("dose", "Dose and route"), _col("frequency", "Frequency"), _col("started", "Started")],
+        "rows": rows,
+        "empty": "No active medication orders.",
+    }
+
+
+def intake_output(patient, user):
+    """The 24-hour totals from the patient's latest Intake & Output flowsheet."""
+    from . import intake_output as io
+    from .intake_output_views import settings_for, weight_kg
+
+    title = "Intake and output, last 24 hours"
+    sheet = VitalSignsFlowsheet.objects.filter(patient=patient, template__code="intake_output").order_by("-pk").first()
+    if sheet is None:
+        return {"title": title, "columns": [], "rows": [], "empty": "No intake and output charted."}
+    summary = io.summarize(sheet.columns or [], sheet.data or {}, timezone.localtime(), settings_for(user), weight_kg(patient))
+    day = summary["periods"]["day"]
+    ml = lambda v: "--" if v is None else f"{v:,} mL"
+    rows = [
+        {"measure": "Intake", "value": ml(day["intake"])},
+        {"measure": "Output", "value": ml(day["output"])},
+        {"measure": "Net", "value": (f"+{day['net']:,} mL" if day["net"] > 0 else ml(day["net"]))},
+    ]
+    if summary["urine_ml_kg_h"] is not None:
+        rows.append({"measure": "Urine, last 6 hours", "value": f"{summary['urine_ml_kg_h']} mL/kg/h"})
+    for alert in summary["alerts"]:
+        rows.append({"measure": "Alert", "value": alert["message"]})
+    return {"title": title, "columns": [_col("measure", "Measure"), _col("value", "Value")], "rows": rows, "empty": "No intake and output charted."}
 
 
 def labs(patient, user):
@@ -161,6 +213,8 @@ SOURCES = {
     "vitals": vitals,
     "immunizations": immunizations,
     "health_manager": health_manager,
+    "inpatient_meds": inpatient_meds,
+    "intake_output": intake_output,
 }
 SOURCE_LABELS = {
     "problems": "Problem list",
@@ -170,6 +224,8 @@ SOURCE_LABELS = {
     "vitals": "Latest vital signs",
     "immunizations": "Immunizations given",
     "health_manager": "Health Manager (due and overdue)",
+    "inpatient_meds": "Active medication orders",
+    "intake_output": "Intake and output (24 hours)",
 }
 
 
