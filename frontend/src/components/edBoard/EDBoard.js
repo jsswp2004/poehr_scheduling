@@ -37,7 +37,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
-import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, filterRows, formatLos, losMinutes, reassessStatus, ruleColors, triageNoteStatus, vitalsStatus } from "./edBoardColumns";
+import { DEFAULT_COLUMNS, ORDER_ICON_COLUMNS, VIEWS, ageLabel, describeCriteria, filterRows, formatLos, losMinutes, reassessStatus, ruleColors, triageNoteStatus, vitalsStatus } from "./edBoardColumns";
 import { BED_LABEL, filterByColumns, isPlainColumn, sortRows } from "./edBoardTable";
 
 const FRONT_LINE = ["doctor", "nurse", "registrar", "admin", "system_admin"];
@@ -177,7 +177,11 @@ export default function EDBoard({
   const activeView = previewView || views.find((v) => v.key === viewKey) || views[0];
   const view = activeView?.filter || "all";
   const limitedBeds = activeView?.beds;
-  const rows = useMemo(() => filterRows(data?.rows || [], view, currentUserId, limitedBeds), [data, view, currentUserId, limitedBeds]);
+  const criteria = activeView?.criteria;
+  const showEmptyBeds = activeView?.show_empty_beds;
+  const rows = useMemo(() => filterRows(data?.rows || [], view, currentUserId, limitedBeds, criteria, showEmptyBeds), [data, view, currentUserId, limitedBeds, criteria, showEmptyBeds]);
+  const criteriaText = useMemo(() => describeCriteria(criteria, { statuses: data?.statuses, doctors: data?.staff?.doctors, nurses: data?.staff?.nurses }), [criteria, data]);
+  const patientCount = rows.filter((r) => r.visit).length;
   const columns = useMemo(() => (activeView?.columns || DEFAULT_COLUMNS).filter((c) => c.visible !== false), [activeView]);
   const rules = activeView?.rules || [];
 
@@ -401,7 +405,7 @@ export default function EDBoard({
           ""
         );
       case "age":
-        return v && v.age != null ? `${v.age}y /${v.sex || "?"}` : "";
+        return v && v.age != null ? `${ageLabel(v)} /${v.sex || "?"}` : "";
       case "reason":
       case "complaint": {
         if (!v) return "";
@@ -661,6 +665,14 @@ export default function EDBoard({
             ))}
           </Select>
         </FormControl>
+        {criteriaText && (
+          <Chip
+            size="small"
+            sx={{ bgcolor: "#f1ecff", color: "#4c1d95", fontWeight: 500 }}
+            data-testid="criteria-chip"
+            label={`Showing: ${criteriaText} · ${patientCount} patient${patientCount === 1 ? "" : "s"}`}
+          />
+        )}
         {filterCount > 0 && (
           <Button size="small" onClick={() => setFilters({})} data-testid="clear-filters">
             Clear {filterCount} filter{filterCount === 1 ? "" : "s"}
@@ -732,6 +744,8 @@ export default function EDBoard({
                       ? "Nobody matches the column filters."
                       : limitedBeds && limitedBeds.length > 0 && !(data?.rows || []).some((r) => r.type === "bed" && limitedBeds.includes(r.bed))
                       ? "None of this view's beds are in this department. Pick another department."
+                      : criteriaText
+                      ? "Nobody on the board matches this view's conditions."
                       : view === "all" && !(limitedBeds && limitedBeds.length)
                       ? "No beds in this department yet."
                       : "Nobody matches this view."}

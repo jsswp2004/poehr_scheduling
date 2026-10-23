@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .admissions import AdmitView, TransferView, DischargeView, AttendingView
 from .removal import user_removal, user_restore
 from .board_builder import StatusSettingsView, StatusViewDetailView, StatusViewListView, StatusViewUndoView
-from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView
+from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView, EdFollowUpView
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -188,6 +188,7 @@ urlpatterns = [
     path("admissions/<int:pk>/attending/", AttendingView.as_view(), name="admission-attending"),
     path("admissions/<int:pk>/board/", BoardUpdateView.as_view(), name="admission-board"),
     path("ed-board/", EdBoardView.as_view(), name="ed-board"),
+    path("ed-board/follow-up/", EdFollowUpView.as_view(), name="ed-board-follow-up"),
     path("ed-board/preference/", EdBoardPreferenceView.as_view(), name="ed-board-preference"),
     path("status-views/", StatusViewListView.as_view(), name="status-views"),
     path("status-views/settings/", StatusSettingsView.as_view(), name="status-views-settings"),

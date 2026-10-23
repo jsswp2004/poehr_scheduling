@@ -7,9 +7,10 @@ resident, comments and registration flag right on the board. Moving, admitting a
 use the admit / transfer / discharge views in admissions.py.
 """
 import re
-from datetime import date
+from datetime import date, timedelta
 
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from rest_framework import permissions
 from rest_framework.response import Response
@@ -17,11 +18,11 @@ from rest_framework.views import APIView
 
 from appointments import triage_service
 from appointments.locations import bed_status
-from appointments.models import Bed, Order, Unit, VitalSignsFlowsheet
+from appointments.models import Bed, LabReport, Order, Unit, VitalSignsFlowsheet
 
 from .admissions import ROLES, _bad, _org
 from .facility_scope import limit_to_facilities
-from .board_config import BUILTIN_VIEW_KEYS, DEFAULT_STATUSES, bed_label, all_view_payloads, get_settings, roster_for, status_keys
+from .board_config import BUILTIN_VIEW_KEYS, DEFAULT_FOLLOW_UP_DAYS, DEFAULT_STATUSES, MAX_FOLLOW_UP_DAYS, bed_label, all_view_payloads, get_settings, roster_for, status_keys
 from .models import CustomUser, Registration, StatusBoardPreference, StatusBoardView
 
 # The built-in ED statuses; an admin can change them per clinic or department in the Status Board Builder.
@@ -39,6 +40,28 @@ def _age(dob):
         return None
     today = date.today()
     return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+
+
+def age_parts(dob, today=None):
+    """(whole years, whole months, days) old, for babies and children where "0y" tells nothing."""
+    if not dob:
+        return None, None, None
+    today = today or date.today()
+    years = _age(dob) if today == date.today() else today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+    months = (today.year - dob.year) * 12 + today.month - dob.month - (1 if today.day < dob.day else 0)
+    return years, max(months, 0), max((today - dob).days, 0)
+
+
+def age_text(dob, today=None):
+    """"3 y", "8 mo" or "11 d": years from 2 on, months from 1 month, days before that."""
+    years, months, days = age_parts(dob, today)
+    if years is None:
+        return ""
+    if years >= 2:
+        return f"{years} y"
+    if months >= 1:
+        return f"{months} mo"
+    return f"{days} d"
 
 
 # -- chart summary: last vitals and what has been ordered --------------------------------------
@@ -161,6 +184,9 @@ def board_visit(visit, chart=None, keys=None, waiting=False):
         "user_id": user.pk,
         "name": f"{user.last_name.upper()}, {user.first_name}".strip(", "),
         "age": _age(patient.date_of_birth),
+        "age_months": age_parts(patient.date_of_birth)[1],
+        "age_days": age_parts(patient.date_of_birth)[2],
+        "age_text": age_text(patient.date_of_birth),
         "sex": patient.legal_sex or "",
         "arrival_time": visit.arrival_time or visit.created_at,
         "reason": visit.reason_for_visit,
@@ -201,16 +227,25 @@ def _default_view_key(user, org, views):
     return "all"
 
 
-def _board_base(org, unit, departments, user):
+def _default_follow_up_key(org, views):
+    """The follow-up view the tab opens on: the clinic's default follow-up view if it made one, else the standard one."""
+    keys = {v["key"] for v in views}
+    default = StatusBoardView.objects.filter(organization=org, is_default=True).first()
+    if default and f"v{default.pk}" in keys:
+        return f"v{default.pk}"
+    return "followup"
+
+
+def _board_base(org, unit, departments, user, kind="live"):
     """The views, statuses and staff lists a department's board uses."""
     settings = get_settings(org)
-    views = all_view_payloads(org, settings)
+    views = all_view_payloads(org, settings, kind)
     roster = roster_for(settings, unit.pk if unit else None)
     return {
         "departments": departments,
         "statuses": settings["statuses"],
         "views": views,
-        "default_view": _default_view_key(user, org, views),
+        "default_view": _default_view_key(user, org, views) if kind == "live" else _default_follow_up_key(org, views),
         "config": {"vitals_overdue_minutes": settings["vitals_overdue_minutes"]},
         "staff": {
             "nurses": _roster(org, "nurse", roster.get("nurses")),
@@ -241,6 +276,16 @@ class EdBoardPreferenceView(APIView):
 _RELATED = ("patient__user", "attending_provider", "assigned_nurse", "resident_provider", "bed__room", "room", "unit__facility")
 
 
+def _departments(request, org):
+    """The emergency departments this person can see, as (units, [{id, name, ...}])."""
+    units = Unit.objects.filter(facility__organization=org, care_type="emergency", is_active=True, facility__is_active=True)
+    if org.pk == request.user.organization_id:
+        units = limit_to_facilities(units, request.user, "facility_id")  # only the user's own facilities
+    units = list(units.select_related("facility").order_by("facility__name", "name"))
+    departments = [{"id": u.pk, "name": u.name, "facility": u.facility_id, "facility_name": u.facility.name} for u in units]
+    return units, departments
+
+
 class EdBoardView(APIView):
     """GET ?unit=<emergency unit id>: the board for that department (default: the first one)."""
 
@@ -253,11 +298,7 @@ class EdBoardView(APIView):
         if org is None:
             return _bad("No clinic is selected.")
 
-        units = Unit.objects.filter(facility__organization=org, care_type="emergency", is_active=True, facility__is_active=True)
-        if org.pk == request.user.organization_id:
-            units = limit_to_facilities(units, request.user, "facility_id")  # only the user's own facilities
-        units = list(units.select_related("facility").order_by("facility__name", "name"))
-        departments = [{"id": u.pk, "name": u.name, "facility": u.facility_id, "facility_name": u.facility.name} for u in units]
+        units, departments = _departments(request, org)
         raw = request.query_params.get("unit")
         unit = next((u for u in units if str(u.pk) == str(raw)), None) if raw else (units[0] if units else None)
         if raw and unit is None:
@@ -302,6 +343,114 @@ class EdBoardView(APIView):
         for visit in waiting:
             rows.append({"type": "waiting", "bed": None, "loc": "", "bed_status": "", "hold_reason": "", "visit": board_visit(visit, chart[visit.pk], keys, waiting=True)})
         return Response({**base, "unit": unit.pk, "rows": rows})
+
+
+# -- follow-up: patients discharged from the ED, and results that arrived after they left ---------------
+
+def new_result_summaries(visits):
+    """
+    {registration id: {"state": "new" | "reviewed" | "none", "count": unreviewed results, "tests": [names]}}.
+
+    A result counts when it belongs to the visit (filed to it, or answering an order on its chart), came in
+    after the discharge time and is not marked entered in error. "new" means at least one of them has not been
+    reviewed; once a clinician reviews them all the visit reads "reviewed". Two queries for any number of visits.
+    """
+    out = {v.pk: {"state": "none", "count": 0, "tests": []} for v in visits}
+    by_appt = {v.appointment_id: v.pk for v in visits if v.appointment_id}
+    if not out:
+        return out
+    wanted = Q(visit_id__in=list(out))
+    if by_appt:
+        wanted |= Q(order__appointment_id__in=list(by_appt))
+    reports = (
+        LabReport.objects.filter(wanted, resulted_at__isnull=False)
+        .exclude(status="entered_in_error")
+        .select_related("order")
+        .order_by("resulted_at", "id")
+    )
+    discharged = {v.pk: v.discharge_datetime for v in visits}
+    seen = set()
+    for report in reports:
+        owner = report.visit_id if report.visit_id in out else by_appt.get(report.order.appointment_id if report.order_id else None)
+        if owner is None or report.pk in seen or report.resulted_at <= discharged[owner]:
+            continue
+        seen.add(report.pk)
+        item = out[owner]
+        if report.review_status == "unreviewed":
+            item["count"] += 1
+            name = (report.title or (report.order.orderable_name if report.order_id else "") or "Result").strip()
+            if name not in item["tests"]:
+                item["tests"].append(name)
+            item["state"] = "new"
+        elif item["state"] == "none":
+            item["state"] = "reviewed"
+    return out
+
+
+def follow_up_days(raw):
+    try:
+        days = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_FOLLOW_UP_DAYS
+    return min(max(days, 1), MAX_FOLLOW_UP_DAYS)
+
+
+def _discharged_visits(org, unit, days):
+    since = timezone.now() - timedelta(days=days)
+    return list(
+        Registration.objects.filter(care_setting="emergency", discharge_datetime__isnull=False, discharge_datetime__gte=since)
+        .filter(Q(unit=unit) | Q(unit__isnull=True))
+        .filter(Q(organization=org) | Q(patient__user__organization=org))
+        .select_related(*_RELATED)
+        .order_by("-discharge_datetime", "-pk")[:500]
+    )
+
+
+class EdFollowUpView(APIView):
+    """
+    GET ?unit=<emergency unit id>&days=<1-30, default 7>&summary=1?
+
+    The ED Follow-up board: ED visits discharged in the last `days` days, newest first, with when each patient
+    was discharged and whether results arrived after they left. Patients with results nobody has reviewed come
+    first. `summary=1` returns only {"needs_review": n} (the count on the tab).
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role not in ROLES:
+            return _bad("You do not have permission to see the ED board.", 403)
+        org = _org(request)
+        if org is None:
+            return _bad("No clinic is selected.")
+        units, departments = _departments(request, org)
+        raw = request.query_params.get("unit")
+        unit = next((u for u in units if str(u.pk) == str(raw)), None) if raw else (units[0] if units else None)
+        if raw and unit is None:
+            return _bad("That is not an emergency department in this clinic.", 404)
+        days = follow_up_days(request.query_params.get("days"))
+        summary = request.query_params.get("summary") in ("1", "true")
+        base = {} if summary else _board_base(org, unit, departments, request.user, "follow_up")
+        if unit is None:
+            return Response({"needs_review": 0} if summary else {**base, "unit": None, "days": days, "needs_review": 0, "total": 0, "rows": []})
+
+        visits = _discharged_visits(org, unit, days)
+        results = new_result_summaries(visits)
+        needs_review = sum(1 for r in results.values() if r["state"] == "new")
+        if summary:
+            return Response({"needs_review": needs_review})
+
+        keys = {s["value"] for s in base["statuses"]}
+        chart = chart_summaries(visits, triage_service.clinic_gaps(org))
+        rows = []
+        for visit in visits:
+            data = board_visit(visit, chart[visit.pk], keys)
+            data["discharged_at"] = visit.discharge_datetime
+            data["new_results"] = results[visit.pk]
+            rows.append({"type": "followup", "bed": None, "loc": "", "bed_status": "", "hold_reason": "", "visit": data})
+        # patients with results nobody has looked at first, then the most recent discharge
+        rows.sort(key=lambda r: (r["visit"]["new_results"]["state"] != "new",))
+        return Response({**base, "unit": unit.pk, "days": days, "needs_review": needs_review, "total": len(rows), "rows": rows})
 
 
 def _staff(org, pk, role):

@@ -14,6 +14,9 @@ import {
   ListItemText,
   MenuItem,
   Paper,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
   Stack,
   Tab,
   Tabs,
@@ -25,7 +28,8 @@ import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
 import EDBoard from "./EDBoard";
-import { ColorsTab, ColumnsTab, PatientsTab, SettingsTab } from "./BuilderTabs";
+import EDFollowUpBoard from "./EDFollowUpBoard";
+import { ColorsTab, ColumnsTab, FollowUpTab, PatientsTab, SettingsTab, criteriaComplete } from "./BuilderTabs";
 
 /** Sample patients so the preview shows what the view will look like. */
 export function sampleBoard(settings, columns, people, departments) {
@@ -61,7 +65,38 @@ export function sampleBoard(settings, columns, people, departments) {
   };
 }
 
-const configOf = (view) => ({ columns: view.columns, rules: view.rules, filter: view.filter, beds: view.beds || [] });
+/** Sample discharged patients so a follow-up view's preview shows the Discharged and New results columns. */
+export function sampleFollowUpBoard(settings, columns, people, departments) {
+  const base = sampleBoard(settings, columns, people, departments);
+  const now = Date.now();
+  const ago = (hours) => new Date(now - hours * 3600000).toISOString();
+  const template = base.rows[0].visit;
+  const make = (n, over) => ({
+    type: "followup", bed: null, loc: "", bed_status: "", hold_reason: "",
+    visit: { ...template, registration: 100 + n, patient: 100 + n, user_id: 100 + n, orders: {}, vitals_last_at: null, discharged_at: ago(5), new_results: { state: "none", count: 0, tests: [] }, ...over },
+  });
+  return {
+    ...base,
+    rows: [
+      make(1, { name: "SAMPLE, Jane", discharged_at: ago(21), arrival_time: ago(26), new_results: { state: "new", count: 2, tests: ["CBC", "Troponin"] } }),
+      make(2, { name: "SAMPLE, Alex", sex: "X", age: 8, age_days: 2900, age_months: 96, esi: 3, discharged_at: ago(30), arrival_time: ago(34), new_results: { state: "reviewed", count: 0, tests: [] } }),
+      make(3, { name: "SAMPLE, Bob", sex: "M", age: 61, esi: 4, discharged_at: ago(52), arrival_time: ago(55) }),
+    ],
+    needs_review: 1,
+    total: 3,
+  };
+}
+
+const configOf = (view) => ({
+  kind: view.kind || "live",
+  columns: view.columns,
+  rules: view.rules,
+  filter: view.filter,
+  beds: view.beds || [],
+  criteria: view.criteria || { match: "all", conditions: [] },
+  show_empty_beds: view.show_empty_beds !== false,
+  follow_up: view.follow_up || { days: 7 },
+});
 
 export default function StatusBoardBuilder() {
   const [data, setData] = useState(null);
@@ -75,7 +110,7 @@ export default function StatusBoardBuilder() {
   const [sub, setSub] = useState(0);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState("");
-  const [creating, setCreating] = useState(null); // { name, from }
+  const [creating, setCreating] = useState(null); // { name, from, kind }
   const [deleting, setDeleting] = useState(false);
 
   const open = useCallback((view) => {
@@ -166,7 +201,7 @@ export default function StatusBoardBuilder() {
   };
 
   const createView = async () => {
-    const made = await run(async (headers) => (await api.post(apiEndpoints.statusViews, { name: creating.name, ...(creating.from ? { from_view: creating.from } : {}) }, { headers })).data, "View created");
+    const made = await run(async (headers) => (await api.post(apiEndpoints.statusViews, { name: creating.name, ...(creating.from ? { from_view: creating.from } : creating.kind === "follow_up" ? { kind: "follow_up" } : {}) }, { headers })).data, "View created");
     if (made && made.id) {
       setCreating(null);
       setData((d) => ({ ...d, views: [...d.views, made] }));
@@ -198,10 +233,13 @@ export default function StatusBoardBuilder() {
   };
 
   const previewColumns = config?.columns;
+  const followUp = config?.kind === "follow_up";
   const previewData = useMemo(
-    () => (settings && previewColumns ? sampleBoard(settings, previewColumns, data.people, data.departments) : null),
-    [settings, previewColumns, data]
+    () => (settings && previewColumns ? (followUp ? sampleFollowUpBoard : sampleBoard)(settings, previewColumns, data.people, data.departments) : null),
+    [settings, previewColumns, data, followUp]
   );
+  const subTab = sub === 3 && !followUp ? 0 : sub;
+  const incomplete = !!config && !criteriaComplete(config.criteria);
 
   if (problem && !data) return <Alert severity="error">{problem}</Alert>;
   if (!data || !settings) return <CircularProgress aria-label="Loading" />;
@@ -240,12 +278,13 @@ export default function StatusBoardBuilder() {
                 {views.map((v) => (
                   <ListItemButton key={v.id} selected={v.id === selectedId} onClick={() => choose(v)} data-testid={`view-item-${v.id}`}>
                     <ListItemText primary={v.name} />
+                    {v.kind === "follow_up" && <Chip size="small" variant="outlined" color="secondary" label="Follow-up" sx={{ mr: 0.5 }} data-testid={`follow-up-chip-${v.id}`} />}
                     {v.is_default && <Chip size="small" color="primary" label="Default" />}
                   </ListItemButton>
                 ))}
               </List>
               <Box sx={{ p: 1 }}>
-                <Button fullWidth variant="outlined" size="small" onClick={() => setCreating({ name: "", from: "" })} disabled={views.length >= 30}>
+                <Button fullWidth variant="outlined" size="small" onClick={() => setCreating({ name: "", from: "", kind: "live" })} disabled={views.length >= 30}>
                   New view
                 </Button>
               </Box>
@@ -255,6 +294,7 @@ export default function StatusBoardBuilder() {
                 </Typography>
                 <Typography variant="body2">ED All View</Typography>
                 <Typography variant="body2">Waiting Area</Typography>
+                <Typography variant="body2">ED Follow-up (on the ED Follow-up tab)</Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
                   To change columns or colors for everyone in the department, make a view starting from the standard layout.
                 </Typography>
@@ -269,7 +309,7 @@ export default function StatusBoardBuilder() {
                 <>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", mb: 2, rowGap: 1 }}>
                     <TextField label="View name" size="small" value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} inputProps={{ maxLength: 60, "data-testid": "view-name" }} sx={{ minWidth: 240 }} />
-                    <Button variant="contained" onClick={saveView} disabled={busy || !dirty || !name.trim()}>
+                    <Button variant="contained" onClick={saveView} disabled={busy || !dirty || !name.trim() || incomplete}>
                       Save view
                     </Button>
                     <Button onClick={undo} disabled={busy || dirty || !current.can_undo} color="inherit">
@@ -284,7 +324,7 @@ export default function StatusBoardBuilder() {
                     <Button size="small" onClick={() => setDefault(!current.is_default)} disabled={busy}>
                       {current.is_default ? "Remove as default" : "Make default"}
                     </Button>
-                    <Button size="small" onClick={() => setCreating({ name: `${current.name} copy`, from: String(current.id) })} disabled={busy || views.length >= 30}>
+                    <Button size="small" onClick={() => setCreating({ name: `${current.name} copy`, from: String(current.id), kind: current.kind || "live" })} disabled={busy || views.length >= 30}>
                       Duplicate
                     </Button>
                     <Button size="small" color="error" onClick={() => setDeleting(true)} disabled={busy}>
@@ -292,15 +332,17 @@ export default function StatusBoardBuilder() {
                     </Button>
                   </Stack>
 
-                  <Tabs value={sub} onChange={(_e, v) => setSub(v)} sx={{ mb: 2 }}>
+                  <Tabs value={subTab} onChange={(_e, v) => setSub(v)} sx={{ mb: 2 }}>
                     <Tab label="Columns" value={0} />
                     <Tab label="Colors" value={1} />
                     <Tab label="Patients shown" value={2} />
+                    {followUp && <Tab label="Follow-up" value={3} />}
                   </Tabs>
                   <Paper variant="outlined" sx={{ p: 2 }}>
-                    {sub === 0 && <ColumnsTab config={config} onChange={change} />}
-                    {sub === 1 && <ColorsTab config={config} settings={settings} onChange={change} />}
-                    {sub === 2 && <PatientsTab config={config} locations={data.locations || []} onChange={change} />}
+                    {subTab === 0 && <ColumnsTab config={config} onChange={change} />}
+                    {subTab === 1 && <ColorsTab config={config} settings={settings} onChange={change} />}
+                    {subTab === 2 && <PatientsTab config={config} locations={data.locations || []} settings={settings} people={data.people} onChange={change} />}
+                    {subTab === 3 && followUp && <FollowUpTab config={config} onChange={change} />}
                   </Paper>
                 </>
               )}
@@ -313,7 +355,11 @@ export default function StatusBoardBuilder() {
                 Preview
               </Typography>
               <Box sx={{ overflowX: "auto" }} data-testid="builder-preview">
-                <EDBoard userRole="admin" previewData={previewData} previewView={{ label: name || "Preview", columns: config.columns, rules: config.rules, filter: "all" }} />
+                {followUp ? (
+                  <EDFollowUpBoard previewData={previewData} previewView={{ label: name || "Preview", columns: config.columns, rules: config.rules, criteria: config.criteria, follow_up: config.follow_up }} />
+                ) : (
+                  <EDBoard userRole="admin" previewData={previewData} previewView={{ label: name || "Preview", columns: config.columns, rules: config.rules, filter: "all", criteria: config.criteria, show_empty_beds: config.show_empty_beds }} />
+                )}
               </Box>
             </>
           )}
@@ -325,9 +371,24 @@ export default function StatusBoardBuilder() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField label="Name the view" autoFocus value={creating?.name || ""} onChange={(e) => setCreating((c) => ({ ...c, name: e.target.value }))} inputProps={{ maxLength: 60 }} />
-            <TextField select label="Start from" value={creating?.from || ""} onChange={(e) => setCreating((c) => ({ ...c, from: e.target.value }))} inputProps={{ "data-testid": "start-from" }}>
+            {!creating?.from || creating.from === "" ? (
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                  What kind of board
+                </Typography>
+                <RadioGroup value={creating?.kind || "live"} onChange={(e) => setCreating((c) => ({ ...c, kind: e.target.value, from: "" }))} aria-label="What kind of board">
+                  <FormControlLabel value="live" control={<Radio size="small" />} label="Live ED board: patients who are in the ED now" />
+                  <FormControlLabel value="follow_up" control={<Radio size="small" />} label="Follow-up board: patients discharged from the ED, with Discharged and New results columns" />
+                </RadioGroup>
+              </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                A copy is the same kind of board as the view it copies.
+              </Typography>
+            )}
+            <TextField select label="Start from" value={creating?.from || ""} onChange={(e) => setCreating((c) => ({ ...c, from: e.target.value, kind: views.find((v) => String(v.id) === e.target.value)?.kind || "live" }))} inputProps={{ "data-testid": "start-from" }}>
               <MenuItem value="">The standard layout</MenuItem>
-              {views.map((v) => (
+              {views.filter((v) => (v.kind || "live") === (creating?.kind || "live")).map((v) => (
                 <MenuItem key={v.id} value={String(v.id)}>
                   A copy of {v.name}
                 </MenuItem>

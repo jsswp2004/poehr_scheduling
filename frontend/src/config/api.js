@@ -137,6 +137,7 @@ export const apiEndpoints = {
     admissionAttending: (id) => `${API_BASE_URL}/api/users/admissions/${id}/attending/`,
     admissionBoard: (id) => `${API_BASE_URL}/api/users/admissions/${id}/board/`,
     edBoard: `${API_BASE_URL}/api/users/ed-board/`,
+    edBoardFollowUp: `${API_BASE_URL}/api/users/ed-board/follow-up/`,
     edBoardPreference: `${API_BASE_URL}/api/users/ed-board/preference/`,
     statusViews: `${API_BASE_URL}/api/users/status-views/`,
     statusViewSettings: `${API_BASE_URL}/api/users/status-views/settings/`,

@@ -32,6 +32,9 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 export const ALWAYS_VISIBLE = ["loc", "patient", "actions"];
+/** A follow-up board has no bed, so only the patient's name has to stay. */
+export const alwaysVisible = (kind) => (kind === "follow_up" ? ["patient"] : ALWAYS_VISIBLE);
+const FOLLOW_UP_ONLY = ["discharged", "new_results"];
 const KINDS = [
   { value: "text", label: "Text" },
   { value: "dropdown", label: "Dropdown" },
@@ -74,6 +77,7 @@ const iconBtn = (label, icon, onClick, disabled) => (
 /** Show/hide, rename, resize and reorder the columns of one view. Custom columns are defined under Shared settings. */
 export function ColumnsTab({ config, onChange }) {
   const columns = config.columns;
+  const pinned = alwaysVisible(config.kind);
   const set = (index, patch) => onChange({ ...config, columns: columns.map((c, i) => (i === index ? { ...c, ...patch } : c)) });
   return (
     <Box>
@@ -97,7 +101,7 @@ export function ColumnsTab({ config, onChange }) {
                 <Checkbox
                   size="small"
                   checked={c.visible !== false}
-                  disabled={ALWAYS_VISIBLE.includes(c.key)}
+                  disabled={pinned.includes(c.key)}
                   onChange={(e) => set(i, { visible: e.target.checked })}
                   inputProps={{ "aria-label": `Show ${c.label || c.key}` }}
                 />
@@ -116,7 +120,7 @@ export function ColumnsTab({ config, onChange }) {
                 />
               </TableCell>
               <TableCell>
-                <Chip size="small" variant="outlined" label={c.type === "custom" ? KINDS.find((k) => k.value === c.kind)?.label || "Text" : "Built in"} />
+                <Chip size="small" variant="outlined" label={c.type === "custom" ? KINDS.find((k) => k.value === c.kind)?.label || "Text" : FOLLOW_UP_ONLY.includes(c.key) ? "Follow-up" : "Built in"} />
               </TableCell>
               <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                 {iconBtn(`Move ${c.label || c.key} up`, <ArrowUpwardIcon fontSize="small" />, () => onChange({ ...config, columns: move(columns, i, -1) }), i === 0)}
@@ -214,29 +218,271 @@ function BedPicker({ beds, locations, onChange }) {
   );
 }
 
-export function PatientsTab({ config, locations = [], onChange }) {
+/* ------------------------------------------------------- Conditions on the patient */
+
+export const CONDITION_FIELDS = [
+  { value: "age", label: "Age" },
+  { value: "esi", label: "ESI (triage level)" },
+  { value: "ed_status", label: "Status" },
+  { value: "sex", label: "Gender" },
+  { value: "md", label: "MD" },
+  { value: "rn", label: "RN" },
+  { value: "complaint", label: "Chief complaint" },
+];
+const AGE_OPS = [
+  { value: "lt", label: "under" },
+  { value: "lte", label: "up to" },
+  { value: "gt", label: "over" },
+  { value: "gte", label: "at least" },
+];
+const AGE_UNITS = [
+  { value: "years", label: "years" },
+  { value: "months", label: "months" },
+  { value: "days", label: "days" },
+];
+const SEX_CHOICES = [
+  { value: "F", label: "Female" },
+  { value: "M", label: "Male" },
+  { value: "X", label: "Other" },
+];
+
+/** A fresh condition for a field, with a sensible starting value. */
+export const newCondition = (field, settings) => {
+  switch (field) {
+    case "age":
+      return { field, op: "lt", value: 18, unit: "years" };
+    case "esi":
+      return { field, op: "in", value: [1, 2] };
+    case "ed_status":
+      return { field, op: "in", value: settings?.statuses?.[0] ? [settings.statuses[0].value] : [] };
+    case "sex":
+      return { field, op: "in", value: ["F"] };
+    case "complaint":
+      return { field, op: "contains", value: "" };
+    default:
+      return { field, op: "in", value: [] };
+  }
+};
+
+/** A condition the server will accept: it has a number, a choice or some text to look for. */
+export const conditionComplete = (c) => {
+  if (c.field === "age") return c.value !== "" && c.value != null && Number.isInteger(Number(c.value)) && Number(c.value) >= 0 && Number(c.value) <= 150;
+  if (c.field === "complaint") return String(c.value || "").trim() !== "";
+  return Array.isArray(c.value) && c.value.length > 0;
+};
+
+export const criteriaComplete = (criteria) => (criteria?.conditions || []).every(conditionComplete);
+
+const PRESETS = [
+  { id: "children", label: "Children (under 18)", make: () => ({ field: "age", op: "lt", value: 18, unit: "years" }) },
+  { id: "adults", label: "Adults (18 and over)", make: () => ({ field: "age", op: "gte", value: 18, unit: "years" }) },
+  { id: "esi12", label: "Triage level 1 or 2", make: () => ({ field: "esi", op: "in", value: [1, 2] }) },
+];
+
+/** Conditions on the patient: "all of" or "any of" a list of age, triage level, status, gender, staff and complaint tests. */
+export function ConditionsEditor({ config, settings, people, onChange }) {
+  const criteria = config.criteria || { match: "all", conditions: [] };
+  const conditions = criteria.conditions || [];
+  const set = (next) => onChange({ ...config, criteria: { ...criteria, ...next } });
+  const update = (i, patch) => set({ conditions: conditions.map((c, n) => (n === i ? { ...c, ...patch } : c)) });
+  const choices = (field) => {
+    if (field === "esi") return [1, 2, 3, 4, 5].map((n) => ({ value: n, label: `ESI ${n}` }));
+    if (field === "sex") return SEX_CHOICES;
+    if (field === "ed_status") return (settings?.statuses || []).map((s) => ({ value: s.value, label: `${s.code} · ${s.label}` }));
+    const list = field === "md" ? people?.doctors : people?.nurses;
+    return (list || []).map((p) => ({ value: p.id, label: p.name }));
+  };
+  return (
+    <Box data-testid="conditions-editor">
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 1.5, flexWrap: "wrap", rowGap: 1 }}>
+        <Typography variant="subtitle2">Then keep patients who match</Typography>
+        <TextField select size="small" value={criteria.match || "all"} onChange={(e) => set({ match: e.target.value })} sx={{ width: 90 }} inputProps={{ "data-testid": "match-mode", "aria-label": "Match all or any" }}>
+          <MenuItem value="all">all</MenuItem>
+          <MenuItem value="any">any</MenuItem>
+        </TextField>
+        <Typography variant="body2">of these conditions</Typography>
+      </Stack>
+      {conditions.length === 0 && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }} data-testid="no-conditions">
+          No conditions: everyone who passes the choice above is listed. Add one to make a view such as a Peds board.
+        </Typography>
+      )}
+      {conditions.map((c, i) => {
+        const options = choices(c.field);
+        const picked = options.filter((o) => (c.value || []).includes(o.value));
+        return (
+          <Paper key={i} variant="outlined" sx={{ p: 1.25, mb: 1, display: "flex", alignItems: "center", gap: 1.25, flexWrap: "wrap" }} data-testid={`condition-${i}`}>
+            <TextField
+              select
+              size="small"
+              label="Field"
+              value={c.field}
+              onChange={(e) => onChange({ ...config, criteria: { ...criteria, conditions: conditions.map((x, n) => (n === i ? newCondition(e.target.value, settings) : x)) } })}
+              sx={{ width: 170 }}
+              inputProps={{ "data-testid": `cond-field-${i}` }}
+            >
+              {CONDITION_FIELDS.map((f) => (
+                <MenuItem key={f.value} value={f.value}>
+                  {f.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            {c.field === "age" && (
+              <>
+                <TextField select size="small" label="Is" value={c.op} onChange={(e) => update(i, { op: e.target.value })} sx={{ width: 130 }} inputProps={{ "data-testid": `cond-op-${i}` }}>
+                  {AGE_OPS.map((o) => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  size="small"
+                  label="Age"
+                  type="number"
+                  value={c.value}
+                  onChange={(e) => update(i, { value: e.target.value === "" ? "" : Number(e.target.value) })}
+                  sx={{ width: 100 }}
+                  inputProps={{ min: 0, max: 150, "data-testid": `cond-value-${i}` }}
+                />
+                <TextField select size="small" label="Unit" value={c.unit || "years"} onChange={(e) => update(i, { unit: e.target.value })} sx={{ width: 120 }} inputProps={{ "data-testid": `cond-unit-${i}` }}>
+                  {AGE_UNITS.map((o) => (
+                    <MenuItem key={o.value} value={o.value}>
+                      {o.label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </>
+            )}
+            {c.field === "complaint" && (
+              <TextField
+                size="small"
+                label="Chief complaint contains"
+                value={c.value}
+                onChange={(e) => update(i, { value: e.target.value })}
+                sx={{ width: 280 }}
+                inputProps={{ maxLength: 80, "data-testid": `cond-value-${i}` }}
+              />
+            )}
+            {c.field !== "age" && c.field !== "complaint" && (
+              <Autocomplete
+                multiple
+                size="small"
+                options={options}
+                value={picked}
+                isOptionEqualToValue={(a, b) => a.value === b.value}
+                getOptionLabel={(o) => o.label}
+                onChange={(_e, next) => update(i, { value: next.map((o) => o.value) })}
+                renderInput={(params) => <TextField {...params} label="Is one of" inputProps={{ ...params.inputProps, "data-testid": `cond-value-${i}` }} />}
+                sx={{ minWidth: 300, flex: 1 }}
+              />
+            )}
+            <Box sx={{ flexGrow: 1 }} />
+            {iconBtn(`Remove condition ${i + 1}`, <DeleteOutlineIcon fontSize="small" />, () => set({ conditions: conditions.filter((_x, n) => n !== i) }))}
+          </Paper>
+        );
+      })}
+      {!criteriaComplete(criteria) && (
+        <Alert severity="warning" sx={{ mb: 1 }} data-testid="conditions-incomplete">
+          Finish each condition (pick a value) before saving.
+        </Alert>
+      )}
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", rowGap: 1 }}>
+        <Button size="small" variant="outlined" onClick={() => set({ conditions: [...conditions, newCondition("age", settings)] })} disabled={conditions.length >= 10} data-testid="add-condition">
+          Add a condition
+        </Button>
+        <Typography variant="caption" color="text.secondary">
+          Quick start:
+        </Typography>
+        {PRESETS.map((p) => (
+          <Chip key={p.id} size="small" clickable variant="outlined" label={p.label} onClick={() => set({ conditions: [...conditions, p.make()] })} disabled={conditions.length >= 10} data-testid={`preset-${p.id}`} />
+        ))}
+      </Stack>
+    </Box>
+  );
+}
+
+/* ----------------------------------------------------------- Patients shown */
+
+export function PatientsTab({ config, locations = [], settings = null, people = null, onChange }) {
+  const followUp = config.kind === "follow_up";
   const waiting = config.filter === "waiting";
+  const hasConditions = (config.criteria?.conditions || []).length > 0;
+  const hasBeds = (config.beds || []).length > 0;
   return (
     <Stack spacing={3}>
-      <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Which patients does this view list?
-        </Typography>
-        <TextField select label="Which patients" size="small" value={config.filter || "all"} onChange={(e) => onChange({ ...config, filter: e.target.value })} sx={{ minWidth: 340 }} inputProps={{ "data-testid": "view-filter" }}>
-          {FILTER_CHOICES.map((f) => (
-            <MenuItem key={f.value} value={f.value}>
-              {f.label}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Box>
-      {waiting ? (
-        <Typography variant="body2" color="text.secondary" data-testid="beds-not-applicable">
-          The Waiting Area shows every ED patient who has no bed yet, so there are no beds to choose.
+      {followUp ? (
+        <Typography variant="body2" color="text.secondary" data-testid="follow-up-patients">
+          A follow-up board lists ED patients who have been discharged. How far back it looks is set on the Follow-up tab. Add conditions below to narrow it, such as a Peds follow-up board.
         </Typography>
       ) : (
-        <BedPicker beds={config.beds || []} locations={locations} onChange={(beds) => onChange({ ...config, beds })} />
+        <>
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Start with
+            </Typography>
+            <TextField select label="Which patients" size="small" value={config.filter || "all"} onChange={(e) => onChange({ ...config, filter: e.target.value })} sx={{ minWidth: 340 }} inputProps={{ "data-testid": "view-filter" }}>
+              {FILTER_CHOICES.map((f) => (
+                <MenuItem key={f.value} value={f.value}>
+                  {f.label}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+          {waiting ? (
+            <Typography variant="body2" color="text.secondary" data-testid="beds-not-applicable">
+              The Waiting Area shows every ED patient who has no bed yet, so there are no beds to choose.
+            </Typography>
+          ) : (
+            <BedPicker beds={config.beds || []} locations={locations} onChange={(beds) => onChange({ ...config, beds })} />
+          )}
+        </>
       )}
+      <ConditionsEditor config={config} settings={settings} people={people} onChange={onChange} />
+      {!followUp && !waiting && hasBeds && hasConditions && (
+        <FormControlLabel
+          control={<Checkbox size="small" checked={config.show_empty_beds !== false} onChange={(e) => onChange({ ...config, show_empty_beds: e.target.checked })} />}
+          label="Also show empty beds in the chosen locations"
+          data-testid="show-empty-beds"
+        />
+      )}
+    </Stack>
+  );
+}
+
+/* ---------------------------------------------------------------- Follow-up */
+
+export const FOLLOW_UP_WINDOWS = [1, 3, 7, 14, 30];
+
+/** How far back a follow-up board looks, and how its flag works. */
+export function FollowUpTab({ config, onChange }) {
+  const days = config.follow_up?.days ?? 7;
+  return (
+    <Stack spacing={2} data-testid="follow-up-tab">
+      <TextField
+        select
+        size="small"
+        label="Show patients discharged in the last"
+        value={days}
+        onChange={(e) => onChange({ ...config, follow_up: { ...(config.follow_up || {}), days: Number(e.target.value) } })}
+        sx={{ width: 300 }}
+        inputProps={{ "data-testid": "follow-up-days" }}
+      >
+        {FOLLOW_UP_WINDOWS.map((n) => (
+          <MenuItem key={n} value={n}>
+            {n === 1 ? "24 hours" : `${n} days`}
+          </MenuItem>
+        ))}
+      </TextField>
+      <Box>
+        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+          How the New results flag works
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          A patient is flagged when a lab result for the ED visit came in after the discharge time and nobody has reviewed it yet. The flag clears once a clinician marks the result reviewed.
+          Results entered in error never count; preliminary and corrected results do.
+        </Typography>
+      </Box>
     </Stack>
   );
 }

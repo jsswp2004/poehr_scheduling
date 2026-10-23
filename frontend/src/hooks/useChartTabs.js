@@ -4,7 +4,8 @@ import { apiEndpoints } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { CHART_TABS } from "../components/patients/PatientChartTabs";
 
-const BUILT_IN = { tabs: CHART_TABS.map((t) => t.value), default_tab: "patient_list" };
+const builtInTabs = (careSetting) => CHART_TABS.filter((t) => !t.onlyIn || t.onlyIn === (careSetting || "ambulatory")).map((t) => t.value);
+const BUILT_IN = { default_tab: "patient_list" };
 
 /**
  * The chart tabs to show for one module (ambulatory, emergency, acute) and the tab that opens
@@ -41,10 +42,10 @@ export default function useChartTabs(careSetting, enabled = true) {
   return useMemo(
     () => ({
       loaded,
-      tabs: mine && Array.isArray(mine.tabs) && mine.tabs.length ? mine.tabs : BUILT_IN.tabs,
+      tabs: mine && Array.isArray(mine.tabs) && mine.tabs.length ? mine.tabs : builtInTabs(careSetting),
       defaultTab: (mine && mine.default_tab) || BUILT_IN.default_tab,
       reload,
     }),
-    [loaded, mine, reload]
+    [loaded, mine, reload, careSetting]
   );
 }
