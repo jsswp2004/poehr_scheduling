@@ -52,6 +52,7 @@ import VitalSignsFlowsheetPanel from "../components/VitalSignsFlowsheetPanel";
 import useOnlineStatus from "../hooks/useOnlineStatus";
 import { usePatients } from "../hooks/usePatients";
 import { useTeam } from "../hooks/useTeam";
+import { secure, errorText } from "../components/secureMessages/secureApi";
 import { usePatientsAppointments } from "../hooks/usePatientsAppointments";
 import { useAnalytics } from "../hooks/useAnalytics";
 import { useSubscriptionAccess, SubscriptionGate } from "../hooks/useSubscriptionAccess";
@@ -309,6 +310,9 @@ function PatientsPage() {
     patients.provider,
     team.teamPage,
     team.teamSearch,
+    team.teamRole,
+    team.teamOnline,
+    team.teamPageSize,
     appointments.appointmentsQuery,
   ]);
 
@@ -349,6 +353,16 @@ function PatientsPage() {
 
   // The Team tab's Messages button opens secure messaging
   const handleOpenMessages = () => navigate("/secure-messages");
+
+  // A person's Message button: start (or reopen) a direct conversation with them, then show it.
+  const handleTeamMessage = async (teamMember) => {
+    try {
+      const thread = await secure.start({ kind: "direct", user: teamMember.id });
+      navigate(`/secure-messages?thread=${thread.id}`);
+    } catch (err) {
+      toast.error(errorText(err, "Could not start the conversation."));
+    }
+  };
 
   // Email handlers
   const handleOpenEmailModal = (patient) => {
@@ -689,11 +703,22 @@ function PatientsPage() {
             <TeamTable
               team={team.team}
               loadingTeam={team.loadingTeam}
+              hasLoadedTeam={team.hasLoadedTeam}
               teamSearch={team.teamSearch}
               setTeamSearch={team.setTeamSearch}
+              teamRole={team.teamRole}
+              setTeamRole={team.setTeamRole}
+              teamOnline={team.teamOnline}
+              setTeamOnline={team.setTeamOnline}
               teamPage={team.teamPage}
               setTeamPage={team.setTeamPage}
+              teamPageSize={team.teamPageSize}
+              setTeamPageSize={team.setTeamPageSize}
+              teamTotalSize={team.teamTotalSize}
               teamTotalPages={team.teamTotalPages}
+              roleCounts={team.roleCounts}
+              showOrganization={userRole === "system_admin"}
+              onMessage={handleTeamMessage}
               onOpenMessages={handleOpenMessages}
               onSendText={handleTeamSendText}
               onOpenEmailModal={handleTeamOpenEmailModal}
