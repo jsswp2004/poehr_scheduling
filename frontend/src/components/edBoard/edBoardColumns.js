@@ -148,6 +148,8 @@ const AGE_COMPARE = {
   gte: (a, b) => a >= b,
 };
 
+const asList = (v) => (Array.isArray(v) ? v : []); // a saved value of the wrong shape matches nobody instead of crashing the board
+
 /** Does one condition of a view ("age under 18", "ESI is 1 or 2", ...) hold for this visit? */
 export const conditionMatches = (condition, visit) => {
   if (!visit) return false;
@@ -158,14 +160,14 @@ export const conditionMatches = (condition, visit) => {
       return age != null && (AGE_COMPARE[op] || AGE_COMPARE.lt)(age, Number(value));
     }
     case "esi":
-      return visit.esi != null && (value || []).includes(Number(visit.esi));
+      return visit.esi != null && asList(value).includes(Number(visit.esi));
     case "ed_status":
-      return !!visit.ed_status && (value || []).includes(visit.ed_status);
+      return !!visit.ed_status && asList(value).includes(visit.ed_status);
     case "sex":
-      return !!visit.sex && (value || []).includes(visit.sex);
+      return !!visit.sex && asList(value).includes(visit.sex);
     case "md":
     case "rn":
-      return visit[field]?.id != null && (value || []).includes(visit[field].id);
+      return visit[field]?.id != null && asList(value).includes(visit[field].id);
     case "complaint":
       return String(visit.complaint || "").toLowerCase().includes(String(value || "").trim().toLowerCase());
     default:
