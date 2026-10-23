@@ -518,7 +518,7 @@ function PatientsPage() {
             keys={chartLayout.tabs}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
-        ) : (
+        ) : tab === "team" ? null : (
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0, ...SIDE_GAP }}>
             <Typography variant="h5" data-testid="view-title">
               {VIEW_TITLES[tab] || ""}
@@ -701,6 +701,8 @@ function PatientsPage() {
 
           {tab === "team" && (
             <TeamTable
+              title={VIEW_TITLES.team}
+              backAction={!selectedPatient ? <BackButton sx={{ mb: 0, py: 0.75 }} /> : null}
               team={team.team}
               loadingTeam={team.loadingTeam}
               hasLoadedTeam={team.hasLoadedTeam}

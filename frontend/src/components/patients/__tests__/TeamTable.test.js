@@ -229,3 +229,13 @@ describe('small screens', () => {
         expect(screen.getByRole('button', { name: 'Text Joel Baptiste' })).toBeDisabled();
     });
 });
+
+describe('TeamTable header row', () => {
+    test('shows the title, count and Back action together, and no separate Role column', () => {
+        setup({ title: 'Team', backAction: <button type="button">Back</button> });
+        expect(screen.getByTestId('view-title')).toHaveTextContent('Team');
+        expect(screen.getByText(/34 people/)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+        expect(screen.queryByRole('columnheader', { name: 'Role' })).toBeNull();
+    });
+});
