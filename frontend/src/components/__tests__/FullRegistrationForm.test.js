@@ -71,7 +71,7 @@ test("editing a patient with an open visit loads that visit and Save updates it"
 
   await goToReason();
   fireEvent.change(screen.getByLabelText("Chief Complaint"), { target: { value: "Chest pain" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save Registration" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
 
   await waitFor(() => expect(axios.patch).toHaveBeenCalledWith("/registrations/55/", expect.anything(), expect.anything()));
   expect(axios.post).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ test("'Start a new visit instead' makes Save create a new visit", async () => {
   open(sofia(null));
   fireEvent.click(await screen.findByRole("button", { name: "Start a new visit instead" }));
   expect(screen.queryByText(/Editing the open visit/)).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Save Registration" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
   await waitFor(() => expect(axios.post).toHaveBeenCalledWith("/registrations/", expect.anything(), expect.anything()));
 });
 
@@ -109,7 +109,7 @@ test("a patient with no visit starts a blank one", async () => {
   axios.get.mockResolvedValue({ data: [] });
   open(sofia(null));
   await screen.findByText("Sofia Marchetti");
-  fireEvent.click(screen.getByRole("button", { name: "Save Registration" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
   await waitFor(() => expect(axios.post).toHaveBeenCalled());
 });
 
@@ -122,4 +122,64 @@ test("birth hint: preterm babies get a corrected-age note, term babies none", ()
   const iso = `${recent.getFullYear()}-${String(recent.getMonth() + 1).padStart(2, "0")}-${String(recent.getDate()).padStart(2, "0")}`;
   expect(birthHint("36", "0", iso)).toMatch(/corrected age \(5\.\d months today\) until 24 months/);
   expect(birthHint("36", "0", "2015-01-01")).toBe("Born 4 weeks early.");
+});
+
+describe("step bar, footer and banner", () => {
+  const tab = (name) => screen.getByRole("tab", { name });
+
+  test("Save and continue saves and moves to the next step, Back returns", async () => {
+    open(sofia(null));
+    await screen.findByText(/Editing the open visit V-55/);
+    expect(tab("Patient Identity")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("button", { name: "Back" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(tab("Emergency Contact")).toHaveAttribute("aria-selected", "true"));
+    expect(axios.patch).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(tab("Patient Identity")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("a failed save stays on the same step", async () => {
+    axios.patch.mockRejectedValue({ response: { data: { detail: "No." } } });
+    open(sofia(null));
+    await screen.findByText(/Editing the open visit V-55/);
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(axios.patch).toHaveBeenCalled());
+    expect(tab("Patient Identity")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("the last step offers Save Registration instead", async () => {
+    open(sofia(null));
+    await screen.findByText(/Editing the open visit V-55/);
+    fireEvent.click(tab("Logistics"));
+    expect(screen.getByRole("button", { name: "Save Registration" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save and continue" })).toBeNull();
+  });
+
+  test("the footer says when there are unsaved changes and when they are saved", async () => {
+    open(sofia(null));
+    await screen.findByText(/Editing the open visit V-55/);
+    expect(screen.getByTestId("save-status")).toHaveTextContent("All changes saved");
+    fireEvent.click(tab("Reason for Visit"));
+    fireEvent.change(screen.getByLabelText("Chief Complaint"), { target: { value: "Cough" } });
+    expect(screen.getByTestId("save-status")).toHaveTextContent("Unsaved changes");
+    fireEvent.click(screen.getByRole("button", { name: "Save and continue" }));
+    await waitFor(() => expect(screen.getByTestId("save-status")).toHaveTextContent("All changes saved"));
+  });
+
+  test("the banner shows age, sex and date of birth", async () => {
+    open({ ...sofia(null), date_of_birth: "1972-03-14", legal_sex: "F" });
+    await screen.findByText(/Editing the open visit V-55/);
+    const text = screen.getByTestId("patient-banner-details").textContent;
+    expect(text).toContain("DOB 03/14/1972");
+    expect(text).toMatch(/\d+ y/);
+    expect(text).toContain("F");
+  });
+
+  test("a step with its key details entered shows a check", async () => {
+    open({ ...sofia(null), date_of_birth: "1972-03-14", legal_sex: "F", phone_number: "3015550142" });
+    await screen.findByText(/Editing the open visit V-55/);
+    expect(tab("Patient Identity")).toHaveAttribute("title", "Key details entered");
+    expect(tab("Emergency Contact")).not.toHaveAttribute("title");
+  });
 });

@@ -7,8 +7,6 @@ import {
   TextField,
   Button,
   Stack,
-  Tabs,
-  Tab,
   ToggleButtonGroup,
   ToggleButton,
   FormControl,
@@ -31,6 +29,8 @@ import { getValidToken } from "../../utils/auth";
 import { API_BASE_URL, apiEndpoints } from "../../config/api";
 import LocationPicker, { useLocationTree } from "../locations/LocationPicker";
 import VisitSearchDialog from "./VisitSearchDialog";
+import RegistrationSteps from "./RegistrationSteps";
+import { ageText, showDob, stepFilled } from "./registerHelpers";
 
 // Only these roles may edit a visit that has already been closed (discharged).
 const CLOSED_VISIT_EDIT_ROLES = ["admin", "registrar", "system_admin"];
@@ -149,6 +149,8 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   const canEditClosed = CLOSED_VISIT_EDIT_ROLES.includes(userRole);
   const [mode, setMode] = useState("new"); // "new" | "existing"
   const [activeSubTab, setActiveSubTab] = useState("identity");
+  // true once something in the form is changed and not yet saved
+  const [dirty, setDirty] = useState(false);
 
   // "Existing Patient" search
   const [patientOptions, setPatientOptions] = useState([]);
@@ -195,6 +197,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   };
 
   const resetForActivePatient = (patient) => {
+    setDirty(false);
     setActivePatient(patient);
     setMrn(patient.mrn || null);
     setPatientFields({
@@ -240,6 +243,7 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   // creating another empty visit. If there are several, the one with a bed (the one on
   // the board) is picked first and the others can be chosen from the banner.
   const applyVisit = (reg) => {
+    setDirty(false);
     setVisitFields(visitToFields(reg));
     setRegistrationId(reg.id);
     setVisitNumber(reg.visit_number || null);
@@ -369,21 +373,24 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
   };
 
   const handlePatientFieldChange = (name, value) => {
+    setDirty(true);
     setPatientFields((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleVisitFieldChange = (name, value) => {
+    setDirty(true);
     setVisitFields((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleLegalFileChange = (key, file) => {
+    setDirty(true);
     setLegalFiles((prev) => ({ ...prev, [key]: file }));
   };
 
   const handleSave = async () => {
     if (!activePatient) {
       toast.error("Select or create a patient first.");
-      return;
+      return false;
     }
     setSaving(true);
     try {
@@ -452,6 +459,8 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
       setVisitNumber(regRes.data.visit_number || visitNumber);
 
       toast.success("Registration saved.");
+      setDirty(false);
+      return true;
     } catch (err) {
       console.error("Failed to save registration:", err);
       const detail =
@@ -459,9 +468,17 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
         JSON.stringify(err?.response?.data) ||
         "Failed to save registration.";
       toast.error(detail);
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  // Saves, then moves to the next step (the last step just saves).
+  const stepIndex = SUB_TABS.findIndex((t) => t.value === activeSubTab);
+  const handleSaveAndContinue = async () => {
+    const ok = await handleSave();
+    if (ok && stepIndex < SUB_TABS.length - 1) setActiveSubTab(SUB_TABS[stepIndex + 1].value);
   };
 
   // Opens a print-friendly summary of everything captured for this patient's
@@ -702,9 +719,22 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
               bgcolor: "#f0f6ff",
             }}
           >
-            <Typography variant="body2" fontWeight={600}>
-              {activePatient.first_name} {activePatient.last_name}
-            </Typography>
+            <Box sx={{ display: "flex", alignItems: "baseline", gap: 1, flexWrap: "wrap" }}>
+              <Typography variant="body2" fontWeight={600}>
+                {activePatient.first_name} {activePatient.last_name}
+              </Typography>
+              {(patientFields.date_of_birth || patientFields.legal_sex) && (
+                <Typography variant="caption" color="text.secondary" data-testid="patient-banner-details">
+                  {[
+                    ageText(patientFields.date_of_birth),
+                    patientFields.legal_sex,
+                    patientFields.date_of_birth && `DOB ${showDob(patientFields.date_of_birth)}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" \u00b7 ")}
+                </Typography>
+              )}
+            </Box>
             <Stack direction="row" spacing={1}>
               {mrn && <Chip size="small" label={`MRN: ${mrn}`} />}
               {visitNumber && <Chip size="small" color="primary" label={`Visit: ${visitNumber}`} />}
@@ -801,17 +831,12 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             onSelect={pickVisitFromSearch}
           />
 
-          <Tabs
-            value={activeSubTab}
-            onChange={(e, v) => setActiveSubTab(v)}
-            variant="scrollable"
-            scrollButtons="auto"
-            sx={{ mb: 2, minHeight: 36, "& .MuiTab-root": { minHeight: 36, textTransform: "none" } }}
-          >
-            {SUB_TABS.map((t) => (
-              <Tab key={t.value} value={t.value} label={t.label} />
-            ))}
-          </Tabs>
+          <RegistrationSteps
+            steps={SUB_TABS}
+            current={activeSubTab}
+            filled={Object.fromEntries(SUB_TABS.map((t) => [t.value, stepFilled(t.value, patientFields, visitFields)]))}
+            onSelect={setActiveSubTab}
+          />
 
           <Box
             component="fieldset"
@@ -1263,24 +1288,23 @@ function FullRegistrationForm({ doctors = [], initialPatient, initialPatientNonc
             )}
           </Box>
 
-          <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={handleSave}
-              disabled={saving || readOnlyVisit}
-            >
-              {saving ? "Saving..." : "Save Registration"}
+          <Box
+            sx={{ mt: 2, pt: 1.5, display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", borderTop: "1px solid", borderColor: "divider" }}
+          >
+            <Typography variant="caption" color={dirty ? "warning.main" : "text.secondary"} data-testid="save-status" aria-live="polite">
+              {saving ? "Saving..." : dirty ? "Unsaved changes" : "All changes saved"}
+            </Typography>
+            <Box sx={{ flex: 1 }} />
+            <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint}>
+              Print
             </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<PrintIcon />}
-              onClick={handlePrint}
-            >
-              Print Registration
+            <Button variant="outlined" disabled={stepIndex <= 0} onClick={() => setActiveSubTab(SUB_TABS[stepIndex - 1].value)}>
+              Back
             </Button>
-          </Stack>
+            <Button variant="contained" onClick={handleSaveAndContinue} disabled={saving || readOnlyVisit}>
+              {saving ? "Saving..." : stepIndex < SUB_TABS.length - 1 ? "Save and continue" : "Save Registration"}
+            </Button>
+          </Box>
         </>
       )}
     </Box>

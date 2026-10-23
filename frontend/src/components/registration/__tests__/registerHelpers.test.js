@@ -149,3 +149,26 @@ describe("table search text", () => {
     expect(patientSearchParams("12")).toEqual({ search: "12" });
   });
 });
+
+describe("age and filled steps", () => {
+  const { ageText, stepFilled } = require("../registerHelpers");
+  const today = new Date(2026, 9, 22);
+  test("ageText", () => {
+    expect(ageText("1972-03-14", today)).toBe("54 y");
+    expect(ageText("1972-10-23", today)).toBe("53 y");
+    expect(ageText("2025-10-22", today)).toBe("12 mo");
+    expect(ageText("2026-07-22", today)).toBe("3 mo");
+    expect(ageText("2026-10-12", today)).toBe("10 d");
+    expect(ageText("2027-01-01", today)).toBe("");
+    expect(ageText("", today)).toBe("");
+  });
+  test("stepFilled needs every key detail", () => {
+    expect(stepFilled("identity", { legal_sex: "F", date_of_birth: "1972-03-14", phone_number: "3015550142" })).toBe(true);
+    expect(stepFilled("identity", { legal_sex: "F", date_of_birth: "1972-03-14" })).toBe(false);
+    expect(stepFilled("legal", { consent_to_treat: true })).toBe(true);
+    expect(stepFilled("legal", { consent_to_treat: false })).toBe(false);
+    expect(stepFilled("reason", {}, { reason_for_visit: "Chest pain" })).toBe(true);
+    expect(stepFilled("logistics", {}, { care_setting: "emergency", attending_provider: "" })).toBe(false);
+    expect(stepFilled("nope")).toBe(false);
+  });
+});
