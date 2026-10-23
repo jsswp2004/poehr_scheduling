@@ -42,6 +42,9 @@ import { getValidToken } from "../utils/auth";
 import { toast } from "./SimpleToast";
 import PanelTitle from "./patients/PanelTitle";
 import { applyCalculations } from "../utils/calculations";
+import IntakeOutputSummary from "./IntakeOutputSummary";
+import IntakeOutputEntryDrawer from "./IntakeOutputEntryDrawer";
+import { IO_TEMPLATE_CODE, convertVolumeText, formatMl } from "../utils/ioHelpers";
 
 // The shared `api` axios instance has no request interceptor of its own --
 // Authorization headers must be attached explicitly per-call, matching the
@@ -121,6 +124,11 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  // Intake & Output: totals and alerts come from the server (it adds up across time columns, which
+  // an ordinary flowsheet row cannot), and are refreshed shortly after the grid changes.
+  const [ioSummary, setIoSummary] = useState(null);
+  const [entryOpen, setEntryOpen] = useState(false);
+
   // Which section headers are collapsed (hiding their rows), keyed by
   // section name. Collapsed is per-component-instance only -- it resets on
   // reload/visit change, same as the rest of this panel's UI state.
@@ -145,6 +153,33 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
   const clampedRangeCount = Math.max(1, Math.min(50, Number(rangeCount) || 0));
 
   const canAuthor = ["doctor", "nurse", "admin", "system_admin"].includes(userRole);
+
+  const isIo = selectedTemplate?.code === IO_TEMPLATE_CODE;
+  useEffect(() => {
+    if (!isIo || !patientId || !appointmentId || !canAuthor) {
+      setIoSummary(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const headers = await authHeader();
+        const res = await api.post(
+          apiEndpoints.intakeOutputSummary,
+          { patient: patientId, columns, data: cellData },
+          { headers }
+        );
+        if (!cancelled) setIoSummary(res.data);
+      } catch (err) {
+        console.error("Failed to total intake and output:", err);
+        if (!cancelled) setIoSummary(null);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isIo, patientId, appointmentId, canAuthor, columns, cellData]);
 
   // Calculated rows (a PHQ-9 total, a BMI, ...) are never typed: each time
   // column's result is worked out live from that column's own answers by the
@@ -310,6 +345,36 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
     setDirty(true);
   };
 
+  // Typing "8 oz" in an Intake & Output amount cell turns into 240 (mL) when the nurse leaves it.
+  const handleCellBlur = (rowKey, colId, fieldType) => {
+    if (!isIo || fieldType !== "numeric") return;
+    const current = cellData[rowKey]?.[colId];
+    const next = convertVolumeText(current);
+    if (next !== current) handleCellChange(rowKey, colId, next);
+  };
+
+  const ioEntryRows = useMemo(
+    () => rowDefinitions.flatMap((section) => section.rows.map((row) => ({ ...row, section_label: section.section }))),
+    [rowDefinitions]
+  );
+  const saveIoEntry = ({ time, values }) => {
+    const stamp = time.getTime();
+    const sameMinute = columns.find((c) => Math.floor(new Date(c.timestamp).getTime() / 60000) === Math.floor(stamp / 60000));
+    const colId = sameMinute ? sameMinute.id : `col_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    if (!sameMinute) {
+      setColumns((prev) => [...prev, { id: colId, timestamp: time.toISOString(), recorded_by_name: userName }]);
+    }
+    setCellData((prev) => {
+      const next = { ...prev };
+      Object.entries(values).forEach(([key, value]) => {
+        next[key] = { ...next[key], [colId]: value };
+      });
+      return next;
+    });
+    setDirty(true);
+    setEntryOpen(false);
+  };
+
   const confirmAddTime = () => {
     const colId = `col_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     setColumns((prev) => [
@@ -451,6 +516,11 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
         <PanelTitle sx={{ mb: 0 }}>Flowsheets</PanelTitle>
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {isIo && (
+            <Button variant="contained" color="secondary" onClick={() => setEntryOpen(true)} disabled={!appointmentId || saving}>
+              Add entry
+            </Button>
+          )}
           <Button
             variant="outlined"
             startIcon={<AddAlarmIcon />}
@@ -519,6 +589,8 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
         </FormControl>
       </Stack>
 
+      {isIo && appointmentId && <IntakeOutputSummary summary={ioSummary} />}
+
       {loadingTemplates ? (
         <Typography variant="body2" color="text.secondary">
           Loading flowsheet types...
@@ -578,6 +650,12 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
                     </Stack>
                   </TableCell>
                 ))}
+                {isIo &&
+                  [["Shift", "shift"], ["24 h", "day"], ["Stay", "stay"]].map(([title, key]) => (
+                    <TableCell key={key} align="center" sx={{ minWidth: 80, fontWeight: "bold", bgcolor: "action.hover" }}>
+                      {title}
+                    </TableCell>
+                  ))}
                 {sortedColumns.length === 0 && (
                   <TableCell align="center" sx={{ color: "text.secondary" }}>
                     Click "Add Time" to start charting
@@ -592,7 +670,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
                 <Fragment key={section.section}>
                   <TableRow>
                     <TableCell
-                      colSpan={Math.max(sortedColumns.length, 1) + 1}
+                      colSpan={Math.max(sortedColumns.length, 1) + 1 + (isIo ? 3 : 0)}
                       onClick={() => toggleSection(section.section)}
                       sx={{
                         bgcolor: SECTION_HEADER_BG,
@@ -617,7 +695,8 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
                     </TableCell>
                   </TableRow>
                   {!isCollapsed && section.rows.map((row) => (
-                    <TableRow key={row.key} hover>
+                    <Fragment key={row.key}>
+                    <TableRow hover>
                       <TableCell
                         sx={{
                           position: "sticky",
@@ -704,6 +783,7 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
                               variant="standard"
                               value={cellData[row.key]?.[col.id] ?? ""}
                               onChange={(e) => handleCellChange(row.key, col.id, e.target.value)}
+                              onBlur={() => handleCellBlur(row.key, col.id, row.field_type)}
                               disabled={!canAuthor}
                               inputProps={{
                                 style: { textAlign: "center" },
@@ -714,12 +794,61 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
                           </TableCell>
                         );
                       })}
+                      {isIo &&
+                        ["shift", "day", "stay"].map((period) => (
+                          <TableCell key={period} align="center" sx={{ bgcolor: "action.hover" }}>
+                            {row.field_type === "numeric" ? formatMl(ioSummary?.rows?.[row.key]?.[period] ?? null) : ""}
+                          </TableCell>
+                        ))}
                       {sortedColumns.length === 0 && <TableCell />}
                     </TableRow>
+                    {isIo && row.key === "urine_catheter" && (
+                      <TableRow hover>
+                        <TableCell sx={{ position: "sticky", left: 0, zIndex: 2, bgcolor: "background.paper" }}>
+                          <span style={{ fontWeight: 700 }}>True urine output</span>
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                            (drainage - irrigation, mL)
+                          </Typography>
+                        </TableCell>
+                        {sortedColumns.map((col) => (
+                          <TableCell key={col.id} align="center" sx={{ bgcolor: "action.hover" }}>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                              {formatMl(ioSummary?.columns?.[col.id]?.urine_true ?? null)}
+                            </Typography>
+                          </TableCell>
+                        ))}
+                        {["shift", "day", "stay"].map((period) => (
+                          <TableCell key={period} align="center" sx={{ bgcolor: "action.hover" }}>
+                            {formatMl(ioSummary?.rows?.urine_true?.[period] ?? null)}
+                          </TableCell>
+                        ))}
+                        {sortedColumns.length === 0 && <TableCell />}
+                      </TableRow>
+                    )}
+                    </Fragment>
                   ))}
                 </Fragment>
                 );
               })}
+              {isIo &&
+                [["Intake total", "intake"], ["Output total", "output"], ["Net (intake - output)", "net"]].map(([title, key]) => (
+                  <TableRow key={key} sx={{ bgcolor: "action.selected" }}>
+                    <TableCell sx={{ position: "sticky", left: 0, zIndex: 2, bgcolor: "action.selected", fontWeight: 700 }}>
+                      {title}
+                    </TableCell>
+                    {sortedColumns.map((col) => (
+                      <TableCell key={col.id} align="center" sx={{ fontWeight: 700 }}>
+                        {formatMl(ioSummary?.columns?.[col.id]?.[key] ?? null, { signed: key === "net" })}
+                      </TableCell>
+                    ))}
+                    {["shift", "day", "stay"].map((period) => (
+                      <TableCell key={period} align="center" sx={{ fontWeight: 700 }}>
+                        {formatMl(ioSummary?.periods?.[period]?.[key] ?? null, { signed: key === "net" })}
+                      </TableCell>
+                    ))}
+                    {sortedColumns.length === 0 && <TableCell />}
+                  </TableRow>
+                ))}
             </TableBody>
           </Table>
         </TableContainer>
@@ -736,6 +865,10 @@ function VitalSignsFlowsheetPanel({ patientId, patientName, chartVisit }) {
             </Alert>
           ))}
         </Stack>
+      )}
+
+      {isIo && (
+        <IntakeOutputEntryDrawer open={entryOpen} onClose={() => setEntryOpen(false)} rows={ioEntryRows} onSave={saveIoEntry} />
       )}
 
       <Dialog open={addTimeOpen} onClose={() => setAddTimeOpen(false)}>

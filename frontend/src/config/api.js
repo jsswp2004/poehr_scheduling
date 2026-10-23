@@ -254,6 +254,10 @@ export const apiEndpoints = {
     flowsheetTemplates: `${API_BASE_URL}/api/flowsheet-templates/`,
     flowsheetTemplate: (code) => `${API_BASE_URL}/api/flowsheet-templates/${code}/`,
 
+    // Intake & Output flowsheet: totals/alerts for the grid, and the clinic's alert limits
+    intakeOutputSummary: `${API_BASE_URL}/api/intake-output/summary/`,
+    intakeOutputSettings: `${API_BASE_URL}/api/intake-output/settings/`,
+
     // Note-builder configuration UI (Phase 2, admin-only)
     noteTemplatesAdmin: `${API_BASE_URL}/api/admin/note-templates/`,
     noteTemplateAdmin: (code) => `${API_BASE_URL}/api/admin/note-templates/${code}/`,

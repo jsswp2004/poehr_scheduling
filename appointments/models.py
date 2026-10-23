@@ -859,6 +859,24 @@ class FlowsheetTemplate(models.Model):
         return f"{self.name} (v{self.version})"
 
 
+class IntakeOutputSettings(models.Model):
+    """
+    A clinic's limits for the Intake & Output flowsheet's alerts and its shift start times
+    (see intake_output.py). One row per organization; no row means the defaults. A blank
+    limit switches that alert off.
+    """
+
+    organization = models.OneToOneField(Organization, on_delete=models.CASCADE, related_name="intake_output_settings")
+    shift_starts = models.JSONField(default=list, blank=True, help_text="Shift start times, 24-hour HH:MM; blank = 07:00 and 19:00")
+    low_urine_ml_kg_h = models.FloatField(null=True, blank=True, default=0.5, help_text="Alert below this urine rate (mL/kg/h); blank = off")
+    no_urine_hours = models.PositiveSmallIntegerField(null=True, blank=True, default=6, help_text="Alert after this many hours with no urine; blank = off")
+    low_urine_24h_ml = models.PositiveIntegerField(null=True, blank=True, default=800, help_text="Alert when 24-hour urine is below this (mL); blank = off")
+    positive_balance_24h_ml = models.PositiveIntegerField(null=True, blank=True, default=2000, help_text="Alert when 24-hour net is above this (mL); blank = off")
+
+    def __str__(self):
+        return f"I&O settings for {self.organization_id}"
+
+
 class FlowsheetRowDefinition(models.Model):
     """
     A single configurable row within a FlowsheetTemplate -- the equivalent
