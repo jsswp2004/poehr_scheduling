@@ -55,9 +55,8 @@ test("quick ranges: this month and last month, and the active one is detected", 
   expect(activeQuickRange(new Date(2026, 0, 1), new Date(2026, 0, 5), now)).toBeNull();
 });
 
-test("shows the title, the two tabs and the grouped list", () => {
+test("shows the two tabs and the grouped list", () => {
   setup();
-  expect(screen.getByRole("heading", { name: "Analytics" })).toBeInTheDocument();
   expect(screen.getByRole("tab", { name: "Standard Reports" })).toBeInTheDocument();
   expect(screen.getByRole("tab", { name: "Advanced Analytics" })).toBeInTheDocument();
   expect(screen.getByText("Appointments")).toBeInTheDocument();
@@ -121,10 +120,17 @@ test("no records: says so and offers all providers when one is chosen", async ()
   expect(p.setReportProvider).toHaveBeenCalledWith("all");
 });
 
-test("without Advanced Analytics the tab is gone and the upgrade card shows", () => {
+test("without Advanced Analytics the tab stays and opens the upgrade card", () => {
+  useSubscriptionAccess.mockReturnValue({ permissions: { advancedAnalytics: false }, tier: "basic" });
+  const p = setup();
+  fireEvent.click(screen.getByRole("tab", { name: "Advanced Analytics" }));
+  expect(p.setAnalyticsTab).toHaveBeenCalledWith("advanced");
+});
+
+test("on the advanced tab a plan without access sees the upgrade card, not reports", () => {
   useSubscriptionAccess.mockReturnValue({ permissions: { advancedAnalytics: false }, tier: "basic" });
   setup({ analyticsTab: "advanced" });
-  expect(screen.queryByRole("tab", { name: "Advanced Analytics" })).toBeNull();
+  expect(screen.queryByText("No-Show & Cancellation Rate")).toBeNull();
   expect(screen.getByTestId("advanced-upgrade")).toHaveTextContent("Your plan: Professional");
   expect(screen.getByRole("button", { name: "Upgrade to Clinic Plan" })).toBeInTheDocument();
 });
