@@ -222,6 +222,28 @@ function DynamicNoteForm({ template, values, onChange, disabled, patientId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [values, template]);
 
+  // A new note opens with today's date and the current time already in its entry date and entry time
+  // fields (keys "entry_date" and "entry_time", as in the Nursing Progress Note). Filled once, only when
+  // empty, and never on a read-only form.
+  const defaultedRef = useRef({});
+  useEffect(() => {
+    if (!template || disabled) return;
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const defaults = {
+      entry_date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+      entry_time: `${pad(now.getHours())}:${pad(now.getMinutes())}`,
+    };
+    fields.forEach((f) => {
+      const want = defaults[f.key];
+      if (want === undefined || defaultedRef.current[f.key] || !["date", "text"].includes(f.field_type)) return;
+      defaultedRef.current[f.key] = true;
+      const have = values[f.key];
+      if (have === undefined || have === null || have === "") onChangeRef.current(f.key, want);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [template, disabled]);
+
   if (!template) {
     return (
       <Typography variant="body2" color="text.secondary">
