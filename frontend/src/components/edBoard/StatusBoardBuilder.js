@@ -235,7 +235,7 @@ export default function StatusBoardBuilder() {
             <Paper variant="outlined" sx={{ width: 260, flexShrink: 0 }}>
               <List dense aria-label="Views" disablePadding>
                 {views.length === 0 && (
-                  <ListItemText sx={{ p: 2 }} primary="No saved views yet" secondary="The three built-in views are always available." />
+                  <ListItemText sx={{ p: 2 }} primary="No saved views yet" secondary="The built-in views are always available." />
                 )}
                 {views.map((v) => (
                   <ListItemButton key={v.id} selected={v.id === selectedId} onClick={() => choose(v)} data-testid={`view-item-${v.id}`}>
@@ -248,6 +248,16 @@ export default function StatusBoardBuilder() {
                 <Button fullWidth variant="outlined" size="small" onClick={() => setCreating({ name: "", from: "" })} disabled={views.length >= 30}>
                   New view
                 </Button>
+              </Box>
+              <Box sx={{ px: 2, pb: 1.5 }} data-testid="builtin-views">
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                  Built in (always on the ED Board, cannot be edited)
+                </Typography>
+                <Typography variant="body2">ED All View</Typography>
+                <Typography variant="body2">Waiting Area</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  To change columns or colors for everyone in the department, make a view starting from the standard layout.
+                </Typography>
               </Box>
             </Paper>
 

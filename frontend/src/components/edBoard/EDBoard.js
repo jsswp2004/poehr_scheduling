@@ -652,8 +652,8 @@ export default function EDBoard({
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel id="ed-view">View</InputLabel>
-          <Select labelId="ed-view" label="View" value={previewView ? "" : viewKey} displayEmpty={!!previewView} renderValue={previewView ? () => previewView.label || "Preview" : undefined} onChange={(e) => chooseView(e.target.value)} inputProps={{ "data-testid": "ed-view" }}>
+          <InputLabel id="ed-view" shrink={previewView ? true : undefined}>View</InputLabel>
+          <Select labelId="ed-view" label="View" notched={previewView ? true : undefined} value={previewView ? "" : viewKey} displayEmpty={!!previewView} renderValue={previewView ? () => previewView.label || "Preview" : undefined} onChange={(e) => chooseView(e.target.value)} inputProps={{ "data-testid": "ed-view" }}>
             {views.map((v) => (
               <MenuItem key={v.key} value={v.key}>
                 {v.label}
