@@ -1809,6 +1809,10 @@ class CheckInStatusUpdateView(APIView):
                 if arrived:
                     appointment.no_show = False
                     appointment.status = "in_progress"
+                elif appointment.status == "in_progress":
+                    # Undoing a check-in puts the visit back to waiting. Any other status
+                    # (completed, cancelled, ...) is left alone.
+                    appointment.status = "scheduled"
 
                 appointment.save()
 
