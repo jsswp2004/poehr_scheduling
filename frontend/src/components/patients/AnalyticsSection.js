@@ -5,13 +5,14 @@ import { useSubscriptionAccess } from "../../hooks/useSubscriptionAccess";
 import {
   Box,
   Typography,
-  Paper,
   Button,
-  Grid,
   FormControl,
   InputLabel,
   Select as MUISelect,
   MenuItem,
+  Menu,
+  Chip,
+  Skeleton,
   Tabs,
   Tab,
   Table,
@@ -21,7 +22,6 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  CircularProgress,
 } from "@mui/material";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
@@ -29,9 +29,105 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faDownload,
   faPrint,
-  faTrash,
-  faPlay,
+  faEllipsisVertical,
+  faChartColumn,
+  faMagnifyingGlass,
+  faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
+
+const BORDER = "#dfe4ec";
+const cardSx = {
+  bgcolor: "#fff",
+  border: `1px solid ${BORDER}`,
+  borderRadius: "10px",
+};
+
+// How the reports are grouped in the list. A report that is not listed here
+// still shows up, under "Other", so nothing is ever hidden.
+const GROUPS = {
+  standard: [
+    ["Appointments", ["Upcoming Appointments Report", "Past Appointments Report", "Appointment Status Report", "Appointment Duration Summary", "Appointment Recurrence Report"]],
+    ["Schedule", ["Provider Schedule Report", "Blocked Time Slots"]],
+    ["Patients", ["New Patient Registrations"]],
+  ],
+  advanced: [
+    ["Volume and flow", ["Appointment Volume Trends", "Appointment Lead Time Analysis", "Blocked vs. Booked Time Comparison"]],
+    ["Attendance", ["No-Show & Cancellation Rate", "Patient Visit Frequency"]],
+    ["Providers and patients", ["Provider Utilization Report", "New vs. Returning Patients", "Patient Demographic Breakdown"]],
+  ],
+};
+
+export const groupReports = (kind, reports = []) => {
+  const known = new Set();
+  const out = [];
+  (GROUPS[kind] || []).forEach(([label, names]) => {
+    const items = names.filter((n) => reports.includes(n));
+    items.forEach((n) => known.add(n));
+    if (items.length) out.push({ label, items });
+  });
+  const rest = reports.filter((n) => !known.has(n));
+  if (rest.length) out.push({ label: "Other", items: rest });
+  return out;
+};
+
+const noon = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12);
+export const QUICK_RANGES = [
+  { key: "today", label: "Today", range: (n) => [noon(n), noon(n)] },
+  { key: "7d", label: "Last 7 days", range: (n) => [noon(new Date(n.getFullYear(), n.getMonth(), n.getDate() - 6)), noon(n)] },
+  { key: "month", label: "This month", range: (n) => [noon(new Date(n.getFullYear(), n.getMonth(), 1)), noon(new Date(n.getFullYear(), n.getMonth() + 1, 0))] },
+  { key: "last", label: "Last month", range: (n) => [noon(new Date(n.getFullYear(), n.getMonth() - 1, 1)), noon(new Date(n.getFullYear(), n.getMonth(), 0))] },
+];
+const sameDay = (a, b) =>
+  !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+export const activeQuickRange = (start, end, now = new Date()) => {
+  const hit = QUICK_RANGES.find((q) => {
+    const [s, e] = q.range(now);
+    return sameDay(s, start) && sameDay(e, end);
+  });
+  return hit ? hit.key : null;
+};
+
+const shortDate = (d) =>
+  d ? d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Not set";
+
+const headerLabel = (header) =>
+  header
+    .replace(/([A-Z])/g, " $1")
+    .replace(/^./, (str) => str.toUpperCase())
+    .replace(/_/g, " ");
+
+const cellValue = (key, raw) => {
+  let value = raw || "N/A";
+  if (key.toLowerCase().includes("date") || key.toLowerCase().includes("time")) {
+    if (value && value !== "N/A" && typeof value === "string" && value.includes("T")) {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        value = date.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      }
+    }
+  }
+  return value;
+};
+
+function CenterState({ icon, title, children, action, color = "text.secondary", testId }) {
+  return (
+    <Box data-testid={testId} sx={{ textAlign: "center", py: 8, px: 2, color }}>
+      <Box sx={{ fontSize: 28, mb: 1 }}><FontAwesomeIcon icon={icon} /></Box>
+      <Typography sx={{ fontWeight: 600, fontSize: 15, color: "text.primary" }}>{title}</Typography>
+      <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>{children}</Typography>
+      {action && <Box sx={{ mt: 1.5 }}>{action}</Box>}
+    </Box>
+  );
+}
+
+function Tile({ label, value }) {
+  return (
+    <Box sx={{ flex: 1, minWidth: 120, bgcolor: "#f8fafc", border: `1px solid ${BORDER}`, borderRadius: "8px", px: 1.75, py: 1.25 }}>
+      <Typography variant="caption" sx={{ color: "text.secondary" }}>{label}</Typography>
+      <Typography sx={{ fontSize: 18, fontWeight: 600, lineHeight: 1.3 }}>{value}</Typography>
+    </Box>
+  );
+}
 
 function AnalyticsSection({
   analyticsTab,
@@ -113,249 +209,152 @@ function AnalyticsSection({
   };
 
   // Render the report preview panel
+
+  // Row menu (Download / Print / Delete) for the report list
+  const [menu, setMenu] = useState({ anchor: null, report: null });
+  const closeMenu = () => setMenu({ anchor: null, report: null });
+  const kind = analyticsTab === "advanced" ? "advanced" : "standard";
+  const reportList = kind === "advanced" ? advancedAnalyticsReports : analyticsReports;
+
+  const changeTab = (value) => {
+    setAnalyticsTab(value);
+    setPreviewData(null);
+    setPreviewError(null);
+    setSelectedReportName(null);
+  };
+
+  // Re-run the open report when its filters change, so the table never
+  // disagrees with the dates shown above it.
+  const applyQuickRange = (q) => {
+    const [s, e] = q.range(new Date());
+    setReportStartDate(s);
+    setReportEndDate(e);
+  };
+
+  // Render the report preview panel
   const renderReportPreview = () => {
     if (previewLoading) {
       return (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
-            minHeight: 300,
-            gap: 2,
-          }}
-        >
-          <CircularProgress />
-          <Typography variant="body1" color="text.secondary">
-            Loading {selectedReportName}...
-          </Typography>
+        <Box data-testid="preview-loading">
+          <Typography sx={{ fontSize: 16, fontWeight: 600 }}>{selectedReportName}</Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>Running…</Typography>
+          <Box sx={{ mt: 2 }}>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} variant="rounded" height={14} sx={{ my: 2.25, width: `${90 - i * 6}%` }} />
+            ))}
+          </Box>
         </Box>
       );
     }
 
     if (previewError) {
       return (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
-            minHeight: 300,
-            gap: 2,
-            color: "error.main",
-          }}
+        <CenterState
+          testId="preview-error"
+          icon={faTriangleExclamation}
+          color="error.main"
+          title="Could not run this report"
+          action={
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => selectedReportName && handleRunReport(selectedReportName)}
+            >
+              Try again
+            </Button>
+          }
         >
-          <Typography variant="h6" color="error">
-            Error Loading Report
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ textAlign: "center" }}
-          >
-            {previewError}
-          </Typography>
-          <Button
-            variant="outlined"
-            onClick={() =>
-              selectedReportName && handleRunReport(selectedReportName)
-            }
-            size="small"
-          >
-            Try Again
-          </Button>
-        </Box>
+          {previewError}. Your filters are kept.
+        </CenterState>
       );
     }
 
     if (previewData) {
+      const records = previewData.records || [];
       return (
-        <Box sx={{ 
-          height: "100%", 
-          display: "flex", 
-          flexDirection: "column",
-          overflow: "hidden"
-        }}>
-          {/* Report Header */}
-          <Box sx={{ mb: 2, pb: 2, borderBottom: "2px solid #2563eb", flexShrink: 0 }}>
-            <Typography variant="h6" sx={{ color: "primary.main", mb: 1 }}>
-              {selectedReportName}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Generated on{" "}
-              {new Date().toLocaleDateString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </Typography>
+        <Box data-testid="preview-report">
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, flexWrap: "wrap", mb: 1.5 }}>
+            <Box sx={{ flex: 1, minWidth: 200 }}>
+              <Typography sx={{ fontSize: 16, fontWeight: 600 }}>{selectedReportName}</Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                Generated{" "}
+                {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })}
+              </Typography>
+            </Box>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<FontAwesomeIcon icon={faDownload} size="sm" />}
+              onClick={() => onDownloadReport(selectedReportName)}
+            >
+              Download
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<FontAwesomeIcon icon={faPrint} size="sm" />}
+              onClick={() => handlePrintReport(selectedReportName)}
+            >
+              Print
+            </Button>
           </Box>
 
-          {/* Filter Summary */}
-          <Box sx={{ mb: 2, p: 2, bgcolor: "#f8fafc", borderRadius: 1, flexShrink: 0 }}>
-            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-              Applied Filters:
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Date Range:</strong>
-                  <br />
-                  {formatDate(reportStartDate)} - {formatDate(reportEndDate)}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Provider:</strong>
-                  <br />
-                  {getProviderName()}
-                </Typography>
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <Typography variant="body2" color="text.secondary">
-                  <strong>Total Records:</strong>
-                  <br />
-                  {previewData.records ? previewData.records.length : 0}
-                </Typography>
-              </Grid>
-            </Grid>
+          <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mb: 2 }}>
+            <Tile label="Records" value={records.length} />
+            <Tile label="Date range" value={`${shortDate(reportStartDate)} – ${shortDate(reportEndDate)}`} />
+            <Tile label="Provider" value={getProviderName()} />
           </Box>
 
-          {/* Report Data */}
-          {previewData.records && previewData.records.length > 0 ? (
-            <TableContainer sx={{ 
-              flex: 1, 
-              overflow: "auto",
-              minHeight: 0,
-              border: "1px solid #e2e8f0",
-              borderRadius: 1
-            }}>
+          {records.length > 0 ? (
+            <TableContainer sx={{ maxHeight: 520, border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
-                    {Object.keys(previewData.records[0]).map((header) => (
-                      <TableCell
-                        key={header}
-                        sx={{
-                          fontWeight: "bold",
-                          bgcolor: "#2563eb",
-                          color: "white",
-                        }}
-                      >
-                        {header
-                          .replace(/([A-Z])/g, " $1")
-                          .replace(/^./, (str) => str.toUpperCase())
-                          .replace(/_/g, " ")}
+                    {Object.keys(records[0]).map((header) => (
+                      <TableCell key={header} sx={{ fontWeight: 700, bgcolor: "#f3f5f9", color: "text.primary" }}>
+                        {headerLabel(header)}
                       </TableCell>
                     ))}
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {previewData.records.map((record, index) => (
-                    <TableRow
-                      key={index}
-                      sx={{ "&:nth-of-type(even)": { bgcolor: "#f8fafc" } }}
-                    >
-                      {Object.keys(record).map((key) => {
-                        let value = record[key] || "N/A";
-
-                        // Format date/time fields
-                        if (
-                          key.toLowerCase().includes("date") ||
-                          key.toLowerCase().includes("time")
-                        ) {
-                          if (
-                            value &&
-                            value !== "N/A" &&
-                            typeof value === "string" &&
-                            value.includes("T")
-                          ) {
-                            try {
-                              const date = new Date(value);
-                              if (!isNaN(date.getTime())) {
-                                value = date.toLocaleDateString("en-US", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                });
-                              }
-                            } catch (e) {
-                              // Keep original value if parsing fails
-                            }
-                          }
-                        }
-
-                        return (
-                          <TableCell key={key} sx={{ fontSize: "0.875rem" }}>
-                            {value}
-                          </TableCell>
-                        );
-                      })}
+                  {records.map((record, index) => (
+                    <TableRow key={index} hover>
+                      {Object.keys(record).map((key) => (
+                        <TableCell key={key} sx={{ fontSize: "0.875rem" }}>
+                          {cellValue(key, record[key])}
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </TableContainer>
           ) : (
-            <Box
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                flex: 1,
-                minHeight: 200,
-                bgcolor: "#f8fafc",
-                borderRadius: 1,
-                border: "2px dashed #ccc",
-              }}
+            <CenterState
+              testId="preview-empty-data"
+              icon={faMagnifyingGlass}
+              title="No records found"
+              action={
+                reportProvider !== "all" ? (
+                  <Button variant="outlined" size="small" onClick={() => setReportProvider("all")}>
+                    Show all providers
+                  </Button>
+                ) : null
+              }
             >
-              <Typography variant="h6" color="text.secondary">
-                📊 No Data Available
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ textAlign: "center", mt: 1 }}
-              >
-                No records found for this report with the current filters.
-                <br />
-                Try adjusting your date range or provider selection.
-              </Typography>
-            </Box>
+              No records for {shortDate(reportStartDate)} – {shortDate(reportEndDate)}
+              {reportProvider !== "all" ? ` and ${getProviderName()}` : ""}. Try a wider date range.
+            </CenterState>
           )}
         </Box>
       );
     }
 
-    // Default state - no report selected
     return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          gap: 2,
-          color: "text.secondary",
-          minHeight: 300,
-        }}
-      >
-        <Typography variant="h6">📊 Report Preview</Typography>
-        <Typography variant="body1" sx={{ textAlign: "center" }}>
-          Select a report and click the "Run" button to preview the results
-          here.
-        </Typography>
-      </Box>
+      <CenterState testId="preview-idle" icon={faChartColumn} title="Pick a report">
+        Choose a report on the left to see it here. Your dates and provider apply to every report.
+      </CenterState>
     );
   };
 
@@ -1169,567 +1168,183 @@ function AnalyticsSection({
     }
   };
 
+  const quickActive = activeQuickRange(reportStartDate, reportEndDate);
+  const hasAdvanced = !!permissions?.advancedAnalytics;
+
+  const filterCard = (
+    <Box sx={{ ...cardSx, p: 2.25, display: "flex", gap: 1.75, flexWrap: "wrap", alignItems: "center" }}>
+      <DatePicker
+        label="Start date"
+        value={reportStartDate}
+        onChange={setReportStartDate}
+        slotProps={{ textField: { size: "small", sx: { width: 170 } } }}
+      />
+      <DatePicker
+        label="End date"
+        value={reportEndDate}
+        onChange={setReportEndDate}
+        slotProps={{ textField: { size: "small", sx: { width: 170 } } }}
+      />
+      <FormControl size="small" sx={{ width: 230 }}>
+        <InputLabel id="analytics-provider-label">Provider</InputLabel>
+        <MUISelect
+          labelId="analytics-provider-label"
+          value={reportProvider}
+          label="Provider"
+          onChange={(e) => setReportProvider(e.target.value)}
+        >
+          <MenuItem value="all">All providers</MenuItem>
+          {providers.map((provider) => (
+            <MenuItem key={provider.id} value={provider.id}>
+              Dr. {provider.first_name} {provider.last_name}
+            </MenuItem>
+          ))}
+        </MUISelect>
+      </FormControl>
+      <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap", ml: { md: 1 } }}>
+        {QUICK_RANGES.map((q) => (
+          <Chip
+            key={q.key}
+            data-testid={`quick-${q.key}`}
+            label={q.label}
+            size="small"
+            clickable
+            color={quickActive === q.key ? "primary" : "default"}
+            variant={quickActive === q.key ? "filled" : "outlined"}
+            onClick={() => applyQuickRange(q)}
+          />
+        ))}
+      </Box>
+    </Box>
+  );
+
+  const reportListCard = (
+    <Box sx={{ ...cardSx, py: 0.75, overflow: "hidden" }}>
+      {groupReports(kind, reportList).map((group) => (
+        <Box key={group.label}>
+          <Typography
+            sx={{ px: 2, pt: 1.5, pb: 0.5, fontSize: 11.5, fontWeight: 700, color: "text.secondary", textTransform: "uppercase", letterSpacing: "0.05em" }}
+          >
+            {group.label}
+          </Typography>
+          {group.items.map((report) => {
+            const on = selectedReportName === report;
+            return (
+              <Box
+                key={report}
+                data-testid={`report-row-${report}`}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  minHeight: 40,
+                  pl: 1.75,
+                  pr: 0.5,
+                  borderLeft: `3px solid ${on ? "#1d4ed8" : "transparent"}`,
+                  bgcolor: on ? "#e8f0fe" : "#fff",
+                  "&:hover": { bgcolor: on ? "#e8f0fe" : "#f5f7fb" },
+                }}
+              >
+                <Box
+                  component="button"
+                  type="button"
+                  onClick={() => handleRunReport(report)}
+                  aria-pressed={on}
+                  sx={{
+                    flex: 1,
+                    textAlign: "left",
+                    border: 0,
+                    background: "transparent",
+                    font: "inherit",
+                    fontSize: 13.5,
+                    fontWeight: on ? 600 : 400,
+                    color: on ? "#0f3a9e" : "text.primary",
+                    cursor: "pointer",
+                    py: 1.25,
+                    px: 0,
+                  }}
+                >
+                  {report}
+                </Box>
+                <IconButton
+                  size="small"
+                  aria-label={`More actions for ${report}`}
+                  onClick={(e) => setMenu({ anchor: e.currentTarget, report })}
+                >
+                  <FontAwesomeIcon icon={faEllipsisVertical} size="sm" />
+                </IconButton>
+              </Box>
+            );
+          })}
+        </Box>
+      ))}
+    </Box>
+  );
+
+  const upgradeCard = (
+    <Box sx={{ ...cardSx, p: 5, textAlign: "center" }} data-testid="advanced-upgrade">
+      <Box sx={{ width: 52, height: 52, borderRadius: "14px", bgcolor: "#e8f0fe", color: "#1d4ed8", fontSize: 24, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+        <FontAwesomeIcon icon={faChartColumn} />
+      </Box>
+      <Typography sx={{ fontSize: 18, fontWeight: 600, mt: 1.75 }}>Advanced Analytics</Typography>
+      <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.75, maxWidth: 460, mx: "auto" }}>
+        Volume trends, no-show and cancellation rates, provider utilization and more.
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 1.75 }}>
+        Your plan: <b>{tier === "basic" ? "Professional" : String(tier || "").charAt(0).toUpperCase() + String(tier || "").slice(1)}</b>
+      </Typography>
+      <Button variant="contained" sx={{ mt: 1.75 }} onClick={() => console.log("Navigate to upgrade page")}>
+        Upgrade to Clinic Plan
+      </Button>
+      <Typography variant="caption" display="block" sx={{ mt: 1.25, color: "text.secondary" }}>
+        Included with Clinic and Group plans
+      </Typography>
+    </Box>
+  );
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box>
-        {/* Analytics Sub-tabs */}
+        <Typography component="h1" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2 }}>
+          Analytics
+        </Typography>
+        <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.5 }}>
+          Run clinic reports for a date range and provider
+        </Typography>
+
         <Tabs
-          value={analyticsTab}
-          onChange={(e, newVal) => setAnalyticsTab(newVal)}
-          sx={{
-            mb: 0,
-            "& .MuiTabs-indicator": {
-              height: 3,
-              borderRadius: 1,
-            },
-          }}
+          value={analyticsTab === "advanced" && hasAdvanced ? "advanced" : "standard"}
+          onChange={(e, v) => changeTab(v)}
+          sx={{ borderBottom: `1px solid ${BORDER}`, mb: 2 }}
         >
           <Tab label="Standard Reports" value="standard" />
-          {permissions?.advancedAnalytics && (
-            <Tab label="Advanced Analytics" value="advanced" />
-          )}
+          {hasAdvanced && <Tab label="Advanced Analytics" value="advanced" />}
         </Tabs>
 
-        {/* Standard Reports - New Three Panel Layout */}
-        {analyticsTab === "standard" && (
-          <Box>
-            {/* Top Panel - Report Filters */}
-            <Paper sx={{ p: 3, mb: 0 }}>
-              <Typography variant="h6" sx={{ mb: 0, color: "primary.main" }}>
-                Report Filters
-              </Typography>
-
-              <Grid container spacing={3} alignItems="center">
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <DatePicker
-                    label="Start Date"
-                    value={reportStartDate}
-                    onChange={setReportStartDate}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                      },
-                    }}
-                  />
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <DatePicker
-                    label="End Date"
-                    value={reportEndDate}
-                    onChange={setReportEndDate}
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        fullWidth: true,
-                      },
-                    }}
-                  />
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <FormControl size="small" fullWidth>
-                    <InputLabel>Provider</InputLabel>
-                    <MUISelect
-                      value={reportProvider}
-                      label="Provider"
-                      onChange={(e) => setReportProvider(e.target.value)}
-                    >
-                      <MenuItem value="all">All Providers</MenuItem>
-                      {providers.map((provider) => (
-                        <MenuItem key={provider.id} value={provider.id}>
-                          Dr. {provider.first_name} {provider.last_name}
-                        </MenuItem>
-                      ))}
-                    </MUISelect>
-                  </FormControl>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Current Filters:</strong>
-                    <br />
-                    {formatDate(reportStartDate)} - {formatDate(reportEndDate)}
-                    <br />
-                    {getProviderName()}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Bottom Panel - Left: Reports Table, Right: Preview */}
-            <Grid container spacing={3}>
-              {/* Left Panel - Reports Table */}
-              <Grid size={{ xs: 12, md: 5 }}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    height: "calc(70vh - 100px)",
-                    overflowY: "auto",
-                    // Thin, unobtrusive scrollbar instead of the browser's
-                    // default boxed track (which showed as a visible
-                    // rectangular "boundary" between this panel and Report
-                    // Preview whenever the report list was tall enough to
-                    // scroll).
-                    "&::-webkit-scrollbar": {
-                      width: "6px",
-                    },
-                    "&::-webkit-scrollbar-track": {
-                      backgroundColor: "transparent",
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                      backgroundColor: "#c1c1c1",
-                      borderRadius: "3px",
-                    },
-                    "&::-webkit-scrollbar-thumb:hover": {
-                      backgroundColor: "#a8a8a8",
-                    },
-                    scrollbarWidth: "thin",
-                    scrollbarColor: "#c1c1c1 transparent",
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ mb: 0, color: "primary.main" }}
-                  >
-                    Standard Reports
-                  </Typography>
-
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Report Name
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Actions
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {analyticsReports.map((report) => (
-                          <TableRow
-                            key={report}
-                            sx={{
-                              "&:nth-of-type(odd)": {
-                                backgroundColor: "#f8fafc",
-                              },
-                              "&:hover": {
-                                backgroundColor: "#f0f7ff",
-                              },
-                            }}
-                          >
-                            <TableCell>
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 500 }}
-                              >
-                                {report}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  gap: 1,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleRunReport(report)}
-                                  sx={{
-                                    color: "#047857",
-                                    "&:hover": {
-                                      backgroundColor: "#e8f5e8",
-                                    },
-                                  }}
-                                  title="Run Report"
-                                >
-                                  <FontAwesomeIcon icon={faPlay} size="sm" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => onDownloadReport(report)}
-                                  sx={{
-                                    color: "#2563eb",
-                                    "&:hover": {
-                                      backgroundColor: "#dbeafe",
-                                    },
-                                  }}
-                                  title="Download"
-                                >
-                                  <FontAwesomeIcon
-                                    icon={faDownload}
-                                    size="sm"
-                                  />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handlePrintReport(report)}
-                                  sx={{
-                                    color: "#ed6c02",
-                                    "&:hover": {
-                                      backgroundColor: "#fff4e6",
-                                    },
-                                  }}
-                                  title="Print"
-                                >
-                                  <FontAwesomeIcon icon={faPrint} size="sm" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteReport(report)}
-                                  sx={{
-                                    color: "#dc2626",
-                                    "&:hover": {
-                                      backgroundColor: "#fee2e2",
-                                    },
-                                  }}
-                                  title="Delete"
-                                >
-                                  <FontAwesomeIcon icon={faTrash} size="sm" />
-                                </IconButton>
-                              </Box>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Paper>
-              </Grid>
-
-              {/* Right Panel - Report Preview */}
-              <Grid size={{ xs: 12, md: 7 }}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    height: "calc(70vh - 100px)",
-                    display: "flex",
-                    flexDirection: "column",
-                    overflow: "hidden",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 2,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ color: "primary.main" }}>
-                      Report Preview
-                    </Typography>
-                    {previewData && !previewLoading && !previewError && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<FontAwesomeIcon icon={faPrint} size="sm" />}
-                        onClick={() => handlePrintReport(selectedReportName)}
-                      >
-                        Print
-                      </Button>
-                    )}
-                  </Box>
-                  <Box sx={{ flex: 1, minHeight: 0 }}>
-                    {renderReportPreview()}
-                  </Box>
-                </Paper>
-              </Grid>
-            </Grid>
-          </Box>
+        {analyticsTab === "advanced" && !hasAdvanced ? (
+          upgradeCard
+        ) : (
+          <>
+            {filterCard}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "340px minmax(0, 1fr)" },
+                gap: 2.5,
+                mt: 2,
+                alignItems: "start",
+              }}
+            >
+              {reportListCard}
+              <Box sx={{ ...cardSx, p: 2.5, minHeight: 420 }}>{renderReportPreview()}</Box>
+            </Box>
+          </>
         )}
 
-        {/* Advanced Analytics - New Three Panel Layout */}
-        {analyticsTab === "advanced" && (
-          <Box>
-            {permissions?.advancedAnalytics ? (
-              <Box>
-                {/* Top Panel - Report Filters */}
-                <Paper sx={{ p: 3, mb: 0 }}>
-                  <Typography variant="h6" sx={{ mb: 0, color: "primary.main" }}>
-                    Report Filters
-                  </Typography>
-
-                  <Grid container spacing={3} alignItems="center">
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                      <DatePicker
-                        label="Start Date"
-                        value={reportStartDate}
-                        onChange={setReportStartDate}
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                            fullWidth: true,
-                          },
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                      <DatePicker
-                        label="End Date"
-                        value={reportEndDate}
-                        onChange={setReportEndDate}
-                        slotProps={{
-                          textField: {
-                            size: "small",
-                            fullWidth: true,
-                          },
-                        }}
-                  />
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <FormControl size="small" fullWidth>
-                    <InputLabel>Provider</InputLabel>
-                    <MUISelect
-                      value={reportProvider}
-                      label="Provider"
-                      onChange={(e) => setReportProvider(e.target.value)}
-                    >
-                      <MenuItem value="all">All Providers</MenuItem>
-                      {providers.map((provider) => (
-                        <MenuItem key={provider.id} value={provider.id}>
-                          Dr. {provider.first_name} {provider.last_name}
-                        </MenuItem>
-                      ))}
-                    </MUISelect>
-                  </FormControl>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    <strong>Current Filters:</strong>
-                    <br />
-                    {formatDate(reportStartDate)} - {formatDate(reportEndDate)}
-                    <br />
-                    {getProviderName()}
-                  </Typography>
-                </Grid>
-              </Grid>
-            </Paper>
-
-            {/* Bottom Panel - Left: Reports Table, Right: Preview */}
-            <Grid container spacing={3}>
-              {/* Left Panel - Reports Table */}
-              <Grid size={{ xs: 12, md: 5 }}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    height: "calc(70vh - 100px)",
-                    overflowY: "auto",
-                    // Thin, unobtrusive scrollbar instead of the browser's
-                    // default boxed track (which showed as a visible
-                    // rectangular "boundary" between this panel and Report
-                    // Preview whenever the report list was tall enough to
-                    // scroll).
-                    "&::-webkit-scrollbar": {
-                      width: "6px",
-                    },
-                    "&::-webkit-scrollbar-track": {
-                      backgroundColor: "transparent",
-                    },
-                    "&::-webkit-scrollbar-thumb": {
-                      backgroundColor: "#c1c1c1",
-                      borderRadius: "3px",
-                    },
-                    "&::-webkit-scrollbar-thumb:hover": {
-                      backgroundColor: "#a8a8a8",
-                    },
-                    scrollbarWidth: "thin",
-                    scrollbarColor: "#c1c1c1 transparent",
-                  }}
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ mb: 0, color: "primary.main" }}
-                  >
-                    Advanced Analytics
-                  </Typography>
-
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Report Name
-                          </TableCell>
-                          <TableCell sx={{ fontWeight: "bold" }}>
-                            Actions
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {advancedAnalyticsReports.map((report) => (
-                          <TableRow
-                            key={report}
-                            sx={{
-                              "&:nth-of-type(odd)": {
-                                backgroundColor: "#f8fafc",
-                              },
-                              "&:hover": {
-                                backgroundColor: "#f0f7ff",
-                              },
-                            }}
-                          >
-                            <TableCell>
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 500 }}
-                              >
-                                {report}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Box
-                                sx={{
-                                  display: "flex",
-                                  gap: 1,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleRunReport(report)}
-                                  sx={{
-                                    color: "#047857",
-                                    "&:hover": {
-                                      backgroundColor: "#e8f5e8",
-                                    },
-                                  }}
-                                  title="Run Report"
-                                >
-                                  <FontAwesomeIcon icon={faPlay} size="sm" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => onDownloadReport(report)}
-                                  sx={{
-                                    color: "#2563eb",
-                                    "&:hover": {
-                                      backgroundColor: "#dbeafe",
-                                    },
-                                  }}
-                                  title="Download"
-                                >
-                                  <FontAwesomeIcon
-                                    icon={faDownload}
-                                    size="sm"
-                                  />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handlePrintReport(report)}
-                                  sx={{
-                                    color: "#ed6c02",
-                                    "&:hover": {
-                                      backgroundColor: "#fff4e6",
-                                    },
-                                  }}
-                                  title="Print"
-                                >
-                                  <FontAwesomeIcon icon={faPrint} size="sm" />
-                                </IconButton>
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleDeleteReport(report)}
-                                  sx={{
-                                    color: "#dc2626",
-                                    "&:hover": {
-                                      backgroundColor: "#fee2e2",
-                                    },
-                                  }}
-                                  title="Delete"
-                                >
-                                  <FontAwesomeIcon icon={faTrash} size="sm" />
-                                </IconButton>
-                              </Box>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Paper>
-              </Grid>
-
-              {/* Right Panel - Report Preview */}
-              <Grid size={{ xs: 12, md: 7 }}>
-                <Paper
-                  sx={{
-                    p: 3,
-                    height: "calc(70vh - 200px)",
-                    display: "flex",
-                    flexDirection: "column",
-                    overflow: "hidden",
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      mb: 2,
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Typography variant="h6" sx={{ color: "primary.main" }}>
-                      Report Preview
-                    </Typography>
-                    {previewData && !previewLoading && !previewError && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        startIcon={<FontAwesomeIcon icon={faPrint} size="sm" />}
-                        onClick={() => handlePrintReport(selectedReportName)}
-                      >
-                        Print
-                      </Button>
-                    )}
-                  </Box>
-                  <Box sx={{ flex: 1, minHeight: 0 }}>
-                    {renderReportPreview()}
-                  </Box>
-                </Paper>
-              </Grid>
-            </Grid>
-          </Box>
-            ) : (
-              // Upgrade prompt for Professional tier users
-              <Paper sx={{ p: 4, textAlign: 'center', mt: 2 }}>
-                <Typography variant="h5" sx={{ mb: 2, color: 'primary.main' }}>
-                  Advanced Analytics
-                </Typography>
-                <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
-                  Access powerful insights, custom dashboards, and advanced reporting tools.
-                </Typography>
-                <Typography variant="body2" sx={{ mb: 3 }}>
-                  Current Plan: {tier === 'basic' ? 'Professional' : tier.charAt(0).toUpperCase() + tier.slice(1)}
-                </Typography>
-                <Button 
-                  variant="contained" 
-                  size="large"
-                  sx={{ px: 4 }}
-                  onClick={() => {
-                    // Navigate to upgrade page - you may want to implement this
-                    console.log('Navigate to upgrade page');
-                  }}
-                >
-                  Upgrade to Clinic Plan
-                </Button>
-                <Typography variant="caption" display="block" sx={{ mt: 2, color: 'text.secondary' }}>
-                  Unlock Advanced Analytics and more with our Clinic or Group plans
-                </Typography>
-              </Paper>
-            )}
-          </Box>
-        )}
+        <Menu anchorEl={menu.anchor} open={Boolean(menu.anchor)} onClose={closeMenu}>
+          <MenuItem onClick={() => { onDownloadReport(menu.report); closeMenu(); }}>Download</MenuItem>
+          <MenuItem onClick={() => { handlePrintReport(menu.report); closeMenu(); }}>Print</MenuItem>
+          <MenuItem sx={{ color: "error.main" }} onClick={() => { handleDeleteReport(menu.report); closeMenu(); }}>Delete</MenuItem>
+        </Menu>
       </Box>
     </LocalizationProvider>
   );
