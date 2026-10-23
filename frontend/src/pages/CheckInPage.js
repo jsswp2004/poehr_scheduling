@@ -1,357 +1,294 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Box,
-  Container,
-  Paper,
-  TextField,
-  Typography,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableContainer,
-  Checkbox,
-  CircularProgress,
-  Backdrop,
-} from "@mui/material";
-import { useNavigate } from "react-router-dom";
-import { jwtDecode } from "jwt-decode";
-import axios from "axios";
-import { toast } from "react-toastify";
-import { getValidToken, clearAuthData } from "../utils/auth";
-import { API_BASE_URL } from "../config/api";
-import BackButton from "../components/BackButton";
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Box, Button, CircularProgress, Container, IconButton, InputAdornment, TextField, Typography } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { useNavigate } from 'react-router-dom';
+import { jwtDecode } from 'jwt-decode';
+import axios from 'axios';
+import { getValidToken, clearAuthData } from '../utils/auth';
+import { API_BASE_URL } from '../config/api';
+import BackButton from '../components/BackButton';
+import { MIN_CHARS, canSearch, detailText, longDate, patientName, timeText, visibleResults } from '../components/checkin/checkInHelpers';
 
-// Debounce utility function
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
+const ALLOWED_ROLES = ['admin', 'system_admin', 'registrar'];
+const RESET_SECONDS = 10;
 
 const CheckInPage = () => {
-  const navigate = useNavigate();
-  const [token, setToken] = useState(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [appointments, setAppointments] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
+    const navigate = useNavigate();
+    const [token, setToken] = useState(null);
+    const [query, setQuery] = useState('');
+    const [appointments, setAppointments] = useState([]);
+    const [searching, setSearching] = useState(false);
+    const [searchError, setSearchError] = useState('');
+    const [busyId, setBusyId] = useState(null);
+    const [rowErrors, setRowErrors] = useState({});
+    const [arrivedAt, setArrivedAt] = useState({}); // appointment id -> time text, for check-ins made on this screen
+    const [done, setDone] = useState(null); // the person who was just checked in
+    const latest = useRef(0);
 
-  // Authentication and authorization
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const validToken = await getValidToken();
-        if (!validToken) {
-          clearAuthData();
-          navigate("/login");
-          return;
+    useEffect(() => {
+        const init = async () => {
+            try {
+                const valid = await getValidToken();
+                if (!valid) {
+                    clearAuthData();
+                    navigate('/login');
+                    return;
+                }
+                setToken(valid);
+                const role = jwtDecode(valid).role || '';
+                if (!ALLOWED_ROLES.includes(role)) {
+                    navigate('/dashboard');
+                }
+            } catch (err) {
+                clearAuthData();
+                navigate('/login');
+            }
+        };
+        init();
+    }, [navigate]);
+
+    // Ask the server a moment after typing stops, and ignore answers that arrive late.
+    useEffect(() => {
+        if (!token) return undefined;
+        if (!canSearch(query)) {
+            latest.current += 1;
+            setAppointments([]);
+            setSearching(false);
+            setSearchError('');
+            return undefined;
         }
+        const id = ++latest.current;
+        const timer = setTimeout(async () => {
+            setSearching(true);
+            setSearchError('');
+            try {
+                const res = await axios.get(`${API_BASE_URL}/api/check-in/search/`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params: { query: query.trim() },
+                });
+                if (id === latest.current) setAppointments(Array.isArray(res.data) ? res.data : []);
+            } catch (err) {
+                if (id === latest.current) {
+                    setAppointments([]);
+                    setSearchError('Could not search right now. Try again, or ask the front desk.');
+                }
+            } finally {
+                if (id === latest.current) setSearching(false);
+            }
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [query, token]);
 
-        setToken(validToken);
-        const decoded = jwtDecode(validToken);
-        const role = decoded.role || "";
+    const startOver = useCallback(() => {
+        latest.current += 1;
+        setQuery('');
+        setAppointments([]);
+        setDone(null);
+        setRowErrors({});
+    }, []);
 
-        // Check if user has proper permissions
-        if (!["admin", "system_admin", "registrar"].includes(role)) {
-          toast.error(
-            "Access denied. Only administrators and registrars can access the check-in system."
-          );
-          navigate("/dashboard");
-          return;
+    // After a check-in, clear the screen for the next person.
+    useEffect(() => {
+        if (!done) return undefined;
+        const timer = setTimeout(startOver, RESET_SECONDS * 1000);
+        return () => clearTimeout(timer);
+    }, [done, startOver]);
+
+    const setArrived = async (appointment, arrived) => {
+        if (!token || busyId) return;
+        setBusyId(appointment.id);
+        setRowErrors((e) => ({ ...e, [appointment.id]: '' }));
+        try {
+            const res = await axios.patch(
+                `${API_BASE_URL}/api/check-in/update-status/${appointment.id}/`,
+                { arrived },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+            const updated = { ...appointment, ...(res.data || {}), arrived };
+            setAppointments((list) => list.map((a) => (a.id === appointment.id ? updated : a)));
+            if (arrived) {
+                const at = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                setArrivedAt((m) => ({ ...m, [appointment.id]: at }));
+                setDone({ appointment: updated, at });
+            } else {
+                setArrivedAt((m) => {
+                    const next = { ...m };
+                    delete next[appointment.id];
+                    return next;
+                });
+                setDone(null);
+            }
+        } catch (err) {
+            const name = patientName(appointment).split(' ')[0];
+            setRowErrors((e) => ({
+                ...e,
+                [appointment.id]: arrived
+                    ? `Could not check in ${name}. Nothing was changed. Try again, or ask the front desk.`
+                    : `Could not undo the check-in for ${name}. Nothing was changed.`,
+            }));
+        } finally {
+            setBusyId(null);
         }
-      } catch (err) {
-        console.error("❌ CheckInPage: Authentication failed:", err);
-        clearAuthData();
-        navigate("/login");
-      }
     };
 
-    initializeAuth();
-  }, [navigate]);
+    const { rows, hidden } = visibleResults(appointments);
+    const searched = canSearch(query);
+    const showEmpty = searched && !searching && !searchError && appointments.length === 0;
 
-  // Debounced search function
-  const searchAppointments = useCallback(
-    async (query) => {
-      if (!query.trim() || !token) {
-        setAppointments([]);
-        return;
-      }
+    return (
+        <Box sx={{ minHeight: '100vh', bgcolor: '#f4f6f9', py: 2 }}>
+            <Container maxWidth="sm">
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
+                    <Box sx={{ flex: 1 }}>
+                        <Typography variant="h4" fontWeight={600} component="h1">
+                            Check in
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            {longDate()}
+                        </Typography>
+                    </Box>
+                    <BackButton sx={{ mb: 0 }} />
+                </Box>
 
-      setSearchLoading(true);
-      try {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/check-in/search/`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            params: { query: query.trim() },
-          }
-        );
-        setAppointments(response.data);
-      } catch (error) {
-        console.error("Search error:", error);
-        toast.error("Failed to search appointments");
-        setAppointments([]);
-      } finally {
-        setSearchLoading(false);
-      }
-    },
-    [token]
-  );
+                <TextField
+                    fullWidth
+                    autoFocus
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Type your first or last name"
+                    inputProps={{ 'aria-label': 'Search by name', style: { fontSize: '1.25rem', padding: '16px 4px' } }}
+                    sx={{ bgcolor: '#fff', borderRadius: 2, '& .MuiOutlinedInput-root': { borderRadius: 3 } }}
+                    InputProps={{
+                        startAdornment: (
+                            <InputAdornment position="start">
+                                <SearchIcon />
+                            </InputAdornment>
+                        ),
+                        endAdornment: searching ? (
+                            <CircularProgress size={22} />
+                        ) : query ? (
+                            <IconButton aria-label="Clear search" onClick={startOver} edge="end">
+                                <CloseIcon />
+                            </IconButton>
+                        ) : null,
+                    }}
+                />
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2.5 }}>
+                    Type at least {MIN_CHARS} letters of your first or last name. Only today's appointments are listed.
+                </Typography>
 
-  const debouncedSearch = useCallback(
-    (query) => {
-      const search = debounce(searchAppointments, 300);
-      search(query);
-    },
-    [searchAppointments]
-  );
+                {searchError && (
+                    <Box role="alert" sx={{ p: 1.5, mb: 2, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 2, color: '#991b1b', fontSize: 14 }}>
+                        {searchError}
+                    </Box>
+                )}
 
-  // Handle search input changes
-  useEffect(() => {
-    debouncedSearch(searchQuery);
-  }, [searchQuery, debouncedSearch]);
+                {done && (
+                    <Box data-testid="checked-in-card" role="status" sx={{ p: 2, mb: 2, bgcolor: '#f0fdf4', border: '1px solid #a6e3c0', borderRadius: 3 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <CheckCircleIcon sx={{ color: '#16a34a', fontSize: 44 }} />
+                            <Box>
+                                <Typography variant="h6" fontWeight={600}>
+                                    {patientName(done.appointment)} is checked in
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: '#166534' }}>
+                                    {done.at}
+                                    {done.appointment.provider_name ? ` · ${done.appointment.provider_name}` : ''} {'·'} please have a seat
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 1.5, alignItems: 'center' }}>
+                            <Button variant="contained" size="large" onClick={startOver} sx={{ textTransform: 'none', borderRadius: 2 }}>
+                                Next person
+                            </Button>
+                            <Button onClick={() => setArrived(done.appointment, false)} disabled={busyId === done.appointment.id} sx={{ textTransform: 'none' }}>
+                                Undo
+                            </Button>
+                        </Box>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                            The search clears by itself after {RESET_SECONDS} seconds.
+                        </Typography>
+                    </Box>
+                )}
 
-  // Handle check-in status update
-  const handleCheckInToggle = async (appointmentId, currentStatus) => {
-    if (!token) return;
+                {rows.length > 0 && (
+                    <>
+                        <Typography variant="overline" color="text.secondary" component="div" aria-live="polite">
+                            {appointments.length} {appointments.length === 1 ? 'appointment' : 'appointments'} today for &ldquo;{query.trim()}&rdquo;
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+                            {rows.map((a) => {
+                                const arrived = !!a.arrived;
+                                const busy = busyId === a.id;
+                                const first = patientName(a);
+                                return (
+                                    <Box key={a.id} data-testid="checkin-row" sx={{ p: 1.75, bgcolor: arrived ? '#f0fdf4' : '#fff', border: '1px solid', borderColor: arrived ? '#a6e3c0' : '#dfe4ec', borderRadius: 3 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                            <Typography sx={{ width: 84, flex: 'none', fontWeight: 600 }}>{timeText(a.appointment_datetime)}</Typography>
+                                            <Box sx={{ flex: 1, minWidth: 160 }}>
+                                                <Typography variant="h6" fontWeight={600} sx={{ lineHeight: 1.25 }}>
+                                                    {first}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {arrived && (
+                                                        <Box component="span" sx={{ color: '#067647', fontWeight: 600 }}>
+                                                            {'✓'} Checked in{arrivedAt[a.id] ? ` at ${arrivedAt[a.id]}` : ''}
+                                                            {detailText(a) ? ' · ' : ''}
+                                                        </Box>
+                                                    )}
+                                                    {detailText(a)}
+                                                </Typography>
+                                            </Box>
+                                            {arrived ? (
+                                                <Button onClick={() => setArrived(a, false)} disabled={busy} aria-label={`Undo check-in for ${first}`} sx={{ textTransform: 'none' }}>
+                                                    Undo
+                                                </Button>
+                                            ) : (
+                                                <Button
+                                                    variant="contained"
+                                                    size="large"
+                                                    onClick={() => setArrived(a, true)}
+                                                    disabled={!!busyId}
+                                                    aria-label={`Check in ${first}`}
+                                                    startIcon={busy ? <CircularProgress size={16} color="inherit" /> : null}
+                                                    sx={{ textTransform: 'none', borderRadius: 2.5, minWidth: 132, minHeight: 48, fontWeight: 600, fontSize: 16 }}
+                                                >
+                                                    {busy ? 'Checking in' : 'Check in'}
+                                                </Button>
+                                            )}
+                                        </Box>
+                                        {rowErrors[a.id] && (
+                                            <Box role="alert" sx={{ mt: 1.25, p: 1.25, bgcolor: '#fef2f2', border: '1px solid #fecaca', borderRadius: 2, color: '#991b1b', fontSize: 13 }}>
+                                                {rowErrors[a.id]}
+                                            </Box>
+                                        )}
+                                    </Box>
+                                );
+                            })}
+                        </Box>
+                        {hidden > 0 && (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+                                {hidden} more {hidden === 1 ? 'match' : 'matches'}. Type more of the name to narrow the list.
+                            </Typography>
+                        )}
+                    </>
+                )}
 
-    setLoading(true);
-    try {
-      await axios.patch(
-        `${API_BASE_URL}/api/check-in/update-status/${appointmentId}/`,
-        { arrived: !currentStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      // Show immediate success alert
-      alert(
-        !currentStatus
-          ? 'Patient checked in successfully! Status updated to "In Progress". Page will refresh now.'
-          : "Patient check-in status updated! Page will refresh now."
-      );
-
-      // Auto-refresh the page after successful check-in
-      window.location.reload();
-    } catch (error) {
-      console.error("Check-in update error:", error);
-      toast.error("Failed to update check-in status");
-      setLoading(false); // Only set loading false on error, since we're refreshing on success
-    }
-  };
-
-  // Format appointment time
-  const formatAppointmentTime = (datetime) => {
-    if (!datetime) return "-";
-    return new Date(datetime).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  // Format patient name
-  const formatPatientName = (appointment) => {
-    if (appointment.patient_name) {
-      return appointment.patient_name;
-    }
-    if (appointment.patient) {
-      return `${appointment.patient.first_name} ${appointment.patient.last_name}`.trim();
-    }
-    return "Unknown Patient";
-  };
-
-  return (
-    <Box sx={{ minHeight: "100vh", bgcolor: "#f8fafc", py: 3 }}>
-      <Container maxWidth="md">
-        <BackButton />
-
-        {/* Header */}
-        <Box sx={{ textAlign: "center", mb: 4 }}>
-          <Typography
-            variant="h3"
-            fontWeight={700}
-            sx={{
-              color: "#2563eb",
-              mb: 1,
-              fontSize: { xs: "2rem", md: "3rem" },
-            }}
-          >
-            Welcome!, Please Check-In
-          </Typography>
-          <Typography
-            variant="h6"
-            color="text.secondary"
-            sx={{ fontSize: { xs: "1rem", md: "1.25rem" } }}
-          >
-            We will serve you promptly.
-          </Typography>
+                {showEmpty && (
+                    <Box sx={{ textAlign: 'center', py: 5, px: 2, bgcolor: '#fff', border: '1px solid #dfe4ec', borderRadius: 3 }}>
+                        <Typography variant="h6" fontWeight={600}>
+                            No appointment found for &ldquo;{query.trim()}&rdquo; today
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+                            Check the spelling, or ask the front desk. Only today's appointments are listed.
+                        </Typography>
+                    </Box>
+                )}
+            </Container>
         </Box>
-
-        {/* Search Container */}
-        <Paper
-          elevation={3}
-          sx={{
-            p: { xs: 3, md: 4 },
-            mb: 4,
-            background: "linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)",
-            borderRadius: 3,
-          }}
-        >
-          <Box sx={{ textAlign: "center", mb: 3 }}>
-            <Typography
-              variant="h5"
-              fontWeight={600}
-              color="primary"
-              gutterBottom
-            >
-              Type Your Name
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Start typing your name to find your appointment, then click the arrived checkbox.
-            </Typography>
-          </Box>
-
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="Please type your name to check in"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            sx={{
-              "& .MuiOutlinedInput-root": {
-                fontSize: "1.2rem",
-                padding: "12px 16px",
-                borderRadius: 2,
-                "&:hover": {
-                  "& > fieldset": {
-                    borderColor: "#2563eb",
-                  },
-                },
-              },
-              "& .MuiInputBase-input": {
-                textAlign: "center",
-                fontSize: { xs: "1.1rem", md: "1.3rem" },
-                py: { xs: 1.5, md: 2 },
-              },
-            }}
-            InputProps={{
-              endAdornment: searchLoading && (
-                <CircularProgress size={24} sx={{ color: "#2563eb" }} />
-              ),
-            }}
-          />
-        </Paper>
-
-        {/* Results Table */}
-        {appointments.length > 0 && (
-          <Paper elevation={3} sx={{ borderRadius: 3, overflow: "hidden" }}>
-            <Box sx={{ p: 3, bgcolor: "#dbeafe" }}>
-              <Typography variant="h6" fontWeight={600} color="primary">
-                Today's Appointments ({appointments.length})
-              </Typography>
-            </Box>
-
-            <TableContainer>
-              <Table>
-                <TableHead sx={{ bgcolor: "#f8fafc" }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: "bold", fontSize: "1rem" }}>
-                      Time
-                    </TableCell>
-                    <TableCell sx={{ fontWeight: "bold", fontSize: "1rem" }}>
-                      Patient Name
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{ fontWeight: "bold", fontSize: "1rem" }}
-                    >
-                      Arrived
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {appointments
-                    .sort(
-                      (a, b) =>
-                        new Date(a.appointment_datetime) -
-                        new Date(b.appointment_datetime)
-                    )
-                    .map((appointment) => (
-                      <TableRow
-                        key={appointment.id}
-                        hover
-                        sx={{
-                          "&:nth-of-type(odd)": { bgcolor: "#f8fafc" },
-                          "&:hover": { bgcolor: "#dbeafe" },
-                        }}
-                      >
-                        <TableCell sx={{ fontSize: "1.1rem", fontWeight: 500 }}>
-                          {formatAppointmentTime(
-                            appointment.appointment_datetime
-                          )}
-                        </TableCell>
-                        <TableCell sx={{ fontSize: "1.1rem", fontWeight: 500 }}>
-                          {formatPatientName(appointment)}
-                        </TableCell>
-                        <TableCell align="center">
-                          <Checkbox
-                            checked={appointment.arrived || false}
-                            onChange={() =>
-                              handleCheckInToggle(
-                                appointment.id,
-                                appointment.arrived
-                              )
-                            }
-                            color="primary"
-                            size="large"
-                            sx={{
-                              transform: "scale(1.3)",
-                              "&.Mui-checked": {
-                                color: "#10b981",
-                              },
-                            }}
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        )}
-
-        {/* No results message */}
-        {searchQuery.trim() && !searchLoading && appointments.length === 0 && (
-          <Paper
-            elevation={2}
-            sx={{ p: 4, textAlign: "center", borderRadius: 3 }}
-          >
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              No appointments found
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              No appointments scheduled for today matching "{searchQuery}"
-            </Typography>
-          </Paper>
-        )}
-
-        {/* Loading backdrop */}
-        <Backdrop
-          sx={{ color: "#fff", zIndex: (theme) => theme.zIndex.drawer + 1 }}
-          open={loading}
-        >
-          <CircularProgress color="inherit" />
-        </Backdrop>
-      </Container>
-    </Box>
-  );
+    );
 };
 
 export default CheckInPage;

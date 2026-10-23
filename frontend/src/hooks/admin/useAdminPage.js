@@ -11,96 +11,20 @@ export const useAdminPage = () => {
     const [userRole, setUserRole] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // Admin navigation items configuration
+    // Admin navigation items configuration. `group` and `description` drive the portal layout.
     const adminNavItems = [
-        {
-            id: 'calendar',
-            label: 'Calendar Dashboard',
-            icon: 'FaCalendarCheck',
-            path: '/patients',
-            color: 'primary',
-            requiredRoles: ['admin', 'system_admin', 'registrar']
-        },
-        {
-            id: 'settings',
-            label: 'Settings',
-            icon: 'FaTools',
-            path: '/settings',
-            color: 'success',
-            requiredRoles: ['admin', 'system_admin']
-        },
-        {
-            id: 'profile',
-            label: 'Profile',
-            icon: 'FaUserCog',
-            path: '/profile',
-            color: 'secondary',
-            requiredRoles: ['admin', 'system_admin']
-        },
-        {
-            id: 'search',
-            label: 'Appointment Search',
-            icon: 'FaSearch',
-            path: '/admin-user-search',
-            color: 'info',
-            requiredRoles: ['admin', 'system_admin', 'registrar']
-        },
-        {
-            id: 'messages',
-            label: 'Messages',
-            icon: 'FaEnvelope',
-            path: '/messages',
-            color: 'warning',
-            requiredRoles: ['admin', 'system_admin', 'registrar']
-        },
-        {
-            id: 'note-builder',
-            label: 'Note Builder',
-            icon: 'FaClipboardList',
-            path: '/note-builder',
-            color: 'primary',
-            requiredRoles: ['admin', 'system_admin']
-        },
-        {
-            id: 'flowsheet-builder',
-            label: 'Flowsheet Builder',
-            icon: 'FaTable',
-            path: '/flowsheet-builder',
-            color: 'primary',
-            requiredRoles: ['admin', 'system_admin']
-        },
-        {
-            id: 'status-board-builder',
-            label: 'Status Board Builder',
-            icon: 'FaColumns',
-            path: '/status-board-builder',
-            color: 'primary',
-            requiredRoles: ['admin', 'system_admin']
-        },
-        {
-            id: 'triage-settings',
-            label: 'Triage Settings',
-            icon: 'FaHeartbeat',
-            path: '/triage-settings',
-            color: 'primary',
-            requiredRoles: ['admin', 'system_admin']
-        },
-        {
-            id: 'order-builder',
-            label: 'Order Builder',
-            icon: 'FaClipboardCheck',
-            path: '/order-builder',
-            color: 'primary',
-            requiredRoles: ['admin', 'system_admin']
-        },
-        {
-            id: 'location-manager',
-            label: 'Location Manager',
-            icon: 'FaHospital',
-            path: '/location-manager',
-            color: 'primary',
-            requiredRoles: ['admin', 'system_admin']
-        }
+        { id: 'calendar', label: 'Calendar Dashboard', description: "Today's schedule and patient charts", group: 'daily', icon: 'FaCalendarCheck', path: '/patients', requiredRoles: ['admin', 'system_admin', 'registrar'] },
+        { id: 'search', label: 'Appointment Search', description: 'Find any appointment', group: 'daily', icon: 'FaSearch', path: '/admin-user-search', requiredRoles: ['admin', 'system_admin', 'registrar'] },
+        { id: 'messages', label: 'Messages', description: 'Staff and patient messages', group: 'daily', icon: 'FaEnvelope', path: '/messages', requiredRoles: ['admin', 'system_admin', 'registrar'] },
+        { id: 'check-in', label: 'Check-in', description: 'Mark arriving patients as arrived', group: 'daily', icon: 'FaUserCheck', path: '/check-in', isNew: true, requiredRoles: ['admin', 'system_admin', 'registrar'] },
+        { id: 'note-builder', label: 'Note Builder', description: 'Clinical note templates', group: 'build', icon: 'FaClipboardList', path: '/note-builder', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'flowsheet-builder', label: 'Flowsheet Builder', description: 'Flowsheet rows and rules', group: 'build', icon: 'FaTable', path: '/flowsheet-builder', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'status-board-builder', label: 'Status Board Builder', description: 'Status boards for your units', group: 'build', icon: 'FaColumns', path: '/status-board-builder', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'order-builder', label: 'Order Builder', description: 'Orders and order sets', group: 'build', icon: 'FaClipboardCheck', path: '/order-builder', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'triage-settings', label: 'Triage Settings', description: 'Triage scales and prompts', group: 'build', icon: 'FaHeartbeat', path: '/triage-settings', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'location-manager', label: 'Location Manager', description: 'Facilities, units and rooms', group: 'facility', icon: 'FaHospital', path: '/location-manager', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'settings', label: 'Settings', description: 'Clinic settings', group: 'facility', icon: 'FaTools', path: '/settings', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'profile', label: 'Profile', description: 'Your account', group: 'facility', icon: 'FaUserCog', path: '/profile', requiredRoles: ['admin', 'system_admin'] },
     ];
 
     // Role check and authentication
@@ -141,29 +65,6 @@ export const useAdminPage = () => {
 
     // Handle navigation to different admin sections
     const handleNavigate = (path) => {
-        console.log('🚀 AdminPage navigating to:', path);
-        console.log('🔑 Current token exists:', !!localStorage.getItem('access_token'));
-        console.log('👤 Current user role:', userRole);
-        console.log('🌍 Current URL:', window.location.href);
-        console.log('🔧 Environment:', process.env.NODE_ENV);
-        console.log('📡 API Base URL:', process.env.REACT_APP_API_URL || 'default');
-
-        // Try to decode and log token info (safely)
-        try {
-            const token = localStorage.getItem('access_token');
-            if (token) {
-                const decoded = jwtDecode(token);
-                console.log('🔍 Token decoded:', {
-                    role: decoded.role,
-                    exp: new Date(decoded.exp * 1000),
-                    user_id: decoded.user_id,
-                    isExpired: decoded.exp * 1000 < Date.now()
-                });
-            }
-        } catch (e) {
-            console.error('❌ Error decoding token:', e);
-        }
-
         navigate(path);
     };
 
