@@ -7,6 +7,7 @@ import { Box, Tabs, Tab, Typography } from "@mui/material";
  */
 export const CHART_TABS = [
   { value: "patient_list", label: "Patient List", clinical: false },
+  { value: "ed_follow_up", label: "ED Follow-up", clinical: false, onlyIn: "emergency" },
   { value: "orders", label: "Orders", clinical: true },
   { value: "prescriptions", label: "Prescriptions", clinical: true },
   { value: "results", label: "Results", clinical: true },
@@ -31,9 +32,10 @@ export const CLINICAL_ROLES = ["doctor", "nurse", "admin", "system_admin"];
  * the current module: only those tabs, in that order. The Patient List is always kept, since it
  * is how a patient gets chosen.
  */
-export function visibleChartTabs(role, keys = null) {
+export function visibleChartTabs(role, keys = null, careSetting = null) {
   const clinical = CLINICAL_ROLES.includes(role);
-  const allowed = CHART_TABS.filter((t) => !t.clinical || clinical);
+  // some tabs belong to one module only (ED Follow-up is Emergency's); with no module given nothing is left out
+  const allowed = CHART_TABS.filter((t) => (!t.clinical || clinical) && (!careSetting || !t.onlyIn || t.onlyIn === careSetting));
   if (!Array.isArray(keys) || keys.length === 0) return allowed;
   const byKey = Object.fromEntries(allowed.map((t) => [t.value, t]));
   const ordered = keys.map((k) => byKey[k]).filter(Boolean);
@@ -41,8 +43,8 @@ export function visibleChartTabs(role, keys = null) {
   return ordered;
 }
 
-export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null }) {
-  const tabs = visibleChartTabs(role, keys);
+export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {} }) {
+  const tabs = visibleChartTabs(role, keys, careSetting);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
     <Box sx={{ flexShrink: 0, mb: 0.5, borderBottom: 1, borderColor: "divider", bgcolor: "#eff6ff", display: "flex", alignItems: "center" }}>
@@ -60,7 +62,26 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
         }}
       >
         {tabs.map((t) => (
-          <Tab key={t.value} value={t.value} label={t.value === "patient_list" && listLabel ? listLabel : t.label} data-testid={`chart-tab-${t.value}`} />
+          <Tab
+            key={t.value}
+            value={t.value}
+            label={
+              <Box component="span" sx={{ display: "inline-flex", alignItems: "center" }}>
+                {t.value === "patient_list" && listLabel ? listLabel : t.label}
+                {badges[t.value] > 0 && (
+                  <Box
+                    component="span"
+                    aria-label={`${badges[t.value]} need review`}
+                    data-testid={`chart-tab-badge-${t.value}`}
+                    sx={{ ml: 0.75, minWidth: 18, height: 18, px: 0.5, borderRadius: 9, bgcolor: "error.main", color: "#fff", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    {badges[t.value]}
+                  </Box>
+                )}
+              </Box>
+            }
+            data-testid={`chart-tab-${t.value}`}
+          />
         ))}
       </Tabs>
       {right}

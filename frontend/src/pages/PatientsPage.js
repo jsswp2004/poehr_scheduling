@@ -36,6 +36,8 @@ import { useLocationTree } from "../components/locations/LocationPicker";
 import { unitOptionsFrom } from "../components/patients/unitOptions";
 import AcuteViewTabs from "../components/patients/AcuteViewTabs";
 import EDBoard from "../components/edBoard/EDBoard";
+import EDFollowUpBoard from "../components/edBoard/EDFollowUpBoard";
+import useFollowUpCount from "../hooks/useFollowUpCount";
 import {
   PatientChartTabs,
   ComingSoonPanel,
@@ -179,6 +181,8 @@ function PatientsPage() {
       setChartTab(chartLayout.defaultTab);
     }
   }, [chartLayout.loaded, chartLayout.defaultTab, careKey, chartTab]);
+  const followUpTabOn = tab === "patients" && careKey === "emergency" && visibleChartTabs(userRole, chartLayout.tabs, "emergency").some((t) => t.value === "ed_follow_up");
+  const [followUpCount, setFollowUpCount] = useFollowUpCount(followUpTabOn, 0);
   const team = useTeam(navigate);
   const appointments = usePatientsAppointments();
   const analytics = useAnalytics();
@@ -516,6 +520,8 @@ function PatientsPage() {
             onChange={setChartTab}
             role={userRole}
             keys={chartLayout.tabs}
+            careSetting={careKey}
+            badges={{ ed_follow_up: followUpCount }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
         ) : tab === "team" ? null : (
@@ -531,7 +537,7 @@ function PatientsPage() {
         {/* Tab Content */}
         <Box sx={{ flex: 1, overflow: "auto", minHeight: 0, ...(tab === "patients" ? {} : SIDE_GAP) }}>
           {tab === "patients" && (() => {
-            const allowed = visibleChartTabs(userRole, chartLayout.tabs).map((t) => t.value);
+            const allowed = visibleChartTabs(userRole, chartLayout.tabs, careKey).map((t) => t.value);
             const current = allowed.includes(chartTab) ? chartTab : "patient_list";
             if (current === "patient_list") {
               const acute = patients.careSetting === "acute";
@@ -593,6 +599,18 @@ function PatientsPage() {
             />
             )}
             </>
+              );
+            }
+            if (current === "ed_follow_up") {
+              return (
+                <EDFollowUpBoard
+                  currentUserId={currentUser?.id ?? null}
+                  refreshKey={boardKey}
+                  selectedUserId={selectedPatient ? selectedPatient.id : null}
+                  onSelectPatient={selectPatient}
+                  onOpenPatient={openChart}
+                  onNeedsReview={setFollowUpCount}
+                />
               );
             }
             if (current === "my_schedule") {

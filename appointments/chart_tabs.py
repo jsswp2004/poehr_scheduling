@@ -24,6 +24,7 @@ LIST_TAB = "patient_list"  # always shown: it is how a patient gets chosen
 # key, label, needs a clinical role
 CATALOG = [
     ("patient_list", "Patient List", False),
+    ("ed_follow_up", "ED Follow-up", False),
     ("orders", "Orders", True),
     ("prescriptions", "Prescriptions", True),
     ("results", "Results", True),
@@ -37,6 +38,8 @@ CATALOG = [
     ("vaccines", "Vaccines", True),
     ("messages", "Messages", False),
 ]
+# Tabs that only make sense in one module.
+ONLY_IN = {"ed_follow_up": "emergency"}
 KEYS = [k for k, _, _ in CATALOG]
 CLINICAL = {k for k, _, c in CATALOG if c}
 LABELS = {k: label for k, label, _ in CATALOG}
@@ -78,6 +81,7 @@ def org_layout(org, care_setting):
     row = _row(org, care_setting) if org else None
     # a clinic that saved a layout keeps unlisted tabs hidden; one that never did gets every tab
     items = _complete(row.items, visible_default=False) if row else _complete([])
+    items = [i for i in items if ONLY_IN.get(i["key"], care_setting) == care_setting]
     visible = [i["key"] for i in items if i["visible"]]
     return items, _pick_default(row.default_tab if row else "", visible), bool(row)
 
@@ -92,7 +96,7 @@ def resolve(org, user, care_setting):
     available = [i["key"] for i in org_items if i["visible"] and _tab_allowed(i["key"], role)]
     mine = _row(org, care_setting, user)
     my_items = _clean_items(mine.items) if mine else []
-    my_items = [i for i in my_items if i["key"] in available]
+    my_items = [i for i in my_items if i["key"] in available]  # (the clinic's list already leaves out other modules' tabs)
     seen = {i["key"] for i in my_items}
     # tabs the person never arranged (for example, ones the clinic added later) go at the end
     my_items += [{"key": k, "visible": True} for k in available if k not in seen]

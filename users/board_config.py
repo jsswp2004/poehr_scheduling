@@ -43,8 +43,20 @@ BUILTIN_COLUMNS = [
     ("actions", "", 130),
 ]
 BUILTIN_KEYS = [k for k, _l, _w in BUILTIN_COLUMNS]
+# Only a follow-up board (discharged ED patients) has these two.
+FOLLOW_UP_COLUMNS = [
+    ("discharged", "Discharged", 150),
+    ("new_results", "New results", 150),
+]
+FOLLOW_UP_KEYS = [k for k, _l, _w in FOLLOW_UP_COLUMNS]
 # Without these the board is not usable, so a view cannot hide them.
 ALWAYS_VISIBLE = {"loc", "patient", "actions"}
+FOLLOW_UP_ALWAYS_VISIBLE = {"patient"}  # a discharged patient has no bed, so Location can go
+# Columns a follow-up board starts with; the rest of the standard columns start hidden.
+FOLLOW_UP_DEFAULT_ON = ("discharged", "new_results", "patient", "age", "complaint", "esi", "md", "rn", "comments")
+
+KINDS = ("live", "follow_up")
+DEFAULT_FOLLOW_UP_DAYS, MAX_FOLLOW_UP_DAYS = 7, 30
 
 DEFAULT_STATUSES = [
     {"value": "wtbs", "code": "WTBS", "label": "Waiting to be seen"},
@@ -60,6 +72,8 @@ BUILTIN_VIEWS = [
     {"key": "waiting", "label": "Waiting Area", "filter": "waiting"},
 ]
 BUILTIN_VIEW_KEYS = {v["key"] for v in BUILTIN_VIEWS}
+# The follow-up board's own standard view (the live board's list never includes it).
+BUILTIN_FOLLOW_UP_VIEW = {"key": "followup", "label": "ED Follow-up", "filter": "all"}
 FILTERS = ("all", "waiting", "mine")
 
 CUSTOM_KEY = re.compile(r"^c_[a-z0-9_]{1,30}$")
@@ -68,6 +82,20 @@ COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
 CUSTOM_KINDS = ("text", "dropdown", "checkbox")
 RULE_FIELDS = ("esi", "ed_status", "vitals_overdue", "recheck_overdue", "registration_complete", "sex")
 MAX_VIEWS, MAX_COLUMNS, MAX_RULES, MAX_STATUSES, MAX_OPTIONS, MAX_CUSTOM, MAX_BEDS = 30, 60, 30, 12, 30, 20, 500
+
+# Conditions on the patient that a view can keep: field -> the operations it understands.
+CRITERIA_FIELDS = {
+    "age": ("lt", "lte", "gt", "gte"),
+    "esi": ("in",),
+    "ed_status": ("in",),
+    "sex": ("in",),
+    "md": ("in",),
+    "rn": ("in",),
+    "complaint": ("contains",),
+}
+AGE_UNITS = ("years", "months", "days")
+SEXES = ("F", "M", "X")
+MAX_CONDITIONS = 10
 
 
 class ConfigError(ValueError):
@@ -83,13 +111,38 @@ def default_settings():
     }
 
 
-def default_view_config():
+def default_criteria():
+    return {"match": "all", "conditions": []}
+
+
+def default_follow_up():
+    return {"days": DEFAULT_FOLLOW_UP_DAYS}
+
+
+def default_view_config(kind="live"):
+    if kind == "follow_up":
+        # the standard layout, with Discharged and New results right after Age
+        columns = []
+        for k, label, w in BUILTIN_COLUMNS:
+            columns.append({"key": k, "label": label, "width": w, "visible": k in FOLLOW_UP_DEFAULT_ON, "type": "builtin"})
+            if k == "age":
+                columns += [{"key": fk, "label": fl, "width": fw, "visible": True, "type": "builtin"} for fk, fl, fw in FOLLOW_UP_COLUMNS]
+    else:
+        columns = [{"key": k, "label": label, "width": w, "visible": True, "type": "builtin"} for k, label, w in BUILTIN_COLUMNS]
     return {
-        "columns": [{"key": k, "label": label, "width": w, "visible": True, "type": "builtin"} for k, label, w in BUILTIN_COLUMNS],
+        "kind": kind,
+        "columns": columns,
         "rules": [],
         "filter": "all",
         "beds": [],
+        "criteria": default_criteria(),
+        "show_empty_beds": True,
+        "follow_up": default_follow_up(),
     }
+
+
+def always_visible(kind):
+    return FOLLOW_UP_ALWAYS_VISIBLE if kind == "follow_up" else ALWAYS_VISIBLE
 
 
 def _text(value, name, limit, required=False):
@@ -236,9 +289,12 @@ def roster_for(settings, unit_id):
 
 # --------------------------------------------------------------------------- views
 
-def _clean_columns(raw, settings):
+def _clean_columns(raw, settings, kind="live"):
     if not isinstance(raw, list) or len(raw) > MAX_COLUMNS:
         raise ConfigError("Columns must be a list.")
+    follow_up = kind == "follow_up"
+    keep_on = always_visible(kind)
+    extra = {k: (label, w) for k, label, w in FOLLOW_UP_COLUMNS} if follow_up else {}
     custom = {c["key"]: c for c in settings["custom_columns"]}
     out, seen = [], set()
     for item in raw:
@@ -247,11 +303,11 @@ def _clean_columns(raw, settings):
         key = str(item.get("key") or "")
         if key in seen:
             raise ConfigError(f"Column '{key}' appears twice.")
-        builtin = key in BUILTIN_KEYS
+        builtin = key in BUILTIN_KEYS or key in extra
         if not builtin and key not in custom:
             raise ConfigError(f"'{key}' is not a column the board can show.")
         seen.add(key)
-        default = next((c for c in BUILTIN_COLUMNS if c[0] == key), None)
+        default = next((c for c in BUILTIN_COLUMNS + (FOLLOW_UP_COLUMNS if follow_up else []) if c[0] == key), None)
         fallback = default[1] if default else custom[key]["label"]
         label = _text(item.get("label", fallback), "A column name", 40, required=key != "actions")
         try:
@@ -260,11 +316,14 @@ def _clean_columns(raw, settings):
             raise ConfigError("Column widths must be numbers.")
         if not 40 <= width <= 600:
             raise ConfigError("Column widths must be between 40 and 600.")
-        out.append({"key": key, "label": label, "width": width, "visible": bool(item.get("visible", True)) or key in ALWAYS_VISIBLE, "type": "builtin" if builtin else "custom"})
+        out.append({"key": key, "label": label, "width": width, "visible": bool(item.get("visible", True)) or key in keep_on, "type": "builtin" if builtin else "custom"})
     # a view always lists every built-in and custom column; any it left out come back hidden at the end
+    # (a follow-up board's own two columns come back visible, at the front)
+    missing = [(k, label, w) for k, label, w in FOLLOW_UP_COLUMNS if follow_up and k not in seen]
+    out = [{"key": k, "label": label, "width": w, "visible": True, "type": "builtin"} for k, label, w in missing] + out
     for key, label, width in BUILTIN_COLUMNS:
         if key not in seen:
-            out.append({"key": key, "label": label, "width": width, "visible": key in ALWAYS_VISIBLE, "type": "builtin"})
+            out.append({"key": key, "label": label, "width": width, "visible": key in keep_on, "type": "builtin"})
     for key, column in custom.items():
         if key not in seen:
             out.append({"key": key, "label": column["label"], "width": 120, "visible": False, "type": "custom"})
@@ -327,18 +386,99 @@ def _clean_beds(raw, org):
     return ids
 
 
-def clean_view_config(raw, settings, org=None):
+def _clean_condition(item, settings, org):
+    if not isinstance(item, dict):
+        raise ConfigError("Each condition must be an object.")
+    field = item.get("field")
+    if field not in CRITERIA_FIELDS:
+        raise ConfigError(f"A view cannot filter on '{field}'.")
+    op = item.get("op") or CRITERIA_FIELDS[field][0]
+    if op not in CRITERIA_FIELDS[field]:
+        raise ConfigError(f"'{op}' does not work with {field}.")
+    value = item.get("value")
+    if field == "age":
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0 <= value <= 150 or value != int(value):
+            raise ConfigError("An age condition needs a whole number from 0 to 150.")
+        unit = item.get("unit", "years")
+        if unit not in AGE_UNITS:
+            raise ConfigError("Age is counted in years, months or days.")
+        return {"field": field, "op": op, "value": int(value), "unit": unit}
+    if field == "complaint":
+        text = _text(value, "The chief complaint text", 80, required=True)
+        return {"field": field, "op": op, "value": text}
+    if not isinstance(value, list) or not value or len(value) > MAX_OPTIONS * 2:
+        raise ConfigError(f"Pick at least one choice for {field}.")
+    if field == "esi":
+        if any(isinstance(v, bool) or v not in (1, 2, 3, 4, 5) for v in value):
+            raise ConfigError("Triage levels are 1 to 5.")
+        picks = sorted(set(value))
+    elif field == "sex":
+        if any(v not in SEXES for v in value):
+            raise ConfigError("Gender must be F, M or X.")
+        picks = [v for v in SEXES if v in value]
+    elif field == "ed_status":
+        known = status_keys(settings)
+        if any(v not in known for v in value):
+            raise ConfigError("One of those statuses is not on this clinic's list.")
+        picks = list(dict.fromkeys(value))
+    else:  # md / rn: people in this clinic
+        if any(isinstance(v, bool) or not isinstance(v, int) for v in value):
+            raise ConfigError("Pick people from the list.")
+        role = "doctor" if field == "md" else "nurse"
+        picks = list(dict.fromkeys(value))
+        if org is not None and CustomUser.objects.filter(pk__in=picks, organization=org, role=role).count() != len(picks):
+            raise ConfigError(f"Everyone chosen must be a {role} in this clinic.")
+    return {"field": field, "op": op, "value": picks}
+
+
+def _clean_criteria(raw, settings, org, lenient=False):
+    """{"match": "all"|"any", "conditions": [...]}; lenient drops conditions that no longer make sense."""
+    raw = raw if isinstance(raw, dict) else {}
+    match = raw.get("match", "all")
+    if match not in ("all", "any"):
+        raise ConfigError("Conditions must match all of them or any of them.")
+    items = raw.get("conditions") or []
+    if not isinstance(items, list) or len(items) > MAX_CONDITIONS:
+        raise ConfigError(f"A view can have at most {MAX_CONDITIONS} conditions.")
+    out = []
+    for item in items:
+        try:
+            out.append(_clean_condition(item, settings, org))
+        except ConfigError:
+            if not lenient:
+                raise
+    return {"match": match, "conditions": out}
+
+
+def _clean_follow_up(raw):
+    raw = raw if isinstance(raw, dict) else {}
+    days = raw.get("days", DEFAULT_FOLLOW_UP_DAYS)
+    if isinstance(days, bool) or not isinstance(days, int) or not 1 <= days <= MAX_FOLLOW_UP_DAYS:
+        raise ConfigError(f"The look-back must be from 1 to {MAX_FOLLOW_UP_DAYS} days.")
+    return {"days": days}
+
+
+def clean_view_config(raw, settings, org=None, lenient=False):
     """One view's layout in canonical form, or ConfigError saying what is wrong."""
     if not isinstance(raw, dict):
         raise ConfigError("The layout is missing.")
+    kind = raw.get("kind", "live")
+    if kind not in KINDS:
+        raise ConfigError("A view is a live board or a follow-up board.")
     view_filter = raw.get("filter", "all")
     if view_filter not in FILTERS:
         raise ConfigError("A view lists all patients, only those waiting, or only the signed-in person's.")
+    if kind == "follow_up":
+        view_filter = "all"  # discharged patients are never waiting, and "mine" is the person's open patients
     return {
-        "columns": _clean_columns(raw.get("columns", default_view_config()["columns"]), settings),
+        "kind": kind,
+        "columns": _clean_columns(raw.get("columns", default_view_config(kind)["columns"]), settings, kind),
         "rules": _clean_rules(raw.get("rules", []), settings),
         "filter": view_filter,
         "beds": _clean_beds(raw.get("beds", []), org),
+        "criteria": _clean_criteria(raw.get("criteria"), settings, org, lenient),
+        "show_empty_beds": bool(raw.get("show_empty_beds", True)),
+        "follow_up": _clean_follow_up(raw.get("follow_up")),
     }
 
 
@@ -358,29 +498,42 @@ def view_payload(view, settings):
             if custom[c["key"]]["kind"] == "dropdown":
                 c["options"] = custom[c["key"]]["options"]
         columns.append(c)
-    return {"key": view_key(view), "id": view.pk, "label": view.name, "builtin": False, "filter": config["filter"], "beds": config["beds"], "columns": columns, "rules": config["rules"]}
+    return {
+        "key": view_key(view), "id": view.pk, "label": view.name, "builtin": False, "kind": config["kind"], "filter": config["filter"], "beds": config["beds"],
+        "columns": columns, "rules": config["rules"], "criteria": config["criteria"], "show_empty_beds": config["show_empty_beds"], "follow_up": config["follow_up"],
+    }
 
 
 def clean_view_config_lenient(config, settings, org=None):
     """Like clean_view_config but drops what no longer exists (a deleted custom column) instead of failing."""
     config = dict(config or {})
-    known = set(BUILTIN_KEYS) | {c["key"] for c in settings["custom_columns"]}
-    config["columns"] = [c for c in config.get("columns", []) if c.get("key") in known] or default_view_config()["columns"]
+    kind = config.get("kind", "live")
+    kind = kind if kind in KINDS else "live"
+    config["kind"] = kind
+    known = set(BUILTIN_KEYS) | {c["key"] for c in settings["custom_columns"]} | (set(FOLLOW_UP_KEYS) if kind == "follow_up" else set())
+    config["columns"] = [c for c in config.get("columns", []) if c.get("key") in known] or default_view_config(kind)["columns"]
     custom_keys = {c["key"] for c in settings["custom_columns"]}
     config["rules"] = [r for r in config.get("rules", []) if r.get("field") in RULE_FIELDS or r.get("field") in custom_keys]
     if org is not None:  # beds that were deleted or deactivated drop out of the view
         wanted = [b for b in config.get("beds") or [] if isinstance(b, int) and not isinstance(b, bool)]
         alive = set(_bed_queryset(org).filter(is_active=True, room__is_active=True, pk__in=wanted).values_list("pk", flat=True))
         config["beds"] = [b for b in wanted if b in alive]
-    return clean_view_config(config, settings, org)
+    return clean_view_config(config, settings, org, lenient=True)
 
 
-def builtin_view_payload(spec):
-    cfg = default_view_config()
-    return {"key": spec["key"], "id": None, "label": spec["label"], "builtin": True, "filter": spec["filter"], "beds": [], "columns": cfg["columns"], "rules": []}
+def builtin_view_payload(spec, kind="live"):
+    cfg = default_view_config(kind)
+    return {
+        "key": spec["key"], "id": None, "label": spec["label"], "builtin": True, "kind": kind, "filter": spec["filter"], "beds": [], "columns": cfg["columns"], "rules": [],
+        "criteria": cfg["criteria"], "show_empty_beds": True, "follow_up": cfg["follow_up"],
+    }
 
 
-def all_view_payloads(org, settings):
-    views = [builtin_view_payload(v) for v in BUILTIN_VIEWS]
-    views += [view_payload(v, settings) for v in StatusBoardView.objects.filter(organization=org)]
+def all_view_payloads(org, settings, kind="live"):
+    """The views one board lists: the live ED board shows live views, the follow-up board shows follow-up views."""
+    if kind == "follow_up":
+        views = [builtin_view_payload(BUILTIN_FOLLOW_UP_VIEW, "follow_up")]
+    else:
+        views = [builtin_view_payload(v) for v in BUILTIN_VIEWS]
+    views += [p for p in (view_payload(v, settings) for v in StatusBoardView.objects.filter(organization=org)) if p["kind"] == kind]
     return views

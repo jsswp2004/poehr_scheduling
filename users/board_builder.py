@@ -2,7 +2,8 @@
 Status Board Builder API (admins only): named ED board views and the settings every view shares.
 
   GET    status-views/                 views, shared settings, departments, people to pick from
-  POST   status-views/                 {name, from_view?}  make a view (a copy of another one, or the built-in layout)
+  POST   status-views/                 {name, from_view?, kind?}  make a view (a copy of another one, or the built-in layout);
+                                       kind is "live" (the ED board) or "follow_up" (discharged patients) and cannot change later
   PATCH  status-views/<id>/            {name?, config?, is_default?}  save a view; saving a layout keeps the one before it
   DELETE status-views/<id>/            delete a view
   POST   status-views/<id>/undo/       put back the layout from before the last save (undo again to redo)
@@ -18,6 +19,7 @@ from appointments.models import Unit
 
 from .admissions import _bad, _org
 from .board_config import (
+    KINDS,
     MAX_VIEWS,
     ConfigError,
     bed_label,
@@ -117,6 +119,7 @@ class StatusViewListView(_Admin):
                 "departments": departments,
                 "locations": _locations(org),
                 "default_view_config": default_view_config(),
+                "default_follow_up_config": default_view_config("follow_up"),
                 "people": {
                     "nurses": [_person(u) for u in people if u.role == "nurse"],
                     "doctors": [_person(u) for u in people if u.role == "doctor"],
@@ -134,16 +137,20 @@ class StatusViewListView(_Admin):
         if StatusBoardView.objects.filter(organization=org).count() >= MAX_VIEWS:
             return _bad(f"A clinic can have at most {MAX_VIEWS} views.")
         settings = get_settings(org)
-        config = default_view_config()
+        kind = request.data.get("kind") or "live"
+        if kind not in KINDS:
+            return _bad("A view is a live board or a follow-up board.")
+        config = default_view_config(kind)
         if request.data.get("from_view"):
             source = self.view_for(org, request.data["from_view"])
             if source is None:
                 return _bad("That view was not found.", 404)
             config = source.config
+            kind = (config or {}).get("kind", "live")  # a copy is the same kind as what it copies
         try:
             config = clean_view_config(config, settings, org)
         except ConfigError:
-            config = clean_view_config(default_view_config(), settings, org)
+            config = clean_view_config(default_view_config(kind), settings, org)
         position = (StatusBoardView.objects.filter(organization=org).aggregate(m=Max("position"))["m"] or 0) + 1
         view = StatusBoardView.objects.create(organization=org, name=name, position=position, config=config, author=request.user)
         return Response(_view_data(view, settings), status=201)
@@ -164,8 +171,11 @@ class StatusViewDetailView(_Admin):
                 return err
             view.name = name
         if "config" in request.data:
+            raw = request.data["config"]
+            if isinstance(raw, dict):  # a view keeps its kind for life
+                raw = {**raw, "kind": (view.config or {}).get("kind", "live")}
             try:
-                config = clean_view_config(request.data["config"], settings, org)
+                config = clean_view_config(raw, settings, org)
             except ConfigError as exc:
                 return _bad(str(exc))
             if config != view.config:

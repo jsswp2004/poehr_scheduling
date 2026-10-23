@@ -73,12 +73,28 @@ test("the Patient List is always kept, first, when a layout leaves it out", () =
 
 test("unknown keys are ignored and an empty layout means every tab", () => {
   expect(visibleChartTabs("doctor", ["orders", "bogus"]).map((t) => t.value)).toEqual(["patient_list", "orders"]);
-  expect(visibleChartTabs("doctor", []).length).toBe(13);
-  expect(visibleChartTabs("doctor", null).length).toBe(13);
+  expect(visibleChartTabs("doctor", []).length).toBe(14);
+  expect(visibleChartTabs("doctor", null).length).toBe(14);
 });
 
 test("the strip draws only the layout's tabs, in its order", () => {
   render(<PatientChartTabs value="orders" onChange={() => {}} role="doctor" keys={["patient_list", "flowsheets", "orders"]} />);
   const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
   expect(tabs).toEqual(["Patient List", "Flowsheets", "Orders"]);
+});
+
+test("ED Follow-up belongs to the emergency module only", () => {
+  const keysFor = (care) => visibleChartTabs("registrar", null, care).map((t) => t.value);
+  expect(keysFor("emergency")).toContain("ed_follow_up");
+  expect(keysFor("ambulatory")).not.toContain("ed_follow_up");
+  expect(keysFor("acute")).not.toContain("ed_follow_up");
+  // every front-line role gets it, clinical or not
+  expect(visibleChartTabs("registrar", null, "emergency").map((t) => t.value)).toContain("ed_follow_up");
+});
+
+test("a count of patients to review shows on the tab, and nothing when it is zero", () => {
+  const { rerender } = render(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" careSetting="emergency" badges={{ ed_follow_up: 3 }} />);
+  expect(screen.getByTestId("chart-tab-badge-ed_follow_up")).toHaveTextContent("3");
+  rerender(<PatientChartTabs value="patient_list" onChange={() => {}} role="nurse" careSetting="emergency" badges={{ ed_follow_up: 0 }} />);
+  expect(screen.queryByTestId("chart-tab-badge-ed_follow_up")).toBeNull();
 });

@@ -1,4 +1,4 @@
-import { ORDER_ICON_COLUMNS, formatLos, losMinutes, reassessStatus, triageNoteStatus, vitalsStatus } from "./edBoardColumns";
+import { ORDER_ICON_COLUMNS, ageLabel, formatLos, losMinutes, reassessStatus, triageNoteStatus, vitalsStatus } from "./edBoardColumns";
 
 export const BED_LABEL = { available: "Ready", cleaning: "Cleaning", blocked: "Blocked", occupied: "" };
 const SEX = { F: "Female", M: "Male", X: "Other" };
@@ -24,7 +24,14 @@ export const cellText = (col, row, ctx) => {
     case "patient":
       return v ? v.name : "";
     case "age":
-      return v && v.age != null ? `${v.age}y /${v.sex || "?"}` : "";
+      return v && v.age != null ? `${ageLabel(v)} /${v.sex || "?"}` : "";
+    case "discharged":
+      return v?.discharged_at ? new Date(v.discharged_at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+    case "new_results": {
+      const r = v?.new_results;
+      if (!r || r.state === "none") return "";
+      return r.state === "new" ? `${r.count} new ${r.tests.join(", ")}` : "Reviewed";
+    }
     case "reason":
       return v?.reason || "";
     case "complaint":
@@ -83,6 +90,12 @@ export const sortValue = (col, row, ctx) => {
   switch (col.key) {
     case "los":
       return v ? losMinutes(v.arrival_time, ctx.now) : null;
+    case "discharged":
+      return v?.discharged_at ? new Date(v.discharged_at).getTime() : null;
+    case "new_results": {
+      const r = v?.new_results;
+      return r ? ({ none: 0, reviewed: 1, new: 2 }[r.state] ?? 0) : null;
+    }
     case "age":
       return v && v.age != null ? v.age : null;
     case "esi":
