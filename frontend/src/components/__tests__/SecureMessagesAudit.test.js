@@ -90,14 +90,32 @@ test("filters by person, by clicking a patient, and clears them", async () => {
   expect(screen.queryByTestId("patient-filter-chip")).toBeNull();
 });
 
-test("pages older events with the last id", async () => {
-  serve([{ has_more: true, events: [EV(9), EV(8)] }, { has_more: false, events: [EV(7)] }]);
+const MANY = (from, to) => Array.from({ length: to - from + 1 }, (_, i) => EV(to - i));
+
+test("shows 12 events a page with a range and page buttons", async () => {
+  serve([{ has_more: false, events: MANY(1, 30) }]);
   render(<SecureMessagesAuditPage />);
-  fireEvent.click(await screen.findByTestId("audit-more"));
-  expect(await screen.findByTestId("audit-row-7")).toBeInTheDocument();
-  expect(screen.getByTestId("audit-row-9")).toBeInTheDocument();
-  expect(lastAuditParams()).toEqual({ before: 8 });
+  expect(await screen.findByTestId("audit-row-30")).toBeInTheDocument();
+  expect(screen.getAllByTestId(/^audit-row-/)).toHaveLength(12);
+  expect(screen.getByTestId("audit-range")).toHaveTextContent("Showing 1-12 of 30");
   expect(screen.queryByTestId("audit-more")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /go to page 3/i }));
+  expect(screen.getAllByTestId(/^audit-row-/)).toHaveLength(6);
+  expect(screen.getByTestId("audit-range")).toHaveTextContent("Showing 25-30 of 30");
+  expect(screen.getByTestId("audit-row-1")).toBeInTheDocument();
+});
+
+test("reaching the last loaded page fetches older events with the last id", async () => {
+  serve([{ has_more: true, events: MANY(8, 20) }, { has_more: false, events: MANY(1, 7) }]);
+  render(<SecureMessagesAuditPage />);
+  await screen.findByTestId("audit-row-20");
+  expect(screen.getByTestId("audit-range")).toHaveTextContent("Showing 1-12 of 13+");
+  fireEvent.click(screen.getByRole("button", { name: /go to page 2/i }));
+  await waitFor(() => expect(lastAuditParams()).toEqual({ before: 8 }));
+  await waitFor(() => expect(screen.getByTestId("audit-range")).toHaveTextContent("of 20"));
+  expect(screen.getByTestId("audit-range")).not.toHaveTextContent("20+");
+  // still on page 2, now with the older events loaded in
+  expect(screen.getByTestId("audit-row-1")).toBeInTheDocument();
 });
 
 test("opens a transcript with retracted text, pictures and members", async () => {
