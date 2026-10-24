@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Tabs, Tab, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +29,13 @@ const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar", 
 function StaffingPage() {
   const [tab, setTab] = useState("calendar");
   const [staffTab, setStaffTab] = useState("shifts");
+  // Set by the Calendar's "Assign" button: {unit_id, date, shift_type}. Assign Schedule uses it once to open its add panel.
+  const [assignPrefill, setAssignPrefill] = useState(null);
+  const startAssign = useCallback((prefill) => {
+    setAssignPrefill(prefill);
+    setTab("assign");
+  }, []);
+  const clearAssignPrefill = useCallback(() => setAssignPrefill(null), []);
   const [role, setRole] = useState("");
   // Organization switcher (system admin only). Everyone else is ready at once.
   const [orgs, setOrgs] = useState([]);
@@ -256,13 +263,13 @@ function StaffingPage() {
       ) : (
       <Box key={orgId || "own"}>
 
-      {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} />}
+      {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} onAssign={startAssign} />}
       {tab === "roster" && <StaffingRosterTab isAdmin={isAdmin} />}
       {tab === "units" && <StaffingUnitsTab isAdmin={isAdmin} />}
       {tab === "timeoff" && <StaffingTimeOffTab isAdmin={isAdmin} />}
       {tab === "upload" && isAdmin && <StaffingUploadTab />}
       {tab === "master" && <StaffingMasterTab isAdmin={isAdmin} />}
-      {tab === "assign" && isAdmin && <StaffingAssignTab />}
+      {tab === "assign" && isAdmin && <StaffingAssignTab prefill={assignPrefill} onPrefillUsed={clearAssignPrefill} />}
       {tab === "reports" && <StaffingReportsTab />}
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}
       </Box>

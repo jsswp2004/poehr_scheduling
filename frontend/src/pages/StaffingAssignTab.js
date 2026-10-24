@@ -415,7 +415,7 @@ const emptyScheduleForm = () => {
   };
 };
 
-function SchedulesSection({ staffList, patterns, units, loading, token, reload, flash }) {
+function SchedulesSection({ staffList, patterns, units, loading, token, reload, flash, prefill, onPrefillUsed }) {
   const [search, setSearch] = useState("");
   const [shiftFilter, setShiftFilter] = useState("all");
   const [endingOnly, setEndingOnly] = useState(false);
@@ -522,6 +522,28 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
     setSaveError("");
     setPanelOpen(true);
   };
+
+  // Arriving from the Calendar's "Assign" button: open the add panel with the unit, date and shift filled in.
+  useEffect(() => {
+    if (!prefill) return;
+    const unit = unitById[String(prefill.unit_id)];
+    const shiftType = prefill.shift_type || "day";
+    const preset = shiftType === "custom" ? null : presetFor(unit, shiftType);
+    const base = emptyScheduleForm();
+    setForm({
+      ...base,
+      repeat: "once",
+      unit: prefill.unit_id || "",
+      shift_type: shiftType,
+      ...(preset ? { start_time: preset[0], end_time: preset[1] } : {}),
+      start_date: prefill.date || base.start_date,
+    });
+    setErrors({});
+    setSaveError("");
+    setPanelOpen(true);
+    if (onPrefillUsed) onPrefillUsed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill]);
 
   const closePanel = () => {
     if (saving) return;
@@ -1645,7 +1667,7 @@ function CoverageSection({ coverageRequirements, units, rule, stateName, loading
 
 // ---------- tab ----------
 
-function StaffingAssignTab() {
+function StaffingAssignTab({ prefill = null, onPrefillUsed = null }) {
   const token = getAccessToken();
 
   const [staffList, setStaffList] = useState([]);
@@ -1741,6 +1763,8 @@ function StaffingAssignTab() {
           token={token}
           reload={fetchData}
           flash={flash}
+          prefill={prefill}
+          onPrefillUsed={onPrefillUsed}
         />
       ) : (
         <CoverageSection
