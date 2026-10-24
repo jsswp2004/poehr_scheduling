@@ -86,10 +86,17 @@ describe("StaffingWeekGrid", () => {
 
   it("explains itself while loading, on failure and with no requirements", () => {
     const { unmount } = renderGrid({ loading: true });
-    expect(screen.getByText(/Loading coverage/)).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
     unmount();
-    const second = renderGrid({ failed: true });
-    expect(screen.getByText(/could not be loaded/)).toBeInTheDocument();
+    const stale = renderGrid({ coverage: { days: {} }, loading: true });
+    expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
+    expect(screen.queryByText(/No coverage requirements apply/)).toBeNull();
+    stale.unmount();
+    const onRetry = jest.fn();
+    const second = renderGrid({ failed: true, onRetry });
+    expect(screen.getByText(/coverage colours unavailable/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry coverage" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
     second.unmount();
     renderGrid({ coverage: { days: {} } });
     expect(screen.getByText(/No coverage requirements apply this week/)).toBeInTheDocument();

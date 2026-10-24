@@ -52,3 +52,17 @@ describe("StaffingDayPanel", () => {
     expect(screen.getByText(/No coverage requirement applies/)).toBeInTheDocument();
   });
 });
+
+describe("StaffingDayPanel reasons", () => {
+  it("explains a shift that is short for a reason other than headcount", () => {
+    const rnShort = {
+      status: "not_met",
+      items: [
+        { unit_id: 1, unit_name: "2 West", shift_type: "day", shift_label: "Day", status: "not_met", assigned: 3, required: 3, reasons: ["Needs 1 more RN"] },
+      ],
+    };
+    render(<StaffingDayPanel iso="2026-10-07" info={rnShort} onOpenDay={() => {}} />);
+    expect(screen.getByText("3 of 3")).toBeInTheDocument();
+    expect(screen.getByText("2 West: Needs 1 more RN")).toBeInTheDocument();
+  });
+});

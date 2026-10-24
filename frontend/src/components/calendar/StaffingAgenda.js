@@ -14,6 +14,7 @@ import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
 import { SHIFT_NAME, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
 import { StaffingDayContext, columnUnits, dayColumns } from "./StaffingDayBoard";
+import { CalendarSkeleton, CoverageFailedBanner } from "./StaffingStateViews";
 
 const ROLE_COLORS = { rn: "#2563eb", lpn: "#7c3aed", cna: "#0d9488", other: "#64748b" };
 const ROLE_LABELS = { rn: "RN", lpn: "LPN", cna: "CNA", other: "Other" };
@@ -148,7 +149,7 @@ function ShiftRow({ iso, type, dayShifts, info, open, onToggle }) {
 }
 
 export default function StaffingAgenda({ date, onDrillDown }) {
-  const { coverage, shifts, loading, failed, isAdmin, onAdd } = useContext(StaffingDayContext);
+  const { coverage, shifts, loading, failed, retrying, onRetry, isAdmin, onAdd } = useContext(StaffingDayContext);
   const [openRows, setOpenRows] = useState({});
   const days = agendaRange(date);
   const today = toISO(new Date());
@@ -156,16 +157,8 @@ export default function StaffingAgenda({ date, onDrillDown }) {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-      {failed && (
-        <Box sx={{ mb: 1, p: 1, borderRadius: 1, bgcolor: "#fffaeb", border: "1px solid #fde4a8", fontSize: 13, color: "#7a4a00" }}>
-          <b>Shifts loaded, coverage colours unavailable.</b> The people below are correct.
-        </Box>
-      )}
-      {loading && !coverage && !(shifts || []).length && (
-        <Typography color="text.secondary" sx={{ p: 2 }}>
-          Loading…
-        </Typography>
-      )}
+      {failed && <CoverageFailedBanner detail="The people below are correct." onRetry={onRetry} retrying={retrying} />}
+      {loading && !coverage && !(shifts || []).length && <CalendarSkeleton />}
       {days.map((d) => {
         const iso = toISO(d);
         const info = coverage && coverage.days ? coverage.days[iso] : null;

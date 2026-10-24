@@ -263,7 +263,7 @@ function StaffingPage() {
       ) : (
       <Box key={orgId || "own"}>
 
-      {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} onAssign={startAssign} />}
+      {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} onAssign={startAssign} onNavigate={setTab} />}
       {tab === "roster" && <StaffingRosterTab isAdmin={isAdmin} />}
       {tab === "units" && <StaffingUnitsTab isAdmin={isAdmin} />}
       {tab === "timeoff" && <StaffingTimeOffTab isAdmin={isAdmin} />}
