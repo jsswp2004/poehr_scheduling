@@ -177,7 +177,7 @@ test("pick a doctor, pick a time by day, and request the appointment", async () 
   fireEvent.change(screen.getByLabelText(/Title/), { target: { value: "Check-up" } });
   fireEvent.change(screen.getByLabelText("Doctor"), { target: { value: "8" } });
   expect(await screen.findByText("Available times for Dr. Jeffrey Lee")).toBeInTheDocument();
-  expect(await screen.findByText(/Tue, Jan 15|Mon, Jan 15|Sun, Jan 15|Wed, Jan 15|Thu, Jan 15|Fri, Jan 15|Sat, Jan 15/)).toBeInTheDocument();
+  expect(await screen.findByText(/Jan 15/)).toBeInTheDocument();
   fireEvent.click(await screen.findByText(/^9:30\sAM$/));
   expect(screen.getByLabelText(/Date & Time/)).toHaveValue("2030-01-15T09:30");
   fireEvent.click(screen.getByRole("button", { name: "Request Appointment" }));
@@ -214,7 +214,7 @@ test("text message: sends to the admin phone with the patient's name", async () 
   await open();
   fireEvent.click(screen.getByRole("tab", { name: "Message my Provider" }));
   await waitFor(() => expect(screen.getByLabelText(/Admin\/Provider Phone Number/)).toHaveValue("+13015550100"));
-  fireEvent.change(screen.getByLabelText("Message", { selector: "textarea" , exact: false }) , { target: { value: "hello" } });
+  fireEvent.change(screen.getAllByLabelText("Message", { selector: "textarea" })[1], { target: { value: "hello" } });
   fireEvent.click(screen.getByRole("button", { name: "Send Text Message" }));
   await waitFor(() => expect(axios.post).toHaveBeenCalledWith("http://api.test/api/messages/send-sms/",
     { phone: "+13015550100", message: expect.stringContaining("A message from Demo Patient:") }, expect.any(Object)));
