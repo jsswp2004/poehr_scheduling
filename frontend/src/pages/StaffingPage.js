@@ -157,7 +157,8 @@ function StaffingPage() {
   }
 
   return (
-    <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+    <Box sx={{ minHeight: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+      <Box sx={{ position: "sticky", top: 0, zIndex: 1000, bgcolor: "background.paper", pb: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
         <Typography variant="h5">Staffing Center</Typography>
         {isSystemAdmin && orgs.length > 0 && (
@@ -189,13 +190,8 @@ function StaffingPage() {
           {orgError} Showing data for all organizations.
         </Alert>
       )}
-
-      {!orgReady ? (
-        <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-          <CircularProgress />
-        </Box>
-      ) : (
-      <Box key={orgId || "own"}>
+      {orgReady && (
+      <>
       {timeOffCounts.open_emergencies > 0 && tab !== "timeoff" && (
         <Alert
           severity="error"
@@ -249,6 +245,16 @@ function StaffingPage() {
         <Tab value="reports" label="Reports" />
         <Tab value="rules" label="Staffing Standards" />
       </Tabs>
+      </>
+      )}
+      </Box>
+
+      {!orgReady ? (
+        <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+      <Box key={orgId || "own"}>
 
       {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} />}
       {tab === "roster" && <StaffingRosterTab isAdmin={isAdmin} />}
