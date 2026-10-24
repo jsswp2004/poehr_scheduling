@@ -4,7 +4,6 @@ jest.mock("axios", () => ({ __esModule: true, default: { get: jest.fn(), post: j
 jest.mock("../../config/api", () => ({ API_BASE_URL: "http://api.test" }), { virtual: true });
 jest.mock("../../utils/tokenManager", () => ({ getAccessToken: () => "tok" }), { virtual: true });
 jest.mock("react-toastify", () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
-jest.mock("../../components/CalendarView", () => ({ __esModule: true, default: () => <div data-testid="calendar-view" /> }), { virtual: true });
 jest.mock("../../components/AnnouncementDisplay", () => ({ __esModule: true, default: () => <div data-testid="announcements">Clinic closed Nov 27</div> }), { virtual: true });
 // react-select is a third-party widget; a native select keeps these tests about our page.
 jest.mock("react-select", () => ({
@@ -81,12 +80,11 @@ test("one title, the tabs, details and announcements", async () => {
   expect(screen.getByTestId("announcements")).toBeInTheDocument();
 });
 
-test("staff see the Calendar tab and no SMS consent card", async () => {
+test("staff get no SMS consent card, and nobody gets a Calendar tab", async () => {
   user = { ...patient, role: "admin" };
   await open();
   expect(screen.queryByText("Text message reminders")).toBeNull();
-  fireEvent.click(screen.getByRole("tab", { name: "Calendar" }));
-  expect(await screen.findByTestId("calendar-view")).toBeInTheDocument();
+  expect(screen.queryByRole("tab", { name: "Calendar" })).toBeNull();
 });
 
 test("phone: Edit, change, Save sends the new number", async () => {

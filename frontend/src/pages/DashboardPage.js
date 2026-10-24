@@ -3,7 +3,6 @@ import Select from "react-select";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
-import CalendarView from "../components/CalendarView";
 import AnnouncementDisplay from "../components/AnnouncementDisplay";
 import { toast } from "react-toastify";
 import { getAccessToken } from "../utils/tokenManager";
@@ -71,7 +70,6 @@ function toLocalDateString(dateObj) {
 }
 
 function DashboardPage() {
-  const [refreshFlag, setRefreshFlag] = useState(false);
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [editMode, setEditMode] = useState(false);
@@ -183,7 +181,7 @@ function DashboardPage() {
     } else {
       fetchAppointments();
     }
-  }, [token, doctors.length, refreshFlag]);
+  }, [token, doctors.length]);
 
   useEffect(() => {
     if (!token) return;
@@ -1145,8 +1143,10 @@ function DashboardPage() {
   );
 
   return (
-    <Box sx={{ px: { xs: 2, md: 4 }, py: 1.5, maxWidth: "100%" }}>
-      <Typography variant="h1" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2 }}>
+    <Box sx={{ px: { xs: 2, md: 4 }, pb: 1.5, maxWidth: "100%" }}>
+      {/* Title and tabs stay put while the page scrolls (same pinning as the Staffing Center header). */}
+      <Box sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.default", pt: 1.5, pb: 1.5 }}>
+      <Typography variant="h5" component="h1">
         Patient Portal
       </Typography>
       <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
@@ -1159,13 +1159,13 @@ function DashboardPage() {
         aria-label="dashboard-tabs"
         variant="scrollable"
         scrollButtons="auto"
-        sx={{ borderBottom: `1px solid ${BORDER}`, mt: 1, mb: 1.5 }}
+        sx={{ borderBottom: `1px solid ${BORDER}`, mt: 1 }}
       >
         <Tab value="myinfo" label="My Information" />
         <Tab value="manage" label="Manage Appointments" />
         <Tab value="message" label="Message my Provider" />
-        {currentUser?.role !== "patient" && <Tab value="calendar" label="Calendar" />}
       </Tabs>
+      </Box>
 
       <Box
         sx={{
@@ -1179,12 +1179,6 @@ function DashboardPage() {
           {tab === "myinfo" && myInfoTab}
           {tab === "manage" && manageTab}
           {tab === "message" && messageTab}
-          {tab === "calendar" && currentUser?.role !== "patient" && (
-            <CalendarView
-              onUpdate={() => setRefreshFlag((prev) => !prev)}
-              showBackButton={currentUser?.role !== "patient"}
-            />
-          )}
         </Box>
         <Section title="Announcements">
           <AnnouncementDisplay />
