@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -14,6 +14,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Collapse,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -21,10 +22,13 @@ import {
   TextField,
   Divider,
   IconButton,
+  Menu,
+  Snackbar,
   Tooltip,
+  useMediaQuery,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPen, faTrash, faHandPaper } from "@fortawesome/free-solid-svg-icons";
+import { faCircleInfo, faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -34,6 +38,13 @@ import { COVERAGE_STATUS, toISO } from "./staffingCoverage";
 import StaffingCalendarToolbar, {
   StaffingCalendarSearchContext,
 } from "../components/calendar/StaffingCalendarToolbar";
+import StaffingDayPanel from "../components/calendar/StaffingDayPanel";
+import {
+  SHIFT_NAME,
+  SHIFT_SHORT,
+  firstDayWithStatus,
+  summarizeShifts,
+} from "../utils/calendar/staffingSummary";
 
 const localizer = momentLocalizer(moment);
 
@@ -56,12 +67,19 @@ const EDIT_SHIFT_TYPES = [
   { value: "custom", label: "Custom (on call / ad hoc)" },
 ];
 
+// The coverage chips above the calendar; clicking one highlights those days.
+const STATUS_CHIPS = [
+  ["not_met", "not met"],
+  ["at_risk", "at risk"],
+  ["met", "covered"],
+];
+
 const PATTERN_SHIFT_TYPES = {
   "8h": ["day", "evening", "night"],
   "12h": ["day", "night"],
 };
 
-function StaffingCalendarTab({ isAdmin = false }) {
+function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
   const [shifts, setShifts] = useState([]);
   const [coverage, setCoverage] = useState(null);
   const [location, setLocation] = useState(null);
@@ -80,6 +98,14 @@ function StaffingCalendarTab({ isAdmin = false }) {
   const [me, setMe] = useState(null); // {staff_id, full_name, profession}: who is signed in on the roster
   const [pickUp, setPickUp] = useState(null); // {date, defaults:{unit_id, shift_type}} while the modal is open
   const [notice, setNotice] = useState("");
+  const [selectedISO, setSelectedISO] = useState(() => toISO(new Date()));
+  const [statusFocus, setStatusFocus] = useState(""); // "" | not_met | at_risk | met
+  const [showRule, setShowRule] = useState(false);
+  const [shiftMenu, setShiftMenu] = useState(null); // {anchorEl, shift}: the person menu in Day view
+  const [removeTarget, setRemoveTarget] = useState(null); // shift awaiting the remove confirmation
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [undo, setUndo] = useState(null); // {shift, message}: shown in the Undo snackbar
+  const narrow = useMediaQuery("(max-width:899px)");
   const [locForm, setLocForm] = useState({});
   const [locError, setLocError] = useState("");
   const [range, setRange] = useState(() => {
@@ -152,27 +178,55 @@ function StaffingCalendarTab({ isAdmin = false }) {
       .catch(() => setMe(null)); // no pick-up button if this cannot be loaded
   }, [token]);
 
-  // Only the trash button on a shift cell calls this; clicking the cell itself does nothing.
-  const handleDeleteShift = async (shift) => {
-    if (!isAdmin) return;
-    const label = `${shift.staff_name} - ${shift.date} (${shift.shift_type_display || shift.shift_type})`;
-    if (!window.confirm(`Remove this shift from the calendar?\n\n${label}`)) {
-      return;
-    }
+  // Remove goes through a confirmation dialog, then offers Undo (re-creates the same shift).
+  const confirmRemoveShift = async () => {
+    const shift = removeTarget;
+    if (!shift || !isAdmin) return;
+    setRemoveBusy(true);
     try {
       await axios.delete(apiEndpoints.staffingShiftDetail(shift.id), {
         headers: getAuthHeaders(token),
       });
+      setRemoveTarget(null);
+      setUndo({
+        shift,
+        message: `Removed ${shift.staff_name} from ${moment(shift.date).format("MMM D")} (${shift.shift_type_display || shift.shift_type}).`,
+      });
       fetchShifts(range.start, range.end);
     } catch (err) {
       console.error("Failed to delete shift", err);
+      setRemoveTarget(null);
       setError("Failed to delete that shift.");
+    } finally {
+      setRemoveBusy(false);
     }
   };
 
-  // Always points at the latest handleDeleteShift so the shift cell component can stay stable.
-  const deleteShiftRef = useRef(null);
-  deleteShiftRef.current = handleDeleteShift;
+  const undoRemove = async () => {
+    const shift = undo?.shift;
+    if (!shift) return;
+    setUndo(null);
+    try {
+      await axios.post(
+        apiEndpoints.staffingShifts,
+        {
+          staff: shift.staff,
+          unit: shift.unit || null,
+          date: shift.date,
+          shift_type: shift.shift_type,
+          start_time: shift.start_time || null,
+          end_time: shift.end_time || null,
+          notes: shift.notes || "",
+        },
+        { headers: getAuthHeaders(token) }
+      );
+      setNotice(`Restored ${shift.staff_name} on ${moment(shift.date).format("MMM D")}.`);
+      fetchShifts(range.start, range.end);
+    } catch (err) {
+      console.error("Failed to restore shift", err);
+      setError("Could not restore that shift. Add it again from the Assign Schedule tab.");
+    }
+  };
 
   const openEditShift = useCallback((shift) => {
     setEditShiftError("");
@@ -281,9 +335,13 @@ function StaffingCalendarTab({ isAdmin = false }) {
 
   const stackedView = view === "week" || view === "day";
 
+  // The month grid shows coverage lines instead of one pill per person; people appear
+  // there only when a search is active. Week and day still list every shift.
+  const monthSummaryOnly = view === "month" && search.trim() === "";
+
   const events = useMemo(
     () =>
-      filteredShifts.map((shift) => {
+      (monthSummaryOnly ? [] : filteredShifts).map((shift) => {
         const start = new Date(`${shift.date}T${shift.start_time || "00:00:00"}`);
         let end = new Date(`${shift.date}T${shift.end_time || "23:59:59"}`);
         // Overnight shifts (e.g. 7:00 PM - 7:00 AM) have an end clock-time
@@ -324,7 +382,7 @@ function StaffingCalendarTab({ isAdmin = false }) {
           resource: shift,
         };
       }),
-    [filteredShifts, stackedView, unitId]
+    [filteredShifts, stackedView, unitId, monthSummaryOnly]
   );
 
   const eventPropGetter = (event) => {
@@ -344,12 +402,6 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [coverage]
   );
 
-  // "Pick up a shift" shows on Not-met days, today or later, for people linked to the roster.
-  const canPickUp = useCallback(
-    (date, info) => (isAdmin || !!me?.staff_id) && info?.status === "not_met" && toISO(date) >= toISO(new Date()),
-    [me, isAdmin]
-  );
-
   const openPickUp = useCallback(
     (iso) => {
       // Prefill the unit and shift of the first short slot that day.
@@ -362,83 +414,88 @@ function StaffingCalendarTab({ isAdmin = false }) {
     [coverage]
   );
 
-  // Tints each day cell by coverage status (month, week and day views).
+  // Week and day views tint each day by coverage status. The month grid stays neutral (its
+  // D/E/N lines carry the status); it only outlines the selected day and, when a coverage
+  // chip is on, tints the days with that status.
   const dayPropGetter = useCallback(
     (date) => {
       const info = dayInfo(date);
       const meta = info && COVERAGE_STATUS[info.status];
-      if (!meta) return {};
-      return {
-        style: {
-          backgroundColor: meta.bg,
-          boxShadow: info.status === "not_met" || info.status === "at_risk"
-            ? `inset 0 0 0 1px ${meta.color}55`
-            : undefined,
-        },
-      };
+      const iso = toISO(date);
+      const style = {};
+      if (view === "month") {
+        if (statusFocus && info?.status === statusFocus && meta) style.backgroundColor = meta.bg;
+        if (iso === selectedISO && !narrow) style.boxShadow = "inset 0 0 0 2px #2563eb";
+      } else if (meta) {
+        style.backgroundColor = meta.bg;
+        if (info.status === "not_met" || info.status === "at_risk") style.boxShadow = `inset 0 0 0 1px ${meta.color}55`;
+      }
+      return Object.keys(style).length ? { style } : {};
     },
-    [dayInfo]
+    [dayInfo, view, statusFocus, selectedISO, narrow]
   );
 
-  // Month-view date number with a status badge (icon + word, not color alone).
+  // Month-view cell header: the date number, then one line per shift (D 14/14), coloured by status.
+  // The words and icons carry the meaning too, not colour alone.
+  const todayISO = toISO(new Date());
   const DateHeader = useCallback(
     ({ label, date }) => {
+      const iso = toISO(date);
       const info = dayInfo(date);
-      const meta = info && COVERAGE_STATUS[info.status];
+      const rows = summarizeShifts(info);
+      const dim = !!statusFocus && info?.status !== statusFocus;
       return (
         <Box
-          sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.5, cursor: "pointer" }}
+          sx={{ cursor: "pointer", textAlign: "left", opacity: dim ? 0.4 : 1 }}
           onClick={(e) => {
             e.stopPropagation();
-            setDayDialog(toISO(date));
+            if (narrow) setDayDialog(iso);
+            else setSelectedISO(iso);
+          }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            setDayDialog(iso);
           }}
         >
-          <Box sx={{ minWidth: 24 }}>
-            {canPickUp(date, info) && (
-              <Tooltip title="Pick up a shift">
-                <IconButton
-                  size="small"
-                  className="pickup-btn"
-                  aria-label="Pick up a shift"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openPickUp(toISO(date));
-                  }}
-                  sx={{ p: 0.4, color: "#c62828" }}
-                >
-                  <FontAwesomeIcon icon={faHandPaper} style={{ fontSize: 13 }} />
-                </IconButton>
-              </Tooltip>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5 }}>
+            {info?.open_emergencies > 0 && (
+              <Chip size="small" color="error" label={`🚨 ${info.open_emergencies}`} sx={{ height: 18, fontSize: 11 }} />
             )}
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          {info?.open_emergencies > 0 && (
-            <Chip size="small" color="error" label={`🚨 ${info.open_emergencies}`} sx={{ height: 18, fontSize: 11 }} />
-          )}
-          {meta && info.status !== "unknown" && (
             <Box
               component="span"
-              title={meta.label}
-              aria-label={meta.label}
               sx={{
-                fontSize: 11,
-                fontWeight: 700,
-                lineHeight: "16px",
-                px: 0.75,
-                borderRadius: 8,
-                color: "#fff",
-                bgcolor: meta.color,
+                minWidth: 22,
+                height: 22,
+                lineHeight: "22px",
+                textAlign: "center",
+                borderRadius: "50%",
+                fontWeight: iso === todayISO ? 700 : 500,
+                color: iso === todayISO ? "#fff" : "inherit",
+                bgcolor: iso === todayISO ? "#2563eb" : "transparent",
               }}
             >
-              {meta.icon}
+              {label}
             </Box>
-          )}
-          <span>{label}</span>
           </Box>
+          {rows.map((r) => {
+            const m = COVERAGE_STATUS[r.status] || COVERAGE_STATUS.unknown;
+            return (
+              <Box
+                key={r.shift_type}
+                title={`${SHIFT_NAME[r.shift_type] || r.shift_type}: ${m.label}`}
+                sx={{ display: "flex", justifyContent: "space-between", fontSize: 11, lineHeight: "15px", color: m.color, px: 0.25 }}
+              >
+                <b>{SHIFT_SHORT[r.shift_type] || "?"}</b>
+                <span>
+                  {r.status === "unknown" ? "?" : `${r.assigned}/${r.required}`} {m.icon}
+                </span>
+              </Box>
+            );
+          })}
         </Box>
       );
     },
-    [dayInfo, canPickUp, openPickUp]
+    [dayInfo, statusFocus, narrow, todayISO]
   );
 
   // Week view column header: the label is still RBC's button (click = go to day view). It carries
@@ -458,49 +515,32 @@ function StaffingCalendarTab({ isAdmin = false }) {
     if (iso) setDayDialog(iso);
   };
 
-  // Shift cell: the name on the left, small edit and delete buttons on the right (admins).
-  // Clicking the cell itself does nothing; the remove-shift prompt only comes from the delete button.
+  // Shift cell: just the name. Admins get a person menu (Edit / Remove) in Day view only,
+  // so one stray click on the busy month or week grid can never change a shift.
   const ShiftEvent = useCallback(
     ({ event }) => (
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
         <Box component="span" title={event.title} sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {event.title}
         </Box>
-        {isAdmin && (
-          <Tooltip title="Edit this shift">
-            <IconButton
-              size="small"
-              aria-label={`Edit shift for ${event.resource.staff_name}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                openEditShift(event.resource);
-              }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              sx={{ color: "inherit", p: "2px", flexShrink: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
-            >
-              <FontAwesomeIcon icon={faPen} style={{ fontSize: 10 }} />
-            </IconButton>
-          </Tooltip>
-        )}
-        {isAdmin && (
-          <Tooltip title="Delete this shift">
-            <IconButton
-              size="small"
-              aria-label={`Delete shift for ${event.resource.staff_name}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteShiftRef.current?.(event.resource);
-              }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              sx={{ color: "inherit", p: "2px", flexShrink: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
-            >
-              <FontAwesomeIcon icon={faTrash} style={{ fontSize: 10 }} />
-            </IconButton>
-          </Tooltip>
+        {isAdmin && view === "day" && (
+          <IconButton
+            size="small"
+            aria-label={`Actions for ${event.resource.staff_name}`}
+            aria-haspopup="menu"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShiftMenu({ anchorEl: e.currentTarget, shift: event.resource });
+            }}
+            onDoubleClick={(e) => e.stopPropagation()}
+            sx={{ color: "inherit", p: "3px", flexShrink: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
+          >
+            <FontAwesomeIcon icon={faEllipsisVertical} style={{ fontSize: 12 }} />
+          </IconButton>
         )}
       </Box>
     ),
-    [isAdmin, openEditShift]
+    [isAdmin, view]
   );
 
   const components = useMemo(
@@ -538,6 +578,50 @@ function StaffingCalendarTab({ isAdmin = false }) {
     }
   };
 
+  const locationAction =
+    isAdmin && location ? (
+      <Button color="inherit" size="small" onClick={openLocationDialog}>
+        {location.state ? "Edit location" : "Set location"}
+      </Button>
+    ) : null;
+
+  // Clicking a coverage chip highlights those days and jumps to the first one.
+  const toggleStatusFocus = (key) => {
+    if (statusFocus === key) {
+      setStatusFocus("");
+      return;
+    }
+    setStatusFocus(key);
+    const first = firstDayWithStatus(coverage, key);
+    if (first) setSelectedISO(first);
+  };
+
+  // Month view: a click selects the day (side panel), a double-click opens it. Other views, and
+  // narrow screens with no side panel, open the day dialog straight away.
+  const handleSelectSlot = (slot) => {
+    const iso = toISO(slot.start);
+    if (view === "month" && !narrow) {
+      if (slot.action === "doubleClick") setDayDialog(iso);
+      else setSelectedISO(iso);
+    } else {
+      setDayDialog(iso);
+    }
+  };
+
+  // Side panel actions. Admins jump to Assign Schedule with the unit, date and shift filled in;
+  // staff pick the shift up for themselves.
+  const panelCanFill = isAdmin || (!!me?.staff_id && selectedISO >= toISO(new Date()));
+  const panelFillLabel = isAdmin && onAssign ? "Assign" : "Pick up";
+  const handleFill = (item) => {
+    if (isAdmin && onAssign) {
+      onAssign({ unit_id: item.unit_id, date: selectedISO, shift_type: item.shift_type });
+    } else {
+      setPickUp({ date: selectedISO, defaults: { unit_id: item.unit_id, shift_type: item.shift_type } });
+    }
+  };
+  const handleAddShift = () =>
+    onAssign({ unit_id: unitId || null, date: selectedISO, shift_type: "day" });
+
   const selectedDay = dayDialog ? coverage?.days?.[dayDialog] : null;
 
   const fmtHrs = (h) => (Math.round(Number(h) * 10) / 10).toString();
@@ -561,92 +645,87 @@ function StaffingCalendarTab({ isAdmin = false }) {
 
   return (
     <Box>
-      <Alert
-        severity={location?.warning ? "warning" : "info"}
-        sx={{ mb: 1, "& .MuiAlert-message": { flex: 1, width: "100%", overflow: "visible" } }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            {isAdmin && location && (
-              <Button color="inherit" size="small" variant="outlined" onClick={openLocationDialog}>
-                {location.state ? "Edit location" : "Set location"}
-              </Button>
-            )}
-          </Stack>
-
-          <Typography variant="body2" sx={{ maxWidth: 360 }}>
-            {location?.state ? (
-              <>
-                <strong>{location.state_name}</strong>
-                {location.city ? ` - ${location.city}` : ""}.{" "}
-                {location.rule
-                  ? `${location.rule.name} staffing rules are applied automatically (${location.rule.hppd_min} care hrs/resident/day${
-                      location.rule.max_residents_per_staff ? `, 1:${location.rule.max_residents_per_staff} ratio` : ""
-                    }, ${location.rule.min_rn_per_shift} RN per shift).`
-                  : location.warning}
-              </>
-            ) : (
-              location?.warning
-            )}
-          </Typography>
-
-          <Stack direction="row" spacing={1} alignItems="center">
-            <FormControl size="small" sx={{ minWidth: 170, bgcolor: "background.paper", borderRadius: 1 }}>
-              <InputLabel id="calendar-unit-label">All Units</InputLabel>
-              <Select
-                labelId="calendar-unit-label"
-                label="All Units"
-                value={unitId}
-                onChange={(e) => setUnitId(e.target.value)}
-              >
-                <MenuItem value="">All Units</MenuItem>
-                {units.map((u) => (
-                  <MenuItem key={u.id} value={u.id}>
-                    {u.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            {loading && <CircularProgress size={18} />}
-          </Stack>
-
-          <Box sx={{ textAlign: "center" }}>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center" flexWrap="wrap" useFlexGap>
-              {Object.entries(COVERAGE_STATUS).map(([key, m]) => (
-                <Chip
-                  key={key}
-                  size="small"
-                  label={`${m.icon} ${m.label}`}
-                  sx={{ bgcolor: m.bg, color: m.color, fontWeight: 600, border: `1px solid ${m.color}55` }}
-                />
-              ))}
-            </Stack>
-            {coverage && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                In view: {coverage.summary.not_met} not met, {coverage.summary.at_risk} at risk,{" "}
-                {coverage.summary.met} covered
-              </Typography>
-            )}
-          </Box>
-
-          <Box sx={{ textAlign: "center" }}>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-              {visibleShiftTypes.map((type) => (
-                <Chip
-                  key={type}
-                  label={type}
-                  size="small"
-                  sx={{ bgcolor: SHIFT_COLORS[type], color: "white", textTransform: "capitalize" }}
-                />
-              ))}
-            </Stack>
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-              Click a day for its coverage details.
-              {isAdmin ? " Click a shift to remove it." : ""}
-            </Typography>
-          </Box>
-        </Box>
-      </Alert>
+      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+        <FormControl size="small" sx={{ minWidth: 170, bgcolor: "background.paper", borderRadius: 1 }}>
+          <InputLabel id="calendar-unit-label">All Units</InputLabel>
+          <Select
+            labelId="calendar-unit-label"
+            label="All Units"
+            value={unitId}
+            onChange={(e) => setUnitId(e.target.value)}
+          >
+            <MenuItem value="">All Units</MenuItem>
+            {units.map((u) => (
+              <MenuItem key={u.id} value={u.id}>
+                {u.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        {loading && <CircularProgress size={18} aria-label="Loading" />}
+        {coverage &&
+          STATUS_CHIPS.map(([key, word]) => {
+            const m = COVERAGE_STATUS[key];
+            const on = statusFocus === key;
+            return (
+              <Chip
+                key={key}
+                size="small"
+                clickable
+                aria-pressed={on}
+                onClick={() => toggleStatusFocus(key)}
+                label={`${m.icon} ${coverage.summary?.[key] ?? 0} ${word}`}
+                sx={{
+                  bgcolor: on ? m.color : m.bg,
+                  color: on ? "#fff" : m.color,
+                  fontWeight: 600,
+                  border: `1px solid ${m.color}55`,
+                  "&:hover": { bgcolor: on ? m.color : m.bg },
+                }}
+              />
+            );
+          })}
+        <Box sx={{ flex: 1 }} />
+        <Typography variant="caption" color="text.secondary">
+          {visibleShiftTypes
+            .filter((t) => t !== "custom")
+            .map((t) => `${SHIFT_SHORT[t]} ${SHIFT_NAME[t]}`)
+            .join(" · ")}
+          {view === "month" && !narrow ? " · double-click a day to open it" : ""}
+        </Typography>
+        <Tooltip title="Staffing rules applied to this calendar">
+          <IconButton
+            size="small"
+            aria-label="Staffing rules"
+            aria-expanded={showRule}
+            onClick={() => setShowRule((v) => !v)}
+          >
+            <FontAwesomeIcon icon={faCircleInfo} style={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+      <Collapse in={showRule} unmountOnExit>
+        <Alert severity={location?.warning ? "warning" : "info"} sx={{ mb: 1 }} action={locationAction}>
+          {location?.state ? (
+            <>
+              <strong>{location.state_name}</strong>
+              {location.city ? ` - ${location.city}` : ""}.{" "}
+              {location.rule
+                ? `${location.rule.name} staffing rules are applied automatically (${location.rule.hppd_min} care hrs/resident/day${
+                    location.rule.max_residents_per_staff ? `, 1:${location.rule.max_residents_per_staff} ratio` : ""
+                  }, ${location.rule.min_rn_per_shift} RN per shift).`
+                : location.warning}
+            </>
+          ) : (
+            location?.warning
+          )}
+        </Alert>
+      </Collapse>
+      {!showRule && location?.warning && (
+        <Alert severity="warning" sx={{ mb: 1 }} action={locationAction}>
+          {location.warning}
+        </Alert>
+      )}
       {coverage?.warnings?.map((w) => (
         <Alert key={w} severity="warning" sx={{ mb: 1 }}>
           {w}
@@ -673,38 +752,122 @@ function StaffingCalendarTab({ isAdmin = false }) {
         spinner next to the legend instead (above), never by hiding the grid.
       */}
       <Box
-        onClick={handleCalendarClick}
         sx={{
-          height: 650,
-          bgcolor: "background.paper",
-          p: 1,
-          borderRadius: 2,
-          "& .rbc-time-header-cell .rbc-header": { cursor: view === "week" ? "pointer" : undefined },
-          // "Pick up a shift" appears when the day cell is hovered (always visible on touch screens).
-          "& .pickup-btn": { opacity: 0, transition: "opacity .12s" },
-          "& .rbc-date-cell:hover .pickup-btn, & .pickup-btn:focus-visible": { opacity: 1 },
-          "@media (hover: none)": { "& .pickup-btn": { opacity: 1 } },
+          display: "flex",
+          gap: 1.5,
+          alignItems: "stretch",
+          height: { xs: 560, md: "calc(100vh - 300px)" },
+          minHeight: 520,
         }}
       >
-        <StaffingCalendarSearchContext.Provider value={searchCtx}>
-        <Calendar
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: "100%", cursor: "pointer" }}
-          view={view}
-          onView={setView}
-          onRangeChange={handleRangeChange}
-          selectable
-          onSelectSlot={(slot) => setDayDialog(toISO(slot.start))}
-          eventPropGetter={eventPropGetter}
-          dayPropGetter={dayPropGetter}
-          components={components}
-          popup
-        />
-        </StaffingCalendarSearchContext.Provider>
+        <Box
+          onClick={handleCalendarClick}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            bgcolor: "background.paper",
+            p: 1,
+            borderRadius: 2,
+            "& .rbc-time-header-cell .rbc-header": { cursor: view === "week" ? "pointer" : undefined },
+          }}
+        >
+          <StaffingCalendarSearchContext.Provider value={searchCtx}>
+          <Calendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: "100%", cursor: "pointer" }}
+            view={view}
+            onView={setView}
+            onRangeChange={handleRangeChange}
+            selectable
+            onSelectSlot={handleSelectSlot}
+            eventPropGetter={eventPropGetter}
+            dayPropGetter={dayPropGetter}
+            components={components}
+            popup
+          />
+          </StaffingCalendarSearchContext.Provider>
+        </Box>
+        {view === "month" && !narrow && (
+          <Box sx={{ width: 320, flexShrink: 0, overflowY: "auto" }}>
+            <StaffingDayPanel
+              iso={selectedISO}
+              info={dayInfo(new Date(`${selectedISO}T00:00:00`))}
+              isAdmin={isAdmin}
+              canFill={panelCanFill}
+              fillLabel={panelFillLabel}
+              onFill={handleFill}
+              onOpenDay={() => setDayDialog(selectedISO)}
+              onAdd={isAdmin && onAssign ? handleAddShift : null}
+            />
+          </Box>
+        )}
       </Box>
+
+      {/* Person menu (Day view, admins) */}
+      <Menu
+        anchorEl={shiftMenu?.anchorEl}
+        open={!!shiftMenu}
+        onClose={() => setShiftMenu(null)}
+      >
+        <MenuItem
+          onClick={() => {
+            const shift = shiftMenu.shift;
+            setShiftMenu(null);
+            openEditShift(shift);
+          }}
+        >
+          Edit shift
+        </MenuItem>
+        <MenuItem
+          sx={{ color: "error.main" }}
+          onClick={() => {
+            const shift = shiftMenu.shift;
+            setShiftMenu(null);
+            setRemoveTarget(shift);
+          }}
+        >
+          Remove shift
+        </MenuItem>
+      </Menu>
+
+      {/* Confirm remove */}
+      <Dialog open={!!removeTarget} onClose={() => !removeBusy && setRemoveTarget(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Remove this shift?</DialogTitle>
+        <DialogContent>
+          {removeTarget && (
+            <Typography variant="body2">
+              {removeTarget.staff_name} · {moment(removeTarget.date).format("ddd, MMM D, YYYY")} ·{" "}
+              {removeTarget.shift_type_display || removeTarget.shift_type}
+              {removeTarget.unit_name ? ` · ${removeTarget.unit_name}` : ""}
+              <br />
+              You can undo this right after.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRemoveTarget(null)} disabled={removeBusy}>
+            Cancel
+          </Button>
+          <Button color="error" variant="contained" onClick={confirmRemoveShift} disabled={removeBusy}>
+            {removeBusy ? "Removing..." : "Remove"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={!!undo}
+        autoHideDuration={8000}
+        onClose={(e, reason) => reason !== "clickaway" && setUndo(null)}
+        message={undo?.message}
+        action={
+          <Button color="inherit" size="small" onClick={undoRemove}>
+            Undo
+          </Button>
+        }
+      />
 
       {/* Day detail */}
       <Dialog open={!!dayDialog} onClose={() => setDayDialog(null)} maxWidth="sm" fullWidth>

@@ -48,11 +48,11 @@ const StaffingCalendarToolbar = memo(function StaffingCalendarToolbar({
         <button type="button" onClick={() => onNavigate("TODAY")}>
           {msg("today", "Today")}
         </button>
-        <button type="button" onClick={() => onNavigate("PREV")}>
-          {msg("previous", "Back")}
+        <button type="button" aria-label={msg("previous", "Back")} title={msg("previous", "Back")} onClick={() => onNavigate("PREV")}>
+          ‹
         </button>
-        <button type="button" onClick={() => onNavigate("NEXT")}>
-          {msg("next", "Next")}
+        <button type="button" aria-label={msg("next", "Next")} title={msg("next", "Next")} onClick={() => onNavigate("NEXT")}>
+          ›
         </button>
       </span>
 
