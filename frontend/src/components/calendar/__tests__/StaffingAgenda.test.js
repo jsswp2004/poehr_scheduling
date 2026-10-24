@@ -81,6 +81,13 @@ describe("StaffingAgenda", () => {
     expect(onAdd).toHaveBeenCalledWith("2026-10-23");
   });
 
+  it("offers a coverage retry when the warning shows", () => {
+    const onRetry = jest.fn();
+    renderAgenda({ failed: true, onRetry });
+    fireEvent.click(screen.getByRole("button", { name: "Retry coverage" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
   it("hides Assign for people who cannot fill, and shows the coverage warning", () => {
     renderAgenda({ canFill: () => false, failed: true });
     fireEvent.click(screen.getByRole("button", { name: /Night 1 of 3/ }));

@@ -97,9 +97,22 @@ describe("StaffingDayBoard", () => {
     expect(onAdd).toHaveBeenCalledWith("2026-10-24");
   });
 
-  it("says coverage is unavailable but still shows the people", () => {
-    renderBoard({ coverage: null, failed: true });
+  it("says coverage is unavailable but still shows the people, with a retry", () => {
+    const onRetry = jest.fn();
+    renderBoard({ coverage: null, failed: true, onRetry });
     expect(screen.getByText(/coverage colours unavailable/)).toBeInTheDocument();
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry coverage" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a skeleton while an empty day is still loading", () => {
+    render(
+      <StaffingDayContext.Provider value={{ coverage: { days: {} }, shifts: [], loading: true, failed: false, isAdmin: true }}>
+        <StaffingDayBoard date={new Date(2026, 9, 24)} />
+      </StaffingDayContext.Provider>
+    );
+    expect(screen.getByRole("status", { name: "Loading" })).toBeInTheDocument();
+    expect(screen.queryByText(/No shifts on/)).toBeNull();
   });
 });

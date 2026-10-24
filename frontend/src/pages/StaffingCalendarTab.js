@@ -42,6 +42,7 @@ import StaffingDayPanel from "../components/calendar/StaffingDayPanel";
 import { StaffingWeekContext, StaffingWeekView } from "../components/calendar/StaffingWeekGrid";
 import { StaffingDayContext, StaffingDayView } from "../components/calendar/StaffingDayBoard";
 import { StaffingAgendaView } from "../components/calendar/StaffingAgenda";
+import { CoverageFailedBanner, NoRequirementNotice } from "../components/calendar/StaffingStateViews";
 import {
   SHIFT_NAME,
   SHIFT_SHORT,
@@ -93,10 +94,11 @@ const PATTERN_SHIFT_TYPES = {
   "12h": ["day", "night"],
 };
 
-function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
+function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = null }) {
   const [shifts, setShifts] = useState([]);
   const [coverage, setCoverage] = useState(null);
   const [coverageFailed, setCoverageFailed] = useState(false);
+  const [coverageLoading, setCoverageLoading] = useState(true); // the coverage request is separate from the shifts
   const [location, setLocation] = useState(null);
   const [units, setUnits] = useState([]);
   // "" means All Units (the original, unfiltered view).
@@ -131,6 +133,32 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
 
   const token = getAccessToken();
 
+  // Coverage colours are an overlay: if they fail the calendar still works, and Retry runs this alone.
+  const fetchCoverage = useCallback(
+    async (start, end) => {
+      setCoverageLoading(true);
+      try {
+        const cov = await axios.get(apiEndpoints.staffingCoverageStatus, {
+          headers: getAuthHeaders(token),
+          params: {
+            start: start.format("YYYY-MM-DD"),
+            end: end.format("YYYY-MM-DD"),
+            ...(unitId ? { unit: unitId } : {}),
+          },
+        });
+        setCoverage(cov.data);
+        setCoverageFailed(false);
+      } catch (err) {
+        console.error("Failed to load coverage status", err);
+        setCoverage(null);
+        setCoverageFailed(true);
+      } finally {
+        setCoverageLoading(false);
+      }
+    },
+    [token, unitId]
+  );
+
   const fetchShifts = useCallback(
     async (start, end) => {
       setLoading(true);
@@ -141,10 +169,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
         ...(unitId ? { unit: unitId } : {}),
       };
       // Both requests start together (they used to run one after the other, so the waits added up).
-      // Coverage colors are an overlay: if they fail the calendar still works.
-      const coverageReq = axios
-        .get(apiEndpoints.staffingCoverageStatus, { headers: getAuthHeaders(token), params })
-        .then((cov) => ({ ok: true, data: cov.data }), (err) => ({ ok: false, err }));
+      const coverageReq = fetchCoverage(start, end);
       try {
         const res = await axios.get(apiEndpoints.staffingShifts, {
           headers: getAuthHeaders(token),
@@ -157,17 +182,9 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
       }
       // The shifts are what the calendar needs; show them now and let the colors follow.
       setLoading(false);
-      const cov = await coverageReq;
-      if (cov.ok) {
-        setCoverage(cov.data);
-        setCoverageFailed(false);
-      } else {
-        console.error("Failed to load coverage status", cov.err);
-        setCoverage(null);
-        setCoverageFailed(true);
-      }
+      await coverageReq;
     },
-    [token, unitId]
+    [token, unitId, fetchCoverage]
   );
 
   // Loads on mount and again whenever the unit dropdown changes, keeping
@@ -345,9 +362,12 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
     });
   }, [shifts, search]);
 
+  const retryCoverage = useCallback(() => fetchCoverage(range.start, range.end), [fetchCoverage, range]);
+  const waiting = loading || coverageLoading; // the views show a skeleton until both have answered
+
   const weekCtx = useMemo(
-    () => ({ coverage, loading, failed: coverageFailed, search }),
-    [coverage, loading, coverageFailed, search]
+    () => ({ coverage, loading: waiting, failed: coverageFailed, retrying: coverageLoading, onRetry: retryCoverage, search }),
+    [coverage, waiting, coverageFailed, coverageLoading, retryCoverage, search]
   );
 
   const searchCtx = useMemo(
@@ -449,6 +469,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
       const info = dayInfo(date);
       // Shifts with no census add only "?" noise to the grid; the panel still says "No census".
       const rows = summarizeShifts(info).filter((r) => r.status !== "unknown");
+      const pending = coverageLoading && !info; // coverage still on its way
       const dim = !!statusFocus && info?.status !== statusFocus;
       const worst = worstStatus(rows.map((r) => r.status));
       return (
@@ -495,6 +516,10 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
               )}
             </Box>
           </Box>
+          {pending &&
+            [0, 1, 2].map((i) => (
+              <Box key={i} aria-hidden sx={{ height: 24, mt: "3px", borderRadius: "4px", bgcolor: "#eef1f6" }} />
+            ))}
           {rows.map((r) => {
             const m = COVERAGE_STATUS[r.status] || COVERAGE_STATUS.unknown;
             const problem = r.status === "not_met" || r.status === "at_risk";
@@ -533,7 +558,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
         </Box>
       );
     },
-    [dayInfo, statusFocus, narrow, todayISO]
+    [dayInfo, statusFocus, narrow, todayISO, coverageLoading]
   );
 
   // Week view column header: the label is still RBC's button (click = go to day view). It carries
@@ -599,6 +624,13 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
     }
   };
 
+  // A single unit is chosen but nothing in view requires staff for it, so every day would stay grey.
+  const noRequirementUnit =
+    unitId !== "" && coverage && !coverageLoading &&
+    Object.values(coverage.days || {}).every((d) => !d.items || d.items.length === 0)
+      ? units.find((u) => String(u.id) === String(unitId))?.name || "this unit"
+      : "";
+
   const locationAction =
     isAdmin && location ? (
       <Button color="inherit" size="small" onClick={openLocationDialog}>
@@ -648,8 +680,10 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
   const dayCtx = {
     coverage,
     shifts: filteredShifts,
-    loading,
+    loading: waiting,
     failed: coverageFailed,
+    retrying: coverageLoading,
+    onRetry: retryCoverage,
     isAdmin,
     canFill: (iso) => isAdmin || (!!me?.staff_id && iso >= toISO(new Date())),
     fillLabel: panelFillLabel,
@@ -761,6 +795,12 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
         <Alert severity="warning" sx={{ mb: 1 }} action={locationAction}>
           {location.warning}
         </Alert>
+      )}
+      {view === "month" && coverageFailed && (
+        <CoverageFailedBanner detail="The day lines need coverage." onRetry={retryCoverage} retrying={coverageLoading} />
+      )}
+      {noRequirementUnit && (
+        <NoRequirementNotice unitName={noRequirementUnit} onOpenUnits={onNavigate ? () => onNavigate("units") : null} />
       )}
       {coverage?.warnings?.map((w) => (
         <Alert key={w} severity="warning" sx={{ mb: 1 }}>

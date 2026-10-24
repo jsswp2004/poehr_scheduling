@@ -11,6 +11,7 @@ import { createContext, useContext } from "react";
 import { Box, Typography } from "@mui/material";
 import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
+import { CalendarSkeleton, CoverageFailedBanner } from "./StaffingStateViews";
 import {
   SHIFT_NAME,
   SHIFT_ORDER,
@@ -18,8 +19,8 @@ import {
   worstStatus,
 } from "../../utils/calendar/staffingSummary";
 
-/** Value: { coverage, loading, failed, search } */
-export const StaffingWeekContext = createContext({ coverage: null, loading: false, failed: false, search: "" });
+/** Value: { coverage, loading, failed, retrying, onRetry, search } */
+export const StaffingWeekContext = createContext({ coverage: null, loading: false, failed: false, retrying: false, onRetry: null, search: "" });
 
 const GRID = "150px repeat(7, minmax(0, 1fr))";
 
@@ -92,15 +93,16 @@ function Chip({ item }) {
 }
 
 export default function StaffingWeekGrid({ date, onDrillDown }) {
-  const { coverage, loading, failed, search } = useContext(StaffingWeekContext);
+  const { coverage, loading, failed, retrying, onRetry, search } = useContext(StaffingWeekContext);
   const days = weekRange(date);
   const isos = days.map(toISO);
   const today = toISO(new Date());
   const units = weekUnits(coverage, isos);
 
   let notice = null;
-  if (failed) notice = "Coverage could not be loaded, so this week cannot be shown. Try the next or previous week, or reload the page.";
-  else if (!coverage && loading) notice = "Loading coverage…";
+  if (failed) notice = <CoverageFailedBanner detail="This grid needs coverage to draw." onRetry={onRetry} retrying={retrying} />;
+  // While another week is loading, the previous coverage has no days for this one: show the skeleton, not "no requirements".
+  else if (loading && (!coverage || units.length === 0)) notice = <CalendarSkeleton />;
   else if (units.length === 0)
     notice = "No coverage requirements apply this week. Add one on the Assign Schedule tab, or enter a unit census so state rules can be calculated.";
 
@@ -136,9 +138,13 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
       </Box>
 
       {notice ? (
-        <Typography sx={{ p: 3 }} color="text.secondary">
-          {notice}
-        </Typography>
+        typeof notice === "string" ? (
+          <Typography sx={{ p: 3 }} color="text.secondary">
+            {notice}
+          </Typography>
+        ) : (
+          <Box sx={{ p: 1.5 }}>{notice}</Box>
+        )
       ) : (
         <>
           {units.map((u) => (

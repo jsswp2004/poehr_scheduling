@@ -15,10 +15,11 @@ import { faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
 import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
 import { SHIFT_NAME, SHIFT_ORDER, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
+import { CalendarSkeleton, CoverageFailedBanner } from "./StaffingStateViews";
 
 /**
- * Value: { coverage, shifts, loading, failed, isAdmin, canFill(iso), fillLabel,
- *          onFill(item, iso), onPersonMenu(anchorEl, shift), onAdd(iso) }
+ * Value: { coverage, shifts, loading, failed, retrying, onRetry, isAdmin, canFill(iso),
+ *          fillLabel, onFill(item, iso), onPersonMenu(anchorEl, shift), onAdd(iso) }
  * `shifts` is already narrowed by the search box.
  */
 export const StaffingDayContext = createContext({
@@ -26,6 +27,8 @@ export const StaffingDayContext = createContext({
   shifts: [],
   loading: false,
   failed: false,
+  retrying: false,
+  onRetry: null,
   isAdmin: false,
   canFill: () => false,
   fillLabel: "Assign",
@@ -111,7 +114,7 @@ function PersonRow({ shift, isAdmin, onPersonMenu }) {
 
 export default function StaffingDayBoard({ date }) {
   const ctx = useContext(StaffingDayContext);
-  const { coverage, loading, failed, isAdmin, canFill, fillLabel, onFill, onPersonMenu, onAdd } = ctx;
+  const { coverage, loading, failed, retrying, onRetry, isAdmin, canFill, fillLabel, onFill, onPersonMenu, onAdd } = ctx;
   const iso = toISO(date);
   const info = coverage && coverage.days ? coverage.days[iso] : null;
   const shifts = (ctx.shifts || []).filter((s) => s.date === iso);
@@ -121,19 +124,7 @@ export default function StaffingDayBoard({ date }) {
   const mayFill = canFill ? canFill(iso) : false;
 
   if (shifts.length === 0 && (!info || info.items.length === 0)) {
-    if (loading) {
-      return (
-        <Box sx={{ flex: 1, p: 3 }} aria-label="Loading">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Box key={i} sx={{ display: "flex", gap: 1, mb: 1 }}>
-              <Box sx={{ width: 60, height: 24, borderRadius: "4px", bgcolor: "#e4e7ec" }} />
-              <Box sx={{ flex: 1, height: 24, borderRadius: "4px", bgcolor: "#eef1f6" }} />
-              <Box sx={{ width: 60, height: 24, borderRadius: "4px", bgcolor: "#eef1f6" }} />
-            </Box>
-          ))}
-        </Box>
-      );
-    }
+    if (loading) return <CalendarSkeleton />;
     return (
       <Box sx={{ flex: 1, textAlign: "center", p: 4 }}>
         <Typography sx={{ fontWeight: 700 }}>No shifts on {moment(date).format("ddd, MMM D")}</Typography>
@@ -151,11 +142,7 @@ export default function StaffingDayBoard({ date }) {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-      {failed && (
-        <Box sx={{ mb: 1, p: 1, borderRadius: 1, bgcolor: "#fffaeb", border: "1px solid #fde4a8", fontSize: 13, color: "#7a4a00" }}>
-          <b>Shifts loaded, coverage colours unavailable.</b> The people below are correct.
-        </Box>
-      )}
+      {failed && <CoverageFailedBanner detail="The people below are correct." onRetry={onRetry} retrying={retrying} />}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: `repeat(${columns.length}, minmax(0, 1fr))` }, gap: 1.5, alignItems: "start" }}>
         {columns.map((type) => {
           const units = columnUnits(type, shifts, info);
