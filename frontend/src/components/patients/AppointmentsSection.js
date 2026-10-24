@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { API_BASE_URL } from '../../config/api';
 import {
     Box,
@@ -29,11 +29,21 @@ import {
     InputLabel,
     Chip,
     Stack,
+    Pagination,
+    InputAdornment,
+    useMediaQuery,
+    useTheme,
 } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faTrash } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 import CalendarView from '../CalendarView';
+import { rangeText } from './teamHelpers';
+
+// All Appointments shows a fixed 10 rows per page, like the Team table's default.
+export const ALL_ROWS_PER_PAGE = 10;
 
 // Appointment status options from the backend
 const APPOINTMENT_STATUS_OPTIONS = [
@@ -133,6 +143,21 @@ function AppointmentsSection({
     const [denyDialogAppointment, setDenyDialogAppointment] = useState(null);
     const [denyReason, setDenyReason] = useState('');
     const navigate = useNavigate();
+    const theme = useTheme();
+    const narrow = useMediaQuery(theme.breakpoints.down('md'));
+
+    // All Appointments: the list is already loaded, so paging is local. A new search starts on page 1.
+    const [allPage, setAllPage] = useState(1);
+    useEffect(() => {
+        setAllPage(1);
+    }, [appointmentsQuery]);
+    const allTotal = appointmentsResults.length;
+    const allTotalPages = Math.max(1, Math.ceil(allTotal / ALL_ROWS_PER_PAGE));
+    const allCurrentPage = Math.min(allPage, allTotalPages);
+    const allPageRows = appointmentsResults.slice(
+        (allCurrentPage - 1) * ALL_ROWS_PER_PAGE,
+        allCurrentPage * ALL_ROWS_PER_PAGE
+    );
 
     const pendingRequests = useMemo(
         () => appointmentsResults.filter((a) => a.status === 'pending'),
@@ -239,13 +264,13 @@ function AppointmentsSection({
     }
 
     return (
-        <Box>
-            {/* Appointments Sub-tabs */}
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Appointments Sub-tabs: stay in place while the content below scrolls */}
             <Tabs
                 value={appointmentsTab}
                 onChange={(e, newVal) => setAppointmentsTab(newVal)}
                 sx={{
-                    mb: 1.5, minHeight: 40, borderBottom: 1, borderColor: 'divider',
+                    mb: 1.5, minHeight: 40, borderBottom: 1, borderColor: 'divider', flexShrink: 0,
                     '& .MuiTab-root': { minHeight: 40, py: 0.5 },
                 }}
             >
@@ -258,6 +283,7 @@ function AppointmentsSection({
                 />
             </Tabs>
 
+            <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: appointmentsTab === 'all' ? 'hidden' : 'auto' }}>
             {/* Today's Appointments */}
             {appointmentsTab === 'today' && (
                 <Box>
@@ -573,158 +599,197 @@ function AppointmentsSection({
                 </Box>
             )}
 
-            {/* All Appointments */}
+            {/* All Appointments: same table as the Team tab, with the page bar pinned underneath */}
             {appointmentsTab === 'all' && (
-                <Box>
-                    <Box sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: 1.5,
-                        px: 2,
-                        py: 1.5,
-                        bgcolor: 'background.paper',
-                        border: '1px solid #e2e8f0',
-                        borderBottom: 0,
-                        borderRadius: '12px 12px 0 0',
-                    }}>
-                        <Typography variant="h6">
-                            Appointments List
-                        </Typography>
-
-                        {/* Search */}
+                <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.75, mb: 1, flexWrap: 'wrap', flexShrink: 0 }}>
                         <TextField
-                            label="Search appointments..."
+                            placeholder="Search by patient, provider, date, description"
                             value={appointmentsQuery}
                             onChange={(e) => setAppointmentsQuery(e.target.value)}
                             variant="outlined"
                             size="small"
-                            sx={{ minWidth: 260, flex: "0 1 360px" }}
-                            placeholder="Search by patient, provider, date, description..."
+                            sx={{ minWidth: { xs: '100%', sm: 360 } }}
+                            inputProps={{ 'aria-label': 'Search appointments' }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <SearchIcon fontSize="small" />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: appointmentsQuery ? (
+                                    <InputAdornment position="end">
+                                        <IconButton size="small" onClick={() => setAppointmentsQuery('')} aria-label="Clear search">
+                                            <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                    </InputAdornment>
+                                ) : null,
+                            }}
                         />
+                        <Typography variant="body2" color="text.secondary" aria-live="polite">
+                            {allTotal} {allTotal === 1 ? 'appointment' : 'appointments'}
+                        </Typography>
                     </Box>
 
-                    {/* Appointments Table */}
-                    {appointmentsResults.length === 0 ? (
-                        <Paper variant="outlined" sx={{ p: 2, textAlign: 'center' }}>
-                            <Typography color="text.secondary">
-                                {appointmentsQuery ? 'No appointments found matching your search' : 'No appointments found'}
-                            </Typography>
-                        </Paper>
-                    ) : (
-                        <TableContainer
-                            component={Paper}
-                            variant="outlined"
-                            sx={{ overflowX: 'auto', borderTopLeftRadius: 0, borderTopRightRadius: 0 }}
-                        >
-                            <Table
-                                size="small"
-                                sx={{ minWidth: 800, "& tbody tr:nth-of-type(odd)": { backgroundColor: "#f8fafc" } }}
-                            >
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Clinic Event</TableCell>
-                                        <TableCell>Patient</TableCell>
-                                        <TableCell>Provider</TableCell>
-                                        <TableCell>Date & Time</TableCell>
-                                        <TableCell>Description</TableCell>
-                                        <TableCell>Duration (min)</TableCell>
-                                        <TableCell>Status</TableCell>
-                                        <TableCell>Actions</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {appointmentsResults.map((appointment) => (
-                                        <TableRow
-                                            key={appointment.id}
-                                            hover
-                                        >
-                                            <TableCell>{appointment.title || "-"}</TableCell>
-                                            <TableCell>
-                                                {appointment.patient_name ||
-                                                    (appointment.patient
-                                                        ? `${appointment.patient.first_name} ${appointment.patient.last_name}`
-                                                        : "-")}
-                                            </TableCell>
-                                            <TableCell>
-                                                {appointment.provider_name ||
-                                                    (appointment.provider &&
-                                                        (appointment.provider.first_name || appointment.provider.last_name)
-                                                        ? `Dr. ${appointment.provider.first_name || ""} ${appointment.provider.last_name || ""}`.trim()
-                                                        : "-")}
-                                            </TableCell>
-                                            <TableCell>
-                                                {appointment.appointment_datetime
-                                                    ? new Date(appointment.appointment_datetime).toLocaleString()
-                                                    : "-"}
-                                            </TableCell>
-                                            <TableCell>{appointment.description || "-"}</TableCell>
-                                            <TableCell>{appointment.duration_minutes || "-"}</TableCell>
-                                            <TableCell>
-                                                <Chip
-                                                    label={(APPOINTMENT_STATUS_OPTIONS.find((o) => o.value === (appointment.status || 'scheduled')) || {}).label || appointment.status}
-                                                    size="small"
-                                                    sx={getStatusChipSx(appointment.status || 'scheduled')}
-                                                />
-                                            </TableCell>
-                                            <TableCell>
-                                                <Box sx={{ display: "flex", gap: 1 }}>
-                                                    <Tooltip title="View Appointment Details">
-                                                        <IconButton
-                                                            size="small"
-                                                            color="primary"
-                                                            onClick={() => {
-                                                                setSelectedAppointment(appointment);
-                                                                setDetailsOpen(true);
-                                                            }}
-                                                        >
-                                                            <FontAwesomeIcon icon={faEye} />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Delete Appointment">
-                                                        <IconButton
-                                                            size="small"
-                                                            color="error"
-                                                            onClick={async (e) => {
-                                                                e.stopPropagation();
-                                                                if (
-                                                                    window.confirm(
-                                                                        "Are you sure you want to delete this appointment?"
-                                                                    )
-                                                                ) {
-                                                                    try {
-                                                                        const token = localStorage.getItem("access_token");
-                                                                        await fetch(
-                                                                            `${API_BASE_URL}/api/appointments/${appointment.id}/`,
-                                                                            {
-                                                                                method: 'DELETE',
-                                                                                headers: {
-                                                                                    Authorization: `Bearer ${token}`,
-                                                                                },
-                                                                            }
-                                                                        );
-                                                                        // Refresh appointments list
-                                                                        window.location.reload();
-                                                                    } catch (err) {
-                                                                        alert("Failed to delete appointment.");
-                                                                    }
-                                                                }
-                                                            }}
-                                                        >
-                                                            <FontAwesomeIcon icon={faTrash} />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                </Box>
-                                            </TableCell>
+                    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+                        {allTotal === 0 ? (
+                            <Paper variant="outlined" sx={{ textAlign: 'center', py: 6, px: 2 }}>
+                                <SearchIcon sx={{ fontSize: 34, color: 'text.disabled' }} />
+                                <Typography variant="subtitle1" fontWeight={600} sx={{ mt: 1 }}>
+                                    {appointmentsQuery ? `No appointments match “${appointmentsQuery}”` : 'No appointments yet'}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary" sx={{ mb: appointmentsQuery ? 2 : 0 }}>
+                                    {appointmentsQuery ? 'Check the spelling, or try a patient, provider or date.' : 'Appointments you schedule will show up here.'}
+                                </Typography>
+                                {appointmentsQuery && (
+                                    <Button variant="outlined" onClick={() => setAppointmentsQuery('')}>
+                                        Clear search
+                                    </Button>
+                                )}
+                            </Paper>
+                        ) : (
+                            <TableContainer component={Paper} variant="outlined" sx={{ flex: 1, minHeight: 0 }}>
+                                <Table stickyHeader size="small" sx={{ tableLayout: 'fixed', minWidth: 900 }}>
+                                    <TableHead>
+                                        <TableRow>
+                                            <TableCell sx={{ fontWeight: 700 }}>Clinic Event</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Patient</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Provider</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, width: 170 }}>Date & Time</TableCell>
+                                            <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, width: 90 }}>Duration</TableCell>
+                                            <TableCell sx={{ fontWeight: 700, width: 130 }}>Status</TableCell>
+                                            <TableCell sx={{ width: 96 }} />
                                         </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                                    </TableHead>
+                                    <TableBody>
+                                        {allPageRows.map((appointment) => {
+                                            const open = () => {
+                                                setSelectedAppointment(appointment);
+                                                setDetailsOpen(true);
+                                            };
+                                            const patientName = getPatientName(appointment) || '-';
+                                            const providerName = getProviderName(appointment) || '-';
+                                            const when = appointment.appointment_datetime
+                                                ? new Date(appointment.appointment_datetime).toLocaleString()
+                                                : '-';
+                                            return (
+                                                <TableRow
+                                                    key={appointment.id}
+                                                    hover
+                                                    sx={{ cursor: 'pointer' }}
+                                                    onClick={open}
+                                                    onKeyDown={(e) => {
+                                                        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                                                            e.preventDefault();
+                                                            open();
+                                                        }
+                                                    }}
+                                                    tabIndex={0}
+                                                    aria-label={`Details for ${patientName}`}
+                                                >
+                                                    <TableCell>
+                                                        <Typography variant="body2" noWrap title={appointment.title || ''}>
+                                                            {appointment.title || '-'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="body2" fontWeight={600} noWrap title={patientName}>
+                                                            {patientName}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="body2" noWrap title={providerName}>
+                                                            {providerName}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="body2" noWrap title={when}>
+                                                            {when}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="body2" noWrap title={appointment.description || ''}>
+                                                            {appointment.description || '-'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Typography variant="body2">
+                                                            {appointment.duration_minutes ? `${appointment.duration_minutes} min` : '-'}
+                                                        </Typography>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Chip
+                                                            label={(APPOINTMENT_STATUS_OPTIONS.find((o) => o.value === (appointment.status || 'scheduled')) || {}).label || appointment.status}
+                                                            size="small"
+                                                            sx={getStatusChipSx(appointment.status || 'scheduled')}
+                                                        />
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'flex-end' }} onClick={(e) => e.stopPropagation()}>
+                                                            <Tooltip title="View Appointment Details">
+                                                                <IconButton size="small" color="primary" aria-label="View appointment details" onClick={open}>
+                                                                    <FontAwesomeIcon icon={faEye} />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                            <Tooltip title="Delete Appointment">
+                                                                <IconButton
+                                                                    size="small"
+                                                                    color="error"
+                                                                    aria-label="Delete appointment"
+                                                                    onClick={async (e) => {
+                                                                        e.stopPropagation();
+                                                                        if (window.confirm('Are you sure you want to delete this appointment?')) {
+                                                                            try {
+                                                                                const token = localStorage.getItem('access_token');
+                                                                                await fetch(`${API_BASE_URL}/api/appointments/${appointment.id}/`, {
+                                                                                    method: 'DELETE',
+                                                                                    headers: { Authorization: `Bearer ${token}` },
+                                                                                });
+                                                                                // Refresh appointments list
+                                                                                window.location.reload();
+                                                                            } catch (err) {
+                                                                                alert('Failed to delete appointment.');
+                                                                            }
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <FontAwesomeIcon icon={faTrash} />
+                                                                </IconButton>
+                                                            </Tooltip>
+                                                        </Box>
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </TableContainer>
+                        )}
+                    </Box>
+
+                    {allTotal > 0 && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 1, flexShrink: 0 }}>
+                            <Typography variant="caption" color="text.secondary" data-testid="appointments-range">
+                                {rangeText(allCurrentPage, ALL_ROWS_PER_PAGE, allTotal)}
+                            </Typography>
+                            <Box sx={{ flex: 1 }} />
+                            {allTotalPages > 1 && (
+                                <Pagination
+                                    count={allTotalPages}
+                                    page={allCurrentPage}
+                                    onChange={(e, newPage) => setAllPage(newPage)}
+                                    color="primary"
+                                    showFirstButton
+                                    showLastButton
+                                    size={narrow ? 'small' : 'medium'}
+                                />
+                            )}
+                        </Box>
                     )}
                 </Box>
             )}
+            </Box>
 
             {/* Appointment Details Dialog */}
             <Dialog
