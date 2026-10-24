@@ -525,12 +525,13 @@ function PatientsPage() {
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
         ) : tab === "team" ? null : (
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1, flexShrink: 0, ...SIDE_GAP }}>
+          // Same title row as the Team tab: same top gap, same compact Back button.
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", pt: 1, mb: 1, flexShrink: 0, ...SIDE_GAP }}>
             <Typography variant="h5" data-testid="view-title">
               {VIEW_TITLES[tab] || ""}
             </Typography>
             {/* With a patient selected the sidebar's Back button is the only one. */}
-            {!selectedPatient && <BackButton />}
+            {!selectedPatient && <BackButton sx={{ mb: 0, py: 0.75 }} />}
           </Box>
         )}
 
@@ -792,7 +793,8 @@ function PatientsPage() {
           )}
 
           {tab === "register" && (
-            <Box sx={{ mt: 1 }}>
+            // RegisterPage pads its own sides by 16px; pull it out by the same amount so it lines up with Team.
+            <Box sx={{ mx: -2 }}>
               <RegisterPage adminMode={true} />
             </Box>
           )}
