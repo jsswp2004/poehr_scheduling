@@ -28,7 +28,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleInfo, faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
+import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -40,6 +40,7 @@ import StaffingCalendarToolbar, {
 } from "../components/calendar/StaffingCalendarToolbar";
 import StaffingDayPanel from "../components/calendar/StaffingDayPanel";
 import { StaffingWeekContext, StaffingWeekView } from "../components/calendar/StaffingWeekGrid";
+import { StaffingDayContext, StaffingDayView } from "../components/calendar/StaffingDayBoard";
 import {
   SHIFT_NAME,
   SHIFT_SHORT,
@@ -72,8 +73,8 @@ const EDIT_SHIFT_TYPES = [
 // Short shift names inside a month cell (the mock's Day / Eve / Night).
 const SHIFT_CELL_LABEL = { day: "Day", evening: "Eve", night: "Night", custom: "Other" };
 
-// Month, day and agenda are the built-in views; week is our unit-by-day grid.
-const CALENDAR_VIEWS = { month: true, week: StaffingWeekView, day: true, agenda: true };
+// Month and agenda are the built-in views; week is our unit-by-day grid and day our three-column board.
+const CALENDAR_VIEWS = { month: true, week: StaffingWeekView, day: StaffingDayView, agenda: true };
 
 // The coverage chips above the calendar; clicking one highlights those days.
 const STATUS_CHIPS = [
@@ -349,11 +350,10 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
     [search, filteredShifts.length, shifts.length]
   );
 
-  const stackedView = view === "day";
-
   // The month grid shows coverage lines instead of one pill per person; people appear
-  // there only when a search is active. Week and day still list every shift.
-  const monthSummaryOnly = view === "week" || (view === "month" && search.trim() === "");
+  // there only when a search is active. Week and Day are our own views (grid and board) and
+  // draw from the shifts directly, so the calendar gets no events for them.
+  const monthSummaryOnly = view === "week" || view === "day" || (view === "month" && search.trim() === "");
 
   const events = useMemo(
     () =>
@@ -373,22 +373,6 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
         // In the All Units view, say which unit the shift is on.
         const unit = shift.unit_name && unitId === "" ? ` · ${shift.unit_name}` : "";
         const kind = (shift.shift_type_display || shift.shift_type) + (shift.source === "pickup" ? ", picked up" : "");
-        // Week and day views: every shift is a full-width row stacked in the top
-        // band (name, role, hours) instead of narrow side-by-side tiles on the
-        // hour grid, so names and the edit/delete buttons always fit.
-        if (stackedView) {
-          const hhmm = (t) => moment(`2000-01-01T${t}`).format("h:mm A");
-          const hours = shift.start_time && shift.end_time ? ` · ${hhmm(shift.start_time)}–${hhmm(shift.end_time)}` : "";
-          const day = new Date(`${shift.date}T00:00:00`);
-          return {
-            id: shift.id,
-            title: `${shift.staff_name}${role}${unit}${hours} (${kind})`,
-            start: day,
-            end: day,
-            allDay: true,
-            resource: shift,
-          };
-        }
         return {
           id: shift.id,
           title: `${shift.staff_name}${role}${unit} (${kind})`,
@@ -398,7 +382,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
           resource: shift,
         };
       }),
-    [filteredShifts, stackedView, unitId, monthSummaryOnly]
+    [filteredShifts, unitId, monthSummaryOnly]
   );
 
   const eventPropGetter = (event) => {
@@ -564,32 +548,15 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
     if (iso) setDayDialog(iso);
   };
 
-  // Shift cell: just the name. Admins get a person menu (Edit / Remove) in Day view only,
-  // so one stray click on the busy month or week grid can never change a shift.
+  // Shift cell: just the name. People are edited from the Day board's person menu, so one
+  // stray click on a busy grid can never change a shift.
   const ShiftEvent = useCallback(
     ({ event }) => (
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
-        <Box component="span" title={event.title} sx={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {event.title}
-        </Box>
-        {isAdmin && view === "day" && (
-          <IconButton
-            size="small"
-            aria-label={`Actions for ${event.resource.staff_name}`}
-            aria-haspopup="menu"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShiftMenu({ anchorEl: e.currentTarget, shift: event.resource });
-            }}
-            onDoubleClick={(e) => e.stopPropagation()}
-            sx={{ color: "inherit", p: "3px", flexShrink: 0, "&:hover": { bgcolor: "rgba(255,255,255,0.25)" } }}
-          >
-            <FontAwesomeIcon icon={faEllipsisVertical} style={{ fontSize: 12 }} />
-          </IconButton>
-        )}
+      <Box component="span" title={event.title} sx={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {event.title}
       </Box>
     ),
-    [isAdmin, view]
+    []
   );
 
   const components = useMemo(
@@ -661,15 +628,30 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
   // staff pick the shift up for themselves.
   const panelCanFill = isAdmin || (!!me?.staff_id && selectedISO >= toISO(new Date()));
   const panelFillLabel = isAdmin && onAssign ? "Assign" : "Pick up";
-  const handleFill = (item) => {
+  const fillFor = (item, iso) => {
     if (isAdmin && onAssign) {
-      onAssign({ unit_id: item.unit_id, date: selectedISO, shift_type: item.shift_type });
+      onAssign({ unit_id: item.unit_id, date: iso, shift_type: item.shift_type });
     } else {
-      setPickUp({ date: selectedISO, defaults: { unit_id: item.unit_id, shift_type: item.shift_type } });
+      setPickUp({ date: iso, defaults: { unit_id: item.unit_id, shift_type: item.shift_type } });
     }
   };
+  const handleFill = (item) => fillFor(item, selectedISO);
   const handleAddShift = () =>
     onAssign({ unit_id: unitId || null, date: selectedISO, shift_type: "day" });
+
+  // The Day board's actions. They are recreated each render, so the context below is rebuilt with them.
+  const dayCtx = {
+    coverage,
+    shifts: filteredShifts,
+    loading,
+    failed: coverageFailed,
+    isAdmin,
+    canFill: (iso) => isAdmin || (!!me?.staff_id && iso >= toISO(new Date())),
+    fillLabel: panelFillLabel,
+    onFill: fillFor,
+    onPersonMenu: (anchorEl, shift) => setShiftMenu({ anchorEl, shift }),
+    onAdd: isAdmin && onAssign ? (iso) => onAssign({ unit_id: unitId || null, date: iso, shift_type: "day" }) : null,
+  };
 
   const selectedDay = dayDialog ? coverage?.days?.[dayDialog] : null;
 
@@ -822,6 +804,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
         >
           <StaffingCalendarSearchContext.Provider value={searchCtx}>
           <StaffingWeekContext.Provider value={weekCtx}>
+          <StaffingDayContext.Provider value={dayCtx}>
           <Calendar
             localizer={localizer}
             events={events}
@@ -839,6 +822,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
             views={CALENDAR_VIEWS}
             popup
           />
+          </StaffingDayContext.Provider>
           </StaffingWeekContext.Provider>
           </StaffingCalendarSearchContext.Provider>
         </Box>
