@@ -39,6 +39,7 @@ import StaffingCalendarToolbar, {
   StaffingCalendarSearchContext,
 } from "../components/calendar/StaffingCalendarToolbar";
 import StaffingDayPanel from "../components/calendar/StaffingDayPanel";
+import { StaffingWeekContext, StaffingWeekView } from "../components/calendar/StaffingWeekGrid";
 import {
   SHIFT_NAME,
   SHIFT_SHORT,
@@ -71,6 +72,9 @@ const EDIT_SHIFT_TYPES = [
 // Short shift names inside a month cell (the mock's Day / Eve / Night).
 const SHIFT_CELL_LABEL = { day: "Day", evening: "Eve", night: "Night", custom: "Other" };
 
+// Month, day and agenda are the built-in views; week is our unit-by-day grid.
+const CALENDAR_VIEWS = { month: true, week: StaffingWeekView, day: true, agenda: true };
+
 // The coverage chips above the calendar; clicking one highlights those days.
 const STATUS_CHIPS = [
   ["not_met", "not met"],
@@ -86,6 +90,7 @@ const PATTERN_SHIFT_TYPES = {
 function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
   const [shifts, setShifts] = useState([]);
   const [coverage, setCoverage] = useState(null);
+  const [coverageFailed, setCoverageFailed] = useState(false);
   const [location, setLocation] = useState(null);
   const [units, setUnits] = useState([]);
   // "" means All Units (the original, unfiltered view).
@@ -149,9 +154,11 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
       const cov = await coverageReq;
       if (cov.ok) {
         setCoverage(cov.data);
+        setCoverageFailed(false);
       } else {
         console.error("Failed to load coverage status", cov.err);
         setCoverage(null);
+        setCoverageFailed(true);
       }
     },
     [token, unitId]
@@ -332,16 +339,21 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
     });
   }, [shifts, search]);
 
+  const weekCtx = useMemo(
+    () => ({ coverage, loading, failed: coverageFailed, search }),
+    [coverage, loading, coverageFailed, search]
+  );
+
   const searchCtx = useMemo(
     () => ({ value: search, onChange: setSearch, shown: filteredShifts.length, total: shifts.length }),
     [search, filteredShifts.length, shifts.length]
   );
 
-  const stackedView = view === "week" || view === "day";
+  const stackedView = view === "day";
 
   // The month grid shows coverage lines instead of one pill per person; people appear
   // there only when a search is active. Week and day still list every shift.
-  const monthSummaryOnly = view === "month" && search.trim() === "";
+  const monthSummaryOnly = view === "week" || (view === "month" && search.trim() === "");
 
   const events = useMemo(
     () =>
@@ -809,6 +821,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
           }}
         >
           <StaffingCalendarSearchContext.Provider value={searchCtx}>
+          <StaffingWeekContext.Provider value={weekCtx}>
           <Calendar
             localizer={localizer}
             events={events}
@@ -823,8 +836,10 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
             eventPropGetter={eventPropGetter}
             dayPropGetter={dayPropGetter}
             components={components}
+            views={CALENDAR_VIEWS}
             popup
           />
+          </StaffingWeekContext.Provider>
           </StaffingCalendarSearchContext.Provider>
         </Box>
         {view === "month" && !narrow && (
