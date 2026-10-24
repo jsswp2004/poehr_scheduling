@@ -6,10 +6,8 @@ jest.mock("../components/patientHeader/headerApi", () => ({
   authHeader: async () => ({ Authorization: "Bearer t" }),
   errorText: (err, fallback) => fallback,
 }));
-// DynamicNoteForm -> ChartDataField -> utils/auth pulls in axios, which Jest cannot parse (ES module); none of it runs here.
+// DynamicNoteForm -> ChartDataField -> utils/auth pulls in axios, which Jest cannot parse (ES module); the page talks through the mocked api client instead.
 jest.mock("axios", () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn(), put: jest.fn(), delete: jest.fn() } }));
-jest.mock("../config/api", () => ({ API_BASE_URL: "http://api.test" }), { virtual: true });
-jest.mock("../utils/auth", () => ({ getValidToken: async () => "tok" }), { virtual: true });
 jest.mock("../components/SimpleToast", () => ({ toast: { error: jest.fn(), success: jest.fn() } }), { virtual: true });
 
 let mockOnText = null;
