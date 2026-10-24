@@ -113,13 +113,23 @@ class AppointmentViewSet(viewsets.ModelViewSet):
         print("User:", user, "Role field:", getattr(user, "role", None))
 
         # === ADDED: System Admin sees all organizations ===
+        # The serializer reads each row's patient, provider and unit/facility names. Without
+        # select_related that is about four extra queries per appointment, which made the
+        # calendar's list request take ~11 seconds for a few dozen rows.
+        related = ("patient", "provider", "unit__facility")
         if user.role == "system_admin":
-            queryset = Appointment.all_objects.all().order_by("appointment_datetime")
+            queryset = (
+                Appointment.all_objects.all()
+                .select_related(*related)
+                .order_by("appointment_datetime")
+            )
         else:
             # Start by limiting to the user's organization
-            queryset = Appointment.objects.filter(
-                organization=user.organization
-            ).order_by("appointment_datetime")
+            queryset = (
+                Appointment.objects.filter(organization=user.organization)
+                .select_related(*related)
+                .order_by("appointment_datetime")
+            )
 
             # Optional date filter from query params
             date_str = self.request.query_params.get("date")
@@ -625,10 +635,13 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        # doctor_name reads each row's doctor, so fetch it in the same query
         if user.role == "system_admin":
-            return Availability.objects.all().order_by("-start_time")
-        return Availability.objects.filter(organization=user.organization).order_by(
-            "-start_time"
+            return Availability.objects.select_related("doctor").order_by("-start_time")
+        return (
+            Availability.objects.filter(organization=user.organization)
+            .select_related("doctor")
+            .order_by("-start_time")
         )
 
     def perform_create(self, serializer):
