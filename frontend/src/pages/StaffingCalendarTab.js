@@ -99,6 +99,11 @@ function StaffingCalendarTab({ isAdmin = false }) {
         end: end.format("YYYY-MM-DD"),
         ...(unitId ? { unit: unitId } : {}),
       };
+      // Both requests start together (they used to run one after the other, so the waits added up).
+      // Coverage colors are an overlay: if they fail the calendar still works.
+      const coverageReq = axios
+        .get(apiEndpoints.staffingCoverageStatus, { headers: getAuthHeaders(token), params })
+        .then((cov) => ({ ok: true, data: cov.data }), (err) => ({ ok: false, err }));
       try {
         const res = await axios.get(apiEndpoints.staffingShifts, {
           headers: getAuthHeaders(token),
@@ -109,18 +114,14 @@ function StaffingCalendarTab({ isAdmin = false }) {
         console.error("Failed to load staffing shifts", err);
         setError("Failed to load the staffing calendar.");
       }
-      // Coverage colors are an overlay: if they fail the calendar still works.
-      try {
-        const cov = await axios.get(apiEndpoints.staffingCoverageStatus, {
-          headers: getAuthHeaders(token),
-          params,
-        });
+      // The shifts are what the calendar needs; show them now and let the colors follow.
+      setLoading(false);
+      const cov = await coverageReq;
+      if (cov.ok) {
         setCoverage(cov.data);
-      } catch (err) {
-        console.error("Failed to load coverage status", err);
+      } else {
+        console.error("Failed to load coverage status", cov.err);
         setCoverage(null);
-      } finally {
-        setLoading(false);
       }
     },
     [token, unitId]
