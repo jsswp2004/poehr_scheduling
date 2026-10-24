@@ -16,6 +16,7 @@ const CustomToolbar = memo(function CustomToolbar({
   onView,
   searchQuery,
   onSearchChange,
+  extra = null,
 }) {
   const [showPicker, setShowPicker] = useState(false);
   const [localSearchValue, setLocalSearchValue] = useState(searchQuery || "");
@@ -137,6 +138,9 @@ const CustomToolbar = memo(function CustomToolbar({
           </Box>
         )}
       </Box>
+
+      {/* Provider filter (and anything else the calendar passes in) */}
+      {extra}
 
       <Box sx={{ flexGrow: 1 }} />
 
