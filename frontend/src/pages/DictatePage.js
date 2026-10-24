@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
-import { Alert, Box, Button, CircularProgress, Container, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { api } from "../api/client";
 import { apiEndpoints } from "../config/api";
 import { toast } from "../components/SimpleToast";
@@ -376,16 +376,17 @@ function DictateBody() {
 
 export default function DictatePage() {
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
-      <Box sx={{ mb: 2 }}>
+    <Box sx={{ px: 2, pb: 3, maxWidth: 900 }}>
+      {/* Title row pinned and aligned like the Patient Portal: 16px from the left, stays put while scrolling. */}
+      <Box sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.default", pt: "18px", mt: "-6px", pb: 1.5 }}>
         <Typography variant="h5">POWER Dictate</Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12 }}>
           Speak instead of typing. Nothing goes into a chart unless you save a draft note, and a draft is never signed for you.
         </Typography>
       </Box>
       <DictationProvider>
         <DictateBody />
       </DictationProvider>
-    </Container>
+    </Box>
   );
 }

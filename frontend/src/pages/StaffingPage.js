@@ -144,7 +144,7 @@ function StaffingPage() {
   // Staff accounts get their own schedule, time off and assistant -- the web twin of the phone app.
   if (isStaff) {
     return (
-      <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+      <Box sx={{ height: "100%", px: 2, py: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
           <Typography variant="h5">Staffing</Typography>
           <Box sx={{ flex: 1 }} />
@@ -157,7 +157,7 @@ function StaffingPage() {
   }
 
   return (
-    <Box sx={{ minHeight: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+    <Box sx={{ minHeight: "100%", px: 2, py: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
       <Box sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper", pb: 0.5, pt: "18px", mt: "-18px" }}>
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
         <Typography variant="h5">Staffing Center</Typography>
