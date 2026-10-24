@@ -199,7 +199,9 @@ class StaffShiftViewSet(StaffingAdminWriteMixin, viewsets.ModelViewSet):
     permission_classes = [IsStaffingManagerOrStaffReadOnly]
 
     def get_queryset(self):
-        qs = _org_queryset(StaffShift, self.request)
+        # The serializer reads each shift's staff member and unit; fetch them in the same
+        # query instead of two extra queries per shift (a month of shifts is hundreds of rows).
+        qs = _org_queryset(StaffShift, self.request).select_related("staff", "unit")
         start = self.request.query_params.get("start")
         end = self.request.query_params.get("end")
         if start:
