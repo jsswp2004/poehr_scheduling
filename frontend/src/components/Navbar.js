@@ -33,9 +33,6 @@ import GroupsIcon from "@mui/icons-material/Groups";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import MicIcon from "@mui/icons-material/Mic";
 import ScienceIcon from "@mui/icons-material/Science";
-import ForwardToInboxIcon from "@mui/icons-material/ForwardToInbox";
-import TaskAltIcon from "@mui/icons-material/TaskAlt";
-import MedicationIcon from "@mui/icons-material/Medication";
 import PeopleIcon from "@mui/icons-material/People";
 import BarChartIcon from "@mui/icons-material/BarChart";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
@@ -159,30 +156,6 @@ const MODULE_LINKS = [
     Icon: ScienceIcon,
     roles: ["doctor", "nurse", "system_admin"], // the roles that review results
     isActive: (path) => path.startsWith("/lab-inbox"),
-  },
-  {
-    key: "referrals",
-    label: "Referrals",
-    to: "/referrals",
-    Icon: ForwardToInboxIcon,
-    roles: ["doctor", "nurse", "registrar", "admin", "system_admin"], // the roles that work referrals
-    isActive: (path) => path.startsWith("/referrals"),
-  },
-  {
-    key: "prescriptions",
-    label: "Prescriptions",
-    to: "/prescriptions",
-    Icon: MedicationIcon,
-    roles: ["doctor", "nurse", "admin", "system_admin"], // the roles that write prescriptions
-    isActive: (path) => path.startsWith("/prescriptions"),
-  },
-  {
-    key: "tasks",
-    label: "Tasks",
-    to: "/tasks",
-    Icon: TaskAltIcon,
-    roles: ["doctor", "nurse", "admin", "system_admin"], // the roles that see nurse tasks
-    isActive: (path) => path.startsWith("/tasks"),
   },
   {
     key: "secure-messages",
@@ -469,64 +442,6 @@ function Navbar() {
   const [labWaiting, setLabWaiting] = useState({ count: 0, critical: 0, unmatched: 0 });
   const canSeeLab = ["doctor", "nurse", "system_admin"].includes(role);
 
-  // Referrals that need someone to act, and how many are overdue: a badge on the Referrals icon.
-  const [referralWaiting, setReferralWaiting] = useState({ count: 0, overdue: 0 });
-  const canSeeReferrals = ["doctor", "nurse", "registrar", "admin", "system_admin"].includes(role);
-  const refreshReferralWaiting = useCallback(async () => {
-    const token = getAccessToken();
-    if (!token) return;
-    try {
-      const res = await axios.get(`${API_BASE_URL}/api/referrals/queues/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const counts = res.data.counts || {};
-      setReferralWaiting({ count: Number(counts.needs_action) || 0, overdue: Number(counts.overdue) || 0 });
-    } catch (err) {
-      setReferralWaiting({ count: 0, overdue: 0 });
-    }
-  }, []);
-  useEffect(() => {
-    if (!isAuthenticated || !canSeeReferrals) return undefined;
-    refreshReferralWaiting();
-    const timer = setInterval(refreshReferralWaiting, 120000);
-    window.addEventListener("focus", refreshReferralWaiting);
-    window.addEventListener("referrals-changed", refreshReferralWaiting);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener("focus", refreshReferralWaiting);
-      window.removeEventListener("referrals-changed", refreshReferralWaiting);
-    };
-  }, [isAuthenticated, canSeeReferrals, refreshReferralWaiting, location.pathname]);
-
-  // Nurse tasks due now, and how many are overdue: a badge on the Tasks icon.
-  const [taskWaiting, setTaskWaiting] = useState({ count: 0, overdue: 0 });
-  const canSeeTasks = ["doctor", "nurse", "admin", "system_admin"].includes(role);
-  const refreshTaskWaiting = useCallback(async () => {
-    const token = getAccessToken();
-    if (!token) return;
-    try {
-      const res = await axios.get(`${API_BASE_URL}/api/order-tasks/queues/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const counts = res.data.counts || {};
-      setTaskWaiting({ count: Number(counts.needs_action) || 0, overdue: Number(counts.overdue) || 0 });
-    } catch (err) {
-      setTaskWaiting({ count: 0, overdue: 0 });
-    }
-  }, []);
-  useEffect(() => {
-    if (!isAuthenticated || !canSeeTasks) return undefined;
-    refreshTaskWaiting();
-    const timer = setInterval(refreshTaskWaiting, 120000);
-    window.addEventListener("focus", refreshTaskWaiting);
-    window.addEventListener("tasks-changed", refreshTaskWaiting);
-    return () => {
-      clearInterval(timer);
-      window.removeEventListener("focus", refreshTaskWaiting);
-      window.removeEventListener("tasks-changed", refreshTaskWaiting);
-    };
-  }, [isAuthenticated, canSeeTasks, refreshTaskWaiting, location.pathname]);
-
   const refreshLabWaiting = useCallback(async () => {
     const token = getAccessToken();
     if (!token) return;
@@ -573,10 +488,6 @@ function Navbar() {
   const menuBadge = (key) =>
     key === "lab-inbox"
       ? labWaiting.count + labWaiting.unmatched
-      : key === "referrals"
-      ? referralWaiting.count
-      : key === "tasks"
-      ? taskWaiting.count
       : key === "secure-messages"
       ? secureUnread.unread
       : 0;
@@ -697,14 +608,8 @@ function Navbar() {
                           ? `${label}: ${labWaiting.count} to review${
                               labWaiting.critical > 0 ? ` (${labWaiting.critical} critical)` : ""
                             }${labWaiting.unmatched > 0 ? `, ${labWaiting.unmatched} waiting for a patient` : ""}`
-                          : key === "referrals" && referralWaiting.count > 0
-                          ? `${label}: ${referralWaiting.count} need action${
-                              referralWaiting.overdue > 0 ? ` (${referralWaiting.overdue} overdue)` : ""
-                            }`
                           : key === "secure-messages" && secureUnread.unread > 0
                           ? `${label}: ${secureUnread.unread} unread${secureUnread.urgent > 0 ? ` (${secureUnread.urgent} urgent)` : ""}`
-                          : key === "tasks" && taskWaiting.count > 0
-                          ? `${label}: ${taskWaiting.count} due${taskWaiting.overdue > 0 ? ` (${taskWaiting.overdue} overdue)` : ""}`
                           : label
                       }
                     >
@@ -736,24 +641,6 @@ function Navbar() {
                             max={99}
                             color={labWaiting.critical > 0 ? "error" : "warning"}
                             data-testid="lab-waiting-badge"
-                          >
-                            <Icon sx={{ color: "white" }} />
-                          </Badge>
-                        ) : key === "referrals" && referralWaiting.count > 0 ? (
-                          <Badge
-                            badgeContent={referralWaiting.count}
-                            max={99}
-                            color={referralWaiting.overdue > 0 ? "error" : "warning"}
-                            data-testid="referral-waiting-badge"
-                          >
-                            <Icon sx={{ color: "white" }} />
-                          </Badge>
-                        ) : key === "tasks" && taskWaiting.count > 0 ? (
-                          <Badge
-                            badgeContent={taskWaiting.count}
-                            max={99}
-                            color={taskWaiting.overdue > 0 ? "error" : "warning"}
-                            data-testid="task-waiting-badge"
                           >
                             <Icon sx={{ color: "white" }} />
                           </Badge>
