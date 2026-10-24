@@ -43,7 +43,7 @@ export function visibleChartTabs(role, keys = null, careSetting = null) {
   return ordered;
 }
 
-export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {} }) {
+export function PatientChartTabs({ value, onChange, role, right = null, listLabel = null, keys = null, careSetting = null, badges = {}, badgeOverdue = {} }) {
   const tabs = visibleChartTabs(role, keys, careSetting);
   const current = tabs.some((t) => t.value === value) ? value : "patient_list";
   return (
@@ -71,9 +71,9 @@ export function PatientChartTabs({ value, onChange, role, right = null, listLabe
                 {badges[t.value] > 0 && (
                   <Box
                     component="span"
-                    aria-label={`${badges[t.value]} need review`}
+                    aria-label={`${badges[t.value]} need review${badgeOverdue[t.value] > 0 ? `, ${badgeOverdue[t.value]} overdue` : ""}`}
                     data-testid={`chart-tab-badge-${t.value}`}
-                    sx={{ ml: 0.75, minWidth: 18, height: 18, px: 0.5, borderRadius: 9, bgcolor: "error.main", color: "#fff", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                    sx={{ ml: 0.75, minWidth: 18, height: 18, px: 0.5, borderRadius: 9, bgcolor: badgeOverdue[t.value] === 0 ? "warning.main" : "error.main", color: "#fff", fontSize: 11, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >
                     {badges[t.value]}
                   </Box>

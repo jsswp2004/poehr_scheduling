@@ -22,6 +22,7 @@ import {
 import RegisterPage from "./RegisterPage";
 import CareSettingSidebar from "../components/patients/CareSettingSidebar";
 import useChartTabs from "../hooks/useChartTabs";
+import useWorklistCounts from "../hooks/useWorklistCounts";
 import MySchedulePanel from "../components/patients/MySchedulePanel";
 import ReferralsPanel from "../components/referrals/ReferralsPanel";
 import PrescriptionsPanel from "../components/prescriptions/PrescriptionsPanel";
@@ -168,6 +169,8 @@ function PatientsPage() {
   // default, then the person's own arrangement (Settings > Tab Management).
   const careKey = patients.careSetting || "ambulatory";
   const chartLayout = useChartTabs(careKey, !!currentUser);
+  // Referrals and tasks waiting for action: shown on their chart tabs (they used to sit on the header icons).
+  const worklists = useWorklistCounts(userRole, !!currentUser);
   const landedFor = useRef(null);
   useEffect(() => {
     if (!chartLayout.loaded) return;
@@ -521,7 +524,8 @@ function PatientsPage() {
             role={userRole}
             keys={chartLayout.tabs}
             careSetting={careKey}
-            badges={{ ed_follow_up: followUpCount }}
+            badges={{ ed_follow_up: followUpCount, referral_list: worklists.referrals.count, task_list: worklists.tasks.count }}
+            badgeOverdue={{ referral_list: worklists.referrals.overdue, task_list: worklists.tasks.overdue }}
             listLabel={patients.careSetting === "emergency" ? "ED Board" : null}
           />
         ) : tab === "team" ? null : (
