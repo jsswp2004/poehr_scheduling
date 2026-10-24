@@ -156,7 +156,7 @@ export default function StaffingDayBoard({ date }) {
           <b>Shifts loaded, coverage colours unavailable.</b> The people below are correct.
         </Box>
       )}
-      <Box sx={{ display: "grid", gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`, gap: 1.5, alignItems: "start" }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: `repeat(${columns.length}, minmax(0, 1fr))` }, gap: 1.5, alignItems: "start" }}>
         {columns.map((type) => {
           const units = columnUnits(type, shifts, info);
           const sum = summary[type];
