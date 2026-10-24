@@ -41,7 +41,6 @@ import { useAppointmentModal } from "../hooks/calendar/useAppointmentModal";
 import { useAvailabilityModal } from "../hooks/calendar/useAvailabilityModal";
 import { useBlockedAvailabilityModal } from "../hooks/calendar/useBlockedAvailabilityModal";
 import { useCalendarPatients } from "../hooks/calendar/useCalendarPatients";
-import { useClinicEvents } from "../hooks/useClinicEvents";
 import {
   apptProviderId,
   apptState,
@@ -93,8 +92,9 @@ const CalendarView = memo(function CalendarView({
   // (not the Patients page list, which is filtered by care setting).
   const { patients, searchPatients } = useCalendarPatients(userRole);
 
-  // Clinic events hook for appointment title dropdown
-  const { clinicEvents: eventTypes } = useClinicEvents();
+  // The appointment title dropdown uses the clinic events the calendar already loaded (the same
+  // /clinic-events/ endpoint), rather than fetching them a second time.
+  const eventTypes = clinicEvents;
 
   const isMonth = currentView === "month";
   const colors = useMemo(() => buildProviderColors(doctors, events), [doctors, events]);
