@@ -1144,8 +1144,8 @@ function DashboardPage() {
 
   return (
     <Box sx={{ px: { xs: 2, md: 4 }, pb: 1.5, maxWidth: "100%" }}>
-      {/* Title and tabs stay put while the page scrolls (same pinning as the Staffing Center header). */}
-      <Box sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.default", pt: 1.5, pb: 1.5 }}>
+      {/* Title and tabs stay put while the page scrolls (same pinning as the Staffing Center header). The page starts 70px down (body padding) and the bar is 64px, so the -6px margin lets it sit exactly where it pins and never shifts. */}
+      <Box sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.default", pt: "18px", mt: "-6px", pb: 1.5 }}>
       <Typography variant="h5" component="h1">
         Patient Portal
       </Typography>
