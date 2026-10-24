@@ -7,7 +7,7 @@ import { getValidToken } from "../utils/auth";
 import { jwtDecode } from "jwt-decode";
 import {
     Container,
-    Typography,
+Typography,
     Grid,
     Button,
     Box,
@@ -29,26 +29,51 @@ import {
     TableRow,
     Alert,
     InputAdornment,
+    Menu,
 } from "@mui/material";
 import {
     ArrowBack,
-    Edit,
+Edit,
     CreditCard,
     Delete,
     Cancel,
     Warning,
-    Business,
     Email,
-    Person,
     Print,
-    CheckCircle,
     CloudDownload,
     DeleteForever,
-    Storage,
     CheckBox as CheckBoxIcon,
     CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
     Search,
+    MoreVert,
 } from "@mui/icons-material";
+
+const BORDER = "#dfe4ec";
+
+function Section({ title, action, children, sx }) {
+    return (
+        <Box sx={{ bgcolor: "#fff", border: `1px solid ${BORDER}`, borderRadius: "10px", p: "14px 16px", ...sx }}>
+            {(title || action) && (
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
+                    <Typography component="h2" sx={{ fontSize: 14.5, fontWeight: 600, flex: 1 }}>
+                        {title}
+                    </Typography>
+                    {action}
+                </Box>
+            )}
+            {children}
+        </Box>
+    );
+}
+
+function Field({ label, value }) {
+    return (
+        <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>{label}</Typography>
+            <Typography sx={{ fontSize: 13.5, wordBreak: "break-word" }}>{value || "Not set"}</Typography>
+        </Box>
+    );
+}
 
 function AccountPage() {
     const navigate = useNavigate();
@@ -66,6 +91,7 @@ function AccountPage() {
     const [exportDialogOpen, setExportDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+    const [payMenu, setPayMenu] = useState({ anchor: null, method: null });
 
     // Form states
     const [editFormData, setEditFormData] = useState({});
@@ -866,381 +892,230 @@ function AccountPage() {
         planOptions: planOptions.map(p => ({ value: p.value, label: p.label }))
     });
 
+    const orgName = selectedOrganization?.name || accountData?.organization_name;
+    const planLabel = (value) => planOptions.find((p) => p.value === value)?.label;
+
     return (
-        <Container
-            maxWidth={false}
-            sx={{ mt: 4, mb: 4, px: 4, height: "calc(100vh - 100px)" }}
-        >
-            {/* Header with Back Button */}
-            <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+        <Container maxWidth={false} sx={{ mt: 2, mb: 3, px: { xs: 2, md: 4 } }}>
+            {/* Header */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
                 <IconButton
                     onClick={() => navigate(-1)}
-                    sx={{ mr: 2 }}
                     aria-label="Go back"
+                    size="small"
+                    sx={{ border: `1px solid ${BORDER}`, borderRadius: "6px", bgcolor: "#fff" }}
                 >
-                    <ArrowBack />
+                    <ArrowBack fontSize="small" />
                 </IconButton>
-                <Typography variant="h4" component="h1">
-                    Account Settings
-                </Typography>
+                <Box>
+                    <Typography variant="h1" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2 }}>
+                        Account
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
+                        Your details, plan and billing
+                    </Typography>
+                </Box>
             </Box>
 
-            {/* Two-Column Layout using responsive CSS Grid */}
+            {/* System admin: pick another organization */}
+            {isSystemAdmin && (
+                <Section sx={{ mb: 1.5, py: 1.25 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+                        <Typography sx={{ fontWeight: 600, fontSize: 13.5 }}>System admin</Typography>
+                        {selectedOrganization && (
+                            <Chip
+                                label={`Managing: ${selectedOrganization.name}`}
+                                color="primary"
+                                size="small"
+                                variant="outlined"
+                            />
+                        )}
+                        <Box sx={{ flex: 1 }} />
+                        <Box sx={{ position: "relative", width: { xs: "100%", sm: 320 } }}>
+                            <TextField
+                                fullWidth
+                                size="small"
+                                placeholder="Search organizations by name..."
+                                value={organizationSearchQuery}
+                                onChange={handleOrganizationSearchChange}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <Search fontSize="small" />
+                                        </InputAdornment>
+                                    ),
+                                }}
+                            />
+                            {organizationSearchLoading && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                    Searching...
+                                </Typography>
+                            )}
+                            {showSearchResults && organizationSearchResults.length > 0 && (
+                                <Box
+                                    sx={{
+                                        position: "absolute", top: "100%", left: 0, right: 0, zIndex: 1000,
+                                        bgcolor: "#fff", border: `1px solid ${BORDER}`, borderRadius: "8px",
+                                        maxHeight: 220, overflowY: "auto", mt: 0.5,
+                                        boxShadow: "0 8px 24px rgba(15,23,42,.12)",
+                                    }}
+                                >
+                                    {organizationSearchResults.map((org) => (
+                                        <Box
+                                            key={org.id}
+                                            onClick={() => selectOrganization(org)}
+                                            sx={{
+                                                px: 1.5, py: 1, cursor: "pointer",
+                                                borderBottom: "1px solid #eef1f6",
+                                                "&:hover": { bgcolor: "#f5f7fb" },
+                                                "&:last-child": { borderBottom: "none" },
+                                            }}
+                                        >
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{org.name}</Typography>
+                                            <Typography variant="caption" color="text.secondary">
+                                                {org.subscription_tier || "No plan"} • ID: {org.id}
+                                            </Typography>
+                                        </Box>
+                                    ))}
+                                </Box>
+                            )}
+                            {showSearchResults && organizationSearchResults.length === 0 && organizationSearchQuery.length >= 2 && !organizationSearchLoading && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                    No organizations found
+                                </Typography>
+                            )}
+                        </Box>
+                    </Box>
+                </Section>
+            )}
+
             <Box
                 sx={{
                     display: "grid",
-                    gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                    gap: 4,
+                    gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 380px" },
+                    gap: 1.75,
                     alignItems: "start",
-                    height: "calc(100% - 80px)",
                 }}
             >
-                {/* LEFT PANE - Account & Billing */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 3,
-                        overflowY: "auto",
-                        maxHeight: "100%",
-                    }}
-                >
-                    {/* Account Details Section */}
-                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
-                        <Box
-                            sx={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                mb: 2,
-                            }}
-                        >
-                            <Typography variant="h6" gutterBottom>
-                                <Person sx={{ mr: 1, verticalAlign: "middle" }} />
-                                Account Details
-                                {isSystemAdmin && selectedOrganization && (
-                                    <Chip
-                                        label={`Managing: ${selectedOrganization.name}`}
-                                        color="primary"
-                                        size="small"
-                                        sx={{ ml: 2 }}
-                                    />
-                                )}
-                            </Typography>
-                            <IconButton onClick={() => setEditAccountOpen(true)}>
-                                <Edit />
-                            </IconButton>
+                {/* LEFT: details, payment, billing */}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, minWidth: 0 }}>
+                    <Section
+                        title="Account details"
+                        action={
+                            <Button size="small" variant="outlined" onClick={() => setEditAccountOpen(true)}>
+                                Edit
+                            </Button>
+                        }
+                    >
+                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: "10px 16px" }}>
+                            <Field label="First name" value={accountData?.first_name} />
+                            <Field label="Last name" value={accountData?.last_name} />
+                            <Field label="Email" value={accountData?.email} />
+                            <Field label="Phone" value={accountData?.phone_number} />
+                            <Field label="Role" value={accountData?.role} />
+                            <Field
+                                label="Organization"
+                                value={
+                                    <>
+                                        {orgName}
+                                        {isSystemAdmin && selectedOrganization && (
+                                            <Chip
+                                                label={selectedOrganization.subscription_tier || "No plan"}
+                                                size="small"
+                                                color="secondary"
+                                                sx={{ ml: 1 }}
+                                            />
+                                        )}
+                                    </>
+                                }
+                            />
                         </Box>
+                    </Section>
 
-                        {/* System Admin Organization Search */}
-                        {isSystemAdmin && (
-                            <Box sx={{ mb: 3, p: 2, backgroundColor: "#dbeafe", borderRadius: 1 }}>
-                                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                                    System Admin: Search Organizations
-                                </Typography>
-                                <Box sx={{ position: "relative" }}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        placeholder="Search organizations by name..."
-                                        value={organizationSearchQuery}
-                                        onChange={handleOrganizationSearchChange}
-                                        sx={{ backgroundColor: "white" }}
-                                        InputProps={{
-                                            startAdornment: (
-                                                <InputAdornment position="start">
-                                                    <Search />
-                                                </InputAdornment>
-                                            ),
-                                        }}
-                                    />
-
-                                    {organizationSearchLoading && (
-                                        <Box sx={{ p: 1, textAlign: "center" }}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Searching...
-                                            </Typography>
-                                        </Box>
-                                    )}
-
-                                    {showSearchResults && organizationSearchResults.length > 0 && (
-                                        <Box
-                                            sx={{
-                                                position: "absolute",
-                                                top: "100%",
-                                                left: 0,
-                                                right: 0,
-                                                zIndex: 1000,
-                                                backgroundColor: "white",
-                                                border: "1px solid #ddd",
-                                                borderRadius: 1,
-                                                maxHeight: 200,
-                                                overflowY: "auto",
-                                                mt: 0.5,
-                                            }}
-                                        >
-                                            {organizationSearchResults.map((org) => (
-                                                <Box
-                                                    key={org.id}
-                                                    sx={{
-                                                        p: 1.5,
-                                                        borderBottom: "1px solid #eee",
-                                                        cursor: "pointer",
-                                                        "&:hover": { backgroundColor: "#f8fafc" },
-                                                        "&:last-child": { borderBottom: "none" },
-                                                    }}
-                                                    onClick={() => selectOrganization(org)}
-                                                >
-                                                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                        <Box>
-                                                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                                                {org.name}
-                                                            </Typography>
-                                                            <Typography variant="caption" color="text.secondary">
-                                                                {org.subscription_tier || "No plan"} • ID: {org.id}
-                                                            </Typography>
-                                                        </Box>
-                                                        <Button size="small" variant="outlined">
-                                                            Select
-                                                        </Button>
-                                                    </Box>
-                                                </Box>
-                                            ))}
-                                        </Box>
-                                    )}
-
-                                    {showSearchResults && organizationSearchResults.length === 0 && organizationSearchQuery.length >= 2 && !organizationSearchLoading && (
-                                        <Box sx={{ p: 1, textAlign: "center" }}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                No organizations found
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                </Box>
-                            </Box>
-                        )}
-
-                        <Grid container spacing={2}>
-                            <Grid size={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                    First Name
-                                </Typography>
-                                <Typography variant="body1">
-                                    {accountData?.first_name || "Not set"}
-                                </Typography>
-                            </Grid>
-                            <Grid size={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Last Name
-                                </Typography>
-                                <Typography variant="body1">
-                                    {accountData?.last_name || "Not set"}
-                                </Typography>
-                            </Grid>
-                            <Grid size={12}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Email
-                                </Typography>
-                                <Typography variant="body1">
-                                    {accountData?.email || "Not set"}
-                                </Typography>
-                            </Grid>
-                            <Grid size={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Phone
-                                </Typography>
-                                <Typography variant="body1">
-                                    {accountData?.phone_number || "Not set"}
-                                </Typography>
-                            </Grid>
-                            <Grid size={6}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Role
-                                </Typography>
-                                <Typography variant="body1">
-                                    {accountData?.role || "Not set"}
-                                </Typography>
-                            </Grid>
-                            <Grid size={12}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Organization
-                                    {isSystemAdmin && (
-                                        <Typography component="span" variant="caption" sx={{ ml: 1, color: 'primary.main' }}>
-                                            (System Admin View)
-                                        </Typography>
-                                    )}
-                                </Typography>
-                                <Typography variant="body1">
-                                    {selectedOrganization?.name || accountData?.organization_name || "Not set"}
-                                    {isSystemAdmin && selectedOrganization && (
-                                        <Chip
-                                            label={selectedOrganization.subscription_tier || "No plan"}
-                                            size="small"
-                                            color="secondary"
-                                            sx={{ ml: 1 }}
-                                        />
-                                    )}
-                                </Typography>
-                            </Grid>
-                        </Grid>
-                    </Box>
-
-                    {/* Payment Methods Section */}
-                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                            <CreditCard sx={{ mr: 1, verticalAlign: "middle" }} />
-                            Payment Methods
-                            {isSystemAdmin && selectedOrganization && (
-                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                                    - {selectedOrganization.name}
-                                </Typography>
-                            )}
-                        </Typography>
-
+                    <Section
+                        title="Payment methods"
+                        action={
+                            <Button size="small" variant="outlined" onClick={() => setAddPaymentOpen(true)}>
+                                + Add
+                            </Button>
+                        }
+                    >
                         {paymentMethods.length === 0 ? (
-                            <Box
-                                sx={{
-                                    p: 3,
-                                    backgroundColor: "#ffffff",
-                                    borderRadius: 1,
-                                    textAlign: "center",
-                                    mb: 2,
-                                }}
-                            >
-                                <Typography variant="body2" color="text.secondary">
-                                    No payment methods found. Add a payment method to manage your
-                                    subscription.
-                                </Typography>
-                            </Box>
+                            <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", py: 2 }}>
+                                No payment methods found. Add a payment method to manage your subscription.
+                            </Typography>
                         ) : (
                             paymentMethods.map((method) => (
                                 <Box
                                     key={method.id}
                                     sx={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "center",
-                                        p: 2,
-                                        backgroundColor: "#ffffff",
-                                        borderRadius: 1,
-                                        mb: 1,
+                                        display: "flex", alignItems: "center", gap: 1.25, minHeight: 44,
+                                        border: `1px solid ${BORDER}`, borderRadius: "8px", px: 1.5, mb: 0.75,
                                     }}
                                 >
-                                    <Box>
-                                        <Typography variant="body1">
+                                    <CreditCard fontSize="small" sx={{ color: "text.secondary" }} />
+                                    <Box sx={{ flex: 1, py: 0.5 }}>
+                                        <Typography variant="body2" sx={{ fontSize: 13.5 }}>
                                             {method.type} ending in {method.last4}
-                                        </Typography>
-                                        <Typography variant="body2" color="text.secondary">
-                                            Expires {method.expires}
                                             {method.isDefault && (
-                                                <Chip label="Default" size="small" sx={{ ml: 1 }} />
+                                                <Chip label="Default" size="small" color="success" variant="outlined" sx={{ ml: 1, height: 20 }} />
                                             )}
                                         </Typography>
+                                        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                            Expires {method.expires}
+                                        </Typography>
                                     </Box>
-                                    <Box sx={{ display: "flex", gap: 1 }}>
-                                        {!method.isDefault && (
-                                            <IconButton
-                                                onClick={() => handleSetDefaultPaymentMethod(method.id)}
-                                                color="primary"
-                                                title="Set as Default"
-                                            >
-                                                <CheckCircle />
-                                            </IconButton>
-                                        )}
-                                        <IconButton
-                                            onClick={() => handleDeletePaymentMethod(method.id)}
-                                            color="error"
-                                            title="Delete Payment Method"
-                                        >
-                                            <Delete />
-                                        </IconButton>
-                                    </Box>
+                                    <IconButton
+                                        size="small"
+                                        aria-label={`Actions for ${method.type} ending in ${method.last4}`}
+                                        onClick={(e) => setPayMenu({ anchor: e.currentTarget, method })}
+                                    >
+                                        <MoreVert fontSize="small" />
+                                    </IconButton>
                                 </Box>
                             ))
                         )}
+                    </Section>
 
-                        <Button
-                            variant="outlined"
-                            onClick={() => setAddPaymentOpen(true)}
-                            startIcon={<CreditCard />}
-                            fullWidth
-                            sx={{ mt: 2 }}
-                        >
-                            Add Payment Method
-                        </Button>
-                    </Box>
-
-                    {/* Billing History Section */}
-                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
-                        <Box
-                            sx={{
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                mb: 2,
-                            }}
-                        >
-                            <Typography variant="h6">
-                                <Email sx={{ mr: 1, verticalAlign: "middle" }} />
-                                Billing History
-                                {isSystemAdmin && selectedOrganization && (
-                                    <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                                        - {selectedOrganization.name}
-                                    </Typography>
-                                )}
-                            </Typography>
-                            <IconButton
-                                onClick={handlePrintBillingHistory}
-                                color="primary"
-                                title="Print Billing History"
-                            >
-                                <Print />
-                            </IconButton>
-                        </Box>
-
-                        <Box
-                            sx={{
-                                mt: 2,
-                                backgroundColor: "#ffffff",
-                                borderRadius: 1,
-                                overflow: "hidden",
-                            }}
-                        >
-                            <Table>
+                    <Section
+                        title="Billing history"
+                        action={
+                            <Button size="small" variant="outlined" startIcon={<Print fontSize="small" />} onClick={handlePrintBillingHistory}>
+                                Print
+                            </Button>
+                        }
+                    >
+                        <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: "8px", overflow: "hidden" }}>
+                            <Table size="small">
                                 <TableHead>
-                                    <TableRow>
-                                        <TableCell>Date</TableCell>
-                                        <TableCell>Description</TableCell>
-                                        <TableCell>Amount</TableCell>
-                                        <TableCell>Status</TableCell>
+                                    <TableRow sx={{ bgcolor: "#f3f5f9" }}>
+                                        <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
+                                        <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
                                     {billingHistory.length === 0 ? (
                                         <TableRow>
-                                            <TableCell
-                                                colSpan={4}
-                                                sx={{ textAlign: "center", py: 4 }}
-                                            >
+                                            <TableCell colSpan={4} sx={{ textAlign: "center", py: 2.5 }}>
                                                 <Typography variant="body2" color="text.secondary">
-                                                    No billing history found. Invoices will appear here
-                                                    after your first payment.
+                                                    No billing history found. Invoices will appear here after your first payment.
                                                 </Typography>
                                             </TableCell>
                                         </TableRow>
                                     ) : (
                                         billingHistory.map((invoice) => (
-                                            <TableRow key={invoice.id}>
+                                            <TableRow key={invoice.id} hover>
                                                 <TableCell>{invoice.date}</TableCell>
                                                 <TableCell>{invoice.description}</TableCell>
                                                 <TableCell>{invoice.amount}</TableCell>
                                                 <TableCell>
                                                     <Chip
                                                         label={invoice.status}
-                                                        color={
-                                                            invoice.status === "Paid" ? "success" : "error"
-                                                        }
+                                                        color={invoice.status === "Paid" ? "success" : "error"}
                                                         size="small"
+                                                        variant="outlined"
                                                     />
                                                 </TableCell>
                                             </TableRow>
@@ -1249,132 +1124,103 @@ function AccountPage() {
                                 </TableBody>
                             </Table>
                         </Box>
-                    </Box>
+                    </Section>
                 </Box>
 
-                {/* RIGHT PANE - Plans & Data Management */}
-                <Box
-                    sx={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 3,
-                        overflowY: "auto",
-                        maxHeight: "100%",
-                    }}
-                >
-                    {/* Current Plan Section */}
-                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                            <Business sx={{ mr: 1, verticalAlign: "middle" }} />
-                            Current Plan:{" "}
-                            {currentPlanData ? currentPlanData.label : `Loading... (${currentPlan || 'undefined'})`}
-                            {isSystemAdmin && selectedOrganization && (
-                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                                    - {selectedOrganization.name}
-                                </Typography>
-                            )}
-                        </Typography>
-
-                        {currentPlanData && (
+                {/* RIGHT: plan, data, danger zone (plan first on phones) */}
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, order: { xs: -1, md: 0 } }}>
+                    <Section title="Current plan">
+                        {currentPlanData ? (
                             <Box>
-                                <Typography variant="h5" color="primary" gutterBottom>
-                                    {currentPlanData.label}
-                                </Typography>
-                                <Typography variant="h6" color="text.secondary" gutterBottom>
-                                    {currentPlanData.price}
-                                </Typography>
-                                <Box sx={{ mt: 2, mb: 2 }}>
-                                    {currentPlanData.features.map((feature, index) => (
-                                        <Chip
-                                            key={index}
-                                            label={feature}
-                                            size="small"
-                                            sx={{ mr: 1, mb: 1 }}
-                                        />
+                                <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                                    <Typography sx={{ fontSize: 22, fontWeight: 600, color: "primary.main" }}>
+                                        {currentPlanData.label}
+                                    </Typography>
+                                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                                        {currentPlanData.price}
+                                    </Typography>
+                                </Box>
+                                <Box sx={{ my: 1.25 }}>
+                                    {currentPlanData.features.map((feature) => (
+                                        <Typography key={feature} variant="body2" sx={{ display: "flex", gap: 1, mb: 0.5 }}>
+                                            <Box component="span" sx={{ color: "success.main" }}>&#10003;</Box>
+                                            {feature}
+                                        </Typography>
                                     ))}
                                 </Box>
                             </Box>
+                        ) : (
+                            <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.25 }}>
+                                {`Loading... (${currentPlan || "undefined"})`}
+                            </Typography>
                         )}
+                        <Button variant="outlined" fullWidth onClick={() => setChangePlanOpen(true)}>
+                            Change plan
+                        </Button>
+                    </Section>
 
+                    <Section title="Your data">
+                        <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+                            Download all your organization's data as JSON and/or CSV.
+                        </Typography>
                         <Button
                             variant="outlined"
-                            onClick={() => setChangePlanOpen(true)}
-                            startIcon={<Edit />}
                             fullWidth
+                            startIcon={<CloudDownload fontSize="small" />}
+                            onClick={() => setExportDialogOpen(true)}
                         >
-                            Change Plan
+                            Export organization data
                         </Button>
-                    </Box>
+                    </Section>
 
-                    {/* Cancellation Notice Section */}
-                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
-                        <Typography variant="h6" gutterBottom color="error">
-                            <Warning sx={{ mr: 1, verticalAlign: "middle" }} />
-                            Cancellation Notice
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            Cancelling your account is permanent and cannot be undone. Please
-                            ensure you have saved any important data before proceeding.
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            color="error"
-                            onClick={() => setCancelAccountOpen(true)}
-                            startIcon={<Cancel />}
-                        >
-                            Cancel Account
-                        </Button>
-                    </Box>
-
-                    {/* Data Management Section */}
-                    <Box sx={{ backgroundColor: "#f8fafc", p: 3, borderRadius: 2 }}>
-                        <Typography variant="h6" gutterBottom>
-                            <Storage sx={{ mr: 1, verticalAlign: "middle" }} />
-                            Data Management
-                            {isSystemAdmin && selectedOrganization && (
-                                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                                    - {selectedOrganization.name}
+                    <Section title="Danger zone" sx={{ borderColor: "#f0b8b4" }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pb: 1, borderBottom: "1px solid #f3d6d4" }}>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>Cancel account</Typography>
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                    Suspends access. Cannot be undone.
                                 </Typography>
-                            )}
-                        </Typography>
-
-                        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                            <Button
-                                variant="outlined"
-                                onClick={() => setExportDialogOpen(true)}
-                                startIcon={<CloudDownload />}
-                                fullWidth
-                                color="primary"
-                            >
-                                Export Organization Data
-                            </Button>
-
-                            <Button
-                                variant="outlined"
-                                onClick={() => setDeleteDialogOpen(true)}
-                                startIcon={<DeleteForever />}
-                                fullWidth
-                                color="error"
-                                sx={{ mt: 1 }}
-                            >
-                                Delete Organization
+                            </Box>
+                            <Button size="small" variant="outlined" color="error" sx={{ width: 150 }} onClick={() => setCancelAccountOpen(true)}>
+                                Cancel account
                             </Button>
                         </Box>
-
-                        <Box
-                            sx={{ mt: 2, p: 2, backgroundColor: "#fef3c7", borderRadius: 1 }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                <strong>Data Export:</strong> Download all your organization's
-                                data in JSON and/or CSV format.
-                                <br />
-                                <strong>Delete Organization:</strong> Permanently delete your
-                                organization and all associated data.
-                            </Typography>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pt: 1 }}>
+                            <Box sx={{ flex: 1 }}>
+                                <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>Delete organization</Typography>
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                    Permanently deletes all data.
+                                </Typography>
+                            </Box>
+                            <Button size="small" variant="outlined" color="error" sx={{ width: 150 }} onClick={() => setDeleteDialogOpen(true)}>
+                                Delete organization
+                            </Button>
                         </Box>
-                    </Box>
+                    </Section>
                 </Box>
             </Box>
+
+            <Menu anchorEl={payMenu.anchor} open={Boolean(payMenu.anchor)} onClose={() => setPayMenu({ anchor: null, method: null })}>
+                {payMenu.method && !payMenu.method.isDefault && (
+                    <MenuItem
+                        onClick={() => {
+                            handleSetDefaultPaymentMethod(payMenu.method.id);
+                            setPayMenu({ anchor: null, method: null });
+                        }}
+                    >
+                        Set as default
+                    </MenuItem>
+                )}
+                <MenuItem
+                    sx={{ color: "error.main" }}
+                    onClick={() => {
+                        handleDeletePaymentMethod(payMenu.method.id);
+                        setPayMenu({ anchor: null, method: null });
+                    }}
+                >
+                    Delete
+                </MenuItem>
+            </Menu>
 
             {/* Edit Account Dialog */}
             <Dialog
@@ -1453,48 +1299,51 @@ function AccountPage() {
                 maxWidth="md"
                 fullWidth
             >
-                <DialogTitle>Change Subscription Plan</DialogTitle>
+                <DialogTitle>Change plan</DialogTitle>
                 <DialogContent>
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                        {planOptions.map((plan) => (
-                            <Grid size={{ xs: 12, md: 4 }} key={plan.value}>
+                    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, 1fr)" }, gap: 1.25, mt: 0.5 }}>
+                        {planOptions.map((plan) => {
+                            const picked = selectedPlan === plan.value;
+                            return (
                                 <Box
+                                    key={plan.value}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-pressed={picked}
+                                    onClick={() => setSelectedPlan(plan.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            setSelectedPlan(plan.value);
+                                        }
+                                    }}
                                     sx={{
                                         cursor: "pointer",
-                                        border:
-                                            selectedPlan === plan.value
-                                                ? "2px solid #2563eb"
-                                                : "1px solid #e2e8f0",
-                                        borderRadius: 2,
-                                        p: 3,
+                                        border: picked ? "2px solid #1d4ed8" : `1px solid ${BORDER}`,
+                                        bgcolor: picked ? "#f5f9ff" : "#fff",
+                                        borderRadius: "10px",
+                                        p: picked ? "11px 13px" : "12px 14px",
                                     }}
-                                    onClick={() => setSelectedPlan(plan.value)}
                                 >
-                                    <Typography variant="h6" gutterBottom>
-                                        {plan.label}
-                                    </Typography>
-                                    <Typography variant="h5" color="primary" gutterBottom>
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                                        <Typography sx={{ fontSize: 15, fontWeight: 600 }}>{plan.label}</Typography>
+                                        {currentPlan === plan.value && (
+                                            <Chip label="Current" color="primary" size="small" variant="outlined" sx={{ height: 20 }} />
+                                        )}
+                                    </Box>
+                                    <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
                                         {plan.price}
                                     </Typography>
-                                    <Box>
-                                        {plan.features.map((feature, index) => (
-                                            <Typography key={index} variant="body2" sx={{ mb: 0.5 }}>
-                                                • {feature}
-                                            </Typography>
-                                        ))}
-                                    </Box>
-                                    {currentPlan === plan.value && (
-                                        <Chip
-                                            label="Current Plan"
-                                            color="primary"
-                                            size="small"
-                                            sx={{ mt: 1 }}
-                                        />
-                                    )}
+                                    {plan.features.map((feature) => (
+                                        <Typography key={feature} variant="body2" sx={{ fontSize: 12.5, mb: 0.4 }}>
+                                            <Box component="span" sx={{ color: "success.main", mr: 0.75 }}>&#10003;</Box>
+                                            {feature}
+                                        </Typography>
+                                    ))}
                                 </Box>
-                            </Grid>
-                        ))}
-                    </Grid>
+                            );
+                        })}
+                    </Box>
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setChangePlanOpen(false)}>Cancel</Button>
@@ -1503,7 +1352,7 @@ function AccountPage() {
                         variant="contained"
                         disabled={!selectedPlan || selectedPlan === currentPlan}
                     >
-                        Change Plan
+                        {selectedPlan && selectedPlan !== currentPlan ? `Switch to ${planLabel(selectedPlan)}` : "Change plan"}
                     </Button>
                 </DialogActions>
             </Dialog>
