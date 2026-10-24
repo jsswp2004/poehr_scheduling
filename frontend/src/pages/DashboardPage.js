@@ -14,28 +14,42 @@ import {
   Button,
   TextField,
   IconButton,
-  Tooltip,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tabs,
   Tab,
-  FormControl,
-  InputLabel,
-  Select as MUISelect,
   MenuItem,
   Alert,
-  Checkbox,
-  FormControlLabel,
   Chip,
-  Grid,
+  Menu,
+  Switch,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+
+const BORDER = "#dfe4ec";
+
+function Section({ title, action, children }) {
+  return (
+    <Box sx={{ bgcolor: "#fff", border: `1px solid ${BORDER}`, borderRadius: "10px", p: "14px 16px" }}>
+      {(title || action) && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
+          <Typography component="h2" sx={{ fontSize: 14.5, fontWeight: 600, flex: 1 }}>
+            {title}
+          </Typography>
+          {action}
+        </Box>
+      )}
+      {children}
+    </Box>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Typography sx={{ fontSize: 11.5, color: "text.secondary" }}>{label}</Typography>
+      <Typography sx={{ fontSize: 13.5, wordBreak: "break-word" }}>{value || "Not set"}</Typography>
+    </Box>
+  );
+}
 
 function toLocalDatetimeString(dateObj) {
   const local = new Date(dateObj);
@@ -108,6 +122,7 @@ function DashboardPage() {
 
   // Password Change State
   const [passwordEditing, setPasswordEditing] = useState(false);
+  const [apptMenu, setApptMenu] = useState({ anchor: null, appt: null });
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -685,787 +700,516 @@ function DashboardPage() {
       (a, b) =>
         new Date(a.appointment_datetime) - new Date(b.appointment_datetime)
     );
-  return (
-    <Box sx={{ mt: 0, p: 1.5, maxWidth: "100%", mx: "auto" }}>
-      {" "}
-      <Stack direction="row" spacing={1.5} sx={{ height: "100vh" }}>
-        {/* Left Pane - Patient Portal (70%) */}
-        <Box
-          sx={{
-            flex: "0 0 70%",
-            borderRadius: 2,
-            bgcolor: "background.paper",
-            p: 1.5,
-            overflow: "auto",
-          }}
-        >
-          <Typography variant="h5" sx={{ mb: 0 }}>
-            Patient Portal
-          </Typography>
-          <Tabs
-            value={tab}
-            onChange={(_, val) => setTab(val)}
-            aria-label="dashboard-tabs"
-            sx={{ mb: 1 }}
-          >
-            <Tab value="myinfo" label="My Information" />
-            <Tab value="manage" label="Manage Appointments" />
-            <Tab value="message" label="Message my Provider" />
-            {currentUser?.role !== "patient" && (
-              <Tab value="calendar" label="Calendar" />
-            )}
-          </Tabs>
-          {tab === "myinfo" && (
-            <Box>
-              {userInfoLoading ? (
-                <Typography>Loading user information...</Typography>
-              ) : currentUser ? (
-                <Stack spacing={1.5}>
-                  <Typography variant="h6">My Information</Typography>
+  // Group the doctor's open times by day so the picker reads as days and times
+  const slotGroups = (() => {
+    const groups = new Map();
+    availableSlots.forEach((slot) => {
+      const d = new Date(slot);
+      const key = toLocalDateString(d);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          key,
+          label: d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+          slots: [],
+        });
+      }
+      groups.get(key).slots.push(slot);
+    });
+    return [...groups.values()];
+  })();
 
-                  {/* User Details Section */}
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                      Profile Information
-                    </Typography>
-                    <Grid container spacing={1.5}>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          label="First Name"
-                          value={currentUser.first_name || ""}
-                          fullWidth
-                          disabled
-                          variant="outlined"
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          label="Last Name"
-                          value={currentUser.last_name || ""}
-                          fullWidth
-                          disabled
-                          variant="outlined"
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          label="Email"
-                          value={currentUser.email || ""}
-                          fullWidth
-                          disabled
-                          variant="outlined"
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <TextField
-                          label="Role"
-                          value={currentUser.role || ""}
-                          fullWidth
-                          disabled
-                          variant="outlined"
-                        />
-                      </Grid>
-                      <Grid size={{ xs: 12, sm: 6 }}>
-                        <Box>
-                          <TextField
-                            label="Phone Number"
-                            value={
-                              phoneEditing
-                                ? tempPhoneNumber
-                                : currentUser.phone_number || ""
-                            }
-                            onChange={(e) => setTempPhoneNumber(e.target.value)}
-                            fullWidth
-                            disabled={!phoneEditing}
-                            variant="outlined"
-                            helperText={
-                              phoneEditing ? "Enter your phone number" : ""
-                            }
-                          />
-                          <Box sx={{ mt: 1 }}>
-                            {phoneEditing ? (
-                              <Stack direction="row" spacing={1}>
-                                <Button
-                                  size="small"
-                                  variant="contained"
-                                  onClick={handlePhoneNumberSave}
-                                  disabled={!tempPhoneNumber.trim()}
-                                >
-                                  Save
-                                </Button>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  onClick={() => {
-                                    setTempPhoneNumber(
-                                      currentUser.phone_number || ""
-                                    );
-                                    setPhoneEditing(false);
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                              </Stack>
-                            ) : (
-                              <Button
-                                size="small"
-                                startIcon={<EditIcon />}
-                                onClick={() => setPhoneEditing(true)}
-                              >
-                                Edit Phone
-                              </Button>
-                            )}
-                          </Box>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Paper>
+  const statusLabel = (s) =>
+    s === "pending" ? "Pending" : s === "cancelled" ? "Cancelled" : s === "completed" ? "Completed" : "Scheduled";
+  const statusColor = (s) =>
+    s === "pending" ? "warning" : s === "cancelled" ? "default" : s === "completed" ? "success" : "info";
+  const doctorName = (id) => {
+    const d = doctors.find((x) => x.id === id);
+    return d ? `Dr. ${d.first_name} ${d.last_name}` : "";
+  };
+  const fieldSx = { "& .MuiOutlinedInput-root": { borderRadius: "6px" } };
+  const smsEditable = smsConsentEditing || phoneEditing;
 
-                  {/* SMS Consent Section for Patients */}
-                  {currentUser.role === "patient" && (
-                    <Paper sx={{ p: 2 }}>
-                      <Typography variant="h6" sx={{ mb: 1 }}>
-                        Communication Preferences
-                      </Typography>
-
-                      <Box>
-                        <FormControlLabel
-                          control={
-                            <Checkbox
-                              checked={
-                                smsConsentEditing
-                                  ? tempSmsConsent
-                                  : currentUser.sms_consent || false
-                              }
-                              onChange={handleSmsConsentChange}
-                              disabled={!smsConsentEditing && !phoneEditing}
-                            />
-                          }
-                          label={
-                            <Box>
-                              <Typography variant="body2">
-                                By providing your phone number and checking this
-                                box, you consent to receive automated
-                                appointment reminders and health alerts via SMS
-                                from POWER Healthcare IT Systems. Message
-                                frequency varies. Message and data rates may
-                                apply. Reply STOP to opt out or HELP for
-                                support. Your information will not be shared
-                                with third parties for marketing. See our{" "}
-                                <a 
-                                  href="https://powerhealthcareit.com/terms" 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  style={{ color: '#2563eb', textDecoration: 'underline' }}
-                                >
-                                  Privacy Policy and Terms
-                                </a>.
-                              </Typography>
-                            </Box>
-                          }
-                        />
-
-                        {currentUser.sms_consent &&
-                          currentUser.sms_consent_date && (
-                            <Chip
-                              label={`Consented on ${new Date(
-                                currentUser.sms_consent_date
-                              ).toLocaleDateString()}`}
-                              size="small"
-                              color="success"
-                              sx={{ mt: 1, ml: 4 }}
-                            />
-                          )}
-
-                        <Box sx={{ mt: 1 }}>
-                          {smsConsentEditing || phoneEditing ? (
-                            <Stack direction="row" spacing={1}>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={handleSmsConsentSave}
-                                disabled={
-                                  tempSmsConsent && !tempPhoneNumber.trim()
-                                }
-                              >
-                                Save Preferences
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={() => {
-                                  setTempSmsConsent(
-                                    currentUser.sms_consent || false
-                                  );
-                                  setTempPhoneNumber(
-                                    currentUser.phone_number || ""
-                                  );
-                                  setSmsConsentEditing(false);
-                                  setPhoneEditing(false);
-                                }}
-                              >
-                                Cancel
-                              </Button>
-                            </Stack>
-                          ) : (
-                            <Button
-                              size="small"
-                              startIcon={<EditIcon />}
-                              onClick={() => setSmsConsentEditing(true)}
-                            >
-                              Update Preferences
-                            </Button>
-                          )}
-                        </Box>
-
-                        {tempSmsConsent && !tempPhoneNumber.trim() && (
-                          <Alert severity="warning" sx={{ mt: 1 }}>
-                            A phone number is required to receive SMS
-                            notifications.
-                          </Alert>
-                        )}
-                      </Box>
-                    </Paper>
-                  )}
-
-                  {/* Change Password Section */}
-                  <Paper sx={{ p: 2 }}>
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                      Change Password
-                    </Typography>
-
-                    <Box>
-                      {passwordEditing ? (
-                        <Stack spacing={1.5}>
-                          <TextField
-                            fullWidth
-                            type="password"
-                            label="Current Password"
-                            value={passwordForm.currentPassword}
-                            onChange={(e) =>
-                              setPasswordForm({
-                                ...passwordForm,
-                                currentPassword: e.target.value,
-                              })
-                            }
-                            required
-                          />
-                          <TextField
-                            fullWidth
-                            type="password"
-                            label="New Password"
-                            value={passwordForm.newPassword}
-                            onChange={(e) =>
-                              setPasswordForm({
-                                ...passwordForm,
-                                newPassword: e.target.value,
-                              })
-                            }
-                            helperText="Password must be at least 8 characters long"
-                            required
-                          />
-                          <TextField
-                            fullWidth
-                            type="password"
-                            label="Confirm New Password"
-                            value={passwordForm.confirmPassword}
-                            onChange={(e) =>
-                              setPasswordForm({
-                                ...passwordForm,
-                                confirmPassword: e.target.value,
-                              })
-                            }
-                            error={
-                              passwordForm.confirmPassword &&
-                              passwordForm.newPassword !==
-                                passwordForm.confirmPassword
-                            }
-                            helperText={
-                              passwordForm.confirmPassword &&
-                              passwordForm.newPassword !==
-                                passwordForm.confirmPassword
-                                ? "Passwords do not match"
-                                : ""
-                            }
-                            required
-                          />
-                          <Stack direction="row" spacing={1}>
-                            <Button
-                              variant="contained"
-                              onClick={handlePasswordChange}
-                              disabled={
-                                !passwordForm.currentPassword ||
-                                !passwordForm.newPassword ||
-                                !passwordForm.confirmPassword ||
-                                passwordForm.newPassword !==
-                                  passwordForm.confirmPassword ||
-                                passwordForm.newPassword.length < 8
-                              }
-                            >
-                              Change Password
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              onClick={() => {
-                                setPasswordForm({
-                                  currentPassword: "",
-                                  newPassword: "",
-                                  confirmPassword: "",
-                                });
-                                setPasswordEditing(false);
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                          </Stack>
-                        </Stack>
-                      ) : (
-                        <Box>
-                          <Typography variant="body2" sx={{ mb: 1 }}>
-                            Update your account password for enhanced security
-                          </Typography>
-                          <Button
-                            variant="outlined"
-                            startIcon={<EditIcon />}
-                            onClick={() => setPasswordEditing(true)}
-                          >
-                            Change Password
-                          </Button>
-                        </Box>
-                      )}
-                    </Box>
-                  </Paper>
-                </Stack>
-              ) : (
-                <Alert severity="error">Failed to load user information</Alert>
-              )}
-            </Box>
-          )}
-          {tab === "manage" && (
-            <Box>
-              <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
-                <Box sx={{ flex: 1, minWidth: 350 }}>
-                  <form onSubmit={handleSubmit}>
-                    <Typography variant="h6" sx={{ mb: 1 }}>
-                      {editMode ? "Edit Appointment" : "Request an Appointment"}
-                    </Typography>
-                    <Stack spacing={1.5}>
-                      <TextField
-                        label="Title"
-                        name="title"
-                        value={formData.title}
-                        onChange={handleChange}
-                        fullWidth
-                        required
-                      />
-                      <TextField
-                        label="Description"
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        multiline
-                        rows={2}
-                        fullWidth
-                      />
-                      <TextField
-                        label="Date & Time"
-                        name="appointment_datetime"
-                        type="datetime-local"
-                        value={formData.appointment_datetime}
-                        onChange={handleChange}
-                        InputLabelProps={{ shrink: true }}
-                        fullWidth
-                        required
-                      />
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                          Select Doctor
-                        </Typography>
-                        <Select
-                          options={doctors.map((doc) => ({
-                            value: doc.id,
-                            label: `Dr. ${doc.first_name} ${doc.last_name}`,
-                          }))}
-                          value={selectedDoctor}
-                          onChange={(selected) => {
-                            setSelectedDoctor(selected);
-                            fetchAvailableSlots(selected?.value);
-                          }}
-                          placeholder="Search or select doctor..."
-                          isClearable
-                        />
-                      </Box>
-                      <Stack direction="row" spacing={1.5}>
-                        <Button
-                          type="submit"
-                          variant="contained"
-                          color="primary"
-                          fullWidth
-                        >
-                          {editMode
-                            ? "Update Appointment"
-                            : "Request Appointment"}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          color="secondary"
-                          fullWidth
-                          onClick={() => {
-                            setFormData({
-                              title: "",
-                              description: "",
-                              appointment_datetime: "",
-                              duration_minutes: 30,
-                              recurrence: "none",
-                              recurrence_end_date: "",
-                              provider: null,
-                            });
-                            setSelectedDoctor(null);
-                            setEditingId(null);
-                            setEditMode(false);
-                            setSelectedSlot(null);
-                          }}
-                        >
-                          Clear Form
-                        </Button>
-                      </Stack>
-                    </Stack>
-                  </form>
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                      Available Dates for{" "}
-                      {selectedDoctor?.label || "Selected Doctor"}
-                    </Typography>
-                    <Paper
-                      variant="outlined"
-                      sx={{ maxHeight: 200, overflow: "auto", p: 1 }}
-                    >
-                      {availableSlots.length > 0 ? (
-                        availableSlots.map((slot, idx) => {
-                          const formattedSlot = toLocalDatetimeString(slot);
-                          return (
-                            <Button
-                              key={idx}
-                              variant={
-                                selectedSlot === formattedSlot
-                                  ? "contained"
-                                  : "outlined"
-                              }
-                              sx={{ m: 0.5 }}
-                              size="small"
-                              onClick={() => {
-                                setSelectedSlot(formattedSlot);
-                                setFormData((prev) => ({
-                                  ...prev,
-                                  appointment_datetime: formattedSlot,
-                                }));
-                              }}
-                            >
-                              {new Date(slot).toLocaleString()}
-                            </Button>
-                          );
-                        })
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          No available slots
-                        </Typography>
-                      )}
-                    </Paper>
-                  </Box>
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ mb: 1 }}>
-                    Your Appointments
-                  </Typography>
-                  <TableContainer component={Paper} sx={{ maxHeight: 350 }}>
-                    <Table size="small" stickyHeader>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Visit</TableCell>
-                          <TableCell>Date & Time</TableCell>
-                          <TableCell>Status</TableCell>
-                          <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {filteredAppointments.map((a) => (
-                          <TableRow key={a.id}>
-                            <TableCell>{a.title || "Untitled"}</TableCell>
-                            <TableCell>
-                              {a.appointment_datetime
-                                ? new Date(
-                                    a.appointment_datetime
-                                  ).toLocaleString()
-                                : "Unknown"}
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                size="small"
-                                label={
-                                  a.status === "pending"
-                                    ? "Pending"
-                                    : a.status === "cancelled"
-                                    ? "Cancelled"
-                                    : a.status === "completed"
-                                    ? "Completed"
-                                    : "Scheduled"
-                                }
-                                color={
-                                  a.status === "pending"
-                                    ? "warning"
-                                    : a.status === "cancelled"
-                                    ? "default"
-                                    : a.status === "completed"
-                                    ? "success"
-                                    : "info"
-                                }
-                              />
-                            </TableCell>
-                            <TableCell align="right">
-                              <Tooltip title="Edit appointment">
-                                <IconButton
-                                  size="small"
-                                  color="warning"
-                                  onClick={() => handleEditClick(a)}
-                                  sx={{ mr: 1 }}
-                                >
-                                  <EditIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                              <Tooltip title="Delete appointment">
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => handleDelete(a.id)}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </Tooltip>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              </Stack>
-            </Box>
-          )}
-          {tab === "message" && (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 1.5,
-                maxHeight: "70vh",
-                overflow: "hidden",
-              }}
-            >
-              {/* Left Pane - Email */}
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "70vh",
-                  overflow: "hidden",
+  const myInfoTab = userInfoLoading ? (
+    <Typography>Loading user information...</Typography>
+  ) : currentUser ? (
+    <Stack spacing={1.5}>
+      <Section title="Your details">
+        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: "10px 16px" }}>
+          <Field label="First name" value={currentUser.first_name} />
+          <Field label="Last name" value={currentUser.last_name} />
+          <Field label="Email" value={currentUser.email} />
+          <Field label="Role" value={currentUser.role} />
+        </Box>
+        <Box sx={{ mt: 1.5 }}>
+          {phoneEditing ? (
+            <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <TextField
+                label="Phone number"
+                size="small"
+                value={tempPhoneNumber}
+                onChange={(e) => setTempPhoneNumber(e.target.value)}
+                helperText="Enter your phone number"
+                sx={{ ...fieldSx, minWidth: 240 }}
+              />
+              <Button size="small" variant="contained" onClick={handlePhoneNumberSave} disabled={!tempPhoneNumber.trim()}>
+                Save
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  setTempPhoneNumber(currentUser.phone_number || "");
+                  setPhoneEditing(false);
                 }}
               >
-                <Typography
-                  variant="h6"
-                  sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
+                Cancel
+              </Button>
+            </Box>
+          ) : (
+            <Box sx={{ display: "flex", alignItems: "flex-end", gap: 1.5 }}>
+              <Box sx={{ flex: 1 }}>
+                <Field label="Phone number" value={currentUser.phone_number} />
+              </Box>
+              <Button size="small" variant="outlined" onClick={() => setPhoneEditing(true)}>
+                Edit phone
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </Section>
+
+      {currentUser.role === "patient" && (
+        <Section title="Text message reminders">
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+            <Switch
+              inputProps={{ "aria-label": "Text message reminders" }}
+              checked={smsConsentEditing ? tempSmsConsent : currentUser.sms_consent || false}
+              onChange={handleSmsConsentChange}
+              disabled={!smsEditable}
+            />
+            <Box sx={{ flex: 1 }}>
+              <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>
+                Appointment reminders and health alerts by SMS
+              </Typography>
+              <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12, lineHeight: 1.5, mt: 0.5 }}>
+                By providing your phone number and checking this box, you consent to receive automated
+                appointment reminders and health alerts via SMS from POWER Healthcare IT Systems. Message
+                frequency varies. Message and data rates may apply. Reply STOP to opt out or HELP for
+                support. Your information will not be shared with third parties for marketing. See our{" "}
+                <a
+                  href="https://powerhealthcareit.com/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "#2563eb", textDecoration: "underline" }}
                 >
-                  📧 Email
-                </Typography>
-                {messageSent && (
-                  <Alert severity="success" sx={{ mb: 1 }}>
-                    Your email has been sent successfully. Your provider will
-                    respond to you as soon as possible.
-                  </Alert>
-                )}
-                <Stack spacing={1.5} sx={{ flex: 1, overflow: "auto" }}>
-                  <TextField
-                    label="From"
-                    value={emailForm.from}
-                    fullWidth
-                    size="small"
-                    disabled
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                    helperText="Your email address or name"
-                  />
-                  <TextField
-                    label="To"
-                    value={emailForm.to}
-                    onChange={handleEmailChange("to")}
-                    fullWidth
-                    size="small"
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                  />
-                  <TextField
-                    label="Cc"
-                    value={emailForm.cc}
-                    onChange={handleEmailChange("cc")}
-                    fullWidth
-                    size="small"
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                  />
-                  <TextField
-                    label="Subject"
-                    value={emailForm.subject}
-                    onChange={handleEmailChange("subject")}
-                    fullWidth
-                    size="small"
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                  />{" "}
-                  <TextField
-                    label="Message"
-                    multiline
-                    rows={6}
-                    value={emailForm.message}
-                    onChange={handleEmailChange("message")}
-                    fullWidth
-                    sx={{
-                      "& .MuiOutlinedInput-root": { borderRadius: 2 },
-                    }}
-                  />
-                  <Box>
+                  Privacy Policy and Terms
+                </a>
+                .
+              </Typography>
+              {currentUser.sms_consent && currentUser.sms_consent_date && (
+                <Chip
+                  label={`Consented on ${new Date(currentUser.sms_consent_date).toLocaleDateString()}`}
+                  size="small"
+                  color="success"
+                  variant="outlined"
+                  sx={{ mt: 1 }}
+                />
+              )}
+              <Box sx={{ mt: 1 }}>
+                {smsEditable ? (
+                  <Stack direction="row" spacing={1}>
                     <Button
+                      size="small"
+                      variant="contained"
+                      onClick={handleSmsConsentSave}
+                      disabled={tempSmsConsent && !tempPhoneNumber.trim()}
+                    >
+                      Save Preferences
+                    </Button>
+                    <Button
+                      size="small"
                       variant="outlined"
-                      component="label"
-                      sx={{
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: 600,
-                        mb: 1,
+                      onClick={() => {
+                        setTempSmsConsent(currentUser.sms_consent || false);
+                        setTempPhoneNumber(currentUser.phone_number || "");
+                        setSmsConsentEditing(false);
+                        setPhoneEditing(false);
                       }}
                     >
-                      📎 Attach Files
-                      <input
-                        type="file"
-                        multiple
-                        hidden
-                        onChange={handleAttachmentChange}
-                      />
+                      Cancel
                     </Button>
-                    {emailForm.attachments.map((f, idx) => (
-                      <Typography
-                        key={idx}
-                        variant="caption"
-                        sx={{ ml: 1, display: "block" }}
-                      >
-                        {f.name}
-                      </Typography>
-                    ))}
-                  </Box>
-                </Stack>
-                <Button
-                  variant="contained"
-                  onClick={handleSendMessage}
-                  fullWidth
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 600,
-                    py: 1.5,
-                    mt: 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  Send Email
-                </Button>
-              </Box>{" "}
-              {/* Right Pane - SMS */}
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "70vh",
-                  overflow: "hidden",
+                  </Stack>
+                ) : (
+                  <Button size="small" variant="outlined" onClick={() => setSmsConsentEditing(true)}>
+                    Update Preferences
+                  </Button>
+                )}
+              </Box>
+              {tempSmsConsent && !tempPhoneNumber.trim() && (
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                  A phone number is required to receive SMS notifications.
+                </Alert>
+              )}
+            </Box>
+          </Box>
+        </Section>
+      )}
+
+      <Section
+        title="Password"
+        action={
+          !passwordEditing && (
+            <Button size="small" variant="outlined" onClick={() => setPasswordEditing(true)}>
+              Change Password
+            </Button>
+          )
+        }
+      >
+        {passwordEditing ? (
+          <Stack spacing={1.5}>
+            <TextField
+              fullWidth
+              size="small"
+              type="password"
+              label="Current Password"
+              value={passwordForm.currentPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+              required
+              sx={fieldSx}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              type="password"
+              label="New Password"
+              value={passwordForm.newPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+              helperText="Password must be at least 8 characters long"
+              required
+              sx={fieldSx}
+            />
+            <TextField
+              fullWidth
+              size="small"
+              type="password"
+              label="Confirm New Password"
+              value={passwordForm.confirmPassword}
+              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+              error={!!passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword}
+              helperText={
+                passwordForm.confirmPassword && passwordForm.newPassword !== passwordForm.confirmPassword
+                  ? "Passwords do not match"
+                  : ""
+              }
+              required
+              sx={fieldSx}
+            />
+            <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                  setPasswordEditing(false);
                 }}
               >
-                <Typography
-                  variant="h6"
-                  sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
-                >
-                  💬 Text Message
-                </Typography>
-                {smsSent && (
-                  <Alert severity="success" sx={{ mb: 1 }}>
-                    Your text message has been sent successfully. Your provider
-                    will respond to you as soon as possible.
-                  </Alert>
-                )}
-                <Stack spacing={2.5} sx={{ flex: 1, overflow: "auto" }}>
-                  <TextField
-                    label="Admin/Provider Phone Number"
-                    value={smsForm.phone}
-                    onChange={handleSMSChange("phone")}
-                    fullWidth
-                    size="small"
-                    placeholder="+1234567890"
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                    helperText="Organization admin or provider phone number"
-                  />{" "}
-                  <TextField
-                    label="Message"
-                    multiline
-                    rows={5}
-                    value={smsForm.message}
-                    onChange={handleSMSChange("message")}
-                    fullWidth
-                    sx={{
-                      flex: 1,
-                      "& .MuiOutlinedInput-root": { borderRadius: 2 },
-                    }}
-                    helperText="Your message will be prefixed with your name automatically"
-                  />
-                </Stack>
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={handleSendSMS}
-                  fullWidth
-                  sx={{
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 600,
-                    py: 1.5,
-                    mt: 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  Send Text Message
-                </Button>
-              </Box>
-            </Box>
-          )}
-          {tab === "calendar" && currentUser?.role !== "patient" && (
-            <Box sx={{ mt: 1 }}>
-              <CalendarView
-                onUpdate={() => setRefreshFlag((prev) => !prev)}
-                showBackButton={currentUser?.role !== "patient"}
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handlePasswordChange}
+                disabled={
+                  !passwordForm.currentPassword ||
+                  !passwordForm.newPassword ||
+                  !passwordForm.confirmPassword ||
+                  passwordForm.newPassword !== passwordForm.confirmPassword ||
+                  passwordForm.newPassword.length < 8
+                }
+              >
+                Update password
+              </Button>
+            </Stack>
+          </Stack>
+        ) : (
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            Update your account password for enhanced security
+          </Typography>
+        )}
+      </Section>
+    </Stack>
+  ) : (
+    <Alert severity="error">Failed to load user information</Alert>
+  );
+
+  const manageTab = (
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 1.5, alignItems: "start" }}>
+      <Section title={editMode ? "Edit appointment" : "Request an appointment"}>
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={1.75} sx={{ pt: 0.5 }}>
+            <TextField label="Title" name="title" value={formData.title} onChange={handleChange} fullWidth required size="small" sx={fieldSx} />
+            <TextField label="Description" name="description" value={formData.description} onChange={handleChange} multiline rows={2} fullWidth size="small" sx={fieldSx} />
+            <Box>
+              <Typography sx={{ fontSize: 12, color: "text.secondary", mb: 0.5 }}>Select Doctor</Typography>
+              <Select
+                options={doctors.map((doc) => ({ value: doc.id, label: `Dr. ${doc.first_name} ${doc.last_name}` }))}
+                value={selectedDoctor}
+                onChange={(selected) => {
+                  setSelectedDoctor(selected);
+                  fetchAvailableSlots(selected?.value);
+                }}
+                placeholder="Search or select doctor..."
+                isClearable
               />
             </Box>
-          )}{" "}
-        </Box>{" "}
-        {/* Right Pane - Announcements (30%) */}
-        <Box
-          sx={{
-            flex: "0 0 30%",
-            borderRadius: 2,
-            bgcolor: "background.paper",
-            p: 1.5,
-            overflow: "auto",
+            {selectedDoctor && (
+              <Box>
+                <Typography sx={{ fontSize: 12, color: "text.secondary", mb: 0.75 }}>
+                  Available times for {selectedDoctor.label}
+                </Typography>
+                {slotGroups.length > 0 ? (
+                  slotGroups.map((g) => (
+                    <Box key={g.key} sx={{ mb: 0.75 }}>
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, mb: 0.5 }}>{g.label}</Typography>
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                        {g.slots.map((slot) => {
+                          const formatted = toLocalDatetimeString(slot);
+                          const picked = selectedSlot === formatted;
+                          return (
+                            <Chip
+                              key={formatted}
+                              label={new Date(slot).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                              size="small"
+                              clickable
+                              color={picked ? "primary" : "default"}
+                              variant={picked ? "filled" : "outlined"}
+                              onClick={() => {
+                                setSelectedSlot(formatted);
+                                setFormData((prev) => ({ ...prev, appointment_datetime: formatted }));
+                              }}
+                            />
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    No available slots
+                  </Typography>
+                )}
+              </Box>
+            )}
+            <TextField
+              label="Date & Time"
+              name="appointment_datetime"
+              type="datetime-local"
+              value={formData.appointment_datetime}
+              onChange={handleChange}
+              InputLabelProps={{ shrink: true }}
+              fullWidth
+              required
+              size="small"
+              sx={fieldSx}
+            />
+            <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setFormData({
+                    title: "",
+                    description: "",
+                    appointment_datetime: "",
+                    duration_minutes: 30,
+                    recurrence: "none",
+                    recurrence_end_date: "",
+                    provider: null,
+                  });
+                  setSelectedDoctor(null);
+                  setEditingId(null);
+                  setEditMode(false);
+                  setSelectedSlot(null);
+                }}
+              >
+                Clear Form
+              </Button>
+              <Button type="submit" variant="contained">
+                {editMode ? "Update Appointment" : "Request Appointment"}
+              </Button>
+            </Stack>
+          </Stack>
+        </form>
+      </Section>
+
+      <Section title="Your appointments">
+        {filteredAppointments.length === 0 ? (
+          <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", py: 2 }}>
+            No upcoming appointments yet. Request one from the form.
+          </Typography>
+        ) : (
+          filteredAppointments.map((a, i) => (
+            <Box
+              key={a.id}
+              sx={{ display: "flex", alignItems: "center", gap: 1.25, minHeight: 48, py: 0.75, borderTop: i === 0 ? 0 : "1px solid #eef1f6" }}
+            >
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>{a.title || "Untitled"}</Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  {a.appointment_datetime ? new Date(a.appointment_datetime).toLocaleString() : "Unknown"}
+                  {doctorName(a.provider) ? ` · ${doctorName(a.provider)}` : ""}
+                </Typography>
+              </Box>
+              <Chip size="small" label={statusLabel(a.status)} color={statusColor(a.status)} variant="outlined" />
+              <IconButton
+                size="small"
+                aria-label={`Actions for ${a.title || "Untitled"}`}
+                onClick={(e) => setApptMenu({ anchor: e.currentTarget, appt: a })}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          ))
+        )}
+      </Section>
+    </Box>
+  );
+
+  const messageTab = (
+    <Box>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 1.5, alignItems: "start" }}>
+        <Section title="Email">
+          {messageSent && (
+            <Alert severity="success" sx={{ mb: 1.5 }}>
+              Your email has been sent successfully. Your provider will respond to you as soon as possible.
+            </Alert>
+          )}
+          <Stack spacing={1.75} sx={{ pt: 0.5 }}>
+            <TextField label="From" value={emailForm.from} fullWidth size="small" disabled helperText="Your email address or name" sx={fieldSx} />
+            <TextField label="To" value={emailForm.to} onChange={handleEmailChange("to")} fullWidth size="small" sx={fieldSx} />
+            <TextField label="Cc" value={emailForm.cc} onChange={handleEmailChange("cc")} fullWidth size="small" sx={fieldSx} />
+            <TextField label="Subject" value={emailForm.subject} onChange={handleEmailChange("subject")} fullWidth size="small" sx={fieldSx} />
+            <TextField label="Message" multiline rows={6} value={emailForm.message} onChange={handleEmailChange("message")} fullWidth sx={fieldSx} />
+            <Box>
+              <Button variant="outlined" component="label" size="small">
+                Attach Files
+                <input type="file" multiple hidden onChange={handleAttachmentChange} />
+              </Button>
+              {emailForm.attachments.map((f, idx) => (
+                <Typography key={idx} variant="caption" sx={{ ml: 1, display: "block" }}>
+                  {f.name}
+                </Typography>
+              ))}
+            </Box>
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button variant="contained" onClick={handleSendMessage}>
+                Send Email
+              </Button>
+            </Box>
+          </Stack>
+        </Section>
+
+        <Section title="Text message">
+          {smsSent && (
+            <Alert severity="success" sx={{ mb: 1.5 }}>
+              Your text message has been sent successfully. Your provider will respond to you as soon as possible.
+            </Alert>
+          )}
+          <Stack spacing={1.75} sx={{ pt: 0.5 }}>
+            <TextField
+              label="Admin/Provider Phone Number"
+              value={smsForm.phone}
+              onChange={handleSMSChange("phone")}
+              fullWidth
+              size="small"
+              placeholder="+1234567890"
+              helperText="Organization admin or provider phone number"
+              sx={fieldSx}
+            />
+            <TextField
+              label="Message"
+              multiline
+              rows={5}
+              value={smsForm.message}
+              onChange={handleSMSChange("message")}
+              fullWidth
+              helperText="Your message will be prefixed with your name automatically"
+              sx={fieldSx}
+            />
+            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+              <Button variant="contained" onClick={handleSendSMS}>
+                Send Text Message
+              </Button>
+            </Box>
+          </Stack>
+        </Section>
+      </Box>
+    </Box>
+  );
+
+  return (
+    <Box sx={{ px: { xs: 2, md: 4 }, py: 1.5, maxWidth: "100%" }}>
+      <Typography variant="h1" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2 }}>
+        Patient Portal
+      </Typography>
+      <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
+        Your information, appointments and messages
+      </Typography>
+
+      <Tabs
+        value={tab}
+        onChange={(_, val) => setTab(val)}
+        aria-label="dashboard-tabs"
+        variant="scrollable"
+        scrollButtons="auto"
+        sx={{ borderBottom: `1px solid ${BORDER}`, mt: 1, mb: 1.5 }}
+      >
+        <Tab value="myinfo" label="My Information" />
+        <Tab value="manage" label="Manage Appointments" />
+        <Tab value="message" label="Message my Provider" />
+        {currentUser?.role !== "patient" && <Tab value="calendar" label="Calendar" />}
+      </Tabs>
+
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 320px" },
+          gap: 1.75,
+          alignItems: "start",
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          {tab === "myinfo" && myInfoTab}
+          {tab === "manage" && manageTab}
+          {tab === "message" && messageTab}
+          {tab === "calendar" && currentUser?.role !== "patient" && (
+            <CalendarView
+              onUpdate={() => setRefreshFlag((prev) => !prev)}
+              showBackButton={currentUser?.role !== "patient"}
+            />
+          )}
+        </Box>
+        <Section title="Announcements">
+          <AnnouncementDisplay />
+        </Section>
+      </Box>
+
+      <Menu anchorEl={apptMenu.anchor} open={Boolean(apptMenu.anchor)} onClose={() => setApptMenu({ anchor: null, appt: null })}>
+        <MenuItem
+          onClick={() => {
+            handleEditClick(apptMenu.appt);
+            setApptMenu({ anchor: null, appt: null });
           }}
         >
-          <Typography
-            variant="h6"
-            sx={{ mb: 1, fontWeight: "bold", color: "primary.main" }}
-          >
-            Announcements
-          </Typography>
-          <AnnouncementDisplay />
-        </Box>
-      </Stack>
+          Edit
+        </MenuItem>
+        <MenuItem
+          sx={{ color: "error.main" }}
+          onClick={() => {
+            handleDelete(apptMenu.appt.id);
+            setApptMenu({ anchor: null, appt: null });
+          }}
+        >
+          Delete
+        </MenuItem>
+      </Menu>
     </Box>
   );
 }
