@@ -109,7 +109,7 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: "auto", border: "1px solid #e2e8f0", borderRadius: 2, bgcolor: "background.paper" }}>
-      <Box sx={{ display: "grid", gridTemplateColumns: GRID, borderBottom: "1px solid #e2e8f0", bgcolor: "#fafbfc", position: "sticky", top: 0, zIndex: 1 }}>
+      <Box sx={{ display: "grid", minWidth: 760, gridTemplateColumns: GRID, borderBottom: "1px solid #e2e8f0", bgcolor: "#fafbfc", position: "sticky", top: 0, zIndex: 1 }}>
         <Box sx={{ px: 1.5, py: 1, fontSize: 12, fontWeight: 700, color: "#3b4556" }}>UNIT</Box>
         {days.map((d, i) => (
           <Box
@@ -142,7 +142,7 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
       ) : (
         <>
           {units.map((u) => (
-            <Box key={u.key} sx={{ display: "grid", gridTemplateColumns: GRID, borderBottom: "1px solid #e2e8f0" }}>
+            <Box key={u.key} sx={{ display: "grid", minWidth: 760, gridTemplateColumns: GRID, borderBottom: "1px solid #e2e8f0" }}>
               <Box sx={{ px: 1.5, py: 1.25 }}>
                 <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{u.name}</Typography>
                 {u.census != null && (
@@ -188,7 +188,7 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
             </Box>
           ))}
 
-          <Box sx={{ display: "grid", gridTemplateColumns: GRID, bgcolor: "#fafbfc" }}>
+          <Box sx={{ display: "grid", minWidth: 760, gridTemplateColumns: GRID, bgcolor: "#fafbfc" }}>
             <Box sx={{ px: 1.5, py: 1.25, fontSize: 13, fontWeight: 700 }}>All units</Box>
             {days.map((d, i) => {
               const gaps = dayGaps(coverage, isos[i]);

@@ -41,6 +41,7 @@ import StaffingCalendarToolbar, {
 import StaffingDayPanel from "../components/calendar/StaffingDayPanel";
 import { StaffingWeekContext, StaffingWeekView } from "../components/calendar/StaffingWeekGrid";
 import { StaffingDayContext, StaffingDayView } from "../components/calendar/StaffingDayBoard";
+import { StaffingAgendaView } from "../components/calendar/StaffingAgenda";
 import {
   SHIFT_NAME,
   SHIFT_SHORT,
@@ -73,8 +74,12 @@ const EDIT_SHIFT_TYPES = [
 // Short shift names inside a month cell (the mock's Day / Eve / Night).
 const SHIFT_CELL_LABEL = { day: "Day", evening: "Eve", night: "Night", custom: "Other" };
 
-// Month and agenda are the built-in views; week is our unit-by-day grid and day our three-column board.
-const CALENDAR_VIEWS = { month: true, week: StaffingWeekView, day: StaffingDayView, agenda: true };
+// Month is the built-in grid; week, day and agenda are our own coverage views.
+const CALENDAR_VIEWS = { month: true, week: StaffingWeekView, day: StaffingDayView, agenda: StaffingAgendaView };
+
+// Phones open on Agenda (a seven-day coverage list); wider screens open on Month.
+const initialView = () =>
+  typeof window !== "undefined" && window.matchMedia && window.matchMedia("(max-width:899px)").matches ? "agenda" : "month";
 
 // The coverage chips above the calendar; clicking one highlights those days.
 const STATUS_CHIPS = [
@@ -100,7 +105,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [dayDialog, setDayDialog] = useState(null); // ISO date string
-  const [view, setView] = useState("month"); // month | week | day | agenda
+  const [view, setView] = useState(initialView); // month | week | day | agenda
   const [locDialog, setLocDialog] = useState(false);
   const [editShift, setEditShift] = useState(null); // {id, staff_name, date, shift_label, start_time, end_time, notes}
   const [editShiftError, setEditShiftError] = useState("");
@@ -351,9 +356,9 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
   );
 
   // The month grid shows coverage lines instead of one pill per person; people appear
-  // there only when a search is active. Week and Day are our own views (grid and board) and
-  // draw from the shifts directly, so the calendar gets no events for them.
-  const monthSummaryOnly = view === "week" || view === "day" || (view === "month" && search.trim() === "");
+  // there only when a search is active. Week, Day and Agenda are our own views and draw from
+  // the shifts directly, so the calendar gets no events for them.
+  const monthSummaryOnly = view !== "month" || search.trim() === "";
 
   const events = useMemo(
     () =>
