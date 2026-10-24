@@ -44,6 +44,7 @@ import {
   SHIFT_SHORT,
   firstDayWithStatus,
   summarizeShifts,
+  worstStatus,
 } from "../utils/calendar/staffingSummary";
 
 const localizer = momentLocalizer(moment);
@@ -66,6 +67,9 @@ const EDIT_SHIFT_TYPES = [
   { value: "night", label: "Night" },
   { value: "custom", label: "Custom (on call / ad hoc)" },
 ];
+
+// Short shift names inside a month cell (the mock's Day / Eve / Night).
+const SHIFT_CELL_LABEL = { day: "Day", evening: "Eve", night: "Night", custom: "Other" };
 
 // The coverage chips above the calendar; clicking one highlights those days.
 const STATUS_CHIPS = [
@@ -442,8 +446,10 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
     ({ label, date }) => {
       const iso = toISO(date);
       const info = dayInfo(date);
-      const rows = summarizeShifts(info);
+      // Shifts with no census add only "?" noise to the grid; the panel still says "No census".
+      const rows = summarizeShifts(info).filter((r) => r.status !== "unknown");
       const dim = !!statusFocus && info?.status !== statusFocus;
+      const worst = worstStatus(rows.map((r) => r.status));
       return (
         <Box
           sx={{ cursor: "pointer", textAlign: "left", opacity: dim ? 0.4 : 1 }}
@@ -457,38 +463,69 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
             setDayDialog(iso);
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 0.5 }}>
-            {info?.open_emergencies > 0 && (
-              <Chip size="small" color="error" label={`🚨 ${info.open_emergencies}`} sx={{ height: 18, fontSize: 11 }} />
-            )}
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0.5, mb: 0.25 }}>
             <Box
               component="span"
               sx={{
-                minWidth: 22,
-                height: 22,
-                lineHeight: "22px",
+                minWidth: 26,
+                height: 26,
+                lineHeight: "26px",
                 textAlign: "center",
                 borderRadius: "50%",
-                fontWeight: iso === todayISO ? 700 : 500,
+                fontSize: 14,
+                fontWeight: iso === todayISO ? 700 : 600,
                 color: iso === todayISO ? "#fff" : "inherit",
                 bgcolor: iso === todayISO ? "#2563eb" : "transparent",
               }}
             >
               {label}
             </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              {info?.open_emergencies > 0 && (
+                <Chip size="small" color="error" label={`🚨 ${info.open_emergencies}`} sx={{ height: 18, fontSize: 11 }} />
+              )}
+              {(worst === "not_met" || worst === "at_risk") && (
+                <Box
+                  component="span"
+                  title={COVERAGE_STATUS[worst].label}
+                  aria-label={COVERAGE_STATUS[worst].label}
+                  sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: COVERAGE_STATUS[worst].color, flexShrink: 0 }}
+                />
+              )}
+            </Box>
           </Box>
           {rows.map((r) => {
             const m = COVERAGE_STATUS[r.status] || COVERAGE_STATUS.unknown;
+            const problem = r.status === "not_met" || r.status === "at_risk";
+            const short = r.required - r.assigned;
             return (
               <Box
                 key={r.shift_type}
                 title={`${SHIFT_NAME[r.shift_type] || r.shift_type}: ${m.label}`}
-                sx={{ display: "flex", justifyContent: "space-between", fontSize: 11, lineHeight: "15px", color: m.color, px: 0.25 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  height: 24,
+                  px: 0.75,
+                  mt: "3px",
+                  borderRadius: "4px",
+                  borderLeft: `3px solid ${m.color}`,
+                  bgcolor: problem ? m.bg : "#f8fafc",
+                  fontSize: 13,
+                }}
               >
-                <b>{SHIFT_SHORT[r.shift_type] || "?"}</b>
-                <span>
-                  {r.status === "unknown" ? "?" : `${r.assigned}/${r.required}`} {m.icon}
-                </span>
+                <Box component="span" sx={{ width: 38, color: "text.secondary", fontSize: 12 }}>
+                  {SHIFT_CELL_LABEL[r.shift_type] || r.shift_type}
+                </Box>
+                <b style={{ color: problem ? m.color : "#1f2937" }}>
+                  {r.assigned}/{r.required}
+                </b>
+                {problem && (
+                  <Box component="span" sx={{ ml: "auto", fontWeight: 700, color: m.color }}>
+                    {short > 0 ? `\u2212${short}` : m.icon}
+                  </Box>
+                )}
               </Box>
             );
           })}
@@ -647,10 +684,10 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null }) {
     <Box>
       <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
         <FormControl size="small" sx={{ minWidth: 170, bgcolor: "background.paper", borderRadius: 1 }}>
-          <InputLabel id="calendar-unit-label">All Units</InputLabel>
+          <InputLabel id="calendar-unit-label">Unit</InputLabel>
           <Select
             labelId="calendar-unit-label"
-            label="All Units"
+            label="Unit"
             value={unitId}
             onChange={(e) => setUnitId(e.target.value)}
           >
