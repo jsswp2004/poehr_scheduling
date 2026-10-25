@@ -29,7 +29,6 @@ import { alpha } from "@mui/material/styles";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faDownload,
-  faPrint,
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
@@ -39,6 +38,7 @@ import { getAccessToken } from "../utils/tokenManager";
 import StaffingMasterReport from "./StaffingMasterReport";
 import StaffingDailyReports from "./StaffingDailyReports";
 import { StaffingHeaderSlotContext } from "../components/staffing/StaffingTabHeader";
+import { ReportActionsSlotContext, ReportPrintButton } from "../components/staffing/ReportActions";
 
 const REPORT_GROUPS = [
   {
@@ -69,7 +69,7 @@ const REPORT_GROUPS = [
         value: "daily_forms",
         label: "Daily staffing forms",
         printable: true,
-        description: "Printable daily staffing forms.",
+        description: "Printable daily forms from the calendar, unit beds and census.",
       },
     ],
   },
@@ -673,45 +673,46 @@ function StaffingReportsTab() {
 
   // Title, description, date controls and Export/Print share the frozen row with the page title.
   const headerSlot = useContext(StaffingHeaderSlotContext);
+  const [actionsSlot, setActionsSlot] = useState(null);
   const reportHeader = (
     <Box
       className="no-print"
       sx={{
         display: "grid",
         gridTemplateColumns: { xs: "1fr", md: "274px minmax(0, 1fr)" },
-        alignItems: "end",
+        alignItems: "start",
         pb: 1.5,
       }}
     >
       <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
         Reports
       </Typography>
-      <Stack direction="row" alignItems="flex-end" flexWrap="wrap" useFlexGap gap={1.5} sx={{ minWidth: 0 }}>
-        <Box sx={{ minWidth: 0 }}>
+      <Stack direction="row" alignItems="flex-start" flexWrap={{ xs: "wrap", xl: "nowrap" }} useFlexGap gap={1.5} sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: "0 1 300px" }}>
           <Typography variant="h5" component="h3" sx={{ fontWeight: 600 }}>
             {meta.label}
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
+          <Typography variant="body2" color="text.secondary" title={meta.description} noWrap>
             {meta.description}
           </Typography>
         </Box>
           {hasDates && (
-          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ pb: 0.25 }}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap={{ xs: "wrap", xl: "nowrap" }} useFlexGap sx={{ mt: "-4px", flex: "none" }}>
             <Stack direction="row" spacing={0.5} alignItems="center">
               <IconButton
                 aria-label="Previous range"
                 onClick={() => stepRange(-1)}
-                sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                sx={{ width: 40, height: 40, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
               >
                 <FontAwesomeIcon icon={faChevronLeft} size="sm" />
               </IconButton>
-              <Typography sx={{ minWidth: 200, textAlign: "center", fontWeight: 600 }}>
+              <Typography sx={{ minWidth: 150, textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>
                 {formatRange(startDate, endDate)}
               </Typography>
               <IconButton
                 aria-label="Next range"
                 onClick={() => stepRange(1)}
-                sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+                sx={{ width: 40, height: 40, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
               >
                 <FontAwesomeIcon icon={faChevronRight} size="sm" />
               </IconButton>
@@ -730,6 +731,7 @@ function StaffingReportsTab() {
                   label="Start"
                   type="date"
                   size="small"
+                  sx={{ width: 150 }}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
@@ -738,6 +740,7 @@ function StaffingReportsTab() {
                   label="End"
                   type="date"
                   size="small"
+                  sx={{ width: 150 }}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
@@ -746,7 +749,9 @@ function StaffingReportsTab() {
             )}
           </Stack>
         )}
-        <Box sx={{ ml: "auto" }}>
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", flex: "none", mt: "-6px" }}>
+          {/* Master schedule and Daily staffing forms put their own controls here. */}
+          <Box ref={setActionsSlot} sx={{ display: "contents" }} />
             {exportInfo && (
               <Stack direction="row" spacing={1}>
                 <Button
@@ -759,16 +764,7 @@ function StaffingReportsTab() {
                 >
                   Export CSV
                 </Button>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<FontAwesomeIcon icon={faPrint} />}
-                  onClick={handlePrint}
-                  disabled={exportInfo.count === 0}
-                  sx={{ minHeight: 44 }}
-                >
-                  Print
-                </Button>
+                <ReportPrintButton onClick={handlePrint} disabled={exportInfo.count === 0} />
               </Stack>
             )}
         </Box>
@@ -791,6 +787,7 @@ function StaffingReportsTab() {
 
       {headerSlot ? createPortal(reportHeader, headerSlot) : reportHeader}
 
+      <ReportActionsSlotContext.Provider value={actionsSlot}>
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, alignItems: "flex-start" }}>
         {/* Report picker: a grouped list on wide screens, a select on narrow ones */}
         <Box
@@ -1392,7 +1389,7 @@ function StaffingReportsTab() {
             )}
           </Box>
         </Box>
-      </Box>
+      </ReportActionsSlotContext.Provider>
     </Box>
   );
 }

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Box, Button, CircularProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPrint } from "@fortawesome/free-solid-svg-icons";
+import { Alert, Box, CircularProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { ReportActions, ReportPrintButton } from "../components/staffing/ReportActions";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -82,7 +81,8 @@ function StaffingMasterReport() {
         }
       `}</style>
 
-      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print" sx={{ mb: 1.5 }}>
+      <ReportActions>
+        <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
         <TextField select size="small" label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))} sx={{ minWidth: 150 }}>
           {MONTH_NAMES.map((m, i) => (
             <MenuItem key={m} value={i}>{m}</MenuItem>
@@ -93,11 +93,9 @@ function StaffingMasterReport() {
             <MenuItem key={y} value={y}>{y}</MenuItem>
           ))}
         </TextField>
-        <Button size="small" startIcon={<FontAwesomeIcon icon={faPrint} />} onClick={() => window.print()} disabled={!data || loading}>
-          Print
-        </Button>
-        {loading && <CircularProgress size={20} />}
+        <ReportPrintButton onClick={() => window.print()} disabled={!data || loading} />
       </Stack>
+      </ReportActions>
 
       {error && (
         <Alert severity="error" sx={{ mb: 1 }} className="no-print">

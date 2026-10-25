@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload, faPrint } from "@fortawesome/free-solid-svg-icons";
+import { faDownload } from "@fortawesome/free-solid-svg-icons";
+import { ReportActions, ReportPrintButton } from "../components/staffing/ReportActions";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -133,70 +134,67 @@ function StaffingDailyReports() {
     }
   };
 
-  return (
-    <Box className="no-print">
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, maxWidth: 720 }}>
-        Prints the facility's daily staffing forms from the calendar shifts, unit beds and census. The header is the
-        organization logo; the footer shows who printed it, when, and the page count.
-      </Typography>
-      <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3, alignItems: "flex-start" }}>
-      <Stack spacing={1.5} sx={{ width: { xs: "100%", lg: 340 }, flex: "none" }}>
-        {error && <Alert severity="error">{error}</Alert>}
-        <TextField select size="small" label="Form" value={kind} onChange={(e) => setKind(e.target.value)}>
-          {FORMS.map((f) => (
-            <MenuItem key={f.value} value={f.value}>
-              {f.label}
+  const controls = (
+    <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
+      <TextField select size="small" label="Form" value={kind} onChange={(e) => setKind(e.target.value)} sx={{ minWidth: 250, maxWidth: 300 }}>
+        {FORMS.map((f) => (
+          <MenuItem key={f.value} value={f.value}>
+            {f.label}
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField
+        size="small"
+        type="date"
+        label="Date"
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        slotProps={{ inputLabel: { shrink: true } }}
+        sx={{ width: 160 }}
+      />
+      {form.needsShift && (
+        <TextField select size="small" label="Shift" value={shift} onChange={(e) => setShift(e.target.value)} sx={{ minWidth: 150 }}>
+          {SHIFTS.map((s) => (
+            <MenuItem key={s.value} value={s.value}>
+              {s.label}
             </MenuItem>
           ))}
         </TextField>
-        <TextField
-          size="small"
-          type="date"
-          label="Date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-        />
-        {form.needsShift && (
-          <TextField select size="small" label="Shift" value={shift} onChange={(e) => setShift(e.target.value)}>
-            {SHIFTS.map((s) => (
-              <MenuItem key={s.value} value={s.value}>
-                {s.label}
-              </MenuItem>
-            ))}
-          </TextField>
-        )}
-        {form.needsUnit && (
-          <TextField select size="small" label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)}>
-            <MenuItem value="all">All units (a page each)</MenuItem>
-            {units.map((u) => (
-              <MenuItem key={u.id} value={String(u.id)}>
-                {u.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        )}
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="contained"
-            startIcon={<FontAwesomeIcon icon={faPrint} />}
-            disabled={!!busy || !date}
-            onClick={() => run("print")}
-          >
-            {busy === "print" ? "Preparing..." : "Print"}
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<FontAwesomeIcon icon={faDownload} />}
-            disabled={!!busy || !date}
-            onClick={() => run("download")}
-          >
-            {busy === "download" ? "Preparing..." : "Download PDF"}
-          </Button>
-        </Stack>
-      </Stack>
+      )}
+      {form.needsUnit && (
+        <TextField select size="small" label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} sx={{ minWidth: 190 }}>
+          <MenuItem value="all">All units (a page each)</MenuItem>
+          {units.map((u) => (
+            <MenuItem key={u.id} value={String(u.id)}>
+              {u.name}
+            </MenuItem>
+          ))}
+        </TextField>
+      )}
+      <Button
+        variant="outlined"
+        startIcon={<FontAwesomeIcon icon={faDownload} />}
+        disabled={!!busy || !date}
+        onClick={() => run("download")}
+        sx={{ minHeight: 44 }}
+      >
+        {busy === "download" ? "Preparing..." : "Download PDF"}
+      </Button>
+      <ReportPrintButton disabled={!!busy || !date} onClick={() => run("print")}>
+        {busy === "print" ? "Preparing..." : "Print"}
+      </ReportPrintButton>
+    </Stack>
+  );
 
-      <Paper variant="outlined" sx={{ flex: 1, minWidth: 0, width: "100%", overflow: "hidden" }} aria-label="Form preview">
+  return (
+    <Box className="no-print">
+      <ReportActions>{controls}</ReportActions>
+      {error && (
+        <Alert severity="error" sx={{ mb: 1.5 }}>
+          {error}
+        </Alert>
+      )}
+      <Paper variant="outlined" sx={{ width: "100%", overflow: "hidden" }} aria-label="Form preview">
         <Box sx={{ px: 2, py: 1, borderBottom: "1px solid", borderColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
           <Typography sx={{ fontWeight: 600, flex: 1 }}>Preview</Typography>
           {previewing && <CircularProgress size={16} />}
@@ -206,12 +204,11 @@ function StaffingDailyReports() {
             {previewError}
           </Alert>
         ) : previewUrl ? (
-          <Box component="iframe" title="Form preview" src={previewUrl} sx={{ border: 0, width: "100%", height: "calc(100vh - 300px)", minHeight: 480, display: "block" }} />
+          <Box component="iframe" title="Form preview" src={previewUrl} sx={{ border: 0, width: "100%", height: "calc(100vh - 320px)", minHeight: 480, display: "block" }} />
         ) : (
           <Box sx={{ p: 4, color: "text.secondary" }}>{previewing ? "Preparing the preview..." : "Choose a form and date to preview it."}</Box>
         )}
       </Paper>
-      </Box>
     </Box>
   );
 }
