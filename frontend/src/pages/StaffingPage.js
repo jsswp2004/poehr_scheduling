@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Tabs, Tab, TextField, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +28,21 @@ const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar", 
 
 function StaffingPage() {
   const [tab, setTab] = useState("calendar");
+  // Publish the frozen header's height so a tab can pin its own title row just beneath it.
+  const stickyObserver = useRef(null);
+  const stickyRef = useCallback((node) => {
+    if (stickyObserver.current) {
+      stickyObserver.current.disconnect();
+      stickyObserver.current = null;
+    }
+    if (!node) return;
+    const publish = () => node.style.setProperty("--staffing-sticky-h", `${node.offsetHeight}px`);
+    publish();
+    if (typeof ResizeObserver !== "undefined") {
+      stickyObserver.current = new ResizeObserver(publish);
+      stickyObserver.current.observe(node);
+    }
+  }, []);
   const [staffTab, setStaffTab] = useState("shifts");
   // Set by the Calendar's "Assign" button: {unit_id, date, shift_type}. Assign Schedule uses it once to open its add panel.
   const [assignPrefill, setAssignPrefill] = useState(null);
@@ -165,7 +180,7 @@ function StaffingPage() {
 
   return (
     <Box sx={{ minHeight: "100%", px: 2, py: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
-      <Box sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper", pb: 0.5, pt: "18px", mt: "-18px" }}>
+      <Box ref={stickyRef} sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper", pb: 0.5, pt: "18px", mt: "-18px" }}>
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 0.5 }}>
         <Typography variant="h5">Staffing Center</Typography>
         {isSystemAdmin && orgs.length > 0 && (
