@@ -7,6 +7,7 @@ from .compliance_views import CoverageStatusView, OrgLocationView
 from .master_schedule_autocreate import MasterScheduleCreateScheduleView
 from .master_schedule_csv import MasterScheduleCsvTemplateView, MasterScheduleUploadCsvView
 from .daily_reports_views import DailyStaffingReportView
+from .report_subscription_views import ReportExportView, ReportSubscriptionViewSet
 from .pickup_views import MyPickupProfileView, PickUpShiftView
 from .master_schedule_views import (
     MasterScheduleCellsView,
@@ -62,6 +63,7 @@ router.register(
 router.register(r"shifts", StaffShiftViewSet, basename="staffing-shift")
 router.register(r"units", UnitViewSet, basename="staffing-unit")
 router.register(r"census", UnitCensusViewSet, basename="staffing-census")
+router.register(r"report-subscriptions", ReportSubscriptionViewSet, basename="staffing-report-subscription")
 router.register(
     r"coverage-requirements", ShiftCoverageRequirementViewSet, basename="staffing-coverage-requirement"
 )
@@ -134,6 +136,7 @@ urlpatterns = [
     ),
     path("me/", MyStaffProfileView.as_view(), name="staffing-me"),
     path("me/shifts/", MyShiftsView.as_view(), name="staffing-me-shifts"),
+    path("reports/export/<str:kind>/", ReportExportView.as_view(), name="staffing-report-export"),
     path(
         "reports/unscheduled/",
         UnscheduledStaffReportView.as_view(),

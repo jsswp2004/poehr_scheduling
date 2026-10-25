@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, CircularProgress, MenuItem, Stack, TextField, Typography } from "@mui/material";
-import { ReportActions, ReportPrintButton } from "../components/staffing/ReportActions";
+import { ReportActions, useReportExport } from "../components/staffing/ReportActions";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
+import { blobErrorMessage, downloadReportFile } from "../components/staffing/reportFiles";
 import { DAY_LETTERS, MONTH_NAMES, gridDays } from "../utils/masterSchedule";
 
 /**
@@ -23,6 +24,26 @@ function StaffingMasterReport() {
   const days = useMemo(() => gridDays(year, month, weekStart), [year, month, weekStart]);
   const start = days[0].iso;
   const end = days[days.length - 1].iso;
+  const [exporting, setExporting] = useState(false);
+
+  // Export (PDF only) and Print live in the Reports title row, next to Subscribe.
+  useReportExport({
+    formats: ["pdf"],
+    disabled: !data || loading,
+    busy: exporting ? "pdf" : "",
+    onExport: async () => {
+      setExporting(true);
+      setError("");
+      try {
+        await downloadReportFile({ kind: "master_schedule", file: "pdf", params: { start, end } });
+      } catch (err) {
+        setError(await blobErrorMessage(err, "Could not create the PDF."));
+      } finally {
+        setExporting(false);
+      }
+    },
+    onPrint: () => window.print(),
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -93,7 +114,6 @@ function StaffingMasterReport() {
             <MenuItem key={y} value={y}>{y}</MenuItem>
           ))}
         </TextField>
-        <ReportPrintButton onClick={() => window.print()} disabled={!data || loading} />
       </Stack>
       </ReportActions>
 
