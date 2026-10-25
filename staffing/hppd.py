@@ -150,6 +150,7 @@ class ShiftRequirement:
     # 0.0 = the rule has no such component.
     required_licensed_hours: float = 0.0   # RN + LPN care hours this shift must supply
     required_cna_hours: float = 0.0        # CNA / aide care hours this shift must supply
+    count_all_roles: bool = False          # standard counts every role, not only RN/LPN/CNA
 
 
 def required_staff_by_shift(
@@ -160,6 +161,7 @@ def required_staff_by_shift(
     min_rn: int = MIN_RN_PER_SHIFT,
     min_licensed_hppd: float = 0.0,
     min_cna_hppd: float = 0.0,
+    count_all_roles: bool = False,
 ) -> List[ShiftRequirement]:
     """
     Required staffing for every shift of the pattern, for one unit and day.
@@ -202,6 +204,7 @@ def required_staff_by_shift(
                 required_rn=rn_needed,
                 required_licensed_hours=round(daily_licensed * s.share, 6),
                 required_cna_hours=round(daily_cna * s.share, 6),
+                count_all_roles=count_all_roles,
             )
         )
     return result
@@ -245,7 +248,7 @@ def evaluate_shift(
     licensed_hours = 0.0
     cna_hours = 0.0
     for role, hrs in scheduled:
-        if role not in COUNTED_ROLES:
+        if role not in COUNTED_ROLES and not requirement.count_all_roles:
             continue
         hours += hrs
         heads += 1

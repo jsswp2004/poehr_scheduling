@@ -51,6 +51,7 @@ const EMPTY_FORM = {
   effective_date: "",
   last_verified_date: "",
   needs_verification: false,
+  count_all_roles: false,
   status: "active",
   shared: false,
 };
@@ -110,6 +111,7 @@ const toForm = (rule) => ({
   effective_date: rule.effective_date || "",
   last_verified_date: rule.last_verified_date || "",
   needs_verification: !!rule.needs_verification,
+  count_all_roles: !!rule.count_all_roles,
   status: rule.status || "active",
   shared: rule.scope === "shared",
 });
@@ -132,7 +134,7 @@ const errorText = (err, fallback) => formatApiError(err?.response?.data, fallbac
 
 // One sentence per requirement, skipping the ones a standard does not set.
 function requirementLines(r) {
-  const line1 = `${num(r.hppd_min)} nursing hours per resident per day`;
+  const line1 = Number(r.hppd_min) > 0 ? `${num(r.hppd_min)} nursing hours per resident per day${r.count_all_roles ? " · all roles count" : ""}` : `Ratio only${r.count_all_roles ? " · all roles count" : ""}`;
   const line2 = `${hasNum(r.max_residents_per_staff) ? `1 staff per ${r.max_residents_per_staff} residents` : "No ratio set"} · ${
     hasNum(r.min_rn_per_shift) ? `${r.min_rn_per_shift} RN every shift` : "No RN minimum"
   }`;
@@ -257,7 +259,11 @@ function StaffingRulesTab({ isAdmin = false }) {
   const save = async () => {
     const errs = {};
     if (!form.name.trim()) errs.name = "Enter a name.";
-    if (form.hppd_min === "" || Number(form.hppd_min) <= 0) errs.hppd_min = "Enter the total hours per resident per day.";
+    // 0 hours is fine when the standard is only a staff-to-resident ratio.
+    const hasRatio = form.max_residents_per_staff !== "" && Number(form.max_residents_per_staff) > 0;
+    if (form.hppd_min === "" || Number(form.hppd_min) < 0 || (Number(form.hppd_min) === 0 && !hasRatio)) {
+      errs.hppd_min = "Enter the total hours per resident per day (0 is allowed if you set a ratio).";
+    }
     if (editingShared && !form.state.trim()) errs.state = "Enter the state.";
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
@@ -277,6 +283,7 @@ function StaffingRulesTab({ isAdmin = false }) {
       effective_date: form.effective_date,
       last_verified_date: form.last_verified_date,
       needs_verification: form.needs_verification,
+      count_all_roles: form.count_all_roles,
       status: form.status,
     };
     try {
@@ -891,7 +898,7 @@ function StaffingRulesTab({ isAdmin = false }) {
                       value={form.hppd_min}
                       onChange={setField("hppd_min")}
                       error={!!fieldErrors.hppd_min}
-                      helperText={fieldErrors.hppd_min || "Required"}
+                      helperText={fieldErrors.hppd_min || "Required. Use 0 if only the staff-to-resident ratio applies."}
                       slotProps={{ htmlInput: { min: 0, step: 0.01 } }}
                       sx={{ maxWidth: 320 }}
                     />
@@ -934,6 +941,19 @@ function StaffingRulesTab({ isAdmin = false }) {
                         helperText="0 = no per-shift RN rule"
                         slotProps={{ htmlInput: { min: 0, step: 1 } }}
                       />
+                      <Paper variant="outlined" sx={{ p: 2, display: "flex", gap: 2, alignItems: "center", justifyContent: "space-between" }}>
+                        <Box>
+                          <Typography sx={{ fontWeight: 600 }}>Count all staff roles</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Off: only RNs, LPNs and CNAs count. On: every role counts toward the hours and the ratio, such as an activities aide.
+                          </Typography>
+                        </Box>
+                        <Switch
+                          checked={!!form.count_all_roles}
+                          onChange={setField("count_all_roles")}
+                          slotProps={{ input: { "aria-label": "Count all staff roles" } }}
+                        />
+                      </Paper>
                     </Stack>
                   </Stack>
                 </Box>

@@ -45,6 +45,7 @@ class EffectiveRequirement:
     note: str = ""
     required_licensed_hours: float = 0.0
     required_cna_hours: float = 0.0
+    count_all_roles: bool = False
 
 
 def census_for(unit, a_date) -> Tuple[Optional[int], Optional[str]]:
@@ -107,6 +108,7 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
         min_rn=rule.min_rn_per_shift,
         min_licensed_hppd=rule.min_licensed_hppd or 0.0,
         min_cna_hppd=rule.min_cna_hppd or 0.0,
+        count_all_roles=bool(getattr(rule, "count_all_roles", False)),
     ):
         if shift.shift_type == req.shift_type:
             note = "Census carried forward from an earlier day." if source == "carried_forward" else ""
@@ -121,6 +123,7 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
                 note=note,
                 required_licensed_hours=shift.required_licensed_hours,
                 required_cna_hours=shift.required_cna_hours,
+                count_all_roles=shift.count_all_roles,
             )
 
     return EffectiveRequirement(
@@ -284,6 +287,7 @@ def evaluate_requirement(req, a_date) -> RequirementStatus:
         required_rn=0,
         required_licensed_hours=eff.required_licensed_hours,
         required_cna_hours=eff.required_cna_hours,
+        count_all_roles=eff.count_all_roles,
     )
     c = hppd.evaluate_shift(hreq, per_staff.values())
 

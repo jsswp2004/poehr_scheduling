@@ -52,6 +52,7 @@ class Need:
     shift_hours: float = 8.0                # hppd
     required_licensed_hours: float = 0.0    # hppd: RN + LPN hours (component rules)
     required_cna_hours: float = 0.0         # hppd: CNA hours (component rules)
+    count_all_roles: bool = False           # hppd: every role counts, not only RN/LPN/CNA
 
 
 @dataclass(frozen=True)
@@ -105,6 +106,7 @@ def evaluate(need: Need, people: Sequence[Person], facility_rns: Optional[Sequen
         required_rn=0 if facility_rns is not None else need.required_rn,
         required_licensed_hours=need.required_licensed_hours,
         required_cna_hours=need.required_cna_hours,
+        count_all_roles=need.count_all_roles,
     )
     c = hppd.evaluate_shift(hreq, [(p.role, p.hours) for p in people])
     rn_count, rn_ok = c.rn_scheduled, c.rn_ok

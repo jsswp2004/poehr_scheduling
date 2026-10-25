@@ -595,6 +595,10 @@ class StaffingRule(models.Model):
     min_cna_hppd = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Minimum CNA / aide hours per resident per day.")
     max_residents_per_staff = models.PositiveSmallIntegerField(null=True, blank=True)
     min_rn_per_shift = models.PositiveSmallIntegerField(default=0)
+    count_all_roles = models.BooleanField(
+        default=False,
+        help_text="Count every staff role (not only RN/LPN/CNA) toward this standard's hours and ratio.",
+    )
 
     source = models.TextField(blank=True, default="", help_text="Regulation citation shown to admins.")
     notes = models.TextField(blank=True, default="")
