@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Tabs, Tab, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Tabs, Tab, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -28,6 +28,7 @@ const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar", 
 
 function StaffingPage() {
   const [tab, setTab] = useState("calendar");
+  const [assignSection, setAssignSection] = useState("schedules");
   // Publish the frozen header's height so a tab can pin its own title row just beneath it.
   const stickyObserver = useRef(null);
   const stickyRef = useCallback((node) => {
@@ -267,6 +268,28 @@ function StaffingPage() {
         <Tab value="reports" label="Reports" />
         <Tab value="rules" label="Staffing Standards" />
       </Tabs>
+      {tab === "assign" && isAdmin && (
+        <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 2, pb: 1 }}>
+          <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+            Assign Schedule
+          </Typography>
+          <ToggleButtonGroup
+            exclusive
+            size="small"
+            color="primary"
+            value={assignSection}
+            onChange={(e, v) => v && setAssignSection(v)}
+            aria-label="What are you managing"
+          >
+            <ToggleButton value="schedules" sx={{ minHeight: 44, px: 2.5 }}>
+              Recurring schedules
+            </ToggleButton>
+            <ToggleButton value="coverage" sx={{ minHeight: 44, px: 2.5 }}>
+              Coverage requirements
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+      )}
       </>
       )}
       </Box>
@@ -284,7 +307,7 @@ function StaffingPage() {
       {tab === "timeoff" && <StaffingTimeOffTab isAdmin={isAdmin} />}
       {tab === "upload" && isAdmin && <StaffingUploadTab />}
       {tab === "master" && <StaffingMasterTab isAdmin={isAdmin} />}
-      {tab === "assign" && isAdmin && <StaffingAssignTab prefill={assignPrefill} onPrefillUsed={clearAssignPrefill} onNavigate={setTab} />}
+      {tab === "assign" && isAdmin && <StaffingAssignTab prefill={assignPrefill} onPrefillUsed={clearAssignPrefill} onNavigate={setTab} section={assignSection} />}
       {tab === "reports" && <StaffingReportsTab />}
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}
       </Box>
