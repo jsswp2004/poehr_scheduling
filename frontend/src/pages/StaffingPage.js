@@ -36,7 +36,7 @@ function StaffingPage() {
       stickyObserver.current = null;
     }
     if (!node) return;
-    const publish = () => node.style.setProperty("--staffing-sticky-h", `${node.offsetHeight}px`);
+    const publish = () => node.style.setProperty("--staffing-sticky-h", `${node.getBoundingClientRect().height}px`);
     publish();
     if (typeof ResizeObserver !== "undefined") {
       stickyObserver.current = new ResizeObserver(publish);

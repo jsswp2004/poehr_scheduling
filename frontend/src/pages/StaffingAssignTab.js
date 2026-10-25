@@ -1700,7 +1700,7 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = 
         sx={{
           mb: 2,
           position: "sticky",
-          top: "calc(64px + var(--staffing-sticky-h, 110px))",
+          top: "calc(64px + var(--staffing-sticky-h, 110px) - 1px)",
           zIndex: 900,
           bgcolor: "background.paper",
           py: 1,
