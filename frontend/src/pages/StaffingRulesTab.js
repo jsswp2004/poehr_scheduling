@@ -35,6 +35,7 @@ import axios from "axios";
 import moment from "moment";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
+import AppliesToPicker from "../components/staffing/AppliesToPicker";
 
 const EMPTY_FORM = {
   name: "",
@@ -177,6 +178,10 @@ function StaffingRulesTab({ isAdmin = false }) {
   const [deactivateFor, setDeactivateFor] = useState(null);
   const [useFor, setUseFor] = useState(undefined); // undefined = closed, null = state default, rule = that rule
   const [dialogBusy, setDialogBusy] = useState(false);
+  // "Applies to" choice: in the add/edit panel and in the Use / Edit units dialog.
+  const [applies, setApplies] = useState({ all: true, unitIds: [] });
+  const [appliesTouched, setAppliesTouched] = useState(false);
+  const [appliesError, setAppliesError] = useState("");
 
   const canEditShared = !!data.can_edit_shared;
   const canEditCustom = !!data.can_edit_custom;
@@ -199,6 +204,11 @@ function StaffingRulesTab({ isAdmin = false }) {
   }, [load]);
 
   const rules = data.rules || [];
+  const units = data.units || [];
+  const unitMode = data.unit_mode || "all";
+  const ruleNames = Object.fromEntries(rules.map((r) => [r.id, r.name]));
+  const unitName = (id) => (units.find((u) => u.id === id) || {}).name || "";
+  const appliesFor = (rule) => ({ all: !!rule.applies_all, unitIds: rule.unit_ids || [] });
   const effective = rules.find((r) => r.id === data.effective_rule_id);
   const usingStateDefault = !data.selected_rule_id;
   const inactiveCount = rules.filter((r) => r.status === "inactive").length;
@@ -213,6 +223,9 @@ function StaffingRulesTab({ isAdmin = false }) {
   const openAdd = () => {
     setEditing(null);
     setForm({ ...EMPTY_FORM, shared: false });
+    setApplies({ all: true, unitIds: [] });
+    setAppliesTouched(true);
+    setAppliesError("");
     setFormError("");
     setFieldErrors({});
     setPanelOpen(true);
@@ -221,6 +234,9 @@ function StaffingRulesTab({ isAdmin = false }) {
   const openEdit = (rule) => {
     setEditing(rule);
     setForm(toForm(rule));
+    setApplies(appliesFor(rule));
+    setAppliesTouched(false);
+    setAppliesError("");
     setFormError("");
     setFieldErrors({});
     setPanelOpen(true);
@@ -264,12 +280,25 @@ function StaffingRulesTab({ isAdmin = false }) {
       status: form.status,
     };
     try {
+      let ruleId = editing ? editing.id : null;
       if (editing) {
         await axios.patch(apiEndpoints.staffingRuleDetail(editing.id), body, { headers });
         flash(`Saved "${form.name}".`);
       } else {
-        await axios.post(apiEndpoints.staffingRules, { ...body, shared: form.shared }, { headers });
+        const created = await axios.post(apiEndpoints.staffingRules, { ...body, shared: form.shared }, { headers });
+        ruleId = created.data.id;
         flash(`Added "${form.name}".`);
+      }
+      // Where it applies (custom standards only; a draft is not applied yet).
+      const applyNow = !editingShared && form.status === "active" && appliesTouched && (applies.all || applies.unitIds.length > 0);
+      if (applyNow) {
+        try {
+          await putUnits(ruleId, applies);
+        } catch (err) {
+          setFormError(`Saved, but the units were not changed: ${errorText(err, "Could not set the units.")}`);
+          load();
+          return;
+        }
       }
       setPanelOpen(false);
       load();
@@ -281,17 +310,47 @@ function StaffingRulesTab({ isAdmin = false }) {
   };
 
   // ---- row actions ----
+  const putUnits = (ruleId, choice) =>
+    axios.put(
+      apiEndpoints.staffingRuleUnits(ruleId),
+      { all_units: !!choice.all, unit_ids: choice.all ? [] : choice.unitIds },
+      { headers }
+    );
+
+  const openUse = (rule) => {
+    setApplies(rule.applies_all || rule.unit_ids?.length ? appliesFor(rule) : { all: true, unitIds: [] });
+    setAppliesError("");
+    setUseFor(rule);
+  };
+
   const confirmUse = async () => {
     const rule = useFor;
+    if (rule && !applies.all && applies.unitIds.length === 0 && !(rule.unit_ids || []).length) {
+      setAppliesError("Choose at least one unit.");
+      return;
+    }
     setDialogBusy(true);
     try {
-      await axios.put(apiEndpoints.staffingRuleSelection, { rule_id: rule ? rule.id : null }, { headers });
-      flash(rule ? `Your organization now uses "${rule.name}".` : "Your organization is back on its state's standard.");
+      if (rule) {
+        await putUnits(rule.id, applies);
+        flash(
+          applies.all
+            ? `Your organization now uses "${rule.name}" for all units.`
+            : `"${rule.name}" now applies to ${applies.unitIds.map(unitName).join(", ") || "no units"}.`
+        );
+      } else {
+        await axios.put(apiEndpoints.staffingRuleSelection, { rule_id: null }, { headers });
+        flash("Your organization is back on its state's standard.");
+      }
       setUseFor(undefined);
       load();
     } catch (err) {
-      setUseFor(undefined);
-      setError(errorText(err, "Could not change the standard."));
+      if (rule && err.response && err.response.status === 400) {
+        setAppliesError(errorText(err, "Could not change the units."));
+      } else {
+        setUseFor(undefined);
+        setError(errorText(err, "Could not change the standard."));
+      }
     } finally {
       setDialogBusy(false);
     }
@@ -439,7 +498,42 @@ function StaffingRulesTab({ isAdmin = false }) {
         </Alert>
       )}
 
+      {unitMode === "selected" && (
+        <Paper component="section" aria-label="Standards by unit" variant="outlined" sx={{ p: 3, mb: 3, borderWidth: 2, borderColor: "primary.main" }}>
+          <Typography variant="caption" sx={{ fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", color: "primary.dark" }}>
+            Standards are set per unit
+          </Typography>
+          <Stack spacing={0.75} sx={{ mt: 1 }}>
+            {units.map((u) => {
+              const owner = (data.unit_owner || {})[String(u.id)];
+              return (
+                <Stack key={u.id} direction="row" spacing={1.5} alignItems="center">
+                  <Typography sx={{ width: 160, fontWeight: 600 }}>{u.name}</Typography>
+                  {owner ? (
+                    <Typography>{ruleNames[owner] || "Standard"}</Typography>
+                  ) : (
+                    <Chip size="small" label="No standard applied" />
+                  )}
+                </Stack>
+              );
+            })}
+          </Stack>
+          {(data.uncovered_unit_ids || []).length > 0 && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              {(data.uncovered_unit_ids || []).map(unitName).join(", ")} {(data.uncovered_unit_ids || []).length === 1 ? "has" : "have"} no
+              standard. The calendar shows "No standard applied" and does not check staffing there.
+            </Alert>
+          )}
+          {isAdmin && (
+            <Button variant="outlined" color="inherit" onClick={() => setUseFor(null)} sx={{ mt: 2, minHeight: 44, borderColor: "grey.400" }}>
+              Go back to one standard for all units
+            </Button>
+          )}
+        </Paper>
+      )}
+
       {/* Standard in use */}
+      {unitMode === "all" && (
       <Paper
         component="section"
         aria-label="Standard in use"
@@ -507,6 +601,7 @@ function StaffingRulesTab({ isAdmin = false }) {
             : "Only administrators can change which standard applies."}
         </Typography>
       </Paper>
+      )}
 
       {/* All standards */}
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 1.5 }}>
@@ -520,10 +615,11 @@ function StaffingRulesTab({ isAdmin = false }) {
       </Stack>
 
       <TableContainer component={Paper} variant="outlined">
-        <Table sx={{ minWidth: 960 }}>
+        <Table sx={{ minWidth: 1100 }}>
           <TableHead>
             <TableRow>
               <TableCell sx={{ pl: 2.5 }}>Standard</TableCell>
+              <TableCell>Type</TableCell>
               <TableCell>Applies to</TableCell>
               <TableCell>Requirements</TableCell>
               <TableCell>Status</TableCell>
@@ -537,15 +633,15 @@ function StaffingRulesTab({ isAdmin = false }) {
           <TableBody>
             {shownRules.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">No standards available.</Typography>
                 </TableCell>
               </TableRow>
             )}
             {shownRules.map((r) => {
-              const inUse = r.id === data.effective_rule_id;
+              const inUse = unitMode === "all" ? r.id === data.effective_rule_id : (r.unit_ids || []).length > 0;
               const [line1, line2, line3] = requirementLines(r);
-              const canUse = isAdmin && r.status === "active" && !inUse;
+              const canUse = isAdmin && r.status === "active" && !r.applies_all && !(r.unit_ids || []).length;
               const hasMenu = isAdmin || r.editable;
               return (
                 <TableRow
@@ -578,6 +674,20 @@ function StaffingRulesTab({ isAdmin = false }) {
                   <TableCell>
                     <Chip size="small" variant="outlined" label={r.scope === "custom" ? "Custom (your org)" : r.state || "Shared"} />
                   </TableCell>
+                  <TableCell sx={{ maxWidth: 220 }}>
+                    <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                      {r.applies_all && <Chip size="small" color="primary" variant="outlined" label="All units" />}
+                      {(r.unit_ids || []).map((id) => (
+                        <Chip key={id} size="small" color="primary" variant="outlined" label={unitName(id)} />
+                      ))}
+                      {!r.applies_all && !(r.unit_ids || []).length && <Chip size="small" label="Not in use" />}
+                    </Stack>
+                    {isAdmin && r.status === "active" && (r.applies_all || (r.unit_ids || []).length > 0) && units.length > 0 && (
+                      <Button size="small" onClick={() => openUse(r)} sx={{ mt: 0.5, px: 0 }}>
+                        Edit units
+                      </Button>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {line1}
@@ -602,7 +712,7 @@ function StaffingRulesTab({ isAdmin = false }) {
                   </TableCell>
                   <TableCell align="right" sx={{ pr: 2.5, whiteSpace: "nowrap" }}>
                     {canUse && (
-                      <Button variant="outlined" onClick={() => setUseFor(r)} sx={{ minHeight: 44 }}>
+                      <Button variant="outlined" onClick={() => openUse(r)} sx={{ minHeight: 44 }}>
                         Use this standard
                       </Button>
                     )}
@@ -755,6 +865,19 @@ function StaffingRulesTab({ isAdmin = false }) {
                   <Typography variant="body2" color="text.secondary" sx={{ mt: -1 }}>
                     Custom standard. It only applies to your organization.
                   </Typography>
+                )}
+                {!editingShared && (
+                  <AppliesToPicker
+                    units={units}
+                    value={applies}
+                    onChange={(v) => {
+                      setApplies(v);
+                      setAppliesTouched(true);
+                    }}
+                    owners={unitMode === "selected" ? data.unit_owner || {} : {}}
+                    ruleNames={ruleNames}
+                    ruleId={editing ? editing.id : null}
+                  />
                 )}
 
                 <Box>
@@ -911,7 +1034,7 @@ function StaffingRulesTab({ isAdmin = false }) {
 
       {/* Use this standard */}
       <Dialog open={useFor !== undefined} onClose={dialogBusy ? undefined : () => setUseFor(undefined)} maxWidth="xs" fullWidth>
-        <DialogTitle>{useFor ? `Use "${useFor.name}"?` : "Go back to your state's standard?"}</DialogTitle>
+        <DialogTitle>{useFor ? `Where does "${useFor.name}" apply?` : "Go back to your state's standard?"}</DialogTitle>
         <DialogContent>
           {useFor ? (
             <Stack spacing={1.5}>
@@ -921,9 +1044,21 @@ function StaffingRulesTab({ isAdmin = false }) {
                 {hasNum(useFor.max_residents_per_staff) && <li>1 staff per {useFor.max_residents_per_staff} residents</li>}
                 {hasNum(useFor.min_rn_per_shift) && <li>{useFor.min_rn_per_shift} RN every shift</li>}
               </Box>
-              {effective && (
+              <AppliesToPicker
+                units={units}
+                value={applies}
+                onChange={(v) => {
+                  setApplies(v);
+                  setAppliesError("");
+                }}
+                owners={unitMode === "selected" ? data.unit_owner || {} : {}}
+                ruleNames={ruleNames}
+                ruleId={useFor.id}
+                error={appliesError}
+              />
+              {unitMode === "all" && effective && (
                 <Typography variant="body2" color="text.secondary">
-                  You are on <strong>{effective.name}</strong> now. It stays available, and you can switch back any time.
+                  Units you do not choose stay on <strong>{effective.name}</strong>.
                 </Typography>
               )}
             </Stack>
@@ -939,7 +1074,7 @@ function StaffingRulesTab({ isAdmin = false }) {
             Cancel
           </Button>
           <Button variant="contained" onClick={confirmUse} disabled={dialogBusy} sx={{ minHeight: 44, px: 2.5 }}>
-            {dialogBusy ? "Saving..." : useFor ? "Use this standard" : "Go back"}
+            {dialogBusy ? "Saving..." : useFor ? "Save" : "Go back"}
           </Button>
         </DialogActions>
       </Dialog>

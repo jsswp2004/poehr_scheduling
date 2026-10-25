@@ -6,7 +6,7 @@
 import { Box, Button, Chip, Divider, Paper, Stack, Typography } from "@mui/material";
 import moment from "moment";
 import { COVERAGE_STATUS } from "../../pages/staffingCoverage";
-import { SHIFT_NAME, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
+import { SHIFT_NAME, noStandardUnits, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
 
 export default function StaffingDayPanel({
   iso,
@@ -21,6 +21,7 @@ export default function StaffingDayPanel({
   const meta = info && COVERAGE_STATUS[info.status];
   const shifts = summarizeShifts(info);
   const toFill = toFillList(info);
+  const noStd = noStandardUnits(info);
 
   return (
     <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2 }} aria-label="Selected day">
@@ -43,25 +44,38 @@ export default function StaffingDayPanel({
         </Typography>
       )}
 
+      {noStd.length > 0 && (
+        <Typography variant="body2" sx={{ mb: 1, color: "#64748b" }}>
+          <strong>No standard applied:</strong> {noStd.map((u) => u.unit_name).join(", ")}. Staffing there is not checked.
+        </Typography>
+      )}
+
       {shifts.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
-          No coverage requirement applies to this day.
+          {noStd.length > 0 ? "Nothing else is checked on this day." : "No coverage requirement applies to this day."}
         </Typography>
       ) : (
         <Stack spacing={0.75}>
           {shifts.map((s) => {
             const m = COVERAGE_STATUS[s.status] || COVERAGE_STATUS.unknown;
             return (
-              <Box key={s.shift_type} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ width: 64 }}>
-                  {SHIFT_NAME[s.shift_type] || s.shift_type}
-                </Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700, color: m.color, flex: 1 }}>
-                  {s.status === "unknown" ? "No census" : `${s.assigned} of ${s.required}`}
-                </Typography>
-                <Typography variant="caption" sx={{ color: m.color, fontWeight: 600 }}>
-                  {m.icon} {m.label}
-                </Typography>
+              <Box key={s.shift_type}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography variant="body2" sx={{ width: 64 }}>
+                    {SHIFT_NAME[s.shift_type] || s.shift_type}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: m.color, flex: 1 }}>
+                    {s.status === "unknown" ? "No census" : `${s.assigned} of ${s.required}`}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: m.color, fontWeight: 600 }}>
+                    {m.icon} {m.label}
+                  </Typography>
+                </Box>
+                {s.reasons.slice(0, 2).map((r) => (
+                  <Typography key={r} variant="caption" sx={{ display: "block", color: m.color, pl: "72px" }}>
+                    {r}
+                  </Typography>
+                ))}
               </Box>
             );
           })}

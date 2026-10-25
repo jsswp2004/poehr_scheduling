@@ -1034,7 +1034,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
                         />
                       )}
                     </Stack>
-                    {it.status !== "unknown" && (
+                    {it.status !== "unknown" && it.status !== "no_standard" && (
                       <Typography variant="body2">
                         Staff scheduled: {it.assigned} (need {it.required}
                         {it.shift_hours != null ? ` full ${fmtHrs(it.shift_hours)}-hr shifts` : ""})

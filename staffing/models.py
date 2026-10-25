@@ -655,6 +655,30 @@ class OrgStaffingRule(models.Model):
         return f"{self.organization_id} -> {self.rule_id}"
 
 
+class UnitStaffingRule(models.Model):
+    """
+    Which staffing standard applies to a unit. One row per (organization, unit),
+    so a unit can never have two standards.
+
+    An organization with NO rows uses a single standard for every unit
+    (OrgStaffingRule, or its state's). Once it has rows, only the units listed
+    here are checked, each against its own standard; a unit with no row has no
+    standard applied.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="unit_staffing_rules")
+    unit = models.ForeignKey("Unit", on_delete=models.CASCADE, related_name="staffing_rule_assignments")
+    rule = models.ForeignKey(StaffingRule, on_delete=models.CASCADE, related_name="unit_assignments")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["organization", "unit"], name="staffing_unit_rule_unique")]
+
+    def __str__(self):
+        return f"unit {self.unit_id} -> rule {self.rule_id}"
+
+
 # --- In-app assistant ------------------------------------------------------
 class AssistantMessage(models.Model):
     """

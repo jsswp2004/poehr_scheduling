@@ -330,6 +330,7 @@ export const apiEndpoints = {
     staffingRuleDuplicate: (id) => `${API_BASE_URL}/api/staffing/rules/${id}/duplicate/`,
     staffingRuleAudit: (id) => `${API_BASE_URL}/api/staffing/rules/${id}/audit/`,
     staffingRuleSelection: `${API_BASE_URL}/api/staffing/rules/selection/`,
+    staffingRuleUnits: (id) => `${API_BASE_URL}/api/staffing/rules/${id}/units/`,
     staffingTimeOff: `${API_BASE_URL}/api/staffing/time-off/`,
     staffingTimeOffDecide: (id) => `${API_BASE_URL}/api/staffing/time-off/${id}/decide/`,
     staffingTimeOffResolve: (id) => `${API_BASE_URL}/api/staffing/time-off/${id}/resolve/`,

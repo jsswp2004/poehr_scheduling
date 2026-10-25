@@ -143,7 +143,8 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
     if (end - start).days > MAX_RANGE_DAYS:
         raise ValueError(f"Date range too large (max {MAX_RANGE_DAYS} days).")
 
-    resolved = state_rules.resolve_rule_for_org(organization)
+    unit_rules = state_rules.resolve_rules_for_org(organization)
+    resolved = unit_rules.default
     rule = resolved.rule
     buffer = organization.staffing_spare_buffer
 
@@ -294,8 +295,11 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
             if req.mode == "hppd":
                 if unit is None:
                     note = "HPPD mode needs a unit; using the fixed minimum."
-                elif rule is None:
-                    note = resolved.warning
+                elif unit_rules.for_unit(unit.id) is None:
+                    note = (
+                        f"No staffing standard applies to {unit.name}; using the fixed minimum."
+                        if unit_rules.per_unit else resolved.warning
+                    )
                 elif req.shift_type == "custom":
                     note = "Custom shifts have no HPPD pattern; using the fixed minimum."
                 else:
@@ -303,7 +307,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
                     if value is None:
                         note = f"No census for {unit.name}; using the fixed minimum."
                     else:
-                        need = _hppd_need(rule, unit, req.shift_type, value)
+                        need = _hppd_need(unit_rules.for_unit(unit.id), unit, req.shift_type, value)
                         default_hours = _pattern_hours(unit, req.shift_type)
                         explicit_hppd_keys.add((unit.id, req.shift_type))
                         if source == "carried_forward":
@@ -318,8 +322,20 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
             items.append(item)
 
         # ---- automatic state-rule requirements ---------------------------------
-        if rule is not None:
+        if rule is not None or unit_rules.per_unit:
             for unit in units:
+                urule = unit_rules.for_unit(unit.id)
+                if urule is None:
+                    items.append({
+                        "unit_id": unit.id, "unit_name": unit.name, "shift_type": None,
+                        "shift_label": None, "source": "no_standard", "mode": MODE_HPPD,
+                        "status": "no_standard", "required": None, "assigned": None,
+                        "required_hours": None, "hours_scheduled": None,
+                        "required_rn": None, "rn_scheduled": None, "reasons": [],
+                        "critical": [], "callouts_open": 0,
+                        "note": f"No staffing standard applies to {unit.name}, so its staffing is not checked.",
+                    })
+                    continue
                 value, source = census.get(unit.id, d)
                 if value is None:
                     items.append({
@@ -329,13 +345,13 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
                         "required_hours": None, "hours_scheduled": None,
                         "required_rn": None, "rn_scheduled": None, "reasons": [],
                         "critical": [], "callouts_open": 0,
-                        "note": f"Enter a census for {unit.name} to calculate {rule.name} staffing.",
+                        "note": f"Enter a census for {unit.name} to calculate {urule.name} staffing.",
                     })
                     continue
                 for sdef in hppd.get_pattern(unit.shift_pattern):
                     if (unit.id, sdef.shift_type) in explicit_hppd_keys:
                         continue
-                    need = _hppd_need(rule, unit, sdef.shift_type, value)
+                    need = _hppd_need(urule, unit, sdef.shift_type, value)
                     note = "Census carried forward from an earlier day." if source == "carried_forward" else ""
                     item = build_item(
                         d, unit, sdef.shift_type, sdef.name, "state_rule", need, float(sdef.hours), note
@@ -347,7 +363,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
         evaluated = [i["status"] for i in items if i["status"] in (MET, AT_RISK, NOT_MET)]
         day_status = worst(evaluated)
         if day_status is None:
-            day_status = UNKNOWN if items else NONE
+            day_status = UNKNOWN if any(i["status"] != "no_standard" for i in items) else NONE
         days[d.isoformat()] = {
             "status": day_status,
             "open_emergencies": open_emerg.get(d, 0),
@@ -367,6 +383,13 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
         "state_name": rule.name if rule else "",
         "rule": rule.as_dict() if rule else None,
         "warnings": [resolved.warning] if resolved.warning else [],
+        "standards": {
+            "mode": "unit" if unit_rules.per_unit else "all",
+            "units": {
+                str(u.id): ({"name": unit_rules.for_unit(u.id).name} if unit_rules.for_unit(u.id) else None)
+                for u in units
+            },
+        },
         "spare_buffer": buffer,
         "summary": counts,
         "days": days,

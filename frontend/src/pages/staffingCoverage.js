@@ -5,6 +5,7 @@ export const COVERAGE_STATUS = {
   at_risk: { label: "At risk", icon: "!", color: "#b26a00", bg: "rgba(255,179,0,0.26)" },
   not_met: { label: "Not met", icon: "✕", color: "#b91c1c", bg: "rgba(211,47,47,0.18)" },
   unknown: { label: "No census", icon: "?", color: "#616161", bg: "rgba(158,158,158,0.12)" },
+  no_standard: { label: "No standard applied", icon: "–", color: "#64748b", bg: "rgba(100,116,139,0.12)" },
 };
 
 export const toISO = (d) => {
