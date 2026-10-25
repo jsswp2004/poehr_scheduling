@@ -14,7 +14,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
 import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
-import { SHIFT_NAME, SHIFT_ORDER, noStandardUnits, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
+import { SHIFT_ORDER, shiftTitle, noStandardUnits, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
 import { CalendarSkeleton, CoverageFailedBanner, RoleFilterNote } from "./StaffingStateViews";
 
 /**
@@ -48,8 +48,23 @@ export function dayColumns(shifts, info) {
   const types = new Set([...(shifts || []).map((s) => s.shift_type), ...((info && info.items) || []).map((i) => i.shift_type)]);
   const ordered = SHIFT_ORDER.filter((t) => types.has(t) || t === "day" || t === "night");
   if (types.has("evening") && !ordered.includes("evening")) ordered.splice(1, 0, "evening");
+  // A unit's own shifts (keys like "u_regular_day") get their own column, earliest start first.
+  const own = [...types].filter((t) => String(t).startsWith("u_"));
+  const startOf = (t) => {
+    const hit = (shifts || []).find((x) => x.shift_type === t && x.start_time);
+    return hit ? hit.start_time : "99:99";
+  };
+  own.sort((a, b) => startOf(a).localeCompare(startOf(b)) || a.localeCompare(b));
+  ordered.push(...own);
   if (types.has("custom")) ordered.push("custom");
   return ordered;
+}
+
+/** Column title: Day/Evening/Night, or the name of the unit's own shift. */
+export function columnTitle(type, shifts, info) {
+  const fromItem = ((info && info.items) || []).find((i) => i.shift_type === type && i.shift_label);
+  const fromShift = (shifts || []).find((s) => s.shift_type === type && s.shift_type_display);
+  return shiftTitle(type, (fromItem && fromItem.shift_label) || (fromShift && fromShift.shift_type_display));
 }
 
 /** The unit cards of one column: every unit with a person or a requirement in that shift, sorted by name. */
@@ -156,7 +171,7 @@ export default function StaffingDayBoard({ date }) {
           return (
             <Box key={type} sx={{ bgcolor: "background.paper", border: "1px solid #e2e8f0", borderRadius: 2, p: 1.5, minWidth: 0 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.25 }}>
-                <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{SHIFT_NAME[type] || type}</Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: 16 }}>{columnTitle(type, shifts, info)}</Typography>
                 <Typography variant="caption" color="text.secondary">
                   {hours}
                 </Typography>
@@ -226,7 +241,7 @@ export default function StaffingDayBoard({ date }) {
                             : `Open: ${f.need} more needed`}
                         </Typography>
                         {mayFill && onFill && (
-                          <Button size="small" onClick={() => onFill(f, iso)} aria-label={`${fillLabel} ${u.name} ${SHIFT_NAME[type] || type}`}>
+                          <Button size="small" onClick={() => onFill(f, iso)} aria-label={`${fillLabel} ${u.name} ${columnTitle(type, shifts, info)}`}>
                             {fillLabel}
                           </Button>
                         )}

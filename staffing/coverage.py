@@ -101,7 +101,7 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
 
     for shift in hppd.required_staff_by_shift(
         census,
-        unit.shift_pattern,
+        hppd.unit_pattern(unit),
         hppd=rule.hppd_min,
         max_residents_per_staff=rule.max_residents_per_staff,
         min_rn=rule.min_rn_per_shift,
@@ -128,7 +128,7 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
         required_staff=0,
         census=census,
         census_source=source,
-        note=f"{req.get_shift_type_display()} is not a shift in {unit.name}'s {unit.shift_pattern} pattern.",
+        note=f"{req.get_shift_type_display()} is not a shift in {unit.name}'s shifts.",
     )
 
 
@@ -202,9 +202,9 @@ def custom_slot_overlaps(shift, unit):
     out = []
     for offset in (-1, 0, 1):
         slot_date = shift.date + timedelta(days=offset)
-        for sdef in hppd.get_pattern(unit.shift_pattern):
+        for sdef in hppd.unit_pattern(unit):
             s0 = datetime.combine(slot_date, datetime.strptime(sdef.start, "%H:%M").time())
-            s1 = s0 + timedelta(hours=float(sdef.hours))
+            s1 = s0 + timedelta(hours=float(sdef.span or sdef.hours))
             overlap = (min(end, s1) - max(start, s0)).total_seconds() / 3600.0
             if overlap > 0:
                 out.append((slot_date, sdef.shift_type, overlap))
@@ -223,7 +223,7 @@ class RequirementStatus:
 
 def _pattern_shift_hours(req) -> float:
     if req.unit_id:
-        for s in hppd.get_pattern(req.unit.shift_pattern):
+        for s in hppd.unit_pattern(req.unit):
             if s.shift_type == req.shift_type:
                 return float(s.hours)
     return DEFAULT_SHIFT_HOURS

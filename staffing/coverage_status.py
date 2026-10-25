@@ -81,7 +81,7 @@ def _daterange(start, end):
 
 def _pattern_hours(unit, shift_type):
     if unit is not None:
-        for s in hppd.get_pattern(unit.shift_pattern):
+        for s in hppd.unit_pattern(unit):
             if s.shift_type == shift_type:
                 return float(s.hours)
     return DEFAULT_SHIFT_HOURS
@@ -91,7 +91,7 @@ def _hppd_need(rule, unit, shift_type, census) -> Need:
     """Need for one shift of a unit's pattern. A shift not in the pattern needs nothing."""
     for r in hppd.required_staff_by_shift(
         census,
-        unit.shift_pattern,
+        hppd.unit_pattern(unit),
         hppd=rule.hppd_min,
         max_residents_per_staff=rule.max_residents_per_staff,
         min_rn=rule.min_rn_per_shift,
@@ -213,15 +213,18 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
         for e in lst:
             if e.role == "rn":
                 fac_adhoc_rn[(sd, st)][e.shift.staff_id] = Person(e.shift.staff_id, e.name, "rn", 0.0, e.pending)
-    patterns_in_use = {u.shift_pattern for u in units_by_id.values()}
+    # One representative unit per distinct set of shifts (custom units differ by their own list).
+    patterns_in_use = {}
+    for u in units_by_id.values():
+        patterns_in_use.setdefault(tuple(hppd.unit_pattern(u)), u)
     for s in shifts:
         # An RN on a custom/on-call shift with no unit still covers the facility by time.
         if s.shift_type != "custom" or s.unit_id is not None or s.staff.nursing_role != "rn":
             continue
         if out_shift_ids.get(s.id) or out_staff_dates.get((s.staff_id, s.date)):
             continue
-        for pat in patterns_in_use:
-            for slot_date, shift_type, _hrs in custom_slot_overlaps(s, SimpleNamespace(shift_pattern=pat)):
+        for rep_unit in patterns_in_use.values():
+            for slot_date, shift_type, _hrs in custom_slot_overlaps(s, rep_unit):
                 fac_adhoc_rn[(slot_date, shift_type)][s.staff_id] = Person(
                     s.staff_id, s.staff.full_name, "rn", 0.0, (s.staff_id, s.date) in pending
                 )
@@ -348,7 +351,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
                         "note": f"Enter a census for {unit.name} to calculate {urule.name} staffing.",
                     })
                     continue
-                for sdef in hppd.get_pattern(unit.shift_pattern):
+                for sdef in hppd.unit_pattern(unit):
                     if (unit.id, sdef.shift_type) in explicit_hppd_keys:
                         continue
                     need = _hppd_need(urule, unit, sdef.shift_type, value)
