@@ -39,7 +39,8 @@ function StaffingPage() {
       stickyObserver.current = null;
     }
     if (!node) return;
-    const publish = () => node.style.setProperty("--staffing-sticky-h", `${node.getBoundingClientRect().height}px`);
+    // On the root so any tab content (a sibling of this block) can read it.
+    const publish = () => document.documentElement.style.setProperty("--staffing-sticky-h", `${node.getBoundingClientRect().height}px`);
     publish();
     if (typeof ResizeObserver !== "undefined") {
       stickyObserver.current = new ResizeObserver(publish);
