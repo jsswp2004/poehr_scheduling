@@ -184,8 +184,20 @@ def shift_hours(shift, default_hours=DEFAULT_SHIFT_HOURS) -> float:
         end = datetime.combine(shift.date, shift.end_time)
         if end <= start:
             end += timedelta(days=1)
-        return (end - start).total_seconds() / 3600.0
+        hours = (end - start).total_seconds() / 3600.0
+        return max(hours - unpaid_break_hours(shift), 0.0)
     return default_hours
+
+
+def unpaid_break_hours(shift) -> float:
+    """Unpaid break of a shift on a unit's own (custom-hours) shift, in hours; 0 for everything else."""
+    if not str(getattr(shift, "shift_type", "")).startswith("u_"):
+        return 0.0
+    unit = getattr(shift, "unit", None)
+    for x in getattr(unit, "custom_shifts", None) or []:
+        if x.get("key") == shift.shift_type:
+            return (int(x.get("break_minutes") or 0)) / 60.0
+    return 0.0
 
 
 def custom_slot_overlaps(shift, unit):
