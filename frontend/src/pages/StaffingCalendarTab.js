@@ -24,6 +24,8 @@ import {
   IconButton,
   Menu,
   Snackbar,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   useMediaQuery,
 } from "@mui/material";
@@ -118,6 +120,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
   const [selectedISO, setSelectedISO] = useState(() => toISO(new Date()));
   const [statusFocus, setStatusFocus] = useState(""); // "" | not_met | at_risk | met
   const [showRule, setShowRule] = useState(false);
+  const [roleFilter, setRoleFilter] = useState(""); // "" | rn | lpn | cna: narrows the people shown, not the coverage maths
   const [shiftMenu, setShiftMenu] = useState(null); // {anchorEl, shift}: the person menu in Day view
   const [removeTarget, setRemoveTarget] = useState(null); // shift awaiting the remove confirmation
   const [removeBusy, setRemoveBusy] = useState(false);
@@ -341,8 +344,9 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
   // reflect the whole schedule.
   const filteredShifts = useMemo(() => {
     const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (terms.length === 0) return shifts;
-    return shifts.filter((shift) => {
+    const byRole = roleFilter ? shifts.filter((shift) => (shift.nursing_role || "other") === roleFilter) : shifts;
+    if (terms.length === 0) return byRole;
+    return byRole.filter((shift) => {
       const hay = [
         shift.staff_name,
         roleLabel(shift),
@@ -360,7 +364,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
         .toLowerCase();
       return terms.every((t) => hay.includes(t));
     });
-  }, [shifts, search]);
+  }, [shifts, search, roleFilter]);
 
   const retryCoverage = useCallback(() => fetchCoverage(range.start, range.end), [fetchCoverage, range]);
   const waiting = loading || coverageLoading; // the views show a skeleton until both have answered
@@ -378,7 +382,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
   // The month grid shows coverage lines instead of one pill per person; people appear
   // there only when a search is active. Week, Day and Agenda are our own views and draw from
   // the shifts directly, so the calendar gets no events for them.
-  const monthSummaryOnly = view !== "month" || search.trim() === "";
+  const monthSummaryOnly = view !== "month" || (search.trim() === "" && roleFilter === "");
 
   const events = useMemo(
     () =>
@@ -687,6 +691,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
     isAdmin,
     canFill: (iso) => isAdmin || (!!me?.staff_id && iso >= toISO(new Date())),
     fillLabel: panelFillLabel,
+    roleLabel: roleFilter ? ROLE_LABELS[roleFilter] : "",
     onFill: fillFor,
     onPersonMenu: (anchorEl, shift) => setShiftMenu({ anchorEl, shift }),
     onAdd: isAdmin && onAssign ? (iso) => onAssign({ unit_id: unitId || null, date: iso, shift_type: "day" }) : null,
@@ -732,6 +737,20 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
             ))}
           </Select>
         </FormControl>
+        <ToggleButtonGroup
+          exclusive
+          size="small"
+          value={roleFilter || "all"}
+          onChange={(e, v) => v !== null && setRoleFilter(v === "all" ? "" : v)}
+          aria-label="Show people by role"
+          disabled={view === "week"}
+          sx={{ "& .MuiToggleButton-root": { py: 0.25, px: 1.25, fontWeight: 600, textTransform: "none" } }}
+        >
+          <ToggleButton value="all">All</ToggleButton>
+          <ToggleButton value="rn">RN</ToggleButton>
+          <ToggleButton value="lpn">LPN</ToggleButton>
+          <ToggleButton value="cna">CNA</ToggleButton>
+        </ToggleButtonGroup>
         {loading && <CircularProgress size={18} aria-label="Loading" />}
         {coverage &&
           STATUS_CHIPS.map(([key, word]) => {

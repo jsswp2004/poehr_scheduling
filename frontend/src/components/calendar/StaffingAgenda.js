@@ -14,7 +14,7 @@ import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
 import { SHIFT_NAME, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
 import { StaffingDayContext, columnUnits, dayColumns } from "./StaffingDayBoard";
-import { CalendarSkeleton, CoverageFailedBanner } from "./StaffingStateViews";
+import { CalendarSkeleton, CoverageFailedBanner, RoleFilterNote } from "./StaffingStateViews";
 
 const ROLE_COLORS = { rn: "#2563eb", lpn: "#7c3aed", cna: "#0d9488", other: "#64748b" };
 const ROLE_LABELS = { rn: "RN", lpn: "LPN", cna: "CNA", other: "Other" };
@@ -149,7 +149,7 @@ function ShiftRow({ iso, type, dayShifts, info, open, onToggle }) {
 }
 
 export default function StaffingAgenda({ date, onDrillDown }) {
-  const { coverage, shifts, loading, failed, retrying, onRetry, isAdmin, onAdd } = useContext(StaffingDayContext);
+  const { coverage, shifts, loading, failed, retrying, onRetry, roleLabel, isAdmin, onAdd } = useContext(StaffingDayContext);
   const [openRows, setOpenRows] = useState({});
   const days = agendaRange(date);
   const today = toISO(new Date());
@@ -157,6 +157,7 @@ export default function StaffingAgenda({ date, onDrillDown }) {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+      {roleLabel && <RoleFilterNote role={roleLabel} />}
       {failed && <CoverageFailedBanner detail="The people below are correct." onRetry={onRetry} retrying={retrying} />}
       {loading && !coverage && !(shifts || []).length && <CalendarSkeleton />}
       {days.map((d) => {
