@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Alert, Box, Button, MenuItem, Stack, TextField, Typography } from "@mui/material";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faDownload, faPrint } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
@@ -37,6 +37,10 @@ function StaffingDailyReports() {
   const [units, setUnits] = useState([]);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewing, setPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+  const previewUrlRef = useRef("");
 
   const form = FORMS.find((f) => f.value === kind);
 
@@ -71,6 +75,37 @@ function StaffingDailyReports() {
     }
   };
 
+  // Live preview: re-render the PDF shortly after any option changes, shown beside the options.
+  const refreshPreview = useCallback(async () => {
+    setPreviewing(true);
+    setPreviewError("");
+    try {
+      const url = await fetchPdf();
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = url;
+      setPreviewUrl(url);
+    } catch (err) {
+      setPreviewUrl("");
+      setPreviewError(await errMessage(err));
+    } finally {
+      setPreviewing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, date, shift, unit]);
+
+  useEffect(() => {
+    if (!date) return undefined;
+    const t = setTimeout(refreshPreview, 400);
+    return () => clearTimeout(t);
+  }, [refreshPreview, date]);
+
+  useEffect(
+    () => () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    },
+    []
+  );
+
   const run = async (mode) => {
     setError("");
     setBusy(mode);
@@ -104,7 +139,8 @@ function StaffingDailyReports() {
         Prints the facility's daily staffing forms from the calendar shifts, unit beds and census. The header is the
         organization logo; the footer shows who printed it, when, and the page count.
       </Typography>
-      <Stack spacing={1.5} sx={{ maxWidth: 520 }}>
+      <Box sx={{ display: "flex", flexDirection: { xs: "column", lg: "row" }, gap: 3, alignItems: "flex-start" }}>
+      <Stack spacing={1.5} sx={{ width: { xs: "100%", lg: 340 }, flex: "none" }}>
         {error && <Alert severity="error">{error}</Alert>}
         <TextField select size="small" label="Form" value={kind} onChange={(e) => setKind(e.target.value)}>
           {FORMS.map((f) => (
@@ -159,6 +195,23 @@ function StaffingDailyReports() {
           </Button>
         </Stack>
       </Stack>
+
+      <Paper variant="outlined" sx={{ flex: 1, minWidth: 0, width: "100%", overflow: "hidden" }} aria-label="Form preview">
+        <Box sx={{ px: 2, py: 1, borderBottom: "1px solid", borderColor: "divider", display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography sx={{ fontWeight: 600, flex: 1 }}>Preview</Typography>
+          {previewing && <CircularProgress size={16} />}
+        </Box>
+        {previewError ? (
+          <Alert severity="warning" sx={{ m: 2 }}>
+            {previewError}
+          </Alert>
+        ) : previewUrl ? (
+          <Box component="iframe" title="Form preview" src={previewUrl} sx={{ border: 0, width: "100%", height: "calc(100vh - 300px)", minHeight: 480, display: "block" }} />
+        ) : (
+          <Box sx={{ p: 4, color: "text.secondary" }}>{previewing ? "Preparing the preview..." : "Choose a form and date to preview it."}</Box>
+        )}
+      </Paper>
+      </Box>
     </Box>
   );
 }

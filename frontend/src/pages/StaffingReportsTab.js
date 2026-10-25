@@ -687,7 +687,18 @@ function StaffingReportsTab() {
 
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, alignItems: "flex-start" }}>
         {/* Report picker: a grouped list on wide screens, a select on narrow ones */}
-        <Box className="no-print" sx={{ width: { xs: "100%", md: 250 }, flex: "none" }}>
+        <Box
+          className="no-print"
+          sx={{
+            width: { xs: "100%", md: 250 },
+            flex: "none",
+            // The report list stays in place while the page scrolls (under the frozen header).
+            position: { md: "sticky" },
+            top: { md: "calc(64px + var(--staffing-sticky-h, 130px) + 16px)" },
+            maxHeight: { md: "calc(100vh - 64px - var(--staffing-sticky-h, 130px) - 32px)" },
+            overflowY: { md: "auto" },
+          }}
+        >
           <FormControl size="small" fullWidth sx={{ display: { xs: "flex", md: "none" } }}>
             <InputLabel id="report-type-label">Report</InputLabel>
             <Select
