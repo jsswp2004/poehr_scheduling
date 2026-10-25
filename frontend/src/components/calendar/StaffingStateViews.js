@@ -70,3 +70,12 @@ export function NoRequirementNotice({ unitName, onOpenUnits = null }) {
     </Alert>
   );
 }
+
+/** Reminder under the role chips: the filter narrows people, never the coverage maths. */
+export function RoleFilterNote({ role }) {
+  return (
+    <Box sx={{ mb: 1, fontSize: 13, color: "text.secondary" }}>
+      Showing <b>{role}</b> only. Coverage counts include all roles.
+    </Box>
+  );
+}

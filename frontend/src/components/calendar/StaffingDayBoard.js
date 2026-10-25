@@ -15,7 +15,7 @@ import { faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
 import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
 import { SHIFT_NAME, SHIFT_ORDER, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
-import { CalendarSkeleton, CoverageFailedBanner } from "./StaffingStateViews";
+import { CalendarSkeleton, CoverageFailedBanner, RoleFilterNote } from "./StaffingStateViews";
 
 /**
  * Value: { coverage, shifts, loading, failed, retrying, onRetry, isAdmin, canFill(iso),
@@ -27,6 +27,7 @@ export const StaffingDayContext = createContext({
   shifts: [],
   loading: false,
   failed: false,
+  roleLabel: "",
   retrying: false,
   onRetry: null,
   isAdmin: false,
@@ -114,7 +115,7 @@ function PersonRow({ shift, isAdmin, onPersonMenu }) {
 
 export default function StaffingDayBoard({ date }) {
   const ctx = useContext(StaffingDayContext);
-  const { coverage, loading, failed, retrying, onRetry, isAdmin, canFill, fillLabel, onFill, onPersonMenu, onAdd } = ctx;
+  const { coverage, loading, failed, retrying, onRetry, roleLabel, isAdmin, canFill, fillLabel, onFill, onPersonMenu, onAdd } = ctx;
   const iso = toISO(date);
   const info = coverage && coverage.days ? coverage.days[iso] : null;
   const shifts = (ctx.shifts || []).filter((s) => s.date === iso);
@@ -142,6 +143,7 @@ export default function StaffingDayBoard({ date }) {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+      {roleLabel && <RoleFilterNote role={roleLabel} />}
       {failed && <CoverageFailedBanner detail="The people below are correct." onRetry={onRetry} retrying={retrying} />}
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: `repeat(${columns.length}, minmax(0, 1fr))` }, gap: 1.5, alignItems: "start" }}>
         {columns.map((type) => {

@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { CalendarSkeleton, CoverageFailedBanner, NoRequirementNotice } from "../StaffingStateViews";
+import { CalendarSkeleton, CoverageFailedBanner, NoRequirementNotice, RoleFilterNote } from "../StaffingStateViews";
 
 describe("CoverageFailedBanner", () => {
   it("says what failed, what still works, and retries", () => {
@@ -36,5 +36,13 @@ describe("NoRequirementNotice", () => {
   it("has no button when it cannot navigate", () => {
     render(<NoRequirementNotice unitName="4 East" />);
     expect(screen.queryByRole("button")).toBeNull();
+  });
+});
+
+describe("RoleFilterNote", () => {
+  it("says the filter does not change coverage", () => {
+    render(<RoleFilterNote role="RN" />);
+    expect(screen.getByText(/Coverage counts include all roles/)).toBeInTheDocument();
+    expect(screen.getByText("RN")).toBeInTheDocument();
   });
 });

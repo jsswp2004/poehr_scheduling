@@ -80,6 +80,11 @@ describe("StaffingDayBoard", () => {
     expect(screen.queryByRole("button", { name: /Actions for/ })).toBeNull();
   });
 
+  it("reminds that a role filter does not change the coverage counts", () => {
+    renderBoard({ roleLabel: "RN" });
+    expect(screen.getByText(/Coverage counts include all roles/)).toBeInTheDocument();
+  });
+
   it("hides Assign when the person cannot fill", () => {
     renderBoard({ canFill: () => false });
     expect(screen.queryByRole("button", { name: /Assign/ })).toBeNull();
