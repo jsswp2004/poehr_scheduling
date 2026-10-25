@@ -1635,7 +1635,7 @@ function CoverageSection({ coverageRequirements, units, rule, stateName, loading
 
 // ---------- tab ----------
 
-function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = null }) {
+function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = null, section: sectionProp = null }) {
   const token = getAccessToken();
 
   const [staffList, setStaffList] = useState([]);
@@ -1646,7 +1646,9 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [flashMsg, setFlashMsg] = useState(null); // { severity, message }
-  const [section, setSection] = useState("schedules");
+  const [localSection, setSection] = useState("schedules");
+  // When the page owns the frozen title row it passes `section`; otherwise this tab shows its own.
+  const section = sectionProp || localSection;
 
   const flash = useCallback((severity, message) => setFlashMsg({ severity, message }), []);
 
@@ -1690,22 +1692,8 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = 
 
   return (
     <Box>
-      <Stack
-        direction="row"
-        spacing={2}
-        alignItems="flex-end"
-        justifyContent="space-between"
-        flexWrap="wrap"
-        useFlexGap
-        sx={{
-          mb: 2,
-          position: "sticky",
-          top: "calc(64px + var(--staffing-sticky-h, 110px) - 1px)",
-          zIndex: 900,
-          bgcolor: "background.paper",
-          py: 1,
-        }}
-      >
+      {!sectionProp && (
+      <Stack direction="row" spacing={2} alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
         <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
           Assign Schedule
         </Typography>
@@ -1725,6 +1713,7 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = 
           </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
+      )}
 
       {loadError && (
         <Alert severity="error" sx={{ mb: 2 }}>
