@@ -24,21 +24,26 @@ import {
   TablePagination,
   Paper,
   LinearProgress,
+  Snackbar,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faDownload,
-  faChevronLeft,
-  faChevronRight,
-} from "@fortawesome/free-solid-svg-icons";
+import { faChevronLeft, faChevronRight } from "@fortawesome/free-solid-svg-icons";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import StaffingMasterReport from "./StaffingMasterReport";
 import StaffingDailyReports from "./StaffingDailyReports";
 import { StaffingHeaderSlotContext } from "../components/staffing/StaffingTabHeader";
-import { ReportActionsSlotContext, ReportPrintButton } from "../components/staffing/ReportActions";
+import {
+  ReportActionsSlotContext,
+  ReportExportContext,
+  ReportExportMenu,
+  ReportPrintButton,
+} from "../components/staffing/ReportActions";
+import { SubscribeButton } from "../components/staffing/ReportSubscribe";
+import { blobErrorMessage, downloadReportFile } from "../components/staffing/reportFiles";
+import StaffingSubscriptionsPanel from "./StaffingSubscriptionsPanel";
 
 const REPORT_GROUPS = [
   {
@@ -94,6 +99,16 @@ const REPORT_GROUPS = [
     ],
   },
   {
+    label: "Automation",
+    items: [
+      {
+        value: "subscriptions",
+        label: "Subscriptions",
+        description: "Reports emailed to you and your team on a schedule.",
+      },
+    ],
+  },
+  {
     label: "Messages",
     items: [
       {
@@ -110,7 +125,7 @@ const REPORT_BY_VALUE = ALL_REPORTS.reduce((acc, r) => {
   acc[r.value] = r;
   return acc;
 }, {});
-const NO_DATE_REPORTS = ["master_schedule", "daily_forms"];
+const NO_DATE_REPORTS = ["master_schedule", "daily_forms", "subscriptions"];
 
 const REPORT_PAGE_SIZE = 14; // rows shown per page in every report table
 
@@ -339,6 +354,10 @@ function StaffingReportsTab() {
   const [distributionTotals, setDistributionTotals] = useState(null);
   const [page, setPage] = useState(0);
   const [printing, setPrinting] = useState(false); // print shows every row, not just this page
+  const [childExport, setChildExport] = useState(null); // Export/Print behaviour of Master schedule / Daily forms
+  const [exporting, setExporting] = useState(false);
+  const [subscriptionToast, setSubscriptionToast] = useState("");
+  const [subscriptionsKey, setSubscriptionsKey] = useState(0);
 
   // Load the full staff roster once, to populate the profession/staff filters.
   useEffect(() => {
@@ -472,7 +491,7 @@ function StaffingReportsTab() {
   };
 
   const runReport = useCallback(async () => {
-    if (!startDate || !endDate || reportType === "master_schedule" || reportType === "daily_forms") return;
+    if (!startDate || !endDate || reportType === "master_schedule" || reportType === "daily_forms" || reportType === "subscriptions") return;
     setLoading(true);
     setError("");
     try {
@@ -612,6 +631,40 @@ function StaffingReportsTab() {
     }, 150);
   };
 
+  // The filters on screen travel with an export or a new subscription.
+  const reportParams = () => {
+    switch (reportType) {
+      case "schedule":
+        return { profession, staff: staffFilterId };
+      case "message_log":
+        return { staff: staffFilterId };
+      case "labor_hours":
+      case "unscheduled":
+      case "shift_distribution":
+        return { profession };
+      case "coverage_compliance":
+        return { unit: unitFilterId, shift: shiftFilter, status: statusFilter === "all" ? "" : statusFilter };
+      default:
+        return {};
+    }
+  };
+
+  const handleExportFile = async (fmt) => {
+    if (fmt === "csv") {
+      exportInfo?.run();
+      return;
+    }
+    setExporting(true);
+    setError("");
+    try {
+      await downloadReportFile({ kind: reportType, file: "pdf", params: { start: startDate, end: endDate, ...reportParams() } });
+    } catch (err) {
+      setError(await blobErrorMessage(err, "Could not create the PDF."));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const meta = REPORT_BY_VALUE[reportType];
   const exportInfo = {
     schedule: { count: shifts.length, run: handleExportSchedule },
@@ -621,6 +674,15 @@ function StaffingReportsTab() {
     message_log: { count: messageRows.length, run: handleExportMessageLog },
     shift_distribution: { count: distributionRows.length, run: handleExportDistribution },
   }[reportType];
+  const exportState = exportInfo
+    ? {
+        formats: ["pdf", "csv"],
+        disabled: exportInfo.count === 0,
+        busy: exporting,
+        onExport: handleExportFile,
+        onPrint: handlePrint,
+      }
+    : childExport;
 
   const clearComplianceFilters = () => {
     setUnitFilterId("");
@@ -752,21 +814,33 @@ function StaffingReportsTab() {
         <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", flex: "none", mt: "-6px" }}>
           {/* Master schedule and Daily staffing forms put their own controls here. */}
           <Box ref={setActionsSlot} sx={{ display: "contents" }} />
-            {exportInfo && (
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<FontAwesomeIcon icon={faDownload} />}
-                  onClick={exportInfo.run}
-                  disabled={exportInfo.count === 0}
-                  sx={{ minHeight: 44 }}
-                >
-                  Export CSV
-                </Button>
-                <ReportPrintButton onClick={handlePrint} disabled={exportInfo.count === 0} />
-              </Stack>
-            )}
+          {reportType !== "subscriptions" && (
+            <>
+              <SubscribeButton
+                key={reportType}
+                report={reportType}
+                reportLabel={meta.label}
+                params={reportParams()}
+                people={staffList}
+                units={unitList}
+                onSaved={() => {
+                  setSubscriptionToast(`Subscribed to ${meta.label}. Manage it under Subscriptions.`);
+                  setSubscriptionsKey((k) => k + 1);
+                }}
+              />
+              {exportState && (
+                <>
+                  <ReportExportMenu
+                    formats={exportState.formats}
+                    onExport={exportState.onExport}
+                    disabled={exportState.disabled}
+                    busy={exportState.busy}
+                  />
+                  <ReportPrintButton onClick={exportState.onPrint} disabled={exportState.disabled} />
+                </>
+              )}
+            </>
+          )}
         </Box>
       </Stack>
     </Box>
@@ -788,6 +862,7 @@ function StaffingReportsTab() {
       {headerSlot ? createPortal(reportHeader, headerSlot) : reportHeader}
 
       <ReportActionsSlotContext.Provider value={actionsSlot}>
+      <ReportExportContext.Provider value={setChildExport}>
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, alignItems: "flex-start" }}>
         {/* Report picker: a grouped list on wide screens, a select on narrow ones */}
         <Box
@@ -912,6 +987,13 @@ function StaffingReportsTab() {
               <StaffingMasterReport />
             ) : reportType === "daily_forms" ? (
               <StaffingDailyReports />
+            ) : reportType === "subscriptions" ? (
+              <StaffingSubscriptionsPanel
+                people={staffList}
+                units={unitList}
+                refreshKey={subscriptionsKey}
+                onOpenReport={setReportType}
+              />
             ) : (
               <Typography variant="h6" className="print-only-header">
                 {meta.label} — {formatRange(startDate, endDate)}
@@ -1390,7 +1472,14 @@ function StaffingReportsTab() {
           </Box>
         </Box>
       </Box>
+      </ReportExportContext.Provider>
       </ReportActionsSlotContext.Provider>
+      <Snackbar
+        open={!!subscriptionToast}
+        autoHideDuration={5000}
+        onClose={() => setSubscriptionToast("")}
+        message={subscriptionToast}
+      />
     </Box>
   );
 }

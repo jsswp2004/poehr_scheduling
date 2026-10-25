@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Box, Button, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDownload } from "@fortawesome/free-solid-svg-icons";
-import { ReportActions, ReportPrintButton } from "../components/staffing/ReportActions";
+import { Alert, Box, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { ReportActions, useReportExport } from "../components/staffing/ReportActions";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -134,6 +132,15 @@ function StaffingDailyReports() {
     }
   };
 
+  // Export (PDF only) and Print live in the Reports title row, next to Subscribe.
+  useReportExport({
+    formats: ["pdf"],
+    disabled: !date,
+    busy: busy,
+    onExport: () => run("download"),
+    onPrint: () => run("print"),
+  });
+
   const controls = (
     <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
       <TextField select size="small" label="Form" value={kind} onChange={(e) => setKind(e.target.value)} sx={{ minWidth: 250, maxWidth: 300 }}>
@@ -171,18 +178,6 @@ function StaffingDailyReports() {
           ))}
         </TextField>
       )}
-      <Button
-        variant="outlined"
-        startIcon={<FontAwesomeIcon icon={faDownload} />}
-        disabled={!!busy || !date}
-        onClick={() => run("download")}
-        sx={{ minHeight: 44 }}
-      >
-        {busy === "download" ? "Preparing..." : "Download PDF"}
-      </Button>
-      <ReportPrintButton disabled={!!busy || !date} onClick={() => run("print")}>
-        {busy === "print" ? "Preparing..." : "Print"}
-      </ReportPrintButton>
     </Stack>
   );
 

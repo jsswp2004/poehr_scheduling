@@ -863,6 +863,51 @@ class MasterScheduleCell(models.Model):
         ]
 
 
+class ReportSubscription(models.Model):
+    """
+    A Reports-tab report emailed on a schedule (daily, weekly or monthly) as a PDF and/or CSV
+    attachment. `covers` is a relative period ("previous_week"), never fixed dates, so every email
+    is for the latest period. Sent by staffing.report_subscriptions.send_due_subscriptions(),
+    which the hourly Staffing job calls; sends therefore go out on the hour.
+    """
+
+    FREQUENCY_CHOICES = [("daily", "Daily"), ("weekly", "Weekly"), ("monthly", "Monthly")]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="staffing_report_subscriptions"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staffing_report_subscriptions",
+    )
+    report = models.CharField(max_length=40)
+    params = models.JSONField(default=dict, blank=True)  # report filters (profession, unit, form, ...)
+    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="weekly")
+    weekday = models.PositiveSmallIntegerField(default=0)  # weekly: 0 = Monday ... 6 = Sunday
+    month_day = models.PositiveSmallIntegerField(default=1)  # monthly: 1-31, 0 = last day of the month
+    send_hour = models.PositiveSmallIntegerField(default=7)  # 0-23, in `timezone`
+    timezone = models.CharField(max_length=64, default="America/New_York")
+    covers = models.CharField(max_length=20, default="previous_week")
+    formats = models.JSONField(default=list)  # ["pdf"], ["csv"] or both
+    recipients = models.JSONField(default=list)  # email addresses
+    is_active = models.BooleanField(default=True)
+    next_run_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    last_status = models.CharField(max_length=10, blank=True, default="")  # sent / partial / failed
+    last_detail = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["report", "id"]
+
+    def __str__(self):
+        return f"{self.report} ({self.frequency}) -> {len(self.recipients or [])} recipient(s)"
+
+
 # ---------------------------------------------------------------------------
 # A unit on custom hours stores its own shift keys ("u_regular_day") in shift_type;
 # show the shift's name instead of the raw key everywhere get_shift_type_display() is used.

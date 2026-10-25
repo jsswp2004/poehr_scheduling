@@ -1669,6 +1669,13 @@ class RunStaffingHourlyJobsView(APIView):
         except Exception as exc:
             results["coverage_alerts"] = f"error: {exc}"
 
+        try:
+            from staffing.report_subscriptions import send_due_subscriptions
+
+            results["report_subscriptions"] = send_due_subscriptions()
+        except Exception as exc:
+            results["report_subscriptions"] = f"error: {exc}"
+
         return Response(results, status=status.HTTP_200_OK)
 
 
