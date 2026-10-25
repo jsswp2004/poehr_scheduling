@@ -4,7 +4,7 @@ import "@testing-library/jest-dom";
 import axios from "axios";
 import WhoCanBeAssigned, { addDaysISO, statusText } from "../WhoCanBeAssigned";
 
-jest.mock("axios");
+jest.mock("axios", () => ({ __esModule: true, default: { get: jest.fn() } }));
 
 const person = (o) => ({
   id: 1, name: "Ann Lee", role: "RN", role_key: "rn", nursing_role: "rn", week_hours: 24,
