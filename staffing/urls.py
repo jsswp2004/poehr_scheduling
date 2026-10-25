@@ -23,6 +23,7 @@ from .rules_views import (
     RuleDetailView,
     RuleDuplicateView,
     RuleSelectionView,
+    RuleUnitsView,
     RulesListCreateView,
 )
 from .timeoff_views import (
@@ -115,6 +116,7 @@ urlpatterns = [
     path("location/", OrgLocationView.as_view(), name="staffing-location"),
     path("rules/", RulesListCreateView.as_view(), name="staffing-rules"),
     path("rules/selection/", RuleSelectionView.as_view(), name="staffing-rules-selection"),
+    path("rules/<int:pk>/units/", RuleUnitsView.as_view(), name="staffing-rule-units"),
     path("rules/<int:pk>/", RuleDetailView.as_view(), name="staffing-rule-detail"),
     path("rules/<int:pk>/duplicate/", RuleDuplicateView.as_view(), name="staffing-rule-duplicate"),
     path("rules/<int:pk>/audit/", RuleAuditView.as_view(), name="staffing-rule-audit"),

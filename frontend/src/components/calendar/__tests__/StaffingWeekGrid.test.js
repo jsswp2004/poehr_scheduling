@@ -102,3 +102,29 @@ describe("StaffingWeekGrid", () => {
     expect(screen.getByText(/No coverage requirements apply this week/)).toBeInTheDocument();
   });
 });
+
+describe("StaffingWeekGrid with a unit that has no standard", () => {
+  const cov = {
+    standards: { mode: "unit", units: { 1: { name: "Rehab short-stay" }, 3: null } },
+    days: {
+      "2026-10-22": {
+        status: "met",
+        items: [
+          { unit_id: 1, unit_name: "2 West", shift_type: "day", status: "met", assigned: 4, required: 4 },
+          { unit_id: 3, unit_name: "Garden Level", shift_type: null, status: "no_standard", assigned: null, required: null },
+        ],
+      },
+    },
+  };
+
+  it("shows a No standard cell and names each unit's standard", () => {
+    render(
+      <StaffingWeekContext.Provider value={{ coverage: cov, loading: false, failed: false, search: "" }}>
+        <StaffingWeekGrid date={new Date(2026, 9, 22)} />
+      </StaffingWeekContext.Provider>
+    );
+    expect(screen.getByRole("button", { name: /Garden Level, Thu Oct 22: no standard applied/ })).toBeInTheDocument();
+    expect(screen.getByText("Rehab short-stay")).toBeInTheDocument();
+    expect(screen.getByText("No standard assigned")).toBeInTheDocument();
+  });
+});

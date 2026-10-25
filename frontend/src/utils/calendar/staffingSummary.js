@@ -27,16 +27,24 @@ const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
 /**
  * One row per shift type present that day, added up across units:
- * [{ shift_type, assigned, required, status }] in Day, Evening, Night order.
+ * [{ shift_type, assigned, required, status, reasons }] in Day, Evening, Night order.
  */
 export function summarizeShifts(info) {
   const by = {};
   ((info && info.items) || []).forEach((it) => {
+    if (it.status === "no_standard") return; // that unit has no standard, so nothing is counted for it
     const type = it.shift_type || "custom";
-    const row = (by[type] ||= { shift_type: type, assigned: 0, required: 0, statuses: [] });
+    const row = (by[type] ||= { shift_type: type, assigned: 0, required: 0, statuses: [], reasons: [] });
     row.assigned += num(it.assigned);
     row.required += num(it.required);
     row.statuses.push(it.status);
+    // Why a shift is red or amber, for the cases headcount alone does not explain (RN gap, care hours).
+    if (it.status === "not_met" || it.status === "at_risk") {
+      (it.reasons || []).forEach((r) => {
+        const text = it.unit_name ? `${it.unit_name}: ${r}` : r;
+        if (!row.reasons.includes(text)) row.reasons.push(text);
+      });
+    }
   });
   return Object.values(by)
     .sort((a, b) => shiftRank(a.shift_type) - shiftRank(b.shift_type))
@@ -54,7 +62,7 @@ export function toFillList(info) {
   const out = [];
   const rnByShift = {};
   ((info && info.items) || []).forEach((it, idx) => {
-    if (it.status === "unknown") return;
+    if (it.status === "unknown" || it.status === "no_standard") return;
     const need = num(it.required) - num(it.assigned);
     if (need > 0) {
       out.push({
@@ -86,6 +94,13 @@ export function toFillList(info) {
   return [...out, ...Object.values(rnByShift)].sort(
     (a, b) => shiftRank(a.shift_type) - shiftRank(b.shift_type) || (a.kind === "rn") - (b.kind === "rn")
   );
+}
+
+/** Units with no staffing standard that day: [{ unit_id, unit_name }]. */
+export function noStandardUnits(info) {
+  return ((info && info.items) || [])
+    .filter((it) => it.status === "no_standard")
+    .map((it) => ({ unit_id: it.unit_id ?? null, unit_name: it.unit_name || "" }));
 }
 
 /** The earliest ISO date in `coverage.days` whose overall status matches, or null. */

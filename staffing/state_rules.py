@@ -249,3 +249,37 @@ def resolve_rule_for_org(org) -> ResolvedRule:
                 warning = ""      # the org owns its custom numbers; the UI labels them "Custom"
             return ResolvedRule(rule, state, warning)
     return _state_resolution(state)
+
+
+@dataclass(frozen=True)
+class UnitRules:
+    """The standard each unit is checked against."""
+
+    default: ResolvedRule                  # the organization-wide resolution
+    by_unit: Optional[dict] = None         # None = one standard for every unit; else {unit_id: StateRule}
+
+    @property
+    def per_unit(self) -> bool:
+        return self.by_unit is not None
+
+    def for_unit(self, unit_id):
+        """The StateRule for a unit, or None when no standard applies to it."""
+        if self.by_unit is None:
+            return self.default.rule
+        return self.by_unit.get(unit_id)
+
+
+def resolve_rules_for_org(org) -> UnitRules:
+    """Per-unit standards. An org with no unit assignments behaves exactly as before."""
+    from .models import UnitStaffingRule
+
+    default = resolve_rule_for_org(org)
+    rows = list(UnitStaffingRule.objects.select_related("rule").filter(organization=org))
+    if not rows:
+        return UnitRules(default)
+    by_unit = {}
+    for r in rows:
+        row = r.rule
+        if row.status == STATUS_ACTIVE and (row.organization_id is None or row.organization_id == org.pk):
+            by_unit[r.unit_id] = to_state_rule(row)
+    return UnitRules(default, by_unit)

@@ -6,7 +6,8 @@ Staffing rules API (state standards + organization custom rules).
   PATCH  /api/staffing/rules/<id>/            edit  (shared: system admin only; custom: that org's admin)
   DELETE /api/staffing/rules/<id>/            deactivate (never hard-deletes; keeps the audit trail)
   POST   /api/staffing/rules/<id>/duplicate/  copy any visible rule as a custom rule for the org
-  PUT    /api/staffing/rules/selection/       {"rule_id": N | null}: org picks its rule (null = use state's)
+  PUT    /api/staffing/rules/selection/       {"rule_id": N | null}: org picks its rule for ALL units (null = use state's)
+  PUT    /api/staffing/rules/<id>/units/      {"all_units": bool, "unit_ids": [..]}: which units a standard applies to
   GET    /api/staffing/rules/<id>/audit/      who changed what, when
 
 Every change is written to StaffingRuleAudit.
@@ -24,7 +25,7 @@ from users.us_states import normalize_state
 
 from . import state_rules
 from .compliance_views import _org_for
-from .models import OrgStaffingRule, StaffingRule, StaffingRuleAudit
+from .models import OrgStaffingRule, StaffingRule, StaffingRuleAudit, Unit, UnitStaffingRule
 from .views import ADMIN_ROLES, IsStaffingManagerOrStaffReadOnly
 
 NUMERIC_FIELDS = ("hppd_min", "min_licensed_hppd", "min_cna_hppd")
@@ -207,8 +208,26 @@ class RulesListCreateView(APIView):
         selected_id = choice.rule_id if choice else None
         effective = state_rules.resolve_rule_for_org(org) if org else None
         rules = [_serialize(r, request.user, org, selected_id) for r in _visible_rules(request.user, org)]
+        effective_id = effective.rule.rule_id if effective and effective.rule else None
+
+        units = list(Unit.objects.filter(organization=org, is_active=True)) if org else []
+        rows = list(UnitStaffingRule.objects.select_related("rule").filter(organization=org)) if org else []
+        by_rule, owner = {}, {}
+        for row in rows:
+            by_rule.setdefault(row.rule_id, []).append(row.unit_id)
+            if row.rule.status == StaffingRule.STATUS_ACTIVE:
+                owner[row.unit_id] = row.rule_id
+        mode = "selected" if rows else "all"
+        for d in rules:
+            d["unit_ids"] = sorted(by_rule.get(d["id"], []))
+            d["applies_all"] = mode == "all" and d["id"] == effective_id
+
         return Response({
             "rules": rules,
+            "unit_mode": mode,
+            "units": [{"id": u.id, "name": u.name} for u in units],
+            "unit_owner": {str(k): v for k, v in owner.items()},
+            "uncovered_unit_ids": [u.id for u in units if u.id not in owner] if mode == "selected" else [],
             "selected_rule_id": selected_id,
             "effective_rule_id": effective.rule.rule_id if effective and effective.rule else None,
             "can_edit_shared": _is_system_admin(request.user),
@@ -353,6 +372,7 @@ class RuleSelectionView(APIView):
 
         if raw in (None, ""):
             with transaction.atomic():
+                UnitStaffingRule.objects.filter(organization=org).delete()
                 if existing:
                     existing.delete()
                     _audit(None, "selected", user, org, {"rule_id": [old_id, None], "note": "Back to the state's rule"})
@@ -368,11 +388,84 @@ class RuleSelectionView(APIView):
         if rule is None:
             return Response({"error": "That rule is not available to this organization."}, status=400)
         with transaction.atomic():
+            UnitStaffingRule.objects.filter(organization=org).delete()
             OrgStaffingRule.objects.update_or_create(
                 organization=org, defaults={"rule": rule, "updated_by": user}
             )
             _audit(rule, "selected", user, org, {"rule_id": [old_id, rule.pk]})
         return Response({"selected_rule_id": rule.pk})
+
+
+class RuleUnitsView(APIView):
+    """Choose the units a standard applies to (all units, or a list)."""
+
+    permission_classes = [IsStaffingManagerOrStaffReadOnly]
+
+    def put(self, request, pk):
+        user = request.user
+        if not _is_admin(user):
+            return Response({"error": "Only admins can choose where a standard applies."}, status=403)
+        org = _org_for(request)
+        if org is None:
+            return Response({"error": "No organization for this user."}, status=400)
+        rule = StaffingRule.objects.filter(
+            _selectable_q(user, org), pk=pk, status=StaffingRule.STATUS_ACTIVE
+        ).first()
+        if rule is None:
+            return Response({"error": "That rule is not available to this organization."}, status=400)
+
+        if request.data.get("all_units"):
+            with transaction.atomic():
+                UnitStaffingRule.objects.filter(organization=org).delete()
+                OrgStaffingRule.objects.update_or_create(
+                    organization=org, defaults={"rule": rule, "updated_by": user}
+                )
+                _audit(rule, "selected", user, org, {"units": "all units"})
+            return Response({"unit_mode": "all", "unit_ids": []})
+
+        raw_ids = request.data.get("unit_ids") or []
+        try:
+            ids = sorted({int(x) for x in raw_ids})
+        except (TypeError, ValueError):
+            return Response({"error": "unit_ids must be a list of numbers."}, status=400)
+        org_units = {u.id: u for u in Unit.objects.filter(organization=org, is_active=True)}
+        if any(i not in org_units for i in ids):
+            return Response({"error": "One of those units is not in this organization."}, status=400)
+
+        existing_rows = list(UnitStaffingRule.objects.select_related("rule").filter(organization=org))
+        existing = {r.unit_id: r for r in existing_rows if r.rule.status == StaffingRule.STATUS_ACTIVE}
+        if not ids and not existing_rows:
+            return Response({"error": "Choose at least one unit."}, status=400)
+
+        conflicts = [
+            f'{org_units[i].name} already uses "{existing[i].rule.name}"'
+            for i in ids
+            if i in existing and existing[i].rule_id != rule.pk
+        ]
+        if conflicts:
+            return Response(
+                {"error": "; ".join(conflicts) + ". Take it off that standard first.", "conflicts": conflicts},
+                status=400,
+            )
+
+        with transaction.atomic():
+            if not existing_rows:
+                # Moving from one standard for every unit: the current standard keeps the units not chosen.
+                current = state_rules.resolve_rule_for_org(org).rule
+                keep_id = current.rule_id if current else None
+                if keep_id and keep_id != rule.pk and StaffingRule.objects.filter(pk=keep_id).exists():
+                    for uid in org_units:
+                        if uid not in ids:
+                            UnitStaffingRule.objects.create(
+                                organization=org, unit_id=uid, rule_id=keep_id, updated_by=user
+                            )
+            UnitStaffingRule.objects.filter(organization=org, rule=rule).exclude(unit_id__in=ids).delete()
+            for uid in ids:
+                UnitStaffingRule.objects.update_or_create(
+                    organization=org, unit_id=uid, defaults={"rule": rule, "updated_by": user}
+                )
+            _audit(rule, "selected", user, org, {"units": [org_units[i].name for i in ids]})
+        return Response({"unit_mode": "selected", "unit_ids": ids})
 
 
 class RuleAuditView(APIView):

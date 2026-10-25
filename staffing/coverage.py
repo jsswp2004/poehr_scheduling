@@ -91,10 +91,13 @@ def effective_requirement(req, a_date) -> EffectiveRequirement:
 
     # The clinic's state decides the numbers (hours, ratio, RN). No active
     # rule for the state -> fixed minimum, with the reason in `note`.
-    resolved = state_rules.resolve_rule_for_org(req.organization)
-    if resolved.rule is None:
+    unit_rules = state_rules.resolve_rules_for_org(req.organization)
+    resolved = unit_rules.default
+    rule = unit_rules.for_unit(unit.id)
+    if rule is None:
+        if unit_rules.per_unit:
+            return _fixed(req, f"No staffing standard applies to {unit.name}; using the fixed minimum.")
         return _fixed(req, resolved.warning)
-    rule = resolved.rule
 
     for shift in hppd.required_staff_by_shift(
         census,

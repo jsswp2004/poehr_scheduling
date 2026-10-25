@@ -156,9 +156,16 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
                     Census {u.census}
                   </Typography>
                 )}
+                {coverage && coverage.standards && coverage.standards.mode === "unit" && u.unit_id != null && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    {(coverage.standards.units[String(u.unit_id)] || {}).name || "No standard assigned"}
+                  </Typography>
+                )}
               </Box>
               {days.map((d, i) => {
-                const items = itemsFor(coverage, isos[i], u.key);
+                const allItems = itemsFor(coverage, isos[i], u.key);
+                const items = allItems.filter((it) => it.status !== "no_standard");
+                const noStd = allItems.length > 0 && items.length === 0;
                 const worst = worstStatus(items.map((it) => it.status));
                 const summary = items
                   .map((it) => `${SHIFT_NAME[it.shift_type] || it.shift_type} ${it.assigned} of ${it.required}`)
@@ -169,7 +176,7 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
                     component="button"
                     type="button"
                     onClick={() => drill(d)}
-                    aria-label={`${u.name}, ${moment(d).format("ddd MMM D")}: ${summary || "no requirement"}`}
+                    aria-label={`${u.name}, ${moment(d).format("ddd MMM D")}: ${noStd ? "no standard applied" : summary || "no requirement"}`}
                     sx={{
                       all: "unset",
                       boxSizing: "border-box",
@@ -181,13 +188,14 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
                       p: 1,
                       borderLeft: "1px solid #e2e8f0",
                       bgcolor: worst === "unknown" && items.length === 0 ? "#fafbfc" : "transparent",
+                      ...(noStd && { border: "1px dashed #cbd5e1", borderRadius: 1, m: 0.5, bgcolor: "#f8fafc", color: "#64748b", alignContent: "center", justifyContent: "center", textAlign: "center", fontSize: 12, fontWeight: 700 }),
                       "&:hover": { bgcolor: "#f1f5f9" },
                       "&:focus-visible": { outline: "2px solid #2563eb", outlineOffset: -2 },
                     }}
                   >
-                    {items.map((it, idx) => (
-                      <Chip key={`${it.shift_type}-${idx}`} item={it} />
-                    ))}
+                    {noStd
+                      ? "No standard"
+                      : items.map((it, idx) => <Chip key={`${it.shift_type}-${idx}`} item={it} />)}
                   </Box>
                 );
               })}
@@ -201,8 +209,9 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
               const info = coverage && coverage.days && coverage.days[isos[i]];
               const status = worstStatus(gaps.map((g) => g.status));
               const m = COVERAGE_STATUS[status] || COVERAGE_STATUS.met;
-              const text = !info || info.items.length === 0 ? "—" : gaps.length === 0 ? "Covered" : `${gaps.length} gap${gaps.length === 1 ? "" : "s"}`;
-              const color = !info || info.items.length === 0 ? "#64748b" : gaps.length === 0 ? COVERAGE_STATUS.met.color : m.color;
+              const checked = info ? info.items.filter((it) => it.status !== "no_standard") : [];
+              const text = !info || checked.length === 0 ? "—" : gaps.length === 0 ? "Covered" : `${gaps.length} gap${gaps.length === 1 ? "" : "s"}`;
+              const color = !info || checked.length === 0 ? "#64748b" : gaps.length === 0 ? COVERAGE_STATUS.met.color : m.color;
               return (
                 <Box key={isos[i]} sx={{ px: 1, py: 1.25, borderLeft: "1px solid #e2e8f0", fontSize: 13, fontWeight: 700, color }}>
                   {text}

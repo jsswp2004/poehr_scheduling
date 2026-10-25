@@ -14,7 +14,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
 import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
-import { SHIFT_NAME, SHIFT_ORDER, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
+import { SHIFT_NAME, SHIFT_ORDER, noStandardUnits, summarizeShifts, toFillList } from "../../utils/calendar/staffingSummary";
 import { CalendarSkeleton, CoverageFailedBanner, RoleFilterNote } from "./StaffingStateViews";
 
 /**
@@ -203,6 +203,9 @@ export default function StaffingDayBoard({ date }) {
                     <Box sx={{ display: "flex", alignItems: "center", mb: 0.75 }}>
                       <Typography sx={{ fontWeight: 700, fontSize: 14 }}>{u.name}</Typography>
                       <Box sx={{ flex: 1 }} />
+                      {!it && noStandardUnits(info).some((n) => n.unit_id === u.unit_id) && (
+                        <Typography sx={{ fontSize: 12, fontWeight: 600, color: "#64748b" }}>No standard applied</Typography>
+                      )}
                       {it && it.status !== "unknown" && (
                         <Typography sx={{ fontSize: 13, fontWeight: 700, color: problem ? st.color : "text.primary" }}>
                           {it.assigned}/{it.required}
