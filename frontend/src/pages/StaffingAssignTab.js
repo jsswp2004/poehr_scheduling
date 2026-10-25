@@ -714,7 +714,9 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
 
   const formStaff = form ? staffById[String(form.staff)] : null;
   const formUnit = form ? unitById[String(form.unit)] : null;
-  const roleNotCounted = formStaff && !COUNTED_ROLES.includes(formStaff.nursing_role || "other");
+  // Not a problem when the unit's standard counts every role (e.g. Activities).
+  const roleNotCounted =
+    formStaff && !COUNTED_ROLES.includes(formStaff.nursing_role || "other") && !(formUnit && formUnit.counts_all_roles);
   const overlaps = useMemo(() => {
     if (!form || !form.staff || form.repeat !== "weekly" || form.days_of_week.length === 0) return [];
     return patterns.filter(

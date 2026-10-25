@@ -297,6 +297,8 @@ class UnitSerializer(serializers.ModelSerializer):
     # Filled from one batched lookup in UnitViewSet, so the Units screen can
     # show the latest census without a query per unit.
     latest_census = serializers.SerializerMethodField()
+    # True when this unit's standard counts every staff role (not only RN/LPN/CNA).
+    counts_all_roles = serializers.SerializerMethodField()
 
     class Meta:
         model = Unit
@@ -311,10 +313,24 @@ class UnitSerializer(serializers.ModelSerializer):
             "is_active",
             "notes",
             "latest_census",
+            "counts_all_roles",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["organization", "created_at", "updated_at"]
+
+    def get_counts_all_roles(self, obj):
+        from . import state_rules
+
+        cache = self.context.setdefault("_unit_rules_cache", {})
+        if obj.organization_id not in cache:
+            try:
+                cache[obj.organization_id] = state_rules.resolve_rules_for_org(obj.organization)
+            except Exception:
+                cache[obj.organization_id] = None
+        ur = cache[obj.organization_id]
+        rule = ur.for_unit(obj.id) if ur is not None else None
+        return bool(rule is not None and getattr(rule, "count_all_roles", False))
 
     def get_latest_census(self, obj):
         entry = (self.context.get("latest_census") or {}).get(obj.id)
