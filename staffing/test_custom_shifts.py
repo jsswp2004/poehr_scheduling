@@ -91,3 +91,13 @@ class ApiTests(TestCase):
         mine = [i for i in items if i["unit_id"] == unit.id]
         self.assertTrue(mine)
         self.assertEqual({i["shift_type"] for i in mine}, {"u_regular_day"})
+
+
+class CountAllRolesTests(TestCase):
+    def test_other_role_counts_only_when_enabled(self):
+        r = hppd.required_staff_by_shift(20, "8h", hppd=0.0, max_residents_per_staff=30, min_rn=0)[0]
+        self.assertFalse(hppd.evaluate_shift(r, [("other", 8.0)]).ratio_ok)
+        r2 = hppd.required_staff_by_shift(
+            20, "8h", hppd=0.0, max_residents_per_staff=30, min_rn=0, count_all_roles=True
+        )[0]
+        self.assertTrue(hppd.evaluate_shift(r2, [("other", 8.0)]).compliant)

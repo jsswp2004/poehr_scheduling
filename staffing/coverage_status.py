@@ -97,12 +97,13 @@ def _hppd_need(rule, unit, shift_type, census) -> Need:
         min_rn=rule.min_rn_per_shift,
         min_licensed_hppd=rule.min_licensed_hppd or 0.0,
         min_cna_hppd=rule.min_cna_hppd or 0.0,
+        count_all_roles=bool(getattr(rule, "count_all_roles", False)),
     ):
         if r.shift_type == shift_type:
             return Need(
                 MODE_HPPD, r.required_staff, r.required_hours, r.staff_by_ratio,
                 r.required_rn, float(r.shift_hours),
-                r.required_licensed_hours, r.required_cna_hours,
+                r.required_licensed_hours, r.required_cna_hours, r.count_all_roles,
             )
     return Need(MODE_HPPD, 0, 0.0, 0, 0, _pattern_hours(unit, shift_type))
 

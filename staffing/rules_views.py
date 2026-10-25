@@ -32,7 +32,7 @@ NUMERIC_FIELDS = ("hppd_min", "min_licensed_hppd", "min_cna_hppd")
 EDITABLE = (
     "name", "state", "facility_type", "hppd_min", "min_licensed_hppd", "min_cna_hppd",
     "max_residents_per_staff", "min_rn_per_shift", "source", "notes",
-    "effective_date", "last_verified_date", "needs_verification", "status",
+    "effective_date", "last_verified_date", "needs_verification", "status", "count_all_roles",
 )
 STATUSES = {c[0] for c in StaffingRule.STATUS_CHOICES}
 
@@ -81,8 +81,6 @@ def _decimal(data, field, required=False, maximum=24):
         raise RuleError(f"{field} must be a number.")
     if value < 0 or value > maximum:
         raise RuleError(f"{field} must be between 0 and {maximum}.")
-    if field == "hppd_min" and value <= 0:
-        raise RuleError("hppd_min must be greater than 0.")
     return value
 
 
@@ -124,7 +122,7 @@ def _clean(data, partial, existing=None):
             out[field] = code
         elif field in ("effective_date", "last_verified_date"):
             out[field] = _date(data, field)
-        elif field == "needs_verification":
+        elif field in ("needs_verification", "count_all_roles"):
             out[field] = bool(data.get(field))
         elif field == "status":
             if data.get("status") in (None, "") and not partial:
@@ -140,6 +138,11 @@ def _clean(data, partial, existing=None):
             out[field] = name[:120]
         else:
             out[field] = (data.get(field) or "").strip() if isinstance(data.get(field), str) or data.get(field) is None else str(data.get(field))
+    # 0 hours is allowed only when the standard is a ratio (e.g. 1 staff per 30 residents).
+    if "hppd_min" in out and out["hppd_min"] is not None and out["hppd_min"] <= 0:
+        ratio = out.get("max_residents_per_staff") if "max_residents_per_staff" in out else getattr(existing, "max_residents_per_staff", None)
+        if not ratio:
+            raise RuleError("hppd_min must be greater than 0 unless the standard sets a staff-to-resident ratio.")
     return out
 
 
@@ -347,7 +350,7 @@ class RuleDuplicateView(APIView):
                 organization=org, state="", name=name[:120], facility_type=rule.facility_type,
                 hppd_min=rule.hppd_min, min_licensed_hppd=rule.min_licensed_hppd,
                 min_cna_hppd=rule.min_cna_hppd, max_residents_per_staff=rule.max_residents_per_staff,
-                min_rn_per_shift=rule.min_rn_per_shift,
+                min_rn_per_shift=rule.min_rn_per_shift, count_all_roles=rule.count_all_roles,
                 source=f"Custom copy of {rule.name}" + (f" -- {rule.source}" if rule.source else ""),
                 notes=rule.notes, status=StaffingRule.STATUS_ACTIVE,
                 created_by=user, updated_by=user,

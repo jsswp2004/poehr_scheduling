@@ -46,6 +46,7 @@ class StateRule:
     effective_date: str = ""
     last_verified_date: str = ""
     facility_type: str = "nursing_home"
+    count_all_roles: bool = False
 
     def as_dict(self):
         return {
@@ -65,6 +66,7 @@ class StateRule:
             "effective_date": self.effective_date,
             "last_verified_date": self.last_verified_date,
             "facility_type": self.facility_type,
+            "count_all_roles": self.count_all_roles,
         }
 
 
@@ -143,6 +145,7 @@ def to_state_rule(row) -> StateRule:
         effective_date=row.effective_date.isoformat() if row.effective_date else "",
         last_verified_date=row.last_verified_date.isoformat() if row.last_verified_date else "",
         facility_type=row.facility_type,
+        count_all_roles=bool(getattr(row, "count_all_roles", False)),
     )
 
 
