@@ -44,6 +44,7 @@ import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { toISO } from "./staffingCoverage";
 import WhoCanBeAssigned from "../components/calendar/WhoCanBeAssigned";
+import LaborHoursTable from "../components/staffing/LaborHoursTable";
 
 // ---------- constants ----------
 
@@ -1733,6 +1734,9 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = 
           <ToggleButton value="coverage" sx={{ minHeight: 44, px: 2.5 }}>
             Coverage requirements
           </ToggleButton>
+          <ToggleButton value="labor" sx={{ minHeight: 44, px: 2.5 }}>
+            Labor Hours
+          </ToggleButton>
         </ToggleButtonGroup>
       </Stack>
       )}
@@ -1748,7 +1752,9 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = 
         </Alert>
       )}
 
-      {section === "schedules" ? (
+      {section === "labor" ? (
+        <LaborHoursTable />
+      ) : section === "schedules" ? (
         <SchedulesSection
           staffList={staffList}
           patterns={patterns}

@@ -289,6 +289,9 @@ function StaffingPage() {
             <ToggleButton value="coverage" sx={{ minHeight: 44, px: 2.5 }}>
               Coverage requirements
             </ToggleButton>
+            <ToggleButton value="labor" sx={{ minHeight: 44, px: 2.5 }}>
+              Labor Hours
+            </ToggleButton>
           </ToggleButtonGroup>
         </Box>
       )}
