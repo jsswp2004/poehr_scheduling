@@ -36,6 +36,7 @@ import axios from "axios";
 import { apiEndpoints, getAuthHeaders, getAuthHeadersForUpload } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { MONTH_NAMES } from "../utils/masterSchedule";
+import StaffingTabHeader from "../components/staffing/StaffingTabHeader";
 
 const TEMPLATE_HEADER =
   "first_name,last_name,profession,nursing_role,email,phone_number,shift,days,start,end\n";
@@ -886,15 +887,7 @@ function StaffingUploadTab() {
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="flex-end" justifyContent="space-between" sx={{ mb: 3 }}>
-        <Box>
-          <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
-            Upload CSV
-          </Typography>
-          <Typography color="text.secondary" sx={{ maxWidth: 620 }}>
-            Bring in your staff roster or fill a month of the Master Schedule from a spreadsheet.
-          </Typography>
-        </Box>
+      <StaffingTabHeader title="Upload CSV" subtitle="Bring in your staff roster or fill a month of the Master Schedule from a spreadsheet.">
         <ToggleButtonGroup
           exclusive
           size="small"
@@ -910,7 +903,7 @@ function StaffingUploadTab() {
             Master schedule
           </ToggleButton>
         </ToggleButtonGroup>
-      </Stack>
+      </StaffingTabHeader>
       {mode === "roster" ? <RosterUpload /> : <MasterUpload />}
     </Box>
   );

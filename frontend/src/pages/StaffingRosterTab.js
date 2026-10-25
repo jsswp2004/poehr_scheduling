@@ -43,6 +43,7 @@ import {
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
+import StaffingTabHeader from "../components/staffing/StaffingTabHeader";
 
 const EMPTY_EDIT_FORM = {
   id: null,
@@ -488,19 +489,13 @@ function StaffingRosterTab({ isAdmin = false }) {
   return (
     <Box>
       {/* Header */}
-      <Stack direction="row" spacing={2} alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-        <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
-          Roster{" "}
-          <Box component="span" sx={{ fontWeight: 400, color: "text.secondary" }}>
-            ({staff.length})
-          </Box>
-        </Typography>
+      <StaffingTabHeader title="Roster" count={staff.length}>
         {isAdmin && (
           <Button variant="contained" startIcon={<FontAwesomeIcon icon={faUserPlus} />} onClick={openAdd} sx={{ minHeight: 44, px: 2.5 }}>
             Add staff
           </Button>
         )}
-      </Stack>
+      </StaffingTabHeader>
 
       {/* Facility messaging banner */}
       <Paper

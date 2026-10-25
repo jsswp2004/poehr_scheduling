@@ -47,6 +47,7 @@ import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { toISO } from "./staffingCoverage";
+import StaffingTabHeader from "../components/staffing/StaffingTabHeader";
 
 // ---------- helpers ----------
 
@@ -632,10 +633,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
   return (
     <Box>
       {/* Header */}
-      <Stack direction="row" spacing={2} alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-        <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
-          Units &amp; Census
-        </Typography>
+      <StaffingTabHeader title="Units & Census">
         <ToggleButtonGroup
           exclusive
           size="small"
@@ -662,7 +660,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
             Units
           </ToggleButton>
         </ToggleButtonGroup>
-      </Stack>
+      </StaffingTabHeader>
 
       {status && (
         <Alert severity={status.ok ? "success" : "error"} sx={{ mb: 2 }} onClose={() => setStatus(null)}>

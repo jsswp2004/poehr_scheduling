@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Tabs, Tab, TextField, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import axios from "axios";
+import { StaffingHeaderSlotContext } from "../components/staffing/StaffingTabHeader";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import BackButton from "../components/BackButton";
@@ -29,6 +30,7 @@ const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar", 
 function StaffingPage() {
   const [tab, setTab] = useState("calendar");
   const [assignSection, setAssignSection] = useState("schedules");
+  const [headerSlot, setHeaderSlot] = useState(null);
   // Publish the frozen header's height so a tab can pin its own title row just beneath it.
   const stickyObserver = useRef(null);
   const stickyRef = useCallback((node) => {
@@ -269,7 +271,7 @@ function StaffingPage() {
         <Tab value="rules" label="Staffing Standards" />
       </Tabs>
       {tab === "assign" && isAdmin && (
-        <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 2, pb: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 2, pb: 1.5 }}>
           <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
             Assign Schedule
           </Typography>
@@ -290,6 +292,7 @@ function StaffingPage() {
           </ToggleButtonGroup>
         </Box>
       )}
+      <Box ref={setHeaderSlot} />
       </>
       )}
       </Box>
@@ -299,6 +302,7 @@ function StaffingPage() {
           <CircularProgress />
         </Box>
       ) : (
+      <StaffingHeaderSlotContext.Provider value={headerSlot}>
       <Box key={orgId || "own"}>
 
       {tab === "calendar" && <StaffingCalendarTab isAdmin={isAdmin} onAssign={startAssign} onNavigate={setTab} />}
@@ -311,6 +315,7 @@ function StaffingPage() {
       {tab === "reports" && <StaffingReportsTab />}
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}
       </Box>
+      </StaffingHeaderSlotContext.Provider>
       )}
       {role && orgReady && <StaffingAssistantDock mode="manager" onNavigate={setTab} />}
     </Box>
