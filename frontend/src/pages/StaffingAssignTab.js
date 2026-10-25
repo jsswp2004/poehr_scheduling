@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   alpha,
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -949,21 +950,17 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
         >
           {saveError && <Alert severity="error">{saveError}</Alert>}
 
-          <TextField
-            select
-            label="Person"
-            fullWidth
-            value={form.staff}
-            onChange={(e) => setField("staff", e.target.value)}
-            error={!!errors.staff}
-            helperText={errors.staff}
-          >
-            {staffList.map((s) => (
-              <MenuItem key={s.id} value={s.id}>
-                {s.full_name} ({s.profession_display || s.profession})
-              </MenuItem>
-            ))}
-          </TextField>
+          <Autocomplete
+            options={staffList}
+            value={staffList.find((s) => String(s.id) === String(form.staff)) || null}
+            onChange={(e, opt) => setField("staff", opt ? opt.id : "")}
+            getOptionLabel={(s) => `${s.full_name} (${s.profession_display || s.profession})`}
+            isOptionEqualToValue={(a, b) => String(a.id) === String(b.id)}
+            noOptionsText="No staff match"
+            renderInput={(params) => (
+              <TextField {...params} label="Person" placeholder="Type a name to search" error={!!errors.staff} helperText={errors.staff} />
+            )}
+          />
 
           <TextField
             select
