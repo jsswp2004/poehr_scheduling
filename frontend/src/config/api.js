@@ -323,6 +323,7 @@ export const apiEndpoints = {
     staffingMasterScheduleUploadCsv: `${API_BASE_URL}/api/staffing/master-schedule/upload-csv/`,
     staffingMasterScheduleCells: `${API_BASE_URL}/api/staffing/master-schedule/cells/`,
     staffingCoverageStatus: `${API_BASE_URL}/api/staffing/coverage-status/`,
+    staffingAvailability: `${API_BASE_URL}/api/staffing/availability/`,
     staffingLocation: `${API_BASE_URL}/api/staffing/location/`,
     staffingRules: `${API_BASE_URL}/api/staffing/rules/`,
     staffingRuleDetail: (id) => `${API_BASE_URL}/api/staffing/rules/${id}/`,

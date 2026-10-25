@@ -269,7 +269,7 @@ function StaffingPage() {
       {tab === "timeoff" && <StaffingTimeOffTab isAdmin={isAdmin} />}
       {tab === "upload" && isAdmin && <StaffingUploadTab />}
       {tab === "master" && <StaffingMasterTab isAdmin={isAdmin} />}
-      {tab === "assign" && isAdmin && <StaffingAssignTab prefill={assignPrefill} onPrefillUsed={clearAssignPrefill} />}
+      {tab === "assign" && isAdmin && <StaffingAssignTab prefill={assignPrefill} onPrefillUsed={clearAssignPrefill} onNavigate={setTab} />}
       {tab === "reports" && <StaffingReportsTab />}
       {tab === "rules" && <StaffingRulesTab isAdmin={isAdmin} />}
       </Box>

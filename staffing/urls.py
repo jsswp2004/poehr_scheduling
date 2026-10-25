@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .assistant import AssistantActionCancelView, AssistantActionConfirmView, AssistantMessageView
+from .availability_views import AvailabilityView
 from .compliance_views import CoverageStatusView, OrgLocationView
 from .master_schedule_autocreate import MasterScheduleCreateScheduleView
 from .master_schedule_csv import MasterScheduleCsvTemplateView, MasterScheduleUploadCsvView
@@ -110,6 +111,7 @@ urlpatterns = [
     path("master-schedule/cells/", MasterScheduleCellsView.as_view(), name="staffing-master-schedule-cells"),
     path("daily-reports/<str:kind>/pdf/", DailyStaffingReportView.as_view(), name="staffing-daily-report-pdf"),
     path("coverage-status/", CoverageStatusView.as_view(), name="staffing-coverage-status"),
+    path("availability/", AvailabilityView.as_view(), name="staffing-availability"),
     path("location/", OrgLocationView.as_view(), name="staffing-location"),
     path("rules/", RulesListCreateView.as_view(), name="staffing-rules"),
     path("rules/selection/", RuleSelectionView.as_view(), name="staffing-rules-selection"),

@@ -42,6 +42,7 @@ import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import { toISO } from "./staffingCoverage";
+import WhoCanBeAssigned from "../components/calendar/WhoCanBeAssigned";
 
 // ---------- constants ----------
 
@@ -415,7 +416,7 @@ const emptyScheduleForm = () => {
   };
 };
 
-function SchedulesSection({ staffList, patterns, units, loading, token, reload, flash, prefill, onPrefillUsed }) {
+function SchedulesSection({ staffList, patterns, units, loading, token, reload, flash, prefill, onPrefillUsed, onNavigate }) {
   const [search, setSearch] = useState("");
   const [shiftFilter, setShiftFilter] = useState("all");
   const [endingOnly, setEndingOnly] = useState(false);
@@ -444,12 +445,6 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
     const d = daysUntil(p.end_date);
     return d >= 0 && d <= ENDING_SOON_DAYS;
   };
-
-  // Active staff with no active recurring schedule.
-  const unscheduled = useMemo(() => {
-    const scheduled = new Set(patterns.filter((p) => p.is_active !== false).map((p) => String(p.staff)));
-    return staffList.filter((s) => s.is_active !== false && !scheduled.has(String(s.id)));
-  }, [staffList, patterns]);
 
   const baseFiltered = useMemo(
     () =>
@@ -524,8 +519,8 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
   };
 
   // Arriving from the Calendar's "Assign" button: open the add panel with the unit, date and shift filled in.
-  useEffect(() => {
-    if (!prefill) return;
+  const startPrefill = (pf) => {
+    const prefill = pf;
     const unit = unitById[String(prefill.unit_id)];
     const shiftType = prefill.shift_type || "day";
     const preset = shiftType === "custom" ? null : presetFor(unit, shiftType);
@@ -533,6 +528,7 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
     setForm({
       ...base,
       repeat: "once",
+      ...(prefill.staff_id ? { staff: prefill.staff_id } : {}),
       unit: prefill.unit_id || "",
       shift_type: shiftType,
       ...(preset ? { start_time: preset[0], end_time: preset[1] } : {}),
@@ -541,6 +537,11 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
     setErrors({});
     setSaveError("");
     setPanelOpen(true);
+  };
+
+  useEffect(() => {
+    if (!prefill) return;
+    startPrefill(prefill);
     if (onPrefillUsed) onPrefillUsed();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefill]);
@@ -710,43 +711,13 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
 
   return (
     <Box>
-      {unscheduled.length > 0 && (
-        <Paper
-          variant="outlined"
-          sx={{
-            p: 1.75,
-            mb: 2,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 2,
-            flexWrap: "wrap",
-            borderColor: "warning.main",
-            bgcolor: (th) => alpha(th.palette.warning.main, 0.1),
-          }}
-        >
-          <Stack direction="row" spacing={1.5} alignItems="flex-start" sx={{ flex: "1 1 360px", minWidth: 0 }}>
-            <Box sx={{ color: "warning.dark", mt: "3px", display: "flex" }}>
-              <FontAwesomeIcon icon={faTriangleExclamation} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontWeight: 600 }}>
-                {unscheduled.length} active staff {unscheduled.length === 1 ? "has" : "have"} no recurring schedule
-              </Typography>
-              <Typography variant="body2">
-                {unscheduled
-                  .slice(0, 5)
-                  .map((s) => s.full_name)
-                  .join(", ")}
-                {unscheduled.length > 5 ? ` and ${unscheduled.length - 5} more` : ""}
-              </Typography>
-            </Box>
-          </Stack>
-          <Button variant="outlined" color="warning" onClick={openAdd} sx={{ minHeight: 44 }}>
-            Assign a schedule
-          </Button>
-        </Paper>
-      )}
+      <WhoCanBeAssigned
+        token={token}
+        units={units}
+        reloadKey={patterns.length}
+        onAssign={(pf) => startPrefill(pf)}
+        onReviewTimeOff={() => onNavigate && onNavigate("timeoff")}
+      />
 
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mb: 2 }} role="group" aria-label="Filter by shift">
         <FilterChip label="All" count={chipCounts.all} selected={shiftFilter === "all"} onClick={() => { setShiftFilter("all"); setPage(0); }} />
@@ -1667,7 +1638,7 @@ function CoverageSection({ coverageRequirements, units, rule, stateName, loading
 
 // ---------- tab ----------
 
-function StaffingAssignTab({ prefill = null, onPrefillUsed = null }) {
+function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = null }) {
   const token = getAccessToken();
 
   const [staffList, setStaffList] = useState([]);
@@ -1765,6 +1736,7 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null }) {
           flash={flash}
           prefill={prefill}
           onPrefillUsed={onPrefillUsed}
+          onNavigate={onNavigate}
         />
       ) : (
         <CoverageSection
