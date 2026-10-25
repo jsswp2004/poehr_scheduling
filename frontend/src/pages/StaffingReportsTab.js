@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useContext } from "react";
+import { createPortal } from "react-dom";
 import {
   Box,
   Typography,
@@ -37,7 +38,7 @@ import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import StaffingMasterReport from "./StaffingMasterReport";
 import StaffingDailyReports from "./StaffingDailyReports";
-import StaffingTabHeader from "../components/staffing/StaffingTabHeader";
+import { StaffingHeaderSlotContext } from "../components/staffing/StaffingTabHeader";
 
 const REPORT_GROUPS = [
   {
@@ -670,6 +671,111 @@ function StaffingReportsTab() {
       ? distributionTotals[t]
       : distributionRows.reduce((a, r) => a + (r[t] || 0), 0);
 
+  // Title, description, date controls and Export/Print share the frozen row with the page title.
+  const headerSlot = useContext(StaffingHeaderSlotContext);
+  const reportHeader = (
+    <Box
+      className="no-print"
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", md: "274px minmax(0, 1fr)" },
+        alignItems: "end",
+        pb: 1.5,
+      }}
+    >
+      <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
+        Reports
+      </Typography>
+      <Stack direction="row" alignItems="flex-end" flexWrap="wrap" useFlexGap gap={1.5} sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="h5" component="h3" sx={{ fontWeight: 600 }}>
+            {meta.label}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
+            {meta.description}
+          </Typography>
+        </Box>
+          {hasDates && (
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ pb: 0.25 }}>
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <IconButton
+                aria-label="Previous range"
+                onClick={() => stepRange(-1)}
+                sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+              >
+                <FontAwesomeIcon icon={faChevronLeft} size="sm" />
+              </IconButton>
+              <Typography sx={{ minWidth: 200, textAlign: "center", fontWeight: 600 }}>
+                {formatRange(startDate, endDate)}
+              </Typography>
+              <IconButton
+                aria-label="Next range"
+                onClick={() => stepRange(1)}
+                sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
+              >
+                <FontAwesomeIcon icon={faChevronRight} size="sm" />
+              </IconButton>
+            </Stack>
+
+            <ToggleButtonGroup size="small" value={preset} exclusive onChange={handlePresetChange} aria-label="Date range">
+              <ToggleButton value="today">Today</ToggleButton>
+              <ToggleButton value="week">This week</ToggleButton>
+              <ToggleButton value="month">This month</ToggleButton>
+              <ToggleButton value="custom">Custom</ToggleButton>
+            </ToggleButtonGroup>
+
+            {preset === "custom" && (
+              <>
+                <TextField
+                  label="Start"
+                  type="date"
+                  size="small"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+                <TextField
+                  label="End"
+                  type="date"
+                  size="small"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                />
+              </>
+            )}
+          </Stack>
+        )}
+        <Box sx={{ ml: "auto" }}>
+            {exportInfo && (
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<FontAwesomeIcon icon={faDownload} />}
+                  onClick={exportInfo.run}
+                  disabled={exportInfo.count === 0}
+                  sx={{ minHeight: 44 }}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="inherit"
+                  startIcon={<FontAwesomeIcon icon={faPrint} />}
+                  onClick={handlePrint}
+                  disabled={exportInfo.count === 0}
+                  sx={{ minHeight: 44 }}
+                >
+                  Print
+                </Button>
+              </Stack>
+            )}
+        </Box>
+      </Stack>
+    </Box>
+  );
+
   return (
     <Box>
       <style>{`
@@ -683,7 +789,7 @@ function StaffingReportsTab() {
         .print-only-header { display: none; }
       `}</style>
 
-      <StaffingTabHeader title="Reports" className="no-print" />
+      {headerSlot ? createPortal(reportHeader, headerSlot) : reportHeader}
 
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, alignItems: "flex-start" }}>
         {/* Report picker: a grouped list on wide screens, a select on narrow ones */}
@@ -792,101 +898,6 @@ function StaffingReportsTab() {
 
         {/* The report */}
         <Box sx={{ flex: "1 1 0", minWidth: 0, width: "100%" }}>
-          <Stack
-            direction="row"
-            justifyContent="space-between"
-            alignItems="flex-end"
-            flexWrap="wrap"
-            gap={1.5}
-            sx={{ mb: 2 }}
-            className="no-print"
-          >
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                {meta.label}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, maxWidth: 560 }}>
-                {meta.description}
-              </Typography>
-            </Box>
-            {exportInfo && (
-              <Stack direction="row" spacing={1}>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<FontAwesomeIcon icon={faDownload} />}
-                  onClick={exportInfo.run}
-                  disabled={exportInfo.count === 0}
-                  sx={{ minHeight: 44 }}
-                >
-                  Export CSV
-                </Button>
-                <Button
-                  variant="outlined"
-                  color="inherit"
-                  startIcon={<FontAwesomeIcon icon={faPrint} />}
-                  onClick={handlePrint}
-                  disabled={exportInfo.count === 0}
-                  sx={{ minHeight: 44 }}
-                >
-                  Print
-                </Button>
-              </Stack>
-            )}
-          </Stack>
-
-          {hasDates && (
-            <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 2 }} className="no-print">
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <IconButton
-                  aria-label="Previous range"
-                  onClick={() => stepRange(-1)}
-                  sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
-                >
-                  <FontAwesomeIcon icon={faChevronLeft} size="sm" />
-                </IconButton>
-                <Typography sx={{ minWidth: 200, textAlign: "center", fontWeight: 600 }}>
-                  {formatRange(startDate, endDate)}
-                </Typography>
-                <IconButton
-                  aria-label="Next range"
-                  onClick={() => stepRange(1)}
-                  sx={{ width: 44, height: 44, border: "1px solid", borderColor: "divider", borderRadius: 2 }}
-                >
-                  <FontAwesomeIcon icon={faChevronRight} size="sm" />
-                </IconButton>
-              </Stack>
-
-              <ToggleButtonGroup size="small" value={preset} exclusive onChange={handlePresetChange} aria-label="Date range">
-                <ToggleButton value="today">Today</ToggleButton>
-                <ToggleButton value="week">This week</ToggleButton>
-                <ToggleButton value="month">This month</ToggleButton>
-                <ToggleButton value="custom">Custom</ToggleButton>
-              </ToggleButtonGroup>
-
-              {preset === "custom" && (
-                <>
-                  <TextField
-                    label="Start"
-                    type="date"
-                    size="small"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                  />
-                  <TextField
-                    label="End"
-                    type="date"
-                    size="small"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    slotProps={{ inputLabel: { shrink: true } }}
-                  />
-                </>
-              )}
-            </Stack>
-          )}
-
           {error && (
             <Alert severity="error" sx={{ mb: 1.5 }} className="no-print">
               {error}
