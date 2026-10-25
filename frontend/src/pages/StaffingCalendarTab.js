@@ -531,7 +531,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
             return (
               <Box
                 key={r.shift_type}
-                title={`${SHIFT_NAME[r.shift_type] || r.shift_type}: ${m.label}`}
+                title={`${SHIFT_NAME[r.shift_type] || r.label || r.shift_type}: ${m.label}`}
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -545,8 +545,8 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
                   fontSize: 13,
                 }}
               >
-                <Box component="span" sx={{ width: 38, color: "text.secondary", fontSize: 12 }}>
-                  {SHIFT_CELL_LABEL[r.shift_type] || r.shift_type}
+                <Box component="span" sx={{ width: 38, color: "text.secondary", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {SHIFT_CELL_LABEL[r.shift_type] || r.label || r.shift_type}
                 </Box>
                 <b style={{ color: problem ? m.color : "#1f2937" }}>
                   {r.assigned}/{r.required}

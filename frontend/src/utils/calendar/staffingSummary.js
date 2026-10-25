@@ -39,7 +39,7 @@ export function summarizeShifts(info) {
   ((info && info.items) || []).forEach((it) => {
     if (it.status === "no_standard") return; // that unit has no standard, so nothing is counted for it
     const type = it.shift_type || "custom";
-    const row = (by[type] ||= { shift_type: type, assigned: 0, required: 0, statuses: [], reasons: [] });
+    const row = (by[type] ||= { shift_type: type, label: it.shift_label || "", assigned: 0, required: 0, statuses: [], reasons: [] });
     row.assigned += num(it.assigned);
     row.required += num(it.required);
     row.statuses.push(it.status);

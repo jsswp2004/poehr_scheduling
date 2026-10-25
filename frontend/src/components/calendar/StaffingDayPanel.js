@@ -62,7 +62,7 @@ export default function StaffingDayPanel({
               <Box key={s.shift_type}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                   <Typography variant="body2" sx={{ width: 64 }}>
-                    {SHIFT_NAME[s.shift_type] || s.shift_type}
+                    {SHIFT_NAME[s.shift_type] || s.label || s.shift_type}
                   </Typography>
                   <Typography variant="body2" sx={{ fontWeight: 700, color: m.color, flex: 1 }}>
                     {s.status === "unknown" ? "No census" : `${s.assigned} of ${s.required}`}
