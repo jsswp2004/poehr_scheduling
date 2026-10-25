@@ -831,7 +831,10 @@ def _shift_duration_hours(shift):
     end_dt = datetime.datetime.combine(shift.date, shift.end_time)
     if end_dt <= start_dt:
         end_dt += datetime.timedelta(days=1)
-    return (end_dt - start_dt).total_seconds() / 3600.0
+    from .coverage import unpaid_break_hours
+
+    hours = (end_dt - start_dt).total_seconds() / 3600.0
+    return max(hours - unpaid_break_hours(shift), 0.0)
 
 
 class LaborHoursReportView(APIView):
@@ -863,7 +866,7 @@ class LaborHoursReportView(APIView):
             is_cancelled=False,
             start_time__isnull=False,
             end_time__isnull=False,
-        ).select_related("staff")
+        ).select_related("staff", "unit")
 
         profession = request.query_params.get("profession")
         if profession:

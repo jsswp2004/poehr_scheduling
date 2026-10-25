@@ -175,7 +175,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
     # ---- shifts -> slot entries -------------------------------------------------
     shifts = StaffShift.objects.filter(
         organization=organization, date__gte=start, date__lte=end, is_cancelled=False
-    ).select_related("staff")
+    ).select_related("staff", "unit")
     if unit_id:
         shifts = shifts.filter(unit_id=unit_id)
 
