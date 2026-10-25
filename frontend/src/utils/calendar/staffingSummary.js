@@ -18,7 +18,12 @@ const RANK = { unknown: 0, met: 1, at_risk: 2, not_met: 3 };
 export const worstStatus = (statuses) =>
   (statuses || []).reduce((worst, s) => ((RANK[s] ?? -1) > (RANK[worst] ?? -1) ? s : worst), "unknown");
 
-const shiftRank = (type) => {
+/** Short chip label: D/E/N for the built-ins, the first 3 letters of a unit's own shift ("Reg"). */
+export const shiftShort = (type, label) => SHIFT_SHORT[type] || String(label || type || "?").slice(0, 3);
+/** Display name: built-in name, else the unit's own shift label. */
+export const shiftTitle = (type, label) => SHIFT_NAME[type] || label || type;
+
+export const shiftRank = (type) => {
   const i = SHIFT_ORDER.indexOf(type);
   return i === -1 ? SHIFT_ORDER.length : i;
 };

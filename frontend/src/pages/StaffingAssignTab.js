@@ -126,6 +126,10 @@ const describeDays = (codes) => {
 };
 
 const presetFor = (unit, shiftType) => {
+  if (unit && unit.shift_pattern === "custom") {
+    const own = (unit.custom_shifts || []).find((x) => x.key === shiftType);
+    return own ? [own.start, own.end] : null;
+  }
   const pattern = unit && unit.shift_pattern === "12h" ? "12h" : "8h";
   return SHIFT_PRESETS[pattern][shiftType] || SHIFT_PRESETS["8h"][shiftType] || null;
 };
@@ -231,7 +235,12 @@ function PanelShell({ title, open, onClose, onSave, saveLabel, saving, children 
   );
 }
 
-function ShiftPicker({ value, onChange }) {
+function ShiftPicker({ value, onChange, unit }) {
+  // A unit on custom hours offers its own shifts (with their times) in place of Day / Evening / Night.
+  const own = unit && unit.shift_pattern === "custom" ? unit.custom_shifts || [] : null;
+  const options = own
+    ? [...own.map((x) => ({ value: x.key, label: x.name })), { value: "custom", label: "Custom" }]
+    : SHIFT_TYPES;
   return (
     <Box>
       <SectionLabel id="shift-type-label">Shift</SectionLabel>
@@ -244,7 +253,7 @@ function ShiftPicker({ value, onChange }) {
         value={value}
         onChange={(e, v) => v && onChange(v)}
       >
-        {SHIFT_TYPES.map((s) => (
+        {options.map((s) => (
           <ToggleButton key={s.value} value={s.value} sx={{ minHeight: 44 }}>
             {s.label}
           </ToggleButton>
@@ -572,7 +581,18 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
     setForm((f) => {
       const preset =
         !f.timesTouched && f.shift_type !== "custom" ? presetFor(unitById[String(unitId)], f.shift_type) : null;
-      return { ...f, unit: unitId, ...(preset ? { start_time: preset[0], end_time: preset[1] } : {}) };
+      // Keep the picked shift valid for the new unit: custom units use their own shifts, others the built-ins.
+      const nu = unitById[String(unitId)];
+      let shiftType = f.shift_type;
+      if (nu && nu.shift_pattern === "custom") {
+        if (!(nu.custom_shifts || []).some((x) => x.key === shiftType) && shiftType !== "custom") {
+          shiftType = ((nu.custom_shifts || [])[0] || {}).key || "custom";
+        }
+      } else if (String(shiftType).startsWith("u_")) {
+        shiftType = "day";
+      }
+      const p2 = shiftType !== f.shift_type && !f.timesTouched ? presetFor(nu, shiftType) : preset;
+      return { ...f, unit: unitId, shift_type: shiftType, ...(p2 ? { start_time: p2[0], end_time: p2[1] } : {}) };
     });
   };
 
@@ -971,14 +991,14 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
             slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
             helperText={
               formUnit
-                ? `${formUnit.name} works ${formUnit.shift_pattern === "12h" ? "12-hour" : "8-hour"} shifts, so Day and Night times are filled in for you.`
+                ? `${formUnit.name} works ${formUnit.shift_pattern === "custom" ? "custom-hours" : formUnit.shift_pattern === "12h" ? "12-hour" : "8-hour"} shifts, so the shift times are filled in for you.`
                 : undefined
             }
           >
             <MenuItem value="">No unit</MenuItem>
             {units.map((u) => (
               <MenuItem key={u.id} value={u.id}>
-                {u.name} ({u.shift_pattern === "12h" ? "12h" : "8h"})
+                {u.name} ({u.shift_pattern === "12h" ? "12h" : u.shift_pattern === "custom" ? "custom" : "8h"})
               </MenuItem>
             ))}
           </TextField>
@@ -1002,7 +1022,7 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
             </ToggleButtonGroup>
           )}
 
-          <ShiftPicker value={form.shift_type} onChange={pickShift} />
+          <ShiftPicker value={form.shift_type} onChange={pickShift} unit={formUnit} />
 
           <Stack direction="row" spacing={1.5}>
             <TextField
@@ -1550,14 +1570,14 @@ function CoverageSection({ coverageRequirements, units, rule, stateName, loading
             <MenuItem value="">No unit</MenuItem>
             {units.map((u) => (
               <MenuItem key={u.id} value={u.id}>
-                {u.name} ({u.shift_pattern === "12h" ? "12h" : "8h"})
+                {u.name} ({u.shift_pattern === "12h" ? "12h" : u.shift_pattern === "custom" ? "custom" : "8h"})
               </MenuItem>
             ))}
           </TextField>
 
           {form.mode === "hppd" && <RuleBox rule={rule} stateName={stateName} />}
 
-          <ShiftPicker value={form.shift_type} onChange={(v) => setField("shift_type", v)} />
+          <ShiftPicker value={form.shift_type} onChange={(v) => setField("shift_type", v)} unit={unitById[String(form.unit)]} />
 
           {form.mode === "fixed" && (
             <TextField

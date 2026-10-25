@@ -14,6 +14,7 @@ NURSING_ROLE_CHOICES = [
 SHIFT_PATTERN_CHOICES = [
     ("8h", "8-hour shifts (Day / Evening / Night)"),
     ("12h", "12-hour shifts (Day / Night)"),
+    ("custom", "Custom hours (the unit's own shifts)"),
 ]
 
 COVERAGE_MODE_CHOICES = [
@@ -372,6 +373,12 @@ class Unit(models.Model):
         related_name="staffing_units",
     )
     name = models.CharField(max_length=100)
+    custom_shifts = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Unit's own shifts when shift_pattern is 'custom': "
+        "[{key, name, start, end, break_minutes}].",
+    )
     shift_pattern = models.CharField(
         max_length=10,
         choices=SHIFT_PATTERN_CHOICES,
@@ -850,3 +857,25 @@ class MasterScheduleCell(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["row", "date"], name="master_schedule_cell_unique")
         ]
+
+
+# ---------------------------------------------------------------------------
+# A unit on custom hours stores its own shift keys ("u_regular_day") in shift_type;
+# show the shift's name instead of the raw key everywhere get_shift_type_display() is used.
+# ---------------------------------------------------------------------------
+_BASE_SHIFT_LABELS = dict(SHIFT_TYPE_CHOICES)
+
+
+def _shift_type_display(self):
+    label = _BASE_SHIFT_LABELS.get(self.shift_type)
+    if label is not None:
+        return label
+    unit = getattr(self, "unit", None)
+    for x in getattr(unit, "custom_shifts", None) or []:
+        if x.get("key") == self.shift_type:
+            return x.get("name") or self.shift_type
+    return self.shift_type
+
+
+for _m in (StaffRecurringPattern, StaffShift, ShiftCoverageRequirement):
+    _m.get_shift_type_display = _shift_type_display

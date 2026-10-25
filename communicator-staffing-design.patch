@@ -1,0 +1,1211 @@
+diff --git a/frontend/src/components/communicator/BulkMessageForm.js b/frontend/src/components/communicator/BulkMessageForm.js
+index db1321f7..6b03d6bd 100644
+--- a/frontend/src/components/communicator/BulkMessageForm.js
++++ b/frontend/src/components/communicator/BulkMessageForm.js
+@@ -1,119 +1,200 @@
+-import React from 'react';
++import React, { useMemo, useState } from 'react';
+ import {
++    Alert,
+     Box,
+-    Paper,
+-    Typography,
+-    TextField,
+     Button,
+-    FormControlLabel,
+     Checkbox,
+-    Alert
++    Chip,
++    FormControlLabel,
++    Paper,
++    Stack,
++    TextField,
++    Typography
+ } from '@mui/material';
+-import {
+-    Send as SendIcon,
+-    Email as EmailIcon,
+-    Sms as SmsIcon
+-} from '@mui/icons-material';
++import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
++import { faPaperPlane } from '@fortawesome/free-solid-svg-icons';
++import ConfirmDialog from './ConfirmDialog';
+ 
+ /**
+- * Bulk messaging component
+- * Handles message composition and sending to all contacts
++ * Bulk messaging. Compose on the left, recipient summary on the right.
++ * Sending asks for confirmation first, with the real recipient counts.
+  */
+ const BulkMessageForm = ({
+     contacts,
+     messageForm,
+     sending,
++    error,
+     onMessageChange,
+     onCheckboxChange,
+     onSendMessage
+ }) => {
++    const [confirmOpen, setConfirmOpen] = useState(false);
++
++    const counts = useMemo(() => {
++        const hasPhone = (c) => !!(c.phone && c.phone.trim());
++        const hasEmail = (c) => !!(c.email && c.email.trim());
++        const textable = contacts.filter((c) => hasPhone(c) && !c.opted_out);
++        const emailable = contacts.filter(hasEmail);
++        const reached = contacts.filter(
++            (c) =>
++                (messageForm.send_sms && hasPhone(c) && !c.opted_out) ||
++                (messageForm.send_email && hasEmail(c))
++        );
++        return {
++            total: contacts.length,
++            text: textable.length,
++            email: emailable.length,
++            optedOut: contacts.filter((c) => hasPhone(c) && c.opted_out).length,
++            noPhone: contacts.filter((c) => !hasPhone(c)).length,
++            reached: reached.length
++        };
++    }, [contacts, messageForm.send_sms, messageForm.send_email]);
++
++    const nothingChosen = !messageForm.send_sms && !messageForm.send_email;
++    const canSend = !sending && counts.reached > 0 && messageForm.message.trim() !== '' && !nothingChosen;
++    const length = messageForm.message.length;
++
++    const handleConfirm = async () => {
++        await onSendMessage();
++        setConfirmOpen(false);
++    };
++
+     return (
+         <Box>
+-            <Paper variant="outlined" sx={{ p: 1.5 }}>
+-                <Typography variant="h6" sx={{ mb: 1 }}>
+-                    Send Bulk Message
+-                </Typography>
++            <Typography variant="h6" sx={{ mb: 1 }}>Send message</Typography>
+ 
+-                {/* Contact Count Alert */}
+-                {contacts.length === 0 ? (
+-                    <Alert severity="warning" sx={{ mb: 1 }}>
+-                        You need to add contacts before you can send messages. Switch to the Contacts tab to add contacts.
+-                    </Alert>
+-                ) : (
+-                    <Alert severity="info" sx={{ mb: 1 }}>
+-                        This message will be sent to all {contacts.length} contacts in your list.
+-                    </Alert>
+-                )}
++            <Alert severity="warning" sx={{ mb: 1.5, py: 0 }}>
++                Don’t include patient information. Text and email are not secure channels.
++            </Alert>
+ 
+-                {/* Delivery Method Selection */}
+-                <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+-                    <FormControlLabel
+-                        control={
+-                            <Checkbox
+-                                checked={messageForm.send_sms}
+-                                onChange={(e) => onCheckboxChange('send_sms', e.target.checked)}
+-                                color="success"
+-                            />
+-                        }
+-                        label={
+-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+-                                <SmsIcon color="success" />
+-                                Send SMS
+-                            </Box>
+-                        }
+-                    />
++            {contacts.length === 0 && (
++                <Alert severity="info" sx={{ mb: 1.5 }}>
++                    Add contacts on the Contacts tab before sending a message.
++                </Alert>
++            )}
++            {error && (
++                <Alert severity="error" sx={{ mb: 1.5 }}>{error}</Alert>
++            )}
+ 
+-                    <FormControlLabel
+-                        control={
+-                            <Checkbox
+-                                checked={messageForm.send_email}
+-                                onChange={(e) => onCheckboxChange('send_email', e.target.checked)}
+-                                color="info"
+-                            />
+-                        }
+-                        label={
+-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+-                                <EmailIcon color="info" />
+-                                Send Email
+-                            </Box>
+-                        }
+-                    />
+-                </Box>
++            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'flex-start' }}>
++                <Stack spacing={2} sx={{ flex: '999 1 520px', minWidth: 0, maxWidth: 760 }}>
++                    <Stack direction="row" spacing={3} sx={{ flexWrap: 'wrap' }}>
++                        <FormControlLabel
++                            control={
++                                <Checkbox
++                                    checked={messageForm.send_sms}
++                                    onChange={(e) => onCheckboxChange('send_sms', e.target.checked)}
++                                />
++                            }
++                            label="Text message (SMS)"
++                        />
++                        <FormControlLabel
++                            control={
++                                <Checkbox
++                                    checked={messageForm.send_email}
++                                    onChange={(e) => onCheckboxChange('send_email', e.target.checked)}
++                                />
++                            }
++                            label="Email"
++                        />
++                    </Stack>
++
++                    {messageForm.send_email && (
++                        <TextField
++                            fullWidth
++                            size="small"
++                            label="Subject"
++                            value={messageForm.subject}
++                            onChange={(e) => onMessageChange('subject', e.target.value)}
++                        />
++                    )}
+ 
+-                {/* Email Subject Field */}
+-                {messageForm.send_email && (
+                     <TextField
+                         fullWidth
+-                        size="small"
+-                        label="Email Subject"
+-                        value={messageForm.subject}
+-                        onChange={(e) => onMessageChange('subject', e.target.value)}
+-                        sx={{ mb: 1.5 }}
++                        multiline
++                        minRows={6}
++                        label="Message"
++                        value={messageForm.message}
++                        onChange={(e) => onMessageChange('message', e.target.value)}
++                        helperText={
++                            messageForm.send_sms
++                                ? `${length} characters. Texts over 160 characters are sent as more than one message.`
++                                : `${length} characters.`
++                        }
+                     />
+-                )}
+ 
+-                {/* Message Text Area */}
+-                <TextField
+-                    fullWidth
+-                    multiline
+-                    rows={5}
+-                    label="Message"
+-                    value={messageForm.message}
+-                    onChange={(e) => onMessageChange('message', e.target.value)}
+-                    placeholder="Enter your message here..."
+-                    sx={{ mb: 1.5 }}
+-                />
++                    <Stack direction="row" spacing={1} alignItems="center">
++                        <Button
++                            variant="contained"
++                            startIcon={<FontAwesomeIcon icon={faPaperPlane} />}
++                            disabled={!canSend}
++                            onClick={() => setConfirmOpen(true)}
++                        >
++                            {sending ? 'Sending...' : `Send to ${counts.reached} contacts`}
++                        </Button>
++                        <Button
++                            disabled={sending || (!messageForm.message && messageForm.subject === 'Notification')}
++                            onClick={() => {
++                                onMessageChange('message', '');
++                                onMessageChange('subject', 'Notification');
++                            }}
++                        >
++                            Clear
++                        </Button>
++                    </Stack>
++                </Stack>
++
++                <Paper variant="outlined" component="aside" aria-label="Recipients" sx={{ flex: '1 1 280px', maxWidth: 360, p: 2 }}>
++                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1.5 }}>Recipients</Typography>
++                    <Stack spacing={1}>
++                        {[
++                            ['All contacts', counts.total],
++                            ['Will get a text', counts.text],
++                            ['Will get an email', counts.email]
++                        ].map(([label, value]) => (
++                            <Box key={label} sx={{ display: 'flex', justifyContent: 'space-between' }}>
++                                <Typography variant="body2" color="text.secondary">{label}</Typography>
++                                <Typography variant="body2" sx={{ fontWeight: 700 }}>{value}</Typography>
++                            </Box>
++                        ))}
++                    </Stack>
++                    {(counts.optedOut > 0 || counts.noPhone > 0) && (
++                        <>
++                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600, mt: 2, mb: 1 }}>
++                                SKIPPED FOR TEXT
++                            </Typography>
++                            <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', rowGap: 0.75 }}>
++                                {counts.optedOut > 0 && (
++                                    <Chip size="small" color="error" variant="outlined" label={`${counts.optedOut} opted out`} />
++                                )}
++                                {counts.noPhone > 0 && (
++                                    <Chip size="small" variant="outlined" label={`${counts.noPhone} no phone`} />
++                                )}
++                            </Stack>
++                        </>
++                    )}
++                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1.5 }}>
++                        Contacts who replied STOP never receive texts, even if SMS is checked.
++                    </Typography>
++                </Paper>
++            </Box>
+ 
+-                {/* Send Button */}
+-                <Button
+-                    variant="contained"
+-                    startIcon={<SendIcon />}
+-                    onClick={onSendMessage}
+-                    disabled={contacts.length === 0 || sending}
+-                >
+-                    {sending ? 'Sending...' : `Send to ${contacts.length} Contacts`}
+-                </Button>
+-            </Paper>
++            <ConfirmDialog
++                open={confirmOpen}
++                title={`Send to ${counts.reached} contacts?`}
++                confirmLabel={sending ? 'Sending...' : 'Send'}
++                busy={sending}
++                onConfirm={handleConfirm}
++                onClose={() => setConfirmOpen(false)}
++            >
++                {[
++                    messageForm.send_sms && `a text to ${counts.text} contacts`,
++                    messageForm.send_email && `an email to ${counts.email} contacts`
++                ].filter(Boolean).reduce((acc, part, i) => (i === 0 ? `This sends ${part}` : `${acc} and ${part}`), '')}
++                {messageForm.send_sms && (counts.optedOut > 0 || counts.noPhone > 0)
++                    ? `. ${counts.optedOut} opted-out and ${counts.noPhone} without a phone are skipped for text.`
++                    : '.'}
++            </ConfirmDialog>
+         </Box>
+     );
+ };
+diff --git a/frontend/src/components/communicator/CommunicatorHeader.js b/frontend/src/components/communicator/CommunicatorHeader.js
+index 56acace0..66e56b4f 100644
+--- a/frontend/src/components/communicator/CommunicatorHeader.js
++++ b/frontend/src/components/communicator/CommunicatorHeader.js
+@@ -1,29 +1,14 @@
+ import React from 'react';
+-import {
+-    Box,
+-    Typography,
+-    Tabs,
+-    Tab,
+-    Chip
+-} from '@mui/material';
+-import { Send as SendIcon, Email as EmailIcon, Sms as SmsIcon } from '@mui/icons-material';
++import { Box, Typography, Tabs, Tab } from '@mui/material';
+ import BackButton from '../BackButton';
+ 
+-// Tab label: optional icon + text, same inline spacing everywhere.
+-const TabLabel = ({ icon, children }) => (
+-    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+-        {icon}
+-        {children}
+-    </Box>
+-);
+-
+ /**
+  * Page header with title, Back button and tabs.
+- * Layout, type scale and tab sizing mirror the Staffing Center header.
++ * Layout, type scale and tab sizing mirror the Staffing Center header
++ * (plain text tabs, no icons or count badges; counts live in the section title).
+  */
+ const CommunicatorHeader = ({
+     currentTab,
+-    contactsCount,
+     onTabChange,
+     // Only admins/system_admins get the Email and SMS auto-messaging setup
+     // tabs here (same settings as the Messages page) -- registrars still see
+@@ -47,31 +32,10 @@ const CommunicatorHeader = ({
+                     '& .MuiTab-root': { minHeight: 40, py: 0.5 },
+                 }}
+             >
+-                <Tab
+-                    value="contacts"
+-                    label={
+-                        <TabLabel>
+-                            Contacts
+-                            <Chip label={contactsCount} size="small" color="primary" sx={{ height: 20 }} />
+-                        </TabLabel>
+-                    }
+-                />
+-                <Tab
+-                    value="message"
+-                    label={<TabLabel icon={<SendIcon fontSize="small" />}>Send Message</TabLabel>}
+-                />
+-                {isAdmin && (
+-                    <Tab
+-                        value="email"
+-                        label={<TabLabel icon={<EmailIcon fontSize="small" />}>Email</TabLabel>}
+-                    />
+-                )}
+-                {isAdmin && (
+-                    <Tab
+-                        value="sms"
+-                        label={<TabLabel icon={<SmsIcon fontSize="small" />}>SMS</TabLabel>}
+-                    />
+-                )}
++                <Tab value="contacts" label="Contacts" />
++                <Tab value="message" label="Send Message" />
++                {isAdmin && <Tab value="email" label="Email" />}
++                {isAdmin && <Tab value="sms" label="SMS" />}
+             </Tabs>
+         </Box>
+     );
+diff --git a/frontend/src/components/communicator/ConfirmDialog.js b/frontend/src/components/communicator/ConfirmDialog.js
+new file mode 100644
+index 00000000..1af75b51
+--- /dev/null
++++ b/frontend/src/components/communicator/ConfirmDialog.js
+@@ -0,0 +1,39 @@
++import React from 'react';
++import {
++    Dialog,
++    DialogTitle,
++    DialogContent,
++    DialogContentText,
++    DialogActions,
++    Button
++} from '@mui/material';
++
++/**
++ * Small confirmation dialog (same Dialog pattern as the Staffing Center).
++ * Replaces window.confirm and the toast-with-buttons used before.
++ */
++const ConfirmDialog = ({
++    open,
++    title,
++    children,
++    confirmLabel = 'Confirm',
++    confirmColor = 'primary',
++    busy = false,
++    onConfirm,
++    onClose
++}) => (
++    <Dialog open={open} onClose={busy ? undefined : onClose} maxWidth="xs" fullWidth>
++        <DialogTitle>{title}</DialogTitle>
++        <DialogContent>
++            <DialogContentText component="div">{children}</DialogContentText>
++        </DialogContent>
++        <DialogActions>
++            <Button onClick={onClose} disabled={busy}>Cancel</Button>
++            <Button variant="contained" color={confirmColor} onClick={onConfirm} disabled={busy}>
++                {confirmLabel}
++            </Button>
++        </DialogActions>
++    </Dialog>
++);
++
++export default ConfirmDialog;
+diff --git a/frontend/src/components/communicator/ContactFormDialog.js b/frontend/src/components/communicator/ContactFormDialog.js
+index 98886f14..e3f930e1 100644
+--- a/frontend/src/components/communicator/ContactFormDialog.js
++++ b/frontend/src/components/communicator/ContactFormDialog.js
+@@ -1,64 +1,66 @@
+ import React from 'react';
+ import {
++    Alert,
++    Button,
+     Dialog,
+-    DialogTitle,
+-    DialogContent,
+     DialogActions,
+-    TextField,
+-    Button
++    DialogContent,
++    DialogTitle,
++    Stack,
++    TextField
+ } from '@mui/material';
+ 
+ /**
+- * Contact form dialog for creating and editing contacts
++ * Contact form dialog for creating and editing contacts.
++ * Same structure as the Staffing dialogs: stacked fields, inline error alert.
+  */
+ const ContactFormDialog = ({
+     open,
+     editingContact,
+     contactForm,
++    error,
++    saving = false,
+     onClose,
+     onSave,
+     onFormChange
+ }) => {
+     return (
+-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+-            <DialogTitle>
+-                {editingContact ? 'Edit Contact' : 'Add New Contact'}
+-            </DialogTitle>
++        <Dialog open={open} onClose={saving ? undefined : onClose} maxWidth="sm" fullWidth>
++            <DialogTitle>{editingContact ? 'Edit Contact' : 'Add Contact'}</DialogTitle>
+ 
+             <DialogContent>
+-                <TextField
+-                    fullWidth
+-                    label="Name"
+-                    value={contactForm.name}
+-                    onChange={(e) => onFormChange('name', e.target.value)}
+-                    margin="normal"
+-                    required
+-                />
+-
+-                <TextField
+-                    fullWidth
+-                    label="Phone"
+-                    value={contactForm.phone}
+-                    onChange={(e) => onFormChange('phone', e.target.value)}
+-                    margin="normal"
+-                    placeholder="+1234567890"
+-                />
+-
+-                <TextField
+-                    fullWidth
+-                    label="Email"
+-                    type="email"
+-                    value={contactForm.email}
+-                    onChange={(e) => onFormChange('email', e.target.value)}
+-                    margin="normal"
+-                    placeholder="contact@example.com"
+-                />
++                <Stack spacing={2} sx={{ mt: 1 }}>
++                    {error && <Alert severity="error">{error}</Alert>}
++                    <TextField
++                        fullWidth
++                        required
++                        label="Name"
++                        value={contactForm.name}
++                        onChange={(e) => onFormChange('name', e.target.value)}
++                    />
++                    <TextField
++                        fullWidth
++                        label="Phone"
++                        value={contactForm.phone}
++                        onChange={(e) => onFormChange('phone', e.target.value)}
++                        placeholder="+1234567890"
++                        helperText="Used for texts. Include the area code."
++                    />
++                    <TextField
++                        fullWidth
++                        label="Email"
++                        type="email"
++                        value={contactForm.email}
++                        onChange={(e) => onFormChange('email', e.target.value)}
++                        placeholder="contact@example.com"
++                    />
++                </Stack>
+             </DialogContent>
+ 
+             <DialogActions>
+-                <Button onClick={onClose}>Cancel</Button>
+-                <Button onClick={onSave} variant="contained">
+-                    {editingContact ? 'Update' : 'Create'}
++                <Button onClick={onClose} disabled={saving}>Cancel</Button>
++                <Button onClick={onSave} variant="contained" disabled={saving || !contactForm.name.trim()}>
++                    {saving ? 'Saving...' : editingContact ? 'Save' : 'Add contact'}
+                 </Button>
+             </DialogActions>
+         </Dialog>
+diff --git a/frontend/src/components/communicator/ContactsTable.js b/frontend/src/components/communicator/ContactsTable.js
+index 410fc511..4c910e29 100644
+--- a/frontend/src/components/communicator/ContactsTable.js
++++ b/frontend/src/components/communicator/ContactsTable.js
+@@ -1,31 +1,31 @@
+-import React from 'react';
++import React, { useMemo, useState } from 'react';
+ import {
+     Box,
+     Button,
++    Chip,
++    IconButton,
++    LinearProgress,
++    MenuItem,
++    Stack,
+     Table,
+     TableBody,
+     TableCell,
+-    TableContainer,
+     TableHead,
++    TablePagination,
+     TableRow,
+-    Paper,
+-    Typography,
+-    IconButton,
+-    LinearProgress
++    TextField,
++    Tooltip,
++    Typography
+ } from '@mui/material';
+-import {
+-    Add as AddIcon,
+-    Upload as UploadIcon,
+-    Edit as EditIcon,
+-    Delete as DeleteIcon,
+-    Email as EmailIcon,
+-    Sms as SmsIcon,
+-    Print as PrintIcon
+-} from '@mui/icons-material';
++import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
++import { faPen, faTrash, faUserPlus, faFileArrowUp, faPrint } from '@fortawesome/free-solid-svg-icons';
++
++const ROWS_PER_PAGE = 14;
+ 
+ /**
+- * Contacts table component with CRUD operations
+- * Displays contacts list with edit, delete, and action buttons
++ * Contacts list. Layout mirrors the Staffing roster: title with count, actions
++ * on the right, search + filters row, plain table, 14 rows per page.
++ * Search, filters and paging are client-side (the whole list is loaded).
+  */
+ const ContactsTable = ({
+     contacts,
+@@ -40,126 +40,187 @@ const ContactsTable = ({
+     hasPhone,
+     hasEmail
+ }) => {
++    const [search, setSearch] = useState('');
++    const [smsFilter, setSmsFilter] = useState('all'); // all | can | out | none
++    const [infoFilter, setInfoFilter] = useState('all'); // all | phone | email | missing
++    const [page, setPage] = useState(0);
++
++    const smsStatus = (c) => {
++        if (!hasPhone(c)) return 'none';
++        return c.opted_out ? 'out' : 'can';
++    };
++
++    const filtered = useMemo(() => {
++        const terms = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
++        return contacts.filter((c) => {
++            if (smsFilter !== 'all' && smsStatus(c) !== smsFilter) return false;
++            if (infoFilter === 'phone' && !hasPhone(c)) return false;
++            if (infoFilter === 'email' && !hasEmail(c)) return false;
++            if (infoFilter === 'missing' && hasPhone(c) && hasEmail(c)) return false;
++            if (terms.length === 0) return true;
++            const haystack = [c.name, c.phone, c.email].filter(Boolean).join(' ').toLowerCase();
++            // Phone numbers: also match on digits only, so "301880" finds (301) 880-xxxx.
++            const digits = (c.phone || '').replace(/\D/g, '');
++            return terms.every((t) => haystack.includes(t) || (/^\d+$/.test(t) && digits.includes(t)));
++        });
++        // eslint-disable-next-line react-hooks/exhaustive-deps
++    }, [contacts, search, smsFilter, infoFilter]);
++
++    const lastPage = Math.max(0, Math.ceil(filtered.length / ROWS_PER_PAGE) - 1);
++    const safePage = Math.min(page, lastPage);
++    const pageRows = filtered.slice(safePage * ROWS_PER_PAGE, safePage * ROWS_PER_PAGE + ROWS_PER_PAGE);
++    const filtersActive = search.trim() !== '' || smsFilter !== 'all' || infoFilter !== 'all';
++
++    const resetFilters = () => {
++        setSearch('');
++        setSmsFilter('all');
++        setInfoFilter('all');
++        setPage(0);
++    };
++
++    const statusChip = (c) => {
++        const s = smsStatus(c);
++        if (s === 'can') return <Chip size="small" color="success" label="Can text" />;
++        if (s === 'out') return <Chip size="small" color="error" variant="outlined" label="Opted out" />;
++        return <Chip size="small" variant="outlined" label="No phone" />;
++    };
++
+     return (
+         <Box>
+-            {/* Action Buttons */}
+-            <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap' }}>
+-                <Button
+-                    variant="contained"
+-                    size="small"
+-                    startIcon={<AddIcon />}
+-                    onClick={onAddContact}
+-                >
+-                    Add Recipients
+-                </Button>
++            <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ mb: 1, flexWrap: 'wrap', rowGap: 1 }}>
++                <Typography variant="h6">Contacts ({contacts.length})</Typography>
+ 
+-                <Button
+-                    variant="outlined"
+-                    size="small"
+-                    startIcon={<UploadIcon />}
+-                    onClick={onUploadClick}
+-                >
+-                    Upload CSV
+-                </Button>
++                <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: 'wrap', rowGap: 1 }}>
++                    <Button size="small" onClick={onDownloadTemplate}>Download template</Button>
++                    <Button
++                        size="small"
++                        startIcon={<FontAwesomeIcon icon={faPrint} />}
++                        onClick={() => onPrintContacts(contacts)}
++                        disabled={contacts.length === 0}
++                    >
++                        Print
++                    </Button>
++                    <Button
++                        variant="outlined"
++                        size="small"
++                        startIcon={<FontAwesomeIcon icon={faFileArrowUp} />}
++                        onClick={onUploadClick}
++                    >
++                        Upload CSV
++                    </Button>
++                    <Button
++                        variant="contained"
++                        size="small"
++                        startIcon={<FontAwesomeIcon icon={faUserPlus} />}
++                        onClick={onAddContact}
++                    >
++                        Add recipients
++                    </Button>
++                </Stack>
++            </Stack>
++
++            {loading && <LinearProgress sx={{ mb: 1 }} />}
+ 
+-                <Button
+-                    variant="text"
++            <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1, flexWrap: 'wrap', rowGap: 1 }}>
++                <TextField
+                     size="small"
+-                    onClick={onDownloadTemplate}
++                    label="Search contacts"
++                    placeholder="Name, phone or email"
++                    value={search}
++                    onChange={(e) => { setSearch(e.target.value); setPage(0); }}
++                    sx={{ minWidth: 260, flex: 1, maxWidth: 420 }}
++                />
++                <TextField
++                    select
++                    size="small"
++                    label="SMS status"
++                    value={smsFilter}
++                    onChange={(e) => { setSmsFilter(e.target.value); setPage(0); }}
++                    sx={{ minWidth: 140 }}
+                 >
+-                    Download Template
+-                </Button>
+-
+-                <Button
+-                    variant="text"
++                    <MenuItem value="all">All</MenuItem>
++                    <MenuItem value="can">Can text</MenuItem>
++                    <MenuItem value="out">Opted out</MenuItem>
++                    <MenuItem value="none">No phone</MenuItem>
++                </TextField>
++                <TextField
++                    select
+                     size="small"
+-                    startIcon={<PrintIcon />}
+-                    onClick={() => onPrintContacts(contacts)}
+-                    disabled={contacts.length === 0}
++                    label="Contact info"
++                    value={infoFilter}
++                    onChange={(e) => { setInfoFilter(e.target.value); setPage(0); }}
++                    sx={{ minWidth: 140 }}
+                 >
+-                    Print Contacts
+-                </Button>
+-            </Box>
+-
+-            {/* Loading Indicator */}
+-            {loading && <LinearProgress sx={{ mb: 1 }} />}
++                    <MenuItem value="all">All</MenuItem>
++                    <MenuItem value="phone">Has phone</MenuItem>
++                    <MenuItem value="email">Has email</MenuItem>
++                    <MenuItem value="missing">Missing info</MenuItem>
++                </TextField>
++                <Typography variant="body2" color="text.secondary">
++                    Showing {filtered.length} of {contacts.length}
++                </Typography>
++                {filtersActive && <Button size="small" onClick={resetFilters}>Clear</Button>}
++                {filtered.length > ROWS_PER_PAGE && (
++                    <TablePagination
++                        component="div"
++                        count={filtered.length}
++                        page={safePage}
++                        onPageChange={(e, p) => setPage(p)}
++                        rowsPerPage={ROWS_PER_PAGE}
++                        rowsPerPageOptions={[]}
++                        sx={{ ml: 'auto', borderBottom: 0 }}
++                    />
++                )}
++            </Stack>
+ 
+-            {/* Contacts Table */}
+-            <TableContainer component={Paper} variant="outlined">
+-                <Table size="small">
++            <Box sx={{ overflowX: 'auto' }}>
++                <Table size="small" sx={{ minWidth: 760 }}>
+                     <TableHead>
+                         <TableRow>
+-                            <TableCell sx={{ fontWeight: 600 }}>Name</TableCell>
+-                            <TableCell sx={{ fontWeight: 600 }}>Phone</TableCell>
+-                            <TableCell sx={{ fontWeight: 600 }}>Email</TableCell>
+-                            <TableCell sx={{ fontWeight: 600 }}>Created</TableCell>
+-                            <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
++                            <TableCell>Name</TableCell>
++                            <TableCell>Phone</TableCell>
++                            <TableCell>Email</TableCell>
++                            <TableCell>SMS status</TableCell>
++                            <TableCell>Created</TableCell>
++                            <TableCell align="right">Actions</TableCell>
+                         </TableRow>
+                     </TableHead>
+-
+                     <TableBody>
+-                        {contacts.length === 0 ? (
++                        {pageRows.length === 0 && (
+                             <TableRow>
+-                                <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+-                                    <Typography variant="body1" color="text.secondary">
+-                                        No contacts found. Add contacts manually or upload a CSV file.
++                                <TableCell colSpan={6}>
++                                    <Typography variant="body2" color="text.secondary">
++                                        {contacts.length === 0
++                                            ? 'No contacts yet. Add recipients manually or upload a CSV file.'
++                                            : 'No contacts match your search.'}
+                                     </Typography>
+                                 </TableCell>
+                             </TableRow>
+-                        ) : (
+-                            contacts.map((contact) => (
+-                                <TableRow key={contact.id} hover>
+-                                    <TableCell>{contact.name}</TableCell>
+-
+-                                    <TableCell>
+-                                        {hasPhone(contact) ? (
+-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+-                                                <SmsIcon fontSize="small" color="success" />
+-                                                {contact.phone}
+-                                            </Box>
+-                                        ) : (
+-                                            <Typography variant="body2" color="text.secondary">-</Typography>
+-                                        )}
+-                                    </TableCell>
+-
+-                                    <TableCell>
+-                                        {hasEmail(contact) ? (
+-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+-                                                <EmailIcon fontSize="small" color="info" />
+-                                                {contact.email}
+-                                            </Box>
+-                                        ) : (
+-                                            <Typography variant="body2" color="text.secondary">-</Typography>
+-                                        )}
+-                                    </TableCell>
+-
+-                                    <TableCell>
+-                                        {formatDate(contact.created_at)}
+-                                    </TableCell>
+-
+-                                    <TableCell>
+-                                        <IconButton
+-                                            onClick={() => onEditContact(contact)}
+-                                            color="primary"
+-                                            size="small"
+-                                        >
+-                                            <EditIcon />
++                        )}
++                        {pageRows.map((contact) => (
++                            <TableRow key={contact.id} hover>
++                                <TableCell>{contact.name}</TableCell>
++                                <TableCell>{hasPhone(contact) ? contact.phone : '—'}</TableCell>
++                                <TableCell>{hasEmail(contact) ? contact.email : '—'}</TableCell>
++                                <TableCell>{statusChip(contact)}</TableCell>
++                                <TableCell>{formatDate(contact.created_at)}</TableCell>
++                                <TableCell align="right">
++                                    <Tooltip title="Edit contact">
++                                        <IconButton size="small" onClick={() => onEditContact(contact)} aria-label="Edit contact">
++                                            <FontAwesomeIcon icon={faPen} />
+                                         </IconButton>
+-
+-                                        <IconButton
+-                                            onClick={() => onDeleteContact(contact.id)}
+-                                            color="error"
+-                                            size="small"
+-                                        >
+-                                            <DeleteIcon />
++                                    </Tooltip>
++                                    <Tooltip title="Delete contact">
++                                        <IconButton size="small" color="error" onClick={() => onDeleteContact(contact)} aria-label="Delete contact">
++                                            <FontAwesomeIcon icon={faTrash} />
+                                         </IconButton>
+-                                    </TableCell>
+-                                </TableRow>
+-                            ))
+-                        )}
++                                    </Tooltip>
++                                </TableCell>
++                            </TableRow>
++                        ))}
+                     </TableBody>
+                 </Table>
+-            </TableContainer>
++            </Box>
+         </Box>
+     );
+ };
+diff --git a/frontend/src/components/communicator/FileUploadDialog.js b/frontend/src/components/communicator/FileUploadDialog.js
+index 9600119c..205ab0b4 100644
+--- a/frontend/src/components/communicator/FileUploadDialog.js
++++ b/frontend/src/components/communicator/FileUploadDialog.js
+@@ -1,11 +1,13 @@
+ import React from 'react';
+ import {
++    Alert,
++    Box,
++    Button,
+     Dialog,
+-    DialogTitle,
+-    DialogContent,
+     DialogActions,
+-    Button,
+-    Alert,
++    DialogContent,
++    DialogTitle,
++    Stack,
+     Typography
+ } from '@mui/material';
+ 
+@@ -22,40 +24,45 @@ const FileUploadDialog = ({
+     onDownloadTemplate
+ }) => {
+     return (
+-        <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
++        <Dialog open={open} onClose={uploading ? undefined : onClose} maxWidth="sm" fullWidth>
+             <DialogTitle>Upload Contacts CSV</DialogTitle>
+ 
+             <DialogContent>
+-                <Alert severity="info" sx={{ mb: 2 }}>
+-                    Upload a CSV file with columns: name, phone, email
+-                </Alert>
+-
+-                <input
+-                    type="file"
+-                    accept=".csv"
+-                    onChange={(e) => onFileSelect(e.target.files[0])}
+-                    style={{ marginBottom: '16px' }}
+-                />
++                <Stack spacing={2} sx={{ mt: 1 }}>
++                    <Alert severity="info">
++                        Columns: name, phone, email. Contacts already on your list are skipped.
++                    </Alert>
+ 
+-                {selectedFile && (
+-                    <Typography variant="body2" color="text.secondary">
+-                        Selected: {selectedFile.name}
+-                    </Typography>
+-                )}
++                    <Box
++                        sx={{
++                            border: '1px dashed',
++                            borderColor: 'text.secondary',
++                            borderRadius: 3,
++                            bgcolor: 'background.default',
++                            p: 3,
++                            textAlign: 'center'
++                        }}
++                    >
++                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
++                            {selectedFile ? selectedFile.name : 'No file chosen'}
++                        </Typography>
++                        <Button component="label" size="small" variant="outlined">
++                            {selectedFile ? 'Choose a different file' : 'Choose CSV file'}
++                            <input
++                                hidden
++                                type="file"
++                                accept=".csv"
++                                onChange={(e) => onFileSelect(e.target.files[0])}
++                            />
++                        </Button>
++                    </Box>
++                </Stack>
+             </DialogContent>
+ 
+             <DialogActions>
+-                <Button onClick={onClose}>Cancel</Button>
+-
+-                <Button onClick={onDownloadTemplate} variant="outlined">
+-                    Download Template
+-                </Button>
+-
+-                <Button
+-                    onClick={onUpload}
+-                    variant="contained"
+-                    disabled={!selectedFile || uploading}
+-                >
++                <Button onClick={onClose} disabled={uploading}>Cancel</Button>
++                <Button onClick={onDownloadTemplate} variant="outlined">Download template</Button>
++                <Button onClick={onUpload} variant="contained" disabled={!selectedFile || uploading}>
+                     {uploading ? 'Uploading...' : 'Upload'}
+                 </Button>
+             </DialogActions>
+diff --git a/frontend/src/components/communicator/index.js b/frontend/src/components/communicator/index.js
+index cbf38056..c0e95ff6 100644
+--- a/frontend/src/components/communicator/index.js
++++ b/frontend/src/components/communicator/index.js
+@@ -1,6 +1,7 @@
+-// Barrel export for communicator components
+-export { default as ContactsTable } from './ContactsTable';
+-export { default as BulkMessageForm } from './BulkMessageForm';
+-export { default as ContactFormDialog } from './ContactFormDialog';
+-export { default as FileUploadDialog } from './FileUploadDialog';
+-export { default as CommunicatorHeader } from './CommunicatorHeader';
++// Barrel export for communicator components
++export { default as ContactsTable } from './ContactsTable';
++export { default as BulkMessageForm } from './BulkMessageForm';
++export { default as ContactFormDialog } from './ContactFormDialog';
++export { default as FileUploadDialog } from './FileUploadDialog';
++export { default as CommunicatorHeader } from './CommunicatorHeader';
++export { default as ConfirmDialog } from './ConfirmDialog';
+diff --git a/frontend/src/pages/CommunicatorPage.js b/frontend/src/pages/CommunicatorPage.js
+index 37ff4453..9b860440 100644
+--- a/frontend/src/pages/CommunicatorPage.js
++++ b/frontend/src/pages/CommunicatorPage.js
+@@ -1,5 +1,5 @@
+ import React, { useState, useEffect, useRef } from "react";
+-import { Box } from "@mui/material";
++import { Alert, Box } from "@mui/material";
+ import { useNavigate } from "react-router-dom";
+ import { jwtDecode } from "jwt-decode";
+ 
+@@ -17,8 +17,8 @@ import {
+   ContactFormDialog,
+   FileUploadDialog,
+   CommunicatorHeader,
++  ConfirmDialog,
+ } from "../components/communicator";
+-import { toast } from "../components/SimpleToast";
+ import CommunicatorAssistantDock, { COMMUNICATOR_CHANGED_EVENT } from "../components/CommunicatorAssistantDock";
+ import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
+ import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
+@@ -83,108 +83,82 @@ function CommunicatorPage() {
+     else if (route === "logs") navigate("/messages");
+   };
+ 
++  // Page-level feedback shows as dismissible inline alerts (same as the Staffing Center).
++  const [notice, setNotice] = useState("");
++  const [pageError, setPageError] = useState("");
++  const [dialogError, setDialogError] = useState("");
++  const [saving, setSaving] = useState(false);
++  const [deleteTarget, setDeleteTarget] = useState(null);
++  const [deleting, setDeleting] = useState(false);
++
+   // File upload with success callback
+   const fileUpload = useFileUpload(token, (data) => {
+-    console.log("🔄 Upload success data:", data);
+-    toast.success(`${data.created} contacts uploaded successfully`);
+-    console.log("🔄 Calling contacts.refreshContacts()");
++    setPageError("");
++    setNotice(`${data.created} contacts uploaded.`);
+     contacts.refreshContacts();
+   });
+ 
+   // Handle contact save (create or update)
+   const handleSaveContact = async () => {
++    setSaving(true);
++    setDialogError("");
+     let success = false;
++    const editing = !!contactForm.editingContact;
+ 
+-    if (contactForm.editingContact) {
++    if (editing) {
+       success = await contacts.updateContact(
+         contactForm.editingContact.id,
+         contactForm.contactForm
+       );
+-      if (success) {
+-        toast.success("Contact updated successfully");
+-      }
+     } else {
+       success = await contacts.createContact(contactForm.contactForm);
+-      if (success) {
+-        toast.success("Contact created successfully");
+-      }
+     }
++    setSaving(false);
+ 
+     if (success) {
++      setPageError("");
++      setNotice(editing ? "Contact updated." : "Contact added.");
+       contactForm.closeDialog();
+     } else {
+-      toast.error(contacts.error || "Failed to save contact");
++      setDialogError(contacts.error || "Failed to save contact.");
+     }
+   };
+ 
+-  // Handle contact deletion with custom toast confirmation
+-  const handleDeleteContact = async (id) => {
+-    toast.warning(
+-      <div>
+-        <p>
+-          <strong>Are you sure you want to delete this contact?</strong>
+-        </p>
+-        <div style={{ marginTop: "10px" }}>
+-          <button
+-            onClick={() => performDeleteContact(id)}
+-            style={{
+-              marginRight: "10px",
+-              padding: "5px 15px",
+-              backgroundColor: "#dc2626",
+-              color: "white",
+-              border: "none",
+-              borderRadius: "4px",
+-              cursor: "pointer",
+-            }}
+-          >
+-            Yes, Delete
+-          </button>
+-          <button
+-            onClick={() => toast.dismiss()}
+-            style={{
+-              padding: "5px 15px",
+-              backgroundColor: "#64748b",
+-              color: "white",
+-              border: "none",
+-              borderRadius: "4px",
+-              cursor: "pointer",
+-            }}
+-          >
+-            Cancel
+-          </button>
+-        </div>
+-      </div>,
+-      { duration: 0 } // Keep toast open until user decides
+-    );
+-  };
+-
+-  // Perform actual contact deletion
+-  const performDeleteContact = async (id) => {
+-    toast.dismiss();
++  // Ask first, then delete
++  const handleDeleteContact = (contact) => setDeleteTarget(contact);
+ 
+-    const success = await contacts.deleteContact(id);
++  const performDeleteContact = async () => {
++    if (!deleteTarget) return;
++    setDeleting(true);
++    const success = await contacts.deleteContact(deleteTarget.id);
++    setDeleting(false);
+     if (success) {
+-      toast.success("Contact deleted successfully! 🗑️");
++      setPageError("");
++      setNotice(`${deleteTarget.name} was deleted.`);
+     } else {
+-      toast.error("Failed to delete contact. Please try again.");
++      setPageError("Failed to delete contact. Please try again.");
+     }
++    setDeleteTarget(null);
+   };
+ 
+   // Handle file upload
+   const handleFileUpload = async () => {
+     const success = await fileUpload.uploadFile();
+     if (!success && fileUpload.error) {
+-      toast.error(fileUpload.error);
++      setPageError(fileUpload.error);
+     }
+   };
+ 
+   // Handle bulk message sending
+   const handleSendBulkMessage = async () => {
+     const result = await bulkMessaging.sendBulkMessage();
+-    if (result.success) {
+-      toast.success(`Message sent to ${result.sentCount} contacts`);
++    if (result && result.success) {
++      setPageError("");
++      setNotice(`Message sent to ${result.sentCount} contacts.`);
++      setTab("contacts");
+     } else {
+-      toast.error(bulkMessaging.error || "Failed to send message");
++      setNotice("");
++      setPageError(bulkMessaging.error || "Failed to send message.");
+     }
+   };
+ 
+@@ -193,19 +167,29 @@ function CommunicatorPage() {
+       {/* Title row + tabs (same layout as the Staffing Center) */}
+       <CommunicatorHeader
+         currentTab={tab}
+-        contactsCount={contacts.contacts.length}
+         onTabChange={setTab}
+         isAdmin={isAdmin}
+         backTo="/login?redirect=communicator"
+       />
+ 
++      {notice && (
++        <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice("")}>
++          {notice}
++        </Alert>
++      )}
++      {pageError && (
++        <Alert severity="error" sx={{ mb: 1 }} onClose={() => setPageError("")}>
++          {pageError}
++        </Alert>
++      )}
++
+       {/* Contacts Tab */}
+       {tab === "contacts" && (
+         <ContactsTable
+           contacts={contacts.contacts}
+           loading={contacts.loading}
+-          onAddContact={contactForm.openCreateDialog}
+-          onEditContact={contactForm.openEditDialog}
++          onAddContact={() => { setDialogError(""); contactForm.openCreateDialog(); }}
++          onEditContact={(c) => { setDialogError(""); contactForm.openEditDialog(c); }}
+           onDeleteContact={handleDeleteContact}
+           onUploadClick={fileUpload.openUploadDialog}
+           onDownloadTemplate={fileUpload.downloadTemplate}
+@@ -222,6 +206,7 @@ function CommunicatorPage() {
+           contacts={contacts.contacts}
+           messageForm={bulkMessaging.messageForm}
+           sending={bulkMessaging.sending}
++          error={bulkMessaging.error}
+           onMessageChange={bulkMessaging.updateMessageForm}
+           onCheckboxChange={bulkMessaging.updateMessageCheckbox}
+           onSendMessage={handleSendBulkMessage}
+@@ -241,11 +226,28 @@ function CommunicatorPage() {
+         open={contactForm.dialogOpen}
+         editingContact={contactForm.editingContact}
+         contactForm={contactForm.contactForm}
+-        onClose={contactForm.closeDialog}
++        error={dialogError}
++        saving={saving}
++        onClose={() => {
++          setDialogError("");
++          contactForm.closeDialog();
++        }}
+         onSave={handleSaveContact}
+         onFormChange={contactForm.updateContactForm}
+       />
+ 
++      <ConfirmDialog
++        open={!!deleteTarget}
++        title="Delete contact?"
++        confirmLabel={deleting ? "Deleting..." : "Delete"}
++        confirmColor="error"
++        busy={deleting}
++        onConfirm={performDeleteContact}
++        onClose={() => setDeleteTarget(null)}
++      >
++        {deleteTarget?.name} will be removed from your contacts.
++      </ConfirmDialog>
++
+       {/* File Upload Dialog */}
+       <FileUploadDialog
+         open={fileUpload.uploadDialogOpen}

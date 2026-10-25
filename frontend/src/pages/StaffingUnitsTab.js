@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import UnitShiftBuilder, { checkShifts } from "../components/staffing/UnitShiftBuilder";
 import {
   alpha,
   Alert,
@@ -96,10 +97,27 @@ function formatApiError(data, fallback) {
 
 const errText = (err, fallback) => formatApiError(err.response?.data, err.message || fallback);
 
-const shiftWords = (pattern) => (pattern === "12h" ? "12 hour" : "8 hour");
-const shiftNames = (pattern) => (pattern === "12h" ? "Day, Night" : "Day, Evening, Night");
+const shiftWords = (pattern) => (pattern === "12h" ? "12 hour" : pattern === "custom" ? "Custom hours" : "8 hour");
+const shiftNames = (pattern, shifts) =>
+  pattern === "custom"
+    ? (shifts || []).map((s) => s.name).join(", ") || "Custom hours"
+    : pattern === "12h"
+      ? "Day, Night"
+      : "Day, Evening, Night";
 
-const IDLE_UNIT_FORM = { id: null, name: "", bed_capacity: "", shift_pattern: "8h", is_active: true };
+const BUILT_IN_SHIFTS = {
+  "8h": [
+    { name: "Day", start: "07:00", end: "15:00", break_minutes: 0 },
+    { name: "Evening", start: "15:00", end: "23:00", break_minutes: 0 },
+    { name: "Night", start: "23:00", end: "07:00", break_minutes: 0 },
+  ],
+  "12h": [
+    { name: "Day", start: "07:00", end: "19:00", break_minutes: 0 },
+    { name: "Night", start: "19:00", end: "07:00", break_minutes: 0 },
+  ],
+};
+
+const IDLE_UNIT_FORM = { id: null, name: "", bed_capacity: "", shift_pattern: "8h", custom_shifts: [], is_active: true };
 
 // ---------- small pieces ----------
 
@@ -517,6 +535,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
       name: u.name,
       bed_capacity: u.bed_capacity ?? "",
       shift_pattern: u.shift_pattern,
+      custom_shifts: u.custom_shifts || [],
       is_active: u.is_active,
     });
     setUnitErrors({});
@@ -540,6 +559,11 @@ function StaffingUnitsTab({ isAdmin = false }) {
     if (unitForm.bed_capacity !== "" && (!Number.isInteger(Number(unitForm.bed_capacity)) || Number(unitForm.bed_capacity) < 0)) {
       errs.bed_capacity = "Beds must be a whole number, 0 or more.";
     }
+    if (unitForm.shift_pattern === "custom") {
+      const chk = checkShifts(unitForm.custom_shifts);
+      if (!unitForm.custom_shifts.length) errs.shifts = "Add at least one shift.";
+      else if (chk.errors.length) errs.shifts = chk.errors[0];
+    }
     setUnitErrors(errs);
     if (Object.keys(errs).length) return;
     setUnitSaving(true);
@@ -547,6 +571,9 @@ function StaffingUnitsTab({ isAdmin = false }) {
     const body = {
       name,
       shift_pattern: unitForm.shift_pattern,
+      ...(unitForm.shift_pattern === "custom"
+        ? { custom_shifts: unitForm.custom_shifts.map((s) => ({ ...s, break_minutes: Number(s.break_minutes) || 0 })) }
+        : {}),
       bed_capacity: unitForm.bed_capacity === "" ? null : Number(unitForm.bed_capacity),
     };
     try {
@@ -561,8 +588,9 @@ function StaffingUnitsTab({ isAdmin = false }) {
       await Promise.all([fetchUnits(), fetchHistory()]);
     } catch (err) {
       const data = err.response?.data;
-      if (data && typeof data === "object" && (data.name || data.bed_capacity)) {
+      if (data && typeof data === "object" && (data.name || data.bed_capacity || data.custom_shifts)) {
         setUnitErrors({
+          shifts: data.custom_shifts ? [].concat(data.custom_shifts).join(" ") : undefined,
           name: data.name ? [].concat(data.name).join(" ") : undefined,
           bed_capacity: data.bed_capacity ? [].concat(data.bed_capacity).join(" ") : undefined,
         });
@@ -1152,7 +1180,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
                       <TableCell>
                         <ShiftLengthChip pattern={u.shift_pattern} />
                         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                          {shiftNames(u.shift_pattern)}
+                          {shiftNames(u.shift_pattern, u.custom_shifts)}
                         </Typography>
                       </TableCell>
                       <TableCell sx={{ fontFamily: "monospace" }}>{u.bed_capacity ?? "—"}</TableCell>
@@ -1349,7 +1377,14 @@ function StaffingUnitsTab({ isAdmin = false }) {
               color="primary"
               aria-labelledby="unit-shift-length"
               value={unitForm.shift_pattern}
-              onChange={(e, v) => v && setUnitField("shift_pattern", v)}
+              onChange={(e, v) => {
+                if (!v) return;
+                // Switching from 8/12 hour keeps that pattern's shifts as the starting list.
+                if (v === "custom" && !unitForm.custom_shifts.length) {
+                  setUnitField("custom_shifts", (BUILT_IN_SHIFTS[unitForm.shift_pattern] || []).map((x) => ({ ...x })));
+                }
+                setUnitField("shift_pattern", v);
+              }}
             >
               <ToggleButton value="8h" sx={{ minHeight: 44 }}>
                 8 hour
@@ -1357,7 +1392,20 @@ function StaffingUnitsTab({ isAdmin = false }) {
               <ToggleButton value="12h" sx={{ minHeight: 44 }}>
                 12 hour
               </ToggleButton>
+              <ToggleButton value="custom" sx={{ minHeight: 44 }}>
+                Custom hours
+              </ToggleButton>
             </ToggleButtonGroup>
+            {unitForm.shift_pattern === "custom" ? (
+              <Box sx={{ mt: 1.5 }}>
+                <UnitShiftBuilder shifts={unitForm.custom_shifts} onChange={(v) => setUnitField("custom_shifts", v)} />
+                {unitErrors.shifts && (
+                  <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
+                    {unitErrors.shifts}
+                  </Typography>
+                )}
+              </Box>
+            ) : (
             <Box sx={{ mt: 1.5 }}>
               <InfoBox>
                 {unitForm.shift_pattern === "12h" ? (
@@ -1372,6 +1420,7 @@ function StaffingUnitsTab({ isAdmin = false }) {
                 This sets how many staff HPPD requires per shift.
               </InfoBox>
             </Box>
+            )}
           </Box>
 
           {unitForm.id && (

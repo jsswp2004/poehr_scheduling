@@ -13,9 +13,9 @@ import moment from "moment";
 import { COVERAGE_STATUS, toISO } from "../../pages/staffingCoverage";
 import { CalendarSkeleton, CoverageFailedBanner } from "./StaffingStateViews";
 import {
-  SHIFT_NAME,
-  SHIFT_ORDER,
-  SHIFT_SHORT,
+  shiftShort,
+  shiftTitle,
+  shiftRank,
   worstStatus,
 } from "../../utils/calendar/staffingSummary";
 
@@ -55,7 +55,7 @@ export function weekUnits(coverage, isoDays) {
 const itemsFor = (coverage, iso, unitKey) =>
   ((coverage && coverage.days && coverage.days[iso] && coverage.days[iso].items) || [])
     .filter((it) => (it.unit_id == null ? "org" : String(it.unit_id)) === unitKey)
-    .sort((a, b) => SHIFT_ORDER.indexOf(a.shift_type) - SHIFT_ORDER.indexOf(b.shift_type));
+    .sort((a, b) => shiftRank(a.shift_type) - shiftRank(b.shift_type));
 
 /** Gaps in a day across all units: shifts that are not met or at risk. */
 export function dayGaps(coverage, iso) {
@@ -67,13 +67,13 @@ function Chip({ item }) {
   const m = COVERAGE_STATUS[item.status] || COVERAGE_STATUS.unknown;
   const problem = item.status === "not_met" || item.status === "at_risk";
   const short = (item.required || 0) - (item.assigned || 0);
-  const label = `${SHIFT_SHORT[item.shift_type] || "?"} ${item.status === "unknown" ? "?" : `${item.assigned}/${item.required}`}${
+  const label = `${shiftShort(item.shift_type, item.shift_label)} ${item.status === "unknown" ? "?" : `${item.assigned}/${item.required}`}${
     problem && short <= 0 ? " !" : ""
   }`;
   return (
     <Box
       component="span"
-      title={`${SHIFT_NAME[item.shift_type] || item.shift_type}: ${m.label}`}
+      title={`${shiftTitle(item.shift_type, item.shift_label)}: ${m.label}`}
       sx={{
         display: "inline-flex",
         alignItems: "center",
@@ -168,7 +168,7 @@ export default function StaffingWeekGrid({ date, onDrillDown }) {
                 const noStd = allItems.length > 0 && items.length === 0;
                 const worst = worstStatus(items.map((it) => it.status));
                 const summary = items
-                  .map((it) => `${SHIFT_NAME[it.shift_type] || it.shift_type} ${it.assigned} of ${it.required}`)
+                  .map((it) => `${shiftTitle(it.shift_type, it.shift_label)} ${it.assigned} of ${it.required}`)
                   .join(", ");
                 return (
                   <Box

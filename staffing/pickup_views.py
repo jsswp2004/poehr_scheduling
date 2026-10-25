@@ -110,7 +110,7 @@ class PickUpShiftView(APIView):
             return Response({"error": f"You can pick up shifts up to {MAX_FUTURE_DAYS} days ahead."}, status=status.HTTP_400_BAD_REQUEST)
 
         shift_type = d.get("shift_type") or "day"
-        if shift_type not in SHIFT_TYPES:
+        if shift_type not in SHIFT_TYPES and not str(shift_type).startswith("u_"):
             return Response({"error": "Unknown shift type."}, status=status.HTTP_400_BAD_REQUEST)
         default = DEFAULT_TIMES.get(shift_type)
         try:

@@ -45,6 +45,7 @@ class ShiftDef:
     start: str         # "HH:MM", informational
     hours: float       # length of the shift in hours
     share: float       # share of the 24-hour day's care hours assigned here
+    span: float = 0.0  # clock length when it differs from `hours` (custom shifts with an unpaid break)
 
 
 # The 8h/12h toggle: a unit picks one pattern key. Shares are placeholders
@@ -80,6 +81,48 @@ def get_pattern(pattern_key: str) -> Tuple[ShiftDef, ...]:
             f"Unknown shift pattern {pattern_key!r}; expected one of "
             f"{sorted(SHIFT_PATTERNS)}"
         )
+
+
+CUSTOM_KEY_PREFIX = "u_"
+
+
+def _to_minutes(hhmm: str) -> int:
+    h, m = str(hhmm).split(":")[:2]
+    return int(h) * 60 + int(m)
+
+
+def custom_pattern(shifts) -> Tuple[ShiftDef, ...]:
+    """
+    A unit's own shifts, e.g. Regular day 08:00-17:00 with a 60 minute unpaid break.
+    `shifts` is a list of {key, name, start, end, break_minutes}. A day's care hours
+    are split across the shifts in proportion to their paid (care) hours.
+    """
+    rows = []
+    for sh in shifts or []:
+        start = _to_minutes(sh["start"])
+        end = _to_minutes(sh["end"])
+        span = (end - start) % (24 * 60) or 24 * 60
+        paid = max(span - int(sh.get("break_minutes") or 0), 0)
+        rows.append((sh, span / 60.0, paid / 60.0))
+    total = sum(r[2] for r in rows) or 1.0
+    return tuple(
+        ShiftDef(
+            name=sh["name"],
+            shift_type=sh["key"],
+            start=str(sh["start"])[:5],
+            hours=round(paid, 4),
+            share=paid / total,
+            span=round(span, 4),
+        )
+        for sh, span, paid in rows
+    )
+
+
+def unit_pattern(unit) -> Tuple[ShiftDef, ...]:
+    """The shifts a unit runs: its own custom list, or the 8h/12h built-in pattern."""
+    if getattr(unit, "shift_pattern", None) == "custom":
+        return custom_pattern(getattr(unit, "custom_shifts", None))
+    return get_pattern(getattr(unit, "shift_pattern", DEFAULT_PATTERN))
 
 
 def validate_patterns() -> None:
@@ -127,7 +170,9 @@ def required_staff_by_shift(
     if census < 0:
         raise ValueError("census cannot be negative")
 
-    shifts = get_pattern(pattern_key)
+    shifts = (
+        tuple(pattern_key) if isinstance(pattern_key, (tuple, list)) else get_pattern(pattern_key)
+    )
     daily_hours = census * hppd
     daily_licensed = census * (min_licensed_hppd or 0.0)
     daily_cna = census * (min_cna_hppd or 0.0)
