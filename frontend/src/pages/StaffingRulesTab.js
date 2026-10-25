@@ -886,7 +886,7 @@ function StaffingRulesTab({ isAdmin = false }) {
                   </Typography>
                   <Stack spacing={2}>
                     <TextField
-                      label="Total nursing hours per resident per day"
+                      label="Total nursing/staff hours per resident per day"
                       type="number"
                       value={form.hppd_min}
                       onChange={setField("hppd_min")}
