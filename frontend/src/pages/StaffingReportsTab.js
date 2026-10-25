@@ -37,6 +37,7 @@ import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import StaffingMasterReport from "./StaffingMasterReport";
 import StaffingDailyReports from "./StaffingDailyReports";
+import StaffingTabHeader from "../components/staffing/StaffingTabHeader";
 
 const REPORT_GROUPS = [
   {
@@ -682,9 +683,7 @@ function StaffingReportsTab() {
         .print-only-header { display: none; }
       `}</style>
 
-      <Typography variant="h6" sx={{ mb: 2 }} className="no-print">
-        Reports
-      </Typography>
+      <StaffingTabHeader title="Reports" className="no-print" />
 
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, alignItems: "flex-start" }}>
         {/* Report picker: a grouped list on wide screens, a select on narrow ones */}
