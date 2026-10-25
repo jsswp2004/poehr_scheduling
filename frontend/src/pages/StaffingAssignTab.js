@@ -1693,7 +1693,22 @@ function StaffingAssignTab({ prefill = null, onPrefillUsed = null, onNavigate = 
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
+      <Stack
+        direction="row"
+        spacing={2}
+        alignItems="flex-end"
+        justifyContent="space-between"
+        flexWrap="wrap"
+        useFlexGap
+        sx={{
+          mb: 2,
+          position: "sticky",
+          top: "calc(64px + var(--staffing-sticky-h, 110px))",
+          zIndex: 900,
+          bgcolor: "background.paper",
+          py: 1,
+        }}
+      >
         <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
           Assign Schedule
         </Typography>
