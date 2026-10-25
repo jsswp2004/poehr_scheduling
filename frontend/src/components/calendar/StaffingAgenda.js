@@ -66,7 +66,7 @@ function ShiftRow({ iso, type, dayShifts, info, open, onToggle }) {
         type="button"
         aria-expanded={open}
         onClick={onToggle}
-        aria-label={`${SHIFT_NAME[type] || type} ${summary && st !== "unknown" ? `${summary.assigned} of ${summary.required}` : `${people} people`}${problem ? `, ${m.label}` : ""}`}
+        aria-label={`${SHIFT_NAME[type] || (summary && summary.label) || type} ${summary && st !== "unknown" ? `${summary.assigned} of ${summary.required}` : `${people} people`}${problem ? `, ${m.label}` : ""}`}
         sx={{
           all: "unset",
           boxSizing: "border-box",
@@ -82,7 +82,7 @@ function ShiftRow({ iso, type, dayShifts, info, open, onToggle }) {
           "&:focus-visible": { outline: "2px solid #2563eb", outlineOffset: -2 },
         }}
       >
-        <Typography sx={{ width: 70, fontWeight: 700, fontSize: 15 }}>{SHIFT_NAME[type] || type}</Typography>
+        <Typography sx={{ width: 70, fontWeight: 700, fontSize: 15 }}>{SHIFT_NAME[type] || (summary && summary.label) || type}</Typography>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography sx={{ fontWeight: 700, fontSize: 15, color: problem ? m.color : "text.primary" }}>
             {summary && st !== "unknown" ? `${summary.assigned} / ${summary.required}` : `${people} ${people === 1 ? "person" : "people"}`}
