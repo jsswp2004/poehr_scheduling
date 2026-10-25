@@ -1389,6 +1389,7 @@ function StaffingReportsTab() {
             )}
           </Box>
         </Box>
+      </Box>
       </ReportActionsSlotContext.Provider>
     </Box>
   );
