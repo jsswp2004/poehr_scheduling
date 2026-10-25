@@ -13,6 +13,7 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  TableSortLabel,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -38,6 +39,8 @@ export default function LaborHoursTable() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState({ key: "total_hours", dir: "desc" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,9 +63,34 @@ export default function LaborHoursTable() {
     load();
   }, [load]);
 
-  const sorted = useMemo(() => [...rows].sort((a, b) => Number(b.total_hours || 0) - Number(a.total_hours || 0)), [rows]);
+  const sorted = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter((r) => `${r.full_name || ""} ${r.profession || ""}`.toLowerCase().includes(q))
+      : rows;
+    const numeric = sort.key === "shift_count" || sort.key === "total_hours";
+    const val = (r) => (numeric ? Number(r[sort.key] || 0) : String(r[sort.key] || "").toLowerCase());
+    const out = [...filtered].sort((a, b) => {
+      const x = val(a);
+      const y = val(b);
+      const cmp = x < y ? -1 : x > y ? 1 : 0;
+      return (sort.dir === "asc" ? cmp : -cmp) || String(a.full_name || "").localeCompare(String(b.full_name || ""));
+    });
+    return out;
+  }, [rows, search, sort]);
   const total = sorted.reduce((n, r) => n + Number(r.total_hours || 0), 0);
-  const max = sorted.length ? Number(sorted[0].total_hours || 0) : 0;
+  const max = rows.reduce((m, r) => Math.max(m, Number(r.total_hours || 0)), 0);
+  const toggleSort = (key) => {
+    setPage(0);
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "full_name" || key === "profession" ? "asc" : "desc" }));
+  };
+  const head = (key, label, align) => (
+    <TableCell align={align} sortDirection={sort.key === key ? sort.dir : false} sx={key === "total_hours" ? { minWidth: 220 } : undefined}>
+      <TableSortLabel active={sort.key === key} direction={sort.key === key ? sort.dir : "asc"} onClick={() => toggleSort(key)}>
+        {label}
+      </TableSortLabel>
+    </TableCell>
+  );
   const last = Math.max(0, Math.ceil(sorted.length / LABOR_PAGE_SIZE) - 1);
   const safePage = Math.min(page, last);
   const shown = sorted.slice(safePage * LABOR_PAGE_SIZE, safePage * LABOR_PAGE_SIZE + LABOR_PAGE_SIZE);
@@ -81,6 +109,17 @@ export default function LaborHoursTable() {
           <ToggleButton value="month">This month</ToggleButton>
           <ToggleButton value="custom">Custom</ToggleButton>
         </ToggleButtonGroup>
+        <TextField
+          size="small"
+          type="search"
+          label="Search staff or profession"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
+          sx={{ minWidth: 230 }}
+        />
         <TextField
           size="small"
           type="date"
@@ -120,7 +159,9 @@ export default function LaborHoursTable() {
         </Box>
       ) : sorted.length === 0 ? (
         <Paper variant="outlined" sx={{ p: 3 }}>
-          <Typography color="text.secondary">No scheduled hours in this date range.</Typography>
+          <Typography color="text.secondary">
+            {rows.length ? "No one matches your search." : "No scheduled hours in this date range."}
+          </Typography>
         </Paper>
       ) : (
         <Paper variant="outlined" sx={{ overflow: "hidden" }}>
@@ -128,10 +169,10 @@ export default function LaborHoursTable() {
             <Table size="small" aria-label="Labor hours">
               <TableHead>
                 <TableRow>
-                  <TableCell>Staff</TableCell>
-                  <TableCell>Profession</TableCell>
-                  <TableCell align="right">Shifts</TableCell>
-                  <TableCell sx={{ minWidth: 220 }}>Total hours</TableCell>
+                  {head("full_name", "Staff")}
+                  {head("profession", "Profession")}
+                  {head("shift_count", "Shifts", "right")}
+                  {head("total_hours", "Total hours")}
                 </TableRow>
               </TableHead>
               <TableBody>
