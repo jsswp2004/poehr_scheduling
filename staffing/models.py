@@ -871,7 +871,7 @@ class ReportSubscription(models.Model):
     which the hourly Staffing job calls; sends therefore go out on the hour.
     """
 
-    FREQUENCY_CHOICES = [("daily", "Daily"), ("weekly", "Weekly"), ("monthly", "Monthly")]
+    FREQUENCY_CHOICES = [("once", "Once"), ("daily", "Daily"), ("weekly", "Weekly"), ("monthly", "Monthly")]
 
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="staffing_report_subscriptions"
@@ -886,6 +886,8 @@ class ReportSubscription(models.Model):
     report = models.CharField(max_length=40)
     params = models.JSONField(default=dict, blank=True)  # report filters (profession, unit, form, ...)
     frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="weekly")
+    # The calendar date of the first send. Weekly repeats on that date's weekday, monthly on its day number.
+    start_date = models.DateField(null=True, blank=True)
     weekday = models.PositiveSmallIntegerField(default=0)  # weekly: 0 = Monday ... 6 = Sunday
     month_day = models.PositiveSmallIntegerField(default=1)  # monthly: 1-31, 0 = last day of the month
     send_hour = models.PositiveSmallIntegerField(default=7)  # 0-23, in `timezone`

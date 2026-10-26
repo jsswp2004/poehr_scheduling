@@ -132,3 +132,68 @@ class SubscriptionApiTests(TestCase):
         pdf_r = c.get(f"{BASE}/reports/export/labor_hours/?file=pdf&{q}")
         self.assertTrue(pdf_r.content.startswith(b"%PDF"))
         self.assertEqual(c.get(f"{BASE}/reports/export/master_schedule/?file=csv&{q}").status_code, 400)
+
+
+class StartDateTests(TestCase):
+    def sub(self, **kw):
+        return ReportSubscription(timezone="America/New_York", send_hour=7, **kw)
+
+    def test_nothing_is_due_before_the_start_date(self):
+        s = self.sub(frequency="daily", start_date=datetime.date(2026, 11, 10))
+        now = datetime.datetime(2026, 10, 28, 12, 0, tzinfo=NY)
+        self.assertEqual(subs.compute_next_run(s, now).astimezone(NY), datetime.datetime(2026, 11, 10, 7, 0, tzinfo=NY))
+
+    def test_weekly_repeats_on_the_start_dates_weekday(self):
+        s = self.sub(frequency="weekly", start_date=datetime.date(2026, 11, 4))  # a Wednesday
+        now = datetime.datetime(2026, 11, 4, 8, 0, tzinfo=NY)
+        self.assertEqual(subs.compute_next_run(s, now).astimezone(NY), datetime.datetime(2026, 11, 11, 7, 0, tzinfo=NY))
+
+    def test_monthly_repeats_on_the_start_dates_day(self):
+        s = self.sub(frequency="monthly", start_date=datetime.date(2026, 11, 15))
+        now = datetime.datetime(2026, 11, 20, 8, 0, tzinfo=NY)
+        self.assertEqual(subs.compute_next_run(s, now).astimezone(NY), datetime.datetime(2026, 12, 15, 7, 0, tzinfo=NY))
+
+    def test_once_is_due_a_single_time(self):
+        s = self.sub(frequency="once", start_date=datetime.date(2026, 11, 10))
+        self.assertEqual(
+            subs.compute_next_run(s, datetime.datetime(2026, 11, 1, 8, 0, tzinfo=NY)).astimezone(NY),
+            datetime.datetime(2026, 11, 10, 7, 0, tzinfo=NY),
+        )
+        self.assertIsNone(subs.compute_next_run(s, datetime.datetime(2026, 11, 10, 8, 0, tzinfo=NY)))
+
+
+class OnceSubscriptionApiTests(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(
+            username="a", password="x", role="admin", organization=self.org, email="a@example.com")
+
+    def payload(self, **kw):
+        base = {
+            "report": "labor_hours", "frequency": "once", "send_hour": 7, "timezone": "America/New_York",
+            "covers": "yesterday", "formats": ["pdf"], "recipients": ["x@example.com"],
+            "start_date": (datetime.date.today() + datetime.timedelta(days=30)).isoformat(),
+        }
+        base.update(kw)
+        return base
+
+    def test_once_needs_a_future_date(self):
+        c = client_for(self.admin)
+        self.assertEqual(c.post(f"{BASE}/report-subscriptions/", self.payload(start_date="2020-01-01"), format="json").status_code, 400)
+        self.assertEqual(c.post(f"{BASE}/report-subscriptions/", self.payload(start_date=None), format="json").status_code, 400)
+        self.assertEqual(c.post(f"{BASE}/report-subscriptions/", self.payload(), format="json").status_code, 201)
+
+    def test_once_switches_itself_off_after_sending(self):
+        c = client_for(self.admin)
+        pk = c.post(f"{BASE}/report-subscriptions/", self.payload(), format="json").json()["id"]
+        ReportSubscription.objects.filter(pk=pk).update(next_run_at=datetime.datetime(2020, 1, 1, tzinfo=datetime.timezone.utc))
+        subs.send_due_subscriptions()
+        s = ReportSubscription.objects.get(pk=pk)
+        self.assertFalse(s.is_active)
+        self.assertIsNone(s.next_run_at)
+
+    def test_weekday_and_day_come_from_the_start_date(self):
+        c = client_for(self.admin)
+        r = c.post(f"{BASE}/report-subscriptions/", self.payload(frequency="weekly", start_date="2030-03-06"), format="json")
+        self.assertEqual(r.json()["weekday"], 2)  # Wednesday
+        self.assertEqual(r.json()["month_day"], 6)

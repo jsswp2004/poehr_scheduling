@@ -83,7 +83,12 @@ def period_for(covers, today):
 
 
 def compute_next_run(sub, now=None):
-    """The next UTC moment `sub` is due, strictly after `now`."""
+    """
+    The next UTC moment `sub` is due, strictly after `now` (None when a one-time send has passed).
+
+    `start_date` is the calendar date of the first send: nothing is due before that date at the chosen
+    hour, and weekly / monthly subscriptions repeat on that date's weekday / day number.
+    """
     now = now or timezone.now()
     tz = zone(sub.timezone)
     local_now = now.astimezone(tz)
@@ -92,22 +97,34 @@ def compute_next_run(sub, now=None):
     def at(day):
         return datetime.datetime(day.year, day.month, day.day, hour, 0, tzinfo=tz)
 
-    today = local_now.date()
+    start = sub.start_date
+    if sub.frequency == "once":
+        if start is None:
+            return None
+        return at(start).astimezone(datetime.timezone.utc) if at(start) > local_now else None
+
+    # Nothing is due before the first send: look for the first slot strictly after the moment just before it.
+    base = local_now
+    if start is not None and at(start) > local_now:
+        base = at(start) - datetime.timedelta(seconds=1)
+    today = base.date()
     if sub.frequency == "daily":
         day = today
-        if at(day) <= local_now:
+        if at(day) <= base:
             day += datetime.timedelta(days=1)
     elif sub.frequency == "weekly":
-        day = today + datetime.timedelta(days=(int(sub.weekday) - today.weekday()) % 7)
-        if at(day) <= local_now:
+        weekday = start.weekday() if start is not None else int(sub.weekday)
+        day = today + datetime.timedelta(days=(weekday - today.weekday()) % 7)
+        if at(day) <= base:
             day += datetime.timedelta(days=7)
     else:  # monthly
+        month_day = start.day if start is not None else int(sub.month_day)
         year, month = today.year, today.month
         while True:
             last = calendar.monthrange(year, month)[1]
-            wanted = last if int(sub.month_day) == 0 else min(int(sub.month_day), last)
+            wanted = last if month_day == 0 else min(month_day, last)
             day = datetime.date(year, month, wanted)
-            if at(day) > local_now:
+            if at(day) > base:
                 break
             month += 1
             if month == 13:
@@ -119,11 +136,16 @@ def describe_schedule(sub):
     days = ["Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays", "Sundays"]
     hour = int(sub.send_hour)
     clock = f"{hour % 12 or 12}:00 {'AM' if hour < 12 else 'PM'}"
+    start = sub.start_date
+    if sub.frequency == "once":
+        return f"Once on {start:%b} {start.day}, {start:%Y} {clock}" if start else f"Once {clock}"
     if sub.frequency == "daily":
         return f"Every day {clock}"
     if sub.frequency == "weekly":
-        return f"{days[int(sub.weekday) % 7]} {clock}"
-    return ("Last day of the month " if int(sub.month_day) == 0 else f"Day {sub.month_day} of the month ") + clock
+        weekday = start.weekday() if start else int(sub.weekday)
+        return f"{days[weekday % 7]} {clock}"
+    month_day = start.day if start else int(sub.month_day)
+    return ("Last day of the month " if month_day == 0 else f"Day {month_day} of the month ") + clock
 
 
 def _range_text(start, end):
@@ -231,9 +253,11 @@ def send_due_subscriptions(now=None):
     sent = failed = skipped = 0
     for sub in due:
         # Claim the run first so an overlapping job cannot send the same email twice.
-        claimed = ReportSubscription.objects.filter(pk=sub.pk, next_run_at=sub.next_run_at).update(
-            next_run_at=compute_next_run(sub, now)
-        )
+        following = compute_next_run(sub, now)
+        changes = {"next_run_at": following}
+        if sub.frequency == "once":
+            changes["is_active"] = False  # a one-time send is finished once it goes out
+        claimed = ReportSubscription.objects.filter(pk=sub.pk, next_run_at=sub.next_run_at).update(**changes)
         if not claimed:
             skipped += 1
             continue
