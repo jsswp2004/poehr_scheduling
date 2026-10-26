@@ -414,6 +414,19 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
     [filteredShifts, unitId, monthSummaryOnly]
   );
 
+  // When people are shown in the month grid (a role filter or a search is on), the rows need room for their
+  // names. On a short screen the fixed height squeezed them into thin slivers, so grow the grid to fit and let
+  // the page scroll (the filter row and day panel stay frozen).
+  const monthPeopleHeight = useMemo(() => {
+    if (monthSummaryOnly) return null;
+    const perDay = {};
+    filteredShifts.forEach((s) => {
+      perDay[s.date] = (perDay[s.date] || 0) + 1;
+    });
+    const most = Math.max(1, ...Object.values(perDay));
+    return 80 + 6 * (84 + Math.min(most, 6) * 22);
+  }, [monthSummaryOnly, filteredShifts]);
+
   const eventPropGetter = (event) => {
     const color = SHIFT_COLORS[event.resource.shift_type] || "#475569";
     return {
@@ -866,7 +879,7 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
           display: "flex",
           gap: 1.5,
           alignItems: "stretch",
-          height: { xs: 560, md: "calc(100vh - 300px)" },
+          height: { xs: monthPeopleHeight || 560, md: monthPeopleHeight || "calc(100vh - 300px)" },
           minHeight: 520,
         }}
       >
