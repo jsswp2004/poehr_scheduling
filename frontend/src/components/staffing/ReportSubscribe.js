@@ -306,7 +306,7 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
               <MenuItem key={c} value={c}>{COVERS[c]}</MenuItem>
             ))}
           </TextField>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: "-8px !important" }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: "6px !important" }}>
             {next.past
               ? "That date and time has already passed. Pick a later one."
               : next.text
