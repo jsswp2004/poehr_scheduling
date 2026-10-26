@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Box, Button, CircularProgress, IconButton, InputBase, Paper, Slide, Tooltip, Typography,
+  Box, Button, CircularProgress, IconButton, InputBase, Paper, Tooltip, Typography,
 } from "@mui/material";
 import ChatIcon from "@mui/icons-material/Chat";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import RemoveIcon from "@mui/icons-material/Remove";
 import SendIcon from "@mui/icons-material/Send";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import AddCommentOutlinedIcon from "@mui/icons-material/AddCommentOutlined";
+import FloatingAssistant from "./FloatingAssistant";
 import axios from "axios";
 import { getAccessToken } from "../utils/tokenManager";
 import { getAuthHeaders } from "../config/api";
@@ -34,12 +34,6 @@ import { getAuthHeaders } from "../config/api";
  *   changedEvent   optional window event name fired after a confirmed change, so the page can reload its data
  *   extraBody      optional object merged into every message request (e.g. {patient_id} for the open chart)
  */
-
-const PANEL_WIDTH = 380;
-// Keep the floating card clear of the navy header (64px) and the footer bar (~24px).
-const GAP_TOP = 76;
-const GAP_BOTTOM = 40;
-const GAP_RIGHT = 16;
 
 const errorText = (e) => {
   const d = e?.response?.data;
@@ -139,37 +133,10 @@ function AssistantDock({
 
   return (
     <>
-      {!open && (
-        <Tooltip title="Open assistant" placement="left">
-          <Button
-            onClick={() => setOpen(true)}
-            aria-label="Open assistant"
-            sx={{
-              position: "fixed", right: 0, top: "38%", zIndex: 1250, minWidth: 0, width: 36, height: 96,
-              borderRadius: "14px 0 0 14px", flexDirection: "column", gap: 0.5,
-              bgcolor: "primary.main", color: "#fff", boxShadow: 4,
-              "&:hover": { bgcolor: "primary.dark" },
-            }}
-          >
-            <ChatIcon fontSize="small" />
-            <ChevronLeftIcon fontSize="small" />
-          </Button>
-        </Tooltip>
-      )}
-
-      <Slide direction="left" in={open} mountOnEnter unmountOnExit>
-        <Paper
-          elevation={8}
-          role="dialog"
-          aria-label={title}
-          sx={{
-            position: "fixed", zIndex: 1250, top: GAP_TOP, bottom: GAP_BOTTOM, right: GAP_RIGHT,
-            width: PANEL_WIDTH, maxWidth: `calc(100vw - ${GAP_RIGHT * 2}px)`,
-            borderRadius: 3, overflow: "hidden", border: 1, borderColor: "divider",
-          }}
-        >
+      <FloatingAssistant open={open} onOpen={() => setOpen(true)} onClose={() => setOpen(false)} label={title}>
+        {({ dragProps, close }) => (
           <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-            <Box sx={{ display: "flex", alignItems: "center", px: 1.5, py: 1, borderBottom: 1, borderColor: "divider" }}>
+            <Box {...dragProps} sx={{ display: "flex", alignItems: "center", px: 1.5, py: 1, borderBottom: 1, borderColor: "divider" }}>
               <ChatIcon color="primary" fontSize="small" />
               <Typography variant="subtitle1" sx={{ flex: 1, ml: 1, fontWeight: 700 }}>{title}</Typography>
               {msgs.length > 0 && (
@@ -179,9 +146,9 @@ function AssistantDock({
                   </IconButton>
                 </Tooltip>
               )}
-              <Tooltip title="Collapse">
-                <IconButton size="small" onClick={() => setOpen(false)} aria-label="Collapse assistant">
-                  <ChevronRightIcon />
+              <Tooltip title="Minimize">
+                <IconButton size="small" onClick={() => close()} aria-label="Collapse assistant">
+                  <RemoveIcon />
                 </IconButton>
               </Tooltip>
             </Box>
@@ -333,8 +300,8 @@ function AssistantDock({
               </IconButton>
             </Box>
           </Box>
-        </Paper>
-      </Slide>
+        )}
+      </FloatingAssistant>
     </>
   );
 }
