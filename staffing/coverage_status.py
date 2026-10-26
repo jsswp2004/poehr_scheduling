@@ -286,7 +286,7 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
     days: Dict[str, dict] = {}
     for d in _daterange(start, end):
         items: List[dict] = []
-        explicit_hppd_keys = set()
+        explicit_hppd_keys = set()  # (unit, shift) already covered by an explicit requirement for this day
 
         # ---- explicit requirements ---------------------------------------------
         for req in requirements:
@@ -318,6 +318,10 @@ def compute_coverage_status(organization, start, end, unit_id=None) -> dict:
                             note = "Census carried forward from an earlier day."
             if need is None:
                 need = Need(MODE_FIXED, req.min_staff_required)
+
+            if req.mode == "fixed" and unit is not None:
+                # A fixed minimum set for this unit and shift replaces the state standard for it.
+                explicit_hppd_keys.add((unit.id, req.shift_type))
 
             item = build_item(d, unit, req.shift_type, label, "requirement", need, default_hours, note)
             if need.mode == MODE_HPPD:

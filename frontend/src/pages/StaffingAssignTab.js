@@ -718,6 +718,43 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
   // Not a problem when the unit's standard counts every role (e.g. Activities).
   const roleNotCounted =
     formStaff && !COUNTED_ROLES.includes(formStaff.nursing_role || "other") && !(formUnit && formUnit.counts_all_roles);
+  // A one-time assignment: look for shifts this person already has that day.
+  const [sameDay, setSameDay] = useState([]);
+  const dupStaff = form && form.repeat === "once" ? form.staff : "";
+  const dupDate = form && form.repeat === "once" ? form.start_date : "";
+  useEffect(() => {
+    if (!dupStaff || !dupDate) {
+      setSameDay([]);
+      return undefined;
+    }
+    let cancelled = false;
+    axios
+      .get(apiEndpoints.staffingShifts, {
+        headers: getAuthHeaders(token),
+        params: { staff: dupStaff, start: dupDate, end: dupDate },
+      })
+      .then((res) => {
+        if (!cancelled) setSameDay(res.data.results || res.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSameDay([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dupStaff, dupDate, token]);
+  const duplicates = useMemo(
+    () =>
+      !form || form.repeat !== "once"
+        ? []
+        : sameDay.filter(
+            (x) =>
+              !x.is_cancelled &&
+              (x.shift_type === form.shift_type ||
+                timesOverlap(form.start_time, form.end_time, x.start_time, x.end_time))
+          ),
+    [sameDay, form]
+  );
   const overlaps = useMemo(() => {
     if (!form || !form.staff || form.repeat !== "weekly" || form.days_of_week.length === 0) return [];
     return patterns.filter(
@@ -1124,6 +1161,18 @@ function SchedulesSection({ staffList, patterns, units, loading, token, reload, 
             <WarningBox>
               <strong>Heads up:</strong> {formStaff.full_name} has no nursing role set (Other), so this shift will not count toward
               compliance. Set a role on the Roster tab to include them.
+            </WarningBox>
+          )}
+          {duplicates.length > 0 && (
+            <WarningBox>
+              <strong>Possible duplicate:</strong> {formStaff ? formStaff.full_name : "This person"} already has{" "}
+              {duplicates
+                .map(
+                  (x) =>
+                    `${(x.shift_type_display || SHIFT_LABEL[x.shift_type] || x.shift_type).toLowerCase()} ${hhmm(x.start_time)} to ${hhmm(x.end_time)}${x.unit_name ? ` on ${x.unit_name}` : ""}`
+                )
+                .join("; ")}{" "}
+              on {fmtDate(form.start_date)}. Saving will add another one.
             </WarningBox>
           )}
           {overlaps.length > 0 && (
