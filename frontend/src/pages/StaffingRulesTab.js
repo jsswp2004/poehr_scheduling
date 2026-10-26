@@ -36,6 +36,7 @@ import moment from "moment";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
 import AppliesToPicker from "../components/staffing/AppliesToPicker";
+import StaffingTabHeader from "../components/staffing/StaffingTabHeader";
 
 const EMPTY_FORM = {
   name: "",
@@ -483,16 +484,13 @@ function StaffingRulesTab({ isAdmin = false }) {
 
   return (
     <Box>
-      <Stack direction="row" spacing={2} alignItems="flex-end" justifyContent="space-between" flexWrap="wrap" useFlexGap sx={{ mb: 2 }}>
-        <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
-          Staffing Standards
-        </Typography>
+      <StaffingTabHeader title="Staffing Standards">
         {isAdmin && (
           <Button variant="contained" startIcon={<FontAwesomeIcon icon={faPlus} />} onClick={openAdd} sx={{ minHeight: 44, px: 2.5 }}>
             Add a standard
           </Button>
         )}
-      </Stack>
+      </StaffingTabHeader>
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>
