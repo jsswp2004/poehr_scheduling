@@ -720,7 +720,22 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
 
   return (
     <Box>
-      <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+      <Stack
+        direction="row"
+        spacing={1.5}
+        alignItems="center"
+        flexWrap="wrap"
+        useFlexGap
+        sx={{
+          // Frozen: stays just under the Staffing Center title and tabs while the page scrolls.
+          position: "sticky",
+          top: "calc(64px + var(--staffing-sticky-h, 130px))",
+          zIndex: 900,
+          bgcolor: "background.paper",
+          py: 0.75,
+          mb: 0.5,
+        }}
+      >
         <FormControl size="small" sx={{ minWidth: 170, bgcolor: "background.paper", borderRadius: 1 }}>
           <InputLabel id="calendar-unit-label">Unit</InputLabel>
           <Select
@@ -891,7 +906,18 @@ function StaffingCalendarTab({ isAdmin = false, onAssign = null, onNavigate = nu
           </StaffingCalendarSearchContext.Provider>
         </Box>
         {view === "month" && !narrow && (
-          <Box sx={{ width: 320, flexShrink: 0, overflowY: "auto" }}>
+          <Box
+            sx={{
+              // Frozen: the day panel stays in view (under the filter row) and scrolls inside itself.
+              width: 320,
+              flexShrink: 0,
+              alignSelf: "flex-start",
+              position: "sticky",
+              top: "calc(64px + var(--staffing-sticky-h, 130px) + 56px)",
+              maxHeight: "calc(100vh - 64px - var(--staffing-sticky-h, 130px) - 56px - 48px)",
+              overflowY: "auto",
+            }}
+          >
             <StaffingDayPanel
               iso={selectedISO}
               info={dayInfo(new Date(`${selectedISO}T00:00:00`))}
