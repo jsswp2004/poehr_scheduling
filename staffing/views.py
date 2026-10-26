@@ -837,6 +837,11 @@ def _shift_duration_hours(shift):
     return max(hours - unpaid_break_hours(shift), 0.0)
 
 
+def _slot_key(shift):
+    """Two rows with the same key are the same person on the same shift, entered twice."""
+    return (shift.staff_id, shift.date, shift.unit_id, shift.shift_type, shift.start_time, shift.end_time)
+
+
 class LaborHoursReportView(APIView):
     """
     Reports tab -- "Labor Hours Summary": total scheduled hours per staff
@@ -873,10 +878,17 @@ class LaborHoursReportView(APIView):
             shifts = shifts.filter(staff__profession=profession)
 
         totals = {}
+        seen = set()
+        duplicates = 0
         for shift in shifts:
             hours = _shift_duration_hours(shift)
             if hours is None:
                 continue
+            slot = _slot_key(shift)
+            if slot in seen:  # the same person entered twice for the same shift counts once
+                duplicates += 1
+                continue
+            seen.add(slot)
             key = shift.staff_id
             entry = totals.setdefault(
                 key,
@@ -896,7 +908,7 @@ class LaborHoursReportView(APIView):
             row["total_hours"] = round(row["total_hours"], 2)
 
         return Response(
-            {"start": start.isoformat(), "end": end.isoformat(), "rows": rows},
+            {"start": start.isoformat(), "end": end.isoformat(), "rows": rows, "duplicates_ignored": duplicates},
             status=status.HTTP_200_OK,
         )
 
@@ -964,6 +976,7 @@ class CoverageComplianceReportView(APIView):
                             "date": a_date.isoformat(),
                             "required": eff.required_staff,
                             "mode": eff.mode,
+                            "requirement_mode": req.mode,
                             "unit_id": req.unit_id,
                             "unit_name": req.unit.name if req.unit_id else None,
                             "census": eff.census,
@@ -1001,8 +1014,11 @@ class CoverageComplianceReportView(APIView):
             warnings.extend(snap.get("warnings") or [])
             labels = {MET: "Met", AT_RISK: "At risk", NOT_MET: "Understaffed"}
             # An explicit hppd requirement already covers its own unit/shift/day.
+            # A fixed minimum set for a unit and shift replaces the state standard for it, too.
             explicit_hppd = {
-                (r["unit_id"], r["shift_type"], r["date"]) for r in rows if r["mode"] == "hppd"
+                (r["unit_id"], r["shift_type"], r["date"])
+                for r in rows
+                if r["mode"] == "hppd" or (r.get("requirement_mode") == "fixed" and r["unit_id"])
             }
             no_census = {}
             for day, info in snap["days"].items():
@@ -1202,7 +1218,12 @@ class ShiftDistributionReportView(APIView):
         by_staff = {}
         totals = {code: 0 for code in shift_type_codes}
 
+        seen = set()
         for shift in shifts:
+            slot = _slot_key(shift)
+            if slot in seen:  # the same person entered twice for the same shift counts once
+                continue
+            seen.add(slot)
             totals[shift.shift_type] = totals.get(shift.shift_type, 0) + 1
             entry = by_staff.setdefault(
                 shift.staff_id,

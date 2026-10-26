@@ -36,6 +36,7 @@ export default function LaborHoursTable() {
   const [preset, setPreset] = useState("week");
   const [range, setRange] = useState(rangeFor("week"));
   const [rows, setRows] = useState([]);
+  const [duplicates, setDuplicates] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);
@@ -51,6 +52,7 @@ export default function LaborHoursTable() {
         params: { start: range.start, end: range.end },
       });
       setRows(res.data.rows || []);
+      setDuplicates(res.data.duplicates_ignored || 0);
       setPage(0);
     } catch (err) {
       setError(err.response?.data?.error || "Could not load labor hours.");
@@ -144,6 +146,8 @@ export default function LaborHoursTable() {
         />
         <Typography variant="body2" color="text.secondary" sx={{ ml: "auto" }}>
           {sorted.length} {sorted.length === 1 ? "person" : "people"} · {total.toFixed(1)} scheduled hours
+          {duplicates > 0 &&
+            ` · ${duplicates} repeated ${duplicates === 1 ? "entry" : "entries"} (same person, same shift) counted once`}
         </Typography>
       </Stack>
 
