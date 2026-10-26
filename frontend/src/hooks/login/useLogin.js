@@ -109,6 +109,14 @@ export const useLogin = () => {
                 toast.error('Access denied. Dictate requires a clinical or admin account.');
                 navigate('/solutions');
             }
+        } else if (redirectTo === 'mds') {
+            // MDS coordinators are clinical staff (nurses); the MDS application enforces its own access
+            if (['admin', 'system_admin', 'doctor', 'nurse'].includes(userRole)) {
+                navigate('/mds');
+            } else {
+                toast.error('Access denied. POWER MDS requires a clinical or admin account.');
+                navigate('/solutions');
+            }
         } else if (redirectTo === 'portal') {
             console.log('Login Debug - Portal redirect requested, but checking role first');
             // For portal redirect, still respect admin/system_admin roles

@@ -10,6 +10,7 @@ import StaffingImage from "../assets/dashboard_clinician.png";
 import DocumentationImage from "../assets/documentation.png";
 import TelehealthImage from "../assets/telehealth.jpg";
 import DictationImage from "../assets/dictation.jpg";
+import MdsImage from "../assets/mds.jpg";
 
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();
@@ -44,6 +45,9 @@ export const SolutionsPage = ({ className }) => {
   const handleDictateClick = () => {
     // Always navigate to login with dictate redirect
     navigate("/login?redirect=dictate");
+  };
+  const handleMdsClick = () => {
+    navigate("/login?redirect=mds");
   };
   return (
     <div className={`solutions-page ${className || ""}`}>
@@ -116,6 +120,14 @@ export const SolutionsPage = ({ className }) => {
         >
           <img src={DictationImage} alt="POWER Dictate" className="solution-image" />
           <div className="solution-label">POWER Dictate</div>
+        </div>
+        <div
+          className="solution-button"
+          onClick={handleMdsClick}
+          style={{ cursor: "pointer" }}
+        >
+          <img src={MdsImage} alt="POWER MDS Assessment Portal" className="solution-image" />
+          <div className="solution-label">POWER MDS</div>
         </div>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
