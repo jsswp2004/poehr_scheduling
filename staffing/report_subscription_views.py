@@ -74,7 +74,7 @@ class ReportSubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReportSubscription
         fields = [
-            "id", "report", "report_label", "params", "frequency", "weekday", "month_day", "send_hour",
+            "id", "report", "report_label", "params", "frequency", "start_date", "weekday", "month_day", "send_hour",
             "timezone", "covers", "covers_text", "formats", "recipients", "is_active", "schedule_text",
             "next_run_at", "last_run_at", "last_status", "last_detail", "created_at",
         ]
@@ -131,6 +131,18 @@ class ReportSubscriptionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"covers": "Choose what period the report covers."})
         if report == "daily_forms" and covers not in subs.SINGLE_DAY_COVERS:
             raise serializers.ValidationError({"covers": "Daily staffing forms cover a single day."})
+        frequency, start = get("frequency"), get("start_date")
+        if frequency == "once" and start is None:
+            raise serializers.ValidationError({"start_date": "Pick the date to send it."})
+        if start is not None:  # weekly / monthly repeat on the date's weekday / day number
+            attrs["weekday"] = start.weekday()
+            attrs["month_day"] = start.day
+        if frequency == "once" and attrs.get("is_active", getattr(self.instance, "is_active", True)):
+            probe = ReportSubscription(
+                frequency="once", start_date=start, send_hour=get("send_hour") or 0, timezone=get("timezone") or "America/New_York"
+            )
+            if subs.compute_next_run(probe) is None:
+                raise serializers.ValidationError({"start_date": "Pick a date and time in the future."})
         allowed = report_export.REPORTS[report][1]
         formats = [f for f in (get("formats") or []) if f in allowed]
         if not formats:

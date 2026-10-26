@@ -40,11 +40,12 @@ export const COVERS = {
   next_month: "The coming month",
 };
 const COVERS_BY_FREQUENCY = {
+  once: ["yesterday", "today", "tomorrow", "last_7_days", "next_7_days", "previous_week", "previous_month"],
   daily: ["yesterday", "today", "tomorrow", "last_7_days", "next_7_days"],
   weekly: ["previous_week", "this_week", "next_week", "last_7_days", "next_7_days"],
   monthly: ["previous_month", "this_month", "next_month"],
 };
-const DEFAULT_COVERS = { daily: "yesterday", weekly: "previous_week", monthly: "previous_month" };
+const DEFAULT_COVERS = { once: "yesterday", daily: "yesterday", weekly: "previous_week", monthly: "previous_month" };
 const SINGLE_DAY = ["today", "yesterday", "tomorrow"];
 const PDF_ONLY = ["master_schedule", "daily_forms"];
 const FORMS = [
@@ -76,43 +77,61 @@ const zoneName = (tz) => {
   }
 };
 
+const partsIn = (tz, date = new Date()) => {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", hourCycle: "h23" })
+      .formatToParts(date)
+      .map((x) => [x.type, Number(x.value)])
+  );
+  return { y: p.year, m: p.month, d: p.day, h: p.hour };
+};
+/** Today's date in `tz` as YYYY-MM-DD (what a date input expects). */
+export const todayIn = (tz, plusDays = 0) => {
+  try {
+    const n = partsIn(tz);
+    const d = new Date(Date.UTC(n.y, n.m - 1, n.d + plusDays));
+    return d.toISOString().slice(0, 10);
+  } catch (e) {
+    return new Date().toISOString().slice(0, 10);
+  }
+};
+
 // When the next email goes out, worked out in the subscription's own time zone (mirrors the server).
-export function nextSendText({ frequency, weekday, monthDay, hour, tz }) {
+// Returns { text, past }: `past` is true for a one-time send whose date and time have already gone by.
+export function nextSendInfo({ frequency, startDate, hour, tz }) {
+  if (!startDate) return { text: "", past: false };
   let n;
   try {
-    const parts = Object.fromEntries(
-      new Intl.DateTimeFormat("en-US", {
-        timeZone: tz,
-        year: "numeric",
-        month: "numeric",
-        day: "numeric",
-        hour: "numeric",
-        hourCycle: "h23",
-      })
-        .formatToParts(new Date())
-        .map((p) => [p.type, Number(p.value)])
-    );
-    n = { y: parts.year, m: parts.month, d: parts.day, h: parts.hour };
+    n = partsIn(tz);
   } catch (e) {
-    return "";
+    return { text: "", past: false };
   }
+  const [sy, sm, sd] = startDate.split("-").map(Number);
+  const start = new Date(Date.UTC(sy, sm - 1, sd));
+  const today = new Date(Date.UTC(n.y, n.m - 1, n.d));
   const passed = n.h >= hour;
-  let day = new Date(Date.UTC(n.y, n.m - 1, n.d));
-  const addDays = (k) => new Date(day.getTime() + k * 86400000);
+  const startInFuture = start > today || (start.getTime() === today.getTime() && !passed);
+  const show = (day) =>
+    `${day.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "short", day: "numeric", year: "numeric" })} at ${hourLabel(hour)} (${zoneName(tz)})`;
+  if (startInFuture) return { text: show(start), past: false };
+  if (frequency === "once") return { text: "", past: true };
+
+  const addDays = (k) => new Date(today.getTime() + k * 86400000);
+  let day = today;
   if (frequency === "daily") {
     if (passed) day = addDays(1);
   } else if (frequency === "weekly") {
-    const dow = (day.getUTCDay() + 6) % 7;
-    const add = (weekday - dow + 7) % 7;
+    const dow = (today.getUTCDay() + 6) % 7;
+    const wanted = (start.getUTCDay() + 6) % 7;
+    const add = (wanted - dow + 7) % 7;
     day = addDays(add === 0 && passed ? 7 : add);
   } else {
     let y = n.y;
     let m = n.m - 1;
     for (let i = 0; i < 14; i += 1) {
       const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-      const wanted = Number(monthDay) === 0 ? last : Math.min(Number(monthDay), last);
-      const cand = new Date(Date.UTC(y, m, wanted));
-      if (cand > day || (cand.getTime() === day.getTime() && !passed)) {
+      const cand = new Date(Date.UTC(y, m, Math.min(sd, last)));
+      if (cand > today || (cand.getTime() === today.getTime() && !passed)) {
         day = cand;
         break;
       }
@@ -123,8 +142,7 @@ export function nextSendText({ frequency, weekday, monthDay, hour, tz }) {
       }
     }
   }
-  const text = day.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "short", day: "numeric" });
-  return `${text} at ${hourLabel(hour)} (${zoneName(tz)})`;
+  return { text: show(day), past: false };
 }
 
 const errorText = (err, fallback) => {
@@ -143,8 +161,6 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
   const initial = subscription || {};
   const isForms = report === "daily_forms";
   const [frequency, setFrequency] = useState(initial.frequency || (isForms ? "daily" : "weekly"));
-  const [weekday, setWeekday] = useState(initial.weekday ?? 0);
-  const [monthDay, setMonthDay] = useState(initial.month_day ?? 1);
   const [hour, setHour] = useState(initial.send_hour ?? 7);
   const [covers, setCovers] = useState(
     initial.covers || (isForms ? "today" : DEFAULT_COVERS[initial.frequency || "weekly"])
@@ -156,6 +172,7 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
   const [shift, setShift] = useState(initial.params?.shift || "day");
   const [unit, setUnit] = useState(initial.params?.unit || "all");
   const [tz] = useState(initial.timezone || browserZone());
+  const [startDate, setStartDate] = useState(initial.start_date || todayIn(initial.timezone || browserZone(), isForms ? 0 : 1));
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [error, setError] = useState("");
@@ -196,8 +213,7 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
       report,
       params: Object.fromEntries(Object.entries(carried).filter(([, v]) => v !== "" && v != null)),
       frequency,
-      weekday,
-      month_day: monthDay,
+      start_date: startDate,
       send_hour: hour,
       timezone: tz,
       covers,
@@ -207,7 +223,10 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
     };
   };
 
+  const next = nextSendInfo({ frequency, startDate, hour, tz });
   const problem = () => {
+    if (!startDate) return "Pick the date of the first send.";
+    if (frequency === "once" && next.past) return "Pick a date and time in the future.";
     if (!pdf && !(csv && !pdfOnly)) return "Choose a file type to send.";
     if (!recipients.length) return "Add at least one recipient.";
     const bad = recipients.find((r) => !EMAIL_RE.test(r));
@@ -248,8 +267,6 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
     }
   };
 
-  const nextText = nextSendText({ frequency, weekday, monthDay, hour, tz });
-
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle sx={{ fontWeight: 600 }}>
@@ -260,29 +277,24 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
           <TextField size="small" label="Report" value={reportLabel} disabled />
 
           <Box>
-            <Typography variant="overline" color="text.secondary">When</Typography>
+            <Typography variant="overline" color="text.secondary">Repeats</Typography>
             <ToggleButtonGroup fullWidth size="small" exclusive value={frequency} onChange={(e, v) => changeFrequency(v)} aria-label="How often">
+              <ToggleButton value="once">Once</ToggleButton>
               <ToggleButton value="daily">Daily</ToggleButton>
               <ToggleButton value="weekly">Weekly</ToggleButton>
               <ToggleButton value="monthly">Monthly</ToggleButton>
             </ToggleButtonGroup>
           </Box>
           <Stack direction="row" spacing={1.5}>
-            {frequency === "weekly" && (
-              <TextField select size="small" fullWidth label="Day" value={weekday} onChange={(e) => setWeekday(Number(e.target.value))}>
-                {WEEKDAYS.map((d, i) => (
-                  <MenuItem key={d} value={i}>{d}</MenuItem>
-                ))}
-              </TextField>
-            )}
-            {frequency === "monthly" && (
-              <TextField select size="small" fullWidth label="Date" value={monthDay} onChange={(e) => setMonthDay(Number(e.target.value))}>
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <MenuItem key={d} value={d}>{`Day ${d}`}</MenuItem>
-                ))}
-                <MenuItem value={0}>Last day of the month</MenuItem>
-              </TextField>
-            )}
+            <TextField
+              size="small"
+              fullWidth
+              type="date"
+              label={frequency === "once" ? "Send on" : "First send"}
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
             <TextField select size="small" fullWidth label="Time" value={hour} onChange={(e) => setHour(Number(e.target.value))}>
               {Array.from({ length: 24 }, (_, h) => (
                 <MenuItem key={h} value={h}>{hourLabel(h)}</MenuItem>
@@ -295,8 +307,14 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
             ))}
           </TextField>
           <Typography variant="body2" color="text.secondary" sx={{ mt: "-8px !important" }}>
-            {nextText ? `Next email: ${nextText}. ` : ""}
-            Emails go out on the hour, and always cover the period you pick, so each one is for the latest numbers.
+            {next.past
+              ? "That date and time has already passed. Pick a later one."
+              : next.text
+              ? `${frequency === "once" ? "It will be sent" : "Next email"}: ${next.text}. `
+              : ""}
+            {frequency === "weekly" && startDate ? "Repeats every week on the same weekday. " : ""}
+            {frequency === "monthly" && startDate ? "Repeats on the same date each month (the last day in shorter months). " : ""}
+            Emails go out on the hour, and each one covers the period you pick, so it has the latest numbers.
           </Typography>
 
           {dailyForms && (

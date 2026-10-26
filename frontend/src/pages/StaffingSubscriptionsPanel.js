@@ -67,7 +67,8 @@ export default function StaffingSubscriptionsPanel({ people = [], units = [], on
       const res = await axios.patch(apiEndpoints.staffingReportSubscription(sub.id), { is_active: !sub.is_active }, authConfig());
       replace(res.data);
     } catch (err) {
-      setError("Could not change that subscription.");
+      const d = err.response?.data;
+      setError((d && (d.start_date?.[0] || d.error)) || "Could not change that subscription.");
     } finally {
       setBusyId(null);
     }
@@ -148,7 +149,13 @@ export default function StaffingSubscriptionsPanel({ people = [], units = [], on
                   <TableCell title={(sub.recipients || []).join(", ")}>
                     {sub.recipients.length} {sub.recipients.length === 1 ? "person" : "people"}
                   </TableCell>
-                  <TableCell>{sub.is_active ? formatNext(sub.next_run_at) : "Paused"}</TableCell>
+                  <TableCell>
+                    {sub.is_active
+                      ? formatNext(sub.next_run_at)
+                      : sub.frequency === "once" && sub.last_status
+                      ? "Sent once"
+                      : "Paused"}
+                  </TableCell>
                   <TableCell>
                     {sub.last_status ? (
                       <Chip
