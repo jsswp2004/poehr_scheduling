@@ -47,7 +47,6 @@ export const SolutionsPage = ({ className }) => {
     navigate("/login?redirect=dictate");
   };
   const handleMdsClick = () => {
-    // No dedicated MDS route yet: login with the default role-based landing.
     navigate("/login?redirect=mds");
   };
   return (
