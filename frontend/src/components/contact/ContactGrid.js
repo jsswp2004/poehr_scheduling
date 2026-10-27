@@ -27,7 +27,7 @@ const ContactGrid = ({
 
                 <div className="contact-card" onClick={onEmailClick} style={{ cursor: 'pointer' }}>
                     <div className="contact-title">Email</div>
-                    <div className="contact-details">info@powerhealthcareit.com</div>
+                    <div className="contact-details">power@powerhealthit.com</div>
                 </div>
             </div>
         </div>

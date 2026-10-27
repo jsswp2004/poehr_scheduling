@@ -18,7 +18,7 @@ from .models import Staff, StaffShift, StaffTimeOffRequest
 
 logger = logging.getLogger(__name__)
 
-FRONTEND_BASE_URL = getattr(settings, "FRONTEND_BASE_URL", "https://www.powerhealthcareit.com")
+FRONTEND_BASE_URL = getattr(settings, "FRONTEND_BASE_URL", "https://www.powerhealthit.com")
 
 
 def affected_shifts(req):

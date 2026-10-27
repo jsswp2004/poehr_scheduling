@@ -12,7 +12,7 @@ services:
       python manage.py collectstatic --noinput &&
       python manage.py migrate &&
       python manage.py seed_demo_data && (python manage.py seed_physician_demo || true)
-    startCommand: "gunicorn poehr_scheduling_backend.wsgi:application"
+    startCommand: "gunicorn poehr_scheduling_backend.asgi:application -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT"
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: poehr_scheduling_backend.settings_render
@@ -23,9 +23,9 @@ services:
       - key: DEMO_MODE
         value: "True"
       - key: DJANGO_ALLOWED_HOSTS
-        value: ".onrender.com"
+        value: ".onrender.com,www.powerhealthit.com,powerhealthit.com"
       - key: DJANGO_CORS_ORIGINS
-        value: "https://www.powerhealthcareit.com,https://powerhealthcareit.com,https://poehr-scheduling.vercel.app"
+        value: "https://www.powerhealthit.com,https://powerhealthit.com,https://poehr-scheduling.vercel.app"
       - key: PYTHON_VERSION
         value: "3.11.9"
       - key: DATABASE_URL

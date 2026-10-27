@@ -125,7 +125,7 @@ const SupportPage = () => {
               <div className="support-card">
                 <div className="support-icon">📧</div>
                 <h4 className="support-title">Email Support</h4>
-                <p className="support-detail">info@powerhealthcareit.com</p>
+                <p className="support-detail">power@powerhealthit.com</p>
                 <p className="support-hours">24-hour response time</p>
               </div>
               
@@ -191,7 +191,7 @@ const SupportPage = () => {
                 <h4 className="info-title">✅ Step 1: Start Your Registration</h4>
                 <ul className="info-list">
                   <li>1.	Visit the POWER Healthcare website</li>
-                  <li>-	Go to https://www.powerhealthcareit.com</li>
+                  <li>-	Go to https://www.powerhealthit.com</li>
                   <li>-	Click the "Get Started", "Try Power Free" or "Try it now” button
                   </li>
                   <li>2.	Choose Your Plan</li>
@@ -273,7 +273,7 @@ const SupportPage = () => {
               <div className="support-card">
                 <div className="support-icon">📧</div>
                 <h4 className="support-title">Email Support</h4>
-                <p className="support-detail">info@powerhealthcareit.com</p>
+                <p className="support-detail">power@powerhealthit.com</p>
                 <p className="support-hours">24-hour response time</p>
               </div>
               

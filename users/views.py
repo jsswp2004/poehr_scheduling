@@ -719,7 +719,7 @@ Your account has been successfully created and your 7-day free trial has started
 Your free trial ends on {trial_end_formatted}. After the trial period, your subscription will automatically continue with monthly billing.
 
 🚀 Getting Started:
-1. Log in to your account at: https://powerhealthcareit.com/login
+1. Log in to your account at: https://powerhealthit.com/login
 2. Complete your organization setup
 3. Start scheduling appointments and managing patients
 
@@ -2387,7 +2387,7 @@ def send_contact_email(request):
             return Response({"error": "Email and message are required"}, status=400)
 
         # Send email to admin/support team
-        admin_email = "info@powerhealthcareit.com"  # Company support email
+        admin_email = "power@powerhealthit.com"  # Company support email
 
         full_message = f"""
         Contact Form Submission:
@@ -2697,7 +2697,7 @@ To continue using POWER Scheduling without interruption:
 3. 🔄 Your subscription will automatically continue after the trial
 
 🔗 Manage your subscription:
-• Log in at: https://powerhealthcareit.com/login
+• Log in at: https://powerhealthit.com/login
 • Go to Account Settings > Subscription
 • Update payment methods and billing preferences
 

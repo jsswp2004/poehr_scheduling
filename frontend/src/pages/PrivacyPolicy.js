@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Container, Divider, Link, Paper, Stack, Typography } from "@mui/material";
 
 const UPDATED = "October 13, 2026";
-const EMAIL = "info@powerhealthcareit.com";
+const EMAIL = "power@powerhealthit.com";
 
 const SECTIONS = [
   {
