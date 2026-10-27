@@ -14,13 +14,13 @@ const getBaseUrl = () => {
     // Default based on environment
     if (process.env.NODE_ENV === 'production') {
         // Check if we're on the custom domain
-        if (window.location.hostname === 'powerhealthcareit.com' ||
-            window.location.hostname === 'www.powerhealthcareit.com') {
+        if (window.location.hostname === 'powerhealthit.com' ||
+            window.location.hostname === 'www.powerhealthit.com') {
             // Always use www version for SSL certificate compatibility
             // This ensures SSL works regardless of how user accessed the site
             console.log('🔧 SSL Debug - Detected custom domain, using www version');
             console.log('🔧 SSL Debug - Current hostname:', window.location.hostname);
-            return 'https://www.powerhealthcareit.com';
+            return 'https://poehr-scheduling-api.onrender.com';
         }
         // Production URL - use the specific backend Azure Container App URL
         console.log('🔧 SSL Debug - Using Azure Container App URL');
@@ -41,11 +41,11 @@ const getWebSocketUrl = () => {
 
     if (process.env.NODE_ENV === 'production') {
         // Check if we're on the custom domain for WebSocket
-        if (window.location.hostname === 'powerhealthcareit.com' ||
-            window.location.hostname === 'www.powerhealthcareit.com') {
+        if (window.location.hostname === 'powerhealthit.com' ||
+            window.location.hostname === 'www.powerhealthit.com') {
             // Always use www version for SSL certificate compatibility
             // This ensures WebSocket SSL works regardless of how user accessed the site
-            return 'wss://www.powerhealthcareit.com';
+            return 'wss://poehr-scheduling-api.onrender.com';
         }
 
         // Production WebSocket URL - use same domain but wss protocol

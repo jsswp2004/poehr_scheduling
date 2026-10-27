@@ -5,7 +5,7 @@ import { useState } from 'react';
  */
 export const useEmailForm = () => {
     const [formData, setFormData] = useState({
-        to: 'info@powerhealthcareit.com  ',
+        to: 'power@powerhealthit.com',
         from: '',
         telephone: '',
         subject: '',
@@ -47,7 +47,7 @@ export const useEmailForm = () => {
 
     const resetForm = () => {
         setFormData({
-            to: 'info@powerhealthcareit.com  ',
+            to: 'power@powerhealthit.com',
             from: '',
             telephone: '',
             subject: '',

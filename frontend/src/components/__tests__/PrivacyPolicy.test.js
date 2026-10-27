@@ -8,8 +8,8 @@ test("the policy renders without signing in and covers what Apple asks for", () 
     expect(screen.getByRole("heading", { name: heading })).toBeTruthy();
   }
   expect(screen.getByText(/does not collect or display patient health information/i)).toBeTruthy();
-  const mail = screen.getByRole("link", { name: "info@powerhealthcareit.com" });
-  expect(mail.getAttribute("href")).toBe("mailto:info@powerhealthcareit.com");
+  const mail = screen.getByRole("link", { name: "power@powerhealthit.com" });
+  expect(mail.getAttribute("href")).toBe("mailto:power@powerhealthit.com");
   expect(screen.getByRole("link", { name: "301-880-6015" })).toBeTruthy();
 });
 

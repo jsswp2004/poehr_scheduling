@@ -19,7 +19,7 @@ export const TermsPrivacyPage = ({ className }) => {
             Lewes, Delaware 19958<br />
             Sussex County<br />
             Phone: (301) 880-6015<br />
-            Email: <a href="mailto:info@powerhealthcareit.com">info@powerhealthcareit.com</a>
+            Email: <a href="mailto:power@powerhealthit.com">power@powerhealthit.com</a>
           </p>
         </div>
 
@@ -37,7 +37,7 @@ export const TermsPrivacyPage = ({ className }) => {
             <li><strong>Termination</strong> – We may suspend or terminate access for conduct that violates these Terms.</li>
             <li><strong>Disclaimers and Limitation of Liability</strong> – The App is provided "as is" without warranty.</li>
             <li><strong>Changes to Terms</strong> – We may update these Terms and will notify users of significant changes.</li>
-            <li><strong>Contact</strong> – Questions about these Terms can be sent to <a href="mailto:info@powerhealthcareit.com">info@powerhealthcareit.com</a>.</li>
+            <li><strong>Contact</strong> – Questions about these Terms can be sent to <a href="mailto:power@powerhealthit.com">power@powerhealthit.com</a>.</li>
           </ol>
         </div>
 
@@ -54,7 +54,7 @@ export const TermsPrivacyPage = ({ className }) => {
             <li><strong>International Users</strong> – By using the App outside the U.S., you consent to information transfer to the United States.</li>
             <li><strong>HIPAA Compliance Statement</strong> – We maintain the privacy and security of Protected Health Information as required by HIPAA.</li>
             <li><strong>Changes to this Policy</strong> – Updates will be posted on our website or through the App.</li>
-            <li><strong>Contact Us</strong> – For privacy questions, email <a href="mailto:info@powerhealthcareit.com">info@powerhealthcareit.com</a>.</li>
+            <li><strong>Contact Us</strong> – For privacy questions, email <a href="mailto:power@powerhealthit.com">power@powerhealthit.com</a>.</li>
           </ol>
         </div>
       </div>

@@ -99,7 +99,7 @@ test("phone: Edit, change, Save sends the new number", async () => {
 test("SMS consent: the full wording and date show, and the switch is locked until Update Preferences", async () => {
   await open();
   expect(screen.getByText(/you consent to receive automated appointment reminders/)).toBeInTheDocument();
-  expect(screen.getByRole("link", { name: "Privacy Policy and Terms" })).toHaveAttribute("href", "https://powerhealthcareit.com/terms");
+  expect(screen.getByRole("link", { name: "Privacy Policy and Terms" })).toHaveAttribute("href", "https://powerhealthit.com/terms");
   expect(screen.getByText(/Consented on/)).toBeInTheDocument();
   const sw = screen.getByRole("checkbox", { name: "Text message reminders" });
   expect(sw).toBeDisabled();

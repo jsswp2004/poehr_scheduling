@@ -311,9 +311,9 @@ ANYMAIL = {
 #
 # DEFAULT_FROM_EMAIL must be on a domain verified in the Resend dashboard
 # (Domains -> Add Domain -> add the DNS records Resend gives you for
-# powerhealthcareit.com). Until that domain is verified, Resend will only
+# powerhealthit.com). Until that domain is verified, Resend will only
 # deliver mail sent From onboarding@resend.dev.
-DEFAULT_FROM_EMAIL = "info@powerhealthcareit.com"  # Updated from EMAIL_HOST_USER
+DEFAULT_FROM_EMAIL = "power@powerhealthit.com"  # Updated from EMAIL_HOST_USER
 ADMIN_EMAIL = "jsswp2004@outlook.com"  # 👈 where the notification goes
 
 # ✅ Twilio settings
