@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import {
     Box,
-    Stack,
     TextField,
     Button,
     Typography,
@@ -12,12 +11,13 @@ import {
     Avatar,
     CircularProgress,
     Paper,
-    Divider,
 } from '@mui/material';
 import CreatableSelect from "react-select/creatable";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../../config/api';
+
+export const CREATE_PROFILE_FORM_ID = 'create-profile-form';
 
 /**
  * CreateProfileForm Component
@@ -68,34 +68,22 @@ const CreateProfileForm = ({
         }
     };
 
-    return (
-        <form onSubmit={onSubmit} encType="multipart/form-data">
-            <Divider sx={{ mb: 3 }} />
-            <Typography variant="h6" sx={{ mb: 3 }}>
-                Profile Information
-            </Typography>
+    const fieldGridSx = { display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 };
+    const fieldSx = { "& .MuiOutlinedInput-root": { borderRadius: 2 } };
 
-            {/* Two-Column Layout */}
+    return (
+        <form id={CREATE_PROFILE_FORM_ID} onSubmit={onSubmit} encType="multipart/form-data">
             <Box
                 sx={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 2fr",
-                    gap: 4,
+                    gridTemplateColumns: { xs: "1fr", md: "260px minmax(0, 1fr)" },
+                    gap: 2,
                     alignItems: "start",
-                    mb: 4,
                 }}
             >
-                {/* Left Column - Profile Picture and Organization */}
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                    {/* Profile Picture Section */}
-                    <Box
-                        sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: 2,
-                        }}
-                    >
+                {/* Left: photo and organization */}
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
                         <Avatar
                             src={
                                 formData.profile_picture
@@ -103,38 +91,26 @@ const CreateProfileForm = ({
                                     : undefined
                             }
                             alt="Profile Preview"
+                            variant="square"
                             sx={{
-                                width: 160,
-                                height: 160,
+                                width: 140,
+                                height: 140,
                                 borderRadius: 3,
                                 bgcolor: formData.profile_picture ? "transparent" : "grey.300",
-                                fontSize: "4rem",
-                                border: "3px solid",
-                                borderColor: "primary.light",
-                                boxShadow: 2,
+                                fontSize: "3.5rem",
+                                border: "2px solid",
+                                borderColor: "divider",
                             }}
-                            variant="square"
                         >
                             {!formData.profile_picture && (formData.first_name?.[0] || "U")}
                         </Avatar>
-
-                        {/* Upload Profile Picture Button */}
                         <Button
-                            variant="contained"
+                            variant="outlined"
                             component="label"
-                            size="medium"
+                            size="small"
+                            fullWidth
                             disabled={submitting}
-                            startIcon={
-                                submitting ? (
-                                    <CircularProgress size={16} color="inherit" />
-                                ) : null
-                            }
-                            sx={{
-                                minWidth: 160,
-                                borderRadius: 2,
-                                textTransform: "none",
-                                fontWeight: 600,
-                            }}
+                            startIcon={submitting ? <CircularProgress size={14} color="inherit" /> : null}
                         >
                             Upload Picture
                             <input
@@ -146,93 +122,66 @@ const CreateProfileForm = ({
                                 onChange={onChange}
                             />
                         </Button>
-
-                        {formData.profile_picture && (
-                            <Typography
-                                variant="caption"
-                                sx={{
-                                    color: 'success.main',
-                                    textAlign: 'center',
-                                    fontWeight: 500
-                                }}
-                            >
-                                ✓ {formData.profile_picture.name}
-                            </Typography>
-                        )}
+                        <Typography
+                            variant="caption"
+                            sx={{ color: formData.profile_picture ? "success.main" : "text.secondary", textAlign: "center", fontWeight: formData.profile_picture ? 500 : 400 }}
+                        >
+                            {formData.profile_picture ? `✓ ${formData.profile_picture.name}` : "PNG or JPEG (optional)"}
+                        </Typography>
                     </Box>
 
-                    {/* Organization Field */}
-                    <Box>
-                        <Typography
-                            variant="subtitle1"
-                            sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
-                        >
+                    <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
                             Organization *
                         </Typography>
                         <CreatableSelect
                             name="organization"
                             value={
                                 organizations
-                                    .map((org) => ({
-                                        value: org.id,
-                                        label: org.name,
-                                        id: org.id,
-                                    }))
-                                    .find(
-                                        (opt) => String(opt.value) === String(formData.organization)
-                                    ) || null
+                                    .map((org) => ({ value: org.id, label: org.name, id: org.id }))
+                                    .find((opt) => String(opt.value) === String(formData.organization)) || null
                             }
                             onChange={handleOrganizationChange}
-                            options={organizations.map((org) => ({
-                                value: org.id,
-                                label: org.name,
-                                id: org.id,
-                            }))}
+                            options={organizations.map((org) => ({ value: org.id, label: org.name, id: org.id }))}
                             isClearable
                             isSearchable
                             placeholder="Select or type to add organization..."
                             formatCreateLabel={(inputValue) => `Add "${inputValue}"`}
+                            menuPlacement="auto"
                             styles={{
-                                control: (base) => ({
-                                    ...base,
-                                    minHeight: 40,
-                                    borderRadius: 8,
-                                }),
+                                control: (base) => ({ ...base, minHeight: 40, borderRadius: 8 }),
                                 menu: (base) => ({ ...base, zIndex: 9999 }),
                             }}
                         />
                     </Box>
-                </Box>
+                </Paper>
 
-                {/* Right Column - User Information Fields */}
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-                    {/* Text input fields */}
-                    {formFields.map((field) => (
-                        <TextField
-                            key={field.name}
-                            label={field.label}
-                            type={field.type}
-                            name={field.name}
-                            onChange={onChange}
-                            value={formData[field.name]}
-                            fullWidth
-                            required
-                            size="small"
-                            variant="outlined"
-                            placeholder={field.name === 'phone_number' ? '(123) 456-7890' : undefined}
-                            sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                        />
-                    ))}
-
-                    {/* Role Selection */}
-                    <Box>
-                        <Typography
-                            variant="subtitle1"
-                            sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
-                        >
-                            Role *
-                        </Typography>
-                        <FormControl fullWidth size="small">
+                {/* Right: profile information */}
+                <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                        Profile information
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12.5, mb: 2 }}>
+                        All fields marked * are required.
+                    </Typography>
+                    <Box sx={fieldGridSx}>
+                        {formFields.map((field) => (
+                            <TextField
+                                key={field.name}
+                                label={field.label}
+                                type={field.type}
+                                name={field.name}
+                                onChange={onChange}
+                                value={formData[field.name]}
+                                fullWidth
+                                required
+                                size="small"
+                                variant="outlined"
+                                placeholder={field.name === 'phone_number' ? '(123) 456-7890' : undefined}
+                                sx={{ ...fieldSx, ...(field.name === 'password' ? { gridColumn: { sm: "1 / -1" } } : {}) }}
+                            />
+                        ))}
+                        <FormControl fullWidth size="small" required>
                             <InputLabel id="role-label">Role</InputLabel>
                             <Select
                                 labelId="role-label"
@@ -256,37 +205,7 @@ const CreateProfileForm = ({
                             </Select>
                         </FormControl>
                     </Box>
-                </Box>
-            </Box>
-
-            {/* Submit Button Section - Full Width Below */}
-            <Box sx={{ mt: 4 }}>
-                <Divider sx={{ mb: 3 }} />
-                <Box sx={{ display: "flex", justifyContent: "center" }}>
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        color="primary"
-                        disabled={submitting}
-                        sx={{
-                            minWidth: 200,
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 600,
-                            py: 1.5,
-                            fontSize: "1.1rem",
-                        }}
-                    >
-                        {submitting ? (
-                            <>
-                                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-                                Creating Profile...
-                            </>
-                        ) : (
-                            'Create Profile'
-                        )}
-                    </Button>
-                </Box>
+                </Paper>
             </Box>
         </form>
     );
