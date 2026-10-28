@@ -944,7 +944,7 @@ function AccountPage() {
                 ref={pinRef}
                 sx={{
                     position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper",
-                    pt: 2, pb: 0.5, borderBottom: `1px solid ${BORDER}`,
+                    pt: "18px", mt: "-18px", pb: 0.5, borderBottom: `1px solid ${BORDER}`,
                 }}
             >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
