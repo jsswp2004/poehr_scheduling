@@ -579,3 +579,20 @@ class LinkedReportTests(TestCase):
         self.assertTrue(allowed["visit"])
         self.assertFalse(allowed["msg"])
         self.assertTrue(any(l["fuzzy"] and l["label"] == "matched by phone" for l in cat["links"]))
+
+    def test_tiles_highlight_and_sort_work_on_a_linked_report(self):
+        canvas = {"objects": ["pat", "visit", "nurse"], "keep_unmatched": False, "window_days": 0}
+        cfg = {
+            "group_by": "nurse__name", "columns": ["nurse__name", "visit__count"],
+            "tiles": [{"field": "_rows", "agg": "count", "label": "Rows"}, {"field": "visit__count", "agg": "sum", "label": "Visits"},
+                      {"field": "_flagged", "agg": "count", "label": "Busy nurses"}],
+            "highlight": {"field": "visit__count", "op": "gte", "value": "2"},
+            "sort": {"field": "visit__count", "dir": "desc"},
+        }
+        res = self.preview(self.admin, canvas, cfg)
+        self.assertEqual(res.status_code, 200, res.content)
+        body = res.json()
+        self.assertEqual([r["nurse__name"] for r in body["rows"]], ["Nia Park", "Omar Reyes"])  # Nia has 2 visits, Omar 1
+        self.assertEqual([r["_flag"] for r in body["rows"]], [True, False])
+        tiles = {t["label"]: t["value"] for t in body["tiles"]}
+        self.assertEqual(tiles, {"Rows": 2, "Visits": 3, "Busy nurses": 1})

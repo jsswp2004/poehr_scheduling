@@ -29,7 +29,18 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { BuilderShell, BuilderToolbar, BUILDER_STICKY_TOP } from "../components/builders/BuilderShell";
 import ReportResultTable from "../components/reports/ReportResultTable";
 import { apiEndpoints } from "../config/api";
-import { MODULE_COLORS, errorText, headers, presetRange, rangeText } from "../components/reports/reportUtils";
+import {
+  MODULE_COLORS,
+  NUMBER_OPS,
+  OP_LABELS,
+  TEXT_OPS,
+  errorText,
+  formatCell,
+  headers,
+  isNumeric,
+  presetRange,
+  rangeText,
+} from "../components/reports/reportUtils";
 
 const SHARE_ROLES = ["admin", "doctor", "nurse", "registrar"];
 const RANGES = [
@@ -52,6 +63,7 @@ const PRESETS = [
     name: "Texted last week: who came in?",
     objects: ["msg", "pat", "visit"],
     cols: ["visit__care", "pat__count", "msg__count", "visit__count"],
+    tiles: ["pat__count", "visit__count"],
     groupBy: "visit__care",
     keep: true,
     window: 7,
@@ -63,6 +75,7 @@ const PRESETS = [
     name: "Nurse for each patient",
     objects: ["pat", "visit", "nurse"],
     cols: ["nurse__name", "pat__name", "visit__date", "visit__care"],
+    tiles: ["_rows", "nurse__count"],
     groupBy: null,
     keep: false,
     window: 0,
@@ -100,6 +113,10 @@ export default function ReportCanvasPage() {
   const [cols, setCols] = useState([]);
   const [groupBy, setGroupBy] = useState(null);
   const [filters, setFilters] = useState([]);
+  const [tiles, setTiles] = useState([]);
+  const [sort, setSort] = useState(null);
+  const [highlight, setHighlight] = useState(null);
+  const [totals, setTotals] = useState(true);
   const [keepUnmatched, setKeepUnmatched] = useState(true);
   const [windowDays, setWindowDays] = useState(7);
   const [audience, setAudience] = useState("me");
@@ -145,6 +162,10 @@ export default function ReportCanvasPage() {
           setCols(c.columns || []);
           setGroupBy(c.group_by || null);
           setFilters((c.filters || []).map((f) => ({ field: f.field, op: f.op, value: String(f.value ?? "") })));
+          setTiles((c.tiles || []).map((t) => t.field));
+          setSort(c.sort || null);
+          setHighlight(c.highlight ? { ...c.highlight, value: String(c.highlight.value ?? "") } : null);
+          setTotals(c.totals !== false);
           setAudience(r.audience);
           setAudienceRoles(r.audience_roles || []);
         }
@@ -167,12 +188,21 @@ export default function ReportCanvasPage() {
       filters: filters
         .filter((f) => f.field && String(f.value).trim() !== "")
         .map((f) => ({ field: f.field, op: f.op, value: String(f.value).trim() })),
-      highlight: null,
-      tiles: [],
-      sort: null,
-      totals: true,
+      highlight:
+        highlight && highlight.field && String(highlight.value).trim() !== ""
+          ? { field: highlight.field, op: highlight.op, value: String(highlight.value).trim() }
+          : null,
+      tiles: tiles
+        .filter((k) => k === "_rows" || (k === "_flagged" && highlight?.field) || (fieldMap[k] && fieldMap[k].kind === "measure" && objects.includes(fieldMap[k].object)))
+        .map((k) => ({
+          field: k,
+          agg: k.startsWith("_") ? "count" : fieldMap[k].agg === "avg" ? "avg" : "sum",
+          label: k === "_rows" ? "Rows" : k === "_flagged" ? "Highlighted rows" : fieldMap[k].label,
+        })),
+      sort: sort && cols.includes(sort.field) ? sort : null,
+      totals,
     }),
-    [objects, keepUnmatched, windowDays, cols, groupBy, filters, fieldMap]
+    [objects, keepUnmatched, windowDays, cols, groupBy, filters, highlight, tiles, sort, totals, fieldMap]
   );
 
   // Live result, a moment after the last change.
@@ -229,6 +259,9 @@ export default function ReportCanvasPage() {
     setCols(p.cols);
     setGroupBy(p.groupBy);
     setFilters([]);
+    setTiles(p.tiles || []);
+    setSort(null);
+    setHighlight(null);
     setKeepUnmatched(p.keep);
     setWindowDays(p.window);
     setRangeKey(p.range);
@@ -239,6 +272,18 @@ export default function ReportCanvasPage() {
 
   const dimOptions = objects.flatMap((k) => (objMap[k]?.fields || []).filter((f) => f.kind === "dimension").map((f) => fieldMap[`${k}__${f.key}`]));
   const hasMsg = objects.includes("msg");
+  const columnFields = cols.filter((k) => fieldMap[k] && objects.includes(fieldMap[k].object)).map((k) => fieldMap[k]);
+  const hlField = highlight ? fieldMap[highlight.field] : null;
+  const highlightOps = hlField && (hlField.kind === "measure" || isNumeric(hlField.type)) ? NUMBER_OPS : TEXT_OPS;
+  const tileOptions = [
+    { key: "_rows", label: "Number of rows" },
+    ...objects.flatMap((k) => [
+      { key: `${k}__count`, label: `${objMap[k]?.plural || k}` },
+      ...(objMap[k]?.fields || []).filter((f) => f.kind === "measure").map((f) => ({ key: `${k}__${f.key}`, label: fieldMap[`${k}__${f.key}`].label })),
+    ]),
+    ...(highlight?.field ? [{ key: "_flagged", label: "Highlighted rows" }] : []),
+  ];
+  const toggleTile = (key) => setTiles((t) => (t.includes(key) ? t.filter((x) => x !== key) : [...t, key]));
   const range = previewRange(rangeKey);
 
   const save = async (thenRun) => {
@@ -590,6 +635,75 @@ export default function ReportCanvasPage() {
             </Box>
             <Box>
               <Typography variant="caption" color="text.secondary">
+                Summary tiles
+              </Typography>
+              {tileOptions.map((t) => (
+                <FormControlLabel
+                  key={t.key}
+                  sx={{ display: "flex", mr: 0 }}
+                  control={<Checkbox size="small" checked={tiles.includes(t.key)} onChange={() => toggleTile(t.key)} />}
+                  label={<Typography variant="body2">{t.label}</Typography>}
+                />
+              ))}
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Sort
+              </Typography>
+              <Box sx={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 104px", gap: 0.5 }}>
+                <Select size="small" displayEmpty value={sort?.field || ""} onChange={(e) => setSort(e.target.value ? { field: e.target.value, dir: sort?.dir || "desc" } : null)} aria-label="Sort by">
+                  <MenuItem value="">Default order</MenuItem>
+                  {columnFields.map((f) => (
+                    <MenuItem key={f.key} value={f.key}>
+                      {f.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <Select size="small" disabled={!sort} value={sort?.dir || "desc"} onChange={(e) => setSort({ ...sort, dir: e.target.value })} aria-label="Sort direction">
+                  <MenuItem value="desc">High to low</MenuItem>
+                  <MenuItem value="asc">Low to high</MenuItem>
+                </Select>
+              </Box>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Highlight rows in red when
+              </Typography>
+              {highlight ? (
+                <Box sx={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 0.5 }}>
+                  <Select size="small" displayEmpty value={highlight.field} onChange={(e) => setHighlight({ ...highlight, field: e.target.value, op: "is", value: "" })} aria-label="Highlight field">
+                    <MenuItem value="">Choose a field</MenuItem>
+                    {columnFields.map((f) => (
+                      <MenuItem key={f.key} value={f.key}>
+                        {f.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  <IconButton size="small" aria-label="Remove highlight" onClick={() => setHighlight(null)}>
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                  <Box sx={{ display: "grid", gridTemplateColumns: "96px 1fr", gap: 0.5, gridColumn: "1 / -1" }}>
+                    <Select size="small" value={highlight.op} onChange={(e) => setHighlight({ ...highlight, op: e.target.value })} aria-label="Highlight comparison">
+                      {highlightOps.map((o) => (
+                        <MenuItem key={o} value={o}>
+                          {OP_LABELS[o] || o}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <TextField size="small" value={highlight.value} onChange={(e) => setHighlight({ ...highlight, value: e.target.value })} inputProps={{ "aria-label": "Highlight value" }} />
+                  </Box>
+                </Box>
+              ) : (
+                <Box>
+                  <Button size="small" startIcon={<AddIcon />} onClick={() => setHighlight({ field: "", op: "is", value: "" })} disabled={columnFields.length === 0}>
+                    Add a highlight
+                  </Button>
+                </Box>
+              )}
+              <FormControlLabel sx={{ display: "flex", mr: 0, mt: 0.5 }} control={<Checkbox size="small" checked={totals} onChange={(e) => setTotals(e.target.checked)} />} label={<Typography variant="body2">Show a totals row</Typography>} />
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
                 Who can run this report
               </Typography>
               <RadioGroup value={audience} onChange={(e) => setAudience(e.target.value)}>
@@ -641,6 +755,20 @@ export default function ReportCanvasPage() {
           <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
             Add at least two things and tick the fields you want. The result appears here.
           </Typography>
+        )}
+        {preview && preview.tiles && preview.tiles.length > 0 && (
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", p: 1.5 }}>
+            {preview.tiles.map((t, i) => (
+              <Paper key={i} variant="outlined" sx={{ px: 1.5, py: 0.5, flex: "1 1 130px", minWidth: 110, maxWidth: 220 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ textTransform: "uppercase", letterSpacing: 0.4, fontSize: 11 }}>
+                  {t.label}
+                </Typography>
+                <Typography sx={{ fontSize: 22, fontWeight: 500, lineHeight: 1.15, color: t.tone === "bad" ? "error.main" : "text.primary" }}>
+                  {formatCell(t.value, t.type)}
+                </Typography>
+              </Paper>
+            ))}
+          </Box>
         )}
         {preview && <ReportResultTable result={preview} stickyTop={BUILDER_STICKY_TOP} />}
       </Paper>
