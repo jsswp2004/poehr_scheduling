@@ -44,7 +44,7 @@ function SettingsPage() {
           ref={pinRef}
           sx={{
             position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper",
-            pt: 2, borderBottom: "1px solid #dfe4ec",
+            pt: "18px", mt: "-18px", borderBottom: "1px solid #dfe4ec",
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
