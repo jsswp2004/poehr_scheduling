@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Box, Container, Tabs, Tab, Typography, Paper } from "@mui/material";
+import { Box } from "@mui/material";
+import { BuilderShell } from "../components/builders/BuilderShell";
 import TemplateListView from "../components/noteBuilder/TemplateListView";
 import NoteTemplateEditor from "../components/noteBuilder/NoteTemplateEditor";
 import DictionaryManager from "../components/noteBuilder/DictionaryManager";
@@ -48,31 +49,22 @@ function OrderBuilderPage() {
     if (checking) return null;
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Typography variant="h4" gutterBottom>
-                Order Builder
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Manage what can be ordered -- labs, imaging, procedures, referrals and nursing orders -- the
-                bundles (order sets) clinicians can place in one click, and the questions asked when
-                ordering. Changing a catalog entry never changes an order that was already signed.
-            </Typography>
-
-            <Paper sx={{ mb: 3 }}>
-                <Tabs
-                    value={tab}
-                    onChange={(e, v) => {
-                        setTab(v);
-                        setEditingFormCode(null);
-                    }}
-                >
-                    <Tab label="Orderables" value="orderables" />
-                    <Tab label="Order Sets" value="sets" />
-                    <Tab label="Detail Forms" value="forms" />
-                    <Tab label="Dictionaries" value="dictionaries" />
-                </Tabs>
-            </Paper>
-
+        <BuilderShell
+            title="Order Builder"
+            subtitle="Manage what can be ordered, the bundles clinicians place in one click, and the questions asked when ordering. Changing a catalog entry never changes an order that was already signed."
+            tabs={[
+                { key: "orderables", label: "Orderables" },
+                { key: "sets", label: "Order Sets" },
+                { key: "forms", label: "Detail Forms" },
+                { key: "dictionaries", label: "Dictionaries" },
+            ]}
+            tab={tab}
+            onTab={(v) => {
+                setTab(v);
+                setEditingFormCode(null);
+            }}
+            maxWidth={1280}
+        >
             {tab === "orderables" && <OrderablesManager />}
             {tab === "sets" && <OrderSetsManager />}
             {tab === "forms" && (
@@ -93,7 +85,7 @@ function OrderBuilderPage() {
                 </Box>
             )}
             {tab === "dictionaries" && <DictionaryManager />}
-        </Container>
+        </BuilderShell>
     );
 }
 
