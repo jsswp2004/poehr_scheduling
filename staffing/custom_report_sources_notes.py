@@ -1,8 +1,8 @@
 """
 Clinical documentation (Notes) source for custom reports.
 
-Note text is never included. Patient names are hidden ("Patient 1, 2...") until the viewer presses
-"Show patient names"; every run of this source is written to the report audit log. Access follows the
+Note text and patient names can be columns: access is limited to people who already hold the clinical-notes
+right (the healthcare team), and every run is written to the report audit log. Access follows the
 "clinical_notes.view_author" right, and a user assigned to specific facilities only sees notes from visits
 in those facilities (or visits not placed anywhere yet).
 """
@@ -19,6 +19,7 @@ OVERDUE_HOURS = 24
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 NOTE_TYPE_LABELS = {"nursing_assessment": "Nursing assessment", "doctor_assessment": "Doctor assessment"}
 STATUS_LABELS = {"draft": "Draft", "signed": "Signed"}
+SOAP = [("subjective", "Subjective"), ("objective", "Objective"), ("assessment", "Assessment"), ("plan", "Plan")]
 
 
 def _local(dt):
@@ -33,6 +34,24 @@ def _person(user, blank="Unknown"):
 
 def _pretty(value):
     return (value or "").replace("_", " ").strip().capitalize()
+
+
+def _value_text(v):
+    if isinstance(v, (list, tuple)):
+        return ", ".join(_value_text(x) for x in v if x not in (None, ""))
+    if isinstance(v, dict):
+        return "; ".join(f"{_pretty(k)}: {_value_text(x)}" for k, x in v.items() if x not in (None, ""))
+    return "" if v is None else str(v).strip()
+
+
+def _note_text(n):
+    """The SOAP fields plus the values of a template note, as plain text."""
+    parts = [f"{label}: {getattr(n, key).strip()}" for key, label in SOAP if (getattr(n, key) or "").strip()]
+    for key, value in (n.structured_data or {}).items():
+        text = _value_text(value)
+        if text:
+            parts.append(f"{_pretty(key)}: {text}")
+    return "\n".join(parts)
 
 
 def load_notes(org, start, end, user=None):
@@ -76,6 +95,11 @@ def load_notes(org, start, end, user=None):
                 "facility": unit.facility.name if unit else "No location",
                 "signed_on": _local(n.signed_at).date().isoformat() if n.signed_at else None,
                 "patient": _person(n.patient, "Unknown patient"),
+                "note_text": _note_text(n) or None,
+                "subjective": n.subjective or None,
+                "objective": n.objective or None,
+                "assessment": n.assessment or None,
+                "plan": n.plan or None,
                 "_patient": n.patient_id,
                 "notes": 1,
                 "signed": 1 if n.status == "signed" else 0,
@@ -90,14 +114,15 @@ def load_notes(org, start, end, user=None):
 
 register(
     "notes_documentation", "Clinical notes", "Documentation",
-    "One row per note: who wrote it, type, signed or draft, and time to sign. Note text is never included. "
-    "Patient names stay hidden until you choose to show them, and each run is audit-logged.",
+    "One row per note: who wrote it, type, signed or draft, time to sign, and the note text. "
+    "Each run is audit-logged.",
     [
         dim("date", "Date written", "date"), dim("week", "Week of", "date"), dim("month", "Month"), dim("weekday", "Day of week"),
         dim("author", "Author"), dim("author_role", "Author role"), dim("note_type", "Note type"),
         dim("documentation_type", "Documentation type"), dim("status", "Status"), dim("kind", "Note or addendum"),
         dim("unit", "Unit or clinic"), dim("facility", "Facility"), dim("signed_on", "Signed on", "date"),
-        dim("patient", "Patient", sensitive=True),
+        dim("patient", "Patient"), dim("note_text", "Note text"),
+        dim("subjective", "Subjective"), dim("objective", "Objective"), dim("assessment", "Assessment"), dim("plan", "Plan"),
         measure("notes", "Notes"), measure("signed", "Signed"), measure("drafts", "Drafts"), measure("addenda", "Addenda"),
         measure("overdue_drafts", f"Drafts over {OVERDUE_HOURS}h old"),
         measure("signed_pct", "Signed %", "percent", ratio=("signed", "notes")),

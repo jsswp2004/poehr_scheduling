@@ -171,7 +171,7 @@ export default function ReportsHomePage() {
           <Table size="small" aria-label="Report audit log">
             <TableHead>
               <TableRow>
-                {["When", "Who", "Report", "Data", "Names", "Rows", "Dates"].map((h) => (
+                {["When", "Who", "Report", "Data", "Rows", "Dates"].map((h) => (
                   <TableCell key={h} sx={{ position: "sticky", top: BUILDER_STICKY_TOP, zIndex: 2, bgcolor: "background.default", fontWeight: 600, whiteSpace: "nowrap" }}>
                     {h}
                   </TableCell>
@@ -181,7 +181,7 @@ export default function ReportsHomePage() {
             <TableBody>
               {audit.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7}>
+                  <TableCell colSpan={6}>
                     <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
                       No runs on patient data yet.
                     </Typography>
@@ -194,9 +194,6 @@ export default function ReportsHomePage() {
                   <TableCell>{a.user}</TableCell>
                   <TableCell>{a.report}</TableCell>
                   <TableCell>{a.source_label}</TableCell>
-                  <TableCell>
-                    <Chip size="small" color={a.names_shown ? "warning" : "default"} variant={a.names_shown ? "filled" : "outlined"} label={a.names_shown ? "Shown" : "Hidden"} />
-                  </TableCell>
                   <TableCell>{a.row_count}</TableCell>
                   <TableCell sx={{ whiteSpace: "nowrap" }}>{a.range_start ? `${a.range_start} to ${a.range_end}` : "—"}</TableCell>
                 </TableRow>

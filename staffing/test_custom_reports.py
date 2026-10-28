@@ -396,21 +396,22 @@ class NotesSourceTests(TestCase):
         self.assertEqual(row["signed_pct"], 33.3)
         self.assertEqual(row["hours_to_sign"], 4.0)
         self.assertEqual(row["patients"], 2)
-        self.assertIsNone(res["patient_names"])
 
-    def test_note_text_is_never_a_field(self):
-        keys = {f["key"] for f in engine.source_summary(engine.SOURCES["notes_documentation"])["fields"]}
-        self.assertFalse(keys & {"subjective", "objective", "assessment", "plan", "structured_data"})
+    def test_note_text_is_a_column(self):
+        from appointments.models import ClinicalNote
 
-    def test_patient_names_are_hidden_until_revealed(self):
-        cfg = {"group_by": "patient", "columns": ["patient", "notes"]}
-        hidden = self.run_cfg(cfg)
-        self.assertEqual(hidden["patient_names"], "hidden")
-        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
-        self.assertNotIn("Ames", str(hidden))
-        shown = self.run_cfg(cfg, reveal=True)
-        self.assertEqual(shown["patient_names"], "shown")
-        self.assertEqual({r["patient"] for r in shown["rows"]}, {"Ann Ames", "Bo Bell"})
+        ClinicalNote.objects.filter(status="signed").update(subjective="Chest pain", plan="Monitor", structured_data={"pain_score": 7, "sites": ["arm", "jaw"]})
+        res = self.run_cfg({"columns": ["patient", "status", "note_text"], "filters": [{"field": "note_text", "op": "contains", "value": "chest"}]})
+        self.assertEqual(len(res["rows"]), 1)
+        text = res["rows"][0]["note_text"]
+        self.assertIn("Subjective: Chest pain", text)
+        self.assertIn("Plan: Monitor", text)
+        self.assertIn("Pain score: 7", text)
+        self.assertIn("Sites: arm, jaw", text)
+
+    def test_patient_names_are_a_column(self):
+        res = self.run_cfg({"group_by": "patient", "columns": ["patient", "notes"]})
+        self.assertEqual({r["patient"]: r["notes"] for r in res["rows"]}, {"Ann Ames": 2, "Bo Bell": 1})
 
     def test_facility_limited_user_sees_only_their_facility(self):
         self.nurse.facilities.add(self.fac_e)
@@ -432,14 +433,13 @@ class NotesSourceTests(TestCase):
         c = client_for(self.nurse)
         r1 = c.post(f"{BASE}/preview/", body, format="json")
         self.assertEqual(r1.status_code, 200, r1.content)
-        self.assertEqual(r1.json()["patient_names"], "hidden")
-        r2 = c.post(f"{BASE}/preview/", {**body, "reveal_patients": True}, format="json")
-        self.assertEqual(r2.json()["patient_names"], "shown")
-        rows = list(ReportAuditLog.objects.order_by("id").values_list("user_id", "names_shown", "action", "row_count"))
-        self.assertEqual(rows, [(self.nurse.id, False, "preview", 2), (self.nurse.id, True, "preview", 2)])
+        self.assertEqual({r["patient"] for r in r1.json()["rows"]}, {"Ann Ames", "Bo Bell"})
+        c.post(f"{BASE}/preview/", body, format="json")  # a re-run while typing: still one entry
+        rows = list(ReportAuditLog.objects.values_list("user_id", "action", "row_count"))
+        self.assertEqual(rows, [(self.nurse.id, "preview", 2)])
         self.assertEqual(c.get(f"{BASE}/audit/").status_code, 403)
         log = client_for(self.admin).get(f"{BASE}/audit/").json()
-        self.assertEqual([e["names_shown"] for e in log], [True, False])
+        self.assertEqual(len(log), 1)
         self.assertEqual(log[0]["user"], "Nia Park")
 
     def test_sources_without_patient_data_are_not_audited(self):
