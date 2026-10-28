@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from "@mui/material";
+import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Popover, Tooltip } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCaretDown,
+  faEllipsisVertical,
   faDownload,
   faFileCsv,
   faFilePdf,
@@ -13,6 +14,46 @@ import {
 // The Reports tab provides an element in its frozen title row; a report renders its own controls
 // (month, form, shift, print...) into it so they sit on the same line as the report title.
 export const ReportActionsSlotContext = createContext(null);
+
+// A second slot at the very end of the title row (after Subscribe / Export / Print) for a "⋮" menu.
+export const ReportMoreSlotContext = createContext(null);
+
+/**
+ * A "⋮" button at the end of the frozen title row. Clicking it opens a popover holding `children`
+ * (a report's secondary controls). Inline when there is no slot, e.g. in tests.
+ */
+export function ReportMoreActions({ children, label = "More options" }) {
+  const slot = useContext(ReportMoreSlotContext);
+  const [anchor, setAnchor] = useState(null);
+  const button = (
+    <>
+      <Tooltip title={label}>
+        <Button
+          variant="outlined"
+          color="inherit"
+          aria-label={label}
+          aria-haspopup="true"
+          aria-expanded={anchor ? "true" : undefined}
+          onClick={(e) => setAnchor(e.currentTarget)}
+          sx={{ minHeight: 44, minWidth: 40, px: 1 }}
+        >
+          <FontAwesomeIcon icon={faEllipsisVertical} />
+        </Button>
+      </Tooltip>
+      <Popover
+        open={!!anchor}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        slotProps={{ paper: { sx: { mt: 0.5, p: 2, width: 320, maxWidth: "calc(100vw - 32px)" } } }}
+      >
+        {children}
+      </Popover>
+    </>
+  );
+  return slot ? createPortal(button, slot) : button;
+}
 
 /** Renders `children` into the frozen report title row (inline when there is no slot, e.g. in tests). */
 export function ReportActions({ children }) {

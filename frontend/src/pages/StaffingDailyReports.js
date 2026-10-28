@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Box, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import { ReportActions, useReportExport } from "../components/staffing/ReportActions";
+import { ReportActions, ReportMoreActions, useReportExport } from "../components/staffing/ReportActions";
 import axios from "axios";
 import { apiEndpoints, getAuthHeaders } from "../config/api";
 import { getAccessToken } from "../utils/tokenManager";
@@ -141,8 +141,14 @@ function StaffingDailyReports() {
     onPrint: () => run("print"),
   });
 
+  const unitName = unit === "all" ? "All units" : units.find((u) => String(u.id) === unit)?.name || "Unit";
+  const summary = [date, form.needsShift ? SHIFTS.find((x) => x.value === shift)?.label : null, form.needsUnit ? unitName : null]
+    .filter(Boolean)
+    .join(" \u00b7 ");
+
+  // Only the form picker stays on the title row; date / shift / unit open from the "⋮" at the end.
   const controls = (
-    <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
+    <Stack direction="row" spacing={1.5} alignItems="center" className="no-print" sx={{ minWidth: 0 }}>
       <TextField select size="small" label="Form" value={kind} onChange={(e) => setKind(e.target.value)} sx={{ minWidth: 250, maxWidth: 300 }}>
         {FORMS.map((f) => (
           <MenuItem key={f.value} value={f.value}>
@@ -150,6 +156,14 @@ function StaffingDailyReports() {
           </MenuItem>
         ))}
       </TextField>
+      <Typography variant="body2" color="text.secondary" noWrap title={summary} sx={{ maxWidth: 260 }}>
+        {summary}
+      </Typography>
+    </Stack>
+  );
+
+  const moreControls = (
+    <Stack spacing={2} className="no-print">
       <TextField
         size="small"
         type="date"
@@ -157,19 +171,19 @@ function StaffingDailyReports() {
         value={date}
         onChange={(e) => setDate(e.target.value)}
         slotProps={{ inputLabel: { shrink: true } }}
-        sx={{ width: 160 }}
+        fullWidth
       />
       {form.needsShift && (
-        <TextField select size="small" label="Shift" value={shift} onChange={(e) => setShift(e.target.value)} sx={{ minWidth: 150 }}>
-          {SHIFTS.map((s) => (
-            <MenuItem key={s.value} value={s.value}>
-              {s.label}
+        <TextField select size="small" label="Shift" value={shift} onChange={(e) => setShift(e.target.value)} fullWidth>
+          {SHIFTS.map((x) => (
+            <MenuItem key={x.value} value={x.value}>
+              {x.label}
             </MenuItem>
           ))}
         </TextField>
       )}
       {form.needsUnit && (
-        <TextField select size="small" label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} sx={{ minWidth: 190 }}>
+        <TextField select size="small" label="Unit" value={unit} onChange={(e) => setUnit(e.target.value)} fullWidth>
           <MenuItem value="all">All units (a page each)</MenuItem>
           {units.map((u) => (
             <MenuItem key={u.id} value={String(u.id)}>
@@ -184,6 +198,7 @@ function StaffingDailyReports() {
   return (
     <Box className="no-print">
       <ReportActions>{controls}</ReportActions>
+      <ReportMoreActions label="Date, shift and unit">{moreControls}</ReportMoreActions>
       {error && (
         <Alert severity="error" sx={{ mb: 1.5 }}>
           {error}

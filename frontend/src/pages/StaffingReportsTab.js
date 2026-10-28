@@ -37,6 +37,7 @@ import StaffingDailyReports from "./StaffingDailyReports";
 import { StaffingHeaderSlotContext } from "../components/staffing/StaffingTabHeader";
 import {
   ReportActionsSlotContext,
+  ReportMoreSlotContext,
   ReportExportContext,
   ReportExportMenu,
   ReportPrintButton,
@@ -732,6 +733,7 @@ function StaffingReportsTab() {
   // Title, description, date controls and Export/Print share the frozen row with the page title.
   const headerSlot = useContext(StaffingHeaderSlotContext);
   const [actionsSlot, setActionsSlot] = useState(null);
+  const [moreSlot, setMoreSlot] = useState(null);
   const [summarySlot, setSummarySlot] = useState(null);
 
   // A report's summary tiles and filter row sit in the frozen header, under the date range and Export, so they
@@ -864,6 +866,8 @@ function StaffingReportsTab() {
               )}
             </>
           )}
+          {/* A report's "⋮" menu (Daily staffing forms) sits last. */}
+          <Box ref={setMoreSlot} sx={{ display: "contents" }} />
         </Box>
       </Stack>
       <Box ref={setSummarySlot} sx={{ gridColumn: "1 / -1" }} />
@@ -888,6 +892,7 @@ function StaffingReportsTab() {
       {headerSlot ? createPortal(reportHeader, headerSlot) : reportHeader}
 
       <ReportActionsSlotContext.Provider value={actionsSlot}>
+      <ReportMoreSlotContext.Provider value={moreSlot}>
       <ReportExportContext.Provider value={setChildExport}>
       <Box sx={{ display: "flex", flexDirection: { xs: "column", md: "row" }, gap: 3, alignItems: "flex-start" }}>
         {/* Report picker: a grouped list on wide screens, a select on narrow ones */}
@@ -1510,6 +1515,7 @@ function StaffingReportsTab() {
         </Box>
       </Box>
       </ReportExportContext.Provider>
+      </ReportMoreSlotContext.Provider>
       </ReportActionsSlotContext.Provider>
       <Snackbar
         open={!!subscriptionToast}
