@@ -149,6 +149,7 @@ export const MODULE_COLORS = {
   Referrals: "#6d28d9",
   Allergies: "#b45309",
   Census: "#0f766e",
+  Telehealth: "#0369a1",
 };
 
 export const OP_LABELS = {

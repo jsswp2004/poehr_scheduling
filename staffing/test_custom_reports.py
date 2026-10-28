@@ -1022,6 +1022,76 @@ class BedCensusTests(TestCase):
         self.assertEqual(made.json()["module_label"], "Census")
 
 
+class TelehealthSourceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Appointment, Facility, Unit as ApptUnit
+        from telehealth.models import TelehealthParticipant, TelehealthSession, TelehealthVisitRecord
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.doc = CustomUser.objects.create_user(
+            username="d", password="x", role="doctor", organization=self.org, first_name="Dana", last_name="Lee"
+        )
+        self.ann = CustomUser.objects.create_user(username="p1", password="x", role="patient", organization=self.org)
+        self.bo = CustomUser.objects.create_user(username="p2", password="x", role="patient", organization=self.org)
+        self.east = Facility.objects.create(organization=self.org, name="East")
+        west = Facility.objects.create(organization=self.org, name="West")
+        u_east = ApptUnit.objects.create(facility=self.east, name="East Clinic")
+        u_west = ApptUnit.objects.create(facility=west, name="West Clinic")
+        now = timezone.now()
+
+        def session(patient, unit, room, status="ended", started=True, **record):
+            appt = Appointment.all_objects.create(
+                organization=self.org, patient=patient, provider=self.doc, title="Video",
+                appointment_datetime=now, duration_minutes=30, unit=unit, is_video=True,
+            )
+            s = TelehealthSession.objects.create(
+                appointment=appt, organization=self.org, status=status, room_name=room,
+                started_at=now if started else None, ended_at=now + datetime.timedelta(minutes=20) if started else None,
+                consent_at=now if started else None,
+            )
+            TelehealthParticipant.objects.create(
+                session=s, role="patient", arrived_at=now, admitted_at=now + datetime.timedelta(minutes=4), joined_at=now if started else None
+            )
+            if record:
+                TelehealthVisitRecord.objects.create(session=s, **record)
+            return s
+
+        session(self.ann, u_east, "r1", modality="audio_video", duration_seconds=1200)
+        session(self.ann, u_east, "r2", modality="audio_only", duration_seconds=600)
+        session(self.bo, u_west, "r3", started=False)
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None):
+        return engine.run_report("telehealth", self.org, config, self.start, self.end, user=user)
+
+    def test_completion_waiting_and_length_by_provider(self):
+        res = self.run_cfg({"group_by": "provider", "columns": ["provider", "sessions", "completed", "never_started", "audio_only", "wait_minutes", "visit_minutes", "patients"]})
+        row = res["rows"][0]
+        self.assertEqual(row["provider"], "Dana Lee")
+        self.assertEqual((row["sessions"], row["completed"], row["never_started"], row["audio_only"], row["patients"]), (3, 2, 1, 1, 2))
+        self.assertEqual(row["wait_minutes"], 4.0)
+        self.assertEqual(row["visit_minutes"], 15.0)  # 20 and 10 minutes
+
+    def test_no_patient_identity_is_a_field(self):
+        keys = {f["key"] for f in engine.source_summary(engine.SOURCES["telehealth"])["fields"]}
+        self.assertFalse(keys & {"patient", "patient_name", "_patient"})
+
+    def test_a_facility_limited_user_sees_only_their_facility(self):
+        self.admin.facilities.add(self.east)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "sessions"]}, user=self.admin)
+        self.assertEqual({r["facility"]: r["sessions"] for r in res["rows"]}, {"East": 2})
+
+    def test_save_and_module_label(self):
+        body = {"name": "Video visits", "source": "telehealth", "config": {"group_by": "provider", "columns": ["provider", "sessions"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Telehealth")
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 
