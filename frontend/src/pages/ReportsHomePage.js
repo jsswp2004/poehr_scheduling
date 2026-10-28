@@ -41,6 +41,7 @@ const MODULES = [
   { key: "notes", label: "Notes" },
   { key: "visits", label: "Visits" },
   { key: "orders", label: "Orders" },
+  { key: "labs", label: "Labs" },
   { key: "linked", label: "Linked" },
 ];
 

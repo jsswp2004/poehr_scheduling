@@ -623,6 +623,92 @@ class OrdersSourceTests(TestCase):
         self.assertTrue(ReportAuditLog.objects.filter(source="orders", action="run").exists())
 
 
+class LabsSourceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Facility, LabReport, LabResultItem, Unit as ApptUnit
+        from users.models import Patient, Registration
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.doc = CustomUser.objects.create_user(
+            username="d", password="x", role="doctor", organization=self.org, first_name="Dana", last_name="Lee"
+        )
+        self.ann = CustomUser.objects.create_user(
+            username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames"
+        )
+        self.bo = CustomUser.objects.create_user(
+            username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell"
+        )
+        east = Facility.objects.create(organization=self.org, name="East")
+        west = Facility.objects.create(organization=self.org, name="West")
+        self.east = east
+        u_east = ApptUnit.objects.create(facility=east, name="East Clinic")
+        u_west = ApptUnit.objects.create(facility=west, name="West Clinic")
+        prof_a = Patient.objects.create(user=self.ann, organization=self.org, phone_number="3015550111")
+        prof_b = Patient.objects.create(user=self.bo, organization=self.org, phone_number="3015550112")
+        now = timezone.now()
+        v_east = Registration.objects.create(patient=prof_a, organization=self.org, facility=east, unit=u_east, arrival_time=now)
+        v_west = Registration.objects.create(patient=prof_b, organization=self.org, facility=west, unit=u_west, arrival_time=now)
+
+        def report(patient, title, visit, items, **kw):
+            rep = LabReport.objects.create(
+                organization=self.org, patient=patient, title=title, visit=visit,
+                collected_at=now, resulted_at=now + datetime.timedelta(hours=2), **kw,
+            )
+            for n, (name, value, flag) in enumerate(items):
+                LabResultItem.objects.create(report=rep, sort_order=n, test_name=name, value=value, abnormal_flag=flag)
+            return rep
+
+        report(self.ann, "BMP", v_east, [("Na", "140", ""), ("K", "6.9", "HH"), ("Cr", "1.9", "H")],
+               comment="Ann Ames hemolyzed", review_status="reviewed", reviewed_by=self.doc,
+               reviewed_at=now + datetime.timedelta(hours=3))
+        report(self.ann, "CBC", v_east, [("WBC", "7", "")])
+        report(self.bo, "BMP", v_west, [("Na", "128", "L")], comment="Bo Bell repeat")
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None, **kw):
+        return engine.run_report("lab_results", self.org, config, self.start, self.end, user=user, **kw)
+
+    def test_results_and_review_by_panel(self):
+        res = self.run_cfg({"group_by": "panel", "columns": ["panel", "reports", "results", "abnormal", "critical", "unreviewed", "hours_to_result", "hours_to_review"]})
+        rows = {r["panel"]: r for r in res["rows"]}
+        bmp = rows["BMP"]
+        self.assertEqual((bmp["reports"], bmp["results"], bmp["abnormal"], bmp["critical"], bmp["unreviewed"]), (2, 4, 3, 1, 1))
+        self.assertEqual(bmp["hours_to_result"], 2.0)
+        self.assertEqual(bmp["hours_to_review"], 1.0)  # resulted -> reviewed, only the reviewed report counts
+        self.assertEqual(rows["CBC"]["unreviewed"], 1)
+
+    def test_hide_phi_masks_names_and_comments(self):
+        cfg = {"columns": ["patient", "panel", "comment"]}
+        self.assertEqual(self.run_cfg(cfg)["phi"], "shown")
+        hidden = self.run_cfg(cfg, hide_phi=True)
+        self.assertEqual(hidden["phi"], "hidden")
+        self.assertNotIn("Ames", str(hidden))
+        self.assertNotIn("Bell", str(hidden))
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+
+    def test_facility_limited_user_sees_only_their_facility(self):
+        self.admin.facilities.add(self.east)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "reports"]}, user=self.admin)
+        self.assertEqual({r["facility"]: r["reports"] for r in res["rows"]}, {"East": 2})
+
+    def test_save_and_run_is_audited(self):
+        from .models import ReportAuditLog
+
+        body = {"name": "Unreviewed labs", "source": "lab_results", "config": {"group_by": "panel", "columns": ["panel", "unreviewed"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Labs")
+        ran = client_for(self.admin).post(
+            f"{BASE}/{made.json()['id']}/run/", {"start": self.start.isoformat(), "end": self.end.isoformat()}, format="json"
+        )
+        self.assertEqual(ran.status_code, 200, ran.content)
+        self.assertTrue(ReportAuditLog.objects.filter(source="lab_results", action="run").exists())
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 
