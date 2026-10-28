@@ -25,6 +25,8 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import { BuilderShell, BuilderToolbar, BUILDER_STICKY_TOP } from "../components/builders/BuilderShell";
 import ReportResultTable from "../components/reports/ReportResultTable";
 import { apiEndpoints } from "../config/api";
@@ -103,6 +105,7 @@ export default function ReportBuilderPage() {
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState("");
+  const [showNames, setShowNames] = useState(false);
 
   const source = useMemo(() => sources.find((s) => s.key === sourceKey) || null, [sources, sourceKey]);
   const fields = useMemo(() => source?.fields || [], [source]);
@@ -162,7 +165,7 @@ export default function ReportBuilderPage() {
         const range = previewRange(rangeKey);
         const res = await axios.post(
           apiEndpoints.staffingCustomReportPreview,
-          { source: sourceKey, config: apiConfig(config), start: range.start, end: range.end },
+          { source: sourceKey, config: apiConfig(config), start: range.start, end: range.end, reveal_patients: showNames },
           { headers: headers() }
         );
         if (seq === previewSeq.current) setPreview(res.data);
@@ -176,13 +179,14 @@ export default function ReportBuilderPage() {
       }
     }, 450);
     return () => clearTimeout(t);
-  }, [source, sourceKey, config, rangeKey]);
+  }, [source, sourceKey, config, rangeKey, showNames]);
 
   const patch = (changes) => setConfig((c) => ({ ...c, ...changes }));
 
   const changeSource = (key) => {
     const next = sources.find((s) => s.key === key);
     setSourceKey(key);
+    setShowNames(false);
     setConfig(emptyConfig(next));
   };
 
@@ -582,6 +586,17 @@ export default function ReportBuilderPage() {
               </Typography>
             )}
             <Box sx={{ flex: 1 }} />
+            {preview?.patient_names && (
+              <Button
+                size="small"
+                variant={showNames ? "contained" : "outlined"}
+                color={showNames ? "warning" : "inherit"}
+                startIcon={showNames ? <VisibilityOffOutlinedIcon /> : <VisibilityOutlinedIcon />}
+                onClick={() => setShowNames((v) => !v)}
+              >
+                {showNames ? "Hide patient names" : "Show patient names"}
+              </Button>
+            )}
             {source?.dated && (
               <>
                 <Typography variant="caption" color="text.secondary">

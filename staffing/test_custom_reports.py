@@ -342,3 +342,112 @@ class SchedulingSourceTests(TestCase):
         made = client_for(self.admin).post(f"{BASE}/", body, format="json")
         self.assertEqual(made.status_code, 201, made.content)
         self.assertEqual(made.json()["module_label"], "Scheduling")
+
+
+class NotesSourceTests(TestCase):
+    def setUp(self):
+        from appointments.models import Appointment, ClinicalNote, Facility, Unit as ApptUnit
+        from django.utils import timezone
+
+        from .models import ReportAuditLog  # noqa: F401
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.nurse = CustomUser.objects.create_user(
+            username="n", password="x", role="nurse", organization=self.org, first_name="Nia", last_name="Park"
+        )
+        self.registrar = CustomUser.objects.create_user(username="r", password="x", role="registrar", organization=self.org)
+        self.pat1 = CustomUser.objects.create_user(username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames")
+        self.pat2 = CustomUser.objects.create_user(username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell")
+        fac_e = Facility.objects.create(organization=self.org, name="East")
+        fac_w = Facility.objects.create(organization=self.org, name="West")
+        self.u_e = ApptUnit.objects.create(facility=fac_e, name="East Clinic")
+        self.u_w = ApptUnit.objects.create(facility=fac_w, name="West Clinic")
+        self.fac_e = fac_e
+        now = timezone.now()
+
+        def appt(patient, unit):
+            return Appointment.all_objects.create(
+                organization=self.org, patient=patient, title="Visit", appointment_datetime=now, unit=unit
+            )
+
+        def note(patient, unit, status="draft", **kw):
+            n = ClinicalNote.objects.create(
+                organization=self.org, appointment=appt(patient, unit), patient=patient, author=self.nurse,
+                note_type="nursing_assessment", status=status, **kw,
+            )
+            return n
+
+        signed = note(self.pat1, self.u_e, "signed")
+        ClinicalNote.objects.filter(pk=signed.pk).update(signed_at=signed.created_at + datetime.timedelta(hours=4))
+        note(self.pat1, self.u_e)
+        note(self.pat2, self.u_w)
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, **kw):
+        return engine.run_report("notes_documentation", self.org, config, self.start, self.end, **kw)
+
+    def test_signed_and_draft_counts_by_author(self):
+        res = self.run_cfg({"group_by": "author", "columns": ["author", "notes", "signed", "drafts", "signed_pct", "hours_to_sign", "patients"]})
+        row = res["rows"][0]
+        self.assertEqual(row["author"], "Nia Park")
+        self.assertEqual((row["notes"], row["signed"], row["drafts"]), (3, 1, 2))
+        self.assertEqual(row["signed_pct"], 33.3)
+        self.assertEqual(row["hours_to_sign"], 4.0)
+        self.assertEqual(row["patients"], 2)
+        self.assertIsNone(res["patient_names"])
+
+    def test_note_text_is_never_a_field(self):
+        keys = {f["key"] for f in engine.source_summary(engine.SOURCES["notes_documentation"])["fields"]}
+        self.assertFalse(keys & {"subjective", "objective", "assessment", "plan", "structured_data"})
+
+    def test_patient_names_are_hidden_until_revealed(self):
+        cfg = {"group_by": "patient", "columns": ["patient", "notes"]}
+        hidden = self.run_cfg(cfg)
+        self.assertEqual(hidden["patient_names"], "hidden")
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+        self.assertNotIn("Ames", str(hidden))
+        shown = self.run_cfg(cfg, reveal=True)
+        self.assertEqual(shown["patient_names"], "shown")
+        self.assertEqual({r["patient"] for r in shown["rows"]}, {"Ann Ames", "Bo Bell"})
+
+    def test_facility_limited_user_sees_only_their_facility(self):
+        self.nurse.facilities.add(self.fac_e)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "notes"]}, user=self.nurse)
+        self.assertEqual({r["facility"]: r["notes"] for r in res["rows"]}, {"East": 2})
+
+    def test_access_follows_clinical_notes_right(self):
+        names = lambda u: {s["key"] for s in client_for(u).get(f"{BASE}/sources/").json()}  # noqa: E731
+        self.assertIn("notes_documentation", names(self.nurse))
+        self.assertNotIn("notes_documentation", names(self.registrar))
+
+    def test_every_run_is_audit_logged_and_only_admins_can_read_the_log(self):
+        from .models import ReportAuditLog
+
+        body = {
+            "source": "notes_documentation", "config": {"group_by": "patient", "columns": ["patient", "notes"]},
+            "start": self.start.isoformat(), "end": self.end.isoformat(),
+        }
+        c = client_for(self.nurse)
+        r1 = c.post(f"{BASE}/preview/", body, format="json")
+        self.assertEqual(r1.status_code, 200, r1.content)
+        self.assertEqual(r1.json()["patient_names"], "hidden")
+        r2 = c.post(f"{BASE}/preview/", {**body, "reveal_patients": True}, format="json")
+        self.assertEqual(r2.json()["patient_names"], "shown")
+        rows = list(ReportAuditLog.objects.order_by("id").values_list("user_id", "names_shown", "action", "row_count"))
+        self.assertEqual(rows, [(self.nurse.id, False, "preview", 2), (self.nurse.id, True, "preview", 2)])
+        self.assertEqual(c.get(f"{BASE}/audit/").status_code, 403)
+        log = client_for(self.admin).get(f"{BASE}/audit/").json()
+        self.assertEqual([e["names_shown"] for e in log], [True, False])
+        self.assertEqual(log[0]["user"], "Nia Park")
+
+    def test_sources_without_patient_data_are_not_audited(self):
+        from .models import ReportAuditLog
+
+        body = {
+            "source": "appointments", "config": {"group_by": "provider", "columns": ["provider", "appointments"]},
+            "start": self.start.isoformat(), "end": self.end.isoformat(),
+        }
+        self.assertEqual(client_for(self.admin).post(f"{BASE}/preview/", body, format="json").status_code, 200)
+        self.assertEqual(ReportAuditLog.objects.count(), 0)

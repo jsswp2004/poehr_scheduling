@@ -968,3 +968,31 @@ class CustomReport(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.source})"
+
+
+class ReportAuditLog(models.Model):
+    """
+    Who ran a report on patient data, and whether patient names were shown. One row per run or builder
+    preview of a source that holds patient data. Report contents are never copied here, only counts.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="staffing_report_audit")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    report = models.ForeignKey(CustomReport, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_rows")
+    report_name = models.CharField(max_length=120, blank=True, default="")
+    source = models.CharField(max_length=40)
+    action = models.CharField(max_length=10, default="run")  # run | preview
+    names_shown = models.BooleanField(default=False)
+    row_count = models.PositiveIntegerField(default=0)
+    range_start = models.DateField(null=True, blank=True)
+    range_end = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [models.Index(fields=["organization", "-created_at"], name="staff_repaudit_org_idx")]
+
+    def __str__(self):
+        return f"{self.source} {self.action} by {self.user_id} ({'names' if self.names_shown else 'masked'})"
