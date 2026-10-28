@@ -63,10 +63,14 @@ export default function SecureMessagesPage() {
         py: 1.5,
         height: "calc(100vh - 80px)",
         minHeight: 460,
+        bgcolor: "background.paper",
+        borderRadius: 2,
         display: "flex",
         flexDirection: "column",
       }}
     >
+      {/* Frozen block: title row and toolbar stay under the navy bar while the page scrolls (same as Staffing Center) */}
+      <Box sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper", pt: "18px", mt: "-18px" }}>
       {/* Title row: same look as the Staffing Center */}
       <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5, mb: 1 }}>
         <Typography variant="h5">Secure Messages</Typography>
@@ -111,6 +115,8 @@ export default function SecureMessagesPage() {
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreating(true)} data-testid="new-conversation" sx={{ textTransform: "none", fontWeight: 600 }}>
           New message
         </Button>
+      </Box>
+
       </Box>
 
       <Box sx={{ display: "flex", gap: 2, flexGrow: 1, minHeight: 0 }}>
