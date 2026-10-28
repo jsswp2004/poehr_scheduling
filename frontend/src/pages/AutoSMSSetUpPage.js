@@ -18,6 +18,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import MessageLogTable from "../components/MessageLogTable";
+import AutoSetupBar from "../components/communicator/AutoSetupBar";
 
 function AutoSMSSetUpPage({ embedded = false }) {
   const [frequency, setFrequency] = useState("weekly");
@@ -135,6 +136,37 @@ function AutoSMSSetUpPage({ embedded = false }) {
       console.error("Error triggering reminders:", e);
     }
   };
+  // Inside the Communicator: settings sit in the frozen header and the log gets the full width.
+  if (embedded) {
+    const result = status
+      ? { text: status, ok: status === "Settings Saved!" }
+      : runNowStatus
+        ? { text: runNowStatus, ok: runNowStatus === "SMS messages are being sent!" }
+        : null;
+    return (
+      <Box>
+        <AutoSetupBar
+          noun="texts"
+          enabled={enabled}
+          onEnabled={setEnabled}
+          frequency={frequency}
+          onFrequency={setFrequency}
+          dayOfWeek={dayOfWeek}
+          onDayOfWeek={setDayOfWeek}
+          startDate={startDate}
+          onStartDate={setStartDate}
+          saving={saving}
+          loading={loading}
+          onSave={handleSave}
+          onRunNow={handleRunNow}
+          monthlyTotal={monthlySMSTotal}
+          result={result}
+        />
+        <MessageLogTable type="sms" />
+      </Box>
+    );
+  }
+
   return (
     <Box
       sx={{

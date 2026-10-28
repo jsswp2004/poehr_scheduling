@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Alert, Box } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -19,6 +19,7 @@ import {
   CommunicatorHeader,
   ConfirmDialog,
 } from "../components/communicator";
+import { CommunicatorToolbarSlotContext } from "../components/communicator/CommunicatorToolbarSlot";
 import CommunicatorAssistantDock, { COMMUNICATOR_CHANGED_EVENT } from "../components/CommunicatorAssistantDock";
 import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
 import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
@@ -61,11 +62,31 @@ function CommunicatorPage() {
     }
   }, [navigate, token]);
 
+  // Frozen header block: title, tabs and the open tab's toolbar. Each tab renders its toolbar into toolbarSlot.
+  const [toolbarSlot, setToolbarSlot] = useState(null);
+  const stickyObserver = useRef(null);
+  const stickyRef = useCallback((node) => {
+    if (stickyObserver.current) {
+      stickyObserver.current.disconnect();
+      stickyObserver.current = null;
+    }
+    if (!node) return;
+    // On the root so a table header can pin itself just beneath this block.
+    const publish = () =>
+      document.documentElement.style.setProperty("--communicator-sticky-h", `${node.getBoundingClientRect().height}px`);
+    publish();
+    if (typeof ResizeObserver !== "undefined") {
+      stickyObserver.current = new ResizeObserver(publish);
+      stickyObserver.current.observe(node);
+    }
+  }, []);
+
   // Custom hooks for business logic
   const contacts = useContacts(token);
   const contactForm = useContactForm();
   const bulkMessaging = useBulkMessaging(token);
   const utils = useCommunicatorUtils();
+  const optedOutCount = contacts.contacts.filter((c) => utils.hasPhone(c) && c.opted_out).length;
 
   // The assistant dispatches this after a confirmed change (a contact it added, a message it sent).
   const refreshRef = useRef(null);
@@ -163,14 +184,23 @@ function CommunicatorPage() {
   };
 
   return (
-    <Box sx={{ height: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
-      {/* Title row + tabs (same layout as the Staffing Center) */}
-      <CommunicatorHeader
-        currentTab={tab}
-        onTabChange={setTab}
-        isAdmin={isAdmin}
-        backTo="/login?redirect=communicator"
-      />
+    <Box sx={{ minHeight: "100%", p: 1.5, bgcolor: "background.paper", borderRadius: 2 }}>
+      {/* Frozen: title row, tabs and the open tab's toolbar stay under the navy bar while the page scrolls
+          (same as the Staffing Center). */}
+      <Box ref={stickyRef} sx={{ position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper", pt: "18px", mt: "-18px" }}>
+        <CommunicatorHeader
+          currentTab={tab}
+          onTabChange={setTab}
+          isAdmin={isAdmin}
+          backTo="/login?redirect=communicator"
+          chips={[
+            { label: `${contacts.contacts.length} contacts` },
+            ...(optedOutCount > 0 ? [{ label: `${optedOutCount} opted out`, color: "error" }] : []),
+          ]}
+        />
+        <Box ref={setToolbarSlot} />
+      </Box>
+      <CommunicatorToolbarSlotContext.Provider value={toolbarSlot}>
 
       {notice && (
         <Alert severity="success" sx={{ mb: 1 }} onClose={() => setNotice("")}>
@@ -218,6 +248,8 @@ function CommunicatorPage() {
 
       {/* SMS Tab (admin-only, same auto-messaging setup as the Messages page) */}
       {tab === "sms" && isAdmin && <AutoSMSSetUpPage embedded />}
+
+      </CommunicatorToolbarSlotContext.Provider>
 
       {token && <CommunicatorAssistantDock onNavigate={handleAssistantNavigate} />}
 
