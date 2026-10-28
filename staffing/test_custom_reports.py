@@ -1175,6 +1175,46 @@ class LinkedReportTests(TestCase):
         self.assertEqual(res.status_code, 403)
         self.assertEqual(self.preview(self.nurse, {"objects": ["pat", "visit", "nurse"]}, {"columns": ["visit__count"]}).status_code, 200)
 
+    def test_orders_and_labs_link_to_patients_visits_and_each_other(self):
+        from django.utils import timezone
+
+        from appointments.models import Appointment, LabReport, LabResultItem, Order, Orderable
+        from users.models import Registration
+
+        now = timezone.now()
+        cbc = Orderable.objects.create(code="cbc", name="CBC", category="laboratory")
+        appt = Appointment.all_objects.create(
+            organization=self.org, patient=self.ann.user, provider=self.nurse, title="Visit",
+            appointment_datetime=now, duration_minutes=30,
+        )
+        Registration.objects.filter(patient=self.ann, care_setting="emergency").update(appointment=appt)
+        order = Order.objects.create(
+            organization=self.org, appointment=appt, patient=self.ann.user, ordering_provider=self.nurse,
+            orderable=cbc, orderable_name="CBC", orderable_category="laboratory", status="completed",
+        )
+        report = LabReport.objects.create(
+            organization=self.org, patient=self.ann.user, order=order, title="CBC", resulted_at=now,
+        )
+        LabResultItem.objects.create(report=report, test_name="WBC", value="20", abnormal_flag="HH")
+
+        canvas = {"objects": ["pat", "visit", "order"], "keep_unmatched": False, "window_days": 7}
+        cfg = {"group_by": "visit__care", "columns": ["visit__care", "pat__count", "order__count"]}
+        res = self.preview(self.admin, canvas, cfg)
+        self.assertEqual(res.status_code, 200, res.content)
+        rows = {r["visit__care"]: r for r in res.json()["rows"]}
+        self.assertEqual(rows["ED"]["order__count"], 1)  # the order belongs to the ED visit through its appointment
+
+        canvas = {"objects": ["order", "lab", "pat"], "keep_unmatched": True, "window_days": 7}
+        cfg = {"group_by": "order__category", "columns": ["order__category", "order__count", "lab__count", "lab__critical"]}
+        res = self.preview(self.admin, canvas, cfg)
+        self.assertEqual(res.status_code, 200, res.content)
+        row = res.json()["rows"][0]
+        self.assertEqual((row["order__category"], row["order__count"], row["lab__count"], row["lab__critical"]), ("Laboratory", 1, 1, 1))
+
+        cat = client_for(self.admin).get(f"{BASE}/linked-catalog/").json()
+        keys = {o["key"] for o in cat["objects"]}
+        self.assertTrue({"order", "lab", "referral", "vaccine", "allergy"} <= keys)
+
     def test_save_run_audit_and_catalog(self):
         from .models import ReportAuditLog
 
