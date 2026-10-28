@@ -26,6 +26,7 @@ import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { getValidToken } from "../../utils/auth";
 import { formatApiError } from "../calc/builderItems";
+import { BuilderToolbar } from "../builders/BuilderShell";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own (App.js's interceptors are only wired to the default `axios` import,
@@ -378,10 +379,10 @@ function DictionaryManager() {
                     {error}
                 </Alert>
             )}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1 }}>
+            <BuilderToolbar>
                 <TextField
                     size="small"
-                    fullWidth
+                    sx={{ flex: 1, minWidth: { xs: "100%", sm: 280 }, maxWidth: 520 }}
                     value={search}
                     onChange={(e) => updateSearch(e.target.value)}
                     onKeyDown={(e) => {
@@ -406,10 +407,11 @@ function DictionaryManager() {
                         },
                     }}
                 />
-                <Button variant="contained" startIcon={<AddIcon />} onClick={addNew} sx={{ flexShrink: 0 }}>
+                <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={addNew} sx={{ flexShrink: 0 }}>
                     New Dictionary
                 </Button>
-            </Box>
+            </BuilderToolbar>
             {dictionaries && dictionaries.length > 0 && (
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
                     {terms.length > 0

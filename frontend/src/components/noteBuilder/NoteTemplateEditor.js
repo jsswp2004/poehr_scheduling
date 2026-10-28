@@ -34,6 +34,7 @@ import { describeCalc } from "../../utils/calculations";
 import { CHART_SOURCES, chartSourceLabel } from "../../utils/chartSources";
 import CalculationEditor, { blankCalc, calcProblems } from "../calc/CalculationEditor";
 import { calcCandidates, formatApiError, suggestedTotalSources, uniqueKey } from "../calc/builderItems";
+import { BUILDER_STICKY_TOP, BuilderToolbar } from "../builders/BuilderShell";
 
 // The shared `api` axios instance carries no Authorization header of its
 // own (App.js's interceptors are only wired to the default `axios` import,
@@ -423,34 +424,33 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
 
     return (
         <Box>
-            {/* Pinned header: back, title, version, note type and Save stay put; only the tab content scrolls. */}
+            {/* Back, title, version and Save live in the pinned toolbar; the Fields / Preview / Details tabs stay pinned under it. */}
+            <BuilderToolbar>
+                <Button size="small" startIcon={<ArrowBackIcon />} onClick={onBack}>
+                    Back
+                </Button>
+                <Typography variant="subtitle1" component="h2" sx={{ fontWeight: 600 }}>
+                    {name || (isNew ? "New template" : code)}
+                </Typography>
+                {version !== null && <Chip size="small" label={`v${version}`} />}
+                {kind === "note" && noteTypeLabel && <Chip size="small" color="primary" variant="outlined" label={noteTypeLabel} />}
+                <Box sx={{ flexGrow: 1 }} />
+                <Button size="small" variant="contained" startIcon={<SaveIcon />} onClick={save} disabled={saving}>
+                    Save Template
+                </Button>
+            </BuilderToolbar>
             <Box
                 data-testid="editor-sticky-header"
                 sx={{
                     position: "sticky",
-                    top: 64,
+                    top: BUILDER_STICKY_TOP,
                     zIndex: 5,
                     bgcolor: "background.paper",
                     borderBottom: 1,
                     borderColor: "divider",
                     mb: 1.5,
-                    pt: 0.5,
                 }}
             >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                    <Button size="small" startIcon={<ArrowBackIcon />} onClick={onBack}>
-                        Back
-                    </Button>
-                    <Typography variant="h6" component="h2" sx={{ fontWeight: 600 }}>
-                        {name || (isNew ? "New template" : code)}
-                    </Typography>
-                    {version !== null && <Chip size="small" label={`v${version}`} />}
-                    {kind === "note" && noteTypeLabel && <Chip size="small" color="primary" variant="outlined" label={noteTypeLabel} />}
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Button variant="contained" startIcon={<SaveIcon />} onClick={save} disabled={saving}>
-                        Save Template
-                    </Button>
-                </Box>
                 <Tabs value={tab} onChange={(e, v) => setTab(v)} sx={{ minHeight: 36, "& .MuiTab-root": { minHeight: 36, py: 0 } }}>
                     <Tab label={`Fields (${fields.length})`} value="fields" />
                     <Tab label="Preview" value="preview" />
