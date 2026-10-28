@@ -170,6 +170,10 @@ def build_files(sub, now=None, user=None):
         raise report_export.ReportError("The person who set up this subscription is no longer active.")
     today = now.astimezone(zone(sub.timezone)).date()
     start, end = period_for(sub.covers, today)
+    if sub.custom_report_id:  # a saved Reports-module report, built as the person running it
+        from . import report_subscription_custom as custom
+
+        return custom.build_files(sub, start, end, user), (start, end)
     params = {k: v for k, v in (sub.params or {}).items() if k in PARAM_KEYS}
     params.update({"start": start.isoformat(), "end": end.isoformat()})
     if sub.report == "daily_forms":
@@ -214,25 +218,39 @@ def deliver(sub, recipients=None, now=None, record=True, user=None):
     status, detail = "failed", ""
     try:
         files, (start, end) = build_files(sub, now, user=user)
-        label = report_export.REPORTS[sub.report][0]
+        label = sub.custom_report.name if sub.custom_report_id else report_export.REPORTS[sub.report][0]
         rng = _range_text(start, end)
         subject = f"{label}: {rng}"
         summary = " ".join(f.summary for f in files[:1]).strip()
+        errors = []
+        total = len(targets)
+        extra = ""
+        if sub.custom_report_id:
+            from . import report_subscription_custom as custom
+
+            owner = user or _owner(sub)
+            if custom.needs_phi_check(sub.custom_report, bool(sub.hide_phi), owner):
+                # Patient names go only to active users who may run this report themselves (checked at every send).
+                allowed = [a for a in targets if custom.recipient_ok(sub.custom_report, a)]
+                errors += [f"{a}: not allowed to receive patient names" for a in targets if a not in allowed]
+                targets = allowed
+                extra = "This report contains patient information. Do not forward it. "
+            elif sub.hide_phi:
+                extra = "Patient names and free text are hidden in this report. "
         body = (
             f"Hello,\n\n"
             f"Your {sub.get_frequency_display().lower()} {label} report for {sub.organization.name} is attached. "
-            f"It covers {rng}. {summary}\n\n"
+            f"It covers {rng}. {summary}\n\n{extra}"
             f"You get this because you are subscribed in POWER Staffing. "
             f"Manage or stop it under Reports > Subscriptions.\n"
         )
-        errors = []
         for address in targets:
             err = _send(sub, address, subject, body, files, sub.created_by if user is None else user)
             if err:
                 errors.append(f"{address}: {err}")
-        sent = len(targets) - len(errors)
+        sent = total - len(errors)
         status = "sent" if not errors else ("partial" if sent else "failed")
-        detail = f"{sent} of {len(targets)} delivered" + (("; " + "; ".join(errors))[:600] if errors else "")
+        detail = f"{sent} of {total} delivered" + (("; " + "; ".join(errors))[:600] if errors else "")
     except Exception as exc:
         logger.exception("Report subscription %s failed", getattr(sub, "pk", "?"))
         detail = str(exc)[:600]

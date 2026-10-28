@@ -883,7 +883,13 @@ class ReportSubscription(models.Model):
         blank=True,
         related_name="staffing_report_subscriptions",
     )
-    report = models.CharField(max_length=40)
+    report = models.CharField(max_length=40)  # a key of report_export.REPORTS, or "custom" for a saved Reports-module report
+    # A saved custom or linked report. Its owner (created_by) must still be able to run it, and the file is built
+    # as that person. hide_phi masks patient names and note/result text in the email.
+    custom_report = models.ForeignKey(
+        "staffing.CustomReport", null=True, blank=True, on_delete=models.CASCADE, related_name="subscriptions"
+    )
+    hide_phi = models.BooleanField(default=True)
     params = models.JSONField(default=dict, blank=True)  # report filters (profession, unit, form, ...)
     frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="weekly")
     # The calendar date of the first send. Weekly repeats on that date's weekday, monthly on its day number.

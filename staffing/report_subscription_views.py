@@ -23,7 +23,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from . import org_scope, report_export, report_subscriptions as subs
-from .models import ReportSubscription
+from .models import CustomReport, ReportSubscription
 from .views import ADMIN_ROLES, IsStaffingManager, _org_queryset
 
 
@@ -70,11 +70,13 @@ class ReportSubscriptionSerializer(serializers.ModelSerializer):
     schedule_text = serializers.SerializerMethodField()
     covers_text = serializers.SerializerMethodField()
     report_label = serializers.SerializerMethodField()
+    custom_report = serializers.PrimaryKeyRelatedField(queryset=CustomReport.objects.all(), required=False, allow_null=True)
+    patient_data = serializers.SerializerMethodField()
 
     class Meta:
         model = ReportSubscription
         fields = [
-            "id", "report", "report_label", "params", "frequency", "start_date", "weekday", "month_day", "send_hour",
+            "id", "report", "report_label", "custom_report", "hide_phi", "patient_data", "params", "frequency", "start_date", "weekday", "month_day", "send_hour",
             "timezone", "covers", "covers_text", "formats", "recipients", "is_active", "schedule_text",
             "next_run_at", "last_run_at", "last_status", "last_detail", "created_at",
         ]
@@ -87,12 +89,35 @@ class ReportSubscriptionSerializer(serializers.ModelSerializer):
         return subs.COVERS.get(obj.covers, obj.covers)
 
     def get_report_label(self, obj):
+        if obj.custom_report_id:
+            return obj.custom_report.name
         return report_export.REPORTS.get(obj.report, (obj.report,))[0]
 
+    def get_patient_data(self, obj):
+        if not obj.custom_report_id:
+            return False
+        from . import report_subscription_custom as custom
+
+        try:
+            return custom.source_info(obj.custom_report, obj.created_by)[1]
+        except Exception:
+            return False
+
     def validate_report(self, value):
-        if value not in report_export.REPORTS:
+        if value != "custom" and value not in report_export.REPORTS:
             raise serializers.ValidationError("Unknown report.")
         return value
+
+    def validate_custom_report(self, value):
+        if value is None:
+            return value
+        request = self.context["request"]
+        from . import custom_report_views as crv
+
+        report = _org_queryset(CustomReport, request).filter(pk=value.pk).first()
+        if report is None or not crv._can_see(request.user, report) or not crv._source_ok(report.source, request.user, report):
+            raise serializers.ValidationError("Choose one of your saved reports.")
+        return report
 
     def validate_recipients(self, value):
         return _clean_emails(value)
@@ -127,6 +152,11 @@ class ReportSubscriptionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         get = lambda k: attrs.get(k, getattr(self.instance, k, None))  # noqa: E731
         report, covers = get("report"), get("covers")
+        custom_report = get("custom_report")
+        if report == "custom" and custom_report is None:
+            raise serializers.ValidationError({"custom_report": "Choose which saved report to send."})
+        if report != "custom":
+            attrs["custom_report"] = None
         if covers not in subs.COVERS:
             raise serializers.ValidationError({"covers": "Choose what period the report covers."})
         if report == "daily_forms" and covers not in subs.SINGLE_DAY_COVERS:
@@ -143,7 +173,7 @@ class ReportSubscriptionSerializer(serializers.ModelSerializer):
             )
             if subs.compute_next_run(probe) is None:
                 raise serializers.ValidationError({"start_date": "Pick a date and time in the future."})
-        allowed = report_export.REPORTS[report][1]
+        allowed = ("pdf", "csv") if report == "custom" else report_export.REPORTS[report][1]
         formats = [f for f in (get("formats") or []) if f in allowed]
         if not formats:
             raise serializers.ValidationError({"formats": f"Choose a file type ({' or '.join(x.upper() for x in allowed)})."})
@@ -151,6 +181,21 @@ class ReportSubscriptionSerializer(serializers.ModelSerializer):
         if not self.partial or "recipients" in attrs:
             if not get("recipients"):
                 raise serializers.ValidationError({"recipients": "Add at least one recipient."})
+        if report == "custom" and custom_report is not None:
+            attrs["report"] = "custom"
+            hide = get("hide_phi")
+            hide = True if hide is None else hide
+            from . import report_subscription_custom as custom
+
+            if custom.needs_phi_check(custom_report, hide, self.context["request"].user):
+                bad = custom.phi_recipient_problems(custom_report, get("recipients") or [])
+                if bad:
+                    raise serializers.ValidationError(
+                        {
+                            "recipients": "With patient names shown, only active users who may run this report can receive it. "
+                            "Turn on Hide PHI to send to anyone. Not allowed: " + ", ".join(bad)
+                        }
+                    )
         return attrs
 
 
