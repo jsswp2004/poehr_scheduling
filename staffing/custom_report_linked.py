@@ -20,7 +20,7 @@ from . import custom_reports as engine
 from .custom_reports import ReportConfigError, dim, measure
 
 MAX_JOINED = 50000
-MAX_OBJECTS = 6
+MAX_OBJECTS = 8
 MAX_WINDOW = 90
 MAX_PATIENTS = 20000
 
