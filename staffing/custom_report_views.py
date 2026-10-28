@@ -9,6 +9,7 @@ Custom reports (Reports module).
     POST   /api/staffing/custom-reports/<id>/run/       {start, end, narrow}  rows for the viewer
     POST   /api/staffing/custom-reports/preview/        {source, config, start, end}  builder preview
     GET    /api/staffing/custom-reports/linked-catalog/  the things a linked report (canvas) can combine
+    GET    /api/staffing/custom-reports/documentation-catalog/?templates=a,b  notes to pick from, and their observations
     GET    /api/staffing/custom-reports/audit/          who ran reports on patient data (admins)
 
 Run and preview accept "hide_phi": true to de-identify (patient names and note text) before anything leaves
@@ -27,7 +28,7 @@ from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from . import custom_report_linked as linked, custom_reports as engine, org_scope
+from . import custom_report_documentation as documentation, custom_report_linked as linked, custom_reports as engine, org_scope
 from .models import CustomReport, ReportAuditLog
 from .views import ADMIN_ROLES, MANAGER_ROLES, IsStaffingManager, _org_queryset
 
@@ -55,8 +56,12 @@ def _source_ok(source_key, user, report=None):
     return bool(src and engine.source_allowed(src, user))
 
 
-def _prepare(source_key, config, user):
-    """(source override or None, config to run). A linked report builds its source from the canvas it carries."""
+def _prepare(source_key, config, user, org=None, hide=False):
+    """(source override or None, config to run). A linked report builds its source from the canvas it carries, a
+    documentation report from the notes and observations it carries."""
+    if source_key == documentation.DOC_KEY:
+        docs, rest = documentation.split_config(config)
+        return documentation.build_source(docs, org, user, hide), rest
     if source_key != "linked":
         return None, config
     canvas, rest = linked.split_config(config, user)
@@ -137,6 +142,18 @@ class CustomReportSerializer(serializers.ModelSerializer):
             except engine.ReportConfigError as e:
                 raise serializers.ValidationError({"config": str(e)})
             attrs["config"] = {**cfg, "canvas": canvas}
+        elif source == documentation.DOC_KEY:
+            src = engine.SOURCES[source]
+            if request is not None and not engine.source_allowed(src, request.user):
+                raise serializers.ValidationError({"source": "You do not have access to this data source."})
+            attrs["module"] = src["module"]
+            org = self.instance.organization if self.instance else org_scope.create_kwargs(request)["organization"]
+            try:
+                docs, rest = documentation.split_config(get("config", {}))
+                cfg = engine.clean_config(source, rest, documentation.build_source(docs, org, request.user))
+            except engine.ReportConfigError as e:
+                raise serializers.ValidationError({"config": str(e)})
+            attrs["config"] = {**cfg, "docs": docs}
         else:
             src = engine.SOURCES.get(source)
             if src is None:
@@ -223,14 +240,15 @@ class CustomReportViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="sources")
     def sources(self, request):
-        return Response([engine.source_summary(s) for s in engine.SOURCES.values() if engine.source_allowed(s, request.user)])
+        # Documentation reports have their own builder (they carry the notes and observations they were built for).
+        return Response([engine.source_summary(s) for s in engine.SOURCES.values() if s["key"] != documentation.DOC_KEY and engine.source_allowed(s, request.user)])
 
     @action(detail=True, methods=["post"], url_path="run")
     def run(self, request, pk=None):
         report = self.get_object()
         try:
             start, end = _range(request, report.source)
-            src, cfg = _prepare(report.source, report.config, request.user)
+            src, cfg = _prepare(report.source, report.config, request.user, report.organization, _hide(request))
             result = engine.run_report(
                 report.source, report.organization, cfg, start, end, request.data.get("narrow"),
                 user=request.user, hide_phi=_hide(request), src=src,
@@ -257,7 +275,7 @@ class CustomReportViewSet(viewsets.ModelViewSet):
             return Response({"error": "You do not have access to this data source."}, status=status.HTTP_403_FORBIDDEN)
         try:
             start, end = _range(request, source)
-            src, cfg = _prepare(source, request.data.get("config"), request.user)
+            src, cfg = _prepare(source, request.data.get("config"), request.user, org, _hide(request))
             result = engine.run_report(
                 source, org, cfg, start, end, None, user=request.user, hide_phi=_hide(request), src=src
             )
@@ -269,6 +287,17 @@ class CustomReportViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="linked-catalog")
     def linked_catalog(self, request):
         return Response(linked.catalog(request.user))
+
+    @action(detail=False, methods=["get"], url_path="documentation-catalog")
+    def documentation_catalog(self, request):
+        """The notes to pick from and the observations of the ones picked (?templates=a,b)."""
+        if not _source_ok(documentation.DOC_KEY, request.user):
+            return Response({"error": "You do not have access to documentation reports."}, status=status.HTTP_403_FORBIDDEN)
+        org = org_scope.acting_org(request)
+        if org is None:
+            return Response({"error": "Choose an organization first."}, status=status.HTTP_400_BAD_REQUEST)
+        codes = [c for c in (request.query_params.get("templates") or "").split(",") if c.strip()]
+        return Response(documentation.catalog(request.user, org, codes))
 
     @action(detail=False, methods=["get"], url_path="audit")
     def audit(self, request):

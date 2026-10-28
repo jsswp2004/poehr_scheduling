@@ -255,7 +255,7 @@ export default function ReportViewerPage() {
               />
             )}
             {report?.can_edit && (
-              <Button variant="outlined" color="inherit" sx={{ minHeight: 40 }} onClick={() => navigate(report.source === "linked" ? `/reports/${id}/canvas` : `/reports/${id}/edit`)}>
+              <Button variant="outlined" color="inherit" sx={{ minHeight: 40 }} onClick={() => navigate(report.source === "linked" ? `/reports/${id}/canvas` : report.source === "note_documentation" ? `/reports/${id}/documentation` : `/reports/${id}/edit`)}>
                 Edit report
               </Button>
             )}

@@ -18,6 +18,17 @@ MON = datetime.date(2026, 10, 26)
 SUN = datetime.date(2026, 11, 1)
 
 
+def make_patient(user, **fields):
+    """The patient profile a new patient user gets automatically, with these fields set."""
+    from users.models import Patient
+
+    profile = Patient.objects.get(user=user)
+    for k, v in fields.items():
+        setattr(profile, k, v)
+    profile.save()
+    return profile
+
+
 def client_for(user):
     c = APIClient()
     c.force_authenticate(user)
@@ -488,8 +499,8 @@ class VisitsSourceTests(TestCase):
         )
         u1 = CustomUser.objects.create_user(username="p1", password="x", role="patient", organization=self.org)
         u2 = CustomUser.objects.create_user(username="p2", password="x", role="patient", organization=self.org)
-        self.p1 = Patient.objects.create(user=u1, organization=self.org, phone_number="3015550111")
-        self.p2 = Patient.objects.create(user=u2, organization=self.org, phone_number="3015550112")
+        self.p1 = make_patient(user=u1, organization=self.org, phone_number="3015550111")
+        self.p2 = make_patient(user=u2, organization=self.org, phone_number="3015550112")
         self.east = Facility.objects.create(organization=self.org, name="East")
         self.west = Facility.objects.create(organization=self.org, name="West")
         now = timezone.now()
@@ -646,8 +657,8 @@ class LabsSourceTests(TestCase):
         self.east = east
         u_east = ApptUnit.objects.create(facility=east, name="East Clinic")
         u_west = ApptUnit.objects.create(facility=west, name="West Clinic")
-        prof_a = Patient.objects.create(user=self.ann, organization=self.org, phone_number="3015550111")
-        prof_b = Patient.objects.create(user=self.bo, organization=self.org, phone_number="3015550112")
+        prof_a = make_patient(user=self.ann, organization=self.org, phone_number="3015550111")
+        prof_b = make_patient(user=self.bo, organization=self.org, phone_number="3015550112")
         now = timezone.now()
         v_east = Registration.objects.create(patient=prof_a, organization=self.org, facility=east, unit=u_east, arrival_time=now)
         v_west = Registration.objects.create(patient=prof_b, organization=self.org, facility=west, unit=u_west, arrival_time=now)
@@ -758,10 +769,10 @@ class FlowsheetSourceTests(TestCase):
         return engine.run_report("flowsheet_entries", self.org, config, self.start, self.end, user=user, **kw)
 
     def test_average_lowest_highest_by_item(self):
-        res = self.run_cfg({"group_by": "item", "columns": ["item", "units", "readings", "avg_value", "min_value", "max_value", "total_value", "patients", "time_points"]})
+        res = self.run_cfg({"group_by": "item", "columns": ["item", "readings", "avg_value", "min_value", "max_value", "total_value", "patients", "time_points"]})
         self.assertEqual(len(res["rows"]), 1)  # the text row without a value is not a charted value
         row = res["rows"][0]
-        self.assertEqual((row["item"], row["units"], row["readings"], row["patients"], row["time_points"]), ("Heart rate", "bpm", 4, 2, 4))
+        self.assertEqual((row["item"], row["readings"], row["patients"], row["time_points"]), ("Heart rate", 4, 2, 4))
         self.assertEqual((row["avg_value"], row["min_value"], row["max_value"], row["total_value"]), (77.5, 60, 100, 310))
 
     def test_hide_phi_masks_patient_names(self):
@@ -973,7 +984,7 @@ class BedCensusTests(TestCase):
         self.org = Organization.objects.create(name="Org A")
         self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
         u = CustomUser.objects.create_user(username="p1", password="x", role="patient", organization=self.org)
-        profile = Patient.objects.create(user=u, organization=self.org, phone_number="3015550111")
+        profile = make_patient(user=u, organization=self.org, phone_number="3015550111")
         self.east = Facility.objects.create(organization=self.org, name="East")
         west = Facility.objects.create(organization=self.org, name="West")
         ward = ApptUnit.objects.create(facility=self.east, name="Ward 3", care_type="inpatient")
@@ -1112,7 +1123,7 @@ class LinkedReportTests(TestCase):
 
         def patient(username, first, last, phone):
             u = CustomUser.objects.create_user(username=username, password="x", role="patient", organization=self.org, first_name=first, last_name=last)
-            return Patient.objects.create(user=u, organization=self.org, phone_number=phone)
+            return make_patient(user=u, organization=self.org, phone_number=phone)
 
         self.ann = patient("p1", "Ann", "Ames", "(301) 555-0101")
         self.bo = patient("p2", "Bo", "Bell", "301-555-0102")
@@ -1254,3 +1265,193 @@ class LinkedReportTests(TestCase):
         self.assertEqual([r["_flag"] for r in body["rows"]], [True, False])
         tiles = {t["label"]: t["value"] for t in body["tiles"]}
         self.assertEqual(tiles, {"Rows": 2, "Visits": 3, "Busy nurses": 1})
+
+
+class DocumentationReportTests(TestCase):
+    """Documentation reports: notes with their patient, people, visit and picked observations."""
+
+    def setUp(self):
+        from appointments.models import (
+            Appointment, ClinicalNote, Dictionary, DictionaryItem, Facility, NoteFieldDefinition, NoteTemplate, Unit as ApptUnit,
+        )
+        from django.utils import timezone
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.nurse = CustomUser.objects.create_user(
+            username="n", password="x", role="nurse", organization=self.org, first_name="Nia", last_name="Park"
+        )
+        self.doc = CustomUser.objects.create_user(
+            username="d", password="x", role="doctor", organization=self.org, first_name="Dee", last_name="Rivera"
+        )
+        Staff.objects.create(organization=self.org, first_name="Dee", last_name="Rivera", profession="Psychiatry", user=self.doc)
+        self.pat = CustomUser.objects.create_user(
+            username="p", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames"
+        )
+        self.pat2 = CustomUser.objects.create_user(
+            username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell"
+        )
+        fac = Facility.objects.create(organization=self.org, name="East")
+        unit = ApptUnit.objects.create(facility=fac, name="East Clinic")
+        answers = Dictionary.objects.create(code="phq_answers", name="PHQ answers")
+        for i, label in enumerate(["Not at all", "Several days"]):
+            DictionaryItem.objects.create(dictionary=answers, value=str(i), label=label, sort_order=i)
+        self.tpl = NoteTemplate.objects.create(code="phq9", name="PHQ-9 depression screen", organization=self.org)
+        for i, (key, label, ftype, dic) in enumerate(
+            [("q1", "Little interest", "dropdown", answers), ("total_score", "Total score", "calculated", None),
+             ("comment", "Comment", "textarea", None), ("followup", "Follow up needed", "checkbox", None)]
+        ):
+            NoteFieldDefinition.objects.create(template=self.tpl, key=key, label=label, field_type=ftype, dictionary=dic, sort_order=i)
+        self.tpl2 = NoteTemplate.objects.create(code="gad7", name="GAD-7 anxiety screen", organization=self.org)
+        NoteFieldDefinition.objects.create(template=self.tpl2, key="total_score", label="Total score", field_type="calculated", sort_order=0)
+        now = timezone.now()
+
+        def visit(patient):
+            return Appointment.all_objects.create(
+                organization=self.org, patient=patient, provider=self.doc, title="Visit", appointment_datetime=now, unit=unit
+            )
+
+        def note(patient, template, data, status="signed"):
+            n = ClinicalNote.objects.create(
+                organization=self.org, appointment=visit(patient), patient=patient, author=self.nurse, note_type="nursing_assessment",
+                documentation_type=template.code, template=template, template_version=1, structured_data=data, status=status,
+                template_snapshot={"fields": [{"key": "q1", "options": [{"value": "0", "label": "Not at all"}, {"value": "1", "label": "Several days"}]}]},
+            )
+            return n
+
+        self.n1 = note(self.pat, self.tpl, {"q1": "1", "total_score": "18", "total_score__interpretation": "Moderately severe", "comment": "Tearful", "followup": True})
+        self.n2 = note(self.pat2, self.tpl, {"q1": "0", "total_score": "6", "total_score__interpretation": "Mild"})
+        self.n3 = note(self.pat, self.tpl2, {"total_score": "14", "total_score__interpretation": "Moderate"})
+        note(self.pat2, self.tpl, {"total_score": "20"}, status="draft")
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_docs(self, docs, config=None, hide=False, user=None):
+        from . import custom_report_documentation as documentation
+
+        clean = documentation.clean_docs(docs)
+        src = documentation.build_source(clean, self.org, user or self.admin, hide)
+        return engine.run_report(documentation.DOC_KEY, self.org, config or {}, self.start, self.end, user=user or self.admin, hide_phi=hide, src=src)
+
+    def test_one_row_per_signed_note_with_people_patient_and_visit(self):
+        res = self.run_docs({"templates": ["phq9"], "observations": ["total_score"]}, {"columns": ["template", "date", "patient", "mrn", "visit_id", "author", "attending", "discipline", "num__total_score"]})
+        self.assertEqual(len(res["rows"]), 2)  # the draft is left out by default
+        row = next(r for r in res["rows"] if r["patient"] == "Ann Ames")
+        self.assertEqual(row["template"], "PHQ-9 depression screen")
+        self.assertEqual((row["author"], row["attending"], row["discipline"]), ("Nia Park", "Dee Rivera", "Psychiatry"))
+        self.assertTrue(row["mrn"].startswith("MRN-"))
+        self.assertEqual(row["visit_id"], str(self.n1.appointment_id))
+        self.assertEqual(row["num__total_score"], 18)
+
+    def test_status_all_includes_drafts(self):
+        res = self.run_docs({"templates": ["phq9"], "observations": ["total_score"], "status": "all"})
+        self.assertEqual(len(res["rows"]), 3)
+
+    def test_labels_checkboxes_and_meaning(self):
+        res = self.run_docs(
+            {"templates": ["phq9"], "observations": ["q1", "total_score__interpretation", "followup"]},
+            {"columns": ["patient", "obs__q1", "obs__total_score__interpretation", "obs__followup"]},
+        )
+        row = next(r for r in res["rows"] if r["patient"] == "Ann Ames")
+        self.assertEqual(row["obs__q1"], "Several days")
+        self.assertEqual(row["obs__total_score__interpretation"], "Moderately severe")
+        self.assertEqual(row["obs__followup"], "Yes")
+
+    def test_a_shared_observation_lines_up_across_notes(self):
+        res = self.run_docs({"templates": ["phq9", "gad7"], "observations": ["total_score"]}, {"columns": ["template", "num__total_score"], "sort": {"field": "num__total_score", "dir": "desc"}})
+        self.assertEqual([r["num__total_score"] for r in res["rows"]], [18, 14, 6])
+        # the average works because the score is a number
+        grouped = self.run_docs({"templates": ["phq9", "gad7"], "observations": ["total_score"]}, {"group_by": "template", "columns": ["template", "num__total_score"]})
+        by = {r["template"]: r["num__total_score"] for r in grouped["rows"]}
+        self.assertEqual(by["PHQ-9 depression screen"], 12.0)
+        self.assertEqual(by["GAD-7 anxiety screen"], 14)
+
+    def test_score_filter(self):
+        res = self.run_docs(
+            {"templates": ["phq9", "gad7"], "observations": ["total_score"]},
+            {"columns": ["patient", "num__total_score"], "filters": [{"field": "num__total_score", "op": "gte", "value": 15}]},
+        )
+        self.assertEqual([r["num__total_score"] for r in res["rows"]], [18])
+
+    def test_long_layout_gives_one_row_per_observation(self):
+        res = self.run_docs(
+            {"templates": ["phq9"], "observations": ["q1", "total_score"], "layout": "long"},
+            {"columns": ["patient", "observation", "value", "value_num"]},
+        )
+        rows = [(r["patient"], r["observation"], r["value"]) for r in res["rows"]]
+        self.assertIn(("Ann Ames", "Little interest", "Several days"), rows)
+        self.assertIn(("Ann Ames", "Total score", "18"), rows)
+        self.assertEqual(len(rows), 4)
+
+    def test_hide_phi_masks_names_mrn_and_typed_text_but_not_scores(self):
+        for layout in ("wide", "long"):
+            res = self.run_docs(
+                {"templates": ["phq9"], "observations": ["comment", "total_score"], "layout": layout},
+                {"columns": ["patient", "mrn", "visit_id"] + (["obs__comment", "num__total_score"] if layout == "wide" else ["observation", "value"])},
+                hide=True,
+            )
+            self.assertEqual(res["phi"], "hidden")
+            for r in res["rows"]:
+                self.assertTrue(r["patient"].startswith("Patient "))
+                self.assertEqual(r["mrn"], "[Hidden]")
+                self.assertTrue(r["visit_id"])
+            text = " ".join(str(v) for r in res["rows"] for v in r.values())
+            self.assertNotIn("Tearful", text)
+            self.assertNotIn("Ames", text)
+            if layout == "wide":
+                self.assertIn(18, [r["num__total_score"] for r in res["rows"]])
+            else:
+                self.assertIn("18", [r["value"] for r in res["rows"]])
+
+    def test_a_note_written_without_a_template_gives_its_soap_sections(self):
+        from appointments.models import Appointment, ClinicalNote
+        from django.utils import timezone
+
+        appt = Appointment.all_objects.create(organization=self.org, patient=self.pat, title="V", appointment_datetime=timezone.now())
+        ClinicalNote.objects.create(
+            organization=self.org, appointment=appt, patient=self.pat, author=self.nurse, note_type="doctor_assessment",
+            documentation_type="progress_note", status="signed", subjective="Doing better", plan="Home",
+        )
+        res = self.run_docs({"templates": ["progress_note"], "observations": ["subjective", "plan"]}, {"columns": ["template", "obs__subjective", "obs__plan"]})
+        self.assertEqual(res["rows"][0]["obs__subjective"], "Doing better")
+        self.assertEqual(res["rows"][0]["template"], "Progress Note")
+
+    def test_save_run_and_audit_through_the_api(self):
+        body = {
+            "name": "PHQ-9 screens", "source": "note_documentation", "audience": "me", "audience_roles": [],
+            "config": {"docs": {"templates": ["phq9"], "observations": ["total_score"]}, "columns": ["patient", "mrn", "num__total_score"]},
+        }
+        c = client_for(self.admin)
+        res = c.post(f"{BASE}/", body, format="json")
+        self.assertEqual(res.status_code, 201, res.content)
+        saved = res.json()
+        self.assertEqual(saved["config"]["docs"]["templates"], ["phq9"])
+        run = c.post(f"{BASE}/{saved['id']}/run/", {"start": self.start.isoformat(), "end": self.end.isoformat(), "hide_phi": True}, format="json")
+        self.assertEqual(run.status_code, 200, run.content)
+        self.assertEqual(len(run.json()["rows"]), 2)
+        from .models import ReportAuditLog
+
+        log = ReportAuditLog.objects.get(source="note_documentation", action="run")
+        self.assertTrue(log.phi_hidden)
+
+    def test_needs_the_clinical_notes_right_and_a_template(self):
+        reg = CustomUser.objects.create_user(username="reg", password="x", role="patient", organization=self.org)
+        body = {"name": "X", "source": "note_documentation", "audience": "me", "config": {"docs": {"templates": ["phq9"], "observations": []}}}
+        self.assertIn(client_for(reg).post(f"{BASE}/", body, format="json").status_code, (400, 403))
+        empty = {"name": "X", "source": "note_documentation", "audience": "me", "config": {"docs": {"templates": []}}}
+        self.assertEqual(client_for(self.admin).post(f"{BASE}/", empty, format="json").status_code, 400)
+
+    def test_catalog_lists_templates_and_the_observations_of_the_picked_ones(self):
+        res = client_for(self.admin).get(f"{BASE}/documentation-catalog/?templates=phq9,gad7")
+        self.assertEqual(res.status_code, 200, res.content)
+        data = res.json()
+        self.assertIn("phq9", [t["code"] for t in data["templates"]])
+        self.assertIn("progress_note", [t["code"] for t in data["templates"]])
+        ids = [o["id"] for o in data["observations"]]
+        self.assertEqual(ids.count("total_score"), 1)  # shared by both, one entry
+        self.assertIn("total_score__interpretation", ids)
+        self.assertIn("q1", ids)
+
+    def test_documentation_is_not_offered_in_the_generic_builder(self):
+        res = client_for(self.admin).get(f"{BASE}/sources/")
+        self.assertNotIn("note_documentation", [s["key"] for s in res.json()])

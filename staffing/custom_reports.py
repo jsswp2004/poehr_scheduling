@@ -692,3 +692,4 @@ from . import custom_report_sources_referrals  # noqa: E402,F401
 from . import custom_report_sources_allergies  # noqa: E402,F401
 from . import custom_report_sources_census  # noqa: E402,F401
 from . import custom_report_sources_telehealth  # noqa: E402,F401
+from . import custom_report_documentation  # noqa: E402,F401
