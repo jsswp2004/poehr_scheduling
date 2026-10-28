@@ -39,11 +39,11 @@ def dim(key, label, type_="text", phi=None):
     return {"key": key, "label": label, "kind": "dimension", "type": type_, "phi": phi}
 
 
-def measure(key, label, type_="number", agg="sum", of=None, ratio=None):
-    return {"key": key, "label": label, "kind": "measure", "type": type_, "agg": agg, "of": of, "ratio": ratio}
+def measure(key, label, type_="number", agg="sum", of=None, ratio=None, dedupe=None):
+    return {"key": key, "label": label, "kind": "measure", "type": type_, "agg": agg, "of": of, "ratio": ratio, "dedupe": dedupe}
 
 
-MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes"}
+MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes", "linked": "Linked"}
 
 
 def register(
@@ -428,9 +428,9 @@ def _clean_filter(f, fields, label="Filter"):
     return {"field": key, "op": op, "value": value}
 
 
-def clean_config(source_key, config):
-    """Validate and normalise a report config. Raises ReportConfigError."""
-    src = get_source(source_key)
+def clean_config(source_key, config, src=None):
+    """Validate and normalise a report config. Raises ReportConfigError. `src` is a source built on the fly (linked reports)."""
+    src = src or get_source(source_key)
     fields = field_map(src)
     config = config if isinstance(config, dict) else {}
     group_by = config.get("group_by") or None
@@ -519,6 +519,14 @@ def _agg_rows(rows, f, fields):
         if not den:
             return None
         return num / den * (100.0 if f["type"] == "percent" else 1.0)
+    if f.get("dedupe"):  # linked reports: a row repeats once per match, so count each record once
+        seen, kept = set(), []
+        for r in rows:
+            k = r.get(f["dedupe"])
+            if k is not None and k not in seen:
+                seen.add(k)
+                kept.append(r)
+        rows = kept
     vals = [r.get(f["key"]) for r in rows if r.get(f["key"]) is not None]
     agg = f["agg"]
     if agg == "distinct":
@@ -550,7 +558,7 @@ def _single(row, f):
             return None
         return (row.get(f["ratio"][0]) or 0) / den * (100.0 if f["type"] == "percent" else 1.0)
     if f["agg"] == "distinct":
-        return 1
+        return 1 if row.get(f["of"]) is not None else 0
     return row.get(f["key"])
 
 
@@ -571,14 +579,14 @@ def _hide_phi(detail, fields):
     return out
 
 
-def run_report(source_key, org, config, start, end, narrow=None, user=None, hide_phi=False):
+def run_report(source_key, org, config, start, end, narrow=None, user=None, hide_phi=False, src=None):
     """
     Returns {"columns", "rows", "totals", "tiles", "truncated", "source"}.
     `narrow` is a list of extra filters from the viewer's pickers (never widens the saved filters).
     """
-    src = get_source(source_key)
+    src = src or get_source(source_key)
     fields = field_map(src)
-    cfg = clean_config(source_key, config)
+    cfg = clean_config(source_key, config, src)
     if src["dated"]:
         if start is None or end is None or end < start:
             raise ReportConfigError("Choose a start and end date.")

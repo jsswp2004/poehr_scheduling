@@ -472,3 +472,110 @@ class NotesSourceTests(TestCase):
         }
         self.assertEqual(client_for(self.admin).post(f"{BASE}/preview/", body, format="json").status_code, 200)
         self.assertEqual(ReportAuditLog.objects.count(), 0)
+
+
+class LinkedReportTests(TestCase):
+    """Reports that combine several kinds of records (the canvas)."""
+
+    def setUp(self):
+        from django.utils import timezone
+
+        from communicator.models import MessageLog
+        from users.models import Patient, Registration
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.nurse = CustomUser.objects.create_user(
+            username="n", password="x", role="nurse", organization=self.org, first_name="Nia", last_name="Park"
+        )
+        self.nurse2 = CustomUser.objects.create_user(
+            username="n2", password="x", role="nurse", organization=self.org, first_name="Omar", last_name="Reyes"
+        )
+
+        def patient(username, first, last, phone):
+            u = CustomUser.objects.create_user(username=username, password="x", role="patient", organization=self.org, first_name=first, last_name=last)
+            return Patient.objects.create(user=u, organization=self.org, phone_number=phone)
+
+        self.ann = patient("p1", "Ann", "Ames", "(301) 555-0101")
+        self.bo = patient("p2", "Bo", "Bell", "301-555-0102")
+        self.cy = patient("p3", "Cy", "Cole", "3015550103")
+        now = timezone.now()
+        for number in ("+13015550101", "+13015550102", "+13015550103", "+13015559999"):
+            MessageLog.objects.create(user=self.admin, recipient=number, body="Reminder", message_type="sms", status="sent")
+        Registration.objects.create(patient=self.ann, organization=self.org, care_setting="emergency", arrival_time=now, assigned_nurse=self.nurse)
+        Registration.objects.create(patient=self.ann, organization=self.org, care_setting="ambulatory", arrival_time=now, assigned_nurse=self.nurse2)
+        Registration.objects.create(patient=self.bo, organization=self.org, care_setting="ambulatory", arrival_time=now, assigned_nurse=self.nurse)
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def preview(self, user, canvas, config=None, **extra):
+        body = {
+            "source": "linked", "config": {"canvas": canvas, **(config or {})},
+            "start": self.start.isoformat(), "end": self.end.isoformat(), **extra,
+        }
+        return client_for(user).post(f"{BASE}/preview/", body, format="json")
+
+    def test_texted_patients_by_visit_type(self):
+        canvas = {"objects": ["msg", "pat", "visit"], "keep_unmatched": True, "window_days": 7}
+        cfg = {"group_by": "visit__care", "columns": ["visit__care", "pat__count", "msg__count", "visit__count"]}
+        res = self.preview(self.admin, canvas, cfg)
+        self.assertEqual(res.status_code, 200, res.content)
+        rows = {r["visit__care"]: r for r in res.json()["rows"]}
+        self.assertEqual(rows["ED"]["pat__count"], 1)
+        self.assertEqual(rows["Clinic"]["pat__count"], 2)  # Ann and Bo
+        self.assertEqual(rows["No visit"]["pat__count"], 1)  # Cy was texted and never came in
+        self.assertEqual(res.json()["totals"]["msg__count"], 4)  # the unmatched number is kept
+        self.assertEqual(res.json()["totals"]["pat__count"], 3)
+
+    def test_leaving_unmatched_out_drops_patients_without_a_visit(self):
+        canvas = {"objects": ["msg", "pat", "visit"], "keep_unmatched": False, "window_days": 7}
+        res = self.preview(self.admin, canvas, {"group_by": "visit__care", "columns": ["visit__care", "pat__count"]})
+        self.assertEqual({r["visit__care"] for r in res.json()["rows"]}, {"ED", "Clinic"})
+
+    def test_nurse_for_each_patient_through_the_visit(self):
+        canvas = {"objects": ["pat", "visit", "nurse"], "keep_unmatched": False, "window_days": 0}
+        res = self.preview(self.admin, canvas, {"columns": ["nurse__name", "pat__name", "visit__care"]})
+        self.assertEqual(res.status_code, 200, res.content)
+        pairs = {(r["nurse__name"], r["pat__name"], r["visit__care"]) for r in res.json()["rows"]}
+        self.assertEqual(pairs, {("Nia Park", "Ann Ames", "ED"), ("Omar Reyes", "Ann Ames", "Clinic"), ("Nia Park", "Bo Bell", "Clinic")})
+
+    def test_hide_phi_masks_the_patient_name_in_a_linked_report(self):
+        canvas = {"objects": ["pat", "visit", "nurse"], "keep_unmatched": False, "window_days": 0}
+        res = self.preview(self.admin, canvas, {"columns": ["nurse__name", "pat__name"]}, hide_phi=True)
+        self.assertEqual(res.json()["phi"], "hidden")
+        self.assertNotIn("Ames", str(res.json()))
+        self.assertEqual({r["pat__name"] for r in res.json()["rows"]}, {"Patient 1", "Patient 2"})
+
+    def test_unconnected_things_say_what_to_add(self):
+        res = self.preview(self.admin, {"objects": ["msg", "visit"]}, {"columns": ["msg__count"]})
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("Add Patient", res.json()["error"])
+
+    def test_every_object_keeps_its_own_right(self):
+        canvas = {"objects": ["msg", "pat", "visit"]}
+        res = self.preview(self.nurse, canvas, {"columns": ["visit__count"]})  # a nurse lacks the message log right
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(self.preview(self.nurse, {"objects": ["pat", "visit", "nurse"]}, {"columns": ["visit__count"]}).status_code, 200)
+
+    def test_save_run_audit_and_catalog(self):
+        from .models import ReportAuditLog
+
+        canvas = {"objects": ["pat", "visit", "nurse"], "keep_unmatched": False, "window_days": 0}
+        body = {
+            "name": "Nurse per patient", "source": "linked", "audience": "me",
+            "config": {"canvas": canvas, "columns": ["nurse__name", "pat__name"]},
+        }
+        made = client_for(self.nurse).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Linked")
+        self.assertEqual(made.json()["source_label"], "Linked report")
+        run = {"start": self.start.isoformat(), "end": self.end.isoformat()}
+        res = client_for(self.nurse).post(f"{BASE}/{made.json()['id']}/run/", run, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual(len(res.json()["rows"]), 3)
+        self.assertEqual(ReportAuditLog.objects.filter(source="linked", action="run", user=self.nurse).count(), 1)
+        cat = client_for(self.nurse).get(f"{BASE}/linked-catalog/").json()
+        allowed = {o["key"]: o["allowed"] for o in cat["objects"]}
+        self.assertTrue(allowed["visit"])
+        self.assertFalse(allowed["msg"])
+        self.assertTrue(any(l["fuzzy"] and l["label"] == "matched by phone" for l in cat["links"]))

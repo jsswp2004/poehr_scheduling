@@ -222,7 +222,7 @@ export default function ReportViewerPage() {
               </span>
             </Tooltip>
             {report?.can_edit && (
-              <Button variant="outlined" color="inherit" sx={{ minHeight: 40 }} onClick={() => navigate(`/reports/${id}/edit`)}>
+              <Button variant="outlined" color="inherit" sx={{ minHeight: 40 }} onClick={() => navigate(report.source === "linked" ? `/reports/${id}/canvas` : `/reports/${id}/edit`)}>
                 Edit report
               </Button>
             )}

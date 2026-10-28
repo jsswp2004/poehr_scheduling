@@ -134,6 +134,15 @@ export const slug = (s) =>
     .replace(/^-+|-+$/g, "") || "report";
 
 // ----- filter wording ------------------------------------------------------
+// Colour of a module in the canvas and the relationship map.
+export const MODULE_COLORS = {
+  Communicator: "#7a4fb5",
+  Patients: "#44546f",
+  Staffing: "#b86a00",
+  Scheduling: "#1769c2",
+  Notes: "#1b7a43",
+};
+
 export const OP_LABELS = {
   is: "is",
   is_not: "is not",
