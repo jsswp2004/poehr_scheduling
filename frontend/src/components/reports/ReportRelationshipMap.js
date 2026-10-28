@@ -13,6 +13,11 @@ const POS = {
   nurse: [120, 370],
   doc: [640, 370],
   shift: [370, 410],
+  order: [720, 290],
+  referral: [720, 440],
+  allergy: [160, 175],
+  vaccine: [160, 235],
+  lab: [160, 295],
 };
 const W = 150;
 const H = 54;
@@ -34,7 +39,7 @@ export default function ReportRelationshipMap({ catalog }) {
         These are the things you can combine in a report and how each one connects to the next. Anything joined by a line can go on the same canvas.
       </Typography>
       <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 1, overflowX: "auto", bgcolor: "background.paper" }}>
-        <svg viewBox="0 0 900 490" role="img" aria-label="How messages, patients, visits, notes and staff connect" style={{ display: "block", minWidth: 760, width: "100%", height: "auto" }}>
+        <svg viewBox="0 0 900 520" role="img" aria-label="How messages, patients, visits, orders, labs, notes and staff connect" style={{ display: "block", minWidth: 760, width: "100%", height: "auto" }}>
           {links.map((l) => {
             const [x1, y1] = center(l.a);
             const [x2, y2] = center(l.b);

@@ -251,6 +251,117 @@ def load_shift(org, start, end, user=None):
     return rows
 
 
+def load_order(org, start, end, user=None):
+    from users.facility_scope import assigned_facility_ids
+
+    from appointments.models import Order
+
+    qs = (
+        Order.objects.filter(organization=org, created_at__date__gte=start, created_at__date__lte=end)
+        .select_related("ordering_provider").order_by("created_at")
+    )
+    ids = assigned_facility_ids(user)
+    if ids is not None:
+        qs = qs.filter(Q(appointment__unit__facility_id__in=ids) | Q(appointment__unit__isnull=True))
+    rows = []
+    for o in qs:
+        d = _local_date(o.created_at)
+        hours = None
+        if o.completed_at:
+            hours = max((o.completed_at - (o.signed_at or o.created_at)).total_seconds() / 3600.0, 0)
+        rows.append(
+            {"_id": o.pk, "_d": d, "_appt": o.appointment_id, "_patient": o.patient_id, "_doc": o.ordering_provider_id,
+             "date": d.isoformat(), "category": _pretty(o.orderable_category), "order": o.orderable_name or "Unknown",
+             "priority": _pretty(o.priority), "status": _pretty(o.status), "hours_to_complete": hours}
+        )
+    return rows
+
+
+def load_lab(org, start, end, user=None):
+    from users.facility_scope import visit_facility_q
+
+    from appointments.models import LabReport
+
+    qs = (
+        LabReport.objects.filter(organization=org)
+        .filter(
+            Q(resulted_at__date__gte=start, resulted_at__date__lte=end)
+            | Q(resulted_at__isnull=True, created_at__date__gte=start, created_at__date__lte=end)
+        )
+        .prefetch_related("items").order_by("id")
+    )
+    q = visit_facility_q(user, prefix="visit__")
+    if q is not None:
+        qs = qs.filter(q | Q(visit__isnull=True))
+    rows = []
+    for r in qs:
+        d = _local_date(r.resulted_at or r.created_at)
+        items = list(r.items.all())
+        rows.append(
+            {"_id": r.pk, "_d": d, "_visit": r.visit_id, "_patient": r.patient_id, "_order": r.order_id, "date": d.isoformat(),
+             "panel": (r.title or "").strip() or "Untitled", "status": _pretty(r.status),
+             "review": "Reviewed" if r.review_status == "reviewed" else "Not yet reviewed",
+             "abnormal": sum(1 for i in items if i.abnormal_flag),
+             "critical": sum(1 for i in items if i.abnormal_flag in ("LL", "HH"))}
+        )
+    return rows
+
+
+def load_referral(org, start, end, user=None):
+    from appointments.models import Referral
+
+    qs = Referral.objects.filter(organization=org, created_at__date__gte=start, created_at__date__lte=end).order_by("id")
+    rows = []
+    for r in qs:
+        d = _local_date(r.created_at)
+        days = max((r.report_received_at - r.sent_at).total_seconds() / 86400.0, 0) if r.sent_at and r.report_received_at else None
+        rows.append(
+            {"_id": r.pk, "_d": d, "_patient": r.patient_id, "_doc": r.referring_provider_id, "date": d.isoformat(),
+             "specialty": (r.specialty or "").strip() or "Not set", "urgency": _pretty(r.urgency),
+             "status": _pretty(r.status), "days_to_report": days}
+        )
+    return rows
+
+
+def load_vaccine(org, start, end, user=None):
+    from appointments.models import PatientImmunization
+
+    qs = (
+        PatientImmunization.all_objects.filter(organization=org)
+        .filter(
+            Q(given_on__gte=start, given_on__lte=end)
+            | Q(given_on__isnull=True, created_at__date__gte=start, created_at__date__lte=end)
+        )
+        .select_related("item").order_by("id")
+    )
+    rows = []
+    for r in qs:
+        d = r.given_on or _local_date(r.created_at)
+        rows.append(
+            {"_id": r.pk, "_d": d, "_patient": r.patient_id, "date": d.isoformat(),
+             "item": (r.item.display_name or r.item.name) if r.item_id else "Unknown", "status": _pretty(r.status),
+             "reason": _pretty(r.not_done_reason) or "None"}
+        )
+    return rows
+
+
+def load_allergy(org, start, end, user=None):
+    from appointments.models import PatientAllergy
+
+    qs = (
+        PatientAllergy.objects.filter(created_at__date__gte=start, created_at__date__lte=end)
+        .filter(Q(organization=org) | Q(organization__isnull=True, patient__organization=org)).order_by("id")
+    )
+    rows = []
+    for a in qs:
+        d = _local_date(a.created_at)
+        rows.append(
+            {"_id": a.pk, "_d": d, "_patient": a.patient_id, "date": d.isoformat(), "substance": (a.substance or "").strip() or "Unknown",
+             "category": _pretty(a.category) or "Not set", "severity": _pretty(a.severity) or "Not set", "status": _pretty(a.status)}
+        )
+    return rows
+
+
 # ---------------------------------------------------------------------------
 # Objects and links
 # ---------------------------------------------------------------------------
@@ -292,6 +403,36 @@ register_object(
     "shift", "Shift", "Shifts", "Staffing", True,
     [dim("date", "Date", "date"), dim("shift_type", "Shift type"), dim("unit", "Unit"), measure("hours", "Hours", "hours", agg="avg")],
     load_shift, "shift_type", "No shift",
+)
+
+register_object(
+    "order", "Order", "Orders", "Orders", True,
+    [dim("date", "Date ordered", "date"), dim("category", "Category"), dim("order", "Order"), dim("priority", "Priority"),
+     dim("status", "Status"), measure("hours_to_complete", "Hours to complete", "hours", agg="avg")],
+    load_order, "category", "No order", right="orders.view", patient_data=True,
+)
+register_object(
+    "lab", "Lab report", "Lab reports", "Labs", True,
+    [dim("date", "Date resulted", "date"), dim("panel", "Panel or test"), dim("status", "Status"), dim("review", "Review"),
+     measure("abnormal", "Abnormal results"), measure("critical", "Critical results")],
+    load_lab, "panel", "No lab report", right="lab_results.view", patient_data=True,
+)
+register_object(
+    "referral", "Referral", "Referrals", "Referrals", True,
+    [dim("date", "Date created", "date"), dim("specialty", "Specialty"), dim("urgency", "Urgency"), dim("status", "Status"),
+     measure("days_to_report", "Days until report", agg="avg")],
+    load_referral, "specialty", "No referral", patient_data=True,
+)
+register_object(
+    "vaccine", "Vaccine record", "Vaccine records", "Vaccines", True,
+    [dim("date", "Date", "date"), dim("item", "Vaccine or screening"), dim("status", "Status"), dim("reason", "Reason not done")],
+    load_vaccine, "item", "No vaccine record", right="immunizations.view", patient_data=True,
+)
+register_object(
+    "allergy", "Allergy", "Allergies", "Allergies", True,
+    [dim("date", "Date recorded", "date"), dim("substance", "Substance"), dim("category", "Category"),
+     dim("severity", "Severity"), dim("status", "Status")],
+    load_allergy, "substance", "No allergy", patient_data=True,
 )
 
 
@@ -342,6 +483,17 @@ link("appt", "doc", "provider", _one("_provider"), _one("_id"))
 link("appt", "note", "written for", _one("_id"), _one("_appt"))
 link("pat", "appt", "has appointments", _one("_user"), _one("_patient"))
 link("pat", "note", "has notes", _one("_user"), _one("_patient"))
+link("visit", "order", "orders placed", _one("_appt"), _one("_appt"))
+link("visit", "lab", "lab results", _one("_id"), _one("_visit"))
+link("order", "lab", "resulted as", _one("_id"), _one("_order"))
+link("doc", "order", "ordered by", _one("_id"), _one("_doc"))
+link("doc", "referral", "referred by", _one("_id"), _one("_doc"))
+link("pat", "order", "has orders", _one("_user"), _one("_patient"))
+link("pat", "lab", "has lab reports", _one("_user"), _one("_patient"))
+link("pat", "referral", "has referrals", _one("_user"), _one("_patient"))
+link("pat", "vaccine", "has vaccine records", _one("_user"), _one("_patient"))
+link("pat", "allergy", "has allergies", _one("_user"), _one("_patient"))
+link("appt", "order", "orders placed", _one("_id"), _one("_appt"))
 
 
 # ---------------------------------------------------------------------------
