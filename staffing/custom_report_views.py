@@ -8,6 +8,10 @@ Custom reports (Reports module).
     DELETE /api/staffing/custom-reports/<id>/           delete (owner or admin)
     POST   /api/staffing/custom-reports/<id>/run/       {start, end, narrow}  rows for the viewer
     POST   /api/staffing/custom-reports/preview/        {source, config, start, end}  builder preview
+    GET    /api/staffing/custom-reports/audit/          who ran reports on patient data (admins)
+
+Run and preview accept "reveal_patients": true to show patient names (hidden as "Patient 1, 2..." otherwise).
+Every run or preview of a source that holds patient data is written to the audit log.
 
 Rights: each data source says who may use it. Staffing sources follow the Staffing report roles
 (MANAGER_ROLES); Communicator sources need the "messages.view_logs" right. Anyone who may use a source can
@@ -23,7 +27,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from . import custom_reports as engine, org_scope
-from .models import CustomReport
+from .models import CustomReport, ReportAuditLog
 from .views import ADMIN_ROLES, MANAGER_ROLES, IsStaffingManager, _org_queryset
 
 SHARE_ROLES = ("admin", "doctor", "nurse", "registrar")
@@ -130,6 +134,30 @@ def _parse_day(raw, label):
         raise engine.ReportConfigError(f"Choose a valid {label} date.")
 
 
+def _reveal(request):
+    return request.data.get("reveal_patients") is True
+
+
+def _audit(request, org, source, action, result, reveal, start, end, report=None):
+    if not engine.SOURCES[source]["patient_data"]:
+        return
+    shown = bool(reveal and result.get("patient_names") == "shown")
+    if action == "preview":
+        # The builder re-runs its preview as you type: keep one row per person and source per few minutes.
+        recent = timezone.now() - datetime.timedelta(minutes=10)
+        row = ReportAuditLog.objects.filter(
+            organization=org, user=request.user, source=source, action="preview", names_shown=shown, created_at__gte=recent
+        ).first()
+        if row:
+            ReportAuditLog.objects.filter(pk=row.pk).update(row_count=result.get("row_count", 0), range_start=start, range_end=end)
+            return
+    ReportAuditLog.objects.create(
+        organization=org, user=request.user, report=report, report_name=(report.name if report else "")[:120],
+        source=source, action=action, names_shown=shown,
+        row_count=result.get("row_count", 0), range_start=start, range_end=end,
+    )
+
+
 def _range(request, source_key):
     src = engine.get_source(source_key)
     if not src["dated"]:
@@ -177,11 +205,14 @@ class CustomReportViewSet(viewsets.ModelViewSet):
         report = self.get_object()
         try:
             start, end = _range(request, report.source)
+            reveal = _reveal(request)
             result = engine.run_report(
-                report.source, report.organization, report.config, start, end, request.data.get("narrow"), user=request.user
+                report.source, report.organization, report.config, start, end, request.data.get("narrow"),
+                user=request.user, reveal=reveal,
             )
         except engine.ReportConfigError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        _audit(request, report.organization, report.source, "run", result, reveal, start, end, report)
         CustomReport.objects.filter(pk=report.pk).update(last_run_at=timezone.now())
         return Response(result)
 
@@ -195,7 +226,36 @@ class CustomReportViewSet(viewsets.ModelViewSet):
             return Response({"error": "You do not have access to this data source."}, status=status.HTTP_403_FORBIDDEN)
         try:
             start, end = _range(request, source)
-            result = engine.run_report(source, org, request.data.get("config"), start, end, None, user=request.user)
+            reveal = _reveal(request)
+            result = engine.run_report(source, org, request.data.get("config"), start, end, None, user=request.user, reveal=reveal)
         except engine.ReportConfigError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        _audit(request, org, source, "preview", result, reveal, start, end)
         return Response(result)
+
+    @action(detail=False, methods=["get"], url_path="audit")
+    def audit(self, request):
+        if request.user.role not in ADMIN_ROLES:
+            return Response({"error": "Only administrators can see the report audit log."}, status=status.HTTP_403_FORBIDDEN)
+        org = org_scope.acting_org(request)
+        if org is None:
+            return Response([])
+        rows = ReportAuditLog.objects.filter(organization=org).select_related("user")[:200]
+        return Response(
+            [
+                {
+                    "id": r.id,
+                    "at": r.created_at.isoformat(),
+                    "user": (r.user.get_full_name() or r.user.get_username()) if r.user else "Removed user",
+                    "report": r.report_name or "Builder preview",
+                    "source": r.source,
+                    "source_label": engine.SOURCES[r.source]["label"] if r.source in engine.SOURCES else r.source,
+                    "action": r.action,
+                    "names_shown": r.names_shown,
+                    "row_count": r.row_count,
+                    "range_start": r.range_start.isoformat() if r.range_start else None,
+                    "range_end": r.range_end.isoformat() if r.range_end else None,
+                }
+                for r in rows
+            ]
+        )

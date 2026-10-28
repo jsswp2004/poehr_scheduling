@@ -31,12 +31,13 @@ import { BuilderShell, BuilderToolbar, BUILDER_STICKY_TOP } from "../components/
 import { apiEndpoints } from "../config/api";
 import { STANDARD_REPORTS, dayTime, errorText, headers, listReports } from "../components/reports/reportUtils";
 
-const TABS = ["all", "std", "mine", "shared"];
+const TABS = ["all", "std", "mine", "shared", "audit"];
 const MODULES = [
   { key: "all", label: "All modules" },
   { key: "staffing", label: "Staffing" },
   { key: "communicator", label: "Communicator" },
   { key: "scheduling", label: "Scheduling" },
+  { key: "notes", label: "Notes" },
 ];
 
 export default function ReportsHomePage() {
@@ -50,6 +51,7 @@ export default function ReportsHomePage() {
   const [menu, setMenu] = useState(null); // { anchor, report }
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [audit, setAudit] = useState(null); // null until an administrator's request succeeds
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,6 +68,18 @@ export default function ReportsHomePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Only administrators can read the audit log; for everyone else the request is refused and the tab stays hidden.
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get(apiEndpoints.staffingCustomReportAudit, { headers: headers() })
+      .then((res) => !cancelled && setAudit(res.data))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const rows = useMemo(() => {
     const std = STANDARD_REPORTS.map((s) => ({
@@ -137,17 +151,61 @@ export default function ReportsHomePage() {
   return (
     <BuilderShell
       title="Reports"
-      subtitle="Run, build and share reports. Staffing, Communicator and Scheduling reports are available."
+      subtitle="Run, build and share reports. Staffing, Communicator, Scheduling and Notes reports are available."
       tabs={[
         { key: "all", label: "All", count: counts.all },
         { key: "std", label: "Standard", count: counts.std },
         { key: "mine", label: "My reports", count: counts.mine },
         { key: "shared", label: "Shared with me", count: counts.shared },
+        ...(audit ? [{ key: "audit", label: "Audit log", count: audit.length }] : []),
       ]}
       tab={tab}
       onTab={(t) => TABS.includes(t) && setTab(t)}
       maxWidth="100%"
     >
+      {tab === "audit" && audit ? (
+        <Paper variant="outlined" sx={{ overflowX: { xs: "auto", md: "clip" } }}>
+          <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
+            Every run or preview of a report on patient data, newest first (last 200). Report contents are not stored here.
+          </Typography>
+          <Table size="small" aria-label="Report audit log">
+            <TableHead>
+              <TableRow>
+                {["When", "Who", "Report", "Data", "Names", "Rows", "Dates"].map((h) => (
+                  <TableCell key={h} sx={{ position: "sticky", top: BUILDER_STICKY_TOP, zIndex: 2, bgcolor: "background.default", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {h}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {audit.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7}>
+                    <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                      No runs on patient data yet.
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+              {audit.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>{dayTime(a.at)}</TableCell>
+                  <TableCell>{a.user}</TableCell>
+                  <TableCell>{a.report}</TableCell>
+                  <TableCell>{a.source_label}</TableCell>
+                  <TableCell>
+                    <Chip size="small" color={a.names_shown ? "warning" : "default"} variant={a.names_shown ? "filled" : "outlined"} label={a.names_shown ? "Shown" : "Hidden"} />
+                  </TableCell>
+                  <TableCell>{a.row_count}</TableCell>
+                  <TableCell sx={{ whiteSpace: "nowrap" }}>{a.range_start ? `${a.range_start} to ${a.range_end}` : "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Paper>
+      ) : (
+      <>
       <BuilderToolbar>
         <TextField
           size="small"
@@ -269,6 +327,8 @@ export default function ReportsHomePage() {
           </MenuItem>
         )}
       </Menu>
+      </>
+      )}
 
       <Dialog open={!!confirmDelete} onClose={() => !busy && setConfirmDelete(null)}>
         <DialogTitle>Delete this report?</DialogTitle>
