@@ -191,7 +191,9 @@ class AvailabilitySerializer(serializers.ModelSerializer):
             "doctor_name",
             "recurrence_end_date",
             "block_type",
+            "series_id",
         ]
+        read_only_fields = ["series_id"]
 
     def get_doctor_name(self, obj):
         return f"{obj.doctor.first_name} {obj.doctor.last_name}"

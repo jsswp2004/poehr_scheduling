@@ -171,6 +171,13 @@ class Availability(models.Model):
         help_text="Type of block for this availability (if blocked)",
     )
 
+    series_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Schedules created together (a recurrence or a multi-day save) share this id",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
