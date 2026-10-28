@@ -51,6 +51,14 @@ NUMBER_TYPES = ("numeric", "calculated")
 SKIP_TYPES = ("chart_data",)
 MEANING_SUFFIX = "__interpretation"
 
+# Flowsheets are documentation too: a flowsheet is picked as "flowsheet:<template code>", and each time point
+# charted on it is one document (wide layout) with its charted items as the observations.
+FS_PREFIX = "flowsheet:"
+
+
+def is_flowsheet(code):
+    return isinstance(code, str) and code.startswith(FS_PREFIX)
+
 
 # ---------------------------------------------------------------------------
 # Small helpers
@@ -110,6 +118,15 @@ def _templates_qs(org):
     return qs
 
 
+def _flowsheet_templates_qs(org):
+    from appointments.models import FlowsheetTemplate
+
+    qs = FlowsheetTemplate.objects.filter(is_active=True)
+    if org is not None:
+        qs = qs.filter(Q(organization=org) | Q(organization__isnull=True))
+    return qs
+
+
 def _note_type_labels():
     from appointments.models import NOTE_TYPES_DICTIONARY_CODE, DictionaryItem
 
@@ -126,11 +143,21 @@ def template_list(org):
     for code, name in BUILTIN_TYPES.items():
         if code not in codes:
             out.append({"code": code, "name": name, "structured": False, "group": "Free-text notes"})
+    for t in _flowsheet_templates_qs(org).order_by("sort_order", "name"):
+        out.append({"code": FS_PREFIX + t.code, "name": t.name, "structured": True, "group": "Flowsheets"})
     return out
 
 
 def _fields_of(code, org):
     """The observations of one template (live definition), as plain dicts."""
+    if is_flowsheet(code):
+        t = _flowsheet_templates_qs(org).filter(code=code[len(FS_PREFIX):]).first()
+        if t is None:
+            return []
+        return [
+            {"key": r.key, "label": r.label, "field_type": r.field_type, "section": r.section_label or "", "soap": False}
+            for r in t.rows.all().order_by("sort_order", "id")
+        ]
     t = _templates_qs(org).filter(code=code).first()
     if t is None:
         if code in BUILTIN_TYPES:
@@ -273,6 +300,17 @@ def _observation_value(n, o, live_options, snap_options, hide):
     return text, num
 
 
+def _flowsheet_options(codes, org):
+    """{template code: {row key: {value: label}}} for the flowsheet rows that pick from a dictionary."""
+    out = {}
+    qs = _flowsheet_templates_qs(org).filter(code__in=[c[len(FS_PREFIX):] for c in codes if is_flowsheet(c)])
+    for t in qs.prefetch_related("rows__dictionary__items"):
+        for r in t.rows.all():
+            if r.dictionary_id:
+                out.setdefault(FS_PREFIX + t.code, {})[r.key] = {i.value: i.label for i in r.dictionary.items.all()}
+    return out
+
+
 def _live_options(codes, org):
     out = {}
     for t in _templates_qs(org).filter(code__in=codes).prefetch_related("fields__dictionary__items"):
@@ -288,7 +326,7 @@ def _live_options(codes, org):
 def _base_fields():
     return [
         dim("template", "Note or screen"), dim("note_id", "Note ID"), dim("status", "Status"),
-        dim("date", "Date documented", "date"), dim("signed_on", "Date signed", "date"),
+        dim("date", "Date documented", "date"), dim("time", "Time documented"), dim("signed_on", "Date signed", "date"),
         dim("patient", "Patient name", phi="name"), dim("mrn", "MRN", phi="text"), dim("visit_id", "Visit ID"),
         dim("author", "Author"), dim("author_role", "Author's role"),
         dim("attending", "Attending physician"), dim("discipline", "Physician's discipline"),
@@ -305,7 +343,9 @@ def _load_notes(org, start, end, user, docs, observations, hide):
     from appointments.models import ClinicalNote
     from users.facility_scope import assigned_facility_ids
 
-    codes = docs["templates"]
+    codes = [c for c in docs["templates"] if not is_flowsheet(c)]
+    if not codes:
+        return []
     qs = (
         ClinicalNote.objects.filter(created_at__date__gte=start, created_at__date__lte=end)
         .filter(Q(organization=org) | Q(organization__isnull=True, appointment__organization=org))
@@ -338,7 +378,7 @@ def _load_notes(org, start, end, user, docs, observations, hide):
             "_patient": n.patient_id, "_id": n.pk,
             "template": names.get(code) or (n.template.name if n.template_id else _pretty(code)),
             "note_id": f"N-{n.pk}", "status": "Signed" if n.status == "signed" else "Draft",
-            "date": made.date().isoformat(), "signed_on": _local(n.signed_at).date().isoformat() if n.signed_at else None,
+            "date": made.date().isoformat(), "time": made.strftime("%H:%M"), "signed_on": _local(n.signed_at).date().isoformat() if n.signed_at else None,
             "patient": _person(n.patient, "Unknown patient"), "mrn": _mrn(n.patient),
             "visit_id": str(n.appointment_id) if n.appointment_id else None,
             "author": _person(n.author), "author_role": _pretty(n.author_role_at_signing or getattr(n.author, "role", "")) or "Unknown",
@@ -368,6 +408,105 @@ def _load_notes(org, start, end, user, docs, observations, hide):
     return rows
 
 
+def _load_flowsheets(org, start, end, user, docs, observations, hide):
+    """Flowsheets as documentation: one document per time point charted, with the picked items as observations."""
+    from appointments.models import VitalSignsFlowsheet
+    from django.contrib.auth import get_user_model
+    from users.facility_scope import assigned_facility_ids
+
+    codes = [c for c in docs["templates"] if is_flowsheet(c)]
+    if not codes:
+        return []
+    qs = (
+        VitalSignsFlowsheet.objects.filter(
+            organization=org, template__code__in=[c[len(FS_PREFIX):] for c in codes],
+            updated_at__date__gte=start, created_at__date__lte=end,
+        )
+        .select_related("patient__patient_profile", "template", "created_by", "appointment__provider__staff_profile", "appointment__unit__facility")
+        .order_by("id")
+    )
+    ids = assigned_facility_ids(user)
+    if ids is not None:
+        qs = qs.filter(Q(appointment__unit__facility_id__in=ids) | Q(appointment__unit__isnull=True))
+
+    live = _flowsheet_options(codes, org)
+    roles = {}
+    for sheet in qs:
+        for col in sheet.columns or []:
+            if isinstance(col.get("recorded_by"), int):
+                roles[col["recorded_by"]] = None
+    for u in get_user_model().objects.filter(pk__in=list(roles)):
+        roles[u.pk] = u.role
+    long_layout = docs["layout"] == "long"
+    rows = []
+    for sheet in qs:
+        code = FS_PREFIX + sheet.template.code
+        options = live.get(code, {})
+        appt = sheet.appointment
+        unit = appt.unit if appt.unit_id else None
+        for number, col in enumerate(sheet.columns or [], start=1):
+            when = _stamp_local(col.get("timestamp"))
+            if when is None or not (start <= when.date() <= end):
+                continue
+            if len(rows) >= MAX_NOTES:
+                raise ReportConfigError("This covers too many documents. Choose a shorter date range or fewer notes.")
+            who = (col.get("recorded_by_name") or "").strip() or _person(sheet.created_by)
+            base = {
+                "_patient": sheet.patient_id, "_id": f"{sheet.pk}:{col.get('id')}",
+                "template": sheet.template.name, "note_id": f"F-{sheet.pk}-{number}", "status": "Charted",
+                "date": when.date().isoformat(), "time": when.strftime("%H:%M"), "signed_on": None,
+                "patient": _person(sheet.patient, "Unknown patient"), "mrn": _mrn(sheet.patient),
+                "visit_id": str(sheet.appointment_id),
+                "author": who, "author_role": _pretty(roles.get(col.get("recorded_by")) or "") or "Unknown",
+                "attending": _person(appt.provider, "Not set") if appt.provider_id else "Not set",
+                "discipline": _discipline(appt.provider) if appt.provider_id else "Not set",
+                "visit_date": _local(appt.appointment_datetime).date().isoformat(),
+                "unit": unit.name if unit else "No location", "facility": unit.facility.name if unit else "No location",
+                "notes": 1, "hours_to_sign": None,
+            }
+            data = sheet.data or {}
+            if long_layout:
+                for o in observations:
+                    if code not in o["codes"]:
+                        continue
+                    text, num = _show((data.get(o["field_key"]) or {}).get(col.get("id")), o["type"], options.get(o["field_key"], {}))
+                    if text is None:
+                        continue
+                    if hide and o["type"] in TEXT_TYPES:
+                        text = "[Hidden]"
+                    rows.append({**base, "observation": o["label"], "value": text, "value_num": num})
+            else:
+                row = dict(base)
+                for o in observations:
+                    text = num = None
+                    if code in o["codes"]:
+                        text, num = _show((data.get(o["field_key"]) or {}).get(col.get("id")), o["type"], options.get(o["field_key"], {}))
+                        if hide and text and o["type"] in TEXT_TYPES:
+                            text = "[Hidden]"
+                    if o["type"] in NUMBER_TYPES:
+                        row[f"num__{o['id']}"] = num
+                    else:
+                        row[f"obs__{o['id']}"] = text
+                rows.append(row)
+    return rows
+
+
+def _stamp_local(text):
+    try:
+        dt = datetime.datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt)
+    return _local(dt)
+
+
+def _load_all(org, start, end, user, docs, observations, hide):
+    rows = _load_notes(org, start, end, user, docs, observations, hide)
+    rows += _load_flowsheets(org, start, end, user, docs, observations, hide)
+    return rows
+
+
 def build_source(docs, org, user, hide=False):
     """A report source for engine.run_report, made for these notes and observations."""
     cat = observation_catalog(docs["templates"], org)
@@ -393,7 +532,7 @@ def build_source(docs, org, user, hide=False):
     return {
         "key": DOC_KEY, "module": "notes", "right": RIGHT, "scoped": True, "patient_data": True,
         "label": "Documentation", "group": "Documentation", "description": "", "fields": fields, "dated": True,
-        "load": lambda o_, s_, e_, u_=None: _load_notes(o_, s_, e_, u_ if u_ is not None else user, docs, picked, hide),
+        "load": lambda o_, s_, e_, u_=None: _load_all(o_, s_, e_, u_ if u_ is not None else user, docs, picked, hide),
         "default_columns": columns, "default_group": None,
     }
 

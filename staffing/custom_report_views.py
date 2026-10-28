@@ -241,7 +241,7 @@ class CustomReportViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="sources")
     def sources(self, request):
         # Documentation reports have their own builder (they carry the notes and observations they were built for).
-        return Response([engine.source_summary(s) for s in engine.SOURCES.values() if s["key"] != documentation.DOC_KEY and engine.source_allowed(s, request.user)])
+        return Response([engine.source_summary(s) for s in engine.SOURCES.values() if s["key"] not in (documentation.DOC_KEY, "flowsheet_entries") and engine.source_allowed(s, request.user)])
 
     @action(detail=True, methods=["post"], url_path="run")
     def run(self, request, pk=None):

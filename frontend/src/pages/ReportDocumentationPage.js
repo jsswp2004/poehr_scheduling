@@ -255,7 +255,7 @@ export default function ReportDocumentationPage() {
     );
   }
 
-  const groupRank = (g) => (g === "Free-text notes" ? 2 : g === "Other structured notes" ? 1 : 0);
+  const groupRank = (g) => (g === "Flowsheets" ? 3 : g === "Free-text notes" ? 2 : g === "Other structured notes" ? 1 : 0);
   const templateOptions = [...templates]
     .sort((a, b) => groupRank(a.group) - groupRank(b.group) || a.group.localeCompare(b.group) || a.name.localeCompare(b.name))
     .map((t) => t.code);
@@ -347,6 +347,9 @@ export default function ReportDocumentationPage() {
                   <MenuItem value="signed">Signed only</MenuItem>
                   <MenuItem value="all">Signed and draft</MenuItem>
                 </Select>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  Flowsheets are never signed, so every charted time point is included.
+                </Typography>
               </Box>
             </Box>
 
