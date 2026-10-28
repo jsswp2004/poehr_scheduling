@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import axios from "axios";
 import {
   Box,
@@ -6,19 +6,21 @@ import {
   Typography,
   Button,
   TextField,
-  IconButton,
   Avatar,
-  Collapse,
   FormControl,
   InputLabel,
   Select as MUISelect,
   MenuItem,
   CircularProgress,
-  Divider,
   Paper,
-  Checkbox,
-  FormGroup,
-  FormControlLabel,
+  Chip,
+  Container,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from "@mui/material";
 import BackButton from "../components/BackButton";
 import EditIcon from "@mui/icons-material/Edit";
@@ -26,7 +28,6 @@ import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import SearchIcon from "@mui/icons-material/Search";
 import LockResetIcon from "@mui/icons-material/LockReset";
-import DeleteIcon from "@mui/icons-material/Delete";
 import VerifiedUserIcon from "@mui/icons-material/VerifiedUser";
 import { jwtDecode } from "jwt-decode";
 import { toast } from "../components/SimpleToast";
@@ -50,7 +51,8 @@ function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [tab, setTab] = useState("details");
+  const [selfUser, setSelfUser] = useState(null);
   const [formData, setFormData] = useState({
     username: "",
     first_name: "",
@@ -70,12 +72,25 @@ function ProfilePage() {
   const [organizations, setOrganizations] = useState([]);
 
   // Rights / permissions management (Security Settings, admin & system_admin only)
-  const [showRightsPanel, setShowRightsPanel] = useState(false);
   const [rightsLoading, setRightsLoading] = useState(false);
   const [rightsCatalog, setRightsCatalog] = useState([]);
   const [roleDefaultRights, setRoleDefaultRights] = useState([]);
   const [serverOverrides, setServerOverrides] = useState({});
   const [rightsChecked, setRightsChecked] = useState({});
+  const [rightsBaseline, setRightsBaseline] = useState({});
+
+  // Publish the pinned block height so sticky table headers sit just under it
+  const pinRef = useCallback((node) => {
+    if (!node) return;
+    const publish = () =>
+      document.documentElement.style.setProperty(
+        "--profile-sticky-h",
+        `${node.offsetHeight}px`
+      );
+    publish();
+    if (typeof ResizeObserver !== "undefined")
+      new ResizeObserver(publish).observe(node);
+  }, []);
 
   useEffect(() => {
     if (!token) return;
@@ -94,6 +109,7 @@ function ProfilePage() {
         console.log("🔍 API Response:", res.data);
         console.log("🔍 Phone Number from API:", res.data.phone_number);
         setUser(res.data);
+        setSelfUser(res.data);
         const newFormData = {
           username: res.data.username,
           first_name: res.data.first_name,
@@ -171,6 +187,7 @@ function ProfilePage() {
       });
 
       setSearchResults(filtered);
+      if (filtered.length > 0) setTab("results");
       if (filtered.length === 0) {
         toast.info(
           isSystemAdmin
@@ -228,6 +245,7 @@ function ProfilePage() {
         });
       });
       setRightsChecked(initialChecked);
+      setRightsBaseline(initialChecked);
     } catch (err) {
       console.error("Failed to load user rights", err);
       toast.error(
@@ -242,11 +260,11 @@ function ProfilePage() {
   };
 
   useEffect(() => {
-    if (showRightsPanel) {
+    if (tab === "rights") {
       loadUserRights();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showRightsPanel, user?.id]);
+  }, [tab, user?.id]);
 
   const handleSaveRights = async () => {
     if (!user?.id) return;
@@ -294,6 +312,7 @@ function ProfilePage() {
         });
       });
       setRightsChecked(updatedChecked);
+      setRightsBaseline(updatedChecked);
       toast.success(
         `Rights updated for ${user.first_name} ${user.last_name}.`
       );
@@ -316,6 +335,18 @@ function ProfilePage() {
       ...prev,
       [e.target.name]: e.target.value,
     }));
+  };
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setFormData({
+      username: user.username,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      phone_number: user.phone_number || "",
+      organization: user.organization,
+      role: user.role,
+    });
   };
   const handleSave = async () => {
     try {
@@ -382,7 +413,6 @@ function ProfilePage() {
         new_password: "",
         confirm_password: "",
       });
-      setShowPasswordForm(false);
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to change password");
     }
@@ -437,417 +467,384 @@ function ProfilePage() {
       </Typography>
     );
 
+  const loggedInUserId = jwtDecode(token).user_id;
+  const isAdmin =
+    loggedInUserRole === "admin" || loggedInUserRole === "system_admin";
+  const isAdminChangingOtherUser = isAdmin && user.id !== loggedInUserId;
+  const viewingOther = !!selfUser && user.id !== selfUser.id;
+  const BORDER = "divider";
+  const STICKY_TOP = "calc(64px + var(--profile-sticky-h, 190px))";
+  const orgIdOf = (o) => (o && typeof o === "object" ? o.id : o);
+  const orgNameOf = (u) => {
+    if (!u) return "";
+    if (u.organization && typeof u.organization === "object")
+      return u.organization.name || "";
+    if (u.organization_name) return u.organization_name;
+    const match = organizations.find(
+      (o) => String(o.id) === String(u.organization)
+    );
+    return match ? match.name : "";
+  };
+  const isDirty =
+    formData.username !== (user.username || "") ||
+    formData.first_name !== (user.first_name || "") ||
+    formData.last_name !== (user.last_name || "") ||
+    formData.email !== (user.email || "") ||
+    (formData.phone_number || "") !== (user.phone_number || "") ||
+    String(orgIdOf(formData.organization) ?? "") !==
+      String(orgIdOf(user.organization) ?? "") ||
+    formData.role !== user.role;
+  const changedRightCodes = Object.keys(rightsChecked).filter(
+    (code) => !!rightsChecked[code] !== !!rightsBaseline[code]
+  );
+  const totalRights = rightsCatalog.reduce((n, c) => n + c.rights.length, 0);
+  const rightsOn = Object.values(rightsChecked).filter(Boolean).length;
+  const passwordReady =
+    !!passwordData.current_password &&
+    !!passwordData.new_password &&
+    passwordData.new_password === passwordData.confirm_password;
+  const passwordMismatch =
+    !!passwordData.confirm_password &&
+    passwordData.new_password !== passwordData.confirm_password;
+
+  const profileTabs = [
+    { key: "details", label: "Details" },
+    { key: "password", label: "Password" },
+    ...(isAdmin ? [{ key: "rights", label: "Rights" }] : []),
+    ...(searchResults.length > 0
+      ? [{ key: "results", label: "Search results", count: searchResults.length }]
+      : []),
+  ];
+  const activeTab = profileTabs.some((t) => t.key === tab) ? tab : "details";
+
+  const selectPerson = (result) => {
+    setUser(result);
+    setFormData({
+      username: result.username,
+      first_name: result.first_name,
+      last_name: result.last_name,
+      email: result.email,
+      phone_number: result.phone_number || "",
+      organization: result.organization,
+      role: result.role,
+    });
+    setIsEditing(false);
+    setPasswordData({ current_password: "", new_password: "", confirm_password: "" });
+    setTab("details");
+  };
+
+  const backToMine = () => {
+    if (selfUser) selectPerson(selfUser);
+  };
+
+  const readOnlyFieldSx = {
+    "& .MuiOutlinedInput-root": { borderRadius: 2 },
+  };
+
+  const textField = (label, name, extra = {}) => (
+    <TextField
+      label={label}
+      name={name}
+      value={formData[name] || ""}
+      onChange={handleChange}
+      fullWidth
+      size="small"
+      disabled={!isEditing}
+      variant="outlined"
+      sx={readOnlyFieldSx}
+      {...extra}
+    />
+  );
+
+  const avatarSrc = user.profile_picture
+    ? user.profile_picture.startsWith("http")
+      ? user.profile_picture
+      : `${API_BASE_URL}${user.profile_picture}`
+    : undefined;
+
   return (
-    <Box sx={{ m: 0, px: 0, width: "100%" }}>
-      <Paper
-        elevation={0}
+    <Container maxWidth={false} sx={{ mt: 0, mb: 3, px: { xs: 2, md: 4 } }}>
+      {/* Pinned title, search, tabs and toolbar (stays put while the body scrolls) */}
+      <Box
+        ref={pinRef}
         sx={{
-          p: 0,
-          borderRadius: 2,
-          width: "100%",
-          height: "calc(100vh - 120px)",
+          position: "sticky",
+          top: 64,
+          zIndex: 1000,
+          bgcolor: "background.paper",
+          pt: "18px",
+          mt: "-18px",
+          pb: 0.5,
+          borderBottom: "1px solid",
+          borderColor: BORDER,
         }}
       >
-        {" "}
-        {/* Top Action Bar */}
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={2}
-          alignItems={{ xs: "stretch", sm: "center" }}
-          justifyContent="space-between"
-          mb={2}
-          sx={{ flexWrap: "wrap" }}
-        >
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "stretch", sm: "center" }}
-          >
-            <TextField
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          <Typography variant="h5" component="h1" sx={{ fontWeight: 500 }}>
+            Profile
+          </Typography>
+          {user.role && (
+            <Chip
               size="small"
-              variant="outlined"
-              placeholder="Search Profile 🔍"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              sx={{ minWidth: { xs: "100%", sm: 200 } }}
-            />
-            <Button
-              variant="contained"
               color="primary"
-              startIcon={<SearchIcon />}
-              onClick={handleSearch}
-              sx={{ height: 40, minWidth: 100 }}
-            >
-              Search
-            </Button>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={() => navigate("/create-profile")}
-              sx={{ height: 40, minWidth: 120 }}
-            >
-              Create Profile
-            </Button>
-          </Stack>
-          <BackButton />
-        </Stack>{" "}
-        {/* Search Results */}
-        {searchResults.length > 0 && (
-          <Box
-            sx={{
-              mb: 3,
-              border: "1px solid #eee",
-              borderRadius: 2,
-              p: { xs: 1, sm: 2 },
-              maxHeight: 400,
-              overflowY: "auto",
-              bgcolor: "#f8fafc",
-              width: "100%",
-            }}
+              variant="outlined"
+              label={String(user.role).replace("_", " ")}
+              sx={{ textTransform: "capitalize" }}
+            />
+          )}
+          {orgNameOf(user) && (
+            <Chip size="small" variant="outlined" label={orgNameOf(user)} />
+          )}
+          {user.is_active === false && (
+            <Chip size="small" color="error" label="Removed" />
+          )}
+          {viewingOther && (
+            <Chip
+              size="small"
+              color="warning"
+              label={`Viewing ${user.first_name} ${user.last_name}`}
+            />
+          )}
+          <Box sx={{ flex: 1 }} />
+          <BackButton sx={{ mb: 0, py: 0.75 }} />
+        </Box>
+        <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12, mt: -0.25 }}>
+          {viewingOther
+            ? "You are looking at someone else's profile"
+            : "Your details, password and access"}
+        </Typography>
+
+        <Box
+          component="form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSearch();
+          }}
+          sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap", pt: 1 }}
+        >
+          <TextField
+            size="small"
+            variant="outlined"
+            placeholder="Search people by name, email or username"
+            inputProps={{ "aria-label": "Search profiles" }}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            sx={{ width: { xs: "100%", sm: 320 } }}
+          />
+          <Button
+            type="submit"
+            size="small"
+            variant="contained"
+            startIcon={<SearchIcon />}
           >
-            <Typography
-              variant="subtitle1"
-              sx={{ mb: 2, fontWeight: 600, color: "primary.main" }}
-            >
-              Search Results ({searchResults.length} found)
-            </Typography>
-            <Box
-              sx={{
-                overflowX: "auto",
-                width: "100%",
-                "&::-webkit-scrollbar": {
-                  height: "8px",
-                },
-                "&::-webkit-scrollbar-track": {
-                  backgroundColor: "#f1f5f9",
-                  borderRadius: "4px",
-                },
-                "&::-webkit-scrollbar-thumb": {
-                  backgroundColor: "#c1c1c1",
-                  borderRadius: "4px",
-                  "&:hover": {
-                    backgroundColor: "#a8a8a8",
-                  },
-                },
-              }}
-            >
-              <table
-                style={{
-                  width: "100%",
-                  minWidth:
-                    loggedInUserRole === "system_admin" ? "800px" : "600px",
-                  borderCollapse: "collapse",
-                  fontSize: "0.875rem",
-                }}
-              >
-                <thead>
-                  <tr style={{ backgroundColor: "#dbeafe" }}>
-                    <th
-                      style={{
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        borderBottom: "2px solid #ddd",
-                        minWidth: "120px",
-                      }}
-                    >
-                      Name
-                    </th>
-                    <th
-                      style={{
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        borderBottom: "2px solid #ddd",
-                        minWidth: "100px",
-                      }}
-                    >
-                      Username
-                    </th>
-                    <th
-                      style={{
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        borderBottom: "2px solid #ddd",
-                        minWidth: "150px",
-                      }}
-                    >
-                      Email
-                    </th>
-                    <th
-                      style={{
-                        padding: "8px 12px",
-                        textAlign: "left",
-                        fontWeight: 600,
-                        borderBottom: "2px solid #ddd",
-                        minWidth: "80px",
-                      }}
-                    >
-                      Role
-                    </th>
-                    {loggedInUserRole === "system_admin" && (
-                      <th
-                        style={{
-                          padding: "8px 12px",
-                          textAlign: "left",
-                          fontWeight: 600,
-                          borderBottom: "2px solid #ddd",
-                          minWidth: "120px",
-                        }}
-                      >
-                        Organization
-                      </th>
-                    )}
-                    <th
-                      style={{
-                        padding: "8px 12px",
-                        textAlign: "center",
-                        fontWeight: 600,
-                        borderBottom: "2px solid #ddd",
-                        minWidth: "70px",
-                      }}
-                    >
-                      Select
-                    </th>
-                    {(loggedInUserRole === "admin" ||
-                      loggedInUserRole === "system_admin") && (
-                        <th
-                          style={{
-                            padding: "8px 12px",
-                            textAlign: "center",
-                            fontWeight: 600,
-                            borderBottom: "2px solid #ddd",
-                            minWidth: "60px",
-                          }}
-                        >
-                          Delete
-                        </th>
-                      )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {searchResults.map((result, index) => (
-                    <tr
-                      key={result.id}
-                      style={{
-                        backgroundColor:
-                          index % 2 === 0 ? "#ffffff" : "#f8fafc",
-                        borderBottom: "1px solid #eee",
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          maxWidth: "120px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {result.first_name} {result.last_name}
-                        {result.is_active === false && (
-                          <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "#fdecea", color: "#991b1b", fontSize: "0.7rem" }}>
-                            Removed
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          maxWidth: "100px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          fontFamily: "monospace",
-                          fontSize: "0.8rem",
-                        }}
-                      >
-                        {result.username}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          maxWidth: "150px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                          fontSize: "0.8rem",
-                        }}
-                      >
-                        {result.email}
-                      </td>
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          textTransform: "capitalize",
-                          fontSize: "0.8rem",
-                        }}
-                      >
-                        {result.role}
-                      </td>
-                      {loggedInUserRole === "system_admin" && (
-                        <td
-                          style={{
-                            padding: "8px 12px",
-                            maxWidth: "120px",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            fontSize: "0.8rem",
-                          }}
-                        >
-                          {result.organization_name ||
-                            (result.organization &&
-                              typeof result.organization === "object"
-                              ? result.organization.name
-                              : "Unknown")}
-                        </td>
-                      )}
-                      <td
-                        style={{
-                          padding: "8px 12px",
-                          textAlign: "center",
-                        }}
-                      >
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => {
-                            setUser(result);
-                            setFormData({
-                              username: result.username,
-                              first_name: result.first_name,
-                              last_name: result.last_name,
-                              email: result.email,
-                              phone_number: result.phone_number || "",
-                              organization: result.organization,
-                              role: result.role,
-                            });
-                            setSearchResults([]);
-                          }}
-                          sx={{
-                            minWidth: 60,
-                            fontSize: "0.75rem",
-                            px: 1,
-                            py: 0.5,
-                          }}
-                        >
-                          Select
-                        </Button>
-                      </td>
-                      {(loggedInUserRole === "admin" ||
-                        loggedInUserRole === "system_admin") && (
-                          <td
-                            style={{
-                              padding: "8px 12px",
-                              textAlign: "center",
-                            }}
-                          >
-                            {result.is_active === false ? (
-                              result.removed_at ? (
-                                <Button size="small" onClick={() => handleRestore(result)} sx={{ fontSize: "0.75rem", px: 1, py: 0.25 }}>
-                                  Restore
-                                </Button>
-                              ) : null
-                            ) : (
-                              <IconButton
-                                size="small"
-                                color="error"
-                                aria-label={`Remove ${result.first_name} ${result.last_name} from the organization`}
-                                title="Remove from organization"
-                                onClick={() => setRemoveTarget(result)}
-                                sx={{ padding: "4px" }}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                          </td>
-                        )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </Box>
-          </Box>
-        )}
-        {removeTarget && (
-          <RemoveUserDialog user={removeTarget} onClose={() => setRemoveTarget(null)} onDone={handleRemoved} />
-        )}
-        <Divider sx={{ mb: 3 }} />
+            Search
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          {viewingOther && (
+            <Button size="small" variant="outlined" onClick={backToMine}>
+              Back to my profile
+            </Button>
+          )}
+          <Button
+            size="small"
+            variant="contained"
+            color="success"
+            onClick={() => navigate("/create-profile")}
+          >
+            Create Profile
+          </Button>
+        </Box>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", pt: 1 }}>
+          {profileTabs.map((t) => (
+            <Chip
+              key={t.key}
+              size="small"
+              clickable
+              color={activeTab === t.key ? "primary" : "default"}
+              variant={activeTab === t.key ? "filled" : "outlined"}
+              label={t.count != null ? `${t.label} ${t.count}` : t.label}
+              onClick={() => setTab(t.key)}
+              role="tab"
+              aria-selected={activeTab === t.key}
+              data-testid={`profile-tab-${t.key}`}
+            />
+          ))}
+        </Box>
+
+        {/* Per-tab toolbar */}
         <Box
           sx={{
-            mt: 0,
-            boxShadow: 0,
-            borderRadius: 2,
-            bgcolor: "background.paper",
-            p: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            flexWrap: "wrap",
+            py: 1,
+            minHeight: 44,
           }}
         >
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            User Information
-          </Typography>
-          {/* Two-Column Layout */}
+          {activeTab === "details" && (
+            <>
+              {isEditing && isDirty && (
+                <Chip size="small" color="warning" label="Unsaved changes" />
+              )}
+              <Box sx={{ flex: 1 }} />
+              {!isEditing ? (
+                <Button
+                  size="small"
+                  variant="contained"
+                  startIcon={<EditIcon />}
+                  onClick={() => setIsEditing(true)}
+                >
+                  Edit Profile
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color="secondary"
+                    startIcon={<CancelIcon />}
+                    onClick={handleCancelEdit}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    color="success"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSave}
+                    disabled={uploading || !isDirty}
+                  >
+                    Save
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+          {activeTab === "password" && (
+            <>
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<LockResetIcon />}
+                onClick={handlePasswordChange}
+                disabled={!passwordReady}
+              >
+                {isAdminChangingOtherUser
+                  ? `Set Password for ${user.first_name}`
+                  : "Save New Password"}
+              </Button>
+            </>
+          )}
+          {activeTab === "rights" && (
+            <>
+              {rightsCatalog.length > 0 && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={`${rightsOn} of ${totalRights} rights on`}
+                />
+              )}
+              {changedRightCodes.length > 0 && (
+                <Chip
+                  size="small"
+                  color="warning"
+                  label={`${changedRightCodes.length} changed`}
+                />
+              )}
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                variant="outlined"
+                color="secondary"
+                onClick={loadUserRights}
+                disabled={changedRightCodes.length === 0}
+              >
+                Reset
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="success"
+                startIcon={<VerifiedUserIcon />}
+                onClick={handleSaveRights}
+                disabled={changedRightCodes.length === 0}
+              >
+                Save Rights
+              </Button>
+            </>
+          )}
+          {activeTab === "results" && (
+            <>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`${searchResults.length} found`}
+              />
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={() => {
+                  setSearchResults([]);
+                  setTab("details");
+                }}
+              >
+                Clear results
+              </Button>
+            </>
+          )}
+        </Box>
+      </Box>
+
+      {removeTarget && (
+        <RemoveUserDialog
+          user={removeTarget}
+          onClose={() => setRemoveTarget(null)}
+          onDone={handleRemoved}
+        />
+      )}
+
+      <Box sx={{ maxWidth: activeTab === "results" ? "none" : 1100, mx: "auto", pt: 2 }}>
+        {/* ---------------- Details ---------------- */}
+        {activeTab === "details" && (
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "1fr 2fr",
-              gap: 4,
+              gridTemplateColumns: { xs: "1fr", md: "260px minmax(0, 1fr)" },
+              gap: 2,
               alignItems: "start",
             }}
           >
-            {/* Left Column - Profile Picture and Organization */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-              {/* Profile Picture Section */}
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 2,
-                }}
-              >
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
                 <Avatar
-                  src={
-                    user.profile_picture
-                      ? user.profile_picture.startsWith("http")
-                        ? user.profile_picture
-                        : `${API_BASE_URL}${user.profile_picture}`
-                      : undefined
-                  }
+                  src={avatarSrc}
                   alt="Profile"
+                  variant="square"
                   sx={{
-                    width: 160,
-                    height: 160,
+                    width: 140,
+                    height: 140,
                     borderRadius: 3,
                     bgcolor: user.profile_picture ? "transparent" : "grey.300",
-                    fontSize: "4rem",
-                    border: "3px solid",
-                    borderColor: "primary.light",
-                    boxShadow: 2,
+                    fontSize: "3.5rem",
+                    border: "2px solid",
+                    borderColor: "divider",
                   }}
-                  variant="square"
                 >
                   {!user.profile_picture && (user.first_name?.[0] || "U")}
                 </Avatar>
-
-                {/* Upload Profile Picture Button */}
                 <Button
-                  variant="contained"
+                  variant="outlined"
                   component="label"
-                  size="medium"
+                  size="small"
+                  fullWidth
                   disabled={uploading}
-                  startIcon={
-                    uploading ? (
-                      <CircularProgress size={16} color="inherit" />
-                    ) : null
-                  }
-                  sx={{
-                    minWidth: 160,
-                    borderRadius: 2,
-                    textTransform: "none",
-                    fontWeight: 600,
-                  }}
+                  startIcon={uploading ? <CircularProgress size={14} color="inherit" /> : null}
                 >
                   {uploading ? "Uploading..." : "Upload Picture"}
                   <input
@@ -858,14 +855,12 @@ function ProfilePage() {
                     onChange={handleUpload}
                   />
                 </Button>
+                <Typography variant="caption" color="text.secondary">
+                  PNG or JPEG
+                </Typography>
               </Box>
-
-              {/* Organization Field */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
-                >
+              <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
                   Organization
                 </Typography>
                 {isEditing ? (
@@ -873,14 +868,11 @@ function ProfilePage() {
                     name="organization"
                     value={
                       organizations
-                        .map((org) => ({
-                          value: org.id,
-                          label: org.name,
-                          id: org.id,
-                        }))
+                        .map((org) => ({ value: org.id, label: org.name, id: org.id }))
                         .find(
                           (opt) =>
-                            String(opt.value) === String(formData.organization)
+                            String(opt.value) ===
+                            String(orgIdOf(formData.organization))
                         ) || null
                     }
                     onChange={(option) => {
@@ -889,21 +881,14 @@ function ProfilePage() {
                           .post(
                             `${API_BASE_URL}/api/users/organizations/`,
                             { name: option.label },
-                            {
-                              headers: { Authorization: `Bearer ${token}` },
-                            }
+                            { headers: { Authorization: `Bearer ${token}` } }
                           )
                           .then((res) => {
                             setOrganizations((prev) => [...prev, res.data]);
-                            setFormData({
-                              ...formData,
-                              organization: res.data.id,
-                            });
+                            setFormData({ ...formData, organization: res.data.id });
                             toast.success("Organization created!");
                           })
-                          .catch(() =>
-                            toast.error("Failed to create organization")
-                          );
+                          .catch(() => toast.error("Failed to create organization"));
                       } else {
                         setFormData({
                           ...formData,
@@ -920,182 +905,38 @@ function ProfilePage() {
                     isSearchable
                     placeholder="Select or type to add organization..."
                     formatCreateLabel={(inputValue) => `Add "${inputValue}"`}
+                    menuPlacement="auto"
                     styles={{
-                      control: (base) => ({
-                        ...base,
-                        minHeight: 40,
-                        borderRadius: 8,
-                      }),
+                      control: (base) => ({ ...base, minHeight: 40, borderRadius: 8 }),
                       menu: (base) => ({ ...base, zIndex: 9999 }),
                     }}
                   />
                 ) : (
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                    }}
-                  >
-                    <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                      {user.organization &&
-                        (typeof user.organization === "object"
-                          ? user.organization.name
-                          : user.organization_name || "No organization assigned")}
-                    </Typography>
-                  </Paper>
+                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                    {orgNameOf(user) || "No organization assigned"}
+                  </Typography>
                 )}
               </Box>
-            </Box>
+            </Paper>
 
-            {/* Right Column - User Information Fields */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
-              {/* Username Field - Always Visible */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
-                >
-                  Username
-                </Typography>
-                {!isEditing ? (
-                  <Paper
-                    elevation={1}
-                    sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: "#f8fafc",
-                      border: "1px solid #e2e8f0",
-                    }}
-                  >
-                    <Typography
-                      variant="body1"
-                      sx={{
-                        fontWeight: 500,
-                        fontFamily: "monospace",
-                        fontSize: "1.1rem",
-                      }}
-                    >
-                      {formData.username || "No username set"}
-                    </Typography>
-                  </Paper>
-                ) : (
-                  <TextField
-                    label="Username"
-                    name="username"
-                    value={formData.username}
-                    onChange={handleChange}
-                    fullWidth
-                    size="small"
-                    variant="outlined"
-                    sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                  />
-                )}
-              </Box>
-              <TextField
-                label="First Name"
-                name="first_name"
-                value={formData.first_name}
-                onChange={handleChange}
-                fullWidth
-                size="small"
-                disabled={!isEditing}
-                variant="outlined"
-                InputProps={{
-                  readOnly: !isEditing,
-                  sx: !isEditing
-                    ? {
-                      color: "#333",
-                      backgroundColor: "#f8fafc",
-                      WebkitTextFillColor: "#333",
-                    }
-                    : {},
+            <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                User information
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12.5, mb: 2 }}>
+                {isEditing
+                  ? "Make your changes, then Save."
+                  : "Press Edit Profile to change these."}
+              </Typography>
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                  gap: 2,
                 }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-              />
-
-              <TextField
-                label="Last Name"
-                name="last_name"
-                value={formData.last_name}
-                onChange={handleChange}
-                fullWidth
-                size="small"
-                disabled={!isEditing}
-                variant="outlined"
-                InputProps={{
-                  readOnly: !isEditing,
-                  sx: !isEditing
-                    ? {
-                      color: "#333",
-                      backgroundColor: "#f8fafc",
-                      WebkitTextFillColor: "#333",
-                    }
-                    : {},
-                }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-              />
-
-              <TextField
-                label="Email"
-                name="email"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                fullWidth
-                size="small"
-                disabled={!isEditing}
-                variant="outlined"
-                InputProps={{
-                  readOnly: !isEditing,
-                  sx: !isEditing
-                    ? {
-                      color: "#333",
-                      backgroundColor: "#f8fafc",
-                      WebkitTextFillColor: "#333",
-                    }
-                    : {},
-                }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-              />
-
-              <TextField
-                label="Phone Number"
-                name="phone_number"
-                type="tel"
-                value={formData.phone_number || ""}
-                onChange={handleChange}
-                fullWidth
-                size="small"
-                disabled={!isEditing}
-                variant="outlined"
-                placeholder="(123) 456-7890"
-                InputProps={{
-                  readOnly: !isEditing,
-                  sx: !isEditing
-                    ? {
-                      color: "#333",
-                      backgroundColor: "#f8fafc",
-                      WebkitTextFillColor: "#333",
-                    }
-                    : {},
-                }}
-                sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-              />
-
-              {/* Role Selection */}
-              <Box>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ mb: 1, fontWeight: 600, color: "primary.main" }}
-                >
-                  Role
-                </Typography>
-                {isEditing &&
-                  (loggedInUserRole === "admin" ||
-                    loggedInUserRole === "system_admin") ? (
+              >
+                {textField("Username", "username")}
+                {isEditing && isAdmin ? (
                   <FormControl fullWidth size="small">
                     <InputLabel id="role-label">Role</InputLabel>
                     <MUISelect
@@ -1115,410 +956,304 @@ function ProfilePage() {
                     </MUISelect>
                   </FormControl>
                 ) : (
-                  <Paper
-                    elevation={1}
+                  <TextField
+                    label="Role"
+                    value={String(user.role || "").replace("_", " ")}
+                    fullWidth
+                    size="small"
+                    disabled
                     sx={{
-                      p: 2,
-                      borderRadius: 2,
-                      bgcolor: "#f8fafc",
-                      border: "1px solid #e2e8f0",
+                      ...readOnlyFieldSx,
+                      "& .MuiInputBase-input": { textTransform: "capitalize" },
                     }}
-                  >
-                    <Typography
-                      variant="body1"
-                      sx={{ fontWeight: 500, textTransform: "capitalize" }}
-                    >
-                      {user.role}
-                    </Typography>
-                  </Paper>
+                  />
                 )}
+                {textField("First Name", "first_name")}
+                {textField("Last Name", "last_name")}
+                {textField("Email", "email", { type: "email" })}
+                {textField("Phone Number", "phone_number", {
+                  type: "tel",
+                  placeholder: "(123) 456-7890",
+                })}
               </Box>
-
-              {/* Edit/Save/Cancel Buttons */}
-              <Box sx={{ mt: 2 }}>
-                {!isEditing ? (
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<EditIcon />}
-                    onClick={() => setIsEditing(true)}
-                    sx={{
-                      minWidth: 140,
-                      borderRadius: 2,
-                      textTransform: "none",
-                      fontWeight: 600,
-                      py: 1.2,
-                    }}
-                  >
-                    Edit Profile
-                  </Button>
-                ) : (
-                  <Stack direction="row" spacing={2}>
-                    <Button
-                      variant="contained"
-                      color="success"
-                      startIcon={<SaveIcon />}
-                      onClick={handleSave}
-                      disabled={uploading}
-                      sx={{
-                        minWidth: 120,
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: 600,
-                        py: 1.2,
-                      }}
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="secondary"
-                      startIcon={<CancelIcon />}
-                      onClick={() => {
-                        setIsEditing(false);
-                        setFormData({
-                          username: user.username,
-                          first_name: user.first_name,
-                          last_name: user.last_name,
-                          email: user.email,
-                          phone_number: user.phone_number || "",
-                          organization: user.organization,
-                          role: user.role,
-                        });
-                      }}
-                      sx={{
-                        minWidth: 120,
-                        borderRadius: 2,
-                        textTransform: "none",
-                        fontWeight: 600,
-                        py: 1.2,
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </Stack>
-                )}{" "}
-              </Box>
-            </Box>
-          </Box>
-          {/* Change Password Section - Full Width Below */}
-          <Box sx={{ mt: 4 }}>
-            <Divider sx={{ mb: 3 }} />
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 2,
-              }}
-            >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 600, color: "primary.main" }}
-              >
-                Security Settings
-              </Typography>
-              <Button
-                variant="outlined"
-                color="primary"
-                startIcon={<LockResetIcon />}
-                onClick={() => setShowPasswordForm((v) => !v)}
-                sx={{
-                  minWidth: 180,
-                  borderRadius: 2,
-                  textTransform: "none",
-                  fontWeight: 600,
-                }}
-              >
-                {showPasswordForm ? "Cancel" : "Change Password"}
-              </Button>
-            </Box>
-            <Collapse in={showPasswordForm}>
-              <Paper
-                elevation={1}
-                sx={{ p: 3, borderRadius: 2, bgcolor: "#f8fafc" }}
-              >
-                {(() => {
-                  const decoded = jwtDecode(token);
-                  const loggedInUserId = decoded.user_id;
-                  const loggedInUserRole = decoded.role;
-                  const isAdminChangingOtherUser =
-                    (loggedInUserRole === "admin" ||
-                      loggedInUserRole === "system_admin") &&
-                    user.id !== loggedInUserId;
-
-                  return (
-                    <Stack spacing={2.5}>
-                      {isAdminChangingOtherUser && (
-                        <Box
-                          sx={{
-                            p: 2,
-                            bgcolor: "info.light",
-                            borderRadius: 1,
-                            mb: 1,
-                          }}
-                        >
-                          <Typography variant="body2" color="info.contrastText">
-                            🔑 You are changing the password for{" "}
-                            <strong>
-                              {user.first_name} {user.last_name}
-                            </strong>
-                            . Please enter your admin password below for
-                            verification.
-                          </Typography>
-                        </Box>
-                      )}
-                      <TextField
-                        label={
-                          isAdminChangingOtherUser
-                            ? "Your Admin Password"
-                            : "Current Password"
-                        }
-                        type="password"
-                        name="current_password"
-                        value={passwordData.current_password}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            current_password: e.target.value,
-                          })
-                        }
-                        fullWidth
-                        size="small"
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                        helperText={
-                          isAdminChangingOtherUser
-                            ? "Enter your current admin password"
-                            : "Enter your current password"
-                        }
-                      />
-                      <TextField
-                        label={`New Password${isAdminChangingOtherUser
-                          ? ` for ${user.first_name}`
-                          : ""
-                          }`}
-                        type="password"
-                        name="new_password"
-                        value={passwordData.new_password}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            new_password: e.target.value,
-                          })
-                        }
-                        fullWidth
-                        size="small"
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                      />
-                      <TextField
-                        label="Confirm New Password"
-                        type="password"
-                        name="confirm_password"
-                        value={passwordData.confirm_password}
-                        onChange={(e) =>
-                          setPasswordData({
-                            ...passwordData,
-                            confirm_password: e.target.value,
-                          })
-                        }
-                        fullWidth
-                        size="small"
-                        sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
-                      />
-                      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-                        <Button
-                          variant="contained"
-                          color="success"
-                          onClick={handlePasswordChange}
-                          sx={{
-                            minWidth: 180,
-                            borderRadius: 2,
-                            textTransform: "none",
-                            fontWeight: 600,
-                            py: 1.2,
-                          }}
-                        >
-                          {isAdminChangingOtherUser
-                            ? `Set Password for ${user.first_name}`
-                            : "Save New Password"}
-                        </Button>
-                      </Box>
-                    </Stack>
-                  );
-                })()}
-              </Paper>
-            </Collapse>
-          </Box>
-
-          {/* User Rights / Permissions Management - admin & system_admin only */}
-          {(loggedInUserRole === "admin" ||
-            loggedInUserRole === "system_admin") && (
-              <Box sx={{ mt: 4 }}>
-                <Divider sx={{ mb: 3 }} />
-                <Box
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    mb: 2,
-                  }}
+              {isEditing && isAdmin && (
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 2, p: 1, borderRadius: 1, bgcolor: "action.hover", fontSize: 13 }}
                 >
-                  <Typography
-                    variant="h6"
-                    sx={{ fontWeight: 600, color: "primary.main" }}
-                  >
-                    User Rights
-                  </Typography>
-                  <Button
-                    variant="outlined"
-                    color="primary"
-                    startIcon={<VerifiedUserIcon />}
-                    onClick={() => setShowRightsPanel((v) => !v)}
+                  Changing the role also changes the default rights. Adjust them on
+                  the Rights tab.
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+        )}
+
+        {/* ---------------- Password ---------------- */}
+        {activeTab === "password" && (
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2, maxWidth: 560 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+              Change password
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: 12.5, mb: 2 }}>
+              {isAdminChangingOtherUser
+                ? `You are changing the password for ${user.first_name} ${user.last_name}. Enter your admin password for verification.`
+                : "Enter your current password, then choose a new one."}
+            </Typography>
+            <Stack spacing={2}>
+              <TextField
+                label={isAdminChangingOtherUser ? "Your Admin Password" : "Current Password"}
+                type="password"
+                name="current_password"
+                value={passwordData.current_password}
+                onChange={(e) =>
+                  setPasswordData({ ...passwordData, current_password: e.target.value })
+                }
+                fullWidth
+                size="small"
+                sx={readOnlyFieldSx}
+                helperText={
+                  isAdminChangingOtherUser
+                    ? "Enter your current admin password"
+                    : "Enter your current password"
+                }
+              />
+              <TextField
+                label={`New Password${isAdminChangingOtherUser ? ` for ${user.first_name}` : ""}`}
+                type="password"
+                name="new_password"
+                value={passwordData.new_password}
+                onChange={(e) =>
+                  setPasswordData({ ...passwordData, new_password: e.target.value })
+                }
+                fullWidth
+                size="small"
+                sx={readOnlyFieldSx}
+              />
+              <TextField
+                label="Confirm New Password"
+                type="password"
+                name="confirm_password"
+                value={passwordData.confirm_password}
+                onChange={(e) =>
+                  setPasswordData({ ...passwordData, confirm_password: e.target.value })
+                }
+                fullWidth
+                size="small"
+                error={passwordMismatch}
+                helperText={passwordMismatch ? "The passwords do not match." : " "}
+                sx={readOnlyFieldSx}
+              />
+            </Stack>
+          </Paper>
+        )}
+
+        {/* ---------------- Rights (admins) ---------------- */}
+        {activeTab === "rights" && isAdmin && (
+          <Box sx={{ maxWidth: 760 }}>
+            {rightsLoading ? (
+              <Box sx={{ display: "flex", justifyContent: "center", p: 3 }}>
+                <CircularProgress size={28} />
+              </Box>
+            ) : rightsCatalog.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Could not load the rights catalog.
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                <Typography
+                  variant="body2"
+                  sx={{ p: 1.25, borderRadius: 1, bgcolor: "action.hover", fontSize: 13 }}
+                >
+                  Rights for{" "}
+                  <strong>
+                    {user.first_name} {user.last_name}
+                  </strong>{" "}
+                  (role: <strong>{user.role}</strong>). Turn a right on or off to
+                  grant or revoke it for this user specifically; this overrides
+                  what their role would normally give them. Changed rights are
+                  highlighted.
+                </Typography>
+                {rightsCatalog.map((cat) => {
+                  const onCount = cat.rights.filter((r) => rightsChecked[r.code]).length;
+                  return (
+                    <Paper key={cat.category} variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          px: 1.5,
+                          py: 0.75,
+                          bgcolor: "action.hover",
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          {cat.category}
+                        </Typography>
+                        <Chip size="small" variant="outlined" label={`${onCount}/${cat.rights.length}`} />
+                      </Box>
+                      {cat.rights.map((r) => {
+                        const isRoleDefault = roleDefaultRights.includes(r.code);
+                        const checked = !!rightsChecked[r.code];
+                        const isOverridden = checked !== isRoleDefault;
+                        const changed = checked !== !!rightsBaseline[r.code];
+                        return (
+                          <Box
+                            key={r.code}
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                              px: 1.5,
+                              py: 0.25,
+                              borderTop: "1px solid",
+                              borderColor: "divider",
+                              bgcolor: changed ? "warning.light" : "transparent",
+                            }}
+                          >
+                            <Switch
+                              size="small"
+                              checked={checked}
+                              onChange={(e) =>
+                                setRightsChecked((prev) => ({
+                                  ...prev,
+                                  [r.code]: e.target.checked,
+                                }))
+                              }
+                              inputProps={{ "aria-label": r.label }}
+                            />
+                            <Typography variant="body2" sx={{ flex: 1 }}>
+                              {r.label}
+                            </Typography>
+                            {isOverridden ? (
+                              <Typography
+                                variant="caption"
+                                sx={{ fontWeight: 600, color: checked ? "success.main" : "error.main" }}
+                              >
+                                {checked ? "(granted override)" : "(revoked)"}
+                              </Typography>
+                            ) : (
+                              isRoleDefault && (
+                                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                  (role default)
+                                </Typography>
+                              )
+                            )}
+                            {changed && <Chip size="small" color="warning" label="Changed" />}
+                          </Box>
+                        );
+                      })}
+                    </Paper>
+                  );
+                })}
+              </Stack>
+            )}
+            {user && user.role !== "patient" && <UserFacilitiesPanel user={user} />}
+          </Box>
+        )}
+
+        {/* ---------------- Search results ---------------- */}
+        {activeTab === "results" && searchResults.length > 0 && (
+          <Box sx={{ overflowX: { xs: "auto", md: "clip" } }}>
+            <Table size="small" sx={{ minWidth: loggedInUserRole === "system_admin" ? 800 : 600 }}>
+              <TableHead>
+                <TableRow>
+                  {[
+                    "Name",
+                    "Username",
+                    "Email",
+                    "Role",
+                    ...(loggedInUserRole === "system_admin" ? ["Organization"] : []),
+                  ].map((h) => (
+                    <TableCell
+                      key={h}
+                      sx={{
+                        position: "sticky",
+                        top: STICKY_TOP,
+                        zIndex: 2,
+                        bgcolor: "action.hover",
+                        fontWeight: 700,
+                      }}
+                    >
+                      {h}
+                    </TableCell>
+                  ))}
+                  <TableCell
+                    align="right"
                     sx={{
-                      minWidth: 180,
-                      borderRadius: 2,
-                      textTransform: "none",
-                      fontWeight: 600,
+                      position: "sticky",
+                      top: STICKY_TOP,
+                      zIndex: 2,
+                      bgcolor: "action.hover",
+                      fontWeight: 700,
                     }}
                   >
-                    {showRightsPanel ? "Cancel" : "Manage Rights"}
-                  </Button>
-                </Box>
-                <Collapse in={showRightsPanel}>
-                  <Paper
-                    elevation={1}
-                    sx={{ p: 3, borderRadius: 2, bgcolor: "#f8fafc" }}
-                  >
-                    {rightsLoading ? (
-                      <Box
-                        sx={{ display: "flex", justifyContent: "center", p: 3 }}
-                      >
-                        <CircularProgress size={28} />
-                      </Box>
-                    ) : rightsCatalog.length === 0 ? (
-                      <Typography variant="body2" color="text.secondary">
-                        Could not load the rights catalog.
-                      </Typography>
-                    ) : (
-                      <Stack spacing={2}>
-                        <Typography variant="body2" color="text.secondary">
-                          Rights for{" "}
-                          <strong>
-                            {user.first_name} {user.last_name}
-                          </strong>{" "}
-                          (role: <strong>{user.role}</strong>). Check or
-                          uncheck a box to grant or revoke that right for this
-                          user specifically -- this overrides what their role
-                          would normally give them.
-                        </Typography>
-                        {rightsCatalog.map((cat) => (
-                          <Box key={cat.category}>
-                            <Typography
-                              variant="subtitle2"
-                              sx={{ fontWeight: 700, mt: 1, mb: 0.5 }}
-                            >
-                              {cat.category}
-                            </Typography>
-                            <FormGroup>
-                              {cat.rights.map((r) => {
-                                const isRoleDefault = roleDefaultRights.includes(
-                                  r.code
-                                );
-                                const checked = !!rightsChecked[r.code];
-                                const isOverridden = checked !== isRoleDefault;
-                                return (
-                                  <FormControlLabel
-                                    key={r.code}
-                                    control={
-                                      <Checkbox
-                                        checked={checked}
-                                        onChange={(e) =>
-                                          setRightsChecked((prev) => ({
-                                            ...prev,
-                                            [r.code]: e.target.checked,
-                                          }))
-                                        }
-                                      />
-                                    }
-                                    label={
-                                      <Box component="span">
-                                        {r.label}
-                                        {isOverridden && (
-                                          <Typography
-                                            component="span"
-                                            variant="caption"
-                                            sx={{
-                                              ml: 1,
-                                              fontWeight: 600,
-                                              color: checked
-                                                ? "success.main"
-                                                : "error.main",
-                                            }}
-                                          >
-                                            {checked
-                                              ? "(granted override)"
-                                              : "(revoked)"}
-                                          </Typography>
-                                        )}
-                                        {!isOverridden && isRoleDefault && (
-                                          <Typography
-                                            component="span"
-                                            variant="caption"
-                                            sx={{ ml: 1, color: "text.secondary" }}
-                                          >
-                                            (role default)
-                                          </Typography>
-                                        )}
-                                      </Box>
-                                    }
-                                  />
-                                );
-                              })}
-                            </FormGroup>
-                          </Box>
-                        ))}
-                        <Box
-                          sx={{
-                            display: "flex",
-                            justifyContent: "flex-end",
-                            gap: 2,
-                          }}
-                        >
-                          <Button
-                            variant="outlined"
-                            color="secondary"
-                            onClick={loadUserRights}
-                            sx={{
-                              borderRadius: 2,
-                              textTransform: "none",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Reset
-                          </Button>
-                          <Button
-                            variant="contained"
-                            color="success"
-                            onClick={handleSaveRights}
-                            sx={{
-                              borderRadius: 2,
-                              textTransform: "none",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Save Rights
-                          </Button>
-                        </Box>
-                      </Stack>
+                    Actions
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {searchResults.map((result) => (
+                  <TableRow key={result.id} hover sx={{ opacity: result.is_active === false ? 0.7 : 1 }}>
+                    <TableCell>
+                      {result.first_name} {result.last_name}
+                      {result.is_active === false && (
+                        <Chip size="small" color="error" label="Removed" sx={{ ml: 0.75, height: 20 }} />
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
+                      {result.username}
+                    </TableCell>
+                    <TableCell sx={{ fontSize: "0.8rem" }}>{result.email}</TableCell>
+                    <TableCell sx={{ textTransform: "capitalize", fontSize: "0.8rem" }}>
+                      {result.role}
+                    </TableCell>
+                    {loggedInUserRole === "system_admin" && (
+                      <TableCell sx={{ fontSize: "0.8rem" }}>
+                        {result.organization_name ||
+                          (result.organization && typeof result.organization === "object"
+                            ? result.organization.name
+                            : "Unknown")}
+                      </TableCell>
                     )}
-                  </Paper>
-                </Collapse>
-                {user && user.role !== "patient" && <UserFacilitiesPanel user={user} />}
-              </Box>
-            )}
-        </Box>
-      </Paper>
-    </Box>
+                    <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => selectPerson(result)}
+                        sx={{ mr: 1 }}
+                      >
+                        Select
+                      </Button>
+                      {isAdmin &&
+                        (result.is_active === false ? (
+                          result.removed_at ? (
+                            <Button size="small" onClick={() => handleRestore(result)}>
+                              Restore
+                            </Button>
+                          ) : null
+                        ) : (
+                          <Button
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            aria-label={`Remove ${result.first_name} ${result.last_name} from the organization`}
+                            title="Remove from organization"
+                            onClick={() => setRemoveTarget(result)}
+                          >
+                            Remove
+                          </Button>
+                        ))}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        )}
+      </Box>
+    </Container>
   );
 }
 
