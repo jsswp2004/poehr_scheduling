@@ -35,6 +35,7 @@ import MicIcon from "@mui/icons-material/Mic";
 import ScienceIcon from "@mui/icons-material/Science";
 import PeopleIcon from "@mui/icons-material/People";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import AssessmentIcon from "@mui/icons-material/Assessment";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ForumIcon from "@mui/icons-material/Forum";
@@ -500,6 +501,7 @@ function Navbar() {
     (role === "admin" || role === "registrar" || role === "receptionist" || role === "system_admin") &&
     location.pathname !== "/dashboard";
   const showAccount = role === "admin" || role === "system_admin";
+  const showReports = STAFF_MODULE_ROLES.includes(role);
   const goTo = (path) => {
     closeMenu();
     navigate(path);
@@ -718,7 +720,15 @@ function Navbar() {
                         )}
                       </MenuItem>
                     ))}
-                    {(showCommunicator || showAdminPortal || showAccount) && <Divider />}
+                    {(showReports || showCommunicator || showAdminPortal || showAccount) && <Divider />}
+                    {showReports && (
+                      <MenuItem onClick={() => goTo("/reports")}>
+                        <ListItemIcon>
+                          <AssessmentIcon fontSize="small" />
+                        </ListItemIcon>
+                        <ListItemText>Reports</ListItemText>
+                      </MenuItem>
+                    )}
                     {showCommunicator && (
                       <MenuItem onClick={() => goTo("/communicator")}>
                         <ListItemIcon>
@@ -745,6 +755,24 @@ function Navbar() {
                     )}
                   </Menu>
                 </>
+              )}
+
+              {/* Reports Icon Link - everyone who can use the Staffing reports */}
+              {showReports && (
+                <Tooltip title="Reports">
+                  <IconButton
+                    color="inherit"
+                    sx={{
+                      mr: 1,
+                      display: { xs: "none", lg: "inline-flex" },
+                      bgcolor: location.pathname.startsWith("/reports") ? "rgba(255,255,255,0.2)" : "transparent",
+                    }}
+                    onClick={() => navigate("/reports")}
+                    aria-label="Reports"
+                  >
+                    <AssessmentIcon sx={{ color: "white" }} />
+                  </IconButton>
+                </Tooltip>
               )}
 
               {/* Communicator Icon Link - only for system_admin, admin, and registrar roles */}

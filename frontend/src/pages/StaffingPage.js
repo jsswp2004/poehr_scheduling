@@ -28,7 +28,10 @@ const ADMIN_ROLES = ["admin", "system_admin"];
 const ALLOWED_ROLES = ["admin", "system_admin", "doctor", "nurse", "registrar", "staff"];
 
 function StaffingPage() {
-  const [tab, setTab] = useState("calendar");
+  // /staffing?tab=reports opens the Reports tab (the Reports home links straight to a report).
+  const [tab, setTab] = useState(() =>
+    new URLSearchParams(window.location.search).get("tab") === "reports" ? "reports" : "calendar"
+  );
   const [assignSection, setAssignSection] = useState("schedules");
   const [headerSlot, setHeaderSlot] = useState(null);
   // Publish the frozen header's height so a tab can pin its own title row just beneath it.
