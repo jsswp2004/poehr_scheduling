@@ -43,7 +43,7 @@ def measure(key, label, type_="number", agg="sum", of=None, ratio=None, dedupe=N
     return {"key": key, "label": label, "kind": "measure", "type": type_, "agg": agg, "of": of, "ratio": ratio, "dedupe": dedupe}
 
 
-MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes", "linked": "Linked"}
+MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes", "visits": "Visits", "linked": "Linked"}
 
 
 def register(
@@ -681,3 +681,4 @@ def run_report(source_key, org, config, start, end, narrow=None, user=None, hide
 from . import custom_report_sources_communicator  # noqa: E402,F401
 from . import custom_report_sources_scheduling  # noqa: E402,F401
 from . import custom_report_sources_notes  # noqa: E402,F401
+from . import custom_report_sources_visits  # noqa: E402,F401

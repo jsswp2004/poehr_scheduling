@@ -39,6 +39,7 @@ const MODULES = [
   { key: "communicator", label: "Communicator" },
   { key: "scheduling", label: "Scheduling" },
   { key: "notes", label: "Notes" },
+  { key: "visits", label: "Visits" },
   { key: "linked", label: "Linked" },
 ];
 
