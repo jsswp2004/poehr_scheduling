@@ -43,7 +43,7 @@ def measure(key, label, type_="number", agg="sum", of=None, ratio=None, dedupe=N
     return {"key": key, "label": label, "kind": "measure", "type": type_, "agg": agg, "of": of, "ratio": ratio, "dedupe": dedupe}
 
 
-MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes", "visits": "Visits", "orders": "Orders", "labs": "Labs", "flowsheets": "Flowsheets", "vaccines": "Vaccines", "referrals": "Referrals", "allergies": "Allergies", "census": "Census", "linked": "Linked"}
+MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes", "visits": "Visits", "orders": "Orders", "labs": "Labs", "flowsheets": "Flowsheets", "vaccines": "Vaccines", "referrals": "Referrals", "allergies": "Allergies", "census": "Census", "telehealth": "Telehealth", "linked": "Linked"}
 
 
 def register(
@@ -691,3 +691,4 @@ from . import custom_report_sources_vaccines  # noqa: E402,F401
 from . import custom_report_sources_referrals  # noqa: E402,F401
 from . import custom_report_sources_allergies  # noqa: E402,F401
 from . import custom_report_sources_census  # noqa: E402,F401
+from . import custom_report_sources_telehealth  # noqa: E402,F401

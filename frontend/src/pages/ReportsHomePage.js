@@ -47,6 +47,7 @@ const MODULES = [
   { key: "referrals", label: "Referrals" },
   { key: "allergies", label: "Allergies" },
   { key: "census", label: "Census" },
+  { key: "telehealth", label: "Telehealth" },
   { key: "linked", label: "Linked" },
 ];
 
