@@ -769,8 +769,8 @@ function StaffingReportsTab() {
         Reports
       </Typography>
       <Stack direction="row" alignItems="flex-start" flexWrap="wrap" useFlexGap gap={1.5} sx={{ minWidth: 0 }}>
-        <Box sx={{ minWidth: 0, flex: "0 1 auto", maxWidth: 190 }}>
-          <Typography variant="h5" component="h3" sx={{ fontWeight: 600 }}>
+        <Box sx={{ minWidth: 0, flex: "0 1 auto", maxWidth: 300 }}>
+          <Typography variant="h5" component="h3" noWrap title={meta.label} sx={{ fontWeight: 600 }}>
             {meta.label}
           </Typography>
           <Typography variant="body2" color="text.secondary" title={meta.description} noWrap>

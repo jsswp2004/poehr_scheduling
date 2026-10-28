@@ -25,6 +25,7 @@ export function ReportPrintButton({ onClick, disabled, iconOnly = false, childre
   const button = (
     <Button
       color="primary"
+      variant={iconOnly ? "outlined" : undefined}
       startIcon={iconOnly ? undefined : <FontAwesomeIcon icon={faPrint} />}
       onClick={onClick}
       disabled={disabled}
