@@ -536,6 +536,93 @@ class VisitsSourceTests(TestCase):
         self.assertEqual(made.json()["module_label"], "Visits")
 
 
+class OrdersSourceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Appointment, Facility, Order, Orderable, Unit as ApptUnit
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.doc = CustomUser.objects.create_user(
+            username="d", password="x", role="doctor", organization=self.org, first_name="Dana", last_name="Lee"
+        )
+        self.ann = CustomUser.objects.create_user(
+            username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames"
+        )
+        self.bo = CustomUser.objects.create_user(
+            username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell"
+        )
+        self.east = Facility.objects.create(organization=self.org, name="East")
+        self.west = Facility.objects.create(organization=self.org, name="West")
+        u_east = ApptUnit.objects.create(facility=self.east, name="East Clinic")
+        u_west = ApptUnit.objects.create(facility=self.west, name="West Clinic")
+        cbc = Orderable.objects.create(code="cbc", name="CBC", category="laboratory")
+        xray = Orderable.objects.create(code="cxr", name="Chest X-ray", category="imaging")
+        now = timezone.now()
+
+        def appt(patient, unit):
+            return Appointment.all_objects.create(
+                organization=self.org, patient=patient, provider=self.doc, title="Visit",
+                appointment_datetime=now, duration_minutes=30, unit=unit,
+            )
+
+        def order(patient, orderable, unit, **kw):
+            return Order.objects.create(
+                organization=self.org, appointment=appt(patient, unit), patient=patient, ordering_provider=self.doc,
+                orderable=orderable, orderable_name=orderable.name, orderable_category=orderable.category, **kw,
+            )
+
+        order(self.ann, cbc, u_east, status="completed", priority="stat", signed_at=now + datetime.timedelta(hours=1),
+              completed_at=now + datetime.timedelta(hours=3), signed_by=self.doc, indication="Ann Ames chest pain",
+              result_text="Ann Ames WBC 12")
+        order(self.ann, xray, u_east, status="active")
+        order(self.bo, cbc, u_west, status="discontinued", discontinue_reason="Bo Bell refused")
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None, **kw):
+        return engine.run_report("orders", self.org, config, self.start, self.end, user=user, **kw)
+
+    def test_turnaround_by_category(self):
+        res = self.run_cfg({"group_by": "category", "columns": ["category", "orders", "completed", "stat", "hours_to_sign", "hours_to_complete", "patients"]})
+        rows = {r["category"]: r for r in res["rows"]}
+        self.assertEqual((rows["Laboratory"]["orders"], rows["Laboratory"]["completed"], rows["Laboratory"]["stat"]), (2, 1, 1))
+        self.assertEqual(rows["Laboratory"]["hours_to_sign"], 1.0)
+        self.assertEqual(rows["Laboratory"]["hours_to_complete"], 2.0)  # signed -> completed
+        self.assertEqual(rows["Laboratory"]["patients"], 2)
+        self.assertEqual(rows["Imaging"]["orders"], 1)
+
+    def test_hide_phi_masks_names_and_free_text(self):
+        cfg = {"columns": ["patient", "status", "indication", "result", "discontinue_reason"]}
+        shown = self.run_cfg(cfg)
+        self.assertEqual(shown["phi"], "shown")
+        self.assertIn("Ann Ames", str(shown))
+        hidden = self.run_cfg(cfg, hide_phi=True)
+        self.assertEqual(hidden["phi"], "hidden")
+        self.assertNotIn("Ames", str(hidden))
+        self.assertNotIn("Bell", str(hidden))
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+
+    def test_facility_limited_user_sees_only_their_facility(self):
+        self.admin.facilities.add(self.east)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "orders"]}, user=self.admin)
+        self.assertEqual({r["facility"]: r["orders"] for r in res["rows"]}, {"East": 2})
+
+    def test_save_and_run_is_audited(self):
+        from .models import ReportAuditLog
+
+        body = {"name": "Order turnaround", "source": "orders", "config": {"group_by": "category", "columns": ["category", "orders"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Orders")
+        ran = client_for(self.admin).post(
+            f"{BASE}/{made.json()['id']}/run/", {"start": self.start.isoformat(), "end": self.end.isoformat()}, format="json"
+        )
+        self.assertEqual(ran.status_code, 200, ran.content)
+        self.assertTrue(ReportAuditLog.objects.filter(source="orders", action="run").exists())
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 
