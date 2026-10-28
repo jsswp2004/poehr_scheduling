@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_BASE_URL } from '../config/api';
+import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from './settings/SettingsToolbarSlot';
 import {
     Box,
     Paper,
@@ -401,6 +402,35 @@ function OrganizationManagement() {
 
     return (
         <Box>
+            <SettingsToolbarPortal>
+                {isSystemAdmin && (
+                    <TextField
+                        size="small"
+                        placeholder="Search organizations..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        sx={{ width: { xs: '100%', sm: 260 } }}
+                        InputProps={{
+                            startAdornment: (
+                                <InputAdornment position="start">
+                                    <Search fontSize="small" />
+                                </InputAdornment>
+                            ),
+                        }}
+                    />
+                )}
+                <Box sx={{ flex: 1 }} />
+                {isAdmin && userOrganization && (
+                    <Button variant="outlined" startIcon={<Edit />} onClick={() => handleEditClick(userOrganization)} size="small">
+                        Edit my organization
+                    </Button>
+                )}
+                {isSystemAdmin && (
+                    <Button size="small" variant="contained" startIcon={<Add />} onClick={() => setCreateDialogOpen(true)}>
+                        Create Organization
+                    </Button>
+                )}
+            </SettingsToolbarPortal>
             {/* User's Organization Section */}
             {userOrganization && (
                 <Paper sx={{ p: 3, mb: 3, backgroundColor: '#f8fafc' }}>
@@ -438,18 +468,6 @@ function OrganizationManagement() {
                                 />
                             )}
                         </Grid>
-                        {isAdmin && (
-                            <Grid size="auto">
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<Edit />}
-                                    onClick={() => handleEditClick(userOrganization)}
-                                    size="small"
-                                >
-                                    Edit
-                                </Button>
-                            </Grid>
-                        )}
                     </Grid>
                 </Paper>
             )}
@@ -457,36 +475,10 @@ function OrganizationManagement() {
             {/* System Admin Section - All Organizations Management */}
             {isSystemAdmin && (
                 <Paper sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                        <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Business color="primary" />
-                            All Organizations
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            startIcon={<Add />}
-                            onClick={() => setCreateDialogOpen(true)}
-                            sx={{ borderRadius: 2 }}
-                        >
-                            Create Organization
-                        </Button>
-                    </Box>
-
-                    {/* Search */}
-                    <TextField
-                        fullWidth
-                        placeholder="Search organizations..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        sx={{ mb: 3 }}
-                        InputProps={{
-                            startAdornment: (
-                                <InputAdornment position="start">
-                                    <Search />
-                                </InputAdornment>
-                            ),
-                        }}
-                    />
+                    <Typography variant="h6" sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                        <Business color="primary" />
+                        All Organizations
+                    </Typography>
 
                     {/* Organizations Table */}
                     {filteredOrganizations.length === 0 ? (
@@ -495,7 +487,7 @@ function OrganizationManagement() {
                         </Alert>
                     ) : (
                         <Table>
-                            <TableHead>
+                            <TableHead sx={{ '& th': { position: 'sticky', top: SETTINGS_STICKY_TOP, bgcolor: '#f3f5f9', zIndex: 2 } }}>
                                 <TableRow>
                                     <TableCell>Logo</TableCell>
                                     <TableCell>Name</TableCell>
