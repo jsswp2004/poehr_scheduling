@@ -207,6 +207,8 @@ export default function StaffingSubscriptionsPanel({ people = [], units = [], on
           people={people}
           units={units}
           subscription={editing}
+          customReportId={editing.custom_report}
+          patientData={!!editing.patient_data}
           onSaved={(sub) => {
             replace(sub);
             setToast("Subscription saved.");
