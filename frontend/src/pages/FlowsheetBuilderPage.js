@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Box, Container, Tabs, Tab, Typography, Paper } from "@mui/material";
+import { Box } from "@mui/material";
+import { BuilderShell } from "../components/builders/BuilderShell";
 import FlowsheetTemplateListView from "../components/flowsheetBuilder/FlowsheetTemplateListView";
 import FlowsheetTemplateEditor from "../components/flowsheetBuilder/FlowsheetTemplateEditor";
 import DictionaryManager from "../components/noteBuilder/DictionaryManager";
@@ -54,29 +55,20 @@ function FlowsheetBuilderPage() {
     }
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Typography variant="h4" gutterBottom>
-                Flowsheet Builder
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                Build and edit flowsheet types -- like Vital Signs -- as an ordered set of
-                rows, without a code deploy. A visit can be charted against more than one
-                flowsheet type.
-            </Typography>
-
-            <Paper sx={{ mb: 3 }}>
-                <Tabs
-                    value={tab}
-                    onChange={(e, v) => {
-                        setTab(v);
-                        setEditingTemplateCode(null);
-                    }}
-                >
-                    <Tab label="Flowsheet Types" value="templates" />
-                    <Tab label="Dictionaries" value="dictionaries" />
-                </Tabs>
-            </Paper>
-
+        <BuilderShell
+            title="Flowsheet Builder"
+            subtitle="Build and edit flowsheet types, like Vital Signs, as an ordered set of rows. A visit can be charted against more than one flowsheet type."
+            tabs={[
+                { key: "templates", label: "Flowsheet Types" },
+                { key: "dictionaries", label: "Dictionaries" },
+            ]}
+            tab={tab}
+            onTab={(v) => {
+                setTab(v);
+                setEditingTemplateCode(null);
+            }}
+            maxWidth={1280}
+        >
             {tab === "templates" && (
                 <Box>
                     {editingTemplateCode === null ? (
@@ -94,7 +86,7 @@ function FlowsheetBuilderPage() {
             )}
 
             {tab === "dictionaries" && <DictionaryManager />}
-        </Container>
+        </BuilderShell>
     );
 }
 
