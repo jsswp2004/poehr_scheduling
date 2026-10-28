@@ -232,7 +232,7 @@ function SummaryTile({ label, value, hint, color, selected, onClick }) {
         flexDirection: "column",
         gap: 0.25,
         px: 2,
-        py: 1.5,
+        py: 0.75,
         borderRadius: 2,
         bgcolor: "background.paper",
         border: "1px solid",
@@ -247,7 +247,7 @@ function SummaryTile({ label, value, hint, color, selected, onClick }) {
         {label}
       </Typography>
       <Typography
-        sx={{ fontSize: 28, fontWeight: 600, lineHeight: 1.15 }}
+        sx={{ fontSize: 24, fontWeight: 600, lineHeight: 1.15 }}
         color={color || "text.primary"}
       >
         {value}
@@ -736,6 +736,29 @@ function StaffingReportsTab() {
   // Title, description, date controls and Export/Print share the frozen row with the page title.
   const headerSlot = useContext(StaffingHeaderSlotContext);
   const [actionsSlot, setActionsSlot] = useState(null);
+  const [summarySlot, setSummarySlot] = useState(null);
+
+  // A report's summary tiles and filter row sit in the frozen header, under the date range and Export, so they
+  // stay put while the table scrolls. Printing still includes the tiles through a print-only copy in the report.
+  const pinSummary = (tiles, bar) => (
+    <>
+      {summarySlot ? (
+        createPortal(
+          <Box className="no-print" sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {tiles}
+            {bar}
+          </Box>,
+          summarySlot
+        )
+      ) : (
+        <>
+          {tiles}
+          {bar}
+        </>
+      )}
+      {summarySlot && <Box className="print-only-tiles">{tiles}</Box>}
+    </>
+  );
   const reportHeader = (
     <Box
       className="no-print"
@@ -843,6 +866,7 @@ function StaffingReportsTab() {
           )}
         </Box>
       </Stack>
+      <Box ref={setSummarySlot} sx={{ gridColumn: "1 / -1" }} />
     </Box>
   );
 
@@ -855,8 +879,10 @@ function StaffingReportsTab() {
           .print-area { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
           .print-only-header { display: block !important; margin-bottom: 12px; }
+          .print-only-tiles { display: block !important; margin-bottom: 12px; }
         }
         .print-only-header { display: none; }
+        .print-only-tiles { display: none; }
       `}</style>
 
       {headerSlot ? createPortal(reportHeader, headerSlot) : reportHeader}
@@ -1007,6 +1033,7 @@ function StaffingReportsTab() {
             {/* ------------------------------------------------ Coverage compliance */}
             {!loading && reportType === "coverage_compliance" && (
               <Stack spacing={2}>
+                {pinSummary(
                 <TileRow>
                   <SummaryTile
                     label="Checks run"
@@ -1039,8 +1066,7 @@ function StaffingReportsTab() {
                     selected={statusFilter === "Met"}
                     onClick={() => setStatusFilter("Met")}
                   />
-                </TileRow>
-
+                </TileRow>,
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
                   <FormControl size="small" sx={{ minWidth: 170 }}>
                     <InputLabel id="report-unit-label">Unit</InputLabel>
@@ -1084,6 +1110,7 @@ function StaffingReportsTab() {
                     </Button>
                   )}
                 </Stack>
+                )}
 
                 {complianceWarnings.map((w) => (
                   <Alert key={w} severity="warning">
@@ -1194,6 +1221,7 @@ function StaffingReportsTab() {
             {/* ------------------------------------------------ Schedule */}
             {!loading && reportType === "schedule" && (
               <Stack spacing={2}>
+                {pinSummary(
                 <TileRow>
                   <SummaryTile label="Shifts" value={shifts.length} hint="In this date range" />
                   <SummaryTile
@@ -1206,11 +1234,12 @@ function StaffingReportsTab() {
                     value={new Set(shifts.map((s) => s.date)).size}
                     hint="Out of the days shown"
                   />
-                </TileRow>
+                </TileRow>,
                 <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap className="no-print">
                   {staffFilterControl}
                   {showProfessionFilter && professionFilterControl}
                 </Stack>
+                )}
                 {shifts.length === 0 ? (
                   <EmptyNote>No shifts in this date range.</EmptyNote>
                 ) : (
@@ -1248,6 +1277,7 @@ function StaffingReportsTab() {
             {/* ------------------------------------------------ Unscheduled staff */}
             {!loading && reportType === "unscheduled" && (
               <Stack spacing={2}>
+                {pinSummary(
                 <TileRow>
                   <SummaryTile
                     label="Staff with no schedule"
@@ -1255,10 +1285,11 @@ function StaffingReportsTab() {
                     hint="Active staff with no shifts in this range"
                     color={unscheduled.length ? "warning.dark" : undefined}
                   />
-                </TileRow>
+                </TileRow>,
                 <Stack direction="row" spacing={1.5} className="no-print">
                   {professionFilterControl}
                 </Stack>
+                )}
                 {unscheduled.length === 0 ? (
                   <EmptyNote>Everyone active has at least one shift in this date range.</EmptyNote>
                 ) : (
@@ -1292,6 +1323,7 @@ function StaffingReportsTab() {
             {/* ------------------------------------------------ Labor hours */}
             {!loading && reportType === "labor_hours" && (
               <Stack spacing={2}>
+                {pinSummary(
                 <TileRow>
                   <SummaryTile label="Total scheduled hours" value={laborTotal.toFixed(1)} hint="All shifts in the range" />
                   <SummaryTile label="People scheduled" value={laborRows.length} hint="With at least one shift" />
@@ -1305,13 +1337,14 @@ function StaffingReportsTab() {
                     value={sortedLabor.length ? Number(sortedLabor[0].total_hours || 0).toFixed(1) : "0.0"}
                     hint={sortedLabor.length ? sortedLabor[0].full_name : "No one scheduled"}
                   />
-                </TileRow>
+                </TileRow>,
                 <Stack direction="row" spacing={1.5} alignItems="center" className="no-print">
                   {professionFilterControl}
                   <Typography variant="body2" color="text.secondary">
                     Sorted by most hours
                   </Typography>
                 </Stack>
+                )}
                 {sortedLabor.length === 0 ? (
                   <EmptyNote>No scheduled hours in this date range.</EmptyNote>
                 ) : (
@@ -1357,6 +1390,7 @@ function StaffingReportsTab() {
             {/* ------------------------------------------------ Message log */}
             {!loading && reportType === "message_log" && (
               <Stack spacing={2}>
+                {pinSummary(
                 <TileRow>
                   <SummaryTile label="Messages sent" value={messageRows.length} hint="In this date range" />
                   <SummaryTile
@@ -1369,10 +1403,11 @@ function StaffingReportsTab() {
                     value={messageRows.filter((r) => String(r.channel).toLowerCase() === "email").length}
                     hint="Sent by email"
                   />
-                </TileRow>
+                </TileRow>,
                 <Stack direction="row" spacing={1.5} alignItems="center" className="no-print">
                   {staffFilterControl}
                 </Stack>
+                )}
                 {messageTruncated && (
                   <Alert severity="info">
                     Showing the most recent 1000 messages. Narrow the date range to see the full list.
@@ -1417,6 +1452,7 @@ function StaffingReportsTab() {
             {/* ------------------------------------------------ Shift distribution */}
             {!loading && reportType === "shift_distribution" && (
               <Stack spacing={2}>
+                {pinSummary(
                 <TileRow>
                   {SHIFT_TYPE_ORDER.map((t) => (
                     <SummaryTile
@@ -1426,10 +1462,11 @@ function StaffingReportsTab() {
                       hint="Across all staff"
                     />
                   ))}
-                </TileRow>
+                </TileRow>,
                 <Stack direction="row" spacing={1.5} className="no-print">
                   {professionFilterControl}
                 </Stack>
+                )}
                 {distributionRows.length === 0 ? (
                   <EmptyNote>No shifts in this date range.</EmptyNote>
                 ) : (
