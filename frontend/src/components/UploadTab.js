@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SETTINGS_STICKY_TOP } from "./settings/SettingsToolbarSlot";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDownload, faUpload } from '@fortawesome/free-solid-svg-icons';
 import {
@@ -166,13 +167,9 @@ function UploadTab() {
   };
 
   return (
-    <Box
-      sx={{
-        height: "calc(100vh - 240px)", // Adjust for header height
-      }}
-    >
-      <Table size="small" stickyHeader sx={{ bgcolor: '#eff6ff', borderRadius: 2, boxShadow: 1, mt: 3 }}>
-        <TableHead>
+    <Box>
+      <Table size="small" stickyHeader sx={{ bgcolor: '#eff6ff', borderRadius: 2, boxShadow: 1 }}>
+        <TableHead sx={{ '& th': { top: SETTINGS_STICKY_TOP } }}>
           <TableRow sx={{ bgcolor: '#dbeafe' }}>
             <TableCell sx={{ fontWeight: 'bold', width: 200 }}>Items</TableCell>
             <TableCell sx={{ fontWeight: 'bold', width: 400 }}>Description</TableCell>
