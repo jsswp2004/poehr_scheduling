@@ -49,12 +49,15 @@ from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from django.apps import apps  # Import apps to dynamically get the model
 from django.conf import settings  # Import settings to access AUTH_USER_MODEL
-from django.utils.dateparse import parse_date
+from django.utils.dateparse import parse_date, parse_datetime
 from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.permissions import AllowAny
 import secrets
+import uuid
+from django.contrib.auth import get_user_model
+from django.db import transaction
 from datetime import timedelta
 from django.utils import timezone
 from django.utils.timezone import make_aware
@@ -664,6 +667,7 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
         }
 
         count = recurrence_count.get(recurrence, 0)
+        series_id = uuid.uuid4() if count else None
 
         for i in range(1, count + 1):
             if recurrence == "daily":
@@ -701,9 +705,83 @@ class AvailabilityViewSet(viewsets.ModelViewSet):
                     start_time=next_start,
                     end_time=next_end,
                     is_blocked=is_blocked,
+                    block_type=availability.block_type,
                     recurrence="none",  # avoid chaining
                     organization=organization,
+                    series_id=series_id,
                 )
+
+        # The first occurrence belongs to the same series as the ones made from it
+        if series_id and availability.series_id is None:
+            availability.series_id = series_id
+            availability.save(update_fields=["series_id"])
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete one schedule, or with ?scope=series every schedule created together with it."""
+        instance = self.get_object()
+        if request.query_params.get("scope") == "series" and instance.series_id:
+            qs = self.get_queryset().filter(series_id=instance.series_id)
+            deleted = qs.count()
+            qs.delete()
+            return Response({"deleted": deleted}, status=status.HTTP_200_OK)
+        instance.delete()
+        return Response({"deleted": 1}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["post"], url_path="bulk")
+    def bulk(self, request):
+        """Create many schedules at once (the Multiple days form). All of them share one series id.
+
+        Body: {doctor, is_blocked, block_type, items: [{start_time, end_time}, ...]}
+        The caller works out the dates (it knows the time zone, holidays and what is already booked);
+        weekends and exact duplicates are skipped here as well.
+        """
+        doctor_id = request.data.get("doctor")
+        items = request.data.get("items") or []
+        if not doctor_id or not isinstance(items, list) or not items:
+            return Response({"error": "Choose a clinician and at least one day."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(items) > 400:
+            return Response({"error": "That is too many days at once (400 at most)."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        User = get_user_model()
+        doctors = User.objects.filter(id=doctor_id)
+        if user.role != "system_admin":
+            doctors = doctors.filter(organization=user.organization)
+        doctor = doctors.first()
+        if doctor is None:
+            return Response({"error": "Clinician not found."}, status=status.HTTP_404_NOT_FOUND)
+        organization = user.organization if user.role != "system_admin" else doctor.organization
+
+        is_blocked = bool(request.data.get("is_blocked"))
+        block_type = request.data.get("block_type") if is_blocked else None
+        series_id = uuid.uuid4() if len(items) > 1 else None
+
+        created, skipped = [], 0
+        with transaction.atomic():
+            for item in items:
+                start = parse_datetime(str(item.get("start_time", "")))
+                end = parse_datetime(str(item.get("end_time", "")))
+                if start is None or end is None or end <= start:
+                    return Response({"error": "A day has a start or end time that is not valid."}, status=status.HTTP_400_BAD_REQUEST)
+                if start.weekday() in (5, 6) or Availability.objects.filter(
+                    doctor=doctor, start_time=start, end_time=end, is_blocked=is_blocked, organization=organization
+                ).exists():
+                    skipped += 1
+                    continue
+                created.append(
+                    Availability(
+                        doctor=doctor,
+                        organization=organization,
+                        start_time=start,
+                        end_time=end,
+                        is_blocked=is_blocked,
+                        block_type=block_type,
+                        recurrence="none",
+                        series_id=series_id,
+                    )
+                )
+            Availability.objects.bulk_create(created)
+        return Response({"created": len(created), "skipped": skipped}, status=status.HTTP_201_CREATED)
 
 
 class EnvironmentSettingView(APIView):
