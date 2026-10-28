@@ -220,19 +220,20 @@ function SummaryTile({ label, value, hint, color, selected, onClick }) {
       component={interactive ? "button" : "div"}
       type={interactive ? "button" : undefined}
       onClick={onClick}
+      title={hint || undefined}
       aria-pressed={interactive ? !!selected : undefined}
       sx={(theme) => ({
-        flex: "1 1 160px",
-        minWidth: 140,
+        flex: "1 1 140px",
+        minWidth: 120,
         boxSizing: "border-box",
         textAlign: "left",
         font: "inherit",
         color: "text.primary",
         display: "flex",
         flexDirection: "column",
-        gap: 0.25,
-        px: 2,
-        py: 0.75,
+        gap: 0,
+        px: 1.5,
+        py: 0.5,
         borderRadius: 2,
         bgcolor: "background.paper",
         border: "1px solid",
@@ -252,11 +253,6 @@ function SummaryTile({ label, value, hint, color, selected, onClick }) {
       >
         {value}
       </Typography>
-      {hint && (
-        <Typography variant="caption" color="text.secondary">
-          {hint}
-        </Typography>
-      )}
     </Box>
   );
 }
