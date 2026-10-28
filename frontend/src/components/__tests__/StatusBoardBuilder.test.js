@@ -1,4 +1,10 @@
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+
+const menuItem = (name) => {
+  fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+  return screen.getByRole("menuitem", { name });
+};
 
 jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() } }), { virtual: true });
 jest.mock(
@@ -56,7 +62,7 @@ beforeEach(() => {
 });
 
 const open = async () => {
-  render(<StatusBoardBuilder />);
+  render(<MemoryRouter><StatusBoardBuilder /></MemoryRouter>);
   await screen.findByTestId("view-item-1");
 };
 
@@ -149,7 +155,7 @@ test("a new view is named by the admin and starts from the standard layout", asy
 
 test("duplicating copies the selected view under a new name", async () => {
   await open();
-  fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
+  fireEvent.click(menuItem("Duplicate"));
   expect(screen.getByLabelText("Name the view")).toHaveValue("Charge nurse copy");
   api.post.mockResolvedValue({ data: view({ key: "v3", id: 3, name: "Charge nurse copy" }) });
   fireEvent.click(screen.getByRole("button", { name: "Create view" }));
@@ -158,17 +164,17 @@ test("duplicating copies the selected view under a new name", async () => {
 
 test("make default and remove default", async () => {
   await open();
-  fireEvent.click(screen.getByRole("button", { name: "Make default" }));
+  fireEvent.click(menuItem("Make default"));
   await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/sv/1/", { is_default: true }, expect.anything()));
   await waitFor(() => expect(screen.getByTestId("view-item-1")).toHaveTextContent("Default"));
   expect(screen.getByTestId("view-item-2")).not.toHaveTextContent("Default");
-  fireEvent.click(screen.getByRole("button", { name: "Remove as default" }));
+  fireEvent.click(menuItem("Remove as default"));
   await waitFor(() => expect(api.patch).toHaveBeenCalledWith("/sv/1/", { is_default: false }, expect.anything()));
 });
 
 test("deleting a view asks first", async () => {
   await open();
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  fireEvent.click(menuItem("Delete"));
   expect(api.delete).not.toHaveBeenCalled();
   fireEvent.click(await screen.findByRole("button", { name: "Delete view" }));
   await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/sv/1/", expect.anything()));
@@ -216,7 +222,7 @@ test("the preview shows the view being edited, including hidden columns turned o
 
 test("with no saved views the page says how to start", async () => {
   api.get.mockResolvedValue({ data: payload({ views: [] }) });
-  render(<StatusBoardBuilder />);
+  render(<MemoryRouter><StatusBoardBuilder /></MemoryRouter>);
   expect(await screen.findByText(/Create a view to choose/)).toBeInTheDocument();
 });
 
@@ -259,7 +265,7 @@ test("select all and clear work on one unit and keep beds from other units", asy
 
 test("a chosen bed can be removed from its chip", async () => {
   api.get.mockResolvedValue({ data: payload({ views: [view({ beds: [11, 12] })] }) });
-  render(<StatusBoardBuilder />);
+  render(<MemoryRouter><StatusBoardBuilder /></MemoryRouter>);
   await screen.findByTestId("view-item-1");
   fireEvent.click(screen.getByRole("tab", { name: "Patients shown" }));
   expect(screen.getByTestId("bed-summary")).toHaveTextContent("2 beds chosen");

@@ -9,9 +9,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   List,
   ListItemButton,
   ListItemText,
+  Menu,
   MenuItem,
   Paper,
   Radio,
@@ -23,7 +25,9 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import MoreVert from "@mui/icons-material/MoreVert";
 import { api } from "../../api/client";
+import { BuilderListHeader, BuilderShell, BuilderSplit, BuilderToolbar } from "../builders/BuilderShell";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
 import { authHeader, errorText } from "../patientHeader/headerApi";
@@ -112,6 +116,7 @@ export default function StatusBoardBuilder() {
   const [problem, setProblem] = useState("");
   const [creating, setCreating] = useState(null); // { name, from, kind }
   const [deleting, setDeleting] = useState(false);
+  const [moreAnchor, setMoreAnchor] = useState(null);
 
   const open = useCallback((view) => {
     setSelectedId(view ? view.id : null);
@@ -244,12 +249,20 @@ export default function StatusBoardBuilder() {
   if (problem && !data) return <Alert severity="error">{problem}</Alert>;
   if (!data || !settings) return <CircularProgress aria-label="Loading" />;
 
+  const mainTabs = [
+    { key: 0, label: "Views", count: views.length },
+    { key: 1, label: settingsDirty ? "Shared settings *" : "Shared settings" },
+  ];
+
   return (
-    <Box>
-      <Tabs value={main} onChange={(_e, v) => setMain(v)} sx={{ mb: 2 }}>
-        <Tab label="Views" value={0} />
-        <Tab label={`Shared settings${settingsDirty ? " *" : ""}`} value={1} />
-      </Tabs>
+    <BuilderShell
+      title="Status Board Builder"
+      subtitle="Build named ED board views (columns, colors, patients shown) and manage the settings every view shares"
+      tabs={mainTabs}
+      tab={main}
+      onTab={setMain}
+      maxWidth={1600}
+    >
       {problem && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {problem}
@@ -258,96 +271,110 @@ export default function StatusBoardBuilder() {
 
       {main === 1 && (
         <Box>
-          <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <BuilderToolbar>
+            {settingsDirty && <Chip size="small" color="warning" label="Unsaved changes" />}
+            <Box sx={{ flex: 1 }} />
+            <Button size="small" variant="contained" onClick={saveSettings} disabled={busy || !settingsDirty}>
+              Save shared settings
+            </Button>
+          </BuilderToolbar>
+          <Paper variant="outlined" sx={{ p: 2 }}>
             <SettingsTab settings={settings} people={data.people} departments={data.departments} onChange={changeSettings} />
           </Paper>
-          <Button variant="contained" onClick={saveSettings} disabled={busy || !settingsDirty}>
-            Save shared settings
-          </Button>
         </Box>
       )}
 
       {main === 0 && (
         <Box>
-          <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexWrap: "wrap" }}>
-            <Paper variant="outlined" sx={{ width: 260, flexShrink: 0 }}>
-              <List dense aria-label="Views" disablePadding>
-                {views.length === 0 && (
-                  <ListItemText sx={{ p: 2 }} primary="No saved views yet" secondary="The built-in views are always available." />
-                )}
-                {views.map((v) => (
-                  <ListItemButton key={v.id} selected={v.id === selectedId} onClick={() => choose(v)} data-testid={`view-item-${v.id}`}>
-                    <ListItemText primary={v.name} />
-                    {v.kind === "follow_up" && <Chip size="small" variant="outlined" color="secondary" label="Follow-up" sx={{ mr: 0.5 }} data-testid={`follow-up-chip-${v.id}`} />}
-                    {v.is_default && <Chip size="small" color="primary" label="Default" />}
-                  </ListItemButton>
-                ))}
-              </List>
-              <Box sx={{ p: 1 }}>
-                <Button fullWidth variant="outlined" size="small" onClick={() => setCreating({ name: "", from: "", kind: "live" })} disabled={views.length >= 30}>
-                  New view
+          {current && config && (
+            <BuilderToolbar>
+              {dirty && <Chip size="small" color="warning" label="Unsaved changes" />}
+              {current.is_default && <Chip size="small" color="primary" variant="outlined" label="Default view" />}
+              <Box sx={{ flex: 1 }} />
+              <Button size="small" onClick={undo} disabled={busy || dirty || !current.can_undo} color="inherit">
+                Undo last save
+              </Button>
+              {dirty && (
+                <Button size="small" onClick={() => open(current)} disabled={busy} color="inherit">
+                  Discard changes
                 </Button>
-              </Box>
-              <Box sx={{ px: 2, pb: 1.5 }} data-testid="builtin-views">
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                  Built in (always on the ED Board, cannot be edited)
-                </Typography>
-                <Typography variant="body2">ED All View</Typography>
-                <Typography variant="body2">Waiting Area</Typography>
-                <Typography variant="body2">ED Follow-up (on the ED Follow-up tab)</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                  To change columns or colors for everyone in the department, make a view starting from the standard layout.
-                </Typography>
-              </Box>
-            </Paper>
-
-            <Box sx={{ flex: 1, minWidth: 320 }}>
-              {!current && (
-                <Alert severity="info">Create a view to choose the columns, colors and patients it shows. It will appear in the View list on the ED Board.</Alert>
               )}
-              {current && config && (
-                <>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", mb: 2, rowGap: 1 }}>
-                    <TextField label="View name" size="small" value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} inputProps={{ maxLength: 60, "data-testid": "view-name" }} sx={{ minWidth: 240 }} />
-                    <Button variant="contained" onClick={saveView} disabled={busy || !dirty || !name.trim() || incomplete}>
-                      Save view
-                    </Button>
-                    <Button onClick={undo} disabled={busy || dirty || !current.can_undo} color="inherit">
-                      Undo last save
-                    </Button>
-                    {dirty && (
-                      <Button onClick={() => open(current)} disabled={busy} color="inherit">
-                        Discard changes
-                      </Button>
-                    )}
-                    <Box sx={{ flexGrow: 1 }} />
-                    <Button size="small" onClick={() => setDefault(!current.is_default)} disabled={busy}>
-                      {current.is_default ? "Remove as default" : "Make default"}
-                    </Button>
-                    <Button size="small" onClick={() => setCreating({ name: `${current.name} copy`, from: String(current.id), kind: current.kind || "live" })} disabled={busy || views.length >= 30}>
-                      Duplicate
-                    </Button>
-                    <Button size="small" color="error" onClick={() => setDeleting(true)} disabled={busy}>
-                      Delete
-                    </Button>
-                  </Stack>
+              <Button size="small" variant="contained" onClick={saveView} disabled={busy || !dirty || !name.trim() || incomplete}>
+                Save view
+              </Button>
+              <IconButton size="small" aria-label="More actions" onClick={(e) => setMoreAnchor(e.currentTarget)}>
+                <MoreVert fontSize="small" />
+              </IconButton>
+              <Menu anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}>
+                <MenuItem disabled={busy} onClick={() => { setMoreAnchor(null); setDefault(!current.is_default); }}>
+                  {current.is_default ? "Remove as default" : "Make default"}
+                </MenuItem>
+                <MenuItem disabled={busy || views.length >= 30} onClick={() => { setMoreAnchor(null); setCreating({ name: `${current.name} copy`, from: String(current.id), kind: current.kind || "live" }); }}>
+                  Duplicate
+                </MenuItem>
+                <MenuItem disabled={busy} sx={{ color: "error.main" }} onClick={() => { setMoreAnchor(null); setDeleting(true); }}>
+                  Delete
+                </MenuItem>
+              </Menu>
+            </BuilderToolbar>
+          )}
 
-                  <Tabs value={subTab} onChange={(_e, v) => setSub(v)} sx={{ mb: 2 }}>
-                    <Tab label="Columns" value={0} />
-                    <Tab label="Colors" value={1} />
-                    <Tab label="Patients shown" value={2} />
-                    {followUp && <Tab label="Follow-up" value={3} />}
-                  </Tabs>
-                  <Paper variant="outlined" sx={{ p: 2 }}>
-                    {subTab === 0 && <ColumnsTab config={config} onChange={change} />}
-                    {subTab === 1 && <ColorsTab config={config} settings={settings} onChange={change} />}
-                    {subTab === 2 && <PatientsTab config={config} locations={data.locations || []} settings={settings} people={data.people} onChange={change} />}
-                    {subTab === 3 && followUp && <FollowUpTab config={config} onChange={change} />}
-                  </Paper>
-                </>
-              )}
-            </Box>
-          </Box>
+          <BuilderSplit
+            list={
+              <>
+                <BuilderListHeader>
+                  <Button fullWidth variant="contained" size="small" onClick={() => setCreating({ name: "", from: "", kind: "live" })} disabled={views.length >= 30}>
+                    New view
+                  </Button>
+                </BuilderListHeader>
+                <List dense aria-label="Views" disablePadding>
+                  {views.length === 0 && (
+                    <ListItemText sx={{ p: 2 }} primary="No saved views yet" secondary="The built-in views are always available." />
+                  )}
+                  {views.map((v) => (
+                    <ListItemButton key={v.id} selected={v.id === selectedId} onClick={() => choose(v)} data-testid={`view-item-${v.id}`}>
+                      <ListItemText primary={v.name} />
+                      {v.kind === "follow_up" && <Chip size="small" variant="outlined" color="secondary" label="Follow-up" sx={{ mr: 0.5 }} data-testid={`follow-up-chip-${v.id}`} />}
+                      {v.is_default && <Chip size="small" color="primary" label="Default" />}
+                    </ListItemButton>
+                  ))}
+                </List>
+                <Box sx={{ px: 2, py: 1.5, borderTop: "1px solid", borderColor: "divider" }} data-testid="builtin-views">
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                    Built in (always on the ED Board, cannot be edited)
+                  </Typography>
+                  <Typography variant="body2">ED All View</Typography>
+                  <Typography variant="body2">Waiting Area</Typography>
+                  <Typography variant="body2">ED Follow-up (on the ED Follow-up tab)</Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                    To change columns or colors for everyone in the department, make a view starting from the standard layout.
+                  </Typography>
+                </Box>
+              </>
+            }
+          >
+            {!current && (
+              <Alert severity="info">Create a view to choose the columns, colors and patients it shows. It will appear in the View list on the ED Board.</Alert>
+            )}
+            {current && config && (
+              <>
+                <TextField label="View name" size="small" value={name} onChange={(e) => { setName(e.target.value); setDirty(true); }} inputProps={{ maxLength: 60, "data-testid": "view-name" }} sx={{ minWidth: 240, mb: 2 }} />
+
+                <Tabs value={subTab} onChange={(_e, v) => setSub(v)} sx={{ mb: 2 }}>
+                  <Tab label="Columns" value={0} />
+                  <Tab label="Colors" value={1} />
+                  <Tab label="Patients shown" value={2} />
+                  {followUp && <Tab label="Follow-up" value={3} />}
+                </Tabs>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  {subTab === 0 && <ColumnsTab config={config} onChange={change} />}
+                  {subTab === 1 && <ColorsTab config={config} settings={settings} onChange={change} />}
+                  {subTab === 2 && <PatientsTab config={config} locations={data.locations || []} settings={settings} people={data.people} onChange={change} />}
+                  {subTab === 3 && followUp && <FollowUpTab config={config} onChange={change} />}
+                </Paper>
+              </>
+            )}
+          </BuilderSplit>
 
           {current && config && previewData && (
             <>
@@ -416,6 +443,6 @@ export default function StatusBoardBuilder() {
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </BuilderShell>
   );
 }
