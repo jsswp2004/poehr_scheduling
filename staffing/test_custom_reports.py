@@ -267,3 +267,78 @@ class CommunicatorSourceTests(TestCase):
         self.assertEqual(client_for(self.admin).post(f"{BASE}/{pk}/run/", run, format="json").status_code, 200)
         prev = {"source": "comm_messages", "config": {}, **run}
         self.assertEqual(client_for(self.nurse).post(f"{BASE}/preview/", prev, format="json").status_code, 403)
+
+
+class SchedulingSourceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Appointment, Facility, Unit as ApptUnit
+
+        self.org = Organization.objects.create(name="Org A")
+        self.other = Organization.objects.create(name="Org B")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.patient = CustomUser.objects.create_user(username="p1", password="x", role="patient", organization=self.org)
+        self.patient2 = CustomUser.objects.create_user(username="p2", password="x", role="patient", organization=self.org)
+        self.doc = CustomUser.objects.create_user(
+            username="d", password="x", role="doctor", organization=self.org, first_name="Dana", last_name="Lee"
+        )
+        self.east = Facility.objects.create(organization=self.org, name="East")
+        self.west = Facility.objects.create(organization=self.org, name="West")
+        self.u_east = ApptUnit.objects.create(facility=self.east, name="East Clinic")
+        self.u_west = ApptUnit.objects.create(facility=self.west, name="West Clinic")
+        now = timezone.now()
+
+        def appt(patient, status="scheduled", unit=None, minutes=30, **kw):
+            return Appointment.all_objects.create(
+                organization=self.org, patient=patient, provider=self.doc, title="Visit",
+                appointment_datetime=now, duration_minutes=minutes, status=status, unit=unit, **kw,
+            )
+
+        appt(self.patient, "completed", self.u_east, arrived=True)
+        appt(self.patient, "cancelled", self.u_east)
+        appt(self.patient2, "no_show", self.u_west, minutes=60)
+        appt(self.patient2, "scheduled", None, is_video=True)
+        Appointment.all_objects.create(
+            organization=self.other, patient=self.patient, title="Other org", appointment_datetime=now, status="completed"
+        )
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None):
+        return engine.run_report("appointments", self.org, config, self.start, self.end, user=user)
+
+    def test_outcomes_by_provider(self):
+        res = self.run_cfg({"group_by": "provider", "columns": ["provider", "appointments", "completed", "cancelled", "no_shows", "no_show_pct", "patients"]})
+        self.assertEqual(len(res["rows"]), 1)
+        row = res["rows"][0]
+        self.assertEqual(row["provider"], "Dana Lee")
+        self.assertEqual((row["appointments"], row["completed"], row["cancelled"], row["no_shows"]), (4, 1, 1, 1))
+        self.assertEqual(row["no_show_pct"], 25.0)
+        self.assertEqual(row["patients"], 2)  # counted, never named
+
+    def test_no_patient_identity_is_a_field(self):
+        keys = {f["key"] for f in engine.source_summary(engine.SOURCES["appointments"])["fields"]}
+        self.assertFalse(keys & {"patient", "patient_name", "_patient", "title", "description"})
+
+    def test_hours_booked_and_visit_type(self):
+        res = self.run_cfg({"group_by": "visit_type", "columns": ["visit_type", "appointments", "hours_booked"]})
+        rows = {r["visit_type"]: r for r in res["rows"]}
+        self.assertEqual(rows["Video"]["appointments"], 1)
+        self.assertEqual(rows["In person"]["hours_booked"], 2.0)  # 30 + 30 + 60 minutes
+
+    def test_a_facility_limited_user_sees_only_their_facility_and_unplaced_visits(self):
+        self.admin.facilities.add(self.east)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "appointments"]}, user=self.admin)
+        rows = {r["facility"]: r["appointments"] for r in res["rows"]}
+        self.assertEqual(rows, {"East": 2, "No location": 1})
+        unlimited = self.run_cfg({"group_by": "facility", "columns": ["facility", "appointments"]})
+        self.assertEqual({r["facility"] for r in unlimited["rows"]}, {"East", "West", "No location"})
+
+    def test_access_follows_analytics_right(self):
+        patient_view = {s["key"] for s in client_for(self.admin).get(f"{BASE}/sources/").json()}
+        self.assertIn("appointments", patient_view)
+        body = {"name": "No-shows", "source": "appointments", "config": {"group_by": "provider", "columns": ["provider", "no_shows"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Scheduling")

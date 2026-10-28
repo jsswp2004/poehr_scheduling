@@ -177,7 +177,9 @@ class CustomReportViewSet(viewsets.ModelViewSet):
         report = self.get_object()
         try:
             start, end = _range(request, report.source)
-            result = engine.run_report(report.source, report.organization, report.config, start, end, request.data.get("narrow"))
+            result = engine.run_report(
+                report.source, report.organization, report.config, start, end, request.data.get("narrow"), user=request.user
+            )
         except engine.ReportConfigError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         CustomReport.objects.filter(pk=report.pk).update(last_run_at=timezone.now())
@@ -193,7 +195,7 @@ class CustomReportViewSet(viewsets.ModelViewSet):
             return Response({"error": "You do not have access to this data source."}, status=status.HTTP_403_FORBIDDEN)
         try:
             start, end = _range(request, source)
-            result = engine.run_report(source, org, request.data.get("config"), start, end, None)
+            result = engine.run_report(source, org, request.data.get("config"), start, end, None, user=request.user)
         except engine.ReportConfigError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(result)
