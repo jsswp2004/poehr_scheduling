@@ -474,6 +474,68 @@ class NotesSourceTests(TestCase):
         self.assertEqual(ReportAuditLog.objects.count(), 0)
 
 
+class VisitsSourceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Facility, Unit as ApptUnit
+        from users.models import Patient, Registration
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.nurse = CustomUser.objects.create_user(
+            username="n", password="x", role="nurse", organization=self.org, first_name="Nia", last_name="Park"
+        )
+        u1 = CustomUser.objects.create_user(username="p1", password="x", role="patient", organization=self.org)
+        u2 = CustomUser.objects.create_user(username="p2", password="x", role="patient", organization=self.org)
+        self.p1 = Patient.objects.create(user=u1, organization=self.org, phone_number="3015550111")
+        self.p2 = Patient.objects.create(user=u2, organization=self.org, phone_number="3015550112")
+        self.east = Facility.objects.create(organization=self.org, name="East")
+        self.west = Facility.objects.create(organization=self.org, name="West")
+        now = timezone.now()
+
+        def visit(patient, care, **kw):
+            return Registration.objects.create(patient=patient, organization=self.org, care_setting=care, arrival_time=now, **kw)
+
+        visit(self.p1, "emergency", facility=self.east, esi=2, assigned_nurse=self.nurse,
+              discharge_datetime=now + datetime.timedelta(hours=4))
+        visit(self.p1, "ambulatory", facility=self.west)
+        visit(self.p2, "emergency", facility=None, esi=4)
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None):
+        return engine.run_report("visits", self.org, config, self.start, self.end, user=user)
+
+    def test_volume_and_stay_by_care_setting(self):
+        res = self.run_cfg({"group_by": "care", "columns": ["care", "visits", "patients", "discharged", "los_hours"]})
+        rows = {r["care"]: r for r in res["rows"]}
+        self.assertEqual((rows["ED"]["visits"], rows["ED"]["patients"], rows["ED"]["discharged"]), (2, 2, 1))
+        self.assertEqual(rows["ED"]["los_hours"], 4.0)
+        self.assertEqual(rows["Clinic"]["visits"], 1)
+
+    def test_acuity_and_nurse(self):
+        res = self.run_cfg({"group_by": "esi", "columns": ["esi", "visits"]})
+        self.assertEqual({r["esi"]: r["visits"] for r in res["rows"]}, {"ESI 2": 1, "ESI 4": 1, "Not triaged": 1})
+        res = self.run_cfg({"group_by": "nurse", "columns": ["nurse", "visits"]})
+        self.assertEqual({r["nurse"]: r["visits"] for r in res["rows"]}, {"Nia Park": 1, "No nurse": 2})
+
+    def test_no_patient_identity_is_a_field(self):
+        keys = {f["key"] for f in engine.source_summary(engine.SOURCES["visits"])["fields"]}
+        self.assertFalse(keys & {"patient", "patient_name", "_patient", "reason", "reason_for_visit"})
+
+    def test_a_facility_limited_user_sees_only_their_facility_and_unplaced_visits(self):
+        self.admin.facilities.add(self.east)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "visits"]}, user=self.admin)
+        self.assertEqual({r["facility"]: r["visits"] for r in res["rows"]}, {"East": 1, "No location": 1})
+
+    def test_module_label_on_a_saved_report(self):
+        body = {"name": "ED volume", "source": "visits", "config": {"group_by": "care", "columns": ["care", "visits"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Visits")
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 
