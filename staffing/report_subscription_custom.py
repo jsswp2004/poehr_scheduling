@@ -27,7 +27,7 @@ def _crv():
 def source_info(report, user):
     """(source dict, whether it holds patient data) for a saved report, as `user` sees it."""
     crv = _crv()
-    src, _cfg = crv._prepare(report.source, report.config, user)
+    src, _cfg = crv._prepare(report.source, report.config, user, report.organization)
     src = src or engine.SOURCES[report.source]
     return src, bool(src["patient_data"])
 
@@ -82,6 +82,16 @@ def _cell(value, col):
     return value
 
 
+def _widths(columns, rows):
+    """Relative column widths from the content, so a report with any number of columns lays out sensibly.
+    (Without them the PDF falls back to the master-schedule layout, which squeezes the first columns to nothing.)"""
+    out = []
+    for i, c in enumerate(columns):
+        longest = max([len(str(c["label"])) // 2] + [len(str(r[i])) for r in rows[:200] if i < len(r)])
+        out.append(min(max(longest, 6), 32))
+    return out
+
+
 def result_table(report, result, start, end):
     columns = result["columns"]
     keys = [c["key"] for c in columns]
@@ -96,7 +106,7 @@ def result_table(report, result, start, end):
         notes.append("This report contains patient information. Handle it as you would the chart.")
     if result.get("truncated"):
         notes.append("Only the first rows are shown. Narrow the date range for the rest.")
-    return Table_(report.name, [c["label"] for c in columns], rows, notes, landscape=len(columns) > 6)
+    return Table_(report.name, [c["label"] for c in columns], rows, notes, landscape=len(columns) > 6, widths=_widths(columns, rows))
 
 
 def build_files(sub, start, end, user):
@@ -106,7 +116,7 @@ def build_files(sub, start, end, user):
     problem = owner_problem(report, user)
     if problem:
         raise report_export.ReportError(problem)
-    src, cfg = crv._prepare(report.source, report.config, user)
+    src, cfg = crv._prepare(report.source, report.config, user, sub.organization, bool(sub.hide_phi))
     dated = report.source == "linked" or engine.get_source(report.source)["dated"]
     result = engine.run_report(
         report.source, sub.organization, cfg, start if dated else None, end if dated else None,
