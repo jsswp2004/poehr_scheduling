@@ -143,6 +143,7 @@ export const MODULE_COLORS = {
   Notes: "#1b7a43",
   Visits: "#c2410c",
   Orders: "#0e7490",
+  Labs: "#a21caf",
 };
 
 export const OP_LABELS = {
