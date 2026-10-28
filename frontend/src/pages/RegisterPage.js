@@ -338,7 +338,7 @@ function RegisterPage({ adminMode = false, onPatientRegistered, modalMode = fals
         {/* Left pane: the registration forms */}
         <Box
           sx={{
-            flex: modalMode ? "1 1 auto" : { xs: "0 0 auto", lg: "0 0 460px" },
+            flex: modalMode ? "1 1 auto" : { xs: "0 0 auto", lg: "1 1 0" }, // half of the card; the patients table gets the other half
             minWidth: 0,
             display: "flex",
             flexDirection: "column",
