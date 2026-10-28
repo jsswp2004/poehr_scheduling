@@ -32,6 +32,11 @@ import { apiEndpoints } from "../config/api";
 import { STANDARD_REPORTS, dayTime, errorText, headers, listReports } from "../components/reports/reportUtils";
 
 const TABS = ["all", "std", "mine", "shared"];
+const MODULES = [
+  { key: "all", label: "All modules" },
+  { key: "staffing", label: "Staffing" },
+  { key: "communicator", label: "Communicator" },
+];
 
 export default function ReportsHomePage() {
   const navigate = useNavigate();
@@ -40,6 +45,7 @@ export default function ReportsHomePage() {
   const [error, setError] = useState("");
   const [tab, setTab] = useState("all");
   const [query, setQuery] = useState("");
+  const [moduleFilter, setModuleFilter] = useState("all");
   const [menu, setMenu] = useState(null); // { anchor, report }
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -64,6 +70,8 @@ export default function ReportsHomePage() {
     const std = STANDARD_REPORTS.map((s) => ({
       id: `std-${s.key}`,
       standard: true,
+      module: "staffing",
+      module_label: "Staffing",
       key: s.key,
       name: s.label,
       note: s.note,
@@ -86,6 +94,7 @@ export default function ReportsHomePage() {
   );
 
   const visible = rows.filter((r) => {
+    if (moduleFilter !== "all" && r.module !== moduleFilter) return false;
     if (tab === "std" && !r.standard) return false;
     if (tab === "mine" && (r.standard || !r.is_mine)) return false;
     if (tab === "shared" && (r.standard || r.is_mine)) return false;
@@ -127,7 +136,7 @@ export default function ReportsHomePage() {
   return (
     <BuilderShell
       title="Reports"
-      subtitle="Run, build and share reports. Staffing reports are available first."
+      subtitle="Run, build and share reports. Staffing and Communicator reports are available."
       tabs={[
         { key: "all", label: "All", count: counts.all },
         { key: "std", label: "Standard", count: counts.std },
@@ -147,7 +156,18 @@ export default function ReportsHomePage() {
           inputProps={{ "aria-label": "Search reports" }}
           sx={{ width: 240 }}
         />
-        <Chip size="small" color="primary" label="Staffing" />
+        {MODULES.map((m) => (
+          <Chip
+            key={m.key}
+            size="small"
+            clickable
+            color={moduleFilter === m.key ? "primary" : "default"}
+            variant={moduleFilter === m.key ? "filled" : "outlined"}
+            label={m.label}
+            onClick={() => setModuleFilter(m.key)}
+            aria-pressed={moduleFilter === m.key}
+          />
+        ))}
         <Box sx={{ flex: 1 }} />
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/reports/new")}>
           New report
@@ -204,7 +224,7 @@ export default function ReportsHomePage() {
                 <TableCell>
                   <Chip size="small" variant={r.standard ? "outlined" : "filled"} color={r.standard ? "default" : "primary"} label={r.standard ? "Standard" : "Custom"} />
                 </TableCell>
-                <TableCell>Staffing</TableCell>
+                <TableCell>{r.module_label}</TableCell>
                 <TableCell>{r.owner_name || "—"}</TableCell>
                 <TableCell>{r.shared_text}</TableCell>
                 <TableCell>{r.standard ? "—" : dayTime(r.last_run_at)}</TableCell>

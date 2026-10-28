@@ -192,3 +192,78 @@ class CustomReportApiTests(TestCase):
         src = client_for(self.nurse).get(f"{BASE}/sources/").json()
         self.assertIn("hours_overtime", {s["key"] for s in src})
         self.assertTrue(all("load" not in s for s in src))
+
+
+class CommunicatorSourceTests(TestCase):
+    def setUp(self):
+        from communicator.models import Contact, MessageLog
+
+        self.org = Organization.objects.create(name="Org A")
+        self.other = Organization.objects.create(name="Org B")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.nurse = CustomUser.objects.create_user(username="n", password="x", role="nurse", organization=self.org)
+        self.stranger = CustomUser.objects.create_user(username="s", password="x", role="admin", organization=self.other)
+        MessageLog.objects.create(user=self.admin, recipient="+15551230001", body="Hi", message_type="sms", status="sent")
+        MessageLog.objects.create(organization=self.org, recipient="+15551230002", body="Hi", message_type="sms", status="failed")
+        MessageLog.objects.create(organization=self.org, recipient="+15551230003", body="Hi", message_type="sms", status="blocked_opted_out")
+        MessageLog.objects.create(user=self.admin, recipient="a@example.com", subject="Hello", body="Hi", message_type="email", status="sent")
+        MessageLog.objects.create(organization=self.org, recipient="+15551230002", body="Webhook: STOP", message_type="webhook", status="received")
+        MessageLog.objects.create(user=self.stranger, recipient="+15559990000", body="Hi", message_type="sms", status="sent")
+        Contact.objects.create(name="Pat Doe", uploaded_by=self.admin, sms_opt_out=True)
+        Contact.objects.create(name="Sam Roe", uploaded_by=self.admin)
+        Contact.objects.create(name="Other Org", uploaded_by=self.stranger)
+        from django.utils import timezone
+
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, source, config):
+        return engine.run_report(source, self.org, config, self.start, self.end)
+
+    def test_messages_by_channel(self):
+        res = self.run_cfg(
+            "comm_messages",
+            {"group_by": "channel", "columns": ["channel", "messages", "sent", "failed", "blocked", "failure_pct"],
+             "sort": {"field": "messages", "dir": "desc"}},
+        )
+        rows = {r["channel"]: r for r in res["rows"]}
+        self.assertEqual(rows["SMS"]["messages"], 3)  # the other organization's text is not counted
+        self.assertEqual(rows["SMS"]["failed"], 1)
+        self.assertEqual(rows["SMS"]["blocked"], 1)
+        self.assertEqual(rows["SMS"]["failure_pct"], 33.3)
+        self.assertEqual(rows["Email"]["messages"], 1)
+        self.assertEqual(res["totals"]["messages"], 4)
+
+    def test_message_text_is_never_a_field(self):
+        keys = {f["key"] for f in engine.source_summary(engine.SOURCES["comm_messages"])["fields"]}
+        self.assertNotIn("body", keys)
+
+    def test_replies_by_keyword(self):
+        res = self.run_cfg("comm_replies", {"group_by": "keyword", "columns": ["keyword", "replies", "people"]})
+        self.assertEqual(res["rows"], [{"keyword": "STOP", "replies": 1, "people": 1, "_flag": False}])
+
+    def test_contacts_by_sms_status(self):
+        res = self.run_cfg("comm_contacts", {"group_by": "sms_status", "columns": ["sms_status", "contacts"]})
+        rows = {r["sms_status"]: r["contacts"] for r in res["rows"]}
+        self.assertEqual(rows, {"Opted out": 1, "Can receive SMS": 1})
+
+    def test_access_follows_the_message_log_right(self):
+        names = lambda u: {s["key"] for s in client_for(u).get(f"{BASE}/sources/").json()}  # noqa: E731
+        self.assertIn("comm_messages", names(self.admin))
+        self.assertNotIn("comm_messages", names(self.nurse))
+        self.assertIn("shifts", names(self.nurse))
+
+    def test_a_nurse_cannot_build_preview_or_see_a_communicator_report(self):
+        body = {"name": "Failed texts", "source": "comm_messages", "config": {"group_by": "channel", "columns": ["channel", "failed"]}, "audience": "org"}
+        self.assertEqual(client_for(self.nurse).post(f"{BASE}/", body, format="json").status_code, 400)
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module"], "communicator")
+        self.assertEqual(made.json()["module_label"], "Communicator")
+        self.assertEqual(client_for(self.nurse).get(f"{BASE}/").json(), [])
+        pk = made.json()["id"]
+        run = {"start": self.start.isoformat(), "end": self.end.isoformat()}
+        self.assertEqual(client_for(self.nurse).post(f"{BASE}/{pk}/run/", run, format="json").status_code, 404)
+        self.assertEqual(client_for(self.admin).post(f"{BASE}/{pk}/run/", run, format="json").status_code, 200)
+        prev = {"source": "comm_messages", "config": {}, **run}
+        self.assertEqual(client_for(self.nurse).post(f"{BASE}/preview/", prev, format="json").status_code, 403)

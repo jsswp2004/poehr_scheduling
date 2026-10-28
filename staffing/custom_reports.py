@@ -41,9 +41,18 @@ def measure(key, label, type_="number", agg="sum", of=None, ratio=None):
     return {"key": key, "label": label, "kind": "measure", "type": type_, "agg": agg, "of": of, "ratio": ratio}
 
 
-def register(key, label, group, description, fields, load, dated=True, default_columns=None, default_group=None):
+MODULES = {"staffing": "Staffing", "communicator": "Communicator"}
+
+
+def register(
+    key, label, group, description, fields, load, dated=True, default_columns=None, default_group=None,
+    module="staffing", right=None,
+):
+    """`right` is a users.rights code the user must hold to use the source; None = the Staffing report roles."""
     SOURCES[key] = {
         "key": key,
+        "module": module,
+        "right": right,
         "label": label,
         "group": group,
         "description": description,
@@ -59,6 +68,8 @@ def source_summary(src):
     """What the builder needs to know about a source (no loader)."""
     return {
         "key": src["key"],
+        "module": src["module"],
+        "module_label": MODULES.get(src["module"], src["module"]),
         "label": src["label"],
         "group": src["group"],
         "description": src["description"],
@@ -70,6 +81,17 @@ def source_summary(src):
             for f in src["fields"]
         ],
     }
+
+
+def source_allowed(src, user):
+    """Can this user use the source? Staffing sources follow the Staffing report roles; others a rights code."""
+    if src["right"]:
+        from users.rights import user_has_right
+
+        return user_has_right(user, src["right"])
+    from .views import MANAGER_ROLES
+
+    return getattr(user, "role", None) in MANAGER_ROLES
 
 
 def get_source(key):
@@ -616,3 +638,7 @@ def run_report(source_key, org, config, start, end, narrow=None):
         "truncated": truncated,
         "row_count": len(out),
     }
+
+
+# Sources for other modules register themselves on import.
+from . import custom_report_sources_communicator  # noqa: E402,F401

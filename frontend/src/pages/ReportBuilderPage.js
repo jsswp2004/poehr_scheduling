@@ -277,7 +277,8 @@ export default function ReportBuilderPage() {
   const groupedSources = useMemo(() => {
     const out = {};
     sources.forEach((s) => {
-      (out[s.group] = out[s.group] || []).push(s);
+      const label = `${s.module_label} \u00b7 ${s.group}`;
+      (out[label] = out[label] || []).push(s);
     });
     return out;
   }, [sources]);
@@ -301,7 +302,7 @@ export default function ReportBuilderPage() {
       subtitle="Pick the data, filters and layout. The preview updates as you go."
       chips={
         <>
-          <Chip size="small" color="primary" label="Staffing" />
+          <Chip size="small" color="primary" label={source?.module_label || "Staffing"} />
           {dirty && <Chip size="small" color="warning" label="Unsaved changes" />}
         </>
       }
@@ -355,7 +356,7 @@ export default function ReportBuilderPage() {
               </FormControl>
               {source && (
                 <Typography variant="caption" color="text.secondary" sx={{ mt: "-8px !important" }}>
-                  {source.description} Limited to your facility.
+                  {source.description} Limited to your organization.
                 </Typography>
               )}
               <FormControl size="small">

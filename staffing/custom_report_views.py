@@ -9,8 +9,10 @@ Custom reports (Reports module).
     POST   /api/staffing/custom-reports/<id>/run/       {start, end, narrow}  rows for the viewer
     POST   /api/staffing/custom-reports/preview/        {source, config, start, end}  builder preview
 
-Rights: anyone who may use Staffing reports (MANAGER_ROLES) can run what is shared with them and build
-their own; only the owner or an admin can change or delete a report.
+Rights: each data source says who may use it. Staffing sources follow the Staffing report roles
+(MANAGER_ROLES); Communicator sources need the "messages.view_logs" right. Anyone who may use a source can
+run reports on it that are shared with them and build their own; only the owner or an admin can change or
+delete a report. A report on a source the user may not use is hidden from them.
 """
 
 import datetime
@@ -37,6 +39,11 @@ def _can_see(user, report):
     return report.audience == "roles" and user.role in (report.audience_roles or [])
 
 
+def _source_ok(source_key, user):
+    src = engine.SOURCES.get(source_key)
+    return bool(src and engine.source_allowed(src, user))
+
+
 def _can_edit(user, report):
     return user.role in ADMIN_ROLES or report.created_by_id == user.id
 
@@ -45,13 +52,14 @@ class CustomReportSerializer(serializers.ModelSerializer):
     owner_name = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     source_label = serializers.SerializerMethodField()
+    module_label = serializers.SerializerMethodField()
     shared_text = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomReport
         fields = [
-            "id", "name", "description", "module", "source", "source_label", "config", "audience", "audience_roles",
+            "id", "name", "description", "module", "module_label", "source", "source_label", "config", "audience", "audience_roles",
             "shared_text", "owner_name", "is_mine", "can_edit", "last_run_at", "created_at", "updated_at",
         ]
         read_only_fields = ["module", "last_run_at", "created_at", "updated_at"]
@@ -73,6 +81,9 @@ class CustomReportSerializer(serializers.ModelSerializer):
     def get_source_label(self, obj):
         src = engine.SOURCES.get(obj.source)
         return src["label"] if src else obj.source
+
+    def get_module_label(self, obj):
+        return engine.MODULES.get(obj.module, obj.module)
 
     def get_shared_text(self, obj):
         if obj.audience == "me":
@@ -96,6 +107,13 @@ class CustomReportSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         get = lambda k, d=None: attrs.get(k, getattr(self.instance, k, d))  # noqa: E731
         source = get("source")
+        src = engine.SOURCES.get(source)
+        if src is None:
+            raise serializers.ValidationError({"source": "Unknown report source."})
+        request = self.context.get("request")
+        if request is not None and not engine.source_allowed(src, request.user):
+            raise serializers.ValidationError({"source": "You do not have access to this data source."})
+        attrs["module"] = src["module"]
         try:
             attrs["config"] = engine.clean_config(source, get("config", {}))
         except engine.ReportConfigError as e:
@@ -125,12 +143,13 @@ class CustomReportViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = _org_queryset(CustomReport, self.request).select_related("created_by")
-        ids = [r.pk for r in qs if _can_see(self.request.user, r)]
+        user = self.request.user
+        ids = [r.pk for r in qs if _can_see(user, r) and _source_ok(r.source, user)]
         return qs.filter(pk__in=ids)
 
     def get_object(self):
         obj = _org_queryset(CustomReport, self.request).select_related("created_by").filter(pk=self.kwargs["pk"]).first()
-        if obj is None or not _can_see(self.request.user, obj):
+        if obj is None or not _can_see(self.request.user, obj) or not _source_ok(obj.source, self.request.user):
             from rest_framework.exceptions import NotFound
 
             raise NotFound()
@@ -151,7 +170,7 @@ class CustomReportViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="sources")
     def sources(self, request):
-        return Response([engine.source_summary(s) for s in engine.SOURCES.values()])
+        return Response([engine.source_summary(s) for s in engine.SOURCES.values() if engine.source_allowed(s, request.user)])
 
     @action(detail=True, methods=["post"], url_path="run")
     def run(self, request, pk=None):
@@ -170,6 +189,8 @@ class CustomReportViewSet(viewsets.ModelViewSet):
         if org is None:
             return Response({"error": "Choose an organization first."}, status=status.HTTP_400_BAD_REQUEST)
         source = request.data.get("source")
+        if not _source_ok(source, request.user):
+            return Response({"error": "You do not have access to this data source."}, status=status.HTTP_403_FORBIDDEN)
         try:
             start, end = _range(request, source)
             result = engine.run_report(source, org, request.data.get("config"), start, end, None)
