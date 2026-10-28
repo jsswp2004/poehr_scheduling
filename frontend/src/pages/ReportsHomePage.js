@@ -46,6 +46,7 @@ const MODULES = [
   { key: "vaccines", label: "Vaccines" },
   { key: "referrals", label: "Referrals" },
   { key: "allergies", label: "Allergies" },
+  { key: "census", label: "Census" },
   { key: "linked", label: "Linked" },
 ];
 

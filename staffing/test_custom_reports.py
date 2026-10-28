@@ -963,6 +963,65 @@ class AllergySourceTests(TestCase):
         self.assertTrue(ReportAuditLog.objects.filter(source="allergies", action="run").exists())
 
 
+class BedCensusTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Bed, Facility, Room, Unit as ApptUnit
+        from users.models import Patient, Registration
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        u = CustomUser.objects.create_user(username="p1", password="x", role="patient", organization=self.org)
+        profile = Patient.objects.create(user=u, organization=self.org, phone_number="3015550111")
+        self.east = Facility.objects.create(organization=self.org, name="East")
+        west = Facility.objects.create(organization=self.org, name="West")
+        ward = ApptUnit.objects.create(facility=self.east, name="Ward 3", care_type="inpatient")
+        clinic = ApptUnit.objects.create(facility=west, name="West ED", care_type="emergency")
+        room = Room.objects.create(unit=ward, name="301")
+        room_w = Room.objects.create(unit=clinic, name="E1")
+        b1 = Bed.objects.create(room=room, name="A")
+        Bed.objects.create(room=room, name="B")
+        Bed.objects.create(room=room, name="C", hold="cleaning")
+        Bed.objects.create(room=room, name="D", is_active=False)
+        Bed.objects.create(room=room_w, name="W1")
+        Registration.objects.create(
+            patient=profile, organization=self.org, facility=self.east, unit=ward, room=room, bed=b1,
+            arrival_time=timezone.now() - datetime.timedelta(hours=5),
+        )
+        today = timezone.localdate()
+        self.start, self.end = today, today
+
+    def run_cfg(self, config, user=None):
+        return engine.run_report("bed_census", self.org, config, self.start, self.end, user=user)
+
+    def test_ward_counts_and_occupancy(self):
+        res = self.run_cfg({"group_by": "unit", "columns": ["unit", "beds", "in_service", "occupied", "available", "cleaning", "inactive", "occupancy_pct"]})
+        rows = {r["unit"]: r for r in res["rows"]}
+        ward = rows["Ward 3"]
+        self.assertEqual((ward["beds"], ward["in_service"], ward["occupied"], ward["available"], ward["cleaning"], ward["inactive"]), (4, 3, 1, 1, 1, 1))
+        self.assertAlmostEqual(ward["occupancy_pct"], 33.3, places=1)
+        self.assertEqual(rows["West ED"]["available"], 1)
+
+    def test_hours_occupied_and_no_patient_field(self):
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "hours_occupied"]})
+        east = {r["facility"]: r for r in res["rows"]}["East"]
+        self.assertGreaterEqual(east["hours_occupied"], 4.9)
+        keys = {f["key"] for f in engine.source_summary(engine.SOURCES["bed_census"])["fields"]}
+        self.assertFalse(keys & {"patient", "patient_name", "_patient"})
+
+    def test_a_facility_limited_user_sees_only_their_facility(self):
+        self.admin.facilities.add(self.east)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "beds"]}, user=self.admin)
+        self.assertEqual({r["facility"]: r["beds"] for r in res["rows"]}, {"East": 4})
+
+    def test_save_and_module_label(self):
+        body = {"name": "Beds now", "source": "bed_census", "config": {"group_by": "unit", "columns": ["unit", "beds"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Census")
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 
