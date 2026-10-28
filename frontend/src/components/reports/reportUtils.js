@@ -148,6 +148,7 @@ export const MODULE_COLORS = {
   Vaccines: "#be123c",
   Referrals: "#6d28d9",
   Allergies: "#b45309",
+  Census: "#0f766e",
 };
 
 export const OP_LABELS = {
