@@ -33,9 +33,8 @@ class ReportConfigError(ValueError):
 SOURCES = OrderedDict()
 
 
-def dim(key, label, type_="text", sensitive=False):
-    """`sensitive` marks patient identity: shown as "Patient 1, 2..." until the viewer chooses to show names."""
-    return {"key": key, "label": label, "kind": "dimension", "type": type_, "sensitive": sensitive}
+def dim(key, label, type_="text"):
+    return {"key": key, "label": label, "kind": "dimension", "type": type_}
 
 
 def measure(key, label, type_="number", agg="sum", of=None, ratio=None):
@@ -83,7 +82,7 @@ def source_summary(src):
         "fields": [
             {k: f[k] for k in ("key", "label", "kind", "type")}
             | ({"agg": f["agg"]} if f["kind"] == "measure" else {})
-            | ({"sensitive": True} if f.get("sensitive") else {})
+
             for f in src["fields"]
         ],
     }
@@ -552,21 +551,7 @@ def _single(row, f):
     return row.get(f["key"])
 
 
-def _mask_patients(detail, keys):
-    """Replace patient names with "Patient 1, 2..." (stable within the run) so grouping still works."""
-    names = {k: {} for k in keys}
-    out = []
-    for r in detail:
-        r = dict(r)
-        for k in keys:
-            v = r.get(k)
-            if v not in (None, ""):
-                r[k] = names[k].setdefault(v, f"Patient {len(names[k]) + 1}")
-        out.append(r)
-    return out
-
-
-def run_report(source_key, org, config, start, end, narrow=None, user=None, reveal=False):
+def run_report(source_key, org, config, start, end, narrow=None, user=None):
     """
     Returns {"columns", "rows", "totals", "tiles", "truncated", "source"}.
     `narrow` is a list of extra filters from the viewer's pickers (never widens the saved filters).
@@ -580,9 +565,6 @@ def run_report(source_key, org, config, start, end, narrow=None, user=None, reve
         if (end - start).days > MAX_RANGE_DAYS:
             raise ReportConfigError(f"Choose a range of {MAX_RANGE_DAYS} days or fewer.")
     detail = src["load"](org, start, end, user) if src["scoped"] else src["load"](org, start, end)
-    sensitive = [f["key"] for f in src["fields"] if f.get("sensitive")]
-    if sensitive and not reveal:
-        detail = _mask_patients(detail, sensitive)
     filters = cfg["filters"] + [_clean_filter(f, fields, "Filter") for f in (narrow or [])][:12]
     detail = [r for r in detail if all(_match(r, f, fields) for f in filters)]
 
@@ -660,8 +642,6 @@ def run_report(source_key, org, config, start, end, narrow=None, user=None, reve
         "highlight": hl,
         "truncated": truncated,
         "row_count": len(out),
-        # "hidden" / "shown" when the report has a patient name column, so the viewer can offer the button
-        "patient_names": ("shown" if reveal else "hidden") if any(c.get("sensitive") for c in cols) else None,
     }
 
 

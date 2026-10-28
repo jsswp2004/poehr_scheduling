@@ -972,7 +972,7 @@ class CustomReport(models.Model):
 
 class ReportAuditLog(models.Model):
     """
-    Who ran a report on patient data, and whether patient names were shown. One row per run or builder
+    Who ran a report on patient data, and when. One row per run or builder
     preview of a source that holds patient data. Report contents are never copied here, only counts.
     """
 
@@ -984,7 +984,6 @@ class ReportAuditLog(models.Model):
     report_name = models.CharField(max_length=120, blank=True, default="")
     source = models.CharField(max_length=40)
     action = models.CharField(max_length=10, default="run")  # run | preview
-    names_shown = models.BooleanField(default=False)
     row_count = models.PositiveIntegerField(default=0)
     range_start = models.DateField(null=True, blank=True)
     range_end = models.DateField(null=True, blank=True)
@@ -995,4 +994,4 @@ class ReportAuditLog(models.Model):
         indexes = [models.Index(fields=["organization", "-created_at"], name="staff_repaudit_org_idx")]
 
     def __str__(self):
-        return f"{self.source} {self.action} by {self.user_id} ({'names' if self.names_shown else 'masked'})"
+        return f"{self.source} {self.action} by {self.user_id}"
