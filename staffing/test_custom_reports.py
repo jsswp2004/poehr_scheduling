@@ -790,6 +790,64 @@ class FlowsheetSourceTests(TestCase):
         self.assertTrue(ReportAuditLog.objects.filter(source="flowsheet_entries", action="run").exists())
 
 
+class VaccineSourceTests(TestCase):
+    def setUp(self):
+        from appointments.models import ImmunizationItem, PatientImmunization
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.ann = CustomUser.objects.create_user(
+            username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames"
+        )
+        self.bo = CustomUser.objects.create_user(
+            username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell"
+        )
+        flu = ImmunizationItem.objects.create(organization=self.org, code="flu", name="Influenza")
+        mmr = ImmunizationItem.objects.create(organization=self.org, code="mmr", name="MMR")
+        today = datetime.date.today()
+
+        def rec(patient, item, **kw):
+            return PatientImmunization.all_objects.create(organization=self.org, patient=patient, item=item, given_on=today, **kw)
+
+        rec(self.ann, flu, status="done", vis_given=True, screening_reviewed=True)
+        rec(self.bo, flu, status="not_done", not_done_reason="declined", notes="Bo Bell declined")
+        rec(self.ann, mmr, status="done")
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None, **kw):
+        return engine.run_report("vaccines", self.org, config, self.start, self.end, user=user, **kw)
+
+    def test_given_and_declined_by_vaccine(self):
+        res = self.run_cfg({"group_by": "item", "columns": ["item", "records", "given", "not_done", "declined", "declined_pct", "vis_pct", "patients"]})
+        rows = {r["item"]: r for r in res["rows"]}
+        flu = rows["Influenza"]
+        self.assertEqual((flu["records"], flu["given"], flu["not_done"], flu["declined"], flu["patients"]), (2, 1, 1, 1, 2))
+        self.assertEqual(flu["declined_pct"], 50.0)
+        self.assertEqual(flu["vis_pct"], 100.0)  # of the one dose given
+        self.assertEqual(rows["MMR"]["given"], 1)
+
+    def test_hide_phi_masks_names_and_notes(self):
+        cfg = {"columns": ["patient", "item", "notes"]}
+        self.assertEqual(self.run_cfg(cfg)["phi"], "shown")
+        hidden = self.run_cfg(cfg, hide_phi=True)
+        self.assertNotIn("Ames", str(hidden))
+        self.assertNotIn("Bell", str(hidden))
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+
+    def test_save_and_run_is_audited(self):
+        from .models import ReportAuditLog
+
+        body = {"name": "Flu uptake", "source": "vaccines", "config": {"group_by": "item", "columns": ["item", "given"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Vaccines")
+        ran = client_for(self.admin).post(
+            f"{BASE}/{made.json()['id']}/run/", {"start": self.start.isoformat(), "end": self.end.isoformat()}, format="json"
+        )
+        self.assertEqual(ran.status_code, 200, ran.content)
+        self.assertTrue(ReportAuditLog.objects.filter(source="vaccines", action="run").exists())
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 
