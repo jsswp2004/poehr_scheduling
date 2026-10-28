@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Button, ListItemIcon, ListItemText, Menu, MenuItem } from "@mui/material";
+import { Button, ListItemIcon, ListItemText, Menu, MenuItem, Tooltip } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCaretDown,
@@ -21,18 +21,26 @@ export function ReportActions({ children }) {
 }
 
 /** The one Print button used by every report. */
-export function ReportPrintButton({ onClick, disabled, children = "Print", ...rest }) {
-  return (
+export function ReportPrintButton({ onClick, disabled, iconOnly = false, children = "Print", ...rest }) {
+  const button = (
     <Button
       color="primary"
-      startIcon={<FontAwesomeIcon icon={faPrint} />}
+      startIcon={iconOnly ? undefined : <FontAwesomeIcon icon={faPrint} />}
       onClick={onClick}
       disabled={disabled}
-      sx={{ minHeight: 44, fontWeight: 600 }}
+      aria-label={iconOnly ? "Print" : undefined}
+      sx={{ minHeight: 44, fontWeight: 600, ...(iconOnly ? { minWidth: 40, px: 1 } : {}) }}
       {...rest}
     >
-      {children}
+      {iconOnly ? <FontAwesomeIcon icon={faPrint} /> : children}
     </Button>
+  );
+  return iconOnly ? (
+    <Tooltip title="Print">
+      <span>{button}</span>
+    </Tooltip>
+  ) : (
+    button
   );
 }
 
@@ -71,24 +79,29 @@ const FORMAT_ITEMS = [
 ];
 
 /** "Export" button that opens a PDF / CSV menu. `formats` lists what this report can produce. */
-export function ReportExportMenu({ formats = ["pdf", "csv"], onExport, disabled, busy }) {
+export function ReportExportMenu({ formats = ["pdf", "csv"], onExport, disabled, busy, iconOnly = false }) {
   const [anchor, setAnchor] = useState(null);
   const close = () => setAnchor(null);
   return (
     <>
-      <Button
-        variant="outlined"
-        color="inherit"
-        aria-haspopup="menu"
-        aria-expanded={anchor ? "true" : undefined}
-        startIcon={<FontAwesomeIcon icon={faDownload} />}
-        endIcon={<FontAwesomeIcon icon={faCaretDown} />}
-        onClick={(e) => setAnchor(e.currentTarget)}
-        disabled={disabled || !!busy}
-        sx={{ minHeight: 44 }}
-      >
-        {busy ? "Preparing..." : "Export"}
-      </Button>
+      <Tooltip title={iconOnly ? (busy ? "Preparing..." : "Export") : ""}>
+        <span>
+          <Button
+            variant="outlined"
+            color="inherit"
+            aria-haspopup="menu"
+            aria-label={iconOnly ? "Export" : undefined}
+            aria-expanded={anchor ? "true" : undefined}
+            startIcon={iconOnly ? undefined : <FontAwesomeIcon icon={faDownload} />}
+            endIcon={iconOnly ? undefined : <FontAwesomeIcon icon={faCaretDown} />}
+            onClick={(e) => setAnchor(e.currentTarget)}
+            disabled={disabled || !!busy}
+            sx={{ minHeight: 44, ...(iconOnly ? { minWidth: 40, px: 1 } : {}) }}
+          >
+            {iconOnly ? <FontAwesomeIcon icon={faDownload} /> : busy ? "Preparing..." : "Export"}
+          </Button>
+        </span>
+      </Tooltip>
       <Menu anchorEl={anchor} open={!!anchor} onClose={close} slotProps={{ paper: { sx: { mt: 0.5, minWidth: 300 } } }}>
         {FORMAT_ITEMS.map((item) => {
           const available = formats.includes(item.value);

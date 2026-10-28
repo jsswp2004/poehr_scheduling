@@ -17,6 +17,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -414,20 +415,25 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
 }
 
 /** The Subscribe button for a report's title row. Opens the dialog with the report's filters carried in. */
-export function SubscribeButton({ report, reportLabel, params, people, units, onSaved, disabled }) {
+export function SubscribeButton({ report, reportLabel, params, people, units, onSaved, disabled, iconOnly = false }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button
-        variant="outlined"
-        color="inherit"
-        startIcon={<FontAwesomeIcon icon={faBell} />}
-        onClick={() => setOpen(true)}
-        disabled={disabled}
-        sx={{ minHeight: 44 }}
-      >
-        Subscribe
-      </Button>
+      <Tooltip title={iconOnly ? "Subscribe" : ""}>
+        <span>
+          <Button
+            variant="outlined"
+            color="inherit"
+            aria-label={iconOnly ? "Subscribe" : undefined}
+            startIcon={iconOnly ? undefined : <FontAwesomeIcon icon={faBell} />}
+            onClick={() => setOpen(true)}
+            disabled={disabled}
+            sx={{ minHeight: 44, ...(iconOnly ? { minWidth: 40, px: 1 } : {}) }}
+          >
+            {iconOnly ? <FontAwesomeIcon icon={faBell} /> : "Subscribe"}
+          </Button>
+        </span>
+      </Tooltip>
       {open && (
         <SubscribeDialog
           open
