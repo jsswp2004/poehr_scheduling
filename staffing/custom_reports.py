@@ -43,7 +43,7 @@ def measure(key, label, type_="number", agg="sum", of=None, ratio=None, dedupe=N
     return {"key": key, "label": label, "kind": "measure", "type": type_, "agg": agg, "of": of, "ratio": ratio, "dedupe": dedupe}
 
 
-MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes", "visits": "Visits", "orders": "Orders", "labs": "Labs", "linked": "Linked"}
+MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling", "notes": "Notes", "visits": "Visits", "orders": "Orders", "labs": "Labs", "flowsheets": "Flowsheets", "linked": "Linked"}
 
 
 def register(
@@ -539,6 +539,8 @@ def _agg_rows(rows, f, fields):
         return sum(vals) / len(vals)
     if agg == "max":
         return max(vals)
+    if agg == "min":
+        return min(vals)
     return None
 
 
@@ -684,3 +686,4 @@ from . import custom_report_sources_notes  # noqa: E402,F401
 from . import custom_report_sources_visits  # noqa: E402,F401
 from . import custom_report_sources_orders  # noqa: E402,F401
 from . import custom_report_sources_labs  # noqa: E402,F401
+from . import custom_report_sources_flowsheets  # noqa: E402,F401
