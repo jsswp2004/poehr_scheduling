@@ -1,26 +1,33 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Checkbox, CircularProgress, FormControlLabel, List, ListItemButton, ListItemText, Paper, Stack, TextField, Typography } from "@mui/material";
 import { api } from "../../api/client";
 import { apiEndpoints } from "../../config/api";
 import { toast } from "../SimpleToast";
+import { BuilderSplit, BuilderToolbar } from "../builders/BuilderShell";
 import { authHeader, errorText } from "../patientHeader/headerApi";
 import {
   FEVER_FIELDS, LEVELS, LEVEL_TITLES, addBand, ageFromText, bandStarts, feverFromDraft, feverToDraft, gapsFromDraft, gapsToDraft,
   removeLastBand, sourceLine, zoneFromDraft, zoneToDraft,
 } from "./triageSettingsHelpers";
 
-function Section({ title, note, status, children, actions, error }) {
+// One section of the settings. Every section stays mounted (so a half-typed draft survives switching sections);
+// only the chosen one is shown, and its Save buttons are rendered into the pinned toolbar.
+function Section({ title, note, status, children, actions, error, active }) {
   return (
-    <Paper variant="outlined" sx={{ p: 2 }} data-testid={`section-${title}`}>
+    <Paper variant="outlined" sx={{ p: 2, display: active ? "block" : "none" }} data-testid={`section-${title}`}>
       <Typography sx={{ fontWeight: 700 }}>{title}</Typography>
       {note && <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{note}</Typography>}
       {status && <Typography variant="caption" sx={{ display: "block", mb: 1, fontWeight: 600 }}>{status}</Typography>}
       {children}
       {error && <Alert severity="error" sx={{ mt: 1 }} data-testid="settings-error">{error}</Alert>}
-      <Stack direction="row" spacing={1} sx={{ mt: 1.5 }}>{actions}</Stack>
+      <BuilderToolbar>
+        <Stack direction="row" spacing={1} sx={{ mt: { xs: 1.5, md: 0 }, flex: 1, justifyContent: "flex-end", display: active ? "flex" : "none" }}>{actions}</Stack>
+      </BuilderToolbar>
     </Paper>
   );
 }
+
+const SECTION_TITLES = ["Recheck times", "Vital sign limits by age", "Fever limits for children", "Safety alerts", "Suicide screen"];
 
 /** The clinic's triage numbers: recheck times, the age table for vital signs, fever limits, and when the suicide screen starts. */
 export default function TriageSettings({ canEdit = true }) {
@@ -33,6 +40,7 @@ export default function TriageSettings({ canEdit = true }) {
   const [alertIds, setAlertIds] = useState([]);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState({});
+  const [activeSection, setActiveSection] = useState(SECTION_TITLES[0]);
 
   const apply = useCallback((s) => {
     setSettings(s);
@@ -83,12 +91,23 @@ export default function TriageSettings({ canEdit = true }) {
   const off = busy || !canEdit;
 
   return (
-    <Stack spacing={2} data-testid="triage-settings">
-      {!canEdit && <Alert severity="info">Only an administrator can change these numbers.</Alert>}
+    <Box data-testid="triage-settings">
+      {!canEdit && <Alert severity="info" sx={{ mb: 2 }}>Only an administrator can change these numbers.</Alert>}
+      <BuilderSplit
+        list={
+          <List dense aria-label="Settings sections" disablePadding>
+            {SECTION_TITLES.map((t) => (
+              <ListItemButton key={t} selected={activeSection === t} onClick={() => setActiveSection(t)} data-testid={`section-link-${t}`}>
+                <ListItemText primary={t} />
+              </ListItemButton>
+            ))}
+          </List>
+        }
+      >
 
-      <Section title="Recheck times" error={errors.gaps}
+      <Section title="Recheck times" active={activeSection === "Recheck times"} error={errors.gaps}
         note="How many minutes a waiting patient can go before the next recheck, for each triage level. Leave a level blank to show no due time for it."
-        actions={<Button variant="contained" disabled={off} sx={{ minHeight: 44 }} onClick={() => check("gaps", gapsFromDraft(gaps), (v) => ({ reassess_minutes: v }), "Recheck times saved.")}>Save recheck times</Button>}>
+        actions={<Button size="small" variant="contained" disabled={off} onClick={() => check("gaps", gapsFromDraft(gaps), (v) => ({ reassess_minutes: v }), "Recheck times saved.")}>Save recheck times</Button>}>
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 1.5 }}>
           {LEVELS.map((n) => (
             <TextField key={n} size="small" label={`ESI ${n}: ${LEVEL_TITLES[n]}`} value={gaps[n]} disabled={off} helperText="minutes"
@@ -97,12 +116,12 @@ export default function TriageSettings({ canEdit = true }) {
         </Box>
       </Section>
 
-      <Section title="Vital sign limits by age" error={errors.zone} status={sourceLine(clinic.danger_zone, clinic)}
+      <Section title="Vital sign limits by age" active={activeSection === "Vital sign limits by age"} error={errors.zone} status={sourceLine(clinic.danger_zone, clinic)}
         note={`A patient whose heart rate or breathing rate is over the limit for their age, or whose oxygen is under the limit, is flagged. ${settings.sources?.danger_zone || ""}`}
         actions={
           <>
-            <Button variant="contained" disabled={off} sx={{ minHeight: 44 }} onClick={() => check("zone", zoneFromDraft(zone), (v) => ({ danger_zone: v }), "Age table saved.")}>Save age table</Button>
-            <Button disabled={off || !clinic.danger_zone} sx={{ minHeight: 44 }} onClick={() => save("zone", { danger_zone: null }, "Went back to the built-in age table.")}>Use the built-in table</Button>
+            <Button size="small" variant="contained" disabled={off} onClick={() => check("zone", zoneFromDraft(zone), (v) => ({ danger_zone: v }), "Age table saved.")}>Save age table</Button>
+            <Button size="small" disabled={off || !clinic.danger_zone} onClick={() => save("zone", { danger_zone: null }, "Went back to the built-in age table.")}>Use the built-in table</Button>
           </>
         }>
         <table style={{ borderCollapse: "collapse", fontSize: 14 }} data-testid="zone-table">
@@ -135,12 +154,12 @@ export default function TriageSettings({ canEdit = true }) {
           onChange={(e) => setZone((z) => ({ ...z, spo2: e.target.value }))} inputProps={{ inputMode: "numeric", "data-testid": "zone-spo2" }} />
       </Section>
 
-      <Section title="Fever limits for children" error={errors.fever} status={sourceLine(clinic.fever, clinic)}
+      <Section title="Fever limits for children" active={activeSection === "Fever limits for children"} error={errors.fever} status={sourceLine(clinic.fever, clinic)}
         note={`Fever rules apply to patients under 18 only. ${settings.sources?.fever || ""}`}
         actions={
           <>
-            <Button variant="contained" disabled={off} sx={{ minHeight: 44 }} onClick={() => check("fever", feverFromDraft(fever), (v) => ({ fever: v }), "Fever limits saved.")}>Save fever limits</Button>
-            <Button disabled={off || !clinic.fever} sx={{ minHeight: 44 }} onClick={() => save("fever", { fever: null }, "Went back to the built-in fever limits.")}>Use the built-in limits</Button>
+            <Button size="small" variant="contained" disabled={off} onClick={() => check("fever", feverFromDraft(fever), (v) => ({ fever: v }), "Fever limits saved.")}>Save fever limits</Button>
+            <Button size="small" disabled={off || !clinic.fever} onClick={() => save("fever", { fever: null }, "Went back to the built-in fever limits.")}>Use the built-in limits</Button>
           </>
         }>
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 1.5 }}>
@@ -151,10 +170,10 @@ export default function TriageSettings({ canEdit = true }) {
         </Box>
       </Section>
 
-      <Section title="Safety alerts" error={errors.alerts}
+      <Section title="Safety alerts" active={activeSection === "Safety alerts"} error={errors.alerts}
         note="Who is told at once when a signed triage note has a positive suicide screen (intent or a plan, or recent behavior) or a patient who feels unsafe at home. They are added to the patient's care-team conversation and sent an urgent message. The patient's own doctor and nurse are told too."
         status={alertIds.length === 0 ? "Nobody chosen yet. The nurse who signs is told to phone the charge nurse." : `${alertIds.length} chosen.`}
-        actions={<Button variant="contained" disabled={off} sx={{ minHeight: 44 }} onClick={() => save("alerts", { alert_user_ids: alertIds }, "Safety alert people saved.")}>Save safety alert people</Button>}>
+        actions={<Button size="small" variant="contained" disabled={off} onClick={() => save("alerts", { alert_user_ids: alertIds }, "Safety alert people saved.")}>Save safety alert people</Button>}>
         {(settings.people || []).length === 0 && <Typography variant="body2" color="text.secondary">No doctors, nurses or admins who use secure messaging were found.</Typography>}
         <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 0.5 }} data-testid="alert-people">
           {(settings.people || []).map((p) => (
@@ -165,11 +184,12 @@ export default function TriageSettings({ canEdit = true }) {
         </Box>
       </Section>
 
-      <Section title="Suicide screen" error={errors.age}
+      <Section title="Suicide screen" active={activeSection === "Suicide screen"} error={errors.age}
         note="The youngest age, in years, at which the suicide risk questions are asked at triage. Leave blank to start at 18."
-        actions={<Button variant="contained" disabled={off} sx={{ minHeight: 44 }} onClick={() => check("age", ageFromText(age), (v) => ({ suicide_screen_min_age_years: v }), "Suicide screen age saved.")}>Save starting age</Button>}>
+        actions={<Button size="small" variant="contained" disabled={off} onClick={() => check("age", ageFromText(age), (v) => ({ suicide_screen_min_age_years: v }), "Suicide screen age saved.")}>Save starting age</Button>}>
         <TextField size="small" label="Starting age (years)" value={age} disabled={off} sx={{ width: 200 }} onChange={(e) => setAge(e.target.value)} inputProps={{ inputMode: "numeric", "data-testid": "screen-age" }} />
       </Section>
-    </Stack>
+      </BuilderSplit>
+    </Box>
   );
 }

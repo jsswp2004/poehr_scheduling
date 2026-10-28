@@ -1,4 +1,10 @@
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+
+const menuItem = (name) => {
+  fireEvent.click(screen.getByRole("button", { name: "More actions" }));
+  return screen.getByRole("menuitem", { name });
+};
 
 jest.mock("../../api/client", () => ({ api: { get: jest.fn(), post: jest.fn(), patch: jest.fn(), delete: jest.fn() } }), { virtual: true });
 jest.mock(
@@ -55,7 +61,7 @@ beforeEach(() => {
 });
 
 const open = async () => {
-  render(<StatusBoardBuilder />);
+  render(<MemoryRouter><StatusBoardBuilder /></MemoryRouter>);
   await screen.findByTestId("view-item-1");
 };
 
@@ -234,7 +240,7 @@ describe("follow-up views", () => {
 
   test("copying a follow-up view keeps it a follow-up view", async () => {
     await openFollowUp();
-    fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
+    fireEvent.click(menuItem("Duplicate"));
     expect(screen.queryByRole("radio", { name: /Follow-up board/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Create view" }));
     await waitFor(() => expect(api.post).toHaveBeenCalledWith("/sv/", { name: "ED Follow-up copy", from_view: "3" }, expect.anything()));

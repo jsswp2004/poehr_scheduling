@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import { Container, Typography } from "@mui/material";
+import { BuilderShell } from "../components/builders/BuilderShell";
 import TriageSettings from "../components/triage/TriageSettings";
 
 /** Triage Settings: the clinic's recheck times, age table and fever limits. Admin/system_admin only; the API enforces the same rule. */
@@ -31,12 +31,13 @@ function TriageSettingsPage() {
     if (checking) return null;
 
     return (
-        <Container maxWidth="lg" sx={{ py: 3 }}>
-            <Typography variant="h5" sx={{ mb: 2 }}>
-                Triage Settings
-            </Typography>
+        <BuilderShell
+            title="Triage Settings"
+            subtitle="The clinic's recheck times, age table, fever limits and safety alerts"
+            maxWidth={1100}
+        >
             <TriageSettings />
-        </Container>
+        </BuilderShell>
     );
 }
 
