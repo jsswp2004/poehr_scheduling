@@ -33,8 +33,10 @@ class ReportConfigError(ValueError):
 SOURCES = OrderedDict()
 
 
-def dim(key, label, type_="text"):
-    return {"key": key, "label": label, "kind": "dimension", "type": type_}
+def dim(key, label, type_="text", phi=None):
+    """`phi` marks identifying fields: "name" (a patient's name) or "text" (free text that may contain identifiers).
+    The viewer can hide them ("Hide PHI"): names become Patient 1, 2... and free text becomes [Hidden]."""
+    return {"key": key, "label": label, "kind": "dimension", "type": type_, "phi": phi}
 
 
 def measure(key, label, type_="number", agg="sum", of=None, ratio=None):
@@ -82,6 +84,7 @@ def source_summary(src):
         "fields": [
             {k: f[k] for k in ("key", "label", "kind", "type")}
             | ({"agg": f["agg"]} if f["kind"] == "measure" else {})
+            | ({"phi": f["phi"]} if f.get("phi") else {})
 
             for f in src["fields"]
         ],
@@ -551,7 +554,24 @@ def _single(row, f):
     return row.get(f["key"])
 
 
-def run_report(source_key, org, config, start, end, narrow=None, user=None):
+def _hide_phi(detail, fields):
+    """De-identify: patient names become "Patient 1, 2..." (stable within the run, so grouping still works)."""
+    names = {f["key"]: {} for f in fields if f.get("phi") == "name"}
+    texts = [f["key"] for f in fields if f.get("phi") == "text"]
+    out = []
+    for r in detail:
+        r = dict(r)
+        for k, seen in names.items():
+            if r.get(k) not in (None, ""):
+                r[k] = seen.setdefault(r[k], f"Patient {len(seen) + 1}")
+        for k in texts:
+            if r.get(k) not in (None, ""):
+                r[k] = "[Hidden]"
+        out.append(r)
+    return out
+
+
+def run_report(source_key, org, config, start, end, narrow=None, user=None, hide_phi=False):
     """
     Returns {"columns", "rows", "totals", "tiles", "truncated", "source"}.
     `narrow` is a list of extra filters from the viewer's pickers (never widens the saved filters).
@@ -565,6 +585,8 @@ def run_report(source_key, org, config, start, end, narrow=None, user=None):
         if (end - start).days > MAX_RANGE_DAYS:
             raise ReportConfigError(f"Choose a range of {MAX_RANGE_DAYS} days or fewer.")
     detail = src["load"](org, start, end, user) if src["scoped"] else src["load"](org, start, end)
+    if hide_phi:
+        detail = _hide_phi(detail, src["fields"])
     filters = cfg["filters"] + [_clean_filter(f, fields, "Filter") for f in (narrow or [])][:12]
     detail = [r for r in detail if all(_match(r, f, fields) for f in filters)]
 
@@ -642,6 +664,8 @@ def run_report(source_key, org, config, start, end, narrow=None, user=None):
         "highlight": hl,
         "truncated": truncated,
         "row_count": len(out),
+        # "shown" / "hidden" when the report has a PHI column, so the viewer can offer the Hide PHI button
+        "phi": ("hidden" if hide_phi else "shown") if any(c.get("phi") for c in cols) else None,
     }
 
 

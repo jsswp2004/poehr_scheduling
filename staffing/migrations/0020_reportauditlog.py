@@ -19,6 +19,7 @@ class Migration(migrations.Migration):
                 ("report_name", models.CharField(blank=True, default="", max_length=120)),
                 ("source", models.CharField(max_length=40)),
                 ("action", models.CharField(default="run", max_length=10)),
+                ("phi_hidden", models.BooleanField(default=False)),
                 ("row_count", models.PositiveIntegerField(default=0)),
                 ("range_start", models.DateField(blank=True, null=True)),
                 ("range_end", models.DateField(blank=True, null=True)),

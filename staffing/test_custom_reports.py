@@ -413,6 +413,24 @@ class NotesSourceTests(TestCase):
         res = self.run_cfg({"group_by": "patient", "columns": ["patient", "notes"]})
         self.assertEqual({r["patient"]: r["notes"] for r in res["rows"]}, {"Ann Ames": 2, "Bo Bell": 1})
 
+    def test_hide_phi_replaces_names_and_note_text(self):
+        from appointments.models import ClinicalNote
+
+        ClinicalNote.objects.filter(status="signed").update(subjective="Ann Ames reports chest pain")
+        cfg = {"columns": ["patient", "status", "note_text"]}
+        shown = self.run_cfg(cfg)
+        self.assertEqual(shown["phi"], "shown")
+        self.assertIn("Ann Ames", str(shown))
+        hidden = self.run_cfg(cfg, hide_phi=True)
+        self.assertEqual(hidden["phi"], "hidden")
+        self.assertNotIn("Ames", str(hidden))
+        self.assertNotIn("Bell", str(hidden))
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+        self.assertEqual({r["note_text"] for r in hidden["rows"]} - {None}, {"[Hidden]"})
+        grouped = self.run_cfg({"group_by": "patient", "columns": ["patient", "notes"]}, hide_phi=True)
+        self.assertEqual(sorted(r["notes"] for r in grouped["rows"]), [1, 2])  # grouping still works
+        self.assertIsNone(self.run_cfg({"group_by": "author", "columns": ["author", "notes"]})["phi"])
+
     def test_facility_limited_user_sees_only_their_facility(self):
         self.nurse.facilities.add(self.fac_e)
         res = self.run_cfg({"group_by": "facility", "columns": ["facility", "notes"]}, user=self.nurse)
@@ -435,11 +453,14 @@ class NotesSourceTests(TestCase):
         self.assertEqual(r1.status_code, 200, r1.content)
         self.assertEqual({r["patient"] for r in r1.json()["rows"]}, {"Ann Ames", "Bo Bell"})
         c.post(f"{BASE}/preview/", body, format="json")  # a re-run while typing: still one entry
-        rows = list(ReportAuditLog.objects.values_list("user_id", "action", "row_count"))
-        self.assertEqual(rows, [(self.nurse.id, "preview", 2)])
+        rows = list(ReportAuditLog.objects.values_list("user_id", "action", "row_count", "phi_hidden"))
+        self.assertEqual(rows, [(self.nurse.id, "preview", 2, False)])
+        hid = c.post(f"{BASE}/preview/", {**body, "hide_phi": True}, format="json").json()
+        self.assertEqual({r["patient"] for r in hid["rows"]}, {"Patient 1", "Patient 2"})
+        self.assertEqual(ReportAuditLog.objects.filter(phi_hidden=True).count(), 1)
         self.assertEqual(c.get(f"{BASE}/audit/").status_code, 403)
         log = client_for(self.admin).get(f"{BASE}/audit/").json()
-        self.assertEqual(len(log), 1)
+        self.assertEqual(len(log), 2)
         self.assertEqual(log[0]["user"], "Nia Park")
 
     def test_sources_without_patient_data_are_not_audited(self):
