@@ -2,7 +2,8 @@
 Clinical documentation (Notes) source for custom reports.
 
 Note text and patient names can be columns: access is limited to people who already hold the clinical-notes
-right (the healthcare team), and every run is written to the report audit log. Access follows the
+right (the healthcare team), and every run is written to the report audit log. The viewer can hide PHI
+(patient names and note text) for a de-identified view and download. Access follows the
 "clinical_notes.view_author" right, and a user assigned to specific facilities only sees notes from visits
 in those facilities (or visits not placed anywhere yet).
 """
@@ -121,8 +122,9 @@ register(
         dim("author", "Author"), dim("author_role", "Author role"), dim("note_type", "Note type"),
         dim("documentation_type", "Documentation type"), dim("status", "Status"), dim("kind", "Note or addendum"),
         dim("unit", "Unit or clinic"), dim("facility", "Facility"), dim("signed_on", "Signed on", "date"),
-        dim("patient", "Patient"), dim("note_text", "Note text"),
-        dim("subjective", "Subjective"), dim("objective", "Objective"), dim("assessment", "Assessment"), dim("plan", "Plan"),
+        dim("patient", "Patient", phi="name"), dim("note_text", "Note text", phi="text"),
+        dim("subjective", "Subjective", phi="text"), dim("objective", "Objective", phi="text"),
+        dim("assessment", "Assessment", phi="text"), dim("plan", "Plan", phi="text"),
         measure("notes", "Notes"), measure("signed", "Signed"), measure("drafts", "Drafts"), measure("addenda", "Addenda"),
         measure("overdue_drafts", f"Drafts over {OVERDUE_HOURS}h old"),
         measure("signed_pct", "Signed %", "percent", ratio=("signed", "notes")),

@@ -20,6 +20,8 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import BackButton from "../components/BackButton";
 import ReportResultTable from "../components/reports/ReportResultTable";
 import { apiEndpoints } from "../config/api";
@@ -54,6 +56,7 @@ export default function ReportViewerPage() {
   const [error, setError] = useState("");
   const [preset, setPreset] = useState("week");
   const [range, setRange] = useState(() => presetRange("week"));
+  const [hidePhi, setHidePhi] = useState(false); // de-identified view and download
 
   // Publish the pinned block's height so the table header can stick just under it.
   const pinRef = useCallback((node) => {
@@ -65,6 +68,7 @@ export default function ReportViewerPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setHidePhi(false);
     axios
       .get(apiEndpoints.staffingCustomReport(id), { headers: headers() })
       .then((res) => !cancelled && setReport(res.data))
@@ -87,7 +91,7 @@ export default function ReportViewerPage() {
     setLoading(true);
     setError("");
     axios
-      .post(apiEndpoints.staffingCustomReportRun(id), { start: range.start, end: range.end }, { headers: headers() })
+      .post(apiEndpoints.staffingCustomReportRun(id), { start: range.start, end: range.end, hide_phi: hidePhi }, { headers: headers() })
       .then((res) => !cancelled && setResult(res.data))
       .catch((err) => {
         if (!cancelled) {
@@ -99,7 +103,7 @@ export default function ReportViewerPage() {
     return () => {
       cancelled = true;
     };
-  }, [report, id, range.start, range.end]);
+  }, [report, id, range.start, range.end, hidePhi]);
 
   const changePreset = (_e, value) => {
     if (!value) return;
@@ -110,7 +114,7 @@ export default function ReportViewerPage() {
   const exportCsv = () => {
     if (!result) return;
     const span = dated ? `-${range.start}-to-${range.end}` : "";
-    downloadText(resultToCsv(result), `${slug(report?.name)}${span}.csv`);
+    downloadText(resultToCsv(result), `${slug(report?.name)}${span}${hidePhi ? "-deidentified" : ""}.csv`);
   };
 
   const subtitle = report ? `Custom report · ${report.source_label}${report.owner_name ? ` · by ${report.owner_name}` : ""}` : "";
@@ -190,6 +194,19 @@ export default function ReportViewerPage() {
           )}
 
           <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1, flex: "none" }}>
+            {result?.phi && (
+              <Tooltip title={hidePhi ? "Show patient names and note text again" : "Replace patient names and note text, here and in the download"}>
+                <Button
+                  variant={hidePhi ? "contained" : "outlined"}
+                  color={hidePhi ? "warning" : "inherit"}
+                  startIcon={hidePhi ? <VisibilityOutlinedIcon /> : <VisibilityOffOutlinedIcon />}
+                  onClick={() => setHidePhi((v) => !v)}
+                  sx={{ minHeight: 40, whiteSpace: "nowrap" }}
+                >
+                  {hidePhi ? "Show PHI" : "Hide PHI"}
+                </Button>
+              </Tooltip>
+            )}
             <Tooltip title="Export CSV">
               <span>
                 <Button variant="outlined" color="inherit" aria-label="Export CSV" onClick={exportCsv} disabled={!result} sx={{ minWidth: 40, minHeight: 40, px: 1 }}>

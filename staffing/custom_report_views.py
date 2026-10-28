@@ -10,7 +10,8 @@ Custom reports (Reports module).
     POST   /api/staffing/custom-reports/preview/        {source, config, start, end}  builder preview
     GET    /api/staffing/custom-reports/audit/          who ran reports on patient data (admins)
 
-Every run or preview of a source that holds patient data is written to the audit log.
+Run and preview accept "hide_phi": true to de-identify (patient names and note text) before anything leaves
+the server, so the download is clean too. Every run or preview of a source that holds patient data is written to the audit log.
 
 Rights: each data source says who may use it. Staffing sources follow the Staffing report roles
 (MANAGER_ROLES); Communicator sources need the "messages.view_logs" right. Anyone who may use a source can
@@ -133,21 +134,26 @@ def _parse_day(raw, label):
         raise engine.ReportConfigError(f"Choose a valid {label} date.")
 
 
+def _hide(request):
+    return request.data.get("hide_phi") is True
+
+
 def _audit(request, org, source, action, result, start, end, report=None):
     if not engine.SOURCES[source]["patient_data"]:
         return
+    hidden = result.get("phi") == "hidden"
     if action == "preview":
         # The builder re-runs its preview as you type: keep one row per person and source per few minutes.
         recent = timezone.now() - datetime.timedelta(minutes=10)
         row = ReportAuditLog.objects.filter(
-            organization=org, user=request.user, source=source, action="preview", created_at__gte=recent
+            organization=org, user=request.user, source=source, action="preview", phi_hidden=hidden, created_at__gte=recent
         ).first()
         if row:
             ReportAuditLog.objects.filter(pk=row.pk).update(row_count=result.get("row_count", 0), range_start=start, range_end=end)
             return
     ReportAuditLog.objects.create(
         organization=org, user=request.user, report=report, report_name=(report.name if report else "")[:120],
-        source=source, action=action,
+        source=source, action=action, phi_hidden=hidden,
         row_count=result.get("row_count", 0), range_start=start, range_end=end,
     )
 
@@ -200,7 +206,8 @@ class CustomReportViewSet(viewsets.ModelViewSet):
         try:
             start, end = _range(request, report.source)
             result = engine.run_report(
-                report.source, report.organization, report.config, start, end, request.data.get("narrow"), user=request.user
+                report.source, report.organization, report.config, start, end, request.data.get("narrow"),
+                user=request.user, hide_phi=_hide(request),
             )
         except engine.ReportConfigError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -218,7 +225,9 @@ class CustomReportViewSet(viewsets.ModelViewSet):
             return Response({"error": "You do not have access to this data source."}, status=status.HTTP_403_FORBIDDEN)
         try:
             start, end = _range(request, source)
-            result = engine.run_report(source, org, request.data.get("config"), start, end, None, user=request.user)
+            result = engine.run_report(
+                source, org, request.data.get("config"), start, end, None, user=request.user, hide_phi=_hide(request)
+            )
         except engine.ReportConfigError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         _audit(request, org, source, "preview", result, start, end)
@@ -242,6 +251,7 @@ class CustomReportViewSet(viewsets.ModelViewSet):
                     "source": r.source,
                     "source_label": engine.SOURCES[r.source]["label"] if r.source in engine.SOURCES else r.source,
                     "action": r.action,
+                    "phi_hidden": r.phi_hidden,
                     "row_count": r.row_count,
                     "range_start": r.range_start.isoformat() if r.range_start else None,
                     "range_end": r.range_end.isoformat() if r.range_end else None,

@@ -984,6 +984,7 @@ class ReportAuditLog(models.Model):
     report_name = models.CharField(max_length=120, blank=True, default="")
     source = models.CharField(max_length=40)
     action = models.CharField(max_length=10, default="run")  # run | preview
+    phi_hidden = models.BooleanField(default=False)
     row_count = models.PositiveIntegerField(default=0)
     range_start = models.DateField(null=True, blank=True)
     range_end = models.DateField(null=True, blank=True)
