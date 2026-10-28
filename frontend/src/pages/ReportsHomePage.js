@@ -36,6 +36,7 @@ const MODULES = [
   { key: "all", label: "All modules" },
   { key: "staffing", label: "Staffing" },
   { key: "communicator", label: "Communicator" },
+  { key: "scheduling", label: "Scheduling" },
 ];
 
 export default function ReportsHomePage() {
@@ -136,7 +137,7 @@ export default function ReportsHomePage() {
   return (
     <BuilderShell
       title="Reports"
-      subtitle="Run, build and share reports. Staffing and Communicator reports are available."
+      subtitle="Run, build and share reports. Staffing, Communicator and Scheduling reports are available."
       tabs={[
         { key: "all", label: "All", count: counts.all },
         { key: "std", label: "Standard", count: counts.std },

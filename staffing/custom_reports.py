@@ -41,18 +41,19 @@ def measure(key, label, type_="number", agg="sum", of=None, ratio=None):
     return {"key": key, "label": label, "kind": "measure", "type": type_, "agg": agg, "of": of, "ratio": ratio}
 
 
-MODULES = {"staffing": "Staffing", "communicator": "Communicator"}
+MODULES = {"staffing": "Staffing", "communicator": "Communicator", "scheduling": "Scheduling"}
 
 
 def register(
     key, label, group, description, fields, load, dated=True, default_columns=None, default_group=None,
-    module="staffing", right=None,
+    module="staffing", right=None, scoped=False,
 ):
     """`right` is a users.rights code the user must hold to use the source; None = the Staffing report roles."""
     SOURCES[key] = {
         "key": key,
         "module": module,
         "right": right,
+        "scoped": scoped,  # the loader also takes the user (to limit by facility)
         "label": label,
         "group": group,
         "description": description,
@@ -546,7 +547,7 @@ def _single(row, f):
     return row.get(f["key"])
 
 
-def run_report(source_key, org, config, start, end, narrow=None):
+def run_report(source_key, org, config, start, end, narrow=None, user=None):
     """
     Returns {"columns", "rows", "totals", "tiles", "truncated", "source"}.
     `narrow` is a list of extra filters from the viewer's pickers (never widens the saved filters).
@@ -559,7 +560,7 @@ def run_report(source_key, org, config, start, end, narrow=None):
             raise ReportConfigError("Choose a start and end date.")
         if (end - start).days > MAX_RANGE_DAYS:
             raise ReportConfigError(f"Choose a range of {MAX_RANGE_DAYS} days or fewer.")
-    detail = src["load"](org, start, end)
+    detail = src["load"](org, start, end, user) if src["scoped"] else src["load"](org, start, end)
     filters = cfg["filters"] + [_clean_filter(f, fields, "Filter") for f in (narrow or [])][:12]
     detail = [r for r in detail if all(_match(r, f, fields) for f in filters)]
 
@@ -642,3 +643,4 @@ def run_report(source_key, org, config, start, end, narrow=None):
 
 # Sources for other modules register themselves on import.
 from . import custom_report_sources_communicator  # noqa: E402,F401
+from . import custom_report_sources_scheduling  # noqa: E402,F401
