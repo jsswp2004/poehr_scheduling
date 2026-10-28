@@ -16,8 +16,12 @@ import {
   Pagination,
   Stack,
   Button,
+  Menu,
+  MenuItem,
+  Tooltip,
 } from "@mui/material";
-import { Search, Delete, Print, Download } from "@mui/icons-material";
+import { Search, Delete, Print, Download, MoreVert } from "@mui/icons-material";
+import ToolbarPortal, { STICKY_TOP, useToolbarSlot } from "./communicator/CommunicatorToolbarSlot";
 import { jwtDecode } from "jwt-decode";
 
 function MessageLogTable({ type }) {
@@ -263,6 +267,131 @@ function MessageLogTable({ type }) {
     }
   };
 
+  // Inside the Communicator the toolbar is pinned under the title and tabs, and the table header pins under it.
+  const slot = useToolbarSlot();
+  const [menuAnchor, setMenuAnchor] = useState(null);
+  const headCell = { position: "sticky", top: STICKY_TOP, zIndex: 2, bgcolor: "background.paper", borderBottom: 1, borderColor: "divider" };
+
+  if (slot) {
+    return (
+      <Box>
+        <ToolbarPortal>
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", rowGap: 1, pb: 1 }}>
+            <TextField
+              placeholder="Search the log"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              size="small"
+              inputProps={{ "aria-label": "Search the log" }}
+              sx={{ flex: "1 1 220px", maxWidth: 380 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search />
+                  </InputAdornment>
+                ),
+              }}
+            />
+            <TextField type="date" label="From" value={start} onChange={(e) => setStart(e.target.value)} InputLabelProps={{ shrink: true }} size="small" sx={{ minWidth: 140 }} />
+            <TextField type="date" label="To" value={end} onChange={(e) => setEnd(e.target.value)} InputLabelProps={{ shrink: true }} size="small" sx={{ minWidth: 140 }} />
+            <Button variant="contained" size="small" onClick={handleSetFilters}>Set</Button>
+            <Button variant="outlined" size="small" onClick={handleClearFilters}>Clear</Button>
+            <Box sx={{ flex: 1 }} />
+            <Tooltip title="More actions">
+              <IconButton size="small" aria-label="More actions" aria-haspopup="menu" onClick={(e) => setMenuAnchor(e.currentTarget)}>
+                <MoreVert />
+              </IconButton>
+            </Tooltip>
+            <Menu anchorEl={menuAnchor} open={!!menuAnchor} onClose={() => setMenuAnchor(null)}>
+              <MenuItem onClick={() => { setMenuAnchor(null); handlePrint(); }}>Print log</MenuItem>
+              <MenuItem onClick={() => { setMenuAnchor(null); handleDownloadCSV(); }}>Download CSV</MenuItem>
+            </Menu>
+          </Stack>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ pb: 0.5, minHeight: 32 }}>
+            <Typography variant="body2" color="text.secondary">
+              Showing {paginatedLogs.length} of {filtered.length} {type === "sms" ? "texts" : "emails"}
+              {!isSystemAdmin && (userRole === "admin" || userRole === "registrar") ? " (your organization)" : ""}
+              {isSystemAdmin ? " (all organizations)" : ""}
+            </Typography>
+            {filtered.length > rowsPerPage && (
+              <Pagination count={totalPages} page={page} onChange={handlePageChange} color="primary" size="small" sx={{ ml: "auto" }} />
+            )}
+          </Stack>
+        </ToolbarPortal>
+        {/* clip (not scroll) on wide screens so the header row can pin to the page */}
+        <Box sx={{ overflowX: { xs: "auto", md: "clip" } }}>
+      <Table
+        size="small"
+        sx={{ "& .MuiTableCell-root": { fontSize: "0.8125rem" } }}
+      >
+        {" "}
+        <TableHead>
+          <TableRow>
+            <TableCell sx={headCell}>Recipient</TableCell>
+            <TableCell sx={headCell}>Organization</TableCell>
+            {type === "email" && <TableCell sx={headCell}>Subject</TableCell>}
+            <TableCell sx={headCell}>Body</TableCell>
+            <TableCell sx={headCell}>Date</TableCell>
+            {isSystemAdmin && <TableCell sx={headCell}>Actions</TableCell>}
+          </TableRow>
+        </TableHead>{" "}
+        <TableBody>
+          {paginatedLogs.map((log) => (
+            <TableRow key={log.id} hover>
+              <TableCell>{log.recipient}</TableCell>
+              <TableCell>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: log.organization_name === 'System' ? 'primary.main' : 'text.primary',
+                    fontWeight: log.organization_name === 'System' ? 500 : 400,
+                    fontStyle: log.organization_name === 'System' ? 'italic' : 'normal'
+                  }}
+                >
+                  {log.organization_name || 'Unknown'}
+                </Typography>
+              </TableCell>
+              {type === "email" && <TableCell>{log.subject}</TableCell>}
+              <TableCell>{log.body}</TableCell>
+              <TableCell>{new Date(log.created_at).toLocaleString()}</TableCell>
+              {isSystemAdmin && (
+                <TableCell>
+                  <IconButton
+                    color="error"
+                    size="small"
+                    onClick={() => handleDelete(log.id)}
+                  >
+                    <Delete />
+                  </IconButton>
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+          {paginatedLogs.length === 0 && (
+            <TableRow>
+              <TableCell
+                colSpan={
+                  type === "email"
+                    ? isSystemAdmin
+                      ? 6  // Recipient, Organization, Subject, Body, Date, Actions
+                      : 5  // Recipient, Organization, Subject, Body, Date
+                    : isSystemAdmin
+                      ? 5  // Recipient, Organization, Body, Date, Actions
+                      : 4  // Recipient, Organization, Body, Date
+                }
+                align="center"
+              >
+                <Typography color="text.secondary">No logs found.</Typography>
+              </TableCell>
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
+        </Box>
+      </Box>
+    );
+  }
+
   return (
     <Paper sx={{ p: 2, flex: 1 }}>
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center" }}>
@@ -413,7 +542,6 @@ function MessageLogTable({ type }) {
           )}
         </TableBody>
       </Table>
-
       {/* Pagination */}
       {filtered.length > rowsPerPage && (
         <Stack direction="row" justifyContent="center" sx={{ mt: 2 }}>
