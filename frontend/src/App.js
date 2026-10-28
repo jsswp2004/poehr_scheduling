@@ -67,6 +67,7 @@ import CheckInPage from './pages/CheckInPage';
 import StaffingPage from './pages/StaffingPage';
 import ReportsHomePage from './pages/ReportsHomePage';
 import ReportBuilderPage from './pages/ReportBuilderPage';
+import ReportCanvasPage from './pages/ReportCanvasPage';
 import ReportViewerPage from './pages/ReportViewerPage';
 import TelehealthPage from './pages/TelehealthPage';
 import TelehealthJoinPage from './pages/TelehealthJoinPage';
@@ -251,6 +252,8 @@ function AppContent() {
         <Route path="/staffing" element={<PrivateRoute><StaffingPage /></PrivateRoute>} />
         <Route path="/reports" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportsHomePage /></PrivateRoute>} />
         <Route path="/reports/new" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportBuilderPage /></PrivateRoute>} />
+        <Route path="/reports/canvas/new" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportCanvasPage /></PrivateRoute>} />
+        <Route path="/reports/:id/canvas" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportCanvasPage /></PrivateRoute>} />
         <Route path="/reports/:id/edit" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportBuilderPage /></PrivateRoute>} />
         <Route path="/reports/:id" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><ReportViewerPage /></PrivateRoute>} />
         <Route path="/telehealth" element={<PrivateRoute blockRoles={["patient", "staff"]} blockedTo="/solutions"><TelehealthPage /></PrivateRoute>} />

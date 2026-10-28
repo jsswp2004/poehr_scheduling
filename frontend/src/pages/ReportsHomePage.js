@@ -29,15 +29,17 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import { BuilderShell, BuilderToolbar, BUILDER_STICKY_TOP } from "../components/builders/BuilderShell";
 import { apiEndpoints } from "../config/api";
+import ReportRelationshipMap from "../components/reports/ReportRelationshipMap";
 import { STANDARD_REPORTS, dayTime, errorText, headers, listReports } from "../components/reports/reportUtils";
 
-const TABS = ["all", "std", "mine", "shared", "audit"];
+const TABS = ["all", "std", "mine", "shared", "map", "audit"];
 const MODULES = [
   { key: "all", label: "All modules" },
   { key: "staffing", label: "Staffing" },
   { key: "communicator", label: "Communicator" },
   { key: "scheduling", label: "Scheduling" },
   { key: "notes", label: "Notes" },
+  { key: "linked", label: "Linked" },
 ];
 
 export default function ReportsHomePage() {
@@ -51,6 +53,8 @@ export default function ReportsHomePage() {
   const [menu, setMenu] = useState(null); // { anchor, report }
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [newMenu, setNewMenu] = useState(null);
+  const [catalog, setCatalog] = useState(null);
   const [audit, setAudit] = useState(null); // null until an administrator's request succeeds
 
   const load = useCallback(async () => {
@@ -68,6 +72,17 @@ export default function ReportsHomePage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    let cancelled = false;
+    axios
+      .get(apiEndpoints.staffingCustomReportLinkedCatalog, { headers: headers() })
+      .then((res) => !cancelled && setCatalog(res.data))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Only administrators can read the audit log; for everyone else the request is refused and the tab stays hidden.
   useEffect(() => {
@@ -151,19 +166,22 @@ export default function ReportsHomePage() {
   return (
     <BuilderShell
       title="Reports"
-      subtitle="Run, build and share reports. Staffing, Communicator, Scheduling and Notes reports are available."
+      subtitle="Run, build and share reports. Staffing, Communicator, Scheduling and Notes reports are available, and linked reports combine them."
       tabs={[
         { key: "all", label: "All", count: counts.all },
         { key: "std", label: "Standard", count: counts.std },
         { key: "mine", label: "My reports", count: counts.mine },
         { key: "shared", label: "Shared with me", count: counts.shared },
+        { key: "map", label: "Relationship map" },
         ...(audit ? [{ key: "audit", label: "Audit log", count: audit.length }] : []),
       ]}
       tab={tab}
       onTab={(t) => TABS.includes(t) && setTab(t)}
       maxWidth="100%"
     >
-      {tab === "audit" && audit ? (
+      {tab === "map" ? (
+        <ReportRelationshipMap catalog={catalog} />
+      ) : tab === "audit" && audit ? (
         <Paper variant="outlined" sx={{ overflowX: { xs: "auto", md: "clip" } }}>
           <Typography variant="body2" color="text.secondary" sx={{ p: 1.5 }}>
             Every run or preview of a report on patient data, newest first (last 200). Report contents are not stored here.
@@ -228,9 +246,27 @@ export default function ReportsHomePage() {
           />
         ))}
         <Box sx={{ flex: 1 }} />
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate("/reports/new")}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={(e) => setNewMenu(e.currentTarget)}>
           New report
         </Button>
+        <Menu anchorEl={newMenu} open={!!newMenu} onClose={() => setNewMenu(null)}>
+          <MenuItem
+            onClick={() => {
+              setNewMenu(null);
+              navigate("/reports/new");
+            }}
+          >
+            From one data source
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setNewMenu(null);
+              navigate("/reports/canvas/new");
+            }}
+          >
+            Linked report (drag and drop)
+          </MenuItem>
+        </Menu>
       </BuilderToolbar>
 
       {error && (
@@ -307,7 +343,7 @@ export default function ReportsHomePage() {
         {menu?.report?.can_edit && (
           <MenuItem
             onClick={() => {
-              navigate(`/reports/${menu.report.id}/edit`);
+              navigate(menu.report.source === "linked" ? `/reports/${menu.report.id}/canvas` : `/reports/${menu.report.id}/edit`);
               setMenu(null);
             }}
           >

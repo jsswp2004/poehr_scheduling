@@ -360,6 +360,7 @@ export const apiEndpoints = {
     staffingCustomReportRun: (id) => `${API_BASE_URL}/api/staffing/custom-reports/${id}/run/`,
     staffingCustomReportPreview: `${API_BASE_URL}/api/staffing/custom-reports/preview/`,
     staffingCustomReportSources: `${API_BASE_URL}/api/staffing/custom-reports/sources/`,
+    staffingCustomReportLinkedCatalog: `${API_BASE_URL}/api/staffing/custom-reports/linked-catalog/`,
     staffingCustomReportAudit: `${API_BASE_URL}/api/staffing/custom-reports/audit/`,
     staffingReportSubscriptionTest: `${API_BASE_URL}/api/staffing/report-subscriptions/send-test/`,
 
