@@ -848,6 +848,68 @@ class VaccineSourceTests(TestCase):
         self.assertTrue(ReportAuditLog.objects.filter(source="vaccines", action="run").exists())
 
 
+class ReferralSourceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Referral
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.doc = CustomUser.objects.create_user(
+            username="d", password="x", role="doctor", organization=self.org, first_name="Dana", last_name="Lee"
+        )
+        self.ann = CustomUser.objects.create_user(
+            username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames"
+        )
+        self.bo = CustomUser.objects.create_user(
+            username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell"
+        )
+        now = timezone.now()
+
+        def referral(patient, **kw):
+            return Referral.objects.create(organization=self.org, patient=patient, referring_provider=self.doc, **kw)
+
+        referral(self.ann, specialty="Cardiology", status="report_received", sent_at=now, seen_at=now + datetime.timedelta(days=4),
+                 report_received_at=now + datetime.timedelta(days=6), reason="Ann Ames chest pain")
+        referral(self.bo, specialty="Cardiology", status="sent", sent_at=now, schedule_due=now - datetime.timedelta(days=1))
+        referral(self.bo, specialty="Dermatology", status="declined", sent_at=now, status_note="Bo Bell")
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None, **kw):
+        return engine.run_report("referrals", self.org, config, self.start, self.end, user=user, **kw)
+
+    def test_progress_and_turnaround_by_specialty(self):
+        res = self.run_cfg({"group_by": "specialty", "columns": ["specialty", "referrals", "sent", "seen", "reports", "open", "overdue_schedule", "days_to_seen", "days_to_report", "seen_pct"]})
+        rows = {r["specialty"]: r for r in res["rows"]}
+        cardio = rows["Cardiology"]
+        self.assertEqual((cardio["referrals"], cardio["sent"], cardio["seen"], cardio["reports"], cardio["open"], cardio["overdue_schedule"]), (2, 2, 1, 1, 1, 1))
+        self.assertEqual((cardio["days_to_seen"], cardio["days_to_report"], cardio["seen_pct"]), (4.0, 6.0, 50.0))
+        self.assertEqual(rows["Dermatology"]["open"], 0)
+
+    def test_hide_phi_masks_names_and_text(self):
+        cfg = {"columns": ["patient", "specialty", "reason"]}
+        self.assertEqual(self.run_cfg(cfg)["phi"], "shown")
+        hidden = self.run_cfg(cfg, hide_phi=True)
+        self.assertNotIn("Ames", str(hidden))
+        self.assertNotIn("Bell", str(hidden))
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+
+    def test_save_and_run_is_audited(self):
+        from .models import ReportAuditLog
+
+        body = {"name": "Referral turnaround", "source": "referrals", "config": {"group_by": "specialty", "columns": ["specialty", "referrals"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Referrals")
+        ran = client_for(self.admin).post(
+            f"{BASE}/{made.json()['id']}/run/", {"start": self.start.isoformat(), "end": self.end.isoformat()}, format="json"
+        )
+        self.assertEqual(ran.status_code, 200, ran.content)
+        self.assertTrue(ReportAuditLog.objects.filter(source="referrals", action="run").exists())
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 

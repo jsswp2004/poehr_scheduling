@@ -146,6 +146,7 @@ export const MODULE_COLORS = {
   Labs: "#a21caf",
   Flowsheets: "#4d7c0f",
   Vaccines: "#be123c",
+  Referrals: "#6d28d9",
 };
 
 export const OP_LABELS = {
