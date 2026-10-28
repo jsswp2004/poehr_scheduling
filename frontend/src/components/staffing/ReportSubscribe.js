@@ -157,9 +157,12 @@ const errorText = (err, fallback) => {
 };
 
 /** The Subscribe dialog: create a subscription for `report`, or edit `subscription`. */
-export function SubscribeDialog({ open, onClose, report, reportLabel, params = {}, people = [], units = [], subscription, onSaved }) {
+export function SubscribeDialog({ open, onClose, report, reportLabel, params = {}, people = [], units = [], subscription, onSaved, customReportId = null, patientData = false }) {
   const editing = !!subscription;
   const initial = subscription || {};
+  const customId = customReportId || initial.custom_report || null; // a saved Reports-module report
+  const holdsPatients = customId ? patientData || !!initial.patient_data : false;
+  const [hidePhi, setHidePhi] = useState(initial.hide_phi ?? true);
   const isForms = report === "daily_forms";
   const [frequency, setFrequency] = useState(initial.frequency || (isForms ? "daily" : "weekly"));
   const [hour, setHour] = useState(initial.send_hour ?? 7);
@@ -211,7 +214,8 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
       if (formDef.needsUnit) carried.unit = unit;
     }
     return {
-      report,
+      report: customId ? "custom" : report,
+      ...(customId ? { custom_report: customId, hide_phi: hidePhi } : {}),
       params: Object.fromEntries(Object.entries(carried).filter(([, v]) => v !== "" && v != null)),
       frequency,
       start_date: startDate,
@@ -387,9 +391,25 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
               renderInput={(p) => <TextField {...p} size="small" placeholder="Add a person or type an email address" />}
             />
             <Typography variant="caption" color="text.secondary">
-              Pick staff by name, or type any email address and press Enter.
+              {customId && holdsPatients && !hidePhi
+                ? "Patient names are shown, so each person must be an active user here who may run this report. Others are refused."
+                : "Pick staff by name, or type any email address and press Enter."}
             </Typography>
           </Box>
+
+          {customId && holdsPatients && (
+            <Box>
+              <FormControlLabel
+                control={<Checkbox checked={hidePhi} onChange={(e) => setHidePhi(e.target.checked)} />}
+                label="Hide PHI (replace patient names and note or result text)"
+              />
+              <Typography variant="caption" color="text.secondary" display="block">
+                {hidePhi
+                  ? "Names show as Patient 1, Patient 2 and so on, so the email can go to any address."
+                  : "Names are included. Every send is checked again and written to the audit log."}
+              </Typography>
+            </Box>
+          )}
 
           {error && <Alert severity="error">{error}</Alert>}
           {notice && <Alert severity="success">{notice}</Alert>}
@@ -415,7 +435,7 @@ export function SubscribeDialog({ open, onClose, report, reportLabel, params = {
 }
 
 /** The Subscribe button for a report's title row. Opens the dialog with the report's filters carried in. */
-export function SubscribeButton({ report, reportLabel, params, people, units, onSaved, disabled, iconOnly = false }) {
+export function SubscribeButton({ report, reportLabel, params, people, units, onSaved, disabled, iconOnly = false, customReportId = null, patientData = false, label = "Subscribe" }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -430,7 +450,7 @@ export function SubscribeButton({ report, reportLabel, params, people, units, on
             disabled={disabled}
             sx={{ minHeight: 44, ...(iconOnly ? { minWidth: 40, px: 1 } : {}) }}
           >
-            {iconOnly ? <FontAwesomeIcon icon={faBell} /> : "Subscribe"}
+            {iconOnly ? <FontAwesomeIcon icon={faBell} /> : label}
           </Button>
         </span>
       </Tooltip>
@@ -444,6 +464,8 @@ export function SubscribeButton({ report, reportLabel, params, people, units, on
           people={people}
           units={units}
           onSaved={onSaved}
+          customReportId={customReportId}
+          patientData={patientData}
         />
       )}
     </>

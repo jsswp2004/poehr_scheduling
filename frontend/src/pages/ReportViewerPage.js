@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 import {
   Alert,
   Box,
@@ -9,6 +10,7 @@ import {
   Container,
   IconButton,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   ToggleButton,
@@ -24,7 +26,9 @@ import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import BackButton from "../components/BackButton";
 import ReportResultTable from "../components/reports/ReportResultTable";
+import { SubscribeButton } from "../components/staffing/ReportSubscribe";
 import { apiEndpoints } from "../config/api";
+import { getAccessToken } from "../utils/tokenManager";
 import {
   downloadText,
   errorText,
@@ -57,6 +61,16 @@ export default function ReportViewerPage() {
   const [preset, setPreset] = useState("week");
   const [range, setRange] = useState(() => presetRange("week"));
   const [hidePhi, setHidePhi] = useState(false); // de-identified view and download
+  const [people, setPeople] = useState([]);
+  const [toast, setToast] = useState("");
+  const isAdmin = (() => {
+    try {
+      const role = jwtDecode(getAccessToken()).role;
+      return role === "admin" || role === "system_admin";
+    } catch (e) {
+      return false;
+    }
+  })();
 
   // Publish the pinned block's height so the table header can stick just under it.
   const pinRef = useCallback((node) => {
@@ -82,6 +96,14 @@ export default function ReportViewerPage() {
       cancelled = true;
     };
   }, [id]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    axios
+      .get(apiEndpoints.staffingStaff, { headers: headers() })
+      .then((res) => setPeople(res.data.results || res.data || []))
+      .catch(() => {});
+  }, [isAdmin]);
 
   const dated = result ? result.source.dated : true;
 
@@ -221,6 +243,17 @@ export default function ReportViewerPage() {
                 </Button>
               </span>
             </Tooltip>
+            {isAdmin && report && (
+              <SubscribeButton
+                report="custom"
+                reportLabel={report.name}
+                customReportId={report.id}
+                patientData={!!result?.phi}
+                people={people}
+                label="Email on a schedule"
+                onSaved={() => setToast("Scheduled. Manage it under Reports > Subscriptions.")}
+              />
+            )}
             {report?.can_edit && (
               <Button variant="outlined" color="inherit" sx={{ minHeight: 40 }} onClick={() => navigate(report.source === "linked" ? `/reports/${id}/canvas` : `/reports/${id}/edit`)}>
                 Edit report
@@ -270,6 +303,7 @@ export default function ReportViewerPage() {
           </Paper>
         )}
       </Box>
+      <Snackbar open={!!toast} autoHideDuration={5000} onClose={() => setToast("")} message={toast} />
     </Container>
   );
 }
