@@ -42,6 +42,7 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 import { getValidToken } from '../utils/auth';
 import { jwtDecode } from 'jwt-decode';
+import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from './settings/SettingsToolbarSlot';
 
 const ClinicEventsManagement = () => {
     // State management
@@ -333,13 +334,31 @@ const ClinicEventsManagement = () => {
     };
 
     return (
-        <Box sx={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-            maxHeight: '100%'
-        }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <SettingsToolbarPortal>
+                <TextField
+                    size="small"
+                    placeholder="Search clinic events..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    sx={{ width: { xs: '100%', sm: 260 } }}
+                    InputProps={{
+                        startAdornment: <SearchIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />,
+                        endAdornment: searchTerm && (
+                            <IconButton size="small" onClick={() => setSearchTerm('')}>
+                                <ClearIcon fontSize="small" />
+                            </IconButton>
+                        )
+                    }}
+                />
+                <Chip size="small" variant="outlined" label={`${filteredEvents.length} events`} />
+                <Box sx={{ flex: 1 }} />
+                {!isEditing && (
+                    <Button size="small" variant="outlined" startIcon={<AddIcon />} onClick={handleCreate} disabled={saving}>
+                        New
+                    </Button>
+                )}
+            </SettingsToolbarPortal>
             {/* Alert */}
             {alert.show && (
                 <Alert
@@ -352,47 +371,24 @@ const ClinicEventsManagement = () => {
             )}
 
             {/* Two-pane layout */}
-            <Grid container spacing={3} sx={{
-                flex: 1,
-                minHeight: 0,
-                height: '100%',
-                overflow: 'hidden'
-            }}>
+            <Grid container spacing={3} sx={{ alignItems: 'flex-start' }}>
                 {/* Left Pane - Form */}
                 <Grid size={{ xs: 12, md: 6 }} sx={{
                     minWidth: 0,
                     display: 'flex',
-                    minHeight: 0,
-                    height: '100%'
+                    alignSelf: 'flex-start',
+                    position: { md: 'sticky' },
+                    top: { md: `calc(${SETTINGS_STICKY_TOP} + 14px)` }
                 }}>
                     <Paper sx={{
                         p: 3,
                         width: '100%',
                         display: 'flex',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                        height: '100%'
+                        flexDirection: 'column'
                     }}>
                         <Typography variant="h6" gutterBottom sx={{ flexShrink: 0 }}>
                             {isEditing ? 'Edit Clinic Event' : 'Create Clinic Event'}
                         </Typography>
-
-                        {/* Search Field */}
-                        <TextField
-                            fullWidth
-                            placeholder="Search clinic events..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            InputProps={{
-                                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-                                endAdornment: searchTerm && (
-                                    <IconButton size="small" onClick={() => setSearchTerm('')}>
-                                        <ClearIcon />
-                                    </IconButton>
-                                )
-                            }}
-                            sx={{ mb: 3, flexShrink: 0 }}
-                        />
 
                         {/* Form Fields */}
                         <Box sx={{
@@ -400,9 +396,6 @@ const ClinicEventsManagement = () => {
                             display: 'flex',
                             flexDirection: 'column',
                             gap: 2,
-                            overflow: 'auto',
-                            minHeight: 0,
-                            maxHeight: 'calc(100% - 200px)',
                             pr: 1
                         }}>
                             <TextField
@@ -488,18 +481,11 @@ const ClinicEventsManagement = () => {
                 </Grid>
 
                 {/* Right Pane - Table */}
-                <Grid size={{ xs: 12, md: 6 }} sx={{
-                    minWidth: 0,
-                    display: 'flex',
-                    minHeight: 0,
-                    height: '100%'
-                }}>
+                <Grid size={{ xs: 12, md: 6 }} sx={{ minWidth: 0, display: 'flex' }}>
                     <Paper sx={{
                         width: '100%',
                         display: 'flex',
-                        flexDirection: 'column',
-                        overflow: 'hidden',
-                        height: '100%'
+                        flexDirection: 'column'
                     }}>
                         <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
                             <Typography variant="h6">
@@ -507,13 +493,9 @@ const ClinicEventsManagement = () => {
                             </Typography>
                         </Box>
 
-                        <TableContainer sx={{
-                            flex: 1,
-                            overflow: 'auto',
-                            maxHeight: 'calc(100% - 80px)'
-                        }}>
+                        <TableContainer sx={{ overflow: 'visible' }}>
                             <Table stickyHeader size="small">
-                                <TableHead>
+                                <TableHead sx={{ '& th': { top: SETTINGS_STICKY_TOP } }}>
                                     <TableRow>
                                         <TableCell>Name</TableCell>
                                         <TableCell>Description</TableCell>
