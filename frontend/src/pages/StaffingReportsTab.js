@@ -768,8 +768,8 @@ function StaffingReportsTab() {
       <Typography variant="h5" component="h2" sx={{ fontWeight: 600 }}>
         Reports
       </Typography>
-      <Stack direction="row" alignItems="flex-start" flexWrap={{ xs: "wrap", xl: "nowrap" }} useFlexGap gap={1.5} sx={{ minWidth: 0 }}>
-        <Box sx={{ minWidth: 0, flex: "0 1 300px" }}>
+      <Stack direction="row" alignItems="flex-start" flexWrap="wrap" useFlexGap gap={1.5} sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: "0 1 auto", maxWidth: 190 }}>
           <Typography variant="h5" component="h3" sx={{ fontWeight: 600 }}>
             {meta.label}
           </Typography>
@@ -787,9 +787,11 @@ function StaffingReportsTab() {
               >
                 <FontAwesomeIcon icon={faChevronLeft} size="sm" />
               </IconButton>
-              <Typography sx={{ minWidth: 150, textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>
-                {formatRange(startDate, endDate)}
-              </Typography>
+              {preset !== "custom" && (
+                <Typography sx={{ minWidth: 150, textAlign: "center", fontWeight: 600, whiteSpace: "nowrap" }}>
+                  {formatRange(startDate, endDate)}
+                </Typography>
+              )}
               <IconButton
                 aria-label="Next range"
                 onClick={() => stepRange(1)}
@@ -812,7 +814,7 @@ function StaffingReportsTab() {
                   label="Start"
                   type="date"
                   size="small"
-                  sx={{ width: 150 }}
+                  sx={{ width: 138 }}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
@@ -821,7 +823,7 @@ function StaffingReportsTab() {
                   label="End"
                   type="date"
                   size="small"
-                  sx={{ width: 150 }}
+                  sx={{ width: 138 }}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   slotProps={{ inputLabel: { shrink: true } }}
@@ -830,7 +832,7 @@ function StaffingReportsTab() {
             )}
           </Stack>
         )}
-        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", flex: "none", mt: "-6px" }}>
+        <Box sx={{ ml: "auto", display: "flex", alignItems: "center", gap: 1, flexWrap: "nowrap", flex: "none", mt: "-6px", "& .MuiButton-root": { minHeight: 40 } }}>
           {/* Master schedule and Daily staffing forms put their own controls here. */}
           <Box ref={setActionsSlot} sx={{ display: "contents" }} />
           {reportType !== "subscriptions" && (
@@ -839,6 +841,7 @@ function StaffingReportsTab() {
                 key={reportType}
                 report={reportType}
                 reportLabel={meta.label}
+                iconOnly
                 params={reportParams()}
                 people={staffList}
                 units={unitList}
@@ -854,8 +857,9 @@ function StaffingReportsTab() {
                     onExport={exportState.onExport}
                     disabled={exportState.disabled}
                     busy={exportState.busy}
+                    iconOnly
                   />
-                  <ReportPrintButton onClick={exportState.onPrint} disabled={exportState.disabled} />
+                  <ReportPrintButton iconOnly onClick={exportState.onPrint} disabled={exportState.disabled} />
                 </>
               )}
             </>
