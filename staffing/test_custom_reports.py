@@ -910,6 +910,59 @@ class ReferralSourceTests(TestCase):
         self.assertTrue(ReportAuditLog.objects.filter(source="referrals", action="run").exists())
 
 
+class AllergySourceTests(TestCase):
+    def setUp(self):
+        from appointments.models import PatientAllergy
+
+        self.org = Organization.objects.create(name="Org A")
+        self.other = Organization.objects.create(name="Org B")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.ann = CustomUser.objects.create_user(
+            username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames"
+        )
+        self.bo = CustomUser.objects.create_user(
+            username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell"
+        )
+        far = CustomUser.objects.create_user(username="p3", password="x", role="patient", organization=self.other)
+        PatientAllergy.objects.create(organization=self.org, patient=self.ann, substance="Penicillin", category="medication", severity="severe", code="7980", code_system="rxnorm")
+        PatientAllergy.objects.create(organization=self.org, patient=self.bo, substance="Penicillin", category="medication", severity="mild", status="inactive")
+        PatientAllergy.objects.create(organization=None, patient=self.bo, substance="Peanut", category="food", severity="severe")
+        PatientAllergy.objects.create(organization=self.other, patient=far, substance="Latex")
+        today = datetime.date.today()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None, **kw):
+        return engine.run_report("allergies", self.org, config, self.start, self.end, user=user, **kw)
+
+    def test_counts_by_substance_and_other_orgs_are_excluded(self):
+        res = self.run_cfg({"group_by": "substance", "columns": ["substance", "allergies", "active", "severe", "severe_pct", "coded_pct", "patients"]})
+        rows = {r["substance"]: r for r in res["rows"]}
+        self.assertEqual(set(rows), {"Penicillin", "Peanut"})  # Latex belongs to another organization
+        pen = rows["Penicillin"]
+        self.assertEqual((pen["allergies"], pen["active"], pen["severe"], pen["patients"]), (2, 1, 1, 2))
+        self.assertEqual((pen["severe_pct"], pen["coded_pct"]), (100.0, 50.0))
+
+    def test_hide_phi_masks_names(self):
+        cfg = {"columns": ["patient", "substance"]}
+        self.assertEqual(self.run_cfg(cfg)["phi"], "shown")
+        hidden = self.run_cfg(cfg, hide_phi=True)
+        self.assertNotIn("Ames", str(hidden))
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+
+    def test_save_and_run_is_audited(self):
+        from .models import ReportAuditLog
+
+        body = {"name": "Allergies", "source": "allergies", "config": {"group_by": "substance", "columns": ["substance", "allergies"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Allergies")
+        ran = client_for(self.admin).post(
+            f"{BASE}/{made.json()['id']}/run/", {"start": self.start.isoformat(), "end": self.end.isoformat()}, format="json"
+        )
+        self.assertEqual(ran.status_code, 200, ran.content)
+        self.assertTrue(ReportAuditLog.objects.filter(source="allergies", action="run").exists())
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 
