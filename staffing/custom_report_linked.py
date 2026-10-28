@@ -358,7 +358,7 @@ def catalog(user):
                 "key": o["key"], "label": o["label"], "plural": o["plural"], "module_label": o["module_label"],
                 "allowed": _allowed(o, user), "dated": o["dated"], "patient_data": o["patient_data"],
                 "fields": [
-                    {"key": f["key"], "label": f["label"], "kind": f["kind"], "type": f["type"], "phi": f.get("phi")}
+                    {"key": f["key"], "label": f["label"], "kind": f["kind"], "type": f["type"], "phi": f.get("phi"), "agg": f.get("agg")}
                     for f in o["fields"]
                 ],
             }
