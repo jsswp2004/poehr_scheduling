@@ -1,18 +1,15 @@
 import { useState, useEffect } from "react";
 import {
   Box,
-  Stack,
   Typography,
   Button,
-  Alert,
+  Chip,
   Table,
   TableHead,
   TableRow,
   TableCell,
   TableBody,
   Checkbox,
-  Tabs,
-  Tab,
   CircularProgress,
 } from "@mui/material";
 import axios from "axios";
@@ -25,6 +22,7 @@ import { jwtDecode } from "jwt-decode";
 import { getValidToken } from "../utils/auth";
 import { applyToFacilities, useFacilityScope } from "../utils/facilityScope";
 import SingleFacilityOnly from "../components/facility/SingleFacilityOnly";
+import SettingsToolbarPortal from "../components/settings/SettingsToolbarSlot";
 
 const DAYS = [
   { label: "Mon", value: 1 },
@@ -126,49 +124,44 @@ function EnvironmentProfilePage() {
     setSaving(false);
   };
 
-  return (
-    <Box
-      sx={{
-        mt: 0,
-        bgcolor: "background.paper",
-        height: "calc(100vh - 220px)", // Adjust for header height
-      }}
-    >
-      <Tabs
-        value={tabKey}
-        onChange={(e, newValue) => setTabKey(newValue)}
-        sx={{
-          mb: 3,
-          minHeight: 48,
-          "& .MuiTabs-indicator": {
-            height: 2,
-            bgcolor: "primary.main",
-          },
-          "& .MuiTab-root": {
-            fontWeight: 400,
-            fontSize: "1rem",
-            color: "text.secondary",
-            minHeight: 48,
-            textTransform: "none",
-            transition: "color 0.2s",
-            "&.Mui-selected": {
-              color: "primary.main",
-            },
-            "&:hover": {
-              color: "primary.main",
-            },
-          },
-        }}
-      >
-        <Tab label="Default Blocked Days" value="blocked-days" />
-        <Tab label="Clinic Events" value="clinic-events" />
-        <Tab label="Holidays" value="holidays" />
-        <Tab label="Organization" value="organization" />
-      </Tabs>
+  const ENV_TABS = [
+    { value: "blocked-days", label: "Default Blocked Days" },
+    { value: "clinic-events", label: "Clinic Events" },
+    { value: "holidays", label: "Holidays" },
+    { value: "organization", label: "Organization" },
+  ];
 
+  return (
+    <Box sx={{ bgcolor: "background.paper" }}>
+      <SettingsToolbarPortal>
+        {ENV_TABS.map((t) => (
+          <Chip
+            key={t.value}
+            size="small"
+            clickable
+            color={tabKey === t.value ? "primary" : "default"}
+            variant={tabKey === t.value ? "filled" : "outlined"}
+            label={t.label}
+            onClick={() => setTabKey(t.value)}
+            sx={{ order: 0 }}
+            data-testid={`env-tab-${t.value}`}
+          />
+        ))}
+        {tabKey === "blocked-days" && (
+          <>
+            <Box sx={{ flex: 1, order: 1 }} />
+            {status && (
+              <Chip size="small" sx={{ order: 1 }} color={status === "Saved!" ? "success" : "error"} label={status} />
+            )}
+            <Button size="small" sx={{ order: 1 }} variant="contained" onClick={handleSave} disabled={saving || loading}>
+              {saving ? <CircularProgress size={18} /> : "Save settings"}
+            </Button>
+          </>
+        )}
+      </SettingsToolbarPortal>
       {tabKey === "blocked-days" && (
         <Box sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
+          <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600 }}>
             Organization Default Blocked Days
           </Typography>
           <Table
@@ -215,23 +208,6 @@ function EnvironmentProfilePage() {
               </TableRow>
             </TableBody>
           </Table>
-          <Stack direction="row" spacing={2} sx={{ mt: 2 }} alignItems="center">
-            <Button
-              variant="contained"
-              onClick={handleSave}
-              disabled={saving || loading}
-            >
-              {saving ? <CircularProgress size={24} /> : "Save Settings"}
-            </Button>
-            {status && (
-              <Alert
-                severity={status === "Saved!" ? "success" : "error"}
-                sx={{ flex: 1 }}
-              >
-                {status}
-              </Alert>
-            )}
-          </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             <b>Organization-wide setting:</b> Select which days are blocked by default for
             {userRole === "system_admin" && facility.choice
@@ -245,13 +221,7 @@ function EnvironmentProfilePage() {
       )}
 
       {tabKey === "clinic-events" && (
-        <Box sx={{
-          p: 2,
-          height: "600px",
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
+        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
           <SingleFacilityOnly what="Clinic events">
             <ClinicEventsManagement />
           </SingleFacilityOnly>

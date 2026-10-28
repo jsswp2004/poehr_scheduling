@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from "../settings/SettingsToolbarSlot";
 import {
   Alert,
   Box,
@@ -197,9 +198,11 @@ function Timers({ canEdit }) {
         />
       </Stack>
       {canEdit && (
-        <Button sx={{ mt: 2 }} variant="contained" onClick={save} disabled={busy} data-testid="timers-save">
-          Save timers
-        </Button>
+        <SettingsToolbarPortal>
+          <Button size="small" sx={{ order: 3, ml: "auto" }} variant="contained" onClick={save} disabled={busy} data-testid="timers-save">
+            Save timers
+          </Button>
+        </SettingsToolbarPortal>
       )}
     </Paper>
   );
@@ -239,8 +242,7 @@ export default function ReferralSettings() {
   const canEdit = !!meta?.can_manage;
 
   return (
-    <Box sx={{ p: 2, maxWidth: 980 }} data-testid="referral-settings">
-      <Typography variant="h6">Referrals</Typography>
+    <Box sx={{ maxWidth: 980 }} data-testid="referral-settings">
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Where your clinic sends patients, and when a referral counts as overdue.
       </Typography>
@@ -248,24 +250,22 @@ export default function ReferralSettings() {
       <Timers canEdit={canEdit} />
 
       <SingleFacilityOnly what="The destination directory">
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="subtitle1">Destination directory</Typography>
-          <Stack direction="row" spacing={2} alignItems="center">
-            <FormControlLabel control={<Switch checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />} label="Show retired" />
-            {canEdit && (
-              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialog({})} data-testid="destination-add">
-                Add destination
-              </Button>
-            )}
-          </Stack>
-        </Stack>
+        <Typography variant="subtitle1" sx={{ mb: 1 }}>Destination directory</Typography>
+        <SettingsToolbarPortal>
+          <FormControlLabel sx={{ order: 1, m: 0 }} control={<Switch size="small" checked={showInactive} onChange={(e) => setShowInactive(e.target.checked)} />} label="Show retired" />
+          {canEdit && (
+            <Button size="small" sx={{ order: 1 }} variant="contained" startIcon={<AddIcon />} onClick={() => setDialog({})} data-testid="destination-add">
+              Add destination
+            </Button>
+          )}
+        </SettingsToolbarPortal>
         {error && <Alert severity="error" sx={{ mb: 1 }}>{error}</Alert>}
         {loading ? (
           <CircularProgress size={22} />
         ) : (
           <Paper variant="outlined">
             <Table size="small" aria-label="Destinations">
-              <TableHead>
+              <TableHead sx={{ "& th": { position: "sticky", top: SETTINGS_STICKY_TOP, bgcolor: "#f3f5f9", zIndex: 2, fontWeight: 700 } }}>
                 <TableRow>
                   <TableCell>Name</TableCell>
                   <TableCell>Specialty</TableCell>

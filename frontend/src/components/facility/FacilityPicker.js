@@ -4,6 +4,7 @@ import { jwtDecode } from "jwt-decode";
 import { api } from "../../api/client";
 import { getValidToken } from "../../utils/auth";
 import { authHeader } from "../patientHeader/headerApi";
+import SettingsToolbarPortal from "../settings/SettingsToolbarSlot";
 import { ALL, chooseFacility, configureFacilityScope, resetFacilityScope, useFacilityScope } from "../../utils/facilityScope";
 
 const roleOf = async () => {
@@ -67,7 +68,9 @@ export default function FacilityPicker({ children }) {
 
   return (
     <Box>
-      <Box sx={{ px: 2, pt: 2, pb: 1, display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+      <SettingsToolbarPortal>
+      <Box sx={{ width: "100%", pb: 0.5, display: "flex", flexDirection: "column", gap: 0.5 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
         <FormControl size="small" sx={{ minWidth: 320 }}>
           <InputLabel id="facility-picker-label">Facility</InputLabel>
           <Select
@@ -98,21 +101,23 @@ export default function FacilityPicker({ children }) {
       </Box>
 
       {problem && (
-        <Alert severity="error" sx={{ mx: 2, mb: 1 }}>
+        <Alert severity="error" sx={{ py: 0 }}>
           {problem}
         </Alert>
       )}
       {choice === ALL && (
-        <Alert severity="warning" sx={{ mx: 2, mb: 1 }} data-testid="all-facilities-note">
+        <Alert severity="warning" sx={{ py: 0 }} data-testid="all-facilities-note">
           System-wide: what you save is copied to all {facilities.length} facilities, replacing what each one has now. The values shown start from {first?.name}.
         </Alert>
       )}
       {!choice && !problem && (
-        <Alert severity="info" sx={{ mx: 2, mb: 2 }} data-testid="choose-facility-note">
+        <Alert severity="info" sx={{ py: 0 }} data-testid="choose-facility-note">
           Choose a facility (or All facilities) to begin.
         </Alert>
       )}
 
+      </Box>
+      </SettingsToolbarPortal>
       {choice && <Box key={choice}>{children}</Box>}
     </Box>
   );

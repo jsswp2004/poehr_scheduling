@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import SettingsToolbarPortal, { SETTINGS_STICKY_TOP } from "../components/settings/SettingsToolbarSlot";
 import axios from "axios";
 import { API_BASE_URL } from '../config/api';
 import { getValidToken } from "../utils/auth";
@@ -25,6 +26,7 @@ import {
   Container,
   IconButton,
   Tooltip,
+  Chip,
 } from "@mui/material";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faTrash } from "@fortawesome/free-solid-svg-icons";
@@ -285,10 +287,16 @@ function MaintenancePage() {
         py: 0,
         px: 0,
         textAlign: "left",
-        height: "calc(100vh - 220px)", // Adjust for header height
-        overflow: "hidden",
       }}
     >
+      <SettingsToolbarPortal>
+        <Chip size="small" color="success" variant="outlined" label={`Availability ${schedules.filter((x) => !x.is_blocked).length}`} />
+        <Chip size="small" color="error" variant="outlined" label={`Blocked ${schedules.filter((x) => x.is_blocked).length}`} />
+        <Box sx={{ flex: 1 }} />
+        <Typography variant="caption" color="text.secondary">
+          Pick a clinician to see and change their schedule
+        </Typography>
+      </SettingsToolbarPortal>
       {/*<Box sx={{ mt: 4, boxShadow: 2, borderRadius: 2, bgcolor: 'background.paper', p: 3 }} >
         <Typography variant="h5" sx={{ mb: 2 }}>
           Clinician Schedule Maintenance 
@@ -299,12 +307,12 @@ function MaintenancePage() {
         spacing={1}
         justifyContent="flex-start"
         alignItems="stretch"
-        sx={{ ml: 0, height: "50%", pt: 1 }}
+        sx={{ ml: 0, pt: 0 }}
       >
         {/* LEFT: Schedule Maintenance Form */}
         <Grid
           size={{ xs: 12, md: 6 }}
-          sx={{ pl: 0, minWidth: 0, display: "flex", flexDirection: "column" }}
+          sx={{ pl: 0, minWidth: 0, display: "flex", flexDirection: "column", alignSelf: "flex-start", position: { md: "sticky" }, top: { md: `calc(${SETTINGS_STICKY_TOP} + 14px)` } }}
         >
           <Box
             sx={{
@@ -312,10 +320,8 @@ function MaintenancePage() {
               minWidth: 400,
               width: "100%",
               textAlign: "left",
-              flex: 1,
               display: "flex",
               flexDirection: "column",
-              maxHeight: "100vh",
             }}
           >
             <form
@@ -323,7 +329,6 @@ function MaintenancePage() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                height: "100%",
               }}
             >
               <Stack spacing={2} sx={{ textAlign: "left" }}>
@@ -461,13 +466,10 @@ function MaintenancePage() {
               p: 1,
               display: "flex",
               flexDirection: "column",
-              //height: "100%",
-              maxHeight: "100vh",
-              overflowY: "hidden",
             }}
           >
-            <Typography variant="h6" gutterBottom>
-              Schedule Overview
+            <Typography variant="subtitle1" sx={{ fontWeight: 600 }} gutterBottom>
+              Schedule overview
             </Typography>
             <Box
               sx={{
@@ -475,8 +477,6 @@ function MaintenancePage() {
                 display: "flex",
                 flexDirection: "row",
                 gap: 1,
-                minHeight: 0,
-                maxHeight: "calc(100vh - 150px)",
               }}
             >
               {/* Availability Section */}
@@ -489,8 +489,6 @@ function MaintenancePage() {
                   minWidth: 0,
                   display: "flex",
                   flexDirection: "column",
-                  minHeight: 0,
-                  maxHeight: "100%",
                 }}
               >
                 <Typography color="success.main" sx={{ mb: 1 }}>
@@ -501,13 +499,10 @@ function MaintenancePage() {
                   ref={availabilityTableRef}
                   sx={{
                     flex: 1,
-                    overflowY: "auto",
-                    overflowX: "hidden",
+                    overflow: "visible",
                     boxShadow: "none",
                     borderRadius: 0,
                     border: "0px solid #e2e8f0",
-                    minHeight: "300px",
-                    maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
                     },
@@ -524,7 +519,7 @@ function MaintenancePage() {
                   }}
                 >
                   <Table size="small" stickyHeader>
-                    <TableHead>
+                    <TableHead sx={{ "& th": { top: SETTINGS_STICKY_TOP, bgcolor: "#f3f5f9", fontWeight: 700 } }}>
                       <TableRow>
                         <TableCell>Date/Time</TableCell>
                         <TableCell align="right">Actions</TableCell>
@@ -623,8 +618,6 @@ function MaintenancePage() {
                   minWidth: 0,
                   display: "flex",
                   flexDirection: "column",
-                  minHeight: 0,
-                  maxHeight: "100%",
                 }}
               >
                 <Typography color="error.main" sx={{ mb: 1 }}>
@@ -635,13 +628,10 @@ function MaintenancePage() {
                   ref={blockedTableRef}
                   sx={{
                     flex: 1,
-                    overflowY: "auto",
-                    overflowX: "hidden",
+                    overflow: "visible",
                     boxShadow: "none",
                     borderRadius: 0,
                     border: "0px solid #e2e8f0",
-                    minHeight: "300px",
-                    maxHeight: "calc(100vh - 200px)",
                     "&::-webkit-scrollbar": {
                       width: "8px",
                     },
@@ -658,7 +648,7 @@ function MaintenancePage() {
                   }}
                 >
                   <Table size="small" stickyHeader>
-                    <TableHead>
+                    <TableHead sx={{ "& th": { top: SETTINGS_STICKY_TOP, bgcolor: "#f3f5f9", fontWeight: 700 } }}>
                       <TableRow>
                         <TableCell>Date/Time</TableCell>
                         <TableCell align="right">Actions</TableCell>
