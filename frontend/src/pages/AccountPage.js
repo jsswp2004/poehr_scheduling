@@ -5,6 +5,7 @@ import axios from "axios";
 import { API_BASE_URL } from "../config/api";
 import { getValidToken } from "../utils/auth";
 import { jwtDecode } from "jwt-decode";
+import BackButton from "../components/BackButton";
 import {
     Container,
 Typography,
@@ -32,14 +33,8 @@ Typography,
     Menu,
 } from "@mui/material";
 import {
-    ArrowBack,
-Edit,
     CreditCard,
-    Delete,
-    Cancel,
     Warning,
-    Email,
-    Print,
     CloudDownload,
     DeleteForever,
     CheckBox as CheckBoxIcon,
@@ -134,6 +129,19 @@ function AccountPage() {
     const [organizationSearchResults, setOrganizationSearchResults] = useState([]);
     const [organizationSearchLoading, setOrganizationSearchLoading] = useState(false);
     const [showSearchResults, setShowSearchResults] = useState(false);
+
+    // Pinned title block (same pattern as the Staffing Center): publish its height so the billing toolbar can stack under it
+    const [tab, setTab] = useState("details");
+    const [billFilter, setBillFilter] = useState("all");
+    const [billQuery, setBillQuery] = useState("");
+    const [moreAnchor, setMoreAnchor] = useState(null);
+    const [billMenuAnchor, setBillMenuAnchor] = useState(null);
+    const pinRef = useCallback((node) => {
+        if (!node) return;
+        const publish = () => document.documentElement.style.setProperty("--account-sticky-h", `${node.offsetHeight}px`);
+        publish();
+        if (typeof ResizeObserver !== "undefined") new ResizeObserver(publish).observe(node);
+    }, []);
 
     // Plan options (updated to match current subscription tiers)
     const planOptions = [
@@ -691,6 +699,23 @@ function AccountPage() {
         printWindow.close();
     };
 
+    const handleDownloadBillingCsv = () => {
+        const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+        const rows = [
+            ["Date", "Description", "Amount", "Status"],
+            ...billingHistory.map((i) => [i.date, i.description, i.amount, i.status]),
+        ];
+        const blob = new Blob([rows.map((r) => r.map(esc).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "billing-history.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    };
+
     const handleCancelAccount = async () => {
         try {
             const token = await getValidToken();
@@ -895,42 +920,83 @@ function AccountPage() {
     const orgName = selectedOrganization?.name || accountData?.organization_name;
     const planLabel = (value) => planOptions.find((p) => p.value === value)?.label;
 
+    const paidCount = billingHistory.filter((i) => i.status === "Paid").length;
+    const failedCount = billingHistory.length - paidCount;
+    const billQ = billQuery.trim().toLowerCase();
+    const shownInvoices = billingHistory.filter((i) => {
+        if (billFilter === "paid" && i.status !== "Paid") return false;
+        if (billFilter === "failed" && i.status === "Paid") return false;
+        if (billQ && !`${i.date} ${i.description} ${i.amount} ${i.status}`.toLowerCase().includes(billQ)) return false;
+        return true;
+    });
+    const accountTabs = [
+        { key: "details", label: "Details" },
+        { key: "billing", label: "Billing history", count: billingHistory.length },
+        { key: "plan", label: "Plan & data" },
+        { key: "danger", label: "Danger zone" },
+    ];
+    const STICKY_TOP = "calc(64px + var(--account-sticky-h, 130px))";
+
     return (
-        <Container maxWidth={false} sx={{ mt: 2, mb: 3, px: { xs: 2, md: 4 } }}>
-            {/* Header */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
-                <IconButton
-                    onClick={() => navigate(-1)}
-                    aria-label="Go back"
-                    size="small"
-                    sx={{ border: `1px solid ${BORDER}`, borderRadius: "6px", bgcolor: "#fff" }}
-                >
-                    <ArrowBack fontSize="small" />
-                </IconButton>
-                <Box>
-                    <Typography variant="h1" sx={{ fontSize: 20, fontWeight: 600, lineHeight: 1.2 }}>
+        <Container maxWidth={false} sx={{ mt: 0, mb: 3, px: { xs: 2, md: 4 } }}>
+            {/* Pinned title, tabs and toolbar (stays put while the body scrolls) */}
+            <Box
+                ref={pinRef}
+                sx={{
+                    position: "sticky", top: 64, zIndex: 1000, bgcolor: "background.paper",
+                    pt: 2, pb: 0.5, borderBottom: `1px solid ${BORDER}`,
+                }}
+            >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <Typography variant="h5" component="h1" sx={{ fontWeight: 500 }}>
                         Account
                     </Typography>
-                    <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12 }}>
-                        Your details, plan and billing
-                    </Typography>
+                    {currentPlanData && <Chip size="small" color="primary" variant="outlined" label={currentPlanData.label} />}
+                    {orgName && <Chip size="small" variant="outlined" label={orgName} />}
+                    <Box sx={{ flex: 1 }} />
+                    <BackButton sx={{ mb: 0, py: 0.75 }} />
                 </Box>
-            </Box>
+                <Typography variant="body2" sx={{ color: "text.secondary", fontSize: 12, mt: -0.25 }}>
+                    Your details, plan and billing
+                </Typography>
 
-            {/* System admin: pick another organization */}
-            {isSystemAdmin && (
-                <Section sx={{ mb: 1.5, py: 1.25 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
-                        <Typography sx={{ fontWeight: 600, fontSize: 13.5 }}>System admin</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", py: 1 }}>
+                    {accountTabs.map((t) => (
+                        <Chip
+                            key={t.key}
+                            size="small"
+                            clickable
+                            color={tab === t.key ? "primary" : "default"}
+                            variant={tab === t.key ? "filled" : "outlined"}
+                            label={t.count != null ? `${t.label} ${t.count}` : t.label}
+                            onClick={() => setTab(t.key)}
+                            data-testid={`account-tab-${t.key}`}
+                        />
+                    ))}
+                    <Box sx={{ flex: 1 }} />
+                    {tab === "details" && (
+                        <Button size="small" variant="contained" onClick={() => setEditAccountOpen(true)}>
+                            Edit details
+                        </Button>
+                    )}
+                    <IconButton size="small" aria-label="More actions" onClick={(e) => setMoreAnchor(e.currentTarget)}>
+                        <MoreVert fontSize="small" />
+                    </IconButton>
+                    <Menu anchorEl={moreAnchor} open={Boolean(moreAnchor)} onClose={() => setMoreAnchor(null)}>
+                        <MenuItem onClick={() => { setMoreAnchor(null); handlePrintBillingHistory(); }}>Print billing history</MenuItem>
+                        <MenuItem onClick={() => { setMoreAnchor(null); handleDownloadBillingCsv(); }}>Download invoices (CSV)</MenuItem>
+                        <MenuItem onClick={() => { setMoreAnchor(null); setExportDialogOpen(true); }}>Export organization data</MenuItem>
+                        <MenuItem onClick={() => { setMoreAnchor(null); setChangePlanOpen(true); }}>Change plan</MenuItem>
+                    </Menu>
+                </Box>
+
+                {/* System admin: pick another organization */}
+                {isSystemAdmin && (
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap", pb: 1, pt: 0.75, borderTop: `1px dashed ${BORDER}` }}>
+                        <Typography sx={{ fontWeight: 600, fontSize: 13 }}>System admin</Typography>
                         {selectedOrganization && (
-                            <Chip
-                                label={`Managing: ${selectedOrganization.name}`}
-                                color="primary"
-                                size="small"
-                                variant="outlined"
-                            />
+                            <Chip label={`Managing: ${selectedOrganization.name}`} color="primary" size="small" variant="outlined" />
                         )}
-                        <Box sx={{ flex: 1 }} />
                         <Box sx={{ position: "relative", width: { xs: "100%", sm: 320 } }}>
                             <TextField
                                 fullWidth
@@ -986,113 +1052,157 @@ function AccountPage() {
                             )}
                         </Box>
                     </Box>
-                </Section>
-            )}
+                )}
+            </Box>
 
-            <Box
-                sx={{
-                    display: "grid",
-                    gridTemplateColumns: { xs: "1fr", md: "minmax(0, 1fr) 380px" },
-                    gap: 1.75,
-                    alignItems: "start",
-                }}
-            >
-                {/* LEFT: details, payment, billing */}
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, minWidth: 0 }}>
-                    <Section
-                        title="Account details"
-                        action={
-                            <Button size="small" variant="outlined" onClick={() => setEditAccountOpen(true)}>
-                                Edit
-                            </Button>
-                        }
-                    >
-                        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: "10px 16px" }}>
-                            <Field label="First name" value={accountData?.first_name} />
-                            <Field label="Last name" value={accountData?.last_name} />
-                            <Field label="Email" value={accountData?.email} />
-                            <Field label="Phone" value={accountData?.phone_number} />
-                            <Field label="Role" value={accountData?.role} />
-                            <Field
-                                label="Organization"
-                                value={
-                                    <>
-                                        {orgName}
-                                        {isSystemAdmin && selectedOrganization && (
-                                            <Chip
-                                                label={selectedOrganization.subscription_tier || "No plan"}
-                                                size="small"
-                                                color="secondary"
-                                                sx={{ ml: 1 }}
-                                            />
-                                        )}
-                                    </>
-                                }
-                            />
-                        </Box>
-                    </Section>
-
-                    <Section
-                        title="Payment methods"
-                        action={
-                            <Button size="small" variant="outlined" onClick={() => setAddPaymentOpen(true)}>
-                                + Add
-                            </Button>
-                        }
-                    >
-                        {paymentMethods.length === 0 ? (
-                            <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", py: 2 }}>
-                                No payment methods found. Add a payment method to manage your subscription.
-                            </Typography>
-                        ) : (
-                            paymentMethods.map((method) => (
-                                <Box
-                                    key={method.id}
-                                    sx={{
-                                        display: "flex", alignItems: "center", gap: 1.25, minHeight: 44,
-                                        border: `1px solid ${BORDER}`, borderRadius: "8px", px: 1.5, mb: 0.75,
-                                    }}
-                                >
-                                    <CreditCard fontSize="small" sx={{ color: "text.secondary" }} />
-                                    <Box sx={{ flex: 1, py: 0.5 }}>
-                                        <Typography variant="body2" sx={{ fontSize: 13.5 }}>
-                                            {method.type} ending in {method.last4}
-                                            {method.isDefault && (
-                                                <Chip label="Default" size="small" color="success" variant="outlined" sx={{ ml: 1, height: 20 }} />
+            <Box sx={{ maxWidth: 860, mx: "auto", pt: 1.75, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                {tab === "details" && (
+                    <>
+                        <Section
+                            title="Account details"
+                            action={
+                                <Button size="small" variant="outlined" onClick={() => setEditAccountOpen(true)}>
+                                    Edit
+                                </Button>
+                            }
+                        >
+                            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: "10px 16px" }}>
+                                <Field label="First name" value={accountData?.first_name} />
+                                <Field label="Last name" value={accountData?.last_name} />
+                                <Field label="Email" value={accountData?.email} />
+                                <Field label="Phone" value={accountData?.phone_number} />
+                                <Field label="Role" value={accountData?.role} />
+                                <Field
+                                    label="Organization"
+                                    value={
+                                        <>
+                                            {orgName}
+                                            {isSystemAdmin && selectedOrganization && (
+                                                <Chip
+                                                    label={selectedOrganization.subscription_tier || "No plan"}
+                                                    size="small"
+                                                    color="secondary"
+                                                    sx={{ ml: 1 }}
+                                                />
                                             )}
-                                        </Typography>
-                                        <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                                            Expires {method.expires}
-                                        </Typography>
-                                    </Box>
-                                    <IconButton
-                                        size="small"
-                                        aria-label={`Actions for ${method.type} ending in ${method.last4}`}
-                                        onClick={(e) => setPayMenu({ anchor: e.currentTarget, method })}
-                                    >
-                                        <MoreVert fontSize="small" />
-                                    </IconButton>
-                                </Box>
-                            ))
-                        )}
-                    </Section>
+                                        </>
+                                    }
+                                />
+                            </Box>
+                        </Section>
 
-                    <Section
-                        title="Billing history"
-                        action={
-                            <Button size="small" variant="outlined" startIcon={<Print fontSize="small" />} onClick={handlePrintBillingHistory}>
-                                Print
-                            </Button>
-                        }
-                    >
-                        <Box sx={{ border: `1px solid ${BORDER}`, borderRadius: "8px", overflow: "hidden" }}>
-                            <Table size="small">
+                        <Section
+                            title="Payment methods"
+                            action={
+                                <Button size="small" variant="outlined" onClick={() => setAddPaymentOpen(true)}>
+                                    + Add
+                                </Button>
+                            }
+                        >
+                            {paymentMethods.length === 0 ? (
+                                <Typography variant="body2" sx={{ color: "text.secondary", textAlign: "center", py: 2 }}>
+                                    No payment methods found. Add a payment method to manage your subscription.
+                                </Typography>
+                            ) : (
+                                paymentMethods.map((method) => (
+                                    <Box
+                                        key={method.id}
+                                        sx={{
+                                            display: "flex", alignItems: "center", gap: 1.25, minHeight: 44,
+                                            border: `1px solid ${BORDER}`, borderRadius: "8px", px: 1.5, mb: 0.75,
+                                        }}
+                                    >
+                                        <CreditCard fontSize="small" sx={{ color: "text.secondary" }} />
+                                        <Box sx={{ flex: 1, py: 0.5 }}>
+                                            <Typography variant="body2" sx={{ fontSize: 13.5 }}>
+                                                {method.type} ending in {method.last4}
+                                                {method.isDefault && (
+                                                    <Chip label="Default" size="small" color="success" variant="outlined" sx={{ ml: 1, height: 20 }} />
+                                                )}
+                                            </Typography>
+                                            <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                                                Expires {method.expires}
+                                            </Typography>
+                                        </Box>
+                                        <IconButton
+                                            size="small"
+                                            aria-label={`Actions for ${method.type} ending in ${method.last4}`}
+                                            onClick={(e) => setPayMenu({ anchor: e.currentTarget, method })}
+                                        >
+                                            <MoreVert fontSize="small" />
+                                        </IconButton>
+                                    </Box>
+                                ))
+                            )}
+                        </Section>
+                    </>
+                )}
+
+                {tab === "billing" && (
+                    <Section>
+                        {/* Pinned billing toolbar, stacked under the title block */}
+                        <Box
+                            sx={{
+                                position: "sticky", top: STICKY_TOP, zIndex: 900, bgcolor: "background.paper",
+                                display: "flex", alignItems: "center", gap: 0.75, flexWrap: "wrap", py: 0.75,
+                            }}
+                        >
+                            <Typography component="h2" sx={{ fontSize: 14.5, fontWeight: 600, mr: 0.5 }}>
+                                Billing history
+                            </Typography>
+                            {[
+                                { key: "all", label: "All", n: billingHistory.length },
+                                { key: "paid", label: "Paid", n: paidCount },
+                                { key: "failed", label: "Failed", n: failedCount },
+                            ].map((f) => (
+                                <Chip
+                                    key={f.key}
+                                    size="small"
+                                    clickable
+                                    color={billFilter === f.key ? "primary" : "default"}
+                                    variant={billFilter === f.key ? "filled" : "outlined"}
+                                    label={`${f.label} ${f.n}`}
+                                    onClick={() => setBillFilter(f.key)}
+                                    data-testid={`bill-filter-${f.key}`}
+                                />
+                            ))}
+                            <Box sx={{ flex: 1 }} />
+                            <TextField
+                                size="small"
+                                placeholder="Search invoices"
+                                value={billQuery}
+                                onChange={(e) => setBillQuery(e.target.value)}
+                                inputProps={{ "aria-label": "Search invoices" }}
+                                sx={{ width: { xs: "100%", sm: 200 } }}
+                            />
+                            <IconButton size="small" aria-label="Billing actions" onClick={(e) => setBillMenuAnchor(e.currentTarget)}>
+                                <MoreVert fontSize="small" />
+                            </IconButton>
+                            <Menu anchorEl={billMenuAnchor} open={Boolean(billMenuAnchor)} onClose={() => setBillMenuAnchor(null)}>
+                                <MenuItem onClick={() => { setBillMenuAnchor(null); handlePrintBillingHistory(); }}>Print</MenuItem>
+                                <MenuItem onClick={() => { setBillMenuAnchor(null); handleDownloadBillingCsv(); }}>Download CSV</MenuItem>
+                            </Menu>
+                        </Box>
+                        <Box
+                            sx={{
+                                border: `1px solid ${BORDER}`, borderRadius: "8px",
+                                overflowX: { xs: "auto", md: "clip" },
+                            }}
+                        >
+                            <Table size="small" sx={{ minWidth: 520 }}>
                                 <TableHead>
-                                    <TableRow sx={{ bgcolor: "#f3f5f9" }}>
-                                        <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
-                                        <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                                    <TableRow>
+                                        {["Date", "Description", "Amount", "Status"].map((h) => (
+                                            <TableCell
+                                                key={h}
+                                                sx={{
+                                                    fontWeight: 700, bgcolor: "#f3f5f9",
+                                                    position: { md: "sticky" }, top: { md: `calc(${STICKY_TOP} + 44px)` }, zIndex: 2,
+                                                }}
+                                            >
+                                                {h}
+                                            </TableCell>
+                                        ))}
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -1104,8 +1214,16 @@ function AccountPage() {
                                                 </Typography>
                                             </TableCell>
                                         </TableRow>
+                                    ) : shownInvoices.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={4} sx={{ textAlign: "center", py: 2.5 }}>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    No invoices match.
+                                                </Typography>
+                                            </TableCell>
+                                        </TableRow>
                                     ) : (
-                                        billingHistory.map((invoice) => (
+                                        shownInvoices.map((invoice) => (
                                             <TableRow key={invoice.id} hover>
                                                 <TableCell>{invoice.date}</TableCell>
                                                 <TableCell>{invoice.description}</TableCell>
@@ -1125,79 +1243,82 @@ function AccountPage() {
                             </Table>
                         </Box>
                     </Section>
-                </Box>
+                )}
 
-                {/* RIGHT: plan, data, danger zone (plan first on phones) */}
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, order: { xs: -1, md: 0 } }}>
-                    <Section title="Current plan">
-                        {currentPlanData ? (
-                            <Box>
-                                <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
-                                    <Typography sx={{ fontSize: 22, fontWeight: 600, color: "primary.main" }}>
-                                        {currentPlanData.label}
-                                    </Typography>
-                                    <Typography variant="body2" sx={{ color: "text.secondary" }}>
-                                        {currentPlanData.price}
-                                    </Typography>
-                                </Box>
-                                <Box sx={{ my: 1.25 }}>
-                                    {currentPlanData.features.map((feature) => (
-                                        <Typography key={feature} variant="body2" sx={{ display: "flex", gap: 1, mb: 0.5 }}>
-                                            <Box component="span" sx={{ color: "success.main" }}>&#10003;</Box>
-                                            {feature}
+                {tab === "plan" && (
+                    <>
+                        <Section title="Current plan">
+                            {currentPlanData ? (
+                                <Box>
+                                    <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+                                        <Typography sx={{ fontSize: 22, fontWeight: 600, color: "primary.main" }}>
+                                            {currentPlanData.label}
                                         </Typography>
-                                    ))}
+                                        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                                            {currentPlanData.price}
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ my: 1.25 }}>
+                                        {currentPlanData.features.map((feature) => (
+                                            <Typography key={feature} variant="body2" sx={{ display: "flex", gap: 1, mb: 0.5 }}>
+                                                <Box component="span" sx={{ color: "success.main" }}>&#10003;</Box>
+                                                {feature}
+                                            </Typography>
+                                        ))}
+                                    </Box>
                                 </Box>
-                            </Box>
-                        ) : (
-                            <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.25 }}>
-                                {`Loading... (${currentPlan || "undefined"})`}
+                            ) : (
+                                <Typography variant="body2" sx={{ color: "text.secondary", mb: 1.25 }}>
+                                    {`Loading... (${currentPlan || "undefined"})`}
+                                </Typography>
+                            )}
+                            <Button variant="outlined" fullWidth onClick={() => setChangePlanOpen(true)}>
+                                Change plan
+                            </Button>
+                        </Section>
+
+                        <Section title="Your data">
+                            <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
+                                Download all your organization's data as JSON and/or CSV.
                             </Typography>
-                        )}
-                        <Button variant="outlined" fullWidth onClick={() => setChangePlanOpen(true)}>
-                            Change plan
-                        </Button>
-                    </Section>
+                            <Button
+                                variant="outlined"
+                                fullWidth
+                                startIcon={<CloudDownload fontSize="small" />}
+                                onClick={() => setExportDialogOpen(true)}
+                            >
+                                Export organization data
+                            </Button>
+                        </Section>
+                    </>
+                )}
 
-                    <Section title="Your data">
-                        <Typography variant="body2" sx={{ color: "text.secondary", mb: 1 }}>
-                            Download all your organization's data as JSON and/or CSV.
-                        </Typography>
-                        <Button
-                            variant="outlined"
-                            fullWidth
-                            startIcon={<CloudDownload fontSize="small" />}
-                            onClick={() => setExportDialogOpen(true)}
-                        >
-                            Export organization data
-                        </Button>
-                    </Section>
-
+                {tab === "danger" && (
                     <Section title="Danger zone" sx={{ borderColor: "#f0b8b4" }}>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pb: 1, borderBottom: "1px solid #f3d6d4" }}>
-                            <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pb: 1, borderBottom: "1px solid #f3d6d4", flexWrap: "wrap" }}>
+                            <Box sx={{ flex: 1, minWidth: 200 }}>
                                 <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>Cancel account</Typography>
                                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
                                     Suspends access. Cannot be undone.
                                 </Typography>
                             </Box>
-                            <Button size="small" variant="outlined" color="error" sx={{ width: 150 }} onClick={() => setCancelAccountOpen(true)}>
+                            <Button size="small" variant="outlined" color="error" sx={{ width: 170 }} onClick={() => setCancelAccountOpen(true)}>
                                 Cancel account
                             </Button>
                         </Box>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pt: 1 }}>
-                            <Box sx={{ flex: 1 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, pt: 1, flexWrap: "wrap" }}>
+                            <Box sx={{ flex: 1, minWidth: 200 }}>
                                 <Typography sx={{ fontSize: 13.5, fontWeight: 600 }}>Delete organization</Typography>
                                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
                                     Permanently deletes all data.
                                 </Typography>
                             </Box>
-                            <Button size="small" variant="outlined" color="error" sx={{ width: 150 }} onClick={() => setDeleteDialogOpen(true)}>
+                            <Button size="small" variant="outlined" color="error" sx={{ width: 170 }} onClick={() => setDeleteDialogOpen(true)}>
                                 Delete organization
                             </Button>
                         </Box>
                     </Section>
-                </Box>
+                )}
             </Box>
 
             <Menu anchorEl={payMenu.anchor} open={Boolean(payMenu.anchor)} onClose={() => setPayMenu({ anchor: null, method: null })}>
