@@ -11,6 +11,7 @@ export const DOC_COLUMN_GROUPS = [
       ["note_id", "Note ID", false, "dimension", "text"],
       ["status", "Status", false, "dimension", "text"],
       ["date", "Date documented", true, "dimension", "date"],
+      ["time", "Time documented", false, "dimension", "text"],
       ["signed_on", "Date signed", false, "dimension", "date"],
       ["hours_to_sign", "Hours to sign", false, "measure", "hours"],
     ],

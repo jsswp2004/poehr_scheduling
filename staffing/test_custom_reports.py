@@ -1455,3 +1455,87 @@ class DocumentationReportTests(TestCase):
     def test_documentation_is_not_offered_in_the_generic_builder(self):
         res = client_for(self.admin).get(f"{BASE}/sources/")
         self.assertNotIn("note_documentation", [s["key"] for s in res.json()])
+
+
+class DocumentationFlowsheetTests(TestCase):
+    """Flowsheets are documentation: their own category in the picker, one document per time point charted."""
+
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import (
+            Appointment, Dictionary, DictionaryItem, Facility, FlowsheetRowDefinition, FlowsheetTemplate, Unit as ApptUnit,
+            VitalSignsFlowsheet,
+        )
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.nurse = CustomUser.objects.create_user(username="n", password="x", role="nurse", organization=self.org, first_name="Nia", last_name="Park")
+        self.doc = CustomUser.objects.create_user(username="d", password="x", role="doctor", organization=self.org, first_name="Dee", last_name="Rivera")
+        self.pat = CustomUser.objects.create_user(username="p", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames")
+        fac = Facility.objects.create(organization=self.org, name="East")
+        unit = ApptUnit.objects.create(facility=fac, name="East Clinic")
+        sides = Dictionary.objects.create(code="sides", name="Sides")
+        DictionaryItem.objects.create(dictionary=sides, value="L", label="Left arm", sort_order=0)
+        tpl = FlowsheetTemplate.objects.create(code="vitals", name="Vital signs")
+        for i, (key, label, ftype, dic) in enumerate(
+            [("hr", "Heart rate", "numeric", None), ("site", "BP site", "dropdown", sides), ("note", "Comment", "text", None)]
+        ):
+            FlowsheetRowDefinition.objects.create(template=tpl, section_label="Vitals", key=key, label=label, field_type=ftype, dictionary=dic, sort_order=i)
+        now = timezone.now()
+        appt = Appointment.all_objects.create(
+            organization=self.org, patient=self.pat, provider=self.doc, title="Visit", appointment_datetime=now, unit=unit
+        )
+        columns = [
+            {"id": f"c{n}", "timestamp": (now + datetime.timedelta(minutes=n)).isoformat(), "recorded_by": self.nurse.pk, "recorded_by_name": "Nia Park"}
+            for n in range(2)
+        ]
+        data = {"hr": {"c0": "72", "c1": "88"}, "site": {"c0": "L"}, "note": {"c1": "anxious"}}
+        VitalSignsFlowsheet.objects.create(organization=self.org, template=tpl, appointment=appt, patient=self.pat, columns=columns, data=data)
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_docs(self, docs, config=None, hide=False):
+        from . import custom_report_documentation as documentation
+
+        clean = documentation.clean_docs(docs)
+        src = documentation.build_source(clean, self.org, self.admin, hide)
+        return engine.run_report(documentation.DOC_KEY, self.org, config or {}, self.start, self.end, user=self.admin, hide_phi=hide, src=src)
+
+    def test_flowsheets_are_their_own_category_in_the_picker(self):
+        from . import custom_report_documentation as documentation
+
+        cat = documentation.catalog(self.admin, self.org, ["flowsheet:vitals"])
+        item = next(t for t in cat["templates"] if t["code"] == "flowsheet:vitals")
+        self.assertEqual(item["group"], "Flowsheets")
+        self.assertEqual({o["id"] for o in cat["observations"]}, {"hr", "site", "note"})
+
+    def test_one_row_per_time_point_with_people_and_visit(self):
+        cols = ["template", "time", "patient", "author", "author_role", "attending", "discipline", "visit_id", "status", "num__hr", "obs__site"]
+        res = self.run_docs({"templates": ["flowsheet:vitals"], "observations": ["hr", "site"]}, {"columns": cols, "sort": {"field": "time", "dir": "asc"}})
+        self.assertEqual(len(res["rows"]), 2)
+        first = res["rows"][0]
+        self.assertEqual((first["template"], first["author"], first["attending"], first["status"]), ("Vital signs", "Nia Park", "Dee Rivera", "Charted"))
+        self.assertEqual(first["author_role"], "Nurse")
+        self.assertEqual((first["num__hr"], first["obs__site"]), (72, "Left arm"))
+        self.assertEqual(res["rows"][1]["num__hr"], 88)
+
+    def test_long_layout_one_row_per_charted_value(self):
+        res = self.run_docs({"templates": ["flowsheet:vitals"], "observations": ["hr", "site"], "layout": "long"}, {"columns": ["observation", "value"]})
+        self.assertEqual(sorted((r["observation"], r["value"]) for r in res["rows"]), [("BP site", "Left arm"), ("Heart rate", "72"), ("Heart rate", "88")])
+
+    def test_hide_phi_masks_typed_text_only(self):
+        res = self.run_docs({"templates": ["flowsheet:vitals"], "observations": ["hr", "note"]}, {"columns": ["patient", "num__hr", "obs__note"]}, hide=True)
+        self.assertTrue(all(r["patient"].startswith("Patient ") for r in res["rows"]))
+        self.assertIn("[Hidden]", [r["obs__note"] for r in res["rows"]])
+        self.assertEqual(sorted(r["num__hr"] for r in res["rows"]), [72, 88])
+
+    def test_notes_and_flowsheets_in_one_report(self):
+        res = self.run_docs({"templates": ["progress_note", "flowsheet:vitals"], "observations": ["hr"]}, {"columns": ["template", "num__hr"]})
+        self.assertEqual({r["template"] for r in res["rows"]}, {"Vital signs"})
+
+    def test_flowsheet_entries_left_out_of_the_regular_builder(self):
+        c = client_for(self.admin)
+        keys = [s["key"] for s in c.get(f"{BASE}/sources/").json()]
+        self.assertTrue(keys)
+        self.assertNotIn("flowsheet_entries", keys)
