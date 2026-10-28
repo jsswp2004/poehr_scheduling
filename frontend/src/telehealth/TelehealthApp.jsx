@@ -46,6 +46,22 @@ export default function TelehealthApp({ canConduct = true, canManage = true, wsU
   const [assistantOpen, setAssistantOpen] = useState(false);
   const assistantButton = useRef(null);
 
+  // Publish the pinned header's height so the filter pills and the side panel can pin just beneath it.
+  const headObserver = useRef(null);
+  const headRef = useCallback((node) => {
+    if (headObserver.current) {
+      headObserver.current.disconnect();
+      headObserver.current = null;
+    }
+    if (!node) return;
+    const publish = () => document.documentElement.style.setProperty("--th-head-h", `${node.getBoundingClientRect().height}px`);
+    publish();
+    if (typeof ResizeObserver !== "undefined") {
+      headObserver.current = new ResizeObserver(publish);
+      headObserver.current.observe(node);
+    }
+  }, []);
+
   const waitingCount = todaySched.items.filter((i) => isWaiting(visitState(i.session))).length;
   const previousCount = useRef(0);
   useEffect(() => {
@@ -149,9 +165,12 @@ export default function TelehealthApp({ canConduct = true, canManage = true, wsU
 
   return (
     <main className="th-root th-app">
-      <header className="th-header">
+      <header className="th-header" ref={headRef}>
         <div className="th-titlebar">
-          <h1 className="th-h1">{title}</h1>
+          <div>
+            <h1 className="th-h1">{title}</h1>
+            <p className="th-subtitle">Video visits for today. Send links, admit patients and start visits.</p>
+          </div>
           <div className="th-titlebar-end">
             {tab === "today" && <span className="th-day">{formatDay(today)}</span>}
           {assistant && (
