@@ -930,3 +930,41 @@ def _shift_type_display(self):
 
 for _m in (StaffRecurringPattern, StaffShift, ShiftCoverageRequirement):
     _m.get_shift_type_display = _shift_type_display
+
+
+class CustomReport(models.Model):
+    """
+    A report built in the Reports module. `source` names a curated data source in
+    staffing.custom_reports; `config` holds the columns, grouping, filters, highlight, tiles and sort.
+    Who can run it: only the owner ("me"), everyone allowed to use Staffing reports at the facility
+    ("org"), or people with one of `audience_roles` ("roles").
+    """
+
+    AUDIENCE_CHOICES = [("me", "Only me"), ("roles", "People with a role"), ("org", "Everyone at the facility")]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="staffing_custom_reports"
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="staffing_custom_reports",
+    )
+    name = models.CharField(max_length=120)
+    description = models.CharField(max_length=300, blank=True, default="")
+    module = models.CharField(max_length=20, default="staffing")
+    source = models.CharField(max_length=40)
+    config = models.JSONField(default=dict, blank=True)
+    audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default="me")
+    audience_roles = models.JSONField(default=list, blank=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return f"{self.name} ({self.source})"

@@ -323,7 +323,10 @@ function TileRow({ children }) {
 function StaffingReportsTab() {
   const token = getAccessToken();
 
-  const [reportType, setReportType] = useState("coverage_compliance");
+  const [reportType, setReportType] = useState(() => {
+    const wanted = new URLSearchParams(window.location.search).get("report");
+    return wanted && REPORT_BY_VALUE[wanted] ? wanted : "coverage_compliance";
+  });
   const [preset, setPreset] = useState("week");
   const [startDate, setStartDate] = useState(() => getPresetRange("week").start);
   const [endDate, setEndDate] = useState(() => getPresetRange("week").end);

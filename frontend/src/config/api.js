@@ -355,6 +355,11 @@ export const apiEndpoints = {
     staffingReportSubscriptions: `${API_BASE_URL}/api/staffing/report-subscriptions/`,
     staffingReportSubscription: (id) => `${API_BASE_URL}/api/staffing/report-subscriptions/${id}/`,
     staffingReportSubscriptionSendNow: (id) => `${API_BASE_URL}/api/staffing/report-subscriptions/${id}/send-now/`,
+    staffingCustomReports: `${API_BASE_URL}/api/staffing/custom-reports/`,
+    staffingCustomReport: (id) => `${API_BASE_URL}/api/staffing/custom-reports/${id}/`,
+    staffingCustomReportRun: (id) => `${API_BASE_URL}/api/staffing/custom-reports/${id}/run/`,
+    staffingCustomReportPreview: `${API_BASE_URL}/api/staffing/custom-reports/preview/`,
+    staffingCustomReportSources: `${API_BASE_URL}/api/staffing/custom-reports/sources/`,
     staffingReportSubscriptionTest: `${API_BASE_URL}/api/staffing/report-subscriptions/send-test/`,
 
     // Media endpoints
