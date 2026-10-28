@@ -709,6 +709,87 @@ class LabsSourceTests(TestCase):
         self.assertTrue(ReportAuditLog.objects.filter(source="lab_results", action="run").exists())
 
 
+class FlowsheetSourceTests(TestCase):
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import (
+            Appointment, Facility, FlowsheetRowDefinition, FlowsheetTemplate, Unit as ApptUnit, VitalSignsFlowsheet,
+        )
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.doc = CustomUser.objects.create_user(username="d", password="x", role="doctor", organization=self.org)
+        self.ann = CustomUser.objects.create_user(
+            username="p1", password="x", role="patient", organization=self.org, first_name="Ann", last_name="Ames"
+        )
+        self.bo = CustomUser.objects.create_user(
+            username="p2", password="x", role="patient", organization=self.org, first_name="Bo", last_name="Bell"
+        )
+        self.east = Facility.objects.create(organization=self.org, name="East")
+        west = Facility.objects.create(organization=self.org, name="West")
+        u_east = ApptUnit.objects.create(facility=self.east, name="East Clinic")
+        u_west = ApptUnit.objects.create(facility=west, name="West Clinic")
+        tpl = FlowsheetTemplate.objects.create(code="vitals", name="Vital signs")
+        FlowsheetRowDefinition.objects.create(template=tpl, section_label="Vitals", key="hr", label="Heart rate", unit="bpm", field_type="numeric")
+        FlowsheetRowDefinition.objects.create(template=tpl, section_label="Vitals", key="note", label="Comment", field_type="text")
+        now = timezone.now()
+
+        def sheet(patient, unit, readings):
+            appt = Appointment.all_objects.create(
+                organization=self.org, patient=patient, provider=self.doc, title="Visit",
+                appointment_datetime=now, duration_minutes=30, unit=unit,
+            )
+            columns = [
+                {"id": f"c{n}", "timestamp": (now + datetime.timedelta(minutes=n)).isoformat(), "recorded_by": self.doc.pk, "recorded_by_name": "Dana Lee"}
+                for n in range(len(readings))
+            ]
+            data = {"hr": {f"c{n}": v for n, v in enumerate(readings)}}
+            return VitalSignsFlowsheet.objects.create(
+                organization=self.org, template=tpl, appointment=appt, patient=patient, columns=columns, data=data
+            )
+
+        sheet(self.ann, u_east, ["60", "80", "100 bpm"])
+        sheet(self.bo, u_west, ["70"])
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def run_cfg(self, config, user=None, **kw):
+        return engine.run_report("flowsheet_entries", self.org, config, self.start, self.end, user=user, **kw)
+
+    def test_average_lowest_highest_by_item(self):
+        res = self.run_cfg({"group_by": "item", "columns": ["item", "units", "readings", "avg_value", "min_value", "max_value", "total_value", "patients", "time_points"]})
+        self.assertEqual(len(res["rows"]), 1)  # the text row without a value is not a charted value
+        row = res["rows"][0]
+        self.assertEqual((row["item"], row["units"], row["readings"], row["patients"], row["time_points"]), ("Heart rate", "bpm", 4, 2, 4))
+        self.assertEqual((row["avg_value"], row["min_value"], row["max_value"], row["total_value"]), (77.5, 60, 100, 310))
+
+    def test_hide_phi_masks_patient_names(self):
+        cfg = {"columns": ["patient", "item", "avg_value"]}
+        self.assertEqual(self.run_cfg(cfg)["phi"], "shown")
+        hidden = self.run_cfg(cfg, hide_phi=True)
+        self.assertNotIn("Ames", str(hidden))
+        self.assertEqual({r["patient"] for r in hidden["rows"]}, {"Patient 1", "Patient 2"})
+
+    def test_facility_limited_user_sees_only_their_facility(self):
+        self.admin.facilities.add(self.east)
+        res = self.run_cfg({"group_by": "facility", "columns": ["facility", "readings"]}, user=self.admin)
+        self.assertEqual({r["facility"]: r["readings"] for r in res["rows"]}, {"East": 3})
+
+    def test_save_and_run_is_audited(self):
+        from .models import ReportAuditLog
+
+        body = {"name": "Vitals", "source": "flowsheet_entries", "config": {"group_by": "item", "columns": ["item", "avg_value"]}, "audience": "me"}
+        made = client_for(self.admin).post(f"{BASE}/", body, format="json")
+        self.assertEqual(made.status_code, 201, made.content)
+        self.assertEqual(made.json()["module_label"], "Flowsheets")
+        ran = client_for(self.admin).post(
+            f"{BASE}/{made.json()['id']}/run/", {"start": self.start.isoformat(), "end": self.end.isoformat()}, format="json"
+        )
+        self.assertEqual(ran.status_code, 200, ran.content)
+        self.assertTrue(ReportAuditLog.objects.filter(source="flowsheet_entries", action="run").exists())
+
+
 class LinkedReportTests(TestCase):
     """Reports that combine several kinds of records (the canvas)."""
 

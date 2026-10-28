@@ -144,6 +144,7 @@ export const MODULE_COLORS = {
   Visits: "#c2410c",
   Orders: "#0e7490",
   Labs: "#a21caf",
+  Flowsheets: "#4d7c0f",
 };
 
 export const OP_LABELS = {
