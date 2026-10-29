@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Box, Stack, Typography } from "@mui/material";
-import { api } from "../api/client";
+import axios from "axios";
 import { apiEndpoints } from "../config/api";
 import AnnouncementCard from "./announcements/AnnouncementCard";
 
@@ -10,7 +10,7 @@ const AnnouncementDisplay = () => {
 
   useEffect(() => {
     let cancelled = false;
-    api
+    axios
       .get(`${apiEndpoints.communicatorAnnouncements}?view=portal`)
       .then((res) => {
         if (!cancelled) setItems(Array.isArray(res.data) ? res.data : []);

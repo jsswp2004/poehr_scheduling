@@ -5,7 +5,7 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
-import { api } from "../../api/client";
+import axios from "axios";
 import { apiEndpoints } from "../../config/api";
 import { BuilderSplit, BuilderToolbar, BuilderListHeader } from "../builders/BuilderShell";
 import RichTextEditor from "./RichTextEditor";
@@ -58,7 +58,7 @@ export default function AnnouncementsManager() {
 
   const load = useCallback(async () => {
     try {
-      const res = await api.get(apiEndpoints.communicatorAnnouncements);
+      const res = await axios.get(apiEndpoints.communicatorAnnouncements);
       setItems(res.data);
       return res.data;
     } catch (err) {
@@ -139,13 +139,13 @@ export default function AnnouncementsManager() {
         start_date: draft.start_date || null, end_date: draft.end_date || null,
       };
       const res = draft.id
-        ? await api.patch(`${apiEndpoints.communicatorAnnouncements}${draft.id}/`, payload)
-        : await api.post(apiEndpoints.communicatorAnnouncements, payload);
+        ? await axios.patch(`${apiEndpoints.communicatorAnnouncements}${draft.id}/`, payload)
+        : await axios.post(apiEndpoints.communicatorAnnouncements, payload);
       const id = res.data.id;
       const failures = [];
       for (const attId of draft.removeIds) {
         try {
-          await api.delete(`${apiEndpoints.communicatorAnnouncements}${id}/attachments/${attId}/`);
+          await axios.delete(`${apiEndpoints.communicatorAnnouncements}${id}/attachments/${attId}/`);
         } catch (err) {
           failures.push(errorText(err, "A file could not be removed."));
         }
@@ -154,7 +154,7 @@ export default function AnnouncementsManager() {
         const form = new FormData();
         form.append("file", file);
         try {
-          await api.post(`${apiEndpoints.communicatorAnnouncements}${id}/attachments/`, form);
+          await axios.post(`${apiEndpoints.communicatorAnnouncements}${id}/attachments/`, form);
         } catch (err) {
           failures.push(`${file.name}: ${errorText(err, "could not be attached.")}`);
         }
@@ -189,7 +189,7 @@ export default function AnnouncementsManager() {
   const remove = async () => {
     if (!draft?.id) return;
     try {
-      await api.delete(`${apiEndpoints.communicatorAnnouncements}${draft.id}/`);
+      await axios.delete(`${apiEndpoints.communicatorAnnouncements}${draft.id}/`);
       const rows = await load();
       setDirty(false);
       if (rows.length) open(rows[0]);
