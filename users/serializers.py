@@ -49,6 +49,7 @@ class UserSerializer(serializers.ModelSerializer):
         required=False, allow_null=True, use_url=True
     )  # ✅ This makes it include full path
     organization_logo = serializers.SerializerMethodField()
+    role_label = serializers.SerializerMethodField()  # the name people see (a System Dictionaries role, if any)
     organization_name = (
         serializers.SerializerMethodField()
     )  # New field for organization name
@@ -63,6 +64,7 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "role",
+            "role_label",
             "provider",
             "provider_name",
             "profile_picture",
@@ -113,6 +115,11 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+    def get_role_label(self, obj):
+        if obj.role_entry_id:
+            return obj.role_entry.label
+        return obj.get_role_display()
+
     def get_provider_name(self, obj):
         if obj.provider:
             return f"{obj.provider.first_name} {obj.provider.last_name}"
@@ -122,6 +129,7 @@ class UserSerializer(serializers.ModelSerializer):
         provider = validated_data.pop("provider", None)
         organization = validated_data.pop("organization")
         organization_type = validated_data.pop("organization_type", "personal")
+        role_entry = validated_data.pop("role_entry", None)  # a System Dictionaries role, if one was chosen
 
         profile_picture = validated_data.pop(
             "profile_picture", None
@@ -144,6 +152,7 @@ class UserSerializer(serializers.ModelSerializer):
             role=role,  # blank string if non-patient
             organization=organization,
             organization_type=organization_type,
+            role_entry=role_entry,
         )
 
         if profile_picture:  # ✅ Save the uploaded file
