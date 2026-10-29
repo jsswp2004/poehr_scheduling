@@ -41,6 +41,7 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import ForumIcon from "@mui/icons-material/Forum";
 import PolicyIcon from "@mui/icons-material/Policy";
 import useSecureUnread from "../hooks/secureMessages/useSecureUnread";
+import { moduleEnabled } from "../utils/orgModules";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignOutAlt } from "@fortawesome/free-solid-svg-icons";
 
@@ -67,6 +68,7 @@ const SECURE_MESSAGE_ROLES = ["doctor", "nurse", "registrar", "receptionist", "a
 const MODULE_LINKS = [
   {
     key: "check-in",
+    module: "scheduling",
     label: "Check-In",
     to: "/check-in",
     Icon: HowToRegIcon,
@@ -75,6 +77,7 @@ const MODULE_LINKS = [
   },
   {
     key: "documentation",
+    module: "clinical_documentation",
     label: "Documentation",
     to: "/patients",
     Icon: DescriptionIcon,
@@ -85,6 +88,7 @@ const MODULE_LINKS = [
   },
   {
     key: "scheduler",
+    module: "scheduling",
     label: "Scheduler",
     to: "/patients?tab=appointments",
     Icon: CalendarMonthIcon,
@@ -95,6 +99,7 @@ const MODULE_LINKS = [
   },
   {
     key: "team",
+    module: "scheduling",
     label: "Team",
     to: "/patients?tab=team",
     Icon: PeopleIcon,
@@ -103,6 +108,7 @@ const MODULE_LINKS = [
   },
   {
     key: "analytics",
+    module: "scheduling",
     label: "Analytics",
     to: "/patients?tab=analytics",
     Icon: BarChartIcon,
@@ -111,6 +117,7 @@ const MODULE_LINKS = [
   },
   {
     key: "register",
+    module: "patient_portal",
     label: "Register",
     to: "/patients?tab=register",
     Icon: PersonAddIcon,
@@ -119,6 +126,7 @@ const MODULE_LINKS = [
   },
   {
     key: "portal",
+    module: "patient_portal",
     label: "Patient Portal",
     to: "/dashboard",
     Icon: MedicalInformationIcon,
@@ -128,6 +136,7 @@ const MODULE_LINKS = [
   },
   {
     key: "staffing",
+    module: "staffing",
     label: "Staffing",
     to: "/staffing",
     Icon: GroupsIcon,
@@ -136,6 +145,7 @@ const MODULE_LINKS = [
   },
   {
     key: "telehealth",
+    module: "telehealth",
     label: "Telehealth",
     to: "/telehealth",
     Icon: VideocamIcon,
@@ -144,6 +154,7 @@ const MODULE_LINKS = [
   },
   {
     key: "dictate",
+    module: "dictation",
     label: "Dictate",
     to: "/dictate",
     Icon: MicIcon,
@@ -152,6 +163,7 @@ const MODULE_LINKS = [
   },
   {
     key: "lab-inbox",
+    module: "orders_labs",
     label: "Lab Results",
     to: "/lab-inbox",
     Icon: ScienceIcon,
@@ -160,6 +172,7 @@ const MODULE_LINKS = [
   },
   {
     key: "secure-messages",
+    module: "communicator",
     label: "Secure Messages",
     to: "/secure-messages",
     Icon: ForumIcon,
@@ -168,6 +181,7 @@ const MODULE_LINKS = [
   },
   {
     key: "secure-audit",
+    module: "communicator",
     label: "Messaging Audit Log",
     to: "/secure-messages/audit",
     Icon: PolicyIcon,
@@ -482,7 +496,10 @@ function Navbar() {
   // Module links this user may see, with the current page flagged.
   const currentTab = new URLSearchParams(location.search).get("tab");
   const moduleLinks = MODULE_LINKS.filter(
-    (m) => (!m.roles || m.roles.includes(role)) && !(m.notFor && m.notFor.includes(role))
+    (m) =>
+      (!m.roles || m.roles.includes(role)) &&
+      !(m.notFor && m.notFor.includes(role)) &&
+      moduleEnabled(m.module)
   ).map((m) => ({ ...m, active: m.isActive(location.pathname, currentTab) }));
 
   // Waiting-item count per module, shown next to the label in the compact menu.
@@ -501,7 +518,7 @@ function Navbar() {
     (role === "admin" || role === "registrar" || role === "receptionist" || role === "system_admin") &&
     location.pathname !== "/dashboard";
   const showAccount = role === "admin" || role === "system_admin";
-  const showReports = STAFF_MODULE_ROLES.includes(role);
+  const showReports = STAFF_MODULE_ROLES.includes(role) && moduleEnabled("staffing");
   const goTo = (path) => {
     closeMenu();
     navigate(path);
