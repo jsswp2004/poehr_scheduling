@@ -445,7 +445,7 @@ function NoteTemplateEditor({ templateCode, onBack, onManageNoteTypes, kind = "n
                     position: "sticky",
                     top: BUILDER_STICKY_TOP,
                     zIndex: 5,
-                    bgcolor: "background.paper",
+                    bgcolor: "background.default",
                     borderBottom: 1,
                     borderColor: "divider",
                     mb: 1.5,
