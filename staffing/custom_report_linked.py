@@ -585,8 +585,8 @@ def clean_canvas(canvas, user):
     for k in canvas.get("objects") or []:
         if k in OBJECTS and k not in keys:
             keys.append(k)
-    if len(keys) < 2:
-        raise ReportConfigError("Drag at least two things onto the canvas.")
+    if len(keys) < 1:
+        raise ReportConfigError("Drag at least one thing onto the canvas.")
     if len(keys) > MAX_OBJECTS:
         raise ReportConfigError(f"Use {MAX_OBJECTS} things or fewer on one canvas.")
     for k in keys:
