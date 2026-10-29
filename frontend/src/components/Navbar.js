@@ -511,6 +511,7 @@ function Navbar() {
       : 0;
   const anyWaiting = moduleLinks.some((m) => menuBadge(m.key) > 0);
   const showCommunicator =
+    moduleEnabled("communicator") &&
     (role === "system_admin" || role === "admin" || role === "registrar") &&
     location.pathname !== "/communicator" &&
     location.pathname !== "/dashboard";
@@ -793,11 +794,8 @@ function Navbar() {
               )}
 
               {/* Communicator Icon Link - only for system_admin, admin, and registrar roles */}
-              {(role === "system_admin" ||
-                role === "admin" ||
-                role === "registrar") &&
-                location.pathname !== "/communicator" &&
-                location.pathname !== "/dashboard" && (
+              {role &&
+                showCommunicator && (
                   <Tooltip title="POWER Communicator">
                     <IconButton
                       color="inherit"
