@@ -1613,3 +1613,91 @@ class DocumentationFlowsheetTests(TestCase):
         self.assertNotIn("BP site", items)  # nothing was charted for it at this time
         masked = client_for(self.admin).get(f"{BASE}/documentation-document/", {"ref": ref}).json()
         self.assertEqual({i["label"]: i["value"] for sec in masked["sections"] for i in sec["items"]}["Comment"], "[Hidden]")
+
+
+class DocumentationCanvasTests(TestCase):
+    """Documentation as a thing on the linked-report canvas."""
+
+    def setUp(self):
+        from django.utils import timezone
+
+        from appointments.models import Appointment, ClinicalNote, NoteFieldDefinition, NoteTemplate
+        from users.models import Registration
+
+        self.org = Organization.objects.create(name="Org A")
+        self.admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=self.org)
+        self.nurse = CustomUser.objects.create_user(username="n", password="x", role="nurse", organization=self.org, first_name="Nia", last_name="Park")
+        self.doc = CustomUser.objects.create_user(username="d", password="x", role="doctor", organization=self.org, first_name="Dee", last_name="Rivera")
+
+        def patient(username, first, last):
+            u = CustomUser.objects.create_user(username=username, password="x", role="patient", organization=self.org, first_name=first, last_name=last)
+            return make_patient(user=u, organization=self.org)
+
+        self.ann, self.bo, self.cy = patient("p1", "Ann", "Ames"), patient("p2", "Bo", "Bell"), patient("p3", "Cy", "Cole")
+        tpl = NoteTemplate.objects.create(code="phq9", name="PHQ-9 depression screen", organization=self.org)
+        NoteFieldDefinition.objects.create(template=tpl, key="total_score", label="Total score", field_type="calculated", sort_order=0)
+        NoteFieldDefinition.objects.create(template=tpl, key="comment", label="Comment", field_type="textarea", sort_order=1)
+        now = timezone.now()
+        self.notes = {}
+        for patient_, score, comment in ((self.ann, "18", "Tearful"), (self.bo, "6", "Fine")):
+            appt = Appointment.all_objects.create(organization=self.org, patient=patient_.user, provider=self.doc, title="Visit", appointment_datetime=now)
+            Registration.objects.create(patient=patient_, organization=self.org, care_setting="ambulatory", arrival_time=now, assigned_nurse=self.nurse, appointment=appt)
+            self.notes[patient_.user.username] = ClinicalNote.objects.create(
+                organization=self.org, appointment=appt, patient=patient_.user, author=self.nurse, note_type="nursing_assessment",
+                documentation_type="phq9", template=tpl, template_version=1,
+                structured_data={"total_score": score, "total_score__interpretation": "x", "comment": comment}, status="signed",
+            )
+        today = timezone.localdate()
+        self.start, self.end = today - datetime.timedelta(days=1), today + datetime.timedelta(days=1)
+
+    def preview(self, canvas, config=None, user=None, **extra):
+        body = {"source": "linked", "config": {"canvas": canvas, **(config or {})}, "start": self.start.isoformat(), "end": self.end.isoformat(), **extra}
+        return client_for(user or self.admin).post(f"{BASE}/preview/", body, format="json")
+
+    def canvas(self, objects, **docs):
+        return {"objects": objects, "keep_unmatched": True, "window_days": 0,
+                "docs": {"templates": ["phq9"], "observations": ["total_score", "comment"], **docs}}
+
+    def test_patients_with_their_screen_scores_and_a_score_filter(self):
+        cfg = {"columns": ["pat__name", "docs__template", "docs__num__total_score", "docs__author"],
+               "filters": [{"field": "docs__num__total_score", "op": "gte", "value": 15}]}
+        res = self.preview(self.canvas(["pat", "docs"]), cfg)
+        self.assertEqual(res.status_code, 200, res.content)
+        rows = res.json()["rows"]
+        self.assertEqual([(r["pat__name"], r["docs__num__total_score"], r["docs__author"]) for r in rows], [("Ann Ames", 18, "Nia Park")])
+
+    def test_visits_without_documentation_are_kept_and_named(self):
+        from django.utils import timezone
+        from users.models import Registration
+
+        Registration.objects.create(patient=self.cy, organization=self.org, care_setting="emergency", arrival_time=timezone.now())
+        res = self.preview(self.canvas(["visit", "docs"]), {"columns": ["visit__care", "docs__template"]})
+        self.assertEqual({(r["visit__care"], r["docs__template"]) for r in res.json()["rows"]}, {("Clinic", "PHQ-9 depression screen"), ("ED", "No documentation")})
+        dropped = self.preview({**self.canvas(["visit", "docs"]), "keep_unmatched": False}, {"columns": ["visit__care", "docs__template"]})
+        self.assertEqual({r["visit__care"] for r in dropped.json()["rows"]}, {"Clinic"})
+
+    def test_nurse_and_visit_and_doctor_links(self):
+        res = self.preview(self.canvas(["docs", "nurse", "doc"]), {"columns": ["nurse__name", "doc__name", "docs__num__total_score"]})
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual({(r["nurse__name"], r["doc__name"], r["docs__num__total_score"]) for r in res.json()["rows"]}, {("Nia Park", "Dee Rivera", 18), ("Nia Park", "Dee Rivera", 6)})
+
+    def test_hide_phi_masks_names_mrn_and_typed_text(self):
+        res = self.preview(self.canvas(["pat", "docs"]), {"columns": ["pat__name", "docs__mrn", "docs__obs__comment", "docs__num__total_score"]}, hide_phi=True)
+        body = res.json()
+        self.assertEqual(body["phi"], "hidden")
+        self.assertNotIn("Ames", str(body))
+        self.assertNotIn("Tearful", str(body))
+        self.assertIn(18, [r["docs__num__total_score"] for r in body["rows"]])
+
+    def test_rows_open_the_whole_document_and_a_canvas_needs_a_choice(self):
+        res = self.preview(self.canvas(["pat", "docs"]), {"columns": ["pat__name", "docs__template"]})
+        refs = {r.get("_ref") for r in res.json()["rows"] if r.get("_ref")}
+        self.assertEqual(refs, {f"note:{n.pk}" for n in self.notes.values()})
+        bad = self.preview({"objects": ["pat", "docs"], "docs": {"templates": [], "groups": []}}, {"columns": ["pat__name"]})
+        self.assertEqual(bad.status_code, 400)
+
+    def test_the_catalog_lists_documentation_and_its_links(self):
+        cat = client_for(self.admin).get(f"{BASE}/linked-catalog/").json()
+        self.assertIn("docs", {o["key"] for o in cat["objects"]})
+        self.assertEqual({(l["a"], l["b"]) for l in cat["links"] if "docs" in (l["a"], l["b"])},
+                         {("pat", "docs"), ("visit", "docs"), ("appt", "docs"), ("nurse", "docs"), ("doc", "docs")})

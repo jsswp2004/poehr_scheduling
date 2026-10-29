@@ -296,8 +296,8 @@ export default function ReportViewerPage() {
                 <div>{result.tiles.map((t) => `${t.label}: ${formatCell(t.value, t.type)}`).join("   ·   ")}</div>
               )}
             </Box>
-            <ReportResultTable result={result} stickyTop={TABLE_TOP} onOpenRow={report?.source === "note_documentation" ? (r) => setOpenRef(r._ref) : null} />
-            {report?.source === "note_documentation" && <DocumentationDrawer reference={openRef} hide={hidePhi} onClose={() => setOpenRef(null)} />}
+            <ReportResultTable result={result} stickyTop={TABLE_TOP} onOpenRow={report?.source === "note_documentation" || report?.source === "linked" ? (r) => setOpenRef(r._ref) : null} />
+            {(report?.source === "note_documentation" || report?.source === "linked") && <DocumentationDrawer reference={openRef} hide={hidePhi} onClose={() => setOpenRef(null)} />}
             {result.truncated && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", p: 1 }}>
                 Showing the first 5,000 rows. Narrow the dates or add a filter to see the rest.

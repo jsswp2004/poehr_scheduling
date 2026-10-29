@@ -18,6 +18,7 @@ from django.utils import timezone
 
 from . import custom_reports as engine
 from .custom_reports import ReportConfigError, dim, measure
+from . import custom_report_documentation as documentation
 
 MAX_JOINED = 50000
 MAX_OBJECTS = 8
@@ -231,6 +232,45 @@ def load_note(org, start, end, user=None):
     return rows
 
 
+def load_docs_placeholder(org, start, end, user=None):
+    return []  # the real loader needs the canvas (which notes and observations): see load_docs()
+
+
+def _docs_picked(canvas, org):
+    """(docs settings with whole categories expanded, the picked observations of those notes)."""
+    docs = documentation.expand({**canvas["docs"], "layout": "wide"}, org)
+    by_id = {o["id"]: o for o in documentation.observation_catalog(docs["templates"], org)}
+    return docs, [by_id[i] for i in docs["observations"] if i in by_id]
+
+
+def load_docs(canvas, org, start, end, user=None):
+    docs, picked = _docs_picked(canvas, org)
+    rows = documentation._load_all(org, start, end, user, docs, picked, False)
+    for r in rows:
+        r["_id"] = r["_ref"]  # notes and flowsheet time points share one id space
+        r["_d"] = datetime.date.fromisoformat(r["date"])
+    return rows
+
+
+def _docs_fields(canvas, org):
+    """The observations picked for the Documentation box, as columns of that box."""
+    if "docs" not in canvas.get("objects", []) or not canvas.get("docs"):
+        return []
+    _docs, picked = _docs_picked(canvas, org)
+    out = []
+    for o in picked:
+        if o["type"] in documentation.NUMBER_TYPES:
+            out.append(measure(f"num__{o['id']}", o["label"], "number", agg="avg"))
+        else:
+            phi = "text" if (o["soap"] or o["type"] in documentation.TEXT_TYPES) else None
+            out.append(dim(f"obs__{o['id']}", o["label"], phi=phi))
+    return out
+
+
+def _fields_of(k, canvas, org):
+    return OBJECTS[k]["fields"] + (_docs_fields(canvas, org) if k == "docs" else [])
+
+
 def load_shift(org, start, end, user=None):
     from .models import SHIFT_TYPE_CHOICES, StaffShift
 
@@ -400,6 +440,14 @@ register_object(
     load_note, "status", "No note", right="clinical_notes.view_author", patient_data=True,
 )
 register_object(
+    "docs", "Documentation", "Documents", "Documentation", True,
+    [dim("template", "Note or screen"), dim("status", "Status"), dim("date", "Date documented", "date"),
+     dim("signed_on", "Date signed", "date"), dim("author", "Author"), dim("author_role", "Author's role"),
+     dim("attending", "Attending physician"), dim("discipline", "Physician's discipline"), dim("mrn", "MRN", phi="text"),
+     measure("hours_to_sign", "Hours to sign", "hours", agg="avg")],
+    load_docs_placeholder, "template", "No documentation", right=documentation.RIGHT, patient_data=True,
+)
+register_object(
     "shift", "Shift", "Shifts", "Staffing", True,
     [dim("date", "Date", "date"), dim("shift_type", "Shift type"), dim("unit", "Unit"), measure("hours", "Hours", "hours", agg="avg")],
     load_shift, "shift_type", "No shift",
@@ -494,6 +542,11 @@ link("pat", "referral", "has referrals", _one("_user"), _one("_patient"))
 link("pat", "vaccine", "has vaccine records", _one("_user"), _one("_patient"))
 link("pat", "allergy", "has allergies", _one("_user"), _one("_patient"))
 link("appt", "order", "orders placed", _one("_id"), _one("_appt"))
+link("pat", "docs", "has documentation", _one("_user"), _one("_patient"))
+link("visit", "docs", "documented in", _one("_appt"), _one("_appt"))
+link("appt", "docs", "documented for", _one("_id"), _one("_appt"))
+link("nurse", "docs", "documented by", _one("_id"), _one("_author"))
+link("doc", "docs", "attending physician", _one("_id"), _one("_doc"))
 
 
 # ---------------------------------------------------------------------------
@@ -538,11 +591,15 @@ def clean_canvas(canvas, user):
         window = int(canvas.get("window_days", 7))
     except (TypeError, ValueError):
         window = 7
-    return {
+    out = {
         "objects": keys,
         "keep_unmatched": canvas.get("keep_unmatched") is not False,
         "window_days": max(0, min(window, MAX_WINDOW)),
     }
+    if "docs" in keys:
+        raw = canvas.get("docs") if isinstance(canvas.get("docs"), dict) else {}
+        out["docs"] = {**documentation.clean_docs(raw), "layout": "wide"}
+    return out
 
 
 def _neighbours(a):
@@ -614,7 +671,10 @@ def join_rows(canvas, org, start, end, user):
     root, steps = plan_joins(keys)
     opts = {"window_days": canvas["window_days"], "keep": canvas["keep_unmatched"]}
     ranges = _ranges(keys, root, start, end, opts["window_days"])
-    loaded = {k: OBJECTS[k]["load"](org, ranges[k][0], ranges[k][1], user) for k in keys}
+    loaded = {
+        k: (load_docs(canvas, org, ranges[k][0], ranges[k][1], user) if k == "docs" else OBJECTS[k]["load"](org, ranges[k][0], ranges[k][1], user))
+        for k in keys
+    }
 
     rows = [{root: r} for r in loaded[root]]
     for target, li, parent in steps:
@@ -653,7 +713,9 @@ def join_rows(canvas, org, start, end, user):
         for k in keys:
             o, r = OBJECTS[k], ctx.get(k)
             d[f"{k}___id"] = r["_id"] if r else None
-            for f in o["fields"]:
+            if k == "docs" and r:
+                d["_ref"] = r["_ref"]  # lets a table open the whole document behind the row
+            for f in _fields_of(k, canvas, org):
                 v = r.get(f["key"]) if r else None
                 if r is None and f["key"] == o["primary"]:
                     v = o["empty"]
@@ -668,7 +730,7 @@ def build_source(canvas, org, user):
     fields = []
     for k in keys:
         o = OBJECTS[k]
-        for f in o["fields"]:
+        for f in _fields_of(k, canvas, org):
             key = f"{k}__{f['key']}"
             if f["kind"] == "dimension":
                 fields.append(dim(key, f"{o['label']} · {f['label']}", f["type"], phi=f.get("phi")))

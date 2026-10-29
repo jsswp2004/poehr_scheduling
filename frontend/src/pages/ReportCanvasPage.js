@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -27,7 +28,9 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import { BuilderShell, BuilderToolbar, BUILDER_STICKY_TOP } from "../components/builders/BuilderShell";
+import DocumentationDrawer from "../components/reports/DocumentationDrawer";
 import ReportResultTable from "../components/reports/ReportResultTable";
+import { NUMBER_OBSERVATION_TYPES, observationKey } from "../components/reports/documentationFields";
 import { apiEndpoints } from "../config/api";
 import {
   MODULE_COLORS,
@@ -42,6 +45,8 @@ import {
   rangeText,
 } from "../components/reports/reportUtils";
 
+const DOC_OBJECT = "docs";
+const EMPTY_DOCS = { templates: [], groups: [], observations: [], status: "signed" };
 const SHARE_ROLES = ["admin", "doctor", "nurse", "registrar"];
 const RANGES = [
   { value: "week", label: "This week" },
@@ -106,6 +111,9 @@ export default function ReportCanvasPage() {
   const editing = !!id;
 
   const [catalog, setCatalog] = useState(null);
+  const [docs, setDocs] = useState(EMPTY_DOCS); // Documentation box: which notes, categories and observations
+  const [docCat, setDocCat] = useState({ templates: [], groups: [], observations: [], covered: [] });
+  const [openRef, setOpenRef] = useState(null); // document open in the side panel
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -130,17 +138,38 @@ export default function ReportCanvasPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const objMap = useMemo(() => Object.fromEntries((catalog?.objects || []).map((o) => [o.key, o])), [catalog]);
+  // The Documentation box also offers the observations picked for it as columns.
+  const docObsPicked = useMemo(() => docs.observations.map((id) => docCat.observations.find((o) => o.id === id)).filter(Boolean), [docs.observations, docCat.observations]);
+  const extendedObjects = useMemo(
+    () =>
+      (catalog?.objects || []).map((o) =>
+        o.key !== DOC_OBJECT
+          ? o
+          : {
+              ...o,
+              fields: [
+                ...o.fields,
+                ...docObsPicked.map((ob) =>
+                  NUMBER_OBSERVATION_TYPES.includes(ob.type)
+                    ? { key: observationKey(ob), label: ob.label, kind: "measure", type: "number", agg: "avg", phi: null }
+                    : { key: observationKey(ob), label: ob.label, kind: "dimension", type: "text", phi: ob.type === "text" || ob.type === "textarea" ? "text" : null }
+                ),
+              ],
+            }
+      ),
+    [catalog, docObsPicked]
+  );
+  const objMap = useMemo(() => Object.fromEntries(extendedObjects.map((o) => [o.key, o])), [extendedObjects]);
   const fieldMap = useMemo(() => {
     const out = {};
-    (catalog?.objects || []).forEach((o) => {
+    extendedObjects.forEach((o) => {
       o.fields.forEach((f) => {
         out[`${o.key}__${f.key}`] = { ...f, key: `${o.key}__${f.key}`, label: `${o.label} · ${f.label}`, object: o.key };
       });
       out[`${o.key}__count`] = { key: `${o.key}__count`, label: o.plural, kind: "measure", type: "number", object: o.key };
     });
     return out;
-  }, [catalog]);
+  }, [extendedObjects]);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,6 +188,7 @@ export default function ReportCanvasPage() {
           setObjects((c.canvas && c.canvas.objects) || []);
           setKeepUnmatched(!(c.canvas && c.canvas.keep_unmatched === false));
           setWindowDays((c.canvas && c.canvas.window_days) ?? 7);
+          if (c.canvas && c.canvas.docs) setDocs({ ...EMPTY_DOCS, ...c.canvas.docs });
           setCols(c.columns || []);
           setGroupBy(c.group_by || null);
           setFilters((c.filters || []).map((f) => ({ field: f.field, op: f.op, value: String(f.value ?? "") })));
@@ -182,7 +212,12 @@ export default function ReportCanvasPage() {
 
   const config = useMemo(
     () => ({
-      canvas: { objects, keep_unmatched: keepUnmatched, window_days: windowDays },
+      canvas: {
+        objects,
+        keep_unmatched: keepUnmatched,
+        window_days: windowDays,
+        ...(objects.includes(DOC_OBJECT) ? { docs: { ...docs, layout: "wide" } } : {}),
+      },
       columns: cols.filter((k) => fieldMap[k]),
       group_by: groupBy,
       filters: filters
@@ -202,8 +237,34 @@ export default function ReportCanvasPage() {
       sort: sort && cols.includes(sort.field) ? sort : null,
       totals,
     }),
-    [objects, keepUnmatched, windowDays, cols, groupBy, filters, highlight, tiles, sort, totals, fieldMap]
+    [objects, keepUnmatched, windowDays, docs, cols, groupBy, filters, highlight, tiles, sort, totals, fieldMap]
   );
+
+  // The notes and observations a Documentation box can offer, for whatever is picked in it.
+  const hasDocs = objects.includes(DOC_OBJECT);
+  const docTemplatesKey = docs.templates.join(",");
+  const docGroupsKey = docs.groups.join("|");
+  useEffect(() => {
+    if (!hasDocs || loading) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get(apiEndpoints.staffingCustomReportDocumentationCatalog, {
+          headers: headers(),
+          params: { templates: docTemplatesKey, groups: docGroupsKey },
+        });
+        if (cancelled) return;
+        setDocCat(res.data);
+        const have = new Set(res.data.observations.map((o) => o.id));
+        setDocs((d) => (d.observations.every((k) => have.has(k)) ? d : { ...d, observations: d.observations.filter((k) => have.has(k)) }));
+      } catch (err) {
+        if (!cancelled) setError(errorText(err, "Could not load the notes to pick from."));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasDocs, docTemplatesKey, docGroupsKey, loading]);
 
   // Live result, a moment after the last change.
   useEffect(() => {
@@ -248,6 +309,7 @@ export default function ReportCanvasPage() {
 
   const removeObject = (key) => {
     setObjects((x) => x.filter((k) => k !== key));
+    if (key === DOC_OBJECT) setDocs(EMPTY_DOCS);
     setCols((c) => c.filter((k) => !k.startsWith(`${key}__`)));
     setFilters((f) => f.filter((x) => !x.field.startsWith(`${key}__`)));
     setGroupBy((g) => (g && g.startsWith(`${key}__`) ? null : g));
@@ -265,6 +327,18 @@ export default function ReportCanvasPage() {
     setKeepUnmatched(p.keep);
     setWindowDays(p.window);
     setRangeKey(p.range);
+  };
+
+  // Picking or dropping an observation in the Documentation box ticks or unticks its column.
+  const setDocObservations = (ids) => {
+    const keyOf = (id) => {
+      const ob = docCat.observations.find((o) => o.id === id);
+      return ob ? `${DOC_OBJECT}__${observationKey(ob)}` : null;
+    };
+    const added = ids.filter((id) => !docs.observations.includes(id)).map(keyOf).filter(Boolean);
+    const dropped = docs.observations.filter((id) => !ids.includes(id)).map(keyOf).filter(Boolean);
+    setDocs((d) => ({ ...d, observations: ids }));
+    setCols((c) => [...c.filter((k) => !dropped.includes(k)), ...added.filter((k) => !c.includes(k))]);
   };
 
   const toggleCol = (key) => setCols((c) => (c.includes(key) ? c.filter((k) => k !== key) : [...c, key]));
@@ -493,7 +567,7 @@ export default function ReportCanvasPage() {
                       )}
                     </Box>
                   )}
-                  <Paper variant="outlined" sx={{ width: 190, flex: "none", borderTop: `3px solid ${color}` }}>
+                  <Paper variant="outlined" sx={{ width: k === DOC_OBJECT ? 300 : 190, flex: "none", borderTop: `3px solid ${color}` }}>
                     <Box sx={{ display: "flex", alignItems: "flex-start", px: 1, py: 0.75, borderBottom: "1px solid", borderColor: "divider" }}>
                       <Box>
                         <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
@@ -507,6 +581,77 @@ export default function ReportCanvasPage() {
                         <CloseIcon fontSize="small" />
                       </IconButton>
                     </Box>
+                    {k === DOC_OBJECT && (
+                      <Stack spacing={1} sx={{ p: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+                        <Autocomplete
+                          multiple
+                          disableCloseOnSelect
+                          size="small"
+                          options={docCat.templates.map((t) => t.code)}
+                          groupBy={(code) => docCat.templates.find((t) => t.code === code)?.group || "Other"}
+                          getOptionLabel={(code) => docCat.templates.find((t) => t.code === code)?.name || code}
+                          value={docs.templates}
+                          onChange={(_, v) => setDocs((d) => ({ ...d, templates: v }))}
+                          renderOption={(props, code, { selected }) => (
+                            <li {...props} key={code}>
+                              <Checkbox size="small" checked={selected} sx={{ mr: 0.5, p: 0.5 }} />
+                              {docCat.templates.find((t) => t.code === code)?.name || code}
+                            </li>
+                          )}
+                          renderTags={(value, getTagProps) =>
+                            value.map((code, index) => {
+                              const { key, ...tagProps } = getTagProps({ index });
+                              return <Chip key={key} size="small" label={docCat.templates.find((t) => t.code === code)?.name || code} {...tagProps} />;
+                            })
+                          }
+                          renderInput={(params) => <TextField {...params} label="What was documented" placeholder={docs.templates.length ? "" : "Search notes, screens, flowsheets"} />}
+                        />
+                        <Autocomplete
+                          multiple
+                          disableCloseOnSelect
+                          size="small"
+                          options={docCat.groups}
+                          value={docs.groups}
+                          onChange={(_, v) => setDocs((d) => ({ ...d, groups: v }))}
+                          renderTags={(value, getTagProps) =>
+                            value.map((g, index) => {
+                              const { key, ...tagProps } = getTagProps({ index });
+                              return <Chip key={key} size="small" label={`All ${g}`} {...tagProps} />;
+                            })
+                          }
+                          renderInput={(params) => <TextField {...params} label="Always include everything in" />}
+                        />
+                        <Autocomplete
+                          multiple
+                          disableCloseOnSelect
+                          size="small"
+                          options={docCat.observations.map((ob) => ob.id)}
+                          groupBy={(id) => docCat.observations.find((ob) => ob.id === id)?.section || "Other"}
+                          getOptionLabel={(id) => docCat.observations.find((ob) => ob.id === id)?.label || id}
+                          value={docs.observations}
+                          onChange={(_, v) => setDocObservations(v)}
+                          renderOption={(props, id, { selected }) => (
+                            <li {...props} key={id}>
+                              <Checkbox size="small" checked={selected} sx={{ mr: 0.5, p: 0.5 }} />
+                              {docCat.observations.find((ob) => ob.id === id)?.label || id}
+                            </li>
+                          )}
+                          renderTags={(value, getTagProps) =>
+                            value.map((id, index) => {
+                              const { key, ...tagProps } = getTagProps({ index });
+                              return <Chip key={key} size="small" label={docCat.observations.find((ob) => ob.id === id)?.label || id} {...tagProps} />;
+                            })
+                          }
+                          renderInput={(params) => <TextField {...params} label="Observations to show" placeholder={docs.observations.length ? "" : "Search observations"} />}
+                          noOptionsText="Pick a note first."
+                        />
+                        {docs.templates.length + docs.groups.length === 0 && (
+                          <Typography variant="caption" color="warning.main">
+                            Choose a note, screen or category before this report can run.
+                          </Typography>
+                        )}
+                      </Stack>
+                    )}
                     {o.fields.map((f) => {
                       const key = `${k}__${f.key}`;
                       return (
@@ -770,7 +915,8 @@ export default function ReportCanvasPage() {
             ))}
           </Box>
         )}
-        {preview && <ReportResultTable result={preview} stickyTop={BUILDER_STICKY_TOP} />}
+        {preview && <ReportResultTable result={preview} stickyTop={BUILDER_STICKY_TOP} onOpenRow={(r) => setOpenRef(r._ref)} />}
+        <DocumentationDrawer reference={openRef} hide={hidePhi} onClose={() => setOpenRef(null)} />
       </Paper>
     </BuilderShell>
   );

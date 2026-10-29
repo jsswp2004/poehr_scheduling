@@ -141,6 +141,7 @@ export const MODULE_COLORS = {
   Staffing: "#b86a00",
   Scheduling: "#1769c2",
   Notes: "#1b7a43",
+  Documentation: "#6b4fa3",
   Visits: "#c2410c",
   Orders: "#0e7490",
   Labs: "#a21caf",

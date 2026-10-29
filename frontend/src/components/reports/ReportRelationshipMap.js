@@ -19,6 +19,7 @@ const POS = {
   note: [890, 235],
   order: [890, 350],
   lab: [890, 465],
+  docs: [890, 580],
 };
 const LANES = [
   ["Reach patients", 110, 150],
