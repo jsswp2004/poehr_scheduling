@@ -80,3 +80,4 @@ azure-identity==1.15.0
 azure-core==1.29.5
 django-storages==1.14.4
 azure-storage-blob==12.19.1
+nh3>=0.2.14,<1.0

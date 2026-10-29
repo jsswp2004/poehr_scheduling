@@ -59,7 +59,6 @@ import { SolutionsPage } from './pages/SolutionsPage';
 import WebSocketTest from './components/WebSocketTest';
 import WebSocketDirectTest from './components/WebSocketDirectTest';
 import DebugAvailability from './components/DebugAvailability';
-import { AnnouncementProvider } from './contexts/AnnouncementContext';
 import PrivacyAndTermsPage from './pages/PrivacyAndTermsPage';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import SimpleFooter from './components/SimpleFooter';
@@ -270,11 +269,9 @@ function AppContent() {
 
 function App() {
   return (
-    <AnnouncementProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AnnouncementProvider>
+    <Router>
+      <AppContent />
+    </Router>
   );
 }
 
