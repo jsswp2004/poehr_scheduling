@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { Box, Tabs, Tab, Typography } from "@mui/material";
 import AutoEmailSetUpPage from "./AutoEmailSetUpPage";
 import AutoSMSSetUpPage from "./AutoSMSSetUpPage";
 import AnnouncementsPage from "./AnnouncementsPage";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
-import BackButton from "../components/BackButton";
+import { BuilderShell } from "../components/builders/BuilderShell";
 
+// Messages: automatic email and text reminders plus announcements. Laid out like the builder pages
+// (pinned header on the page background, pill tabs, a pinned toolbar for Save and Run Now).
 function MessagesPage() {
   const [tab, setTab] = useState("email");
   const navigate = useNavigate();
@@ -29,72 +30,22 @@ function MessagesPage() {
   }, [navigate]);
 
   return (
-    <Box
-      sx={{
-        height: "100%",
-        p: 0,
-        bgcolor: "background.paper",
-        //boxShadow: 2,
-        borderRadius: 2,
-        mt: 0,
-      }}
+    <BuilderShell
+      title="Messages"
+      subtitle="Automatic emails and texts to patients, and announcements for your organization."
+      tabs={[
+        { key: "email", label: "Email" },
+        { key: "sms", label: "SMS" },
+        { key: "announcements", label: "Announcements" },
+      ]}
+      tab={tab}
+      onTab={setTab}
+      maxWidth={1280}
     >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          mb: -1,
-          borderRadius: 2,
-          bgcolor: "#eff6ff",
-          //boxShadow: 1,
-          minHeight: 48,
-          p: 0,
-        }}
-      >
-        <Tabs
-          value={tab}
-          onChange={(_, val) => setTab(val)}
-          sx={{
-            flex: 1,
-            minHeight: 40,
-            "& .MuiTabs-indicator": {
-              height: 4,
-              borderRadius: 2,
-              bgcolor: "primary.main",
-            },
-            "& .MuiTab-root": {
-              fontWeight: 500,
-              fontSize: "1rem",
-              color: "primary.main",
-              minHeight: 40,
-              textTransform: "none",
-              borderRadius: 2,
-              mx: 0.5,
-              transition: "background 0.2s",
-              "&.Mui-selected": {
-                bgcolor: "primary.light",
-                color: "primary.dark",
-                boxShadow: 2,
-              },
-              "&:hover": {
-                bgcolor: "primary.lighter",
-                color: "primary.dark",
-              },
-            },
-          }}
-        >
-          <Tab label="Email" value="email" />
-          <Tab label="SMS" value="sms" />
-          <Tab label="Announcements" value="announcements" />
-        </Tabs>
-        <Box sx={{ ml: 1 }}>
-          <BackButton to="/admin" />
-        </Box>
-      </Box>{" "}
-      {tab === "email" && <AutoEmailSetUpPage />}
-      {tab === "sms" && <AutoSMSSetUpPage />}
-      {tab === "announcements" && <AnnouncementsPage />}
-    </Box>
+      {tab === "email" && <AutoEmailSetUpPage inShell />}
+      {tab === "sms" && <AutoSMSSetUpPage inShell />}
+      {tab === "announcements" && <AnnouncementsPage inShell />}
+    </BuilderShell>
   );
 }
 

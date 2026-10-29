@@ -6,7 +6,7 @@ import {
     AnnouncementLayout
 } from "../components/announcements";
 
-function AnnouncementsPage() {
+function AnnouncementsPage({ inShell = false }) {
     const { activeTab, handleTabChange, isReadOnly } = useAnnouncementTabs();
     const {
         currentAnnouncement,
@@ -15,7 +15,7 @@ function AnnouncementsPage() {
     } = useAnnouncementForm(activeTab);
 
     return (
-        <Paper sx={{ p: 3, boxShadow: 2, height: "auto", overflow: "visible" }}>
+        <Paper variant={inShell ? "outlined" : "elevation"} sx={{ p: 3, boxShadow: inShell ? 0 : 2, borderRadius: inShell ? 2 : undefined, height: "auto", overflow: "visible" }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
                 Manage Announcements
             </Typography>

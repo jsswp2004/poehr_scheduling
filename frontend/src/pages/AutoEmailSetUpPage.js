@@ -19,8 +19,9 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { LocalizationProvider, DatePicker } from "@mui/x-date-pickers";
 import MessageLogTable from "../components/MessageLogTable";
 import AutoSetupBar from "../components/communicator/AutoSetupBar";
+import { BuilderToolbar } from "../components/builders/BuilderShell";
 
-function AutoEmailSetUpPage({ embedded = false }) {
+function AutoEmailSetUpPage({ embedded = false, inShell = false }) {
   const [frequency, setFrequency] = useState("weekly");
   const [dayOfWeek, setDayOfWeek] = useState(1);
   const [startDate, setStartDate] = useState(new Date());
@@ -174,12 +175,12 @@ function AutoEmailSetUpPage({ embedded = false }) {
     <Box
       sx={{
         // `embedded` = shown inside the Communicator shell, which is already the card.
-        boxShadow: embedded ? 0 : 2,
+        boxShadow: embedded || inShell ? 0 : 2,
         borderRadius: 2,
-        bgcolor: "background.paper",
+        bgcolor: inShell ? "transparent" : "background.paper",
         p: embedded ? 0 : 3,
         height: "100%",
-        maxHeight: embedded ? "none" : "90vh",
+        maxHeight: embedded || inShell ? "none" : "90vh",
         overflowY: "auto", // Enable scrolling if content overflows
       }}
     >
@@ -246,6 +247,9 @@ function AutoEmailSetUpPage({ embedded = false }) {
                 <MenuItem value={0}>Sunday</MenuItem>
               </Select>
             </FormControl>
+            {(() => {
+              const actions = (
+                <>
             <Button
               variant="contained"
               onClick={handleSave}
@@ -261,6 +265,10 @@ function AutoEmailSetUpPage({ embedded = false }) {
             >
               Run Now
             </Button>
+                </>
+              );
+              return inShell ? <BuilderToolbar>{actions}</BuilderToolbar> : actions;
+            })()}
             {status && (
               <Alert
                 severity={status === "Settings Saved!" ? "success" : "error"}
