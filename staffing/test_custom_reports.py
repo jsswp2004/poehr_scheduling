@@ -1701,3 +1701,23 @@ class DocumentationCanvasTests(TestCase):
         self.assertIn("docs", {o["key"] for o in cat["objects"]})
         self.assertEqual({(l["a"], l["b"]) for l in cat["links"] if "docs" in (l["a"], l["b"])},
                          {("pat", "docs"), ("visit", "docs"), ("appt", "docs"), ("nurse", "docs"), ("doc", "docs")})
+
+
+class LinkedShiftStaffTests(TestCase):
+    """A shift carries the roster member's own name, so nurses and shifts need no login to match."""
+
+    def test_shift_shows_who_worked_without_a_nurse_login(self):
+        from django.utils import timezone
+
+        org = Organization.objects.create(name="Org A")
+        admin = CustomUser.objects.create_user(username="a", password="x", role="admin", organization=org)
+        member = Staff.objects.create(organization=org, first_name="Rita", last_name="Cole", profession="Nurse", nursing_role="rn")
+        shift(org, member, None, timezone.localdate())
+        body = {
+            "source": "linked", "config": {"canvas": {"objects": ["shift", "nurse"]}, "columns": ["shift__staff", "shift__nursing_role", "shift__count"], "group_by": "shift__staff"},
+            "start": (timezone.localdate() - datetime.timedelta(days=1)).isoformat(), "end": (timezone.localdate() + datetime.timedelta(days=1)).isoformat(),
+        }
+        res = client_for(admin).post(f"{BASE}/preview/", body, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        row = res.json()["rows"][0]
+        self.assertEqual((row["shift__staff"], row["shift__count"]), ("Rita Cole", 1))

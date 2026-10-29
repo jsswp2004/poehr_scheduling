@@ -272,9 +272,10 @@ def _fields_of(k, canvas, org):
 
 
 def load_shift(org, start, end, user=None):
-    from .models import SHIFT_TYPE_CHOICES, StaffShift
+    from .models import NURSING_ROLE_CHOICES, SHIFT_TYPE_CHOICES, StaffShift
 
     labels = dict(SHIFT_TYPE_CHOICES)
+    role_labels = dict(NURSING_ROLE_CHOICES)
     qs = StaffShift.objects.filter(organization=org, date__gte=start, date__lte=end, is_cancelled=False).select_related("staff", "unit")
     rows = []
     for s in qs:
@@ -285,6 +286,9 @@ def load_shift(org, start, end, user=None):
             hours = ((b - a).total_seconds() + (86400 if b <= a else 0)) / 3600.0
         rows.append(
             {"_id": s.pk, "_d": s.date, "_user": s.staff.user_id, "date": s.date.isoformat(),
+             "staff": f"{s.staff.first_name} {s.staff.last_name}".strip() or "Unnamed",
+             "profession": (s.staff.profession or "").strip() or "Not set",
+             "nursing_role": role_labels.get(s.staff.nursing_role, "Not set"),
              "shift_type": labels.get(s.shift_type, _pretty(s.shift_type)),
              "unit": s.unit.name if s.unit_id else "Not set", "hours": hours}
         )
@@ -449,7 +453,8 @@ register_object(
 )
 register_object(
     "shift", "Shift", "Shifts", "Staffing", True,
-    [dim("date", "Date", "date"), dim("shift_type", "Shift type"), dim("unit", "Unit"), measure("hours", "Hours", "hours", agg="avg")],
+    [dim("date", "Date", "date"), dim("staff", "Staff member"), dim("profession", "Profession"), dim("nursing_role", "Nursing role"),
+     dim("shift_type", "Shift type"), dim("unit", "Unit"), measure("hours", "Hours", "hours", agg="avg")],
     load_shift, "shift_type", "No shift",
 )
 
