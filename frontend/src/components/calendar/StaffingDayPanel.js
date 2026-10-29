@@ -1,7 +1,7 @@
 /**
  * Side panel for the Staffing calendar's month view: the selected day at a
  * glance (each shift staffed / needed, and what is still to fill), with the
- * actions for it. The full explanation stays in the day dialog ("Open day").
+ * actions for it. The full explanation stays in the day dialog ("Coverage Status").
  */
 import { Box, Button, Chip, Divider, Paper, Stack, Typography } from "@mui/material";
 import moment from "moment";
@@ -120,7 +120,7 @@ export default function StaffingDayPanel({
       <Divider sx={{ my: 1.5 }} />
       <Stack direction="row" spacing={1}>
         <Button size="small" variant="outlined" onClick={onOpenDay} sx={{ flex: 1 }}>
-          Open day
+          Coverage Status
         </Button>
         {isAdmin && onAdd && (
           <Button size="small" variant="contained" onClick={onAdd} sx={{ flex: 1 }}>
