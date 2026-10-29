@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../../config/api';
+import { moduleEnabled } from '../../utils/orgModules';
 
 /**
  * Custom hook for managing create profile functionality
@@ -36,6 +37,8 @@ export const useCreateProfile = () => {
         { value: 'admin', label: 'Admin' },
         { value: 'registrar', label: 'Registrar' },
         { value: 'system_admin', label: 'System Admin' },
+        // Staffing roster login (My Shifts): offered only when the organization has Staffing
+        ...(moduleEnabled('staffing') ? [{ value: 'staff', label: 'Staff' }] : []),
     ];
 
     // Form field configuration
