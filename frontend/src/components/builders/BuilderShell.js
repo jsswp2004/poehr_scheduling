@@ -42,7 +42,7 @@ export function BuilderShell({ title, subtitle, chips, tabs, tab, onTab, maxWidt
           position: "sticky",
           top: 64,
           zIndex: 1000,
-          bgcolor: "background.paper",
+          bgcolor: "background.default",
           pt: "18px",
           mt: "-18px",
           pb: 0.5,
