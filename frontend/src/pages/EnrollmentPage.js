@@ -4,7 +4,8 @@ import { API_BASE_URL } from '../config/api';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import StripeProvider from '../components/StripeProvider';
-import SubscriptionTierSelector from '../components/SubscriptionTierSelector';
+import ServicesPicker from '../components/enrollment/ServicesPicker';
+import { formatMoney, monthlyTotal, pricedModules, userLimitLabel } from '../utils/modulePricing';
 import PaymentMethodForm from '../components/PaymentMethodForm';
 import {
   Container,
@@ -69,7 +70,7 @@ function EnrollmentPage() {
 
   // Multi-step form state
   const [currentStep, setCurrentStep] = useState(0);
-  const steps = ['Account Details', 'Choose Plan', 'Payment Info', 'Confirmation'];
+  const steps = ['Account Details', 'Plan and Services', 'Payment Info', 'Confirmation'];
 
   const [formData, setFormData] = useState({
     username: '',
@@ -85,7 +86,26 @@ function EnrollmentPage() {
     state: '',
     postal_code: '',
     subscription_tier: getInitialTier(),
+    modules: [],
   });
+
+  // Plans and services come from the server so prices and names are never out of step with billing.
+  const [catalog, setCatalog] = useState({ plans: [], modules: [] });
+  const [catalogError, setCatalogError] = useState('');
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API_BASE_URL}/api/users/modules/`)
+      .then((r) => { if (alive) setCatalog({ plans: r.data.plans, modules: r.data.modules }); })
+      .catch(() => { if (alive) setCatalogError('Could not load plans and services. Please refresh the page.'); });
+    return () => { alive = false; };
+  }, []);
+
+  const handleModuleToggle = (code) => {
+    setFormData((prev) => ({
+      ...prev,
+      modules: prev.modules.includes(code) ? prev.modules.filter((c) => c !== code) : [...prev.modules, code],
+    }));
+  };
 
   const [status, setStatus] = useState({ type: '', message: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -138,7 +158,7 @@ function EnrollmentPage() {
 
       setStatus({
         type: 'success',
-        message: `Enrollment successful! Your ${formData.subscription_tier} plan trial has started. Redirecting to login...`
+        message: `Enrollment successful! Your 7-day free trial has started. Redirecting to login...`
       });
 
       // Redirect to login after showing success message
@@ -292,11 +312,19 @@ function EnrollmentPage() {
 
       case 1: // Choose Plan
         return (
-          <SubscriptionTierSelector
-            selectedTier={formData.subscription_tier}
-            onTierSelect={handleTierSelect}
-            disabled={isSubmitting}
-          />
+          catalogError ? (
+            <Alert severity="error">{catalogError}</Alert>
+          ) : (
+            <ServicesPicker
+              plans={catalog.plans}
+              modules={catalog.modules}
+              plan={formData.subscription_tier}
+              onPlan={handleTierSelect}
+              selected={formData.modules}
+              onToggle={handleModuleToggle}
+              disabled={isSubmitting}
+            />
+          )
         );
 
       case 2: // Payment Info
@@ -330,8 +358,19 @@ function EnrollmentPage() {
 
               <Box>
                 <Typography variant="subtitle2" color="text.secondary">Selected Plan</Typography>
-                <Typography>{formData.subscription_tier.charAt(0).toUpperCase() + formData.subscription_tier.slice(1)} Plan</Typography>
-                <Typography variant="body2" color="text.secondary">7-day free trial, then monthly billing</Typography>
+                {(() => {
+                  const plan = catalog.plans.find((p) => p.key === formData.subscription_tier);
+                  return <Typography>{plan ? `${plan.label} (${userLimitLabel(plan.user_limit)})` : formData.subscription_tier}</Typography>;
+                })()}
+                <Typography variant="body2" color="text.secondary">
+                  {pricedModules(formData.modules, catalog.modules).length} service(s) chosen,{' '}
+                  {formatMoney(monthlyTotal(formData.modules, catalog.modules))}/month after the 7-day free trial
+                </Typography>
+                {formData.modules.map((c) => (
+                  <Typography key={c} variant="body2" color="text.secondary">
+                    {catalog.modules.find((m) => m.code === c)?.label}
+                  </Typography>
+                ))}
               </Box>
             </Stack>
           </Box>
@@ -348,7 +387,7 @@ function EnrollmentPage() {
         return formData.organization_name && formData.first_name && formData.last_name &&
           formData.username && formData.email && formData.password;
       case 1:
-        return formData.subscription_tier;
+        return formData.subscription_tier && formData.modules.length > 0 && !catalogError;
       case 2:
         return paymentMethodReady;
       case 3:

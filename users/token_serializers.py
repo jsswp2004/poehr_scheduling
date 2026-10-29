@@ -1,6 +1,8 @@
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework import serializers
 
+from .modules import plan_key
+
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
     def get_token(cls, user):
@@ -19,7 +21,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                     token['organization_id'] = user.organization.id
                     token['organization_name'] = user.organization.name
                     # Phase 2: Add organization subscription info to token
-                    token['subscription_tier'] = user.organization.subscription_tier
+                    token['subscription_tier'] = plan_key(user.organization.subscription_tier)
+                    # Services switched on: a list of codes, or None meaning "everything".
+                    token['modules'] = user.organization.enabled_modules
                     token['subscription_status'] = user.organization.subscription_status
                     token['organization_type'] = user.organization.organization_type
                 else:
@@ -29,6 +33,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                     token['subscription_tier'] = 'basic'
                     token['subscription_status'] = 'trial'
                     token['organization_type'] = 'personal'
+                    token['modules'] = None
             except Exception as org_error:
                 print(f"[TOKEN ERROR] Organization access failed: {org_error}")
                 token['organization_id'] = None

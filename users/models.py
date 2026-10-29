@@ -446,6 +446,17 @@ class Organization(models.Model):
         ),
     )
 
+    enabled_modules = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text=(
+            "Modules this organization can use (codes from users/modules.py), in the order they "
+            "were chosen; the first priced one is the included module. Empty/None means never "
+            "configured: every module is on. Only a system admin can change it."
+        ),
+    )
+
     # ---- Dictation (speech-to-text for clinical notes; see the `dictation` app) ----
     DICTATION_SPECIALTY_CHOICES = [
         ("PRIMARYCARE", "Primary care"),
@@ -511,10 +522,10 @@ class Organization(models.Model):
     
     @property
     def current_user_count(self):
-        """Return the current number of active users in the organization"""
-        return self.users.filter(is_active=True).count()
-    
-    @property 
+        """Active people who work here. Patients are not seats, so they never count against the limit."""
+        return self.users.filter(is_active=True).exclude(role="patient").count()
+
+    @property
     def can_add_users(self):
         """Check if organization can add more users based on subscription"""
         return self.current_user_count < self.max_users
@@ -541,7 +552,9 @@ class Organization(models.Model):
                 'features': ['standard_reports', 'advanced_analytics', 'team_management', 'enterprise_features']
             }
         }
-        return limits.get(self.subscription_tier, limits['basic'])
+        from .modules import plan_key
+
+        return limits.get(plan_key(self.subscription_tier), limits['basic'])
 
 
 class UserRightOverride(models.Model):
@@ -835,3 +848,22 @@ class StatusBoardPreference(models.Model):
     user = models.OneToOneField("CustomUser", on_delete=models.CASCADE, related_name="status_board_preference")
     view_key = models.CharField(max_length=20)
     updated_at = models.DateTimeField(auto_now=True)
+
+
+class OrganizationAccessChange(models.Model):
+    """One line of the Organization access change history: who changed a plan, limit or module, and when."""
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name="access_changes"
+    )
+    changed_by = models.ForeignKey(
+        "CustomUser", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    summary = models.CharField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.organization_id}: {self.summary}"

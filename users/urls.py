@@ -5,6 +5,7 @@ from .admissions import AdmitView, TransferView, DischargeView, AttendingView
 from .removal import user_removal, user_restore
 from .board_builder import StatusSettingsView, StatusViewDetailView, StatusViewListView, StatusViewUndoView
 from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView, EdFollowUpView
+from .org_access import module_catalog, organization_access
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -123,6 +124,8 @@ urlpatterns = [
     path(
         "trial-reminders/", send_trial_reminders, name="send-trial-reminders"
     ),  # Trial reminders endpoint
+    path("modules/", module_catalog, name="module-catalog"),
+    path("organization-access/", organization_access, name="organization-access"),
     path("team/", get_team_members, name="team-list"),
     # Debug endpoint for Stripe configuration
     path("debug-stripe/", debug_stripe_config, name="debug-stripe-config"),
