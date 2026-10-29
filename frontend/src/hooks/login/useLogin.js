@@ -6,6 +6,7 @@ import { toast } from '../../components/SimpleToast';
 import { notifyProfileUpdated, refreshAuthState } from '../../utils/events';
 import { storeTokens } from '../../utils/tokenManager';
 import { API_BASE_URL } from '../../config/api';
+import { landingPath } from '../../utils/landing';
 
 /**
  * Custom hook for managing login functionality
@@ -51,7 +52,7 @@ export const useLogin = () => {
     };
 
     // Role-based navigation logic
-    const handleRoleBasedNavigation = (userRole) => {
+    const handleRoleBasedNavigation = (userRole, modules) => {
         console.log('Login Debug - User role:', userRole);
         console.log('Login Debug - Redirect parameter:', redirectTo);
 
@@ -121,26 +122,8 @@ export const useLogin = () => {
             }
         } else {
             console.log('Login Debug - Using default role-based redirect');
-            // Default role-based redirect
-            if (userRole === 'admin' || userRole === 'system_admin') {
-                console.log('Login Debug - Admin/System Admin detected, going to /admin');
-                navigate('/admin');
-            } else if (userRole === 'doctor') {
-                console.log('Login Debug - Doctor detected, going to /patients');
-                navigate('/patients');
-            } else if (userRole === 'nurse') {
-                console.log('Login Debug - Nurse detected, going to /patients');
-                navigate('/patients');
-            } else if (userRole === 'registrar') {
-                console.log('Login Debug - Registrar detected, going to /patients');
-                navigate('/patients');
-            } else if (userRole === 'staff') {
-                console.log('Login Debug - Staff login detected, going to /staffing');
-                navigate('/staffing');
-            } else {
-                console.log('Login Debug - Default case, going to /dashboard');
-                navigate('/dashboard'); // Default for patients
-            }
+            // Default: the organization's own landing, from its services (administrators: Management Portal)
+            navigate(landingPath(userRole, modules));
         }
     };
 
@@ -182,7 +165,7 @@ export const useLogin = () => {
             toast.success('Login successful!');
 
             // Navigate based on role and redirect parameters
-            handleRoleBasedNavigation(userRole);
+            handleRoleBasedNavigation(userRole, decoded.modules);
 
         } catch (error) {
             console.error(error.response?.data || error.message);

@@ -19,6 +19,7 @@
  */
 
 // Import React hooks for state management
+import { landingForCurrentUser } from '../utils/landing';
 import { useState, useEffect } from 'react';
 // Import React Router navigation hook
 import { useNavigate } from 'react-router-dom';
@@ -59,8 +60,9 @@ export const Header = ({ className }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Handler function to navigate to the solutions page
+  // Signed in: straight to the organization's own landing. Signed out: the login page.
   const handleLoginClick = () => {
-    navigate('/solutions');
+    navigate(landingForCurrentUser() || '/login');
   };
 
   // Handler function to navigate to landing page
