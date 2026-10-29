@@ -31,7 +31,7 @@ class PricingTests(TestCase):
         self.assertEqual(plan_key("nonsense"), "basic")
 
     def test_routes(self):
-        self.assertEqual(module_for_path("/api/staffing/custom-reports/x/"), "custom_reports")
+        self.assertIsNone(module_for_path("/api/staffing/custom-reports/x/"))  # Reports always on
         self.assertEqual(module_for_path("/api/staffing/shifts/"), "staffing")
         self.assertIsNone(module_for_path("/api/communicator/announcements/"))
         self.assertEqual(module_for_path("/api/communicator/messages/"), "communicator")

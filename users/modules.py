@@ -19,6 +19,7 @@ BASE_PRICE = 299
 EXTRA_MODULE_PRICE = 150
 
 # (code, label, group, description, quoted)
+# Reports (report builder, saved reports) is not a module: every organization has it, at no charge.
 MODULES = [
     ("patient_portal", "Patient registration and portal", "Clinical",
      "Patient sign-in, my information, announcements.", False),
@@ -36,8 +37,6 @@ MODULES = [
      "Roster, shifts, coverage status, time off.", False),
     ("communicator", "Communicator (text and bulk messages)", "Operations",
      "Automatic reminders, bulk text and email.", False),
-    ("custom_reports", "Custom reports", "Operations",
-     "Report builder, linked reports, scheduled email.", False),
     ("telehealth", "Telehealth", "Add-ons",
      "Video visits with a join link for patients.", False),
     ("dictation", "Voice dictation", "Add-ons",
@@ -65,7 +64,7 @@ def plan_key(value):
 
 # URL path prefix (after /api/) -> module. Longest prefix wins. Anything not listed is not gated.
 MODULE_ROUTES = [
-    ("staffing/custom-reports/", "custom_reports"),
+    ("staffing/custom-reports/", None),  # Reports are part of every organization's service
     ("staffing/", "staffing"),
     ("communicator/announcements/", None),  # announcements follow the portal, not the Communicator
     ("communicator/", "communicator"),

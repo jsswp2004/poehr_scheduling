@@ -86,8 +86,7 @@ function EnrollmentPage() {
     state: '',
     postal_code: '',
     subscription_tier: getInitialTier(),
-    // Reports starts ticked: it is the first service, so it is the one included in the base price.
-    modules: ['custom_reports'],
+    modules: [],
   });
 
   // Plans and services come from the server so prices and names are never out of step with billing.

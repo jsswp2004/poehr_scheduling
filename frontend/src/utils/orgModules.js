@@ -15,4 +15,8 @@ export const getEnabledModules = () => {
   }
 };
 
-export const moduleEnabled = (code, enabled = getEnabledModules()) => !code || enabled === null || enabled.includes(code);
+// `code` may be one service, or a list meaning "any of these".
+export const moduleEnabled = (code, enabled = getEnabledModules()) => {
+  if (!code || (Array.isArray(code) && code.length === 0) || enabled === null) return true;
+  return Array.isArray(code) ? code.some((c) => enabled.includes(c)) : enabled.includes(code);
+};
