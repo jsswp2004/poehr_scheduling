@@ -1721,3 +1721,19 @@ class LinkedShiftStaffTests(TestCase):
         self.assertEqual(res.status_code, 200, res.content)
         row = res.json()["rows"][0]
         self.assertEqual((row["shift__staff"], row["shift__count"]), ("Rita Cole", 1))
+
+    def test_a_canvas_can_run_with_one_thing(self):
+        from django.utils import timezone
+
+        org = Organization.objects.create(name="Org B")
+        admin = CustomUser.objects.create_user(username="b", password="x", role="admin", organization=org)
+        member = Staff.objects.create(organization=org, first_name="Rita", last_name="Cole", profession="Nurse", nursing_role="rn")
+        shift(org, member, None, timezone.localdate())
+        today = timezone.localdate()
+        body = {"source": "linked", "config": {"canvas": {"objects": ["shift"]}, "columns": ["shift__staff", "shift__nursing_role", "shift__shift_type"]},
+                "start": (today - datetime.timedelta(days=1)).isoformat(), "end": (today + datetime.timedelta(days=1)).isoformat()}
+        res = client_for(admin).post(f"{BASE}/preview/", body, format="json")
+        self.assertEqual(res.status_code, 200, res.content)
+        self.assertEqual([(r["shift__staff"], r["shift__nursing_role"]) for r in res.json()["rows"]], [("Rita Cole", "RN")])
+        empty = client_for(admin).post(f"{BASE}/preview/", {**body, "config": {"canvas": {"objects": []}, "columns": []}}, format="json")
+        self.assertEqual(empty.status_code, 400)

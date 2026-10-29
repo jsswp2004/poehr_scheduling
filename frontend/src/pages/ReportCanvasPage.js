@@ -268,9 +268,9 @@ export default function ReportCanvasPage() {
 
   // Live result, a moment after the last change.
   useEffect(() => {
-    if (objects.length < 2 || config.columns.length === 0) {
+    if (objects.length < 1 || config.columns.length === 0) {
       setPreview(null);
-      setPreviewError(objects.length < 2 ? "" : "Tick at least one field to show.");
+      setPreviewError(objects.length < 1 ? "" : "Tick at least one field to show.");
       return undefined;
     }
     let cancelled = false;
@@ -432,10 +432,10 @@ export default function ReportCanvasPage() {
         <Button color="inherit" onClick={() => navigate("/reports")}>
           Cancel
         </Button>
-        <Button variant="outlined" onClick={() => save(false)} disabled={saving || objects.length < 2}>
+        <Button variant="outlined" onClick={() => save(false)} disabled={saving || objects.length < 1}>
           Save
         </Button>
-        <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={() => save(true)} disabled={saving || objects.length < 2}>
+        <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={() => save(true)} disabled={saving || objects.length < 1}>
           Save and run
         </Button>
       </BuilderToolbar>
@@ -898,7 +898,7 @@ export default function ReportCanvasPage() {
         )}
         {!preview && !previewError && (
           <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-            Add at least two things and tick the fields you want. The result appears here.
+            Add a thing (two or more to join them) and tick the fields you want. The result appears here.
           </Typography>
         )}
         {preview && preview.tiles && preview.tiles.length > 0 && (
