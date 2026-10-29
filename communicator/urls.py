@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
+from .announcements import AnnouncementViewSet
 from .assistant import (
     AssistantActionCancelView,
     AssistantActionConfirmView,
@@ -16,6 +17,7 @@ from .views import (
 
 router = DefaultRouter()
 router.register(r"contacts", ContactViewSet, basename="contact")
+router.register(r"announcements", AnnouncementViewSet, basename="announcement")
 router.register(r"logs", MessageLogViewSet, basename="messagelog")
 
 urlpatterns = [

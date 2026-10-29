@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class Contact(models.Model):
@@ -157,3 +158,71 @@ class CommunicatorPendingAction(models.Model):
 
     def __str__(self) -> str:
         return f"{self.action_type} ({self.status}) for user {self.user_id}"
+
+
+def announcement_upload_path(instance, filename):
+    """Random folder per file so an attachment link cannot be guessed from the announcement id."""
+    import os
+
+    return f"announcements/{uuid.uuid4().hex}/{os.path.basename(filename)}"
+
+
+class Announcement(models.Model):
+    """A notice shown on the dashboard of patients and/or staff of one organization."""
+
+    AUDIENCE_CHOICES = [
+        ("patients", "Patients"),
+        ("staff", "Staff"),
+        ("everyone", "Everyone"),
+    ]
+
+    organization = models.ForeignKey(
+        "users.Organization", on_delete=models.CASCADE, related_name="announcements"
+    )
+    title = models.CharField(max_length=200)
+    # Sanitized HTML (bold, italic, underline, lists, links, colors). Cleaned again on every save.
+    body = models.TextField(blank=True)
+    audience = models.CharField(max_length=10, choices=AUDIENCE_CHOICES, default="patients")
+    # Blank start = shows right away; blank end = never hides by itself.
+    start_date = models.DateField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return self.title
+
+    def status(self, today=None):
+        """off, scheduled, ended or live, as the manager list shows it."""
+        today = today or timezone.localdate()
+        if not self.is_active:
+            return "off"
+        if self.start_date and self.start_date > today:
+            return "scheduled"
+        if self.end_date and self.end_date < today:
+            return "ended"
+        return "live"
+
+
+class AnnouncementAttachment(models.Model):
+    announcement = models.ForeignKey(
+        Announcement, on_delete=models.CASCADE, related_name="attachments"
+    )
+    file = models.FileField(upload_to=announcement_upload_path)
+    name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=100, blank=True)
+    size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self) -> str:
+        return self.name
