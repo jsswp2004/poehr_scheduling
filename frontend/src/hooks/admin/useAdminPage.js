@@ -14,8 +14,8 @@ export const useAdminPage = () => {
 
     // Admin navigation items configuration. `group` and `description` drive the portal layout.
     const adminNavItems = [
-        { id: 'calendar', label: 'Calendar Dashboard', description: "Today's schedule and patient charts", group: 'daily', icon: 'FaCalendarCheck', path: '/patients', requiredRoles: ['admin', 'system_admin', 'registrar'] },
-        { id: 'search', label: 'Appointment Search', description: 'Find any appointment', group: 'daily', icon: 'FaSearch', path: '/admin-user-search', requiredRoles: ['admin', 'system_admin', 'registrar'] },
+        { id: 'calendar', module: 'scheduling', label: 'Calendar Dashboard', description: "Today's schedule and patient charts", group: 'daily', icon: 'FaCalendarCheck', path: '/patients', requiredRoles: ['admin', 'system_admin', 'registrar'] },
+        { id: 'search', module: 'scheduling', label: 'Appointment Search', description: 'Find any appointment', group: 'daily', icon: 'FaSearch', path: '/admin-user-search', requiredRoles: ['admin', 'system_admin', 'registrar'] },
         { id: 'messages', module: 'communicator', label: 'Messages', description: 'Staff and patient messages', group: 'daily', icon: 'FaEnvelope', path: '/messages', requiredRoles: ['admin', 'system_admin', 'registrar'] },
         { id: 'check-in', module: 'scheduling', label: 'Check-in', description: 'Mark arriving patients as arrived', group: 'daily', icon: 'FaUserCheck', path: '/check-in', isNew: true, requiredRoles: ['admin', 'system_admin', 'registrar'] },
         { id: 'note-builder', module: 'clinical_documentation', label: 'Note Builder', description: 'Clinical note templates', group: 'build', icon: 'FaClipboardList', path: '/note-builder', requiredRoles: ['admin', 'system_admin'] },
@@ -23,8 +23,8 @@ export const useAdminPage = () => {
         { id: 'status-board-builder', module: 'triage_boards', label: 'Status Board Builder', description: 'Status boards for your units', group: 'build', icon: 'FaColumns', path: '/status-board-builder', requiredRoles: ['admin', 'system_admin'] },
         { id: 'order-builder', module: 'orders_labs', label: 'Order Builder', description: 'Orders and order sets', group: 'build', icon: 'FaClipboardCheck', path: '/order-builder', requiredRoles: ['admin', 'system_admin'] },
         { id: 'triage-settings', module: 'triage_boards', label: 'Triage Settings', description: 'Triage scales and prompts', group: 'build', icon: 'FaHeartbeat', path: '/triage-settings', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'location-manager', label: 'Location Manager', description: 'Facilities, units and rooms', group: 'facility', icon: 'FaHospital', path: '/location-manager', requiredRoles: ['admin', 'system_admin'] },
-        { id: 'settings', label: 'Settings', description: 'Clinic settings', group: 'facility', icon: 'FaTools', path: '/settings', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'location-manager', module: ['clinical_documentation', 'triage_boards', 'scheduling'], label: 'Location Manager', description: 'Facilities, units and rooms', group: 'facility', icon: 'FaHospital', path: '/location-manager', requiredRoles: ['admin', 'system_admin'] },
+        { id: 'settings', module: ['scheduling', 'clinical_documentation', 'orders_labs', 'prescriptions_referrals', 'triage_boards', 'patient_portal', 'communicator', 'telehealth', 'dictation', 'lab_interface'], label: 'Settings', description: 'Clinic settings', group: 'facility', icon: 'FaTools', path: '/settings', requiredRoles: ['admin', 'system_admin'] },
         { id: 'organization-access', label: 'Organization Access', description: 'Plan, users and services', group: 'facility', icon: 'FaKey', path: '/organization-access', requiredRoles: ['admin', 'system_admin'] },
         { id: 'profile', label: 'Profile', description: 'Your account', group: 'facility', icon: 'FaUserCog', path: '/profile', requiredRoles: ['admin', 'system_admin'] },
     ];
