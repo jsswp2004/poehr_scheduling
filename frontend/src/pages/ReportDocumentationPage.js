@@ -58,6 +58,9 @@ export default function ReportDocumentationPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [picked, setPicked] = useState([]); // template codes
+  const [groups, setGroups] = useState([]); // categories whose every note is included, now and later
+  const [groupNames, setGroupNames] = useState([]); // categories to choose from
+  const [covered, setCovered] = useState([]); // every note the report covers once categories are added
   const [pickedObs, setPickedObs] = useState([]); // observation ids
   const [layout, setLayout] = useState("wide");
   const [status, setStatus] = useState("signed");
@@ -81,18 +84,25 @@ export default function ReportDocumentationPage() {
     (async () => {
       try {
         let codes = [];
+        let savedGroups = [];
         let saved = null;
         if (editing) {
           const res = await axios.get(apiEndpoints.staffingCustomReport(id), { headers: headers() });
           saved = res.data;
           codes = (saved.config?.docs?.templates) || [];
+          savedGroups = (saved.config?.docs?.groups) || [];
         }
         const cat = await axios.get(apiEndpoints.staffingCustomReportDocumentationCatalog, {
           headers: headers(),
-          params: codes.length ? { templates: codes.join(",") } : {},
+          params: {
+            ...(codes.length ? { templates: codes.join(",") } : {}),
+            ...(savedGroups.length ? { groups: savedGroups.join("|") } : {}),
+          },
         });
         if (cancelled) return;
         setTemplates(cat.data.templates);
+        setGroupNames(cat.data.groups || []);
+        setCovered(cat.data.covered || []);
         setObservations(cat.data.observations);
         if (saved) {
           const c = saved.config || {};
@@ -101,6 +111,7 @@ export default function ReportDocumentationPage() {
           setName(saved.name);
           setDescription(saved.description || "");
           setPicked(d.templates || []);
+          setGroups(d.groups || []);
           setPickedObs(d.observations || []);
           setLayout(d.layout || "wide");
           setStatus(d.status || "signed");
@@ -124,18 +135,21 @@ export default function ReportDocumentationPage() {
 
   // The observations of whichever notes are picked.
   const pickedKey = picked.join(",");
+  const groupsKey = groups.join("|");
   useEffect(() => {
     if (loading) return undefined;
-    if (!pickedKey) {
+    if (!pickedKey && !groupsKey) {
       setObservations([]);
+      setCovered([]);
       return undefined;
     }
     let cancelled = false;
     (async () => {
       try {
-        const res = await axios.get(apiEndpoints.staffingCustomReportDocumentationCatalog, { headers: headers(), params: { templates: pickedKey } });
+        const res = await axios.get(apiEndpoints.staffingCustomReportDocumentationCatalog, { headers: headers(), params: { templates: pickedKey, groups: groupsKey } });
         if (cancelled) return;
         setObservations(res.data.observations);
+        setCovered(res.data.covered || []);
         const have = new Set(res.data.observations.map((o) => o.id));
         setPickedObs((x) => x.filter((k) => have.has(k)));
       } catch (err) {
@@ -145,7 +159,7 @@ export default function ReportDocumentationPage() {
     return () => {
       cancelled = true;
     };
-  }, [pickedKey, loading]);
+  }, [pickedKey, groupsKey, loading]);
 
   const templateByCode = useMemo(() => Object.fromEntries(templates.map((t) => [t.code, t])), [templates]);
   const obsById = useMemo(() => Object.fromEntries(observations.map((o) => [o.id, o])), [observations]);
@@ -157,7 +171,7 @@ export default function ReportDocumentationPage() {
 
   const config = useMemo(
     () => ({
-      docs: { templates: picked, observations: pickedObs, layout, status },
+      docs: { templates: picked, groups, observations: pickedObs, layout, status },
       columns,
       group_by: groupBy && fieldMap[groupBy] ? groupBy : null,
       filters: filters
@@ -170,13 +184,13 @@ export default function ReportDocumentationPage() {
       tiles: [{ field: "_rows", agg: "count", label: layout === "long" ? "Values" : "Notes" }],
       totals: false,
     }),
-    [picked, pickedObs, layout, status, columns, groupBy, filters, highlight, fieldMap]
+    [picked, groups, pickedObs, layout, status, columns, groupBy, filters, highlight, fieldMap]
   );
 
   // Live result, a moment after the last change.
   useEffect(() => {
     if (loading) return undefined;
-    if (picked.length === 0 || columns.length === 0) {
+    if (picked.length + groups.length === 0 || columns.length === 0) {
       setPreview(null);
       setPreviewError("");
       return undefined;
@@ -205,7 +219,7 @@ export default function ReportDocumentationPage() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [config, picked.length, columns.length, range, hidePhi, loading]);
+  }, [config, picked.length, groups.length, columns.length, range, hidePhi, loading]);
 
   const toggleColumn = (key) => setTicked((x) => (x.includes(key) ? x.filter((k) => k !== key) : [...x, key]));
   const setFilter = (i, patch) => setFilters((f) => f.map((x, j) => (j === i ? { ...x, ...patch } : x)));
@@ -332,6 +346,33 @@ export default function ReportDocumentationPage() {
                 renderInput={(params) => <TextField {...params} label="Notes or screens" placeholder={picked.length ? "" : "Search and pick one or several"} />}
                 noOptionsText="No note matches that search."
               />
+              <Autocomplete
+                multiple
+                disableCloseOnSelect
+                size="small"
+                sx={{ mt: 1.25 }}
+                options={groupNames}
+                value={groups}
+                onChange={(_, v) => setGroups(v)}
+                renderOption={(props, g, { selected }) => (
+                  <li {...props} key={g}>
+                    <Checkbox size="small" checked={selected} sx={{ mr: 0.5, p: 0.5 }} />
+                    {g}
+                  </li>
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((g, index) => {
+                    const { key, ...tagProps } = getTagProps({ index });
+                    return <Chip key={key} size="small" label={`All ${g}`} {...tagProps} />;
+                  })
+                }
+                renderInput={(params) => <TextField {...params} label="Always include everything in" placeholder={groups.length ? "" : "Optional: pick whole categories"} />}
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                {groups.length
+                  ? `Covers ${covered.length} note${covered.length === 1 ? "" : "s"} now. Anything new added to ${groups.length === 1 ? "this category" : "these categories"} joins the report automatically.`
+                  : "Pick a category to keep the report current: new notes, screens or flowsheets added to it join the report by themselves."}
+              </Typography>
               <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1, mt: 1.5 }}>
                 <TextField size="small" type="date" label="From" InputLabelProps={{ shrink: true }} value={range.start} onChange={(e) => setRange((r) => ({ ...r, start: e.target.value }))} />
                 <TextField size="small" type="date" label="To" InputLabelProps={{ shrink: true }} value={range.end} onChange={(e) => setRange((r) => ({ ...r, end: e.target.value }))} />

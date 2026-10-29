@@ -33,6 +33,8 @@ DOC_KEY = "note_documentation"
 RIGHT = "clinical_notes.view_author"
 MAX_TEMPLATES = 12
 MAX_OBSERVATIONS = 30
+MAX_GROUPS = 12
+MAX_EXPANDED = 40  # notes and flowsheets a report may cover once whole categories are included
 MAX_NOTES = 20000
 LAYOUTS = ("wide", "long")
 STATUSES = ("signed", "all")
@@ -196,13 +198,33 @@ def observation_catalog(codes, org):
     return out
 
 
-def catalog(user, org, codes=None):
+def expand(docs, org):
+    """The picked templates plus every current template of the categories the report always includes.
+    New notes, screens and flowsheets added to those categories join the report by themselves."""
+    groups = docs.get("groups") or []
+    if not groups:
+        return docs
+    codes = list(docs["templates"])
+    for t in template_list(org):
+        if t["group"] in groups and t["code"] not in codes:
+            codes.append(t["code"])
+    if len(codes) > MAX_EXPANDED:
+        raise ReportConfigError(f"Those categories cover {len(codes)} notes; the most one report can use is {MAX_EXPANDED}.")
+    return {**docs, "templates": codes}
+
+
+def catalog(user, org, codes=None, groups=None):
     """What the builder needs: the templates to pick from, and the observations of the picked ones."""
     codes = [c for c in (codes or []) if isinstance(c, str)][:MAX_TEMPLATES]
+    groups = [g for g in (groups or []) if isinstance(g, str)][:MAX_GROUPS]
+    templates = template_list(org)
+    covered = expand({"templates": codes, "groups": groups}, org)["templates"] if (codes or groups) else []
     return {
-        "templates": template_list(org),
+        "templates": templates,
+        "groups": sorted({t["group"] for t in templates}),
+        "covered": covered,
         "observations": [
-            {k: o[k] for k in ("id", "label", "type", "section", "codes")} for o in observation_catalog(codes, org)
+            {k: o[k] for k in ("id", "label", "type", "section", "codes")} for o in observation_catalog(covered, org)
         ],
         "max_templates": MAX_TEMPLATES,
         "max_observations": MAX_OBSERVATIONS,
@@ -218,7 +240,13 @@ def clean_docs(raw):
     for c in raw.get("templates") or []:
         if isinstance(c, str) and c.strip() and c.strip() not in codes:
             codes.append(c.strip()[:64])
-    if not codes:
+    groups = []
+    for g in raw.get("groups") or []:
+        if isinstance(g, str) and g.strip() and g.strip() not in groups:
+            groups.append(g.strip()[:80])
+    if len(groups) > MAX_GROUPS:
+        raise ReportConfigError(f"Choose {MAX_GROUPS} categories or fewer.")
+    if not codes and not groups:
         raise ReportConfigError("Choose at least one note or screen.")
     if len(codes) > MAX_TEMPLATES:
         raise ReportConfigError(f"Choose {MAX_TEMPLATES} notes or screens or fewer.")
@@ -230,7 +258,7 @@ def clean_docs(raw):
         raise ReportConfigError(f"Choose {MAX_OBSERVATIONS} observations or fewer.")
     layout = raw.get("layout") if raw.get("layout") in LAYOUTS else "wide"
     status = raw.get("status") if raw.get("status") in STATUSES else "signed"
-    return {"templates": codes, "observations": obs, "layout": layout, "status": status}
+    return {"templates": codes, "groups": groups, "observations": obs, "layout": layout, "status": status}
 
 
 def split_config(raw):
@@ -509,6 +537,7 @@ def _load_all(org, start, end, user, docs, observations, hide):
 
 def build_source(docs, org, user, hide=False):
     """A report source for engine.run_report, made for these notes and observations."""
+    docs = expand(docs, org)
     cat = observation_catalog(docs["templates"], org)
     by_id = {o["id"]: o for o in cat}
     picked = [by_id[i] for i in docs["observations"] if i in by_id]

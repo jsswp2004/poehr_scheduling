@@ -1343,6 +1343,33 @@ class DocumentationReportTests(TestCase):
         self.assertEqual(row["visit_id"], str(self.n1.appointment_id))
         self.assertEqual(row["num__total_score"], 18)
 
+    def test_whole_categories_pick_up_new_templates_by_themselves(self):
+        from appointments.models import ClinicalNote, NoteFieldDefinition, NoteTemplate
+        from . import custom_report_documentation as documentation
+
+        docs = {"templates": [], "groups": ["Other structured notes"], "observations": ["total_score"]}
+        res = self.run_docs(docs, {"columns": ["template", "num__total_score"]})
+        self.assertEqual({r["template"] for r in res["rows"]}, {"PHQ-9 depression screen", "GAD-7 anxiety screen"})
+        # a screen created after the report was saved joins it without editing the report
+        tpl3 = NoteTemplate.objects.create(code="asq", name="ASQ suicide screen", organization=self.org)
+        NoteFieldDefinition.objects.create(template=tpl3, key="total_score", label="Total score", field_type="calculated", sort_order=0)
+        ClinicalNote.objects.create(
+            organization=self.org, appointment=self.n1.appointment, patient=self.pat, author=self.nurse, note_type="nursing_assessment",
+            documentation_type="asq", template=tpl3, template_version=1, structured_data={"total_score": "3"}, status="signed",
+        )
+        res = self.run_docs(docs, {"columns": ["template", "num__total_score"]})
+        self.assertIn("ASQ suicide screen", {r["template"] for r in res["rows"]})
+        cat = documentation.catalog(self.admin, self.org, [], ["Other structured notes"])
+        self.assertIn("asq", cat["covered"])
+        self.assertIn("Other structured notes", cat["groups"])
+
+    def test_a_report_needs_a_note_or_a_category(self):
+        from . import custom_report_documentation as documentation
+
+        with self.assertRaises(engine.ReportConfigError):
+            documentation.clean_docs({"templates": [], "groups": []})
+        self.assertEqual(documentation.clean_docs({"groups": ["Flowsheets"]})["groups"], ["Flowsheets"])
+
     def test_status_all_includes_drafts(self):
         res = self.run_docs({"templates": ["phq9"], "observations": ["total_score"], "status": "all"})
         self.assertEqual(len(res["rows"]), 3)

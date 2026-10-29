@@ -297,7 +297,8 @@ class CustomReportViewSet(viewsets.ModelViewSet):
         if org is None:
             return Response({"error": "Choose an organization first."}, status=status.HTTP_400_BAD_REQUEST)
         codes = [c for c in (request.query_params.get("templates") or "").split(",") if c.strip()]
-        return Response(documentation.catalog(request.user, org, codes))
+        groups = [g for g in (request.query_params.get("groups") or "").split("|") if g.strip()]
+        return Response(documentation.catalog(request.user, org, codes, groups))
 
     @action(detail=False, methods=["get"], url_path="audit")
     def audit(self, request):
