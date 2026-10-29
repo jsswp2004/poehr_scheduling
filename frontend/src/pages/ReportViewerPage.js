@@ -25,6 +25,7 @@ import PrintOutlinedIcon from "@mui/icons-material/PrintOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
 import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
 import BackButton from "../components/BackButton";
+import DocumentationDrawer from "../components/reports/DocumentationDrawer";
 import ReportResultTable from "../components/reports/ReportResultTable";
 import { SubscribeButton } from "../components/staffing/ReportSubscribe";
 import { apiEndpoints } from "../config/api";
@@ -63,6 +64,7 @@ export default function ReportViewerPage() {
   const [hidePhi, setHidePhi] = useState(false); // de-identified view and download
   const [people, setPeople] = useState([]);
   const [toast, setToast] = useState("");
+  const [openRef, setOpenRef] = useState(null); // documentation reports: the document open in the side panel
   const isAdmin = (() => {
     try {
       const role = jwtDecode(getAccessToken()).role;
@@ -294,7 +296,8 @@ export default function ReportViewerPage() {
                 <div>{result.tiles.map((t) => `${t.label}: ${formatCell(t.value, t.type)}`).join("   ·   ")}</div>
               )}
             </Box>
-            <ReportResultTable result={result} stickyTop={TABLE_TOP} />
+            <ReportResultTable result={result} stickyTop={TABLE_TOP} onOpenRow={report?.source === "note_documentation" ? (r) => setOpenRef(r._ref) : null} />
+            {report?.source === "note_documentation" && <DocumentationDrawer reference={openRef} hide={hidePhi} onClose={() => setOpenRef(null)} />}
             {result.truncated && (
               <Typography variant="caption" color="text.secondary" sx={{ display: "block", p: 1 }}>
                 Showing the first 5,000 rows. Narrow the dates or add a filter to see the rest.

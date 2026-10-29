@@ -1363,6 +1363,40 @@ class DocumentationReportTests(TestCase):
         self.assertIn("asq", cat["covered"])
         self.assertIn("Other structured notes", cat["groups"])
 
+    def test_rows_carry_a_reference_and_the_whole_note_opens(self):
+        res = self.run_docs({"templates": ["phq9"], "observations": ["total_score"]}, {"columns": ["patient"]})
+        self.assertTrue(all(r["_ref"].startswith("note:") for r in res["rows"]))
+        c = client_for(self.admin)
+        r = c.get(f"{BASE}/documentation-document/", {"ref": f"note:{self.n1.pk}", "hide_phi": "false"})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual((body["title"], body["status"]), ("PHQ-9 depression screen", "Signed"))
+        header = {h["label"]: h["value"] for h in body["header"]}
+        self.assertEqual((header["Patient"], header["Author"], header["Attending physician"]), ("Ann Ames", "Nia Park", "Dee Rivera"))
+        items = {i["label"]: i for sec in body["sections"] for i in sec["items"]}
+        self.assertEqual(items["Little interest"]["value"], "Several days")
+        self.assertEqual(items["Comment"]["value"], "Tearful")
+        self.assertEqual((items["Total score"]["value"], items["Total score"]["meaning"]), ("18", "Moderately severe"))
+        self.assertEqual(items["Follow up needed"]["value"], "Yes")
+        from .models import ReportAuditLog
+
+        self.assertTrue(ReportAuditLog.objects.filter(source="note_documentation", action="view", user=self.admin).exists())
+
+    def test_opening_a_note_with_hide_phi_masks_name_mrn_and_text(self):
+        c = client_for(self.admin)
+        body = c.get(f"{BASE}/documentation-document/", {"ref": f"note:{self.n1.pk}"}).json()  # hiding is the default
+        header = {h["label"]: h["value"] for h in body["header"]}
+        self.assertEqual((header["Patient"], header["MRN"]), ("[Hidden]", "[Hidden]"))
+        items = {i["label"]: i["value"] for sec in body["sections"] for i in sec["items"]}
+        self.assertEqual((items["Comment"], items["Total score"], items["Little interest"]), ("[Hidden]", "18", "Several days"))
+
+    def test_a_note_of_another_organization_does_not_open(self):
+        other = Organization.objects.create(name="Org B")
+        stranger = CustomUser.objects.create_user(username="x", password="x", role="admin", organization=other)
+        r = client_for(stranger).get(f"{BASE}/documentation-document/", {"ref": f"note:{self.n1.pk}"})
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(client_for(self.admin).get(f"{BASE}/documentation-document/", {"ref": "garbage"}).status_code, 404)
+
     def test_a_report_needs_a_note_or_a_category(self):
         from . import custom_report_documentation as documentation
 
@@ -1566,3 +1600,16 @@ class DocumentationFlowsheetTests(TestCase):
         keys = [s["key"] for s in c.get(f"{BASE}/sources/").json()]
         self.assertTrue(keys)
         self.assertNotIn("flowsheet_entries", keys)
+
+    def test_a_flowsheet_time_point_opens_as_a_whole_document(self):
+        res = self.run_docs({"templates": ["flowsheet:vitals"], "observations": ["hr"]}, {"columns": ["time", "num__hr"], "sort": {"field": "time", "dir": "asc"}})
+        ref = res["rows"][1]["_ref"]
+        self.assertTrue(ref.startswith("flowsheet:"))
+        body = client_for(self.admin).get(f"{BASE}/documentation-document/", {"ref": ref, "hide_phi": "false"}).json()
+        self.assertEqual((body["title"], body["status"]), ("Vital signs", "Charted"))
+        items = {i["label"]: i["value"] for sec in body["sections"] for i in sec["items"]}
+        self.assertEqual(items["Heart rate"], "88")
+        self.assertEqual(items["Comment"], "anxious")
+        self.assertNotIn("BP site", items)  # nothing was charted for it at this time
+        masked = client_for(self.admin).get(f"{BASE}/documentation-document/", {"ref": ref}).json()
+        self.assertEqual({i["label"]: i["value"] for sec in masked["sections"] for i in sec["items"]}["Comment"], "[Hidden]")

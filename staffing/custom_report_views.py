@@ -300,6 +300,26 @@ class CustomReportViewSet(viewsets.ModelViewSet):
         groups = [g for g in (request.query_params.get("groups") or "").split("|") if g.strip()]
         return Response(documentation.catalog(request.user, org, codes, groups))
 
+    @action(detail=False, methods=["get"], url_path="documentation-document")
+    def documentation_document(self, request):
+        """One whole note or flowsheet time point behind a row (?ref=note:12&hide_phi=true). Audit-logged."""
+        if not _source_ok(documentation.DOC_KEY, request.user):
+            return Response({"error": "You do not have access to documentation reports."}, status=status.HTTP_403_FORBIDDEN)
+        org = org_scope.acting_org(request)
+        if org is None:
+            return Response({"error": "Choose an organization first."}, status=status.HTTP_400_BAD_REQUEST)
+        hide = request.query_params.get("hide_phi") != "false"
+        try:
+            doc = documentation.document(request.query_params.get("ref"), org, request.user, hide)
+        except documentation.DocumentNotFound:
+            return Response({"error": "That document was not found, or you cannot open it."}, status=status.HTTP_404_NOT_FOUND)
+        ReportAuditLog.objects.create(
+            organization=org, user=request.user, report_name=f"Opened a {doc['kind']}"[:120],
+            source=documentation.DOC_KEY, action="view", phi_hidden=hide, row_count=1,
+        )
+        doc.pop("patient_id", None)
+        return Response(doc)
+
     @action(detail=False, methods=["get"], url_path="audit")
     def audit(self, request):
         if request.user.role not in ADMIN_ROLES:

@@ -403,7 +403,7 @@ def _load_notes(org, start, end, user, docs, observations, hide):
         unit = appt.unit if appt and appt.unit_id else None
         made = _local(n.created_at)
         base = {
-            "_patient": n.patient_id, "_id": n.pk,
+            "_patient": n.patient_id, "_id": n.pk, "_ref": f"note:{n.pk}",
             "template": names.get(code) or (n.template.name if n.template_id else _pretty(code)),
             "note_id": f"N-{n.pk}", "status": "Signed" if n.status == "signed" else "Draft",
             "date": made.date().isoformat(), "time": made.strftime("%H:%M"), "signed_on": _local(n.signed_at).date().isoformat() if n.signed_at else None,
@@ -480,7 +480,7 @@ def _load_flowsheets(org, start, end, user, docs, observations, hide):
                 raise ReportConfigError("This covers too many documents. Choose a shorter date range or fewer notes.")
             who = (col.get("recorded_by_name") or "").strip() or _person(sheet.created_by)
             base = {
-                "_patient": sheet.patient_id, "_id": f"{sheet.pk}:{col.get('id')}",
+                "_patient": sheet.patient_id, "_id": f"{sheet.pk}:{col.get('id')}", "_ref": f"flowsheet:{sheet.pk}:{col.get('id')}",
                 "template": sheet.template.name, "note_id": f"F-{sheet.pk}-{number}", "status": "Charted",
                 "date": when.date().isoformat(), "time": when.strftime("%H:%M"), "signed_on": None,
                 "patient": _person(sheet.patient, "Unknown patient"), "mrn": _mrn(sheet.patient),
@@ -578,3 +578,168 @@ register(
     "each with its label and value. Each run is audit-logged.",
     _base_fields(), _load_empty, default_columns=BASE_COLUMNS, module="notes", right=RIGHT, scoped=True, patient_data=True,
 )
+
+
+# ---------------------------------------------------------------------------
+# One whole document (the reading view behind a row)
+# ---------------------------------------------------------------------------
+class DocumentNotFound(Exception):
+    pass
+
+
+def _stamp_text(dt):
+    return _local(dt).strftime("%Y-%m-%d %H:%M") if dt else None
+
+
+def _header(pairs):
+    return [{"label": k, "value": v} for k, v in pairs if v not in (None, "")]
+
+
+def _visit_header(appt):
+    unit = appt.unit if appt and appt.unit_id else None
+    return [
+        ("Visit ID", str(appt.pk) if appt else None),
+        ("Visit date", _local(appt.appointment_datetime).strftime("%Y-%m-%d %H:%M") if appt else None),
+        ("Attending physician", _person(appt.provider, "Not set") if appt and appt.provider_id else "Not set"),
+        ("Physician's discipline", _discipline(appt.provider) if appt and appt.provider_id else "Not set"),
+        ("Unit or clinic", unit.name if unit else "No location"),
+        ("Facility", unit.facility.name if unit else "No location"),
+    ]
+
+
+def _sections(items):
+    """[(section, item)] -> [{"label", "items"}] keeping the order the fields come in."""
+    out = OrderedDict()
+    for section, item in items:
+        out.setdefault(section or "", []).append(item)
+    return [{"label": k, "items": v} for k, v in out.items()]
+
+
+def _note_document(ref_id, org, user, hide):
+    from appointments.models import ClinicalNote
+    from users.facility_scope import assigned_facility_ids
+
+    qs = (
+        ClinicalNote.objects.filter(pk=ref_id)
+        .filter(Q(organization=org) | Q(organization__isnull=True, appointment__organization=org))
+        .select_related("patient__patient_profile", "author", "template", "appointment__provider__staff_profile", "appointment__unit__facility")
+    )
+    ids = assigned_facility_ids(user)
+    if ids is not None:
+        qs = qs.filter(Q(appointment__unit__facility_id__in=ids) | Q(appointment__unit__isnull=True))
+    n = qs.first()
+    if n is None:
+        raise DocumentNotFound()
+    appt = n.appointment if n.appointment_id else None
+    snap = n.template_snapshot or {}
+    data = n.structured_data or {}
+    options = _snapshot_options(n)
+    items = []
+    if n.template_id:
+        fields = snap.get("fields") or []
+        if not fields or not all(f.get("label") and f.get("field_type") for f in fields):
+            # no complete frozen copy of the template: fall back to its current definition
+            fields = [
+                {"key": f["key"], "label": f["label"], "field_type": f["field_type"], "section_label": f["section"]}
+                for f in _fields_of(n.template.code, org)
+            ]
+        live = _live_options([n.template.code], org)
+        for f in fields:
+            ftype = f.get("field_type")
+            if ftype in SKIP_TYPES:
+                continue
+            key = f.get("key")
+            text, _num = _show(data.get(key), ftype, options.get(key) or live.get(key) or {})
+            if text is None:
+                continue
+            if hide and ftype in TEXT_TYPES:
+                text = "[Hidden]"
+            item = {"label": f.get("label") or key, "value": text, "type": ftype}
+            meaning = data.get(key + MEANING_SUFFIX)
+            if ftype == "calculated" and not _is_empty(meaning):
+                item["meaning"] = str(meaning).strip()
+            items.append((f.get("section_label") or "", item))
+    else:
+        for key, label in SOAP:
+            text, _num = _show(getattr(n, key, ""), "textarea", {})
+            if text is None:
+                continue
+            items.append(("", {"label": label, "value": "[Hidden]" if hide else text, "type": "textarea"}))
+    code = _note_code(n)
+    names = {t["code"]: t["name"] for t in template_list(org)}
+    mrn = _mrn(n.patient)
+    return {
+        "kind": "note",
+        "title": names.get(code) or (n.template.name if n.template_id else _pretty(code)),
+        "status": "Signed" if n.status == "signed" else "Draft",
+        "header": _header(
+            [
+                ("Patient", "[Hidden]" if hide else _person(n.patient, "Unknown patient")),
+                ("MRN", "[Hidden]" if hide and mrn else mrn),
+                ("Documented", _stamp_text(n.created_at)),
+                ("Signed", _stamp_text(n.signed_at)),
+                ("Author", _person(n.author)),
+                ("Author's role", _pretty(n.author_role_at_signing or getattr(n.author, "role", ""))),
+            ]
+            + _visit_header(appt)
+        ),
+        "sections": _sections(items),
+        "patient_id": n.patient_id,
+    }
+
+
+def _flowsheet_document(sheet_id, col_id, org, user, hide):
+    from appointments.models import VitalSignsFlowsheet
+    from users.facility_scope import assigned_facility_ids
+
+    qs = VitalSignsFlowsheet.objects.filter(pk=sheet_id, organization=org).select_related(
+        "patient__patient_profile", "template", "created_by", "appointment__provider__staff_profile", "appointment__unit__facility"
+    )
+    ids = assigned_facility_ids(user)
+    if ids is not None:
+        qs = qs.filter(Q(appointment__unit__facility_id__in=ids) | Q(appointment__unit__isnull=True))
+    sheet = qs.first()
+    col = next((c for c in (sheet.columns if sheet else []) if c.get("id") == col_id), None)
+    if sheet is None or col is None:
+        raise DocumentNotFound()
+    options = _flowsheet_options([FS_PREFIX + sheet.template.code], org).get(FS_PREFIX + sheet.template.code, {})
+    items = []
+    for r in sheet.template.rows.all().order_by("sort_order", "id"):
+        text, _num = _show(((sheet.data or {}).get(r.key) or {}).get(col_id), r.field_type, options.get(r.key, {}))
+        if text is None:
+            continue
+        if hide and r.field_type in TEXT_TYPES:
+            text = "[Hidden]"
+        label = f"{r.label} ({r.unit})" if r.unit else r.label
+        items.append((r.section_label or "", {"label": label, "value": text, "type": r.field_type}))
+    when = _stamp_local(col.get("timestamp"))
+    mrn = _mrn(sheet.patient)
+    return {
+        "kind": "flowsheet",
+        "title": sheet.template.name,
+        "status": "Charted",
+        "header": _header(
+            [
+                ("Patient", "[Hidden]" if hide else _person(sheet.patient, "Unknown patient")),
+                ("MRN", "[Hidden]" if hide and mrn else mrn),
+                ("Charted", when.strftime("%Y-%m-%d %H:%M") if when else None),
+                ("Charted by", (col.get("recorded_by_name") or "").strip() or _person(sheet.created_by)),
+            ]
+            + _visit_header(sheet.appointment)
+        ),
+        "sections": _sections(items),
+        "patient_id": sheet.patient_id,
+    }
+
+
+def document(ref, org, user, hide=True):
+    """The whole note or flowsheet time point behind a report row ("note:12" or "flowsheet:7:col_x")."""
+    parts = str(ref or "").split(":")
+    try:
+        if parts[0] == "note" and len(parts) == 2:
+            return _note_document(int(parts[1]), org, user, hide)
+        if parts[0] == "flowsheet" and len(parts) == 3:
+            return _flowsheet_document(int(parts[1]), parts[2], org, user, hide)
+    except ValueError:
+        pass
+    raise DocumentNotFound()
