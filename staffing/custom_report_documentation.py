@@ -403,7 +403,8 @@ def _load_notes(org, start, end, user, docs, observations, hide):
         unit = appt.unit if appt and appt.unit_id else None
         made = _local(n.created_at)
         base = {
-            "_patient": n.patient_id, "_id": n.pk, "_ref": f"note:{n.pk}",
+            "_patient": n.patient_id, "_id": n.pk, "_ref": f"note:{n.pk}", "_appt": n.appointment_id,
+            "_author": n.author_id, "_doc": appt.provider_id if appt else None,
             "template": names.get(code) or (n.template.name if n.template_id else _pretty(code)),
             "note_id": f"N-{n.pk}", "status": "Signed" if n.status == "signed" else "Draft",
             "date": made.date().isoformat(), "time": made.strftime("%H:%M"), "signed_on": _local(n.signed_at).date().isoformat() if n.signed_at else None,
@@ -481,6 +482,8 @@ def _load_flowsheets(org, start, end, user, docs, observations, hide):
             who = (col.get("recorded_by_name") or "").strip() or _person(sheet.created_by)
             base = {
                 "_patient": sheet.patient_id, "_id": f"{sheet.pk}:{col.get('id')}", "_ref": f"flowsheet:{sheet.pk}:{col.get('id')}",
+                "_appt": sheet.appointment_id, "_doc": appt.provider_id if appt.provider_id else None,
+                "_author": col.get("recorded_by") if isinstance(col.get("recorded_by"), int) else None,
                 "template": sheet.template.name, "note_id": f"F-{sheet.pk}-{number}", "status": "Charted",
                 "date": when.date().isoformat(), "time": when.strftime("%H:%M"), "signed_on": None,
                 "patient": _person(sheet.patient, "Unknown patient"), "mrn": _mrn(sheet.patient),
