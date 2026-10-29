@@ -23,6 +23,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import { BuilderShell, BuilderToolbar, BUILDER_STICKY_TOP } from "../components/builders/BuilderShell";
+import DocumentationDrawer from "../components/reports/DocumentationDrawer";
 import ReportResultTable from "../components/reports/ReportResultTable";
 import {
   DEFAULT_DOC_COLUMNS,
@@ -72,6 +73,7 @@ export default function ReportDocumentationPage() {
   const [audienceRoles, setAudienceRoles] = useState([]);
   const [range, setRange] = useState(defaultRange);
   const [hidePhi, setHidePhi] = useState(true);
+  const [openRef, setOpenRef] = useState(null); // the document open in the side panel
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState("");
@@ -635,7 +637,8 @@ export default function ReportDocumentationPage() {
               ))}
             </Box>
           )}
-          {preview && <ReportResultTable result={preview} stickyTop={BUILDER_STICKY_TOP} />}
+          {preview && <ReportResultTable result={preview} stickyTop={BUILDER_STICKY_TOP} onOpenRow={(r) => setOpenRef(r._ref)} />}
+          <DocumentationDrawer reference={openRef} hide={hidePhi} onClose={() => setOpenRef(null)} />
         </Paper>
       </Box>
     </BuilderShell>

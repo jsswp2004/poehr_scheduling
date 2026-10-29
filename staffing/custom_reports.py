@@ -619,6 +619,8 @@ def run_report(source_key, org, config, start, end, narrow=None, user=None, hide
             for c in cols:
                 v = r.get(c["key"]) if c["kind"] == "dimension" else _round(_single(r, c), c)
                 row[c["key"]] = v
+            if r.get("_ref"):
+                row["_ref"] = r["_ref"]  # lets a table open the record behind the row (documentation reports)
             out.append(row)
 
     hl = cfg["highlight"]

@@ -362,6 +362,7 @@ export const apiEndpoints = {
     staffingCustomReportSources: `${API_BASE_URL}/api/staffing/custom-reports/sources/`,
     staffingCustomReportLinkedCatalog: `${API_BASE_URL}/api/staffing/custom-reports/linked-catalog/`,
     staffingCustomReportDocumentationCatalog: `${API_BASE_URL}/api/staffing/custom-reports/documentation-catalog/`,
+    staffingCustomReportDocumentationDocument: `${API_BASE_URL}/api/staffing/custom-reports/documentation-document/`,
     staffingCustomReportAudit: `${API_BASE_URL}/api/staffing/custom-reports/audit/`,
     staffingReportSubscriptionTest: `${API_BASE_URL}/api/staffing/report-subscriptions/send-test/`,
 
