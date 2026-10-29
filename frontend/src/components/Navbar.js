@@ -516,8 +516,7 @@ function Navbar() {
     location.pathname !== "/communicator" &&
     location.pathname !== "/dashboard";
   const showAdminPortal =
-    (role === "admin" || role === "registrar" || role === "receptionist" || role === "system_admin") &&
-    location.pathname !== "/dashboard";
+    (role === "admin" || role === "system_admin") && location.pathname !== "/dashboard";
   const showAccount = role === "admin" || role === "system_admin";
   const showReports = STAFF_MODULE_ROLES.includes(role);  // Reports is always on, for every organization
   const goTo = (path) => {
@@ -808,12 +807,8 @@ function Navbar() {
                   </Tooltip>
                 )}
 
-              {/* Admin Icon Link - only for admin, registrar, receptionist, system_admin and not on dashboard page */}
-              {(role === "admin" ||
-                role === "registrar" ||
-                role === "receptionist" ||
-                role === "system_admin") &&
-                location.pathname !== "/dashboard" && (
+              {/* Management Portal icon - administrators only, and not on the dashboard page */}
+              {showAdminPortal && (
                   <Tooltip title="Management Portal">
                     <IconButton
                       color="inherit"
