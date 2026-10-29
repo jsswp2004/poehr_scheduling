@@ -6,6 +6,7 @@ from .removal import user_removal, user_restore
 from .board_builder import StatusSettingsView, StatusViewDetailView, StatusViewListView, StatusViewUndoView
 from .ed_board import BoardUpdateView, EdBoardPreferenceView, EdBoardView, EdFollowUpView
 from .org_access import module_catalog, organization_access
+from .dictionaries import dictionary_detail, dictionary_list
 from .views import (
     RegisterView,
     CustomTokenObtainPairView,
@@ -124,6 +125,8 @@ urlpatterns = [
     path(
         "trial-reminders/", send_trial_reminders, name="send-trial-reminders"
     ),  # Trial reminders endpoint
+    path("dictionaries/", dictionary_list, name="dictionary-list"),
+    path("dictionaries/<slug:code>/", dictionary_detail, name="dictionary-detail"),
     path("modules/", module_catalog, name="module-catalog"),
     path("organization-access/", organization_access, name="organization-access"),
     path("team/", get_team_members, name="team-list"),

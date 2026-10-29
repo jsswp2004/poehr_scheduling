@@ -13,6 +13,7 @@ const CreateProfileContainer = ({
     formData,
     formFields,
     roleOptions,
+    roleDisplayType,
     organizations,
     submitting,
     handleSubmit,
@@ -84,6 +85,7 @@ const CreateProfileContainer = ({
                     formData={formData}
                     formFields={formFields}
                     roleOptions={roleOptions}
+                    roleDisplayType={roleDisplayType}
                     organizations={organizations}
                     submitting={submitting}
                     onSubmit={handleSubmit}

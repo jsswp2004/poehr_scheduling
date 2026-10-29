@@ -40,6 +40,7 @@ from .facility_scope import assigned_facility_ids, visit_facility_q
 from appointments.models import Appointment  # Add this import
 from .stripe_service import StripeService
 from .modules import MODULE_CODES, PLAN_USER_LIMITS, plan_key
+from .dictionaries import resolve_role
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
 from .models import Organization
@@ -599,6 +600,14 @@ class RegisterView(generics.CreateAPIView):
             ]
         }
 
+        # A role added in System Dictionaries is saved as the built-in role it behaves like, plus the entry itself.
+        role_entry = None
+        if serializer_data.get("role") and not is_enrollment:
+            resolved = resolve_role(serializer_data["role"])
+            if resolved is None:
+                return Response({"role": ["Choose a role from the list."]}, status=status.HTTP_400_BAD_REQUEST)
+            serializer_data["role"], role_entry = resolved
+
         # Staff accounts count against the plan's user limit (patients never do).
         if request.user.is_authenticated and not is_enrollment:
             if data.get("role") != "patient" and not organization.can_add_users:
@@ -622,7 +631,7 @@ class RegisterView(generics.CreateAPIView):
         try:
             with transaction.atomic():
                 # Create the user (this will be rolled back if Stripe fails)
-                user = serializer.save(organization=organization)
+                user = serializer.save(organization=organization, role_entry=role_entry)
 
                 # Set role to 'admin' for service enrollment
                 if is_enrollment:

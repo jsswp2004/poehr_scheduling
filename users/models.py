@@ -21,6 +21,11 @@ class CustomUser(AbstractUser):
     role = models.CharField(
         max_length=20, choices=ROLE_CHOICES, default="none"
     )  # 🔗 Link user to organization
+    # A role added in System Dictionaries. `role` above holds the built-in role it behaves like, so every
+    # access check keeps working; this only supplies the name people see.
+    role_entry = models.ForeignKey(
+        "DictionaryEntry", null=True, blank=True, on_delete=models.SET_NULL, related_name="+",
+    )
     organization = models.ForeignKey(
         "Organization",
         on_delete=models.CASCADE,
@@ -867,3 +872,51 @@ class OrganizationAccessChange(models.Model):
 
     def __str__(self):
         return f"{self.organization_id}: {self.summary}"
+
+
+class Dictionary(models.Model):
+    """
+    A configurable list shown as a choice in the app (the first one is "roles"). Shared by every
+    organization. System administrators edit dictionaries in System Dictionaries; everyone reads them.
+    """
+
+    DISPLAY_CHOICES = (
+        ("checkboxes", "Checkboxes"),
+        ("radio", "Radio buttons"),
+        ("dropdown", "Dropdown"),
+        ("searchable", "Dropdown, searchable"),
+    )
+    code = models.SlugField(max_length=50, unique=True)
+    name = models.CharField(max_length=100)
+    used_by = models.CharField(max_length=200, blank=True)
+    display_type = models.CharField(max_length=20, choices=DISPLAY_CHOICES, default="dropdown")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class DictionaryEntry(models.Model):
+    """
+    One choice in a Dictionary. `value` is what is stored and never changes; `label` is what people read.
+    Locked (built-in) entries cannot be removed or have their value changed because the app's access checks
+    depend on them. For roles, `behaves_like` names the built-in role a custom entry acts as.
+    """
+
+    dictionary = models.ForeignKey(Dictionary, on_delete=models.CASCADE, related_name="entries")
+    value = models.CharField(max_length=50)
+    label = models.CharField(max_length=100)
+    behaves_like = models.CharField(max_length=50, blank=True)
+    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    is_locked = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [models.UniqueConstraint(fields=["dictionary", "value"], name="uniq_dictionary_value")]
+
+    def __str__(self):
+        return f"{self.dictionary.code}:{self.value}"

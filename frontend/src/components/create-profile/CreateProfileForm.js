@@ -4,10 +4,6 @@ import {
     TextField,
     Button,
     Typography,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     Avatar,
     CircularProgress,
     Paper,
@@ -16,6 +12,7 @@ import CreatableSelect from "react-select/creatable";
 import axios from "axios";
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../../config/api';
+import DictionaryField from '../dictionaries/DictionaryField';
 
 export const CREATE_PROFILE_FORM_ID = 'create-profile-form';
 
@@ -27,6 +24,7 @@ const CreateProfileForm = ({
     formData,
     formFields,
     roleOptions,
+    roleDisplayType,
     organizations,
     submitting,
     onSubmit,
@@ -181,29 +179,15 @@ const CreateProfileForm = ({
                                 sx={{ ...fieldSx, ...(field.name === 'password' ? { gridColumn: { sm: "1 / -1" } } : {}) }}
                             />
                         ))}
-                        <FormControl fullWidth size="small" required>
-                            <InputLabel id="role-label">Role</InputLabel>
-                            <Select
-                                labelId="role-label"
-                                name="role"
-                                value={formData.role}
-                                label="Role"
-                                onChange={onChange}
-                                required
-                                sx={{ borderRadius: 2 }}
-                            >
-                                <MenuItem value="">
-                                    <em>Select a role</em>
-                                </MenuItem>
-                                {roleOptions
-                                    .filter(option => option.value !== '') // Remove the default empty option
-                                    .map((option) => (
-                                        <MenuItem key={option.value} value={option.value}>
-                                            {option.label}
-                                        </MenuItem>
-                                    ))}
-                            </Select>
-                        </FormControl>
+                        <DictionaryField
+                            label="Role"
+                            name="role"
+                            value={formData.role}
+                            onChange={onChange}
+                            options={roleOptions.filter((o) => o.value !== '')}
+                            displayType={roleDisplayType}
+                            required
+                        />
                     </Box>
                 </Paper>
             </Box>

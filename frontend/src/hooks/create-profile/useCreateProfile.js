@@ -27,9 +27,17 @@ export const useCreateProfile = () => {
         organization: '',
     });
 
-    // Available role options
-    const roleOptions = [
-        { value: '', label: 'Select a role' },
+    // Role choices come from the Roles dictionary (System Dictionaries). If it cannot be loaded, the built-in list is used.
+    const [roleDictionary, setRoleDictionary] = useState(null);
+    useEffect(() => {
+        let alive = true;
+        axios.get(`${API_BASE_URL}/api/users/dictionaries/roles/`)
+            .then((res) => { if (alive) setRoleDictionary(res.data); })
+            .catch(() => {});
+        return () => { alive = false; };
+    }, []);
+
+    const FALLBACK_ROLES = [
         { value: 'patient', label: 'Patient' },
         { value: 'receptionist', label: 'Receptionist' },
         { value: 'doctor', label: 'Doctor' },
@@ -37,9 +45,17 @@ export const useCreateProfile = () => {
         { value: 'admin', label: 'Admin' },
         { value: 'registrar', label: 'Registrar' },
         { value: 'system_admin', label: 'System Admin' },
-        // Staffing roster login (My Shifts): offered only when the organization has Staffing
-        ...(moduleEnabled('staffing') ? [{ value: 'staff', label: 'Staff' }] : []),
+        { value: 'staff', label: 'Staff', behaves_like: 'staff' },
     ];
+    const rawRoles = roleDictionary
+        ? roleDictionary.entries.filter((e) => e.is_active).map((e) => ({ value: e.value, label: e.label, behaves_like: e.behaves_like }))
+        : FALLBACK_ROLES;
+    // Staff-like roles are offered only when the organization has Staffing
+    const roleOptions = [
+        { value: '', label: 'Select a role' },
+        ...rawRoles.filter((r) => r.behaves_like !== 'staff' || moduleEnabled('staffing')),
+    ];
+    const roleDisplayType = roleDictionary ? roleDictionary.display_type : 'dropdown';
 
     // Form field configuration
     const formFields = [
@@ -134,6 +150,7 @@ export const useCreateProfile = () => {
         organizations,
         submitting,
         roleOptions,
+        roleDisplayType,
         formFields,
         handleChange,
         handleSubmit,
