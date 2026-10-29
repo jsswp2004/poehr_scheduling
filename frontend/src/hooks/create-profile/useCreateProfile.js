@@ -32,6 +32,7 @@ export const useCreateProfile = () => {
         { value: 'patient', label: 'Patient' },
         { value: 'receptionist', label: 'Receptionist' },
         { value: 'doctor', label: 'Doctor' },
+        { value: 'nurse', label: 'Nurse' },
         { value: 'admin', label: 'Admin' },
         { value: 'registrar', label: 'Registrar' },
         { value: 'system_admin', label: 'System Admin' },
