@@ -237,16 +237,25 @@ class StripeService:
         Create a trial subscription for an organization instead of individual user
         """
         try:
-            tier_info = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS["basic"])
-            price_id = tier_info["price_id"]
+            from .module_billing import module_pricing_configured, subscription_items
+            from .modules import enabled_codes
 
-            if not price_id:
-                raise ValueError(f"No price ID configured for tier: {tier}")
+            if module_pricing_configured():
+                # Base price plus one item for the paid extra modules (see users/modules.py).
+                items = subscription_items(enabled_codes(organization))
+            else:
+                # Module prices are not set up in Stripe yet: fall back to the old per-plan price.
+                tier_info = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS["basic"])
+                price_id = tier_info["price_id"]
+
+                if not price_id:
+                    raise ValueError(f"No price ID configured for tier: {tier}")
+                items = [{"price": price_id}]
 
             # Create Stripe subscription for organization (using admin user's customer)
             subscription = stripe.Subscription.create(
                 customer=admin_user.stripe_customer_id,
-                items=[{"price": price_id}],
+                items=items,
                 trial_period_days=TRIAL_PERIOD_DAYS,
                 metadata={
                     "organization_id": str(organization.id),
@@ -261,11 +270,12 @@ class StripeService:
             # Update organization subscription info (instead of user)
             trial_start = timezone.now()
             trial_end = trial_start + timedelta(days=TRIAL_PERIOD_DAYS)
-            tier_display_name = get_tier_display_name(tier)
+            from .modules import plan_key
 
             organization.stripe_subscription_id = subscription.id
             organization.subscription_status = "trial"
-            organization.subscription_tier = tier_display_name
+            # Store the plan key ("premium"), not its display name: the limits lookup is keyed on it.
+            organization.subscription_tier = plan_key(tier)
             organization.trial_start_date = trial_start
             organization.trial_end_date = trial_end
             
@@ -317,9 +327,10 @@ class StripeService:
             )
 
             # Update organization with new tier
-            tier_display_name = get_tier_display_name(new_tier)
-            organization.subscription_tier = tier_display_name
-            
+            from .modules import plan_key
+
+            organization.subscription_tier = plan_key(new_tier)
+
             # Update max users based on new tier
             limits = organization.get_subscription_limits()
             organization.max_users = limits['max_users']

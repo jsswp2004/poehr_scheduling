@@ -13,6 +13,7 @@ import {
     FaColumns,
     FaHeartbeat,
     FaUserCheck,
+    FaKey,
 } from 'react-icons/fa';
 import { groupTools } from './adminHelpers';
 
@@ -29,6 +30,7 @@ const ICONS = {
     FaColumns,
     FaHeartbeat,
     FaUserCheck,
+    FaKey,
 };
 
 function ToolCard({ item, group, onNavigate }) {

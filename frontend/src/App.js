@@ -54,6 +54,7 @@ import DataSecurityPage from './pages/DataSecurityPage';
 import SupportPage from './pages/SupportPage';
 import ToastTestPage from './pages/ToastTestPage';
 import MessagesPage from './pages/MessagesPage';
+import OrganizationAccessPage from './pages/OrganizationAccessPage';
 import CommunicatorPage from './pages/CommunicatorPage';
 import { SolutionsPage } from './pages/SolutionsPage';
 import WebSocketTest from './components/WebSocketTest';
@@ -237,6 +238,7 @@ function AppContent() {
         <Route path="/holidays" element={<PrivateRoute><HolidaysTab /></PrivateRoute>} />
         <Route path="/environment" element={<PrivateRoute><FacilityPicker><EnvironmentProfilePage /></FacilityPicker></PrivateRoute>} />        <Route path="/admin-user-search" element={<PrivateRoute><AdminUserSearchPage /></PrivateRoute>} />
         <Route path="/messages" element={<PrivateRoute><MessagesPage /></PrivateRoute>} />
+        <Route path="/organization-access" element={<PrivateRoute><OrganizationAccessPage /></PrivateRoute>} />
         <Route path="/note-builder" element={<PrivateRoute><NoteTemplateBuilderPage /></PrivateRoute>} />
         <Route path="/flowsheet-builder" element={<PrivateRoute><FlowsheetBuilderPage /></PrivateRoute>} />
         <Route path="/status-board-builder" element={<PrivateRoute><StatusBoardBuilderPage /></PrivateRoute>} />

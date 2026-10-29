@@ -142,8 +142,28 @@ class TenantAwareJWTAuthentication(JWTAuthentication):
             if getattr(user, "role", None) == "staff":
                 self._enforce_staff_scope(request)
             self._act_for_facility(request, user)
+            self._enforce_module(request, user)
             set_current_organization(getattr(user, "organization", None))
         return result
+
+    def _enforce_module(self, request, user):
+        """
+        Block the API of a module the organization has switched off. Hiding a menu is not enough:
+        the server refuses the request. System administrators are never blocked (they manage
+        every organization), and an organization that was never configured keeps everything.
+        """
+        if getattr(user, "role", None) == "system_admin":
+            return
+        from rest_framework.exceptions import PermissionDenied
+
+        from users.modules import has_module, module_for_path
+
+        code = module_for_path(request.path)
+        org = getattr(user, "organization", None)
+        if code and org is not None and not has_module(org, code):
+            raise PermissionDenied(
+                detail={"detail": "This service is not turned on for your organization.", "code": "module_not_enabled", "module": code}
+            )
 
     FACILITY_HEADER = "HTTP_X_FACILITY_ID"
 

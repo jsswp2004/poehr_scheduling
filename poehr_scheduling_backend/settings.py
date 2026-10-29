@@ -343,6 +343,10 @@ SCHEDULED_JOBS_SECRET = os.getenv("SCHEDULED_JOBS_SECRET", "")
 # run and the resulting price IDs are set as env vars -- attach_messaging_billing
 # and report_messaging_usage raise a clear error if these are missing rather
 # than silently doing nothing.
+# Module pricing (users/modules.py): a base price item, plus an item whose quantity is the number of paid extra
+# modules. Leave empty until both prices exist in Stripe; enrollment then falls back to the old per-plan prices.
+STRIPE_BASE_PRICE_ID = os.getenv("STRIPE_BASE_PRICE_ID", "")
+STRIPE_MODULE_PRICE_ID = os.getenv("STRIPE_MODULE_PRICE_ID", "")
 STRIPE_EMAIL_OVERAGE_PRICE_ID = os.getenv("STRIPE_EMAIL_OVERAGE_PRICE_ID", "")
 STRIPE_SMS_OVERAGE_PRICE_ID = os.getenv("STRIPE_SMS_OVERAGE_PRICE_ID", "")
 

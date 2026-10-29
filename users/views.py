@@ -39,6 +39,7 @@ from .permissions import HasRight
 from .facility_scope import assigned_facility_ids, visit_facility_q
 from appointments.models import Appointment  # Add this import
 from .stripe_service import StripeService
+from .modules import MODULE_CODES, PLAN_USER_LIMITS, plan_key
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .token_serializers import CustomTokenObtainPairSerializer
 from .models import Organization
@@ -523,15 +524,28 @@ class RegisterView(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             org_type = data.get("organization_type", "personal")
+            # Chosen plan (user limit) and services. No `modules` sent (an older page) keeps everything on.
+            chosen_plan = plan_key(subscription_tier)
+            chosen_modules = data.get("modules")
+            if chosen_modules is not None:
+                if not isinstance(chosen_modules, list) or any(c not in MODULE_CODES for c in chosen_modules):
+                    return Response(
+                        {"modules": ["Choose services from the list."]},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                chosen_modules = list(dict.fromkeys(chosen_modules))
             print(
                 f"🏢 Creating new organization for enrollment: '{org_name}' (type: {org_type})"
             )
             organization = Organization.objects.create(
                 name=org_name,
                 organization_type=org_type,
-                subscription_tier="basic",  # Start with basic tier
+                subscription_tier=chosen_plan,
                 subscription_status="trial",
-                max_users=1,  # Will be updated based on selected tier
+                max_users=PLAN_USER_LIMITS[chosen_plan],
+                enabled_modules=chosen_modules,
+                dictation_enabled=bool(chosen_modules and "dictation" in chosen_modules),
+                lab_interface_enabled=bool(chosen_modules and "lab_interface" in chosen_modules),
                 # Clinic location -- the state selects the staffing rules.
                 address_line1=(data.get("address_line1") or "").strip()[:255],
                 address_line2=(data.get("address_line2") or "").strip()[:255],
@@ -581,8 +595,20 @@ class RegisterView(generics.CreateAPIView):
                 "subscription_tier",
                 "is_enrollment",
                 "organization_name",
+                "modules",
             ]
         }
+
+        # Staff accounts count against the plan's user limit (patients never do).
+        if request.user.is_authenticated and not is_enrollment:
+            if data.get("role") != "patient" and not organization.can_add_users:
+                return Response(
+                    {
+                        "error": f"Your plan allows {organization.max_users} user(s) and all are in use. Ask a system administrator to raise the limit.",
+                        "code": "user_limit_reached",
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         serializer = self.get_serializer(data=serializer_data)
 

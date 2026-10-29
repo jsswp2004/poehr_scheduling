@@ -75,6 +75,12 @@ services:
         sync: false
       - key: STRIPE_ENTERPRISE_PRICE_ID
         sync: false
+      # Module pricing: base price and the per-extra-module price. Create them with the
+      # setup_module_prices management command, then paste the ids here.
+      - key: STRIPE_BASE_PRICE_ID
+        sync: false
+      - key: STRIPE_MODULE_PRICE_ID
+        sync: false
       # Shared secret the GitHub Actions daily scheduler sends to
       # /api/run-scheduled-jobs/ -- generate a long random value and set
       # the SAME value as a GitHub repo secret (SCHEDULED_JOBS_SECRET).
