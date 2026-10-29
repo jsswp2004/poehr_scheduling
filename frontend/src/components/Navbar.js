@@ -518,7 +518,7 @@ function Navbar() {
     (role === "admin" || role === "registrar" || role === "receptionist" || role === "system_admin") &&
     location.pathname !== "/dashboard";
   const showAccount = role === "admin" || role === "system_admin";
-  const showReports = STAFF_MODULE_ROLES.includes(role) && moduleEnabled("staffing");
+  const showReports = STAFF_MODULE_ROLES.includes(role) && moduleEnabled("custom_reports");
   const goTo = (path) => {
     closeMenu();
     navigate(path);
