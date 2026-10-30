@@ -346,6 +346,7 @@ SCHEDULED_JOBS_SECRET = os.getenv("SCHEDULED_JOBS_SECRET", "")
 # Module pricing (users/modules.py): a base price item, plus an item whose quantity is the number of paid extra
 # modules. Leave empty until both prices exist in Stripe; enrollment then falls back to the old per-plan prices.
 STRIPE_BASE_PRICE_ID = os.getenv("STRIPE_BASE_PRICE_ID", "")
+STRIPE_CLINIC_BASE_PRICE_ID = os.getenv("STRIPE_CLINIC_BASE_PRICE_ID", "")  # $599, two services included
 STRIPE_MODULE_PRICE_ID = os.getenv("STRIPE_MODULE_PRICE_ID", "")
 STRIPE_EMAIL_OVERAGE_PRICE_ID = os.getenv("STRIPE_EMAIL_OVERAGE_PRICE_ID", "")
 STRIPE_SMS_OVERAGE_PRICE_ID = os.getenv("STRIPE_SMS_OVERAGE_PRICE_ID", "")

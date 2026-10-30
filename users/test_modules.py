@@ -5,7 +5,7 @@ from rest_framework.test import APIClient
 
 from users.models import CustomUser, Organization, OrganizationAccessChange
 from users.modules import (
-    BASE_PRICE, EXTRA_MODULE_PRICE, enabled_codes, module_for_path, monthly_total, plan_key,
+    BASE_PRICE, EXTRA_MODULE_PRICE, enabled_codes, module_for_path, monthly_total, normalize_codes, plan_key,
 )
 
 
@@ -23,6 +23,26 @@ class PricingTests(TestCase):
         self.assertEqual(monthly_total(["scheduling"]), 299)
         self.assertEqual(monthly_total(["scheduling", "staffing", "telehealth"]), 299 + 2 * EXTRA_MODULE_PRICE)
         self.assertEqual(monthly_total(["scheduling", "lab_interface"]), 299)  # lab is quoted separately
+
+    def test_clinic_includes_two_services(self):
+        self.assertEqual(monthly_total(["scheduling"], "premium"), 599)
+        self.assertEqual(monthly_total(["scheduling", "staffing"], "premium"), 599)
+        self.assertEqual(monthly_total(["scheduling", "staffing", "telehealth"], "premium"), 599 + EXTRA_MODULE_PRICE)
+        self.assertEqual(monthly_total(["scheduling", "staffing", "lab_interface"], "premium"), 599)
+        self.assertEqual(monthly_total(["scheduling", "staffing"], "Clinic"), 599)
+        self.assertEqual(monthly_total(["scheduling", "staffing"], "basic"), 299 + EXTRA_MODULE_PRICE)
+
+    def test_retired_codes_become_clinical_notes(self):
+        self.assertEqual(
+            normalize_codes(["scheduling", "orders_labs", "triage_boards", "clinical_documentation", "nonsense"]),
+            ["scheduling", "clinical_documentation"],
+        )
+        org = make_org("Old", enabled_modules=["orders_labs", "prescriptions_referrals"])
+        self.assertEqual(enabled_codes(org), ["clinical_documentation"])
+
+    def test_orders_prescriptions_triage_routes_follow_clinical_notes(self):
+        for path in ("/api/orders/1/", "/api/prescriptions/", "/api/referrals/", "/api/triage/x/", "/api/lab-reports/"):
+            self.assertEqual(module_for_path(path), "clinical_documentation", path)
 
     def test_plan_key(self):
         self.assertEqual(plan_key("Clinic"), "premium")
@@ -54,13 +74,21 @@ class AccessApiTests(TestCase):
         r = self.c.get("/api/users/modules/")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["pricing"]["base"], 299)
+        plans = r.json()["pricing"]["plans"]
+        self.assertEqual((plans["premium"]["base"], plans["premium"]["included_count"]), (599, 2))
+        self.assertEqual((plans["basic"]["base"], plans["basic"]["included_count"]), (299, 1))
+        self.assertTrue(plans["enterprise"]["quoted"])
+        messaging = r.json()["pricing"]["messaging"]
+        self.assertEqual(messaging["rates"], {"email": 0.01, "sms": 0.03})
+        self.assertEqual(messaging["allowances"]["premium"], {"email": 1000, "sms": 300})
+        self.assertNotIn("orders_labs", [m["code"] for m in r.json()["modules"]])
 
     def test_org_admin_reads_not_writes(self):
         self.c.force_authenticate(self.admin)
         r = self.c.get("/api/users/organization-access/")
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.json()["can_edit"])
-        self.assertEqual(r.json()["pricing"]["monthly_total"], 449)
+        self.assertEqual(r.json()["pricing"]["monthly_total"], 599)
         r = self.c.patch("/api/users/organization-access/", {"modules": ["scheduling"]}, format="json")
         self.assertEqual(r.status_code, 403)
 

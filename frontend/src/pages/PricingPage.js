@@ -1,8 +1,8 @@
 /*
  * POWER Pricing Page
  *
- * Pricing is one flat base price for every organization. The first service is included and each further
- * service adds the same amount. The plan (Professional, Clinic, Group) only sets how many people can sign in.
+ * Pricing is by plan: Professional is $299 with one service included, Clinic is $599 with two, each further
+ * service is $150, and Group is priced by a quote. Texts and emails are billed separately by volume.
  * Services, descriptions and prices come from the server's catalog (/api/users/modules/) so this page cannot
  * drift from what is billed; the capability bullets below describe what each service does today.
  */
@@ -14,11 +14,11 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { API_BASE_URL } from "../config/api";
 import {
-  BASE_PRICE,
   EXTRA_MODULE_PRICE,
   GROUP_ORDER,
   formatMoney,
-  monthlyTotal,
+  planMonthlyTotal,
+  planTerms,
   pricedModules,
   userLimitLabel,
 } from "../utils/modulePricing";
@@ -38,22 +38,11 @@ const CAPABILITIES = {
     "Growth charts and vaccine schedules",
     "Problem list, home medications and allergies",
     "Signed notes lock; changes are added as addenda",
-  ],
-  orders_labs: [
-    "Place, sign and cosign orders, with order sets",
-    "Nurse task list built from medication orders",
+    "Place, sign and cosign orders, with order sets and a nurse task list",
     "Enter and review lab results with trend views",
-    "Full history on every order and result",
-  ],
-  prescriptions_referrals: [
-    "Write and sign prescriptions for non-controlled drugs; print or record a fax",
-    "Pharmacy list, favorites and renewals",
+    "Prescriptions for non-controlled drugs, with a pharmacy list and renewals",
     "Referral tracking from sent to report received, with overdue timers",
-  ],
-  triage_boards: [
-    "ESI triage note with a suggested level and the reasons",
-    "Suicide-risk screening with a safety alert",
-    "Live emergency department board and a follow-up board",
+    "ESI triage with a suggested level, suicide-risk screening, and live emergency department and follow-up boards",
     "Status board builder for views you design",
   ],
   scheduling: [
@@ -93,9 +82,9 @@ const CAPABILITIES = {
 };
 
 const EXAMPLES = [
-  { title: "Nursing home staffing", services: "Staffing and coverage", count: 1 },
-  { title: "Staffing with resident and family texts", services: "Staffing + Communicator", count: 2 },
-  { title: "Small clinic", services: "Scheduling + Clinical documentation + Orders and labs", count: 3 },
+  { title: "Solo provider", plan: "basic", services: "Professional with Scheduling", count: 1 },
+  { title: "Small clinic", plan: "premium", services: "Clinic with Scheduling + Clinical Notes", count: 2 },
+  { title: "Clinic with portal", plan: "premium", services: "Clinic with Clinical Notes + Patient Portal + Scheduling", count: 3 },
 ];
 
 const INCLUDED_EVERYWHERE = [
@@ -106,9 +95,19 @@ const INCLUDED_EVERYWHERE = [
   "Change your services at any time",
 ];
 
+const PLAN_CARDS = [
+  { key: "basic", name: "Professional", blurb: "For a solo provider or manager.", to: "/enroll?plan=personal&tier=basic" },
+  { key: "premium", name: "Clinic", blurb: "For a clinic, unit or small facility.", to: "/enroll?plan=clinic&tier=premium" },
+  { key: "enterprise", name: "Group", blurb: "For larger organizations and multiple sites. Priced by a quote based on your size.", to: "/contact" },
+];
+
+const fmtAmount = (n) => (n === null || n === undefined ? "Unlimited" : Number(n).toLocaleString("en-US"));
+const fmtRate = (n) => `$${Number(n).toFixed(2)}`;
+
 export const PricingPage = ({ className }) => {
-  const [catalog, setCatalog] = useState({ plans: [], modules: [] });
+  const [catalog, setCatalog] = useState({ plans: [], modules: [], planPricing: null, messaging: null });
   const [error, setError] = useState(false);
+  const [plan, setPlan] = useState("basic");
   const [selected, setSelected] = useState([]);
   const [open, setOpen] = useState({});
 
@@ -116,7 +115,16 @@ export const PricingPage = ({ className }) => {
     let alive = true;
     axios
       .get(`${API_BASE_URL}/api/users/modules/`)
-      .then((r) => alive && setCatalog({ plans: r.data.plans || [], modules: r.data.modules || [] }))
+      .then(
+        (r) =>
+          alive &&
+          setCatalog({
+            plans: r.data.plans || [],
+            modules: r.data.modules || [],
+            planPricing: r.data.pricing?.plans || null,
+            messaging: r.data.pricing?.messaging || null,
+          })
+      )
       .catch(() => alive && setError(true));
     return () => {
       alive = false;
@@ -134,12 +142,15 @@ export const PricingPage = ({ className }) => {
     [catalog.modules]
   );
 
+  const terms = planTerms(catalog.planPricing, plan);
   const priced = pricedModules(selected, catalog.modules);
-  const extras = Math.max(0, priced.length - 1);
-  const total = monthlyTotal(selected, catalog.modules);
+  const extras = Math.max(0, priced.length - terms.included);
+  const total = planMonthlyTotal(selected, catalog.modules, catalog.planPricing, plan);
   const labQuoted = selected.some((c) => catalog.modules.find((m) => m.code === c)?.quoted);
   const planByKey = Object.fromEntries(catalog.plans.map((p) => [p.key, p]));
   const limitFor = (key, fallback) => userLimitLabel(planByKey[key] ? planByKey[key].user_limit : fallback);
+  const cta = PLAN_CARDS.find((c) => c.key === plan);
+  const msg = catalog.messaging;
 
   return (
     <div className={"pricing-page " + (className || "")}>
@@ -147,17 +158,48 @@ export const PricingPage = ({ className }) => {
 
       <div className="pricing-page-header">
         <div className="page-title-section">
-          <h1 className="page-title">One price. Pick the services your team uses.</h1>
+          <h1 className="page-title">Pick your plan, then the services your team uses.</h1>
           <p className="page-subtitle">
-            Every organization pays {formatMoney(BASE_PRICE)} a month with its first service included. Each additional
-            service adds {formatMoney(EXTRA_MODULE_PRICE)}. Reports are free.
+            Professional is {formatMoney(planTerms(catalog.planPricing, "basic").base)} a month for one person with one
+            service. Clinic is {formatMoney(planTerms(catalog.planPricing, "premium").base)} a month for up to 10
+            people with two services. Each additional service is {formatMoney(EXTRA_MODULE_PRICE)}. Reports are free
+            with every plan.
           </p>
         </div>
       </div>
 
       <div className="pricing-section">
       <div className="pp-section">
-        <h2 className="pp-heading">1. Choose your services</h2>
+        <h2 className="pp-heading" id="pricing-plans">1. Choose your plan</h2>
+        <div className="pp-plans" role="radiogroup" aria-label="Plan">
+          {PLAN_CARDS.map((c) => {
+            const t = planTerms(catalog.planPricing, c.key);
+            return (
+              <label key={c.key} className={"pp-plan pp-plan-pick" + (plan === c.key ? " pp-plan-selected" : "")}>
+                <input
+                  type="radio"
+                  name="plan"
+                  value={c.key}
+                  checked={plan === c.key}
+                  onChange={() => setPlan(c.key)}
+                />
+                <h3>{c.name}</h3>
+                <div className="pp-users">{limitFor(c.key, c.key === "basic" ? 1 : c.key === "premium" ? 10 : 999999)}</div>
+                <div className="pp-plan-price">
+                  {t.quoted ? "Quote" : formatMoney(t.base)}
+                  {!t.quoted && <small> / month</small>}
+                </div>
+                <p>
+                  {t.quoted
+                    ? c.blurb
+                    : `Includes ${t.included} service${t.included === 1 ? "" : "s"}. Each additional service is ${formatMoney(EXTRA_MODULE_PRICE)}. ${c.blurb}`}
+                </p>
+              </label>
+            );
+          })}
+        </div>
+
+        <h2 className="pp-heading">2. Choose your services</h2>
         {error && <p className="pp-note">The service list could not be loaded. Please refresh the page.</p>}
         <div className="pp-builder">
           <div className="pp-groups">
@@ -210,15 +252,21 @@ export const PricingPage = ({ className }) => {
 
           <aside className="pp-total" aria-live="polite">
             <div className="pp-note">Your monthly price</div>
-            <div className="pp-big">{formatMoney(total)}</div>
-            <div className="pp-row">
-              <span>Base, first service included</span>
-              <span>{formatMoney(BASE_PRICE)}</span>
-            </div>
-            <div className="pp-row">
-              <span>Additional services ({extras})</span>
-              <span>{formatMoney(EXTRA_MODULE_PRICE * extras)}</span>
-            </div>
+            <div className="pp-big">{total === null ? "Quote" : formatMoney(total)}</div>
+            {total !== null && (
+              <>
+                <div className="pp-row">
+                  <span>
+                    {cta.name}, {terms.included} service{terms.included === 1 ? "" : "s"} included
+                  </span>
+                  <span>{formatMoney(terms.base)}</span>
+                </div>
+                <div className="pp-row">
+                  <span>Additional services ({extras})</span>
+                  <span>{formatMoney(EXTRA_MODULE_PRICE * extras)}</span>
+                </div>
+              </>
+            )}
             <div className="pp-row">
               <span>Reports</span>
               <span className="pp-tag pp-free">Free</span>
@@ -226,54 +274,58 @@ export const PricingPage = ({ className }) => {
             {labQuoted && (
               <div className="pp-note">Electronic lab interface is set up by arrangement and quoted separately.</div>
             )}
-            <a className="btn-panel" href="#pricing-plans">
-              Continue to plan
-            </a>
+            <div className="pp-note">Texts and emails are billed separately by volume. See below.</div>
+            <Link to={cta.to} className="btn-panel">
+              {plan === "enterprise" ? "Contact sales" : "Start free trial"}
+            </Link>
           </aside>
         </div>
 
-        <h2 className="pp-heading" id="pricing-plans">
-          2. Choose how many people sign in
-        </h2>
-        <div className="pp-plans">
-          <div className="pp-plan">
-            <h3>Professional</h3>
-            <div className="pp-users">{limitFor("basic", 1)}</div>
-            <p>For a solo provider or manager, with the services you picked.</p>
-            <Link to="/enroll?plan=personal&tier=basic" className="btn-panel">
-              Start free trial
-            </Link>
-          </div>
-          <div className="pp-plan">
-            <h3>Clinic</h3>
-            <div className="pp-users">{limitFor("premium", 10)}</div>
-            <p>For a clinic, unit or small facility, with the services you picked.</p>
-            <Link to="/enroll?plan=clinic&tier=premium" className="btn-panel">
-              Start free trial
-            </Link>
-          </div>
-          <div className="pp-plan">
-            <h3>Group</h3>
-            <div className="pp-users">{limitFor("enterprise", 999999)}</div>
-            <p>For larger organizations and multiple sites. Priced by a quote based on your size.</p>
-            <Link to="/contact" className="btn-panel">
-              Contact sales
-            </Link>
-          </div>
-        </div>
-        <p className="pp-note">The plan changes only the number of users. The price comes from the services you pick.</p>
+        {msg && (
+          <>
+            <h2 className="pp-heading">Texts and emails</h2>
+            <div className="pp-examples">
+              {PLAN_CARDS.map((c) => {
+                const a = msg.allowances?.[c.key] || {};
+                const unlimited = a.email === null && a.sms === null;
+                return (
+                  <div key={c.key}>
+                    <b>{c.name}</b>
+                    <span>
+                      {unlimited
+                        ? "Included in your quote"
+                        : `${fmtAmount(a.email)} emails and ${fmtAmount(a.sms)} texts included each month`}
+                    </span>
+                    <span className="pp-example-price">
+                      {unlimited
+                        ? "Unlimited"
+                        : `${fmtRate(msg.rates.email)} per email, ${fmtRate(msg.rates.sms)} per text after`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="pp-note">
+              Reminders and messages use texts and emails. You are billed monthly for what goes over your plan's
+              amount, on the same invoice as your subscription.
+            </p>
+          </>
+        )}
 
         <h2 className="pp-heading">Examples</h2>
         <div className="pp-examples">
-          {EXAMPLES.map((e) => (
-            <div key={e.title}>
-              <b>{e.title}</b>
-              <span>{e.services}</span>
-              <span className="pp-example-price">
-                {formatMoney(BASE_PRICE + EXTRA_MODULE_PRICE * (e.count - 1))} / month
-              </span>
-            </div>
-          ))}
+          {EXAMPLES.map((e) => {
+            const t = planTerms(catalog.planPricing, e.plan);
+            return (
+              <div key={e.title}>
+                <b>{e.title}</b>
+                <span>{e.services}</span>
+                <span className="pp-example-price">
+                  {formatMoney(t.base + EXTRA_MODULE_PRICE * Math.max(0, e.count - t.included))} / month
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         <h2 className="pp-heading">Included with every plan</h2>

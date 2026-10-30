@@ -924,3 +924,11 @@ html {
   .page-title-section { padding-left: 16px; padding-right: 16px; }
   .page-title { font-size: 30px; }
 }
+
+/* Plan picker */
+.pp-plan-pick { position: relative; cursor: pointer; }
+.pp-plan-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.pp-plan-selected { border-color: var(--color-primary, #2563eb); box-shadow: 0 0 0 2px var(--color-primary, #2563eb); }
+.pp-plan-pick:has(input:focus-visible) { outline: 2px solid var(--color-primary, #2563eb); outline-offset: 2px; }
+.pp-plan-price { font-size: 26px; font-weight: 700; color: #1e293b; }
+.pp-plan-price small { font-size: 14px; font-weight: 400; color: #64748b; }

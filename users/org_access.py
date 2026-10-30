@@ -13,21 +13,48 @@ from rest_framework.response import Response
 from .models import Organization, OrganizationAccessChange
 from .module_billing import sync_module_billing
 from .modules import (
-    BASE_PRICE, EXTRA_MODULE_PRICE, MODULE_CODES, MODULE_LABELS, PLAN_LABELS, PLAN_USER_LIMITS,
-    catalog, enabled_codes, extra_module_count, monthly_total, plan_key, priced_modules,
+    EXTRA_MODULE_PRICE, MODULE_CODES, MODULE_LABELS, PLAN_BASE_PRICE, PLAN_INCLUDED_MODULES, PLAN_LABELS,
+    PLAN_USER_LIMITS, QUOTED_PLANS, catalog, enabled_codes, extra_module_count, monthly_total, normalize_codes,
+    plan_key, priced_modules,
 )
 
 STATUSES = [s for s, _ in Organization._meta.get_field("subscription_status").choices]
 
 
-def pricing_summary(codes):
+def pricing_summary(codes, plan="basic"):
+    key = plan_key(plan)
     priced = priced_modules(codes)
     return {
-        "base": BASE_PRICE,
+        "plan": key,
+        "base": PLAN_BASE_PRICE[key],
+        "included_count": PLAN_INCLUDED_MODULES[key],
         "per_extra_module": EXTRA_MODULE_PRICE,
-        "extra_count": extra_module_count(codes),
-        "monthly_total": monthly_total(codes),
+        "extra_count": extra_module_count(codes, key),
+        "monthly_total": monthly_total(codes, key),
+        "quoted": key in QUOTED_PLANS,
         "included_module": priced[0] if priced else None,
+        "included_modules": priced[:PLAN_INCLUDED_MODULES[key]],
+    }
+
+
+def messaging_terms():
+    """Text and email rates and the free monthly amounts per plan (the same numbers the usage billing uses)."""
+    from .messaging_billing import MESSAGING_ALLOWANCES, MESSAGING_OVERAGE_RATES
+
+    return {"rates": dict(MESSAGING_OVERAGE_RATES), "allowances": {k: dict(v) for k, v in MESSAGING_ALLOWANCES.items()}}
+
+
+def plan_pricing():
+    """Per-plan price, included services and user limit, for the pricing and sign-up pages."""
+    return {
+        k: {
+            "label": PLAN_LABELS[k],
+            "user_limit": PLAN_USER_LIMITS[k],
+            "base": PLAN_BASE_PRICE[k],
+            "included_count": PLAN_INCLUDED_MODULES[k],
+            "quoted": k in QUOTED_PLANS,
+        }
+        for k in PLAN_USER_LIMITS
     }
 
 
@@ -54,7 +81,10 @@ def plans_payload():
 @permission_classes([AllowAny])
 def module_catalog(request):
     """Plans and modules with their prices, for the sign-up page."""
-    return Response({"plans": plans_payload(), "modules": catalog(), "pricing": pricing_summary([])})
+    return Response({
+        "plans": plans_payload(), "modules": catalog(),
+        "pricing": {**pricing_summary([]), "plans": plan_pricing(), "messaging": messaging_terms()},
+    })
 
 
 def _target_org(request):
@@ -88,7 +118,7 @@ def _payload(org, can_edit, billing_note=None):
         "configured": org.enabled_modules is not None,
         "modules": [{**m, "enabled": m["code"] in on} for m in catalog()],
         "enabled_order": codes,
-        "pricing": pricing_summary(codes),
+        "pricing": {**pricing_summary(codes, org.subscription_tier), "plans": plan_pricing()},
         "history": changes,
     }
     if billing_note is not None:

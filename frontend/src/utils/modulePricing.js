@@ -9,9 +9,29 @@ export const pricedModules = (selected, modules) => {
   return (selected || []).filter((code) => !quoted.has(code));
 };
 
-export const monthlyTotal = (selected, modules, base = BASE_PRICE, extra = EXTRA_MODULE_PRICE) => {
+// `included` is how many priced services the plan's base price covers (Professional 1, Clinic 2).
+export const monthlyTotal = (selected, modules, base = BASE_PRICE, extra = EXTRA_MODULE_PRICE, included = 1) => {
   const n = pricedModules(selected, modules).length;
-  return base + extra * Math.max(0, n - 1);
+  return base + extra * Math.max(0, n - included);
+};
+
+// Fallback used until the server's per-plan terms arrive (/api/users/modules/ -> pricing.plans).
+const DEFAULT_PLAN_TERMS = {
+  basic: { base: 299, included_count: 1, quoted: false },
+  premium: { base: 599, included_count: 2, quoted: false },
+  enterprise: { base: 599, included_count: 2, quoted: true },
+};
+
+/** {base, included, quoted} for a plan key, from the server's per-plan terms when we have them. */
+export const planTerms = (planPricing, key) => {
+  const t = (planPricing && planPricing[key]) || DEFAULT_PLAN_TERMS[key] || DEFAULT_PLAN_TERMS.basic;
+  return { base: t.base, included: t.included_count, quoted: !!t.quoted };
+};
+
+/** Monthly total for a plan, or null when the plan is priced by a quote. */
+export const planMonthlyTotal = (selected, modules, planPricing, key) => {
+  const t = planTerms(planPricing, key);
+  return t.quoted ? null : monthlyTotal(selected, modules, t.base, EXTRA_MODULE_PRICE, t.included);
 };
 
 export const formatMoney = (n) => `$${Number(n).toLocaleString('en-US')}`;

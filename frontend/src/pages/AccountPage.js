@@ -151,9 +151,10 @@ function AccountPage() {
             price: "1 user",
             features: [
                 "1 user",
-                "Price set by your services: $299 a month with the first service included",
+                "$299 a month with 1 service included",
                 "Each additional service $150 a month",
                 "Reports free",
+                "Texts and emails billed separately by volume",
             ],
         },
         {
@@ -162,9 +163,10 @@ function AccountPage() {
             price: "Up to 10 users",
             features: [
                 "Up to 10 users",
-                "Price set by your services: $299 a month with the first service included",
+                "$599 a month with 2 services included",
                 "Each additional service $150 a month",
                 "Reports free",
+                "Texts and emails billed separately by volume",
             ],
         },
         {

@@ -382,9 +382,9 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
           - "Choose Your Plan" headline and description
           - Three pricing tiers side-by-side:
             1. Professional ($299/month, 1 user)
-            2. Clinic ($299/month, up to 10 users) - MOST POPULAR with blue badge
+            2. Clinic ($599/month, up to 10 users, 2 services included) - MOST POPULAR with blue badge
             3. Group (Contact Sales, unlimited users)
-          - Price is set by the services chosen: first included, $150 for each additional one
+          - Professional includes 1 service, Clinic includes 2, $150 for each additional one; texts and emails billed by volume
           - Feature lists for each plan
           - Action buttons for each tier
           ================================================================= */}
@@ -415,6 +415,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">First service included</div>
               <div className="feature">Each additional service $150</div>
               <div className="feature">Reports free</div>
+              <div className="feature">Texts and emails billed by volume</div>
               <div className="feature">7-day free trial</div>
             </div>
             <div className="plan-button">
@@ -432,16 +433,17 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
             <div className="plan-header">
               <div className="plan-name">Clinic</div>
               <div className="plan-price">
-                <span className="price-amount">$299</span>
+                <span className="price-amount">$599</span>
                 <span className="price-period">per month</span>
               </div>
             </div>
             <div className="plan-description">Keep your clinic or unit on track</div>
             <div className="plan-features">
               <div className="feature">Up to 10 users</div>
-              <div className="feature">First service included</div>
+              <div className="feature">2 services included</div>
               <div className="feature">Each additional service $150</div>
               <div className="feature">Reports free</div>
+              <div className="feature">Texts and emails billed by volume</div>
               <div className="feature">7-day free trial</div>
             </div>
             <div className="plan-button">
@@ -466,6 +468,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">Unlimited users</div>
               <div className="feature">All services available</div>
               <div className="feature">Reports free</div>
+              <div className="feature">Texts and emails billed by volume</div>
               <div className="feature">Quote based on your size</div>
             </div>
             <div className="plan-button">
