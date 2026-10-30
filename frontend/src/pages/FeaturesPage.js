@@ -19,11 +19,8 @@ export const FeaturesPage = ({ className }) => {
               <div className="panel-title">Clinical</div>
             </div>
             <div className="panel-features">
-              <div className="feature">Patient registration and portal: sign-in, my information, announcements, appointment requests</div>
-              <div className="feature">Clinical documentation: notes, flowsheets, note and flowsheet builders, vaccines and screenings</div>
-              <div className="feature">Orders and lab results: place and sign orders, enter and review results</div>
-              <div className="feature">Prescriptions and referrals: prescription manager and referral tracking</div>
-              <div className="feature">Triage and status boards: triage scales, ED follow-up and pediatric views</div>
+              <div className="feature">Patient Portal: sign-in, my information, announcements, appointment requests</div>
+              <div className="feature">Clinical Notes: notes, flowsheets and their builders, vaccines and screenings, orders and lab results, prescriptions and referrals, triage and status boards</div>
             </div>
           </div>
           <div className="feature-panel">

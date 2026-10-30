@@ -5,7 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import StripeProvider from '../components/StripeProvider';
 import ServicesPicker from '../components/enrollment/ServicesPicker';
-import { formatMoney, monthlyTotal, pricedModules, userLimitLabel } from '../utils/modulePricing';
+import { formatMoney, planMonthlyTotal, pricedModules, userLimitLabel } from '../utils/modulePricing';
 import PaymentMethodForm from '../components/PaymentMethodForm';
 import {
   Container,
@@ -90,12 +90,12 @@ function EnrollmentPage() {
   });
 
   // Plans and services come from the server so prices and names are never out of step with billing.
-  const [catalog, setCatalog] = useState({ plans: [], modules: [] });
+  const [catalog, setCatalog] = useState({ plans: [], modules: [], planPricing: null });
   const [catalogError, setCatalogError] = useState('');
   useEffect(() => {
     let alive = true;
     axios.get(`${API_BASE_URL}/api/users/modules/`)
-      .then((r) => { if (alive) setCatalog({ plans: r.data.plans, modules: r.data.modules }); })
+      .then((r) => { if (alive) setCatalog({ plans: r.data.plans, modules: r.data.modules, planPricing: r.data.pricing?.plans || null }); })
       .catch(() => { if (alive) setCatalogError('Could not load plans and services. Please refresh the page.'); });
     return () => { alive = false; };
   }, []);
@@ -317,6 +317,7 @@ function EnrollmentPage() {
           ) : (
             <ServicesPicker
               plans={catalog.plans}
+              planPricing={catalog.planPricing}
               modules={catalog.modules}
               plan={formData.subscription_tier}
               onPlan={handleTierSelect}
@@ -364,7 +365,10 @@ function EnrollmentPage() {
                 })()}
                 <Typography variant="body2" color="text.secondary">
                   {pricedModules(formData.modules, catalog.modules).length} service(s) chosen,{' '}
-                  {formatMoney(monthlyTotal(formData.modules, catalog.modules))}/month after the 7-day free trial
+                  {(() => {
+                    const total = planMonthlyTotal(formData.modules, catalog.modules, catalog.planPricing, formData.subscription_tier);
+                    return total === null ? 'priced by a quote' : `${formatMoney(total)}/month`;
+                  })()}{' '}after the 7-day free trial
                 </Typography>
                 {formData.modules.map((c) => (
                   <Typography key={c} variant="body2" color="text.secondary">

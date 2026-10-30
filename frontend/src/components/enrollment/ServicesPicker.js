@@ -3,18 +3,19 @@ import {
   Box, Card, CardActionArea, Checkbox, Divider, FormControlLabel, Grid, Paper, Stack, Typography,
 } from '@mui/material';
 import {
-  BASE_PRICE, EXTRA_MODULE_PRICE, GROUP_ORDER, formatMoney, monthlyTotal, pricedModules, userLimitLabel,
+  EXTRA_MODULE_PRICE, GROUP_ORDER, formatMoney, planMonthlyTotal, planTerms, pricedModules, userLimitLabel,
 } from '../../utils/modulePricing';
 
 /**
  * Plan (user limit only) + services checklist + running price.
- * The first priced service ticked is included in the base price; each further one adds the same amount.
+ * The plan's base price includes its first services (Professional 1, Clinic 2); each further one adds the same amount.
  * Electronic lab interface is quoted separately and never counted.
  */
-const ServicesPicker = ({ plans, modules, plan, onPlan, selected, onToggle, disabled = false }) => {
+const ServicesPicker = ({ plans, planPricing, modules, plan, onPlan, selected, onToggle, disabled = false }) => {
   const priced = useMemo(() => pricedModules(selected, modules), [selected, modules]);
-  const included = priced[0];
-  const total = monthlyTotal(selected, modules);
+  const terms = planTerms(planPricing, plan);
+  const includedCodes = priced.slice(0, terms.included);
+  const total = planMonthlyTotal(selected, modules, planPricing, plan);
   const byCode = useMemo(() => Object.fromEntries(modules.map((m) => [m.code, m])), [modules]);
   const labQuoted = selected.some((c) => byCode[c] && byCode[c].quoted);
 
@@ -33,6 +34,9 @@ const ServicesPicker = ({ plans, modules, plan, onPlan, selected, onToggle, disa
               <CardActionArea disabled={disabled} onClick={() => onPlan(p.key)} sx={{ p: 1.5 }} aria-pressed={plan === p.key}>
                 <Typography fontWeight={600}>{p.label}</Typography>
                 <Typography variant="body2" color="text.secondary">{userLimitLabel(p.user_limit)}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {planTerms(planPricing, p.key).quoted ? 'By quote' : `${formatMoney(planTerms(planPricing, p.key).base)}/month, ${planTerms(planPricing, p.key).included} service${planTerms(planPricing, p.key).included === 1 ? '' : 's'} included`}
+                </Typography>
               </CardActionArea>
             </Card>
           </Grid>
@@ -43,7 +47,7 @@ const ServicesPicker = ({ plans, modules, plan, onPlan, selected, onToggle, disa
         <Grid size={{ xs: 12, md: 7 }}>
           <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Services</Typography>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-            Pick the first service you want included, then add others as needed.
+            {terms.included === 1 ? 'Your plan includes the first service you pick.' : `Your plan includes the first ${terms.included} services you pick.`} Each additional service is {formatMoney(EXTRA_MODULE_PRICE)}/month.
           </Typography>
           {GROUP_ORDER.map((group) => {
             const items = modules.filter((m) => m.group === group);
@@ -55,7 +59,7 @@ const ServicesPicker = ({ plans, modules, plan, onPlan, selected, onToggle, disa
                   const on = selected.includes(m.code);
                   let note = null;
                   if (m.quoted) note = on ? 'Quoted separately' : null;
-                  else if (on && m.code === included) note = 'Included';
+                  else if (on && includedCodes.includes(m.code)) note = 'Included';
                   else if (on) note = `+${formatMoney(EXTRA_MODULE_PRICE)}/month`;
                   return (
                     <Box key={m.code} sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 1 }}>
@@ -82,14 +86,14 @@ const ServicesPicker = ({ plans, modules, plan, onPlan, selected, onToggle, disa
           <Paper variant="outlined" sx={{ p: 2, position: { md: 'sticky' }, top: 16 }} aria-live="polite">
             <Typography variant="subtitle2" sx={{ mb: 1 }}>Your plan</Typography>
             <Stack spacing={0.5}>
-              <Row left="Base price" right={`${formatMoney(BASE_PRICE)}/month`} />
+              <Row left="Base price" right={terms.quoted ? 'By quote' : `${formatMoney(terms.base)}/month`} />
               {priced.map((c) => (
-                <Row key={c} left={byCode[c]?.label} right={c === included ? '(included)' : `+${formatMoney(EXTRA_MODULE_PRICE)}`} muted />
+                <Row key={c} left={byCode[c]?.label} right={includedCodes.includes(c) ? '(included)' : `+${formatMoney(EXTRA_MODULE_PRICE)}`} muted />
               ))}
               {priced.length === 0 && <Typography variant="caption" color="text.secondary">No services chosen yet.</Typography>}
             </Stack>
             <Divider sx={{ my: 1.5 }} />
-            <Row left="Total" right={`${formatMoney(total)}/month`} bold />
+            <Row left="Total" right={total === null ? 'Priced by a quote' : `${formatMoney(total)}/month`} bold />
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
               Free for 7 days. Your card is charged from day 8.
             </Typography>

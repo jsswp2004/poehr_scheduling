@@ -153,7 +153,7 @@ const MODULE_LINKS = [
   },
   {
     key: "lab-inbox",
-    module: "orders_labs",
+    module: "clinical_documentation",
     label: "Lab Results",
     to: "/lab-inbox",
     Icon: ScienceIcon,

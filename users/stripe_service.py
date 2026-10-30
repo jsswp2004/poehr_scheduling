@@ -240,9 +240,9 @@ class StripeService:
             from .module_billing import module_pricing_configured, subscription_items
             from .modules import enabled_codes
 
-            if module_pricing_configured():
-                # Base price plus one item for the paid extra modules (see users/modules.py).
-                items = subscription_items(enabled_codes(organization))
+            if module_pricing_configured(tier):
+                # The plan's base price plus one item for the paid extra modules (see users/modules.py).
+                items = subscription_items(enabled_codes(organization), tier)
             else:
                 # Module prices are not set up in Stripe yet: fall back to the old per-plan price.
                 tier_info = SUBSCRIPTION_TIERS.get(tier, SUBSCRIPTION_TIERS["basic"])
