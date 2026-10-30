@@ -47,8 +47,8 @@ test("shows the details, plan, data and danger zone", async () => {
   expect(screen.getByText("admin@stmarys.org")).toBeInTheDocument();
   expect(screen.getByText("301-555-0142")).toBeInTheDocument();
   expect(screen.getAllByText("Clinic").length).toBeGreaterThan(0);
-  expect(screen.getByText("$299.99/month")).toBeInTheDocument();
-  expect(screen.getByText("Up to 10 providers")).toBeInTheDocument();
+  expect(screen.getAllByText("Up to 10 users").length).toBeGreaterThan(0);
+  expect(screen.getByText("Each additional service $150 a month")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Change plan" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Export organization data" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Cancel account" })).toBeInTheDocument();
