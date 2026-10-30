@@ -1,0 +1,38 @@
+/* Shared look for the Terms and Privacy pages. Matches the Data Security page: gradient title band, then
+   a left heading column with the text beside it. Class names are prefixed so they cannot collide with other pages. */
+.legal-page {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: "Inter", sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+.lg-hero {
+  padding: 32px 64px 24px;
+  text-align: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+}
+.lg-title { font-size: 44px; font-weight: 800; color: #1e293b; margin: 0 0 14px; letter-spacing: -0.02em; line-height: 1.15; }
+.lg-subtitle { font-size: 20px; color: #64748b; max-width: 640px; margin: 0 auto; line-height: 1.6; }
+.lg-updated { margin-top: 10px; font-size: 14px; color: #64748b; }
+.lg-body { width: 100%; max-width: 1040px; margin: 0 auto; padding: 40px 32px 56px; display: grid; gap: 28px; box-sizing: border-box; flex: 1; }
+.lg-jump { display: flex; gap: 10px; flex-wrap: wrap; }
+.lg-jump a { padding: 6px 16px; border-radius: 99px; border: 1px solid #e2e8f0; background: #fff; color: var(--color-primary); font-size: 14px; font-weight: 600; text-decoration: none; }
+.lg-jump a:hover { background: #eff6ff; }
+.lg-part { font-size: 28px; font-weight: 700; color: #1e293b; margin: 12px 0 0; scroll-margin-top: 16px; }
+.lg-sect { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+.lg-sect h2, .lg-sect h3 { font-size: 18px; font-weight: 600; color: #1e293b; margin: 0; line-height: 1.35; }
+.lg-text p { margin: 0 0 12px; font-size: 16px; line-height: 1.65; color: #475569; max-width: 70ch; }
+.lg-text ul { margin: 0 0 12px; padding-left: 22px; color: #475569; font-size: 16px; line-height: 1.65; max-width: 70ch; }
+.lg-text li { margin-bottom: 4px; }
+.lg-text a { color: var(--color-primary); }
+.lg-note { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px; font-size: 14px; color: #64748b; }
+@media (max-width: 760px) {
+  .lg-hero { padding: 28px 16px 20px; }
+  .lg-title { font-size: 30px; }
+  .lg-subtitle { font-size: 17px; }
+  .lg-body { padding: 28px 16px 40px; }
+  .lg-sect { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+}

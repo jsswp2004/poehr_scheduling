@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import PrivacyPolicy from "../../pages/PrivacyPolicy";
 
 test("the policy renders without signing in and covers what Apple asks for", () => {
-  render(<PrivacyPolicy />);
+  render(<MemoryRouter><PrivacyPolicy /></MemoryRouter>);
   expect(screen.getByRole("heading", { level: 1, name: /POWER Staffing Privacy Policy/ })).toBeTruthy();
   for (const heading of [/Information we collect/, /Patient information/, /Alerts and reminders/, /Who can see/, /Security/, /Retention and deletion/, /Contact us/]) {
     expect(screen.getByRole("heading", { name: heading })).toBeTruthy();
@@ -14,6 +15,6 @@ test("the policy renders without signing in and covers what Apple asks for", () 
 });
 
 test("it does not claim things we have not confirmed", () => {
-  const { container } = render(<PrivacyPolicy />);
+  const { container } = render(<MemoryRouter><PrivacyPolicy /></MemoryRouter>);
   expect(container.textContent).not.toMatch(/Face ID|biometric|analytics SDK|we sell/i);
 });
