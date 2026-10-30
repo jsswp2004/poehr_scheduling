@@ -520,7 +520,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               onClick={handleAppStoreClick}
               style={{ cursor: "pointer" }}
             >
-              <div className="platform-icon">App Store</div>
+              <div className="platform-icon">Apps in beta</div>
             </div>
             {/* Platform download icons 
             <div className="windows-logo-1">
@@ -582,7 +582,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               fontSize: '24px',
               fontWeight: 'bold'
             }}>
-              📱 App Coming Very Soon!
+              📱 Mobile apps in beta
             </h2>
             <p style={{ 
               marginBottom: '30px', 
@@ -590,7 +590,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               fontSize: '16px',
               lineHeight: '1.5'
             }}>
-              We're working hard to bring POWER to the App Store. Stay tuned for updates!
+              Our mobile apps are in beta testing. Contact power@powerhealthit.com to ask about them.
             </p>
             <button
               onClick={closeModal}
