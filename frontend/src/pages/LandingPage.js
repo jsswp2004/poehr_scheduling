@@ -354,11 +354,10 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <span className="highlight-yellow">100% your data</span>
             </h2>
             <p className="data-security-description">
-              Your data stays secure with end-to-end encryption and local
-              storage options. POWER ensures complete data ownership and
-              privacy, giving you full control over your patient information and
-              clinic data. HIPAA compliant and trusted by healthcare
-              professionals worldwide.
+              Your data is encrypted in transit and at rest, and each
+              organization's data is kept separate. You own your data: export
+              it or close your account yourself, and we do not sell your
+              patient information. Built with HIPAA safeguards in mind.
             </p>
             <div className="data-security-cta">
               <div

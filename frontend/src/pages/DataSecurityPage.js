@@ -1,9 +1,63 @@
 import '../DataSecurityPage/DataSecurityPage.css';
+import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import encryptionImage from '../assets/Encryption.png';
-import dataOwnershipImage from '../assets/DataOwnership.png';
-import cloudProtectionImage from '../assets/CloudProtection.png';
+
+// Only statements that are true of the product today. Keep it that way: no certifications, SLAs or compliance
+// claims unless they have been confirmed (and, for compliance wording, reviewed by counsel).
+const SAFEGUARDS = [
+  {
+    title: 'Encrypted',
+    text: 'HTTPS in transit. Database encrypted at rest by our hosting provider.',
+    icon: (
+      <>
+        <rect x="5" y="11" width="14" height="9" rx="2" />
+        <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      </>
+    ),
+  },
+  {
+    title: 'Separate by organization',
+    text: "Each organization's data is kept apart from every other organization's.",
+    icon: (
+      <>
+        <path d="M4 7h16M4 12h16M4 17h16" />
+        <circle cx="8" cy="7" r="1.5" />
+        <circle cx="15" cy="12" r="1.5" />
+        <circle cx="10" cy="17" r="1.5" />
+      </>
+    ),
+  },
+  {
+    title: 'Role-based access',
+    text: "Rights follow each person's role, and administrators can adjust them.",
+    icon: (
+      <>
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 20c0-4 3-6 7-6s7 2 7 6" />
+      </>
+    ),
+  },
+  {
+    title: 'Audit history',
+    text: 'On key actions: orders, lab results, prescriptions, referrals, messaging and staffing.',
+    icon: (
+      <>
+        <path d="M6 3h9l4 4v14H6z" />
+        <path d="M9 12h7M9 16h7" />
+      </>
+    ),
+  },
+];
+
+const VENDORS = [
+  ['Render', 'Application and database hosting'],
+  ['Vercel', 'Delivering the web app'],
+  ['Twilio', 'Text messages (Communicator and shift reminders)'],
+  ['Resend', 'Email'],
+  ['Amazon Web Services', 'Video visits, dictation and the documentation assistant, when you turn them on'],
+  ['Stripe', 'Subscription payments'],
+];
 
 export const DataSecurityPage = ({ className }) => {
   return (
@@ -11,90 +65,84 @@ export const DataSecurityPage = ({ className }) => {
       <Header />
       <div className="page-title-section">
         <h1 className="page-title">Data Security & Privacy</h1>
-        <p className="page-subtitle">How POWER protects your information</p>
-      </div>
-      <div className="security-details">
-        <div className="text-block">
-          <h2 className="section-heading">Encryption and Access Control</h2>
-          <p className="section-text">
-            Traffic between your browser and POWER is encrypted with HTTPS. Your database is encrypted at rest by our hosting provider. Each organization's data is kept separate from every other organization's, and what each person can see and do depends on their role and the rights your administrator gives them.
-          </p>
-          <div className="security-features">
-            <span className="feature-badge">🔐 Encrypted in transit and at rest</span>
-            <span className="feature-badge">🛡️ Role-based access</span>
-            <span className="feature-badge">⚕️ Built with HIPAA safeguards in mind</span>
-          </div>
-        </div>
-        <img
-          src={encryptionImage}
-          alt="Encryption and access control"
-          className="security-image encryption-image"
-        />
-      </div>
-      <div className="security-details">
-        <div className="text-block">
-          <h2 className="section-heading">Cloud Hosting</h2>
-          <p className="section-text">
-            POWER runs on Render, which hosts the application and database, and Vercel, which serves the web app. Your data is stored in the United States.
-          </p>
-          <p className="section-text">
-            <strong>You own your data:</strong> Your administrator can export your organization's data from the Account page, and you can close your account yourself. No vendor lock-in and no hidden fees.
-          </p>
-          <div className="security-features">
-            <span className="feature-badge">☁️ Hosted on Render and Vercel</span>
-            <span className="feature-badge">🇺🇸 Data stored in the United States</span>
-          </div>
-        </div>
-        <img
-          src={cloudProtectionImage}
-          alt="Cloud hosting"
-          className="security-image cloud-image"
-        />
-      </div>
-      <div className="security-details">
-        <div className="text-block">
-          <h2 className="section-heading">Data Ownership and Control</h2>
-          <p className="section-text">
-            Your data belongs to you. We do not sell your patient information, and we use it only to provide our services. You can export your organization's data in standard formats at any time.
-          </p>
-          <p className="section-text">
-            <strong>Your controls include:</strong> data export from your account page, audit history on key actions such as orders, lab results, prescriptions, referrals, messaging and staffing changes, and the ability to close your account or delete your organization. Healthcare records can be subject to retention rules, so please contact us before deleting records you may need to keep.
-          </p>
-          <div className="security-features">
-            <span className="feature-badge">📋 Audit history on key actions</span>
-            <span className="feature-badge">📤 Data export</span>
-            <span className="feature-badge">🗑️ Close your account or delete your organization</span>
-          </div>
-        </div>
-        <img
-          src={dataOwnershipImage}
-          alt="Complete data ownership and control features"
-          className="security-image ownership-image"
-        />
+        <p className="page-subtitle">How POWER protects your information, and who handles it.</p>
       </div>
 
-      <div className="security-contact-section">
-        <div className="contact-content">
-          <h2 className="section-heading">Security & Compliance</h2>
-          <p className="section-text">
-            Have questions about our security practices? Email us and we will answer them. If your organization needs a business associate agreement, ask us before you start storing patient information in POWER.
-          </p>
-          <div className="compliance-badges">
-            <div className="badge-item">
-              <div className="badge-icon">⚕️</div>
-              <span>Built with HIPAA safeguards in mind</span>
+      <div className="ds-body">
+        <div className="ds-tiles">
+          {SAFEGUARDS.map((s) => (
+            <div className="ds-tile" key={s.title}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                {s.icon}
+              </svg>
+              <b>{s.title}</b>
+              <span>{s.text}</span>
             </div>
-            <div className="badge-item">
-              <div className="badge-icon">☁️</div>
-              <span>Hosted on Render and Vercel</span>
-            </div>
+          ))}
+        </div>
+
+        <div className="ds-sect">
+          <div>
+            <div className="ds-eyebrow">Hosting</div>
+            <h2 className="section-heading">Cloud hosting</h2>
           </div>
-          <div className="contact-info">
-            <p><strong>Email Team:</strong> power@powerhealthit.com</p>
-            {/*<p><strong>Compliance Inquiries:</strong> compliance@powerehrsolutions.com</p>*/}
-            <p><strong>Data requests:</strong> From your account page</p>
+          <div>
+            <p className="section-text">
+              POWER runs on Render, which hosts the application and database, and Vercel, which serves the web app. Your data is stored in the United States.
+            </p>
           </div>
         </div>
+
+        <div className="ds-sect">
+          <div>
+            <div className="ds-eyebrow">Ownership</div>
+            <h2 className="section-heading">Your data, your control</h2>
+          </div>
+          <div>
+            <p className="section-text">
+              We do not sell your patient information, and we use it only to provide our services. Administrators can export the organization's data from the Account page, close the account, or delete the organization.
+            </p>
+            <p className="section-text">
+              Healthcare records can be subject to retention rules, so contact us before deleting records you may need to keep.
+            </p>
+          </div>
+        </div>
+
+        <div className="ds-sect">
+          <div>
+            <div className="ds-eyebrow">Vendors</div>
+            <h2 className="section-heading">Who handles your data</h2>
+          </div>
+          <div className="ds-tablewrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Used for</th>
+                </tr>
+              </thead>
+              <tbody>
+                {VENDORS.map(([name, use]) => (
+                  <tr key={name}>
+                    <td>{name}</td>
+                    <td>{use}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="ds-contact">
+          <div>
+            <b>Questions about security?</b>
+            <p>Need a business associate agreement? Ask before you store patient information in POWER.</p>
+          </div>
+          <a href="mailto:power@powerhealthit.com">power@powerhealthit.com</a>
+        </div>
+        <p className="ds-small">
+          <Link to="/privacy">Privacy policy</Link>
+        </p>
       </div>
       <Footer pricingLink="/pricing" featuresLink="/features" />
     </div>
