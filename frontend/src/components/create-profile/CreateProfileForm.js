@@ -13,6 +13,15 @@ import axios from "axios";
 import { toast } from 'react-toastify';
 import { API_BASE_URL } from '../../config/api';
 import DictionaryField from '../dictionaries/DictionaryField';
+import { moduleEnabled } from '../../utils/orgModules';
+
+// Direct-care roles the Staffing hours and ratio checks understand.
+const NURSING_ROLES = [
+    { value: 'rn', label: 'RN' },
+    { value: 'lpn', label: 'LPN' },
+    { value: 'cna', label: 'CNA / support' },
+    { value: 'other', label: 'Other (not counted toward HPPD)' },
+];
 
 export const CREATE_PROFILE_FORM_ID = 'create-profile-form';
 
@@ -68,6 +77,11 @@ const CreateProfileForm = ({
 
     const fieldGridSx = { display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 };
     const fieldSx = { "& .MuiOutlinedInput-root": { borderRadius: 2 } };
+
+    // Staff and Nurse profiles join the Staffing roster when the organization has Staffing.
+    const chosenRole = roleOptions.find((o) => o.value === formData.role);
+    const baseRole = chosenRole ? chosenRole.behaves_like || chosenRole.value : '';
+    const joinsRoster = ['staff', 'nurse'].includes(baseRole) && moduleEnabled('staffing');
 
     return (
         <form id={CREATE_PROFILE_FORM_ID} onSubmit={onSubmit} encType="multipart/form-data">
@@ -188,6 +202,29 @@ const CreateProfileForm = ({
                             displayType={roleDisplayType}
                             required
                         />
+                        {joinsRoster && (
+                            <>
+                                <TextField
+                                    label="Job title (Staffing roster)"
+                                    name="job_title"
+                                    value={formData.job_title || ''}
+                                    onChange={onChange}
+                                    size="small"
+                                    variant="outlined"
+                                    placeholder="e.g. Night RN"
+                                    helperText="This person will be added to the Staffing roster."
+                                    sx={fieldSx}
+                                />
+                                <DictionaryField
+                                    label="Nursing role"
+                                    name="nursing_role"
+                                    value={formData.nursing_role || ''}
+                                    onChange={onChange}
+                                    options={NURSING_ROLES}
+                                    displayType="dropdown"
+                                />
+                            </>
+                        )}
                     </Box>
                 </Paper>
             </Box>
