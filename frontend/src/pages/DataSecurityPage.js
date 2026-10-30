@@ -15,63 +15,55 @@ export const DataSecurityPage = ({ className }) => {
       </div>
       <div className="security-details">
         <div className="text-block">
-          <h2 className="section-heading">Enterprise-Grade End-to-End Encryption</h2>
+          <h2 className="section-heading">Encryption and Access Control</h2>
           <p className="section-text">
-            Powered by Microsoft Azure's enterprise-grade security infrastructure, all data is protected with AES-256 encryption and TLS 1.3 protocols. Your patient information and clinic data are secured with the same encryption standards used by Fortune 500 companies, ensuring confidentiality in transit, at rest, and during processing. Azure Key Vault manages all encryption keys with hardware security modules (HSMs) for maximum protection.
+            Traffic between your browser and POWER is encrypted with HTTPS. Your database is encrypted at rest by our hosting provider. Each organization's data is kept separate from every other organization's, and what each person can see and do depends on their role and the rights your administrator gives them.
           </p>
           <div className="security-features">
-            {/**/}
-            {/**/}
-
-            <span className="feature-badge">🔐 AES-256 Encryption</span>
-            <span className="feature-badge">🛡️ Azure Key Vault</span>
-            {/*<span className="feature-badge">✅ SOC 2 Certified</span>*/}
-            <span className="feature-badge">⚕️ HIPAA Compliant</span>
+            <span className="feature-badge">🔐 Encrypted in transit and at rest</span>
+            <span className="feature-badge">🛡️ Role-based access</span>
+            <span className="feature-badge">⚕️ Built with HIPAA safeguards in mind</span>
           </div>
         </div>
         <img
           src={encryptionImage}
-          alt="Enterprise-grade encryption security infrastructure"
+          alt="Encryption and access control"
           className="security-image encryption-image"
         />
       </div>
       <div className="security-details">
         <div className="text-block">
-          <h2 className="section-heading">Azure Cloud-Powered Data Protection</h2>
+          <h2 className="section-heading">Cloud Hosting</h2>
           <p className="section-text">
-            POWER applications run on Microsoft Azure's global cloud infrastructure, providing unparalleled security, reliability, and performance. Your data is protected across multiple Azure data centers with automatic backup, disaster recovery, and 99.99% uptime guarantee. With Azure's global network, your clinic data is always accessible, secure, and protected by enterprise-grade infrastructure trusted by healthcare organizations worldwide.
+            POWER runs on Render, which hosts the application and database, and Vercel, which serves the web app. Your data is stored in the United States.
           </p>
           <p className="section-text">
-            <strong>Complete Data Ownership:</strong> While leveraging Azure's powerful infrastructure, you maintain 100% ownership of your data. Request to download your complete data archive in standard formats (JSON, CSV, PDF) or delete all records at your convenience through our self-service portal. No vendor lock-in, no hidden fees - your data, your control.
+            <strong>You own your data:</strong> Your administrator can export your organization's data from the Account page, and you can close your account yourself. No vendor lock-in and no hidden fees.
           </p>
           <div className="security-features">
-            {/**/}
-            <span className="feature-badge">☁️ Azure Global Infrastructure</span>
-            <span className="feature-badge">📊 99.99% Uptime SLA</span>
-            <span className="feature-badge">🔄 Auto Backup & Recovery</span>
-            <span className="feature-badge">🌍 Multi-Region Protection</span>
+            <span className="feature-badge">☁️ Hosted on Render and Vercel</span>
+            <span className="feature-badge">🇺🇸 Data stored in the United States</span>
           </div>
         </div>
         <img
           src={cloudProtectionImage}
-          alt="Azure cloud-powered data protection infrastructure"
+          alt="Cloud hosting"
           className="security-image cloud-image"
         />
       </div>
       <div className="security-details">
         <div className="text-block">
-          <h2 className="section-heading">Complete Data Ownership & Control</h2>
+          <h2 className="section-heading">Data Ownership and Control</h2>
           <p className="section-text">
-            Your data belongs to you, period. POWER ensures absolute data ownership with full transparency and control. We never share, sell, or access your patient information for any purpose other than providing our services. You have the unrestricted right to export all your data in industry-standard formats or request immediate deletion of all records.
+            Your data belongs to you. We do not sell your patient information, and we use it only to provide our services. You can export your organization's data in standard formats at any time.
           </p>
           <p className="section-text">
-            <strong>Your Rights Include:</strong> Instant data export in multiple formats, complete audit logs of all data access, immediate data deletion upon request, and seamless data migration support. Our commitment extends beyond HIPAA compliance ensuring your practice meets all privacy regulations.
+            <strong>Your controls include:</strong> data export from your account page, audit history on key actions such as orders, lab results, prescriptions, referrals, messaging and staffing changes, and the ability to close your account or delete your organization. Healthcare records can be subject to retention rules, so please contact us before deleting records you may need to keep.
           </p>
           <div className="security-features">
-            <span className="feature-badge">📋 Complete Audit Trails</span>
-            <span className="feature-badge">📤 Instant Data Export</span>
-            <span className="feature-badge">🗑️ Right to Deletion</span>
-            {/*  <span className="feature-badge">⚖️ GDPR & CCPA Compliant</span>*/}
+            <span className="feature-badge">📋 Audit history on key actions</span>
+            <span className="feature-badge">📤 Data export</span>
+            <span className="feature-badge">🗑️ Close your account or delete your organization</span>
           </div>
         </div>
         <img
@@ -85,30 +77,22 @@ export const DataSecurityPage = ({ className }) => {
         <div className="contact-content">
           <h2 className="section-heading">Security & Compliance</h2>
           <p className="section-text">
-            Have questions about our security practices? Our dedicated security team is here to help. We conduct regular security assessments, penetration testing, and compliance audits to ensure your data remains protected.
+            Have questions about our security practices? Email us and we will answer them. If your organization needs a business associate agreement, ask us before you start storing patient information in POWER.
           </p>
           <div className="compliance-badges">
-            {/*<div className="badge-item">
-              <div className="badge-icon">🛡️</div>
-              <span>SOC 2 Type II</span>
-            </div>*/}
             <div className="badge-item">
               <div className="badge-icon">⚕️</div>
-              <span>HIPAA Compliant</span>
+              <span>Built with HIPAA safeguards in mind</span>
             </div>
-            {/*<div className="badge-item">
-              <div className="badge-icon">🔒</div>
-              <span>ISO 27001</span>
-            </div>*/}
             <div className="badge-item">
               <div className="badge-icon">☁️</div>
-              <span>Hosted in Azure</span>
+              <span>Hosted on Render and Vercel</span>
             </div>
           </div>
           <div className="contact-info">
             <p><strong>Email Team:</strong> power@powerhealthit.com</p>
             {/*<p><strong>Compliance Inquiries:</strong> compliance@powerehrsolutions.com</p>*/}
-            <p><strong>Data Requests:</strong> Available 24/7 through your account dashboard</p>
+            <p><strong>Data requests:</strong> From your account page</p>
           </div>
         </div>
       </div>
