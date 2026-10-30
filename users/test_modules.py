@@ -195,3 +195,84 @@ class NormalizeMigrationTests(TestCase):
         self.assertEqual(group.subscription_tier, "enterprise")
         self.assertGreaterEqual(group.max_users, 999999)
         self.assertEqual(solo.max_users, 3)
+
+
+class AssistantBillingTests(TestCase):
+    def setUp(self):
+        from users.assistant_billing import record_question
+
+        self.record = record_question
+
+    def test_counts_per_org_month_and_assistant(self):
+        from users.assistant_billing import compute_assistant_usage
+
+        org = make_org("A")
+        other = make_org("B")
+        for _ in range(3):
+            self.record(org, "staffing")
+        self.record(org, "scheduler")
+        self.record(other, "communicator")
+        u = compute_assistant_usage(org)
+        self.assertEqual(u["questions"], 4)
+        self.assertEqual(u["by_assistant"], {"staffing": 3, "communicator": 0, "scheduler": 1})
+        self.assertEqual(u["billable"], 0)
+        self.assertEqual(compute_assistant_usage(other)["questions"], 1)
+
+    def test_overage_by_plan(self):
+        from users.assistant_billing import ASSISTANT_OVERAGE_RATE, compute_assistant_usage
+
+        org = make_org("Clinic", subscription_tier="premium")
+        for _ in range(520):
+            self.record(org, "staffing")
+        u = compute_assistant_usage(org)
+        self.assertEqual((u["included"], u["billable"]), (500, 20))
+        self.assertEqual(u["cost"], round(20 * ASSISTANT_OVERAGE_RATE, 2))
+        pro = make_org("Pro", subscription_tier="basic")
+        for _ in range(101):
+            self.record(pro, "scheduler")
+        self.assertEqual(compute_assistant_usage(pro)["billable"], 1)
+
+    def test_unknown_assistant_or_org_is_ignored(self):
+        from users.models import AssistantUsage
+
+        self.record(None, "staffing")
+        self.record(make_org("C"), "bogus")
+        self.assertEqual(AssistantUsage.objects.count(), 0)
+
+    def test_other_month_not_counted(self):
+        import datetime
+
+        from django.utils import timezone
+
+        from users.assistant_billing import compute_assistant_usage
+
+        org = make_org("D")
+        self.record(org, "staffing", when=timezone.make_aware(datetime.datetime(2026, 9, 30, 12)))
+        self.record(org, "staffing", when=timezone.make_aware(datetime.datetime(2026, 10, 1, 12)))
+        self.assertEqual(compute_assistant_usage(org, 2026, 9)["questions"], 1)
+        self.assertEqual(compute_assistant_usage(org, 2026, 10)["questions"], 1)
+
+    def test_catalog_and_org_payload_show_terms_and_usage(self):
+        org = make_org("E", subscription_tier="premium")
+        admin = make_user(org, "admin", "e_admin")
+        self.record(org, "communicator")
+        c = APIClient()
+        pub = c.get("/api/users/modules/").json()
+        self.assertEqual(pub["pricing"]["assistants"]["allowances"], {"basic": 100, "premium": 500, "enterprise": 2000})
+        c.force_authenticate(admin)
+        data = c.get("/api/users/organization-access/").json()
+        self.assertEqual(data["usage"]["assistant"]["questions"], 1)
+        self.assertEqual(data["usage"]["assistant"]["included"], 500)
+
+    def test_report_includes_assistant_overage_in_dry_run(self):
+        from users.messaging_stripe import report_monthly_messaging_usage
+
+        org = make_org("F", subscription_tier="basic")
+        make_user(org, "admin", "f_admin")
+        org.users.update(stripe_customer_id="cus_test")
+        for _ in range(103):
+            self.record(org, "staffing")
+        r = report_monthly_messaging_usage(org, dry_run=True)
+        self.assertEqual(r["results"]["assistant"]["reported_units"], 3)
+        self.assertTrue(r["results"]["assistant"]["identifier"].startswith("org%d-assistant-" % org.id))
+        self.assertAlmostEqual(r["total_cost"], 0.15)

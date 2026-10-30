@@ -89,6 +89,7 @@ const EXAMPLES = [
 
 const INCLUDED_EVERYWHERE = [
   "Reports: build, save, share and export reports to PDF or CSV",
+  "AI assistants in Scheduler, Staffing and Communicator, with a free monthly amount of questions",
   "Secure staff messaging",
   "Role-based access you can adjust for each person",
   "7-day free trial; your card is charged from day 8",
@@ -105,7 +106,7 @@ const fmtAmount = (n) => (n === null || n === undefined ? "Unlimited" : Number(n
 const fmtRate = (n) => `$${Number(n).toFixed(2)}`;
 
 export const PricingPage = ({ className }) => {
-  const [catalog, setCatalog] = useState({ plans: [], modules: [], planPricing: null, messaging: null });
+  const [catalog, setCatalog] = useState({ plans: [], modules: [], planPricing: null, messaging: null, assistants: null });
   const [error, setError] = useState(false);
   const [plan, setPlan] = useState("basic");
   const [selected, setSelected] = useState([]);
@@ -123,6 +124,7 @@ export const PricingPage = ({ className }) => {
             modules: r.data.modules || [],
             planPricing: r.data.pricing?.plans || null,
             messaging: r.data.pricing?.messaging || null,
+            assistants: r.data.pricing?.assistants || null,
           })
       )
       .catch(() => alive && setError(true));
@@ -151,6 +153,7 @@ export const PricingPage = ({ className }) => {
   const limitFor = (key, fallback) => userLimitLabel(planByKey[key] ? planByKey[key].user_limit : fallback);
   const cta = PLAN_CARDS.find((c) => c.key === plan);
   const msg = catalog.messaging;
+  const ai = catalog.assistants;
 
   return (
     <div className={"pricing-page " + (className || "")}>
@@ -274,7 +277,7 @@ export const PricingPage = ({ className }) => {
             {labQuoted && (
               <div className="pp-note">Electronic lab interface is set up by arrangement and quoted separately.</div>
             )}
-            <div className="pp-note">Texts and emails are billed separately by volume. See below.</div>
+            <div className="pp-note">Texts, emails and AI assistant questions over your plan's free amount are billed by volume. See below.</div>
             <Link to={cta.to} className="btn-panel">
               {plan === "enterprise" ? "Contact sales" : "Start free trial"}
             </Link>
@@ -308,6 +311,29 @@ export const PricingPage = ({ className }) => {
             <p className="pp-note">
               Reminders and messages use texts and emails. You are billed monthly for what goes over your plan's
               amount, on the same invoice as your subscription.
+            </p>
+          </>
+        )}
+
+        {ai && (
+          <>
+            <h2 className="pp-heading">AI assistants</h2>
+            <div className="pp-examples">
+              {PLAN_CARDS.map((c) => {
+                const free = ai.allowances?.[c.key];
+                return (
+                  <div key={c.key}>
+                    <b>{c.name}</b>
+                    <span>{fmtAmount(free)} questions included each month</span>
+                    <span className="pp-example-price">{fmtRate(ai.rate)} per question after</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="pp-note">
+              The Scheduler, Staffing and Communicator assistants come with those services in every plan. You are
+              billed monthly for questions over your plan's amount, on the same invoice as your subscription. A
+              question that fails is never counted, and neither is confirming an action the assistant prepared.
             </p>
           </>
         )}

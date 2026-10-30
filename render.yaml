@@ -67,6 +67,8 @@ services:
         sync: false
       - key: STRIPE_SMS_OVERAGE_PRICE_ID
         sync: false
+      - key: STRIPE_ASSISTANT_OVERAGE_PRICE_ID
+        sync: false
       # Base subscription tier prices (Basic/Premium checkout). Also empty
       # until you run the setup_base_tier_prices management command.
       - key: STRIPE_BASIC_PRICE_ID

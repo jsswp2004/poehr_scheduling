@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 # reported usage as belonging to the existing meter.
 EMAIL_METER_EVENT_NAME = "email_overage_used"
 SMS_METER_EVENT_NAME = "sms_overage_used"
+ASSISTANT_METER_EVENT_NAME = "assistant_questions_used"
 
 
 def _get_price_id(setting_name):
@@ -61,6 +62,10 @@ def get_sms_overage_price_id():
     return _get_price_id("STRIPE_SMS_OVERAGE_PRICE_ID")
 
 
+def get_assistant_overage_price_id():
+    return _get_price_id("STRIPE_ASSISTANT_OVERAGE_PRICE_ID")
+
+
 def create_messaging_meters_and_prices():
     """
     One-time setup: create the two Stripe Billing Meters and their
@@ -71,6 +76,7 @@ def create_messaging_meters_and_prices():
     matching on event_name) and reuses it instead of creating a
     duplicate. Returns a dict with the created/found IDs.
     """
+    from .assistant_billing import ASSISTANT_OVERAGE_RATE
     from .messaging_billing import MESSAGING_OVERAGE_RATES
 
     def _find_existing_meter(event_name):
@@ -127,11 +133,17 @@ def create_messaging_meters_and_prices():
         "SMS overage", SMS_METER_EVENT_NAME, MESSAGING_OVERAGE_RATES["sms"]
     )
 
+    assistant_meter, assistant_price = _ensure_meter_and_price(
+        "AI assistant questions over the free amount", ASSISTANT_METER_EVENT_NAME, ASSISTANT_OVERAGE_RATE
+    )
+
     return {
         "email_meter_id": email_meter.id,
         "email_price_id": email_price.id,
         "sms_meter_id": sms_meter.id,
         "sms_price_id": sms_price.id,
+        "assistant_meter_id": assistant_meter.id,
+        "assistant_price_id": assistant_price.id,
     }
 
 
@@ -173,11 +185,13 @@ def attach_messaging_billing_items(organization):
 
     email_price_id = get_email_overage_price_id()
     sms_price_id = get_sms_overage_price_id()
+    assistant_price_id = get_assistant_overage_price_id()
 
     added = []
     for price_id, label in (
         (email_price_id, "email"),
         (sms_price_id, "sms"),
+        (assistant_price_id, "assistant"),
     ):
         if price_id in existing_price_ids:
             continue
@@ -253,5 +267,26 @@ def report_monthly_messaging_usage(organization, year=None, month=None, dry_run=
             "skipped": False,
             "identifier": identifier,
         }
+
+    from .assistant_billing import compute_assistant_usage
+
+    ai = compute_assistant_usage(organization, year=year, month=month)
+    usage["assistant"] = ai
+    usage["total_cost"] = round(usage["total_cost"] + ai["cost"], 2)
+    if ai["billable"] <= 0:
+        results["assistant"] = {"reported_units": 0, "skipped": True}
+    else:
+        identifier = f"org{organization.id}-assistant-{period['year']}-{period['month']:02d}"
+        if dry_run:
+            results["assistant"] = {
+                "reported_units": ai["billable"], "skipped": False, "dry_run": True, "identifier": identifier,
+            }
+        else:
+            stripe.billing.MeterEvent.create(
+                event_name=ASSISTANT_METER_EVENT_NAME,
+                identifier=identifier,
+                payload={"value": str(ai["billable"]), "stripe_customer_id": customer_id},
+            )
+            results["assistant"] = {"reported_units": ai["billable"], "skipped": False, "identifier": identifier}
 
     return {**usage, "reported": not dry_run, "dry_run": dry_run, "results": results}

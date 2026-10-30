@@ -874,6 +874,27 @@ class OrganizationAccessChange(models.Model):
         return f"{self.organization_id}: {self.summary}"
 
 
+class AssistantUsage(models.Model):
+    """
+    How many questions an organization asked each AI assistant in a calendar month.
+
+    The assistants purge their own logs after 30 days, so billing cannot count log rows; this small counter is
+    what the monthly usage report reads. One row per organization, month and assistant.
+    """
+
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="assistant_usage")
+    year = models.PositiveSmallIntegerField()
+    month = models.PositiveSmallIntegerField()
+    assistant = models.CharField(max_length=20)  # "staffing", "communicator" or "scheduler"
+    questions = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        unique_together = [("organization", "year", "month", "assistant")]
+
+    def __str__(self):
+        return f"{self.organization_id} {self.year}-{self.month:02d} {self.assistant}: {self.questions}"
+
+
 class Dictionary(models.Model):
     """
     A configurable list shown as a choice in the app (the first one is "roles"). Shared by every

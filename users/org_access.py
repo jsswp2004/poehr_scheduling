@@ -44,6 +44,13 @@ def messaging_terms():
     return {"rates": dict(MESSAGING_OVERAGE_RATES), "allowances": {k: dict(v) for k, v in MESSAGING_ALLOWANCES.items()}}
 
 
+def assistant_terms_payload():
+    """Free AI assistant questions per plan and the price of each question past that."""
+    from .assistant_billing import assistant_terms
+
+    return assistant_terms()
+
+
 def plan_pricing():
     """Per-plan price, included services and user limit, for the pricing and sign-up pages."""
     return {
@@ -83,7 +90,7 @@ def module_catalog(request):
     """Plans and modules with their prices, for the sign-up page."""
     return Response({
         "plans": plans_payload(), "modules": catalog(),
-        "pricing": {**pricing_summary([]), "plans": plan_pricing(), "messaging": messaging_terms()},
+        "pricing": {**pricing_summary([]), "plans": plan_pricing(), "messaging": messaging_terms(), "assistants": assistant_terms_payload()},
     })
 
 
@@ -94,6 +101,13 @@ def _target_org(request):
         if org_id:
             return Organization.objects.filter(pk=org_id).first()
     return user.organization
+
+
+def _assistant_usage(org):
+    from .assistant_billing import compute_assistant_usage
+
+    u = compute_assistant_usage(org)
+    return {k: u[k] for k in ("questions", "included", "billable", "rate", "cost", "by_assistant")}
 
 
 def _payload(org, can_edit, billing_note=None):
@@ -114,7 +128,7 @@ def _payload(org, can_edit, billing_note=None):
         "trial_end_date": org.trial_end_date,
         "user_limit": org.max_users,
         "user_count": org.current_user_count,
-        "usage": {"appointments_this_month": appointments_this_month(org)},
+        "usage": {"appointments_this_month": appointments_this_month(org), "assistant": _assistant_usage(org)},
         "configured": org.enabled_modules is not None,
         "modules": [{**m, "enabled": m["code"] in on} for m in catalog()],
         "enabled_order": codes,
