@@ -19,7 +19,7 @@
  */
 
 // Import React hooks for state management
-import { landingForCurrentUser } from '../utils/landing';
+import { postLoginForCurrentUser } from '../utils/landing';
 import { useState, useEffect } from 'react';
 // Import React Router navigation hook
 import { useNavigate } from 'react-router-dom';
@@ -59,10 +59,14 @@ export const Header = ({ className }) => {
   const [formErrors, setFormErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
-  // Handler function to navigate to the solutions page
-  // Signed in: straight to the organization's own landing. Signed out: the login page.
+  // Log in: signed out goes to the login page; signed in goes where signing in would have taken them.
   const handleLoginClick = () => {
-    navigate(landingForCurrentUser() || '/login');
+    navigate(postLoginForCurrentUser() || '/login');
+  };
+
+  // Solutions: the overview of what POWER offers.
+  const handleSolutionsClick = () => {
+    navigate('/overview');
   };
 
   // Handler function to navigate to landing page
@@ -236,8 +240,11 @@ export const Header = ({ className }) => {
           </div>
         </div>        {/* Login and trial buttons */}
         <div className="btn">
-          <div className="btn-login" onClick={handleLoginClick} style={{ cursor: 'pointer' }}>
+          <div className="btn-login" onClick={handleSolutionsClick} style={{ cursor: 'pointer' }}>
             <div className="login">Solutions</div>
+          </div>
+          <div className="btn-login" onClick={handleLoginClick} style={{ cursor: 'pointer' }}>
+            <div className="login">Log in</div>
           </div>
           <div className="btn-free-trial2" onClick={handleDemoRequest} style={{ cursor: 'pointer' }}>
             <div className="try-power-for-free">Request a Demo</div>

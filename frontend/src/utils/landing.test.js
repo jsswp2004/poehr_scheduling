@@ -1,4 +1,4 @@
-import { landingPath } from './landing';
+import { landingPath, postLoginPath, solutionsFor } from './landing';
 
 describe('landingPath', () => {
   test('administrators keep the Management Portal', () => {
@@ -15,5 +15,27 @@ describe('landingPath', () => {
     expect(landingPath('staff', ['scheduling'])).toBe('/dashboard');
     expect(landingPath('doctor', null)).toBe('/patients');
     expect(landingPath('patient', ['staffing'])).toBe('/dashboard');
+  });
+});
+
+describe('postLoginPath', () => {
+  test('administrators and patients keep their own pages', () => {
+    expect(postLoginPath('admin', ['staffing'])).toBe('/admin');
+    expect(postLoginPath('system_admin', null)).toBe('/admin');
+    expect(postLoginPath('patient', null)).toBe('/dashboard');
+  });
+  test('several solutions: the Solutions page; exactly one: straight in; none: dashboard', () => {
+    expect(postLoginPath('nurse', null)).toBe('/solutions');
+    expect(postLoginPath('nurse', ['staffing'])).toBe('/staffing');
+    expect(postLoginPath('staff', ['staffing'])).toBe('/staffing');
+    expect(postLoginPath('staff', ['scheduling'])).toBe('/dashboard');
+    expect(postLoginPath('registrar', ['staffing', 'communicator'])).toBe('/solutions');
+  });
+  test('each role sees only its own tiles', () => {
+    const keys = (role, mods) => solutionsFor(role, mods).map((t) => t.key);
+    expect(keys('registrar', null)).toEqual(['notes', 'scheduler', 'communicator', 'staffing', 'telehealth']);
+    expect(keys('nurse', null)).toEqual(['notes', 'scheduler', 'staffing', 'telehealth', 'dictate']);
+    expect(keys('receptionist', null)).toEqual(['notes', 'telehealth']);
+    expect(keys('nurse', ['dictation'])).toEqual(['dictate']);
   });
 });
