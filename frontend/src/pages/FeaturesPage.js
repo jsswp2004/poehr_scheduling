@@ -9,52 +9,43 @@ export const FeaturesPage = ({ className }) => {
       <Header />
       <div className="page-title-section">
         <h1 className="page-title">All Features</h1>
-        <p className="page-subtitle">Explore everything POWER offers across our plans.</p>
+        <p className="page-subtitle">Explore the services you can choose from. Pricing is set by the services you pick.</p>
       </div>
 
       <div className="features-section">
         <div className="feature-panels">
           <div className="feature-panel">
             <div className="panel-header">
-              <div className="panel-title">Professional</div>
+              <div className="panel-title">Clinical</div>
             </div>
             <div className="panel-features">
-              <div className="feature">Simple appointment scheduling for individual providers</div>
-              <div className="feature">Standard calendar with daily and weekly views</div>
-              <div className="feature">SMS & Email appointment notifications</div>
-              <div className="feature">Mobile app access on iOS (coming soon!)</div>
-              <div className="feature">Basic reporting and analytics</div>
+              <div className="feature">Patient registration and portal: sign-in, my information, announcements, appointment requests</div>
+              <div className="feature">Clinical documentation: notes, flowsheets, note and flowsheet builders, vaccines and screenings</div>
+              <div className="feature">Orders and lab results: place and sign orders, enter and review results</div>
+              <div className="feature">Prescriptions and referrals: prescription manager and referral tracking</div>
+              <div className="feature">Triage and status boards: triage scales, ED follow-up and pediatric views</div>
             </div>
           </div>
           <div className="feature-panel">
             <div className="panel-header">
-              <div className="panel-title">Clinic</div>
+              <div className="panel-title">Operations</div>
             </div>
             <div className="panel-features">
-              <div className="feature">Everything in Professional</div>
-              <div className="feature">Support for multiple providers</div>
-              <div className="feature">Team chat collaboration tool</div>
-              <div className="feature">Multi-location scheduling</div>
-              <div className="feature">Patient management portal</div>
-              <div className="feature">Bulk SMS notifications</div>
-              <div className="feature">Advanced scheduling features and workflows</div>
-              <div className="feature">Priority support</div>
+              <div className="feature">Scheduling and calendar: appointments, availability, holidays, check-in</div>
+              <div className="feature">Staffing and coverage: roster, shifts, coverage status, time off</div>
+              <div className="feature">Communicator: automatic reminders, bulk text and email</div>
             </div>
           </div>
           <div className="feature-panel">
             <div className="panel-header">
-              <div className="panel-title">Group</div>
+              <div className="panel-title">Add-ons and included</div>
             </div>
             <div className="panel-features">
-              <div className="feature">Everything in Clinic</div>
-              <div className="feature">Unlimited users and organizations</div>
-              <div className="feature">Multi-organization support</div>
-              <div className="feature">Custom integrations & APIs</div>
-              <div className="feature">Advanced analytics & reporting</div>
-              <div className="feature">Custom branding and white-label options</div>
-              <div className="feature">Dedicated account manager</div>
-              <div className="feature">24/7 priority support with SLA guarantees</div>
-              <div className="feature">On-premise deployment and professional services</div>
+              <div className="feature">Telehealth: video visits with a join link for patients</div>
+              <div className="feature">Voice dictation: speak into a note, with optional AI clean-up you review</div>
+              <div className="feature">Electronic lab interface: set up by arrangement and quoted separately</div>
+              <div className="feature">Reports: build, save, share and export, free with every plan</div>
+              <div className="feature">Secure staff messaging, included with every plan</div>
             </div>
           </div>
         </div>
