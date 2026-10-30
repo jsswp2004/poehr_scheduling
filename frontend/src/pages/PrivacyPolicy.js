@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Container, Divider, Link, Paper, Stack, Typography } from "@mui/material";
 
-const UPDATED = "October 13, 2026";
+const UPDATED = "October 30, 2026";
 const EMAIL = "power@powerhealthit.com";
 
 const SECTIONS = [
@@ -45,7 +45,7 @@ const SECTIONS = [
   {
     title: "5. Alerts and reminders",
     body: [
-      "Depending on your organization's settings, the app can send staffing alerts and shift or time-off reminders by email or text message (SMS). These messages are sent to the email address or phone number on your profile. Message and data rates from your carrier may apply, and you can ask your organization's administrator to change or stop them.",
+      "Depending on your organization's settings, the app can send staffing alerts and shift or time-off reminders by email or text message (SMS). These messages are sent to the email address or phone number on your profile. Message and data rates from your carrier may apply, and message frequency varies. You can reply STOP to any text message to stop receiving texts, and reply HELP for help. Shift reminders can also be switched on or off for each person on the roster, so you can ask your organization's administrator to change how alerts are sent to you.",
     ],
   },
   {
