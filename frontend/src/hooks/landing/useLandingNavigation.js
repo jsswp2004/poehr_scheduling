@@ -5,7 +5,7 @@ export const useLandingNavigation = () => {
 
     // Handler for pricing page navigation
     const handlePricingClick = (planType = null) => {
-        if (planType) {
+        if (typeof planType === "string" && planType) {
             navigate(`/pricing?plan=${planType}`);
         } else {
             navigate('/pricing');
