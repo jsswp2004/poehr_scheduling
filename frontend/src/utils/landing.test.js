@@ -19,10 +19,15 @@ describe('landingPath', () => {
 });
 
 describe('postLoginPath', () => {
-  test('administrators and patients keep their own pages', () => {
-    expect(postLoginPath('admin', ['staffing'])).toBe('/admin');
-    expect(postLoginPath('system_admin', null)).toBe('/admin');
+  test('patients keep their dashboard', () => {
     expect(postLoginPath('patient', null)).toBe('/dashboard');
+  });
+  test('administrators land on Solutions, where Management Portal is the first tile', () => {
+    expect(postLoginPath('admin', ['staffing'])).toBe('/solutions');
+    expect(postLoginPath('system_admin', null)).toBe('/solutions');
+    expect(postLoginPath('admin', [])).toBe('/admin'); // nothing but the portal: straight in
+    expect(solutionsFor('admin', ['staffing']).map((t) => t.key)).toEqual(['management', 'staffing']);
+    expect(solutionsFor('nurse', null).map((t) => t.key)).not.toContain('management');
   });
   test('several solutions: the Solutions page; exactly one: straight in; none: dashboard', () => {
     expect(postLoginPath('nurse', null)).toBe('/solutions');

@@ -64,7 +64,7 @@ export const Header = ({ className }) => {
     navigate(postLoginForCurrentUser() || '/login');
   };
 
-  // Solutions: the overview of what POWER offers.
+  // Overview: what POWER offers (the Solutions page is for signed-in people).
   const handleSolutionsClick = () => {
     navigate('/overview');
   };
@@ -241,7 +241,7 @@ export const Header = ({ className }) => {
         </div>        {/* Login and trial buttons */}
         <div className="btn">
           <div className="btn-login" onClick={handleSolutionsClick} style={{ cursor: 'pointer' }}>
-            <div className="login">Solutions</div>
+            <div className="login">Overview</div>
           </div>
           <div className="btn-login" onClick={handleLoginClick} style={{ cursor: 'pointer' }}>
             <div className="login">Log in</div>

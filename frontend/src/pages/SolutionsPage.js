@@ -1,7 +1,5 @@
 import { useEffect, useMemo } from "react";
 import "../SolutionsPage/SolutionsPage.css";
-import Header from "../components/Header";
-import Footer from "../components/Footer";
 import { useNavigate } from "react-router-dom";
 import { currentSignIn, solutionsFor } from "../utils/landing";
 
@@ -12,8 +10,10 @@ import StaffingImage from "../assets/dashboard_clinician.png";
 import DocumentationImage from "../assets/documentation.png";
 import TelehealthImage from "../assets/telehealth.jpg";
 import DictationImage from "../assets/dictation.jpg";
+import ManagementImage from "../assets/management_portal.jpg";
 
 const IMAGES = {
+  management: ManagementImage,
   notes: DocumentationImage,
   scheduler: SchedulerImage,
   communicator: CommunicatorImage,
@@ -23,7 +23,7 @@ const IMAGES = {
   dictate: DictationImage,
 };
 
-// The page people reach after signing in: one tile for each service their organization has and their role
+// The page people reach after signing in (under the signed-in header and footer the app adds): one tile for each service their organization has and their role
 // may open. Someone who is not signed in is sent to the login page.
 export const SolutionsPage = ({ className }) => {
   const navigate = useNavigate();
@@ -36,7 +36,6 @@ export const SolutionsPage = ({ className }) => {
 
   return (
     <div className={`solutions-page ${className || ""}`}>
-      <Header />
       <div className="solutions-content">
         {tiles.map((t) => (
           <div
@@ -63,7 +62,6 @@ export const SolutionsPage = ({ className }) => {
           </p>
         )}
       </div>
-      <Footer pricingLink="/pricing" featuresLink="/features" />
     </div>
   );
 };
