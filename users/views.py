@@ -475,6 +475,39 @@ class DoctorListView(APIView):
         return Response(serializer.data)
 
 
+ROSTER_ROLES = ("staff", "nurse")
+
+
+def add_to_staffing_roster(user, organization, data):
+    """
+    A new Staff or Nurse profile joins the Staffing roster when the organization has Staffing, so the person can
+    be scheduled straight away. Job title and nursing role come from Create Profile (defaults: the role name,
+    'other'). Anyone else is left off; the Roster tab still adds anyone by hand.
+    """
+    from staffing.models import NURSING_ROLE_CHOICES, Staff
+
+    from .modules import has_module
+
+    if user.role not in ROSTER_ROLES or organization is None or not has_module(organization, "staffing"):
+        return None
+    if Staff.objects.filter(user=user).exists():
+        return None
+    nursing = data.get("nursing_role")
+    if nursing not in {c for c, _ in NURSING_ROLE_CHOICES}:
+        nursing = "other"
+    title = (data.get("job_title") or "").strip()[:100] or (user.role_entry.label if user.role_entry_id else user.get_role_display())
+    return Staff.objects.create(
+        organization=organization,
+        first_name=user.first_name or user.username,
+        last_name=user.last_name or "",
+        profession=title,
+        nursing_role=nursing,
+        email=user.email or None,
+        phone_number=(user.phone_number or None),
+        user=user,
+    )
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = CustomUser.objects.all()
     serializer_class = UserSerializer
@@ -597,6 +630,8 @@ class RegisterView(generics.CreateAPIView):
                 "is_enrollment",
                 "organization_name",
                 "modules",
+                "job_title",
+                "nursing_role",
             ]
         }
 
@@ -637,6 +672,8 @@ class RegisterView(generics.CreateAPIView):
                 if is_enrollment:
                     user.role = "admin"
                     user.save()  # Save the role change
+                else:
+                    add_to_staffing_roster(user, organization, data)
 
                 # Only create Stripe customer for service enrollment, not patient registration
                 if is_enrollment:

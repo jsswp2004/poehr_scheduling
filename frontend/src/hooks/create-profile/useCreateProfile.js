@@ -23,6 +23,8 @@ export const useCreateProfile = () => {
         last_name: '',
         phone_number: '',
         role: '',
+        job_title: '',
+        nursing_role: '',
         profile_picture: null,
         organization: '',
     });

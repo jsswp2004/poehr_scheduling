@@ -79,3 +79,37 @@ class DictionaryTests(TestCase):
         mod = importlib.import_module("users.migrations.0051_seed_role_dictionary")
         built_in = {v for v, _ in CustomUser.ROLE_CHOICES} - {"none"}
         self.assertEqual({v for v, _ in mod.BUILT_IN_ROLES}, built_in)
+
+
+class RosterOnCreateProfileTests(TestCase):
+    def setUp(self):
+        seed_roles()
+        self.c = APIClient()
+
+    def create(self, org, role, name, **extra):
+        adm = CustomUser.objects.filter(organization=org, role="admin").first() or make(org, "admin", f"adm{org.id}")
+        self.c.force_authenticate(adm)
+        body = {"username": name, "password": "Str0ng!pass99", "email": f"{name}@x.com", "first_name": "A", "last_name": "B", "role": role}
+        body.update(extra)
+        return self.c.post("/api/auth/register/", body, format="json")
+
+    def test_staff_and_nurse_join_roster_with_staffing(self):
+        from staffing.models import Staff
+
+        org = Organization.objects.create(name="St", max_users=50, subscription_tier="premium", enabled_modules=["staffing"])
+        self.assertIn(self.create(org, "nurse", "n1", job_title="Night RN", nursing_role="rn").status_code, (200, 201))
+        s = Staff.objects.get(user__username="n1")
+        self.assertEqual((s.profession, s.nursing_role, s.organization_id), ("Night RN", "rn", org.id))
+        self.assertIn(self.create(org, "staff", "s1").status_code, (200, 201))
+        s2 = Staff.objects.get(user__username="s1")
+        self.assertEqual((s2.profession, s2.nursing_role), ("Staff", "other"))
+
+    def test_others_and_orgs_without_staffing_are_left_off(self):
+        from staffing.models import Staff
+
+        org = Organization.objects.create(name="St2", max_users=50, subscription_tier="premium", enabled_modules=["staffing"])
+        self.create(org, "doctor", "d1")
+        self.assertFalse(Staff.objects.filter(user__username="d1").exists())
+        org2 = Organization.objects.create(name="NoStaff", max_users=50, subscription_tier="premium", enabled_modules=["scheduling"])
+        self.create(org2, "nurse", "n2")
+        self.assertFalse(Staff.objects.filter(user__username="n2").exists())
