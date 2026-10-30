@@ -37,12 +37,15 @@ class Command(BaseCommand):
 
         total_q = total_cost = 0
         per_org = {}
+        models = {}
         self.stdout.write(f"AI assistant cost, last {opts['days']} days (answered questions only)\n")
         self.stdout.write(f"{'assistant':<14}{'questions':>10}{'avg in':>10}{'avg out':>10}{'avg $/q':>11}{'max $/q':>11}")
         for name, model in sources:
             qs = model.objects.filter(created_at__gte=since, error="")
             if opts.get("organization_id"):
                 qs = qs.filter(organization_id=opts["organization_id"])
+            for m in qs.values_list("model", flat=True):
+                models[m or "(not recorded)"] = models.get(m or "(not recorded)", 0) + 1
             rows = list(qs.values_list("organization_id", "input_tokens", "output_tokens"))
             if not rows:
                 self.stdout.write(f"{name:<14}{0:>10}")
@@ -63,6 +66,13 @@ class Command(BaseCommand):
         if not total_q:
             self.stdout.write(self.style.WARNING("\nNo answered questions in this period, so there is nothing to price from yet."))
             return
+
+        seen = ", ".join(f"{m} ({n})" for m, n in sorted(models.items(), key=lambda kv: -kv[1]))
+        self.stdout.write(f"\nModels used in these questions: {seen}")
+        if len(models) > 1:
+            self.stdout.write(self.style.WARNING(
+                "More than one model appears, so one price pair does not fit every question. Rerun after the "
+                "switch settles, or read the figures as a blend."))
 
         avg = total_cost / total_q
         self.stdout.write(f"\nAll assistants: {total_q} questions, ${total_cost:.2f} total, ${avg:.4f} average per question.")
