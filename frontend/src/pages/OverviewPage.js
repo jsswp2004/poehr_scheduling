@@ -51,6 +51,10 @@ const GROUPS = [
         title: "POWER Scheduler",
         image: schedulerImage,
         alt: "POWER Scheduler dashboard",
+        ai: {
+          title: "Ask the AI assistant about your schedule",
+          text: "Ask who is waiting for approval. It can prepare an approval, a denial, an arrival or a no-show. Nothing changes until you confirm.",
+        },
         description:
           "Appointments, provider availability and check-in, with automatic reminders to patients.",
         highlights: [
@@ -64,6 +68,11 @@ const GROUPS = [
         title: "POWER Staffing",
         image: staffingImage,
         alt: "POWER Staffing dashboard",
+        audience: "Built for skilled nursing facilities, rehabilitation centers, clinics and hospitals.",
+        ai: {
+          title: "Ask the AI assistant",
+          text: "Ask who is working tonight or whether next week is covered. It answers from your roster, and staff can ask about their own schedule. It can prepare a time-off request or a call-out; nothing is sent until you confirm.",
+        },
         description:
           "Duty rosters for nurses and physicians, with coverage kept visible at a glance.",
         highlights: [
@@ -77,6 +86,10 @@ const GROUPS = [
         title: "POWER Communicator",
         image: communicatorImage,
         alt: "POWER Communicator interface",
+        ai: {
+          title: "Ask the AI assistant about your contacts and messages",
+          text: "Ask who has opted out of texts. It can prepare a text, an email or a new contact. Nothing is sent until you confirm.",
+        },
         description:
           "Text and email updates to patients, with consent and opt-outs handled.",
         highlights: [
@@ -118,6 +131,7 @@ const GROUPS = [
 ];
 
 const INCLUDED = [
+  "AI assistants in Scheduler, Staffing and Communicator, with a free monthly amount of questions",
   "Reports: build, save, share and export to PDF or CSV",
   "Secure staff messaging",
   "Role-based access you can adjust for each person",
@@ -148,6 +162,8 @@ export const OverviewPage = ({ className }) => {
                 </div>
                 <div className="panel-content">
                   <h2 className="app-title">{p.title}</h2>
+                  {p.ai && <span className="ai-tag">AI assistant</span>}
+                  {p.audience && <p className="app-audience">{p.audience}</p>}
                   <p className="app-description">{p.description}</p>
                   <div className="feature-highlights">
                     {p.highlights.map(([icon, text]) => (
@@ -157,6 +173,12 @@ export const OverviewPage = ({ className }) => {
                       </div>
                     ))}
                   </div>
+                  {p.ai && (
+                    <div className="ai-box">
+                      <strong>{p.ai.title}</strong>
+                      <span>{p.ai.text}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

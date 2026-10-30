@@ -31,3 +31,15 @@ test('groups the services and lists what every plan includes', () => {
   );
   expect(screen.getByRole('button', { name: 'See pricing' })).toBeInTheDocument();
 });
+
+test('marks the three AI assistants and names the Staffing audiences', () => {
+  render(<OverviewPage />);
+  expect(screen.getAllByText('AI assistant')).toHaveLength(3);
+  expect(
+    screen.getByText(
+      'Built for skilled nursing facilities, rehabilitation centers, clinics and hospitals.'
+    )
+  ).toBeInTheDocument();
+  expect(screen.getByText(/AI assistants in Scheduler, Staffing and Communicator/)).toBeInTheDocument();
+  expect(screen.queryByText(/hipaa/i)).toBeNull();
+});

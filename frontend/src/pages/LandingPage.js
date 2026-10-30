@@ -415,7 +415,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">First service included</div>
               <div className="feature">Each additional service $150</div>
               <div className="feature">Reports free</div>
-              <div className="feature">Texts and emails billed by volume</div>
+              <div className="feature">AI assistants included; texts, emails and extra AI questions billed by volume</div>
               <div className="feature">7-day free trial</div>
             </div>
             <div className="plan-button">
@@ -443,7 +443,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">2 services included</div>
               <div className="feature">Each additional service $150</div>
               <div className="feature">Reports free</div>
-              <div className="feature">Texts and emails billed by volume</div>
+              <div className="feature">AI assistants included; texts, emails and extra AI questions billed by volume</div>
               <div className="feature">7-day free trial</div>
             </div>
             <div className="plan-button">
@@ -468,7 +468,7 @@ export const LandingPageV1Desktop1920Px = ({ className, ...props }) => {
               <div className="feature">Unlimited users</div>
               <div className="feature">All services available</div>
               <div className="feature">Reports free</div>
-              <div className="feature">Texts and emails billed by volume</div>
+              <div className="feature">AI assistants included; texts, emails and extra AI questions billed by volume</div>
               <div className="feature">Quote based on your size</div>
             </div>
             <div className="plan-button">

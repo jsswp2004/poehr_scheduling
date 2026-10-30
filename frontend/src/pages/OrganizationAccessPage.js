@@ -159,6 +159,20 @@ export default function OrganizationAccessPage() {
             <Card title="Usage">
               <Meter label="Users" value={data.user_count} max={draft.user_limit} />
               <Meter label="Appointments this month" value={data.usage?.appointments_this_month ?? 0} />
+              {data.usage?.assistant && (
+                <>
+                  <Meter
+                    label="AI assistant questions this month"
+                    value={data.usage.assistant.questions}
+                    max={data.usage.assistant.included}
+                  />
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {data.usage.assistant.billable > 0
+                      ? `Billable so far: ${data.usage.assistant.billable} question${data.usage.assistant.billable === 1 ? "" : "s"}, $${data.usage.assistant.cost.toFixed(2)}. Billed on your next invoice.`
+                      : "Nothing billable so far. Questions over the free amount are billed on your next invoice."}
+                  </Typography>
+                </>
+              )}
               <Typography variant="caption" color="text.secondary">Patients do not count toward the user limit.</Typography>
             </Card>
           </Grid>
@@ -221,7 +235,7 @@ export default function OrganizationAccessPage() {
             <Card title="Monthly price">
               <Typography variant="h5" sx={{ mt: 1 }}>{terms.quoted ? "By quote" : formatMoney(total)}{!terms.quoted && <Typography component="span" variant="body2" color="text.secondary"> /month</Typography>}</Typography>
               <Typography variant="caption" color="text.secondary">
-                {terms.quoted ? "Group is priced by a quote." : `${formatMoney(terms.base)} base, ${terms.included} service${terms.included === 1 ? "" : "s"} included, ${formatMoney(EXTRA_MODULE_PRICE)} for each additional one.`} Electronic lab interface is quoted separately. Texts and emails are billed separately by volume.
+                {terms.quoted ? "Group is priced by a quote." : `${formatMoney(terms.base)} base, ${terms.included} service${terms.included === 1 ? "" : "s"} included, ${formatMoney(EXTRA_MODULE_PRICE)} for each additional one.`} Electronic lab interface is quoted separately. Texts, emails and AI assistant questions over the free amount are billed separately by volume.
               </Typography>
             </Card>
           </Grid>
